@@ -75,7 +75,7 @@
     "meilisearch": "^0.47.0",
     "motion": "^12.42.2",
     "nanoid": "^5.0.9",
-    "next": "16.2.10",
+    "next": "16.3.4",
     "next-auth": "4.24.14",
     "next-intl": "^4.13.1",
     "openskill": "^4.0.3",
