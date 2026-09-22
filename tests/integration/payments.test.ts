@@ -242,6 +242,32 @@ describe('the credit ledger', () => {
     // balance and its own history would disagree.
     //
     // Under SERIALIZABLE, Postgres aborts the losers; we retry them.
+    //
+    // ─── The backoff is the point, not decoration ────────────────────
+    //
+    // This loop used to `continue` immediately. Ten aborted transactions
+    // then retried at once, correlated, and collided again — and on a
+    // slow enough machine one of them burned all 25 attempts and failed
+    // the suite with "gave up retrying a serialization failure". It did
+    // that on CI's instrumented coverage run while the uninstrumented
+    // run of the SAME tests passed, which is the signature of contention
+    // rather than a bug in the ledger.
+    //
+    // FULL jitter — sleep uniformly in [0, window) rather than for
+    // `window` — because the goal is to DECORRELATE the retries. A fixed
+    // delay reschedules the same collision slightly later; equal jitter
+    // keeps a common floor under it. Only a uniform draw spreads the
+    // retries across the window.
+    //
+    // No wall-clock deadline. It is tempting, but elapsed time here
+    // includes the transaction work, not just the sleeping, so a 2s
+    // budget would bind before the 25th attempt on precisely the slow
+    // machine this exists to survive — fewer retries than the tight spin
+    // it replaces. The attempt cap is the only limit, and the explicit
+    // per-test timeout below is the backstop.
+    const RETRY_BASE_MS = 5;
+    const RETRY_CAP_MS = 100;
+
     const credit = async () => {
       for (let attempt = 0; attempt < 25; attempt++) {
         try {
@@ -254,8 +280,14 @@ describe('the credit ledger', () => {
         } catch (e) {
           // 40001 = serialization_failure. Retrying is the CORRECT response;
           // it is the mechanism working, not an error.
-          if (pgErrorCode(e) === '40001') continue;
-          throw e;
+          //
+          // Anything else — InsufficientCreditError above all — must
+          // propagate on the FIRST throw. Retrying a refused spend would
+          // turn one clean rejection into 25 identical ones.
+          if (pgErrorCode(e) !== '40001') throw e;
+
+          const window = Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** attempt);
+          await new Promise((r) => setTimeout(r, Math.random() * window));
         }
       }
       throw new Error('gave up retrying a serialization failure');
@@ -272,7 +304,10 @@ describe('the credit ledger', () => {
     // ledger agree. If these diverge, the denormalisation is lying.
     expect(sumOfDeltas).toBe(balance);
     expect(entries).toHaveLength(10);
-  });
+    // 30s, against jest's 5000ms default. This test deliberately creates
+    // contention and then waits it out; the default is a budget for a test
+    // that does not, and it is what turns a slow machine into a red build.
+  }, 30_000);
 });
 
 // ══ Connect + checkout ═══════════════════════════════════════════════
