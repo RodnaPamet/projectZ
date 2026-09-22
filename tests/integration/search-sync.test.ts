@@ -24,13 +24,17 @@ describe('search sync', () => {
     // happened. A test that needs a fixture should build it.
     __resetMeili();
     for (const def of Object.values(INDEXES)) {
-      await meili().createIndex(def.uid, { primaryKey: def.primaryKey }).catch(() => {});
-      const t = await meili().index(def.uid).updateSettings({
-        searchableAttributes: [...def.searchable],
-        filterableAttributes: [...def.filterable],
-        sortableAttributes: [...def.sortable],
-        typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
-      });
+      await meili()
+        .createIndex(def.uid, { primaryKey: def.primaryKey })
+        .catch(() => {});
+      const t = await meili()
+        .index(def.uid)
+        .updateSettings({
+          searchableAttributes: [...def.searchable],
+          filterableAttributes: [...def.filterable],
+          sortableAttributes: [...def.sortable],
+          typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
+        });
       await meili().index(def.uid).waitForTask(t.taskUid);
     }
   }, 60_000);
@@ -79,12 +83,45 @@ describe('search sync', () => {
     return res.hits as Array<{ id: string; name?: string }>;
   }
 
+  /**
+   * Wait until everything already queued against `uid` has actually been indexed.
+   *
+   * `syncVenue`/`syncSession` return as soon as Meilisearch has ENQUEUED the task
+   * (src/lib/search/sync.ts) — deliberately, because the index is a cache and the
+   * write path must not block on it. They hand back no taskUid, so a test cannot
+   * await the work directly.
+   *
+   * The queue is FIFO, so enqueueing an empty `addDocuments([])` and awaiting THAT
+   * task cannot finish before everything queued ahead of it has. That is the whole
+   * trick, and it works for deletions too.
+   *
+   * ═══ WHY THIS IS NOT A FIXED DELAY ═══
+   *
+   * These waits used to be fixed delays of 300-400ms, which passed on CI and
+   * failed on a developer laptop — the worst possible split, because the failure
+   * then looks like a product bug.
+   *
+   * Measured here: a single-document add costs ~514ms under Colima on an emulated
+   * amd64 stack, against ~0.7ms for a deletion. So a 400ms wait was short by
+   * ~114ms EVERY time, and three tests failed deterministically in six seconds
+   * while the document they wanted sat in the index, correct, 114ms later. On a
+   * native CI runner the same add is single-digit milliseconds and 400ms looked
+   * generous.
+   *
+   * A longer delay would not fix this. It would be slower everywhere and still a
+   * guess about somebody else's disk.
+   */
+  async function settle(uid: string) {
+    const index = meili().index(uid);
+    // 30s, not the client's 5s default: the point is to outlast a slow host, and
+    // a barrier that times out is just a delay that fails more loudly.
+    await index.waitForTask((await index.addDocuments([])).taskUid, { timeOutMs: 30_000 });
+  }
+
   it('a venue update reaches the index', async () => {
     const v = await makeVenue('Sofia Padel Club');
     await syncVenue(prisma, v.id);
-    await meili().index(INDEXES.venues.uid).waitForTask(
-      (await meili().index(INDEXES.venues.uid).addDocuments([])).taskUid,
-    );
+    await settle(INDEXES.venues.uid);
 
     const hits = await search(INDEXES.venues.uid, 'Sofia Padel');
     expect(hits.map((h) => h.id)).toContain(v.id);
@@ -95,7 +132,7 @@ describe('search sync', () => {
     // phone types "padle", and an ILIKE returns nothing.
     const v = await makeVenue('Padel Palace');
     await syncVenue(prisma, v.id);
-    await new Promise((r) => setTimeout(r, 400));
+    await settle(INDEXES.venues.uid);
 
     const hits = await search(INDEXES.venues.uid, 'padle');
     expect(hits.map((h) => h.id)).toContain(v.id);
@@ -104,12 +141,12 @@ describe('search sync', () => {
   it('a deleted venue is removed from the index', async () => {
     const v = await makeVenue('Ephemeral');
     await syncVenue(prisma, v.id);
-    await new Promise((r) => setTimeout(r, 300));
+    await settle(INDEXES.venues.uid);
     expect((await search(INDEXES.venues.uid, 'Ephemeral')).length).toBeGreaterThan(0);
 
     await asAppSuperuser(prisma, (tx) => tx.venue.delete({ where: { id: v.id } }));
     await syncVenue(prisma, v.id);
-    await new Promise((r) => setTimeout(r, 300));
+    await settle(INDEXES.venues.uid);
 
     // A deleted venue that lingers in the index is worse than one that never
     // appeared: a player clicks through to a 404.
@@ -125,7 +162,7 @@ describe('search sync', () => {
 
     const { venues } = await reindexAll(prisma);
     expect(venues).toBeGreaterThanOrEqual(2);
-    await new Promise((r) => setTimeout(r, 400));
+    await settle(INDEXES.venues.uid);
 
     expect((await search(INDEXES.venues.uid, 'Rebuildable')).length).toBeGreaterThanOrEqual(2);
   });
@@ -195,7 +232,7 @@ describe('search sync', () => {
     });
 
     await syncSession(prisma, sessionId);
-    await new Promise((r) => setTimeout(r, 400));
+    await settle(INDEXES.sessions.uid);
 
     const hits = (await meili().index(INDEXES.sessions.uid).search('')).hits as Array<{
       id: string;
