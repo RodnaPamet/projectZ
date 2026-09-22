@@ -36,6 +36,16 @@ export class InvalidTenantIdError extends Error {
   }
 }
 
+export class InvalidUserIdError extends Error {
+  constructor(value: string) {
+    super(
+      `Refusing to bind a user context to a malformed user id: ${JSON.stringify(value)}. ` +
+        `Expected a cuid.`,
+    );
+    this.name = 'InvalidUserIdError';
+  }
+}
+
 export class NestedTenantContextError extends Error {
   constructor(outer: string, inner: string) {
     super(
@@ -139,6 +149,58 @@ export async function runInUserContext<T>(
       return fn(tx as unknown as PrismaClient);
     }),
   );
+}
+
+/**
+ * Bind a transaction to a USER and to no tenant at all.
+ *
+ * ─── Why this has to exist ───────────────────────────────────────────
+ *
+ * Three tables are owner-scoped with NO tenant clause whatsoever:
+ *
+ *   notification        USING ("userId" = current_setting('app.user_id', true))
+ *   push_subscription   USING ("userId" = current_setting('app.user_id', true))
+ *   wearable_connection USING ("userId" = current_setting('app.user_id', true))
+ *
+ * They are person-scoped by design: your notifications are yours at every
+ * club you belong to, not yours-at-this-club. A player with memberships at
+ * three venues has ONE notification list.
+ *
+ * `runInUserContext` cannot serve them. It hard-requires a cuid tenantId
+ * and throws `InvalidTenantIdError` otherwise — so on a request that has no
+ * tenant (a mobile client opening its notification list, which belongs to
+ * no club) it does not return zero rows, it throws before reaching the
+ * database.
+ *
+ * ─── The hazard, stated plainly ──────────────────────────────────────
+ *
+ * This sets `app.user_id` and NOT `app.tenant_id`. Every tenant-scoped
+ * policy therefore fails closed, and a tenant-scoped query run in here
+ * returns ZERO ROWS WITH NO ERROR — an empty list that looks like "you have
+ * no bookings" rather than a bug.
+ *
+ * So it deliberately does NOT enter `runWithTenantContext`: there is no
+ * tenant to enter with, and pretending otherwise would let
+ * `getTenantIdOrThrow` hand out a tenant this transaction is not bound to.
+ * Code inside here that needs a tenant gets a loud throw from that function,
+ * which is the correct outcome.
+ *
+ * Use it ONLY for the owner-scoped tables above. Anything tenant-scoped
+ * belongs in `runInTenantContext`.
+ */
+export async function runAsUserOnly<T>(
+  userId: string,
+  fn: (tx: PrismaClient) => Promise<T>,
+  client: PrismaClient = defaultPrisma,
+): Promise<T> {
+  if (!CUID_RE.test(userId)) throw new InvalidUserIdError(userId);
+
+  return client.$transaction(async (tx) => {
+    // Parameterised — the id is never concatenated into SQL.
+    await tx.$executeRawUnsafe(`SELECT set_config('app.user_id', $1, true)`, userId);
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_user`);
+    return fn(tx as unknown as PrismaClient);
+  });
 }
 
 /**

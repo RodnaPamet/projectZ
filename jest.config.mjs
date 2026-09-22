@@ -38,6 +38,12 @@ const ESM_PACKAGES = [
   '@formatjs/[^/]+',
   // MSW and its interceptors ship ESM-only.
   'msw',
+  // @t3-oss/env-nextjs (and the env-core it wraps) are "type": "module" with no
+  // CJS entry. src/env.ts imports it at module load, so ANY test that reaches
+  // src/lib/errors/types.ts — which imports @/env — dies on a parse error that
+  // names errors/types.ts rather than the package. Reproduction: importing
+  // toApiErrorResponse from a unit test.
+  '@t3-oss/[^/]+',
   // tournament-organizer is ESM-only, and so is the pairing engine it pulls in.
   // A nested ESM dep that is not named here stays untransformed and the parser
   // dies on its first `import` — the failure names the PARENT file, which sends
