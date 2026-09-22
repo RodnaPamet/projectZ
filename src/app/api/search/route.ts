@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
   const type = (sp.get('type') ?? 'venues') as IndexName;
 
   if (!ALLOWED.includes(type)) {
-    return NextResponse.json({ error: 'unknown_index' }, { status: 400 });
+    return NextResponse.json(
+      { error: { code: 'BAD_REQUEST', message: 'Unknown search index' } },
+      { status: 400 },
+    );
   }
 
   const index = meili().index(INDEXES[type].uid);
@@ -39,9 +42,6 @@ export async function GET(req: NextRequest) {
   } catch {
     // Meilisearch is a CACHE. If it is down, search degrades — it does not
     // 500 the page.
-    return NextResponse.json(
-      { hits: [], estimatedTotalHits: 0, degraded: true },
-      { status: 200 },
-    );
+    return NextResponse.json({ hits: [], estimatedTotalHits: 0, degraded: true }, { status: 200 });
   }
 }

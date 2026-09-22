@@ -43,9 +43,16 @@ const PUBLIC_PATTERNS: RegExp[] = [
   /^\/coaches(\/|$)/,
   /^\/design-system(\/|$)/,
   /^\/api\/venues(\/|$)/,
+  // The orchestrator's probes. These are the paths that EXIST — `/api/livez`
+  // and `/api/readyz` were listed here for a while and are not routes, which
+  // meant readiness was public only by accident, via the `allow` default.
+  //
+  // One literal line per route, never a wildcard: this list's polarity is the
+  // opposite of the tenant matchers', so a loose pattern here does not
+  // over-enforce, it over-EXPOSES. `/api/metrics` is bearer-authenticated and
+  // must never appear.
   /^\/api\/health$/,
-  /^\/api\/livez$/,
-  /^\/api\/readyz$/,
+  /^\/api\/ready$/,
   /^\/api\/auth(\/|$)/,
 ];
 

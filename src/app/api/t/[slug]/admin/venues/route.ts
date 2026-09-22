@@ -13,5 +13,8 @@ import { type NextRequest, NextResponse } from 'next/server';
  * route so the guardrail has something to police.
  */
 export async function POST(_req: NextRequest) {
-  return NextResponse.json({ error: 'not_implemented' }, { status: 501 });
+  return NextResponse.json(
+    { error: { code: 'NOT_IMPLEMENTED', message: 'Not implemented' } },
+    { status: 501 },
+  );
 }

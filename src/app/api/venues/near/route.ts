@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
     if (e instanceof InvalidCoordinateError) {
       // 400, with the reason. A PostGIS error about a point outside the
       // ellipsoid is not something a caller can act on.
-      return NextResponse.json({ error: 'invalid_coordinates', detail: e.message }, { status: 400 });
+      // `detail` (singular) was a third shape again; the canonical
+      // envelope's optional field is `details`.
+      return NextResponse.json(
+        { error: { code: 'BAD_REQUEST', message: 'Invalid coordinates', details: e.message } },
+        { status: 400 },
+      );
     }
     throw e;
   }
