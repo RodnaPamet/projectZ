@@ -11,10 +11,12 @@ import {
   getBalance,
   spendCredit,
   InsufficientCreditError,
+  LedgerIsolationError,
 } from '@/app-layer/usecases/wallet';
 import { PayoutsNotEnabledError } from '@/lib/billing/connect';
 import { handleAccountUpdated, handleInvoicePaid } from '@/lib/billing/webhook-handlers';
 import { pgErrorCode } from '@/lib/db/pg-errors';
+import { runInTenantContext } from '@/lib/db/rls-middleware';
 
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
 import { findRequest, useMswServer } from '../helpers/msw';
@@ -114,6 +116,17 @@ async function seedBooking(totalCents: number) {
 }
 
 // ══ The ledger ═══════════════════════════════════════════════════════
+
+/**
+ * Full-jitter backoff for SERIALIZABLE retries. Shared by every test in this
+ * file that contends, so the policy is stated once.
+ *
+ * Sleep uniformly in [0, window), not for `window`: the goal is to DECORRELATE
+ * the retries. A fixed delay reschedules the same collision slightly later;
+ * equal jitter keeps a common floor under it.
+ */
+const RETRY_BASE_MS = 5;
+const RETRY_CAP_MS = 100;
 
 describe('the credit ledger', () => {
   it('a balance is the sum of its entries, and starts at zero', async () => {
@@ -265,9 +278,6 @@ describe('the credit ledger', () => {
     // machine this exists to survive — fewer retries than the tight spin
     // it replaces. The attempt cap is the only limit, and the explicit
     // per-test timeout below is the backstop.
-    const RETRY_BASE_MS = 5;
-    const RETRY_CAP_MS = 100;
-
     const credit = async () => {
       for (let attempt = 0; attempt < 25; attempt++) {
         try {
@@ -307,6 +317,81 @@ describe('the credit ledger', () => {
     // 30s, against jest's 5000ms default. This test deliberately creates
     // contention and then waits it out; the default is a budget for a test
     // that does not, and it is what turns a slow machine into a red build.
+  }, 30_000);
+
+  /**
+   * ═══ THE TEST ABOVE PROVES A GUARANTEE PRODUCTION CANNOT HAVE ═══
+   *
+   * It calls appendEntry on a TOP-LEVEL client, as a superuser that bypasses
+   * FORCE RLS. Production can do neither: `credit_ledger_entry` has FORCE ROW
+   * LEVEL SECURITY keyed on `app.tenant_id`, and the only thing that sets it
+   * is `runInTenantContext` — which opens its own transaction first.
+   *
+   * appendEntry's `isolationLevel: Serializable` is then silently discarded.
+   * Prisma sees an interactive transaction already open, treats the inner one
+   * as nested, and issues SAVEPOINT instead of BEGIN; isolation is only ever
+   * applied to a BEGIN.
+   *
+   * Measured before the guard existed: ten concurrent credits through this
+   * path wrote ten rows whose deltas summed to 1000, while the balance those
+   * same rows reported was 300. No error, no 40001, nothing to alert on.
+   *
+   * These two tests exist so that cannot be true again without the build
+   * saying so.
+   */
+  it('REFUSES to write the ledger when SERIALIZABLE was silently downgraded', async () => {
+    await expect(
+      runInTenantContext(tenant.tenantId, (inner) =>
+        appendEntry(inner, {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
+          deltaCents: 100,
+          reason: 'ADMIN_ADJUST',
+        }),
+      ),
+    ).rejects.toThrow(LedgerIsolationError);
+
+    // And it refused BEFORE writing anything. A guard that throws after the
+    // insert would be a guard that still corrupted the ledger.
+    expect(await db.creditLedgerEntry.count({ where: { userId: tenant.userId } })).toBe(0);
+  });
+
+  it('stays consistent when the isolation level is threaded to the outer transaction', async () => {
+    // The same ten concurrent credits, through the wrapper production must
+    // use, with the isolation level set where it can actually take effect.
+    const credit = async () => {
+      for (let attempt = 0; attempt < 25; attempt++) {
+        try {
+          return await runInTenantContext(
+            tenant.tenantId,
+            (inner) =>
+              appendEntry(inner, {
+                tenantId: tenant.tenantId,
+                userId: tenant.userId,
+                deltaCents: 100,
+                reason: 'ADMIN_ADJUST',
+              }),
+            undefined,
+            { isolationLevel: 'Serializable' },
+          );
+        } catch (e) {
+          if (pgErrorCode(e) !== '40001') throw e;
+          await new Promise((r) =>
+            setTimeout(r, Math.random() * Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** attempt)),
+          );
+        }
+      }
+      throw new Error('gave up retrying a serialization failure');
+    };
+
+    await Promise.all(Array.from({ length: 10 }, credit));
+
+    const balance = await getBalance(db, { tenantId: tenant.tenantId, userId: tenant.userId });
+    const entries = await db.creditLedgerEntry.findMany({ where: { userId: tenant.userId } });
+
+    expect(balance).toBe(1000);
+    expect(entries.reduce((a, e) => a + e.deltaCents, 0)).toBe(balance);
+    expect(entries).toHaveLength(10);
   }, 30_000);
 });
 

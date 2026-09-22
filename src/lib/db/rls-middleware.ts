@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 
 import { prisma as defaultPrisma } from './prisma';
 import { getTenantContext, runWithTenantContext } from './tenant-context';
@@ -61,6 +61,7 @@ export async function runInTenantContext<T>(
   tenantId: string,
   fn: (tx: PrismaClient) => Promise<T>,
   client: PrismaClient = defaultPrisma,
+  opts: { isolationLevel?: Prisma.TransactionIsolationLevel } = {},
 ): Promise<T> {
   if (!CUID_RE.test(tenantId)) {
     throw new InvalidTenantIdError(tenantId);
@@ -72,12 +73,32 @@ export async function runInTenantContext<T>(
   }
 
   return runWithTenantContext(tenantId, () =>
-    client.$transaction(async (tx) => {
-      // Parameterised — the tenant id is never string-concatenated into SQL.
-      await tx.$executeRawUnsafe(`SELECT set_config('app.tenant_id', $1, true)`, tenantId);
-      await tx.$executeRawUnsafe(`SET LOCAL ROLE app_user`);
-      return fn(tx as unknown as PrismaClient);
-    }),
+    client.$transaction(
+      async (tx) => {
+        // Parameterised — the tenant id is never string-concatenated into SQL.
+        await tx.$executeRawUnsafe(`SELECT set_config('app.tenant_id', $1, true)`, tenantId);
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE app_user`);
+        return fn(tx as unknown as PrismaClient);
+      },
+      // ═══ THE ONLY PLACE ISOLATION CAN BE SET ═══
+      //
+      // This is the OUTERMOST transaction on every tenant-scoped path, so it
+      // is the only `BEGIN` that will ever be issued for that work — and
+      // `SET TRANSACTION ISOLATION LEVEL` is legal only there.
+      //
+      // A use case that asks for SERIALIZABLE on the handle it is given does
+      // NOT get it. Prisma sees an interactive transaction already open,
+      // treats the inner `$transaction` as nested, issues `SAVEPOINT` instead
+      // of `BEGIN`, and DISCARDS the isolation level without a word. Measured:
+      // a use case requesting Serializable through this wrapper actually ran
+      // at `read committed`, and a ledger built on that assumption wrote ten
+      // rows summing to 1000 while its own stored balance said 300.
+      //
+      // So anything needing more than READ COMMITTED must say so HERE, and
+      // the use case must verify it got what it asked for rather than trust
+      // the request (see assertSerializable in usecases/wallet.ts).
+      opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : undefined,
+    ),
   );
 }
 

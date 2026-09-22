@@ -38,6 +38,34 @@ export async function getBalance(
 }
 
 /**
+ * The ledger asked for SERIALIZABLE and did not get it.
+ *
+ * Thrown rather than proceeding, because proceeding is how money disappears
+ * QUIETLY. Measured on the production wiring before this check existed: ten
+ * concurrent credits of 100¢ wrote ten rows whose deltas summed to 1000,
+ * while the balance those same rows reported was 300. No error. No 40001.
+ * Nothing to alert on. The ledger simply disagreed with itself.
+ */
+export class LedgerIsolationError extends Error {
+  constructor(actual: string) {
+    super(
+      `The credit ledger requires SERIALIZABLE and is running at "${actual}".\n\n` +
+        `This almost certainly means appendEntry was handed a transaction handle ` +
+        `rather than a top-level client. Prisma treats the inner $transaction as ` +
+        `NESTED, issues SAVEPOINT instead of BEGIN, and silently discards the ` +
+        `isolationLevel — isolation can only be set on the outermost BEGIN.\n\n` +
+        `Fix the CALLER, not this check: pass the isolation level to the wrapper ` +
+        `that opens the outer transaction, e.g.\n` +
+        `  runInTenantContext(tenantId, fn, client, { isolationLevel: 'Serializable' })\n\n` +
+        `Under READ COMMITTED two concurrent credits both read the same balance ` +
+        `and both write the same balanceAfterCents. The deltas and the balance ` +
+        `stop agreeing, and nothing raises.`,
+    );
+    this.name = 'LedgerIsolationError';
+  }
+}
+
+/**
  * Append an entry.
  *
  * ─── Why SERIALIZABLE ────────────────────────────────────────────────
@@ -77,6 +105,19 @@ export async function appendEntry(
 
   const entry = await db.$transaction(
     async (tx) => {
+      // Verify the isolation level we actually GOT, before reading anything.
+      //
+      // Requesting Serializable above is not the same as running at it: if `db`
+      // is already an interactive transaction, the request is silently dropped
+      // (see LedgerIsolationError). One cheap local lookup — no I/O beyond the
+      // round trip — is a small price for a ledger that cannot quietly lie.
+      const [level] = await tx.$queryRawUnsafe<{ iso: string }[]>(
+        `SELECT current_setting('transaction_isolation') AS iso`,
+      );
+      if (level?.iso !== 'serializable') {
+        throw new LedgerIsolationError(level?.iso ?? 'unknown');
+      }
+
       const latest = await tx.creditLedgerEntry.findFirst({
         where: { tenantId: input.tenantId, userId: input.userId },
         orderBy: { createdAt: 'desc' },
