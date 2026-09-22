@@ -92,8 +92,42 @@ describe('tenantSlugFromPath', () => {
   it.each([
     ['/t/sofia-padel/dashboard', 'sofia-padel'],
     ['/api/t/sofia-padel/bookings', 'sofia-padel'],
+    ['/api/v1/t/sofia-padel/bookings', 'sofia-padel'],
+    ['/api/v27/t/sofia-padel/bookings', 'sofia-padel'],
     ['/venues', null],
+    // No tenant segment at all — `/v1` is not a slug.
+    ['/api/v1/venues', null],
+    // A non-numeric version is not a version. Better to fail closed on an
+    // unrecognised shape than to invent a tenant from `/api/vNEXT/t/...`.
+    ['/api/vnext/t/sofia-padel/bookings', null],
   ])('%s -> %s', (path, expected) => {
     expect(tenantSlugFromPath(path)).toBe(expected);
+  });
+
+  it('an unrecognised tenant URL shape is UNGUARDED, not merely unmatched', () => {
+    // This is the whole reason the version group exists. `checkTenantAccess`
+    // reads "no slug in the path" as `allow` — so a tenant route this
+    // matcher does not recognise sails past the edge guard entirely, and
+    // `requiredPermission` goes quiet for the same reason at the same time.
+    //
+    // Pinned as an assertion rather than a comment so the failure mode is
+    // visible to whoever next adds a URL shape.
+    expect(tenantSlugFromPath('/api/v2/t/sofia-padel/admin/venues')).toBe('sofia-padel');
+    expect(checkTenantAccess('/api/v2/t/sofia-padel/admin/venues', member('other-club'))).toEqual({
+      kind: 'forbidden',
+      reason: 'not_a_member',
+    });
+  });
+
+  it('a versioned tenant route is still denied to an anonymous caller', () => {
+    expect(checkTenantAccess('/api/v1/t/sofia-padel/bookings', null)).toEqual({
+      kind: 'unauthenticated',
+    });
+  });
+
+  it('a member of the versioned tenant route is allowed', () => {
+    expect(checkTenantAccess('/api/v1/t/sofia-padel/bookings', member('sofia-padel'))).toEqual({
+      kind: 'allow',
+    });
   });
 });

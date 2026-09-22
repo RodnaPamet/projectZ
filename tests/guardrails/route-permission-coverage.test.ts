@@ -54,8 +54,18 @@ function discoverRoutes(): RouteFile[] {
 
 const routes = discoverRoutes();
 
+/**
+ * `/api/t/:slug/...` and the versioned form `/api/v1/t/:slug/...`.
+ *
+ * This filter decides what the ratchet even LOOKS at, so narrowing it is
+ * indistinguishable from passing. A literal `startsWith('/api/t/')` would
+ * let the entire `/api/v1` tree ship unguarded with a green build — the
+ * exact omission this suite exists to catch, one level up.
+ */
+const TENANT_SCOPED = /^\/api\/(?:v\d+\/)?t\//;
+
 describe('route permission coverage (default deny)', () => {
-  const tenantScoped = routes.filter((r) => r.urlPath.startsWith('/api/t/'));
+  const tenantScoped = routes.filter((r) => TENANT_SCOPED.test(r.urlPath));
 
   it('the discovery actually walks the route tree', () => {
     // If the glob broke, this suite would pass by finding nothing — the

@@ -49,6 +49,21 @@ function tokenMatches(provided: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
+/**
+ * The ONE closed response.
+ *
+ * Both closed paths — no token configured, and a wrong token — must be
+ * byte-identical. They were not: the two 404s carried different bodies, which
+ * tells an unauthenticated scanner exactly what the 404 exists to withhold,
+ * namely that this endpoint is real and currently switched off.
+ *
+ * A shared helper rather than two literals, so the next edit cannot
+ * reintroduce the difference by touching only one of them.
+ */
+function closed() {
+  return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Not Found' } }, { status: 404 });
+}
+
 export async function GET(req: NextRequest) {
   const expected = process.env.METRICS_TOKEN;
 
@@ -58,7 +73,7 @@ export async function GET(req: NextRequest) {
   // production silently publishes the metrics. The failure mode of a missing
   // secret must never be "no security".
   if (!expected) {
-    return NextResponse.json({ error: 'metrics_disabled' }, { status: 404 });
+    return closed();
   }
 
   const header = req.headers.get('authorization') ?? '';
@@ -67,7 +82,7 @@ export async function GET(req: NextRequest) {
   if (!provided || !tokenMatches(provided, expected)) {
     // 404, not 401. A 401 confirms the endpoint EXISTS and is worth attacking;
     // a 404 tells an unauthenticated scanner nothing.
-    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    return closed();
   }
 
   const body = await collectMetrics();

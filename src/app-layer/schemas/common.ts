@@ -1,4 +1,7 @@
+import type { SportType } from '@prisma/client';
 import { z } from 'zod';
+
+import { SPORTS } from '@/lib/sports/registry';
 
 /**
  * Shared Zod primitives.
@@ -34,15 +37,30 @@ export const timezoneSchema = z.string().refine(
   { message: 'Not a valid IANA timezone' },
 );
 
-export const sportSchema = z.enum([
-  'TENNIS',
-  'PADEL',
-  'BADMINTON',
-  'FOOTBALL5',
-  'BASKETBALL',
-  'VOLLEYBALL',
-  'TABLE_TENNIS',
-]);
+/**
+ * DERIVED from the registry, never hand-listed.
+ *
+ * This was a literal array of seven sports while the Prisma enum and the
+ * registry had sixteen. Nothing failed: the nine missing ones — CHESS,
+ * PICKLEBALL, RUNNING, CYCLING, HANDBALL, FOOTBALL, BEACH_TENNIS,
+ * BEACH_VOLLEYBALL, ESPORTS — were simply rejected as invalid input by
+ * every filter that validates a sport, for a sport the database stores
+ * happily and the UI offers.
+ *
+ * A hand-written copy of an enum has no way to fail loudly. It is always
+ * correct on the day it is written and silently wrong from the next
+ * migration onward, which is why this is derived rather than corrected.
+ *
+ * `SPORTS` is typed `Record<SportType, SportConfig>`, so a sport added to
+ * the Prisma schema without a registry entry is a COMPILE error, and this
+ * enum inherits that guarantee. The cast is the one unavoidable step:
+ * `Object.keys` is typed `string[]`, and `z.enum` wants a non-empty tuple.
+ *
+ * Importing the registry keeps this module free of a RUNTIME Prisma
+ * dependency — `registry.ts` imports `SportType` as a type only, so
+ * nothing here drags the client into a browser bundle.
+ */
+export const sportSchema = z.enum(Object.keys(SPORTS) as [SportType, ...SportType[]]);
 
 export const paginationSchema = z.object({
   cursor: z.string().optional(),

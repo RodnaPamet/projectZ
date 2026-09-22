@@ -136,6 +136,70 @@ describe('readiness DOES check its dependencies', () => {
   });
 });
 
+describe('the middleware probe bypass names routes that exist', () => {
+  // ═══ A PHANTOM PROBE PATH IS INVISIBLE UNTIL IT IS AN OUTAGE ═══
+  //
+  // `HEALTH_PATHS` in src/middleware.ts decides which requests skip the auth
+  // pipeline entirely. It once named `/api/livez` and `/api/readyz` — neither
+  // of which is a route here. Readiness still answered 200, because it fell
+  // through `checkTenantAccess`'s "no tenant in this path" default.
+  //
+  // So the bug was latent: the probe worked, but for a reason nobody wrote
+  // down, and the day somebody tightens that default the orchestrator starts
+  // pulling healthy pods. Naming a path that does not exist is the failure —
+  // not the 404 it would produce, but the real path it silently leaves out.
+
+  const MIDDLEWARE = 'src/middleware.ts';
+
+  function healthPaths(): string[] {
+    const src = readFileSync(MIDDLEWARE, 'utf8');
+    const m = src.match(/const HEALTH_PATHS = new Set\(\[([^\]]*)\]\)/);
+    if (!m) {
+      throw new Error(
+        `Could not find HEALTH_PATHS in ${MIDDLEWARE}. If it was renamed or ` +
+          `restructured, update this guardrail — do not delete it.`,
+      );
+    }
+    return [...m[1]!.matchAll(/'([^']+)'/g)].map((x) => x[1]!);
+  }
+
+  /** '/api/ready' -> 'src/app/api/ready/route.ts' */
+  const routeFileFor = (urlPath: string) => `src/app${urlPath}/route.ts`;
+
+  it('the extraction works (a broken regex here would pass vacuously)', () => {
+    expect(healthPaths().length).toBeGreaterThan(0);
+  });
+
+  it('every bypassed path is a real route', () => {
+    const missing = healthPaths().filter((p) => !existsSync(routeFileFor(p)));
+
+    if (missing.length > 0) {
+      throw new Error(
+        `HEALTH_PATHS names ${missing.length} path(s) with no route file:\n` +
+          missing.map((p) => `  ${p}  (expected ${routeFileFor(p)})`).join('\n') +
+          `\n\nA path listed here that does not exist is not harmless: it is ` +
+          `almost always standing in for the REAL probe path, which is then ` +
+          `not bypassed at all and survives only on the auth pipeline's ` +
+          `fail-open default.`,
+      );
+    }
+  });
+
+  it('both real probes ARE bypassed', () => {
+    // The other direction. A probe that has to authenticate is not a probe:
+    // it will fail exactly when the auth dependency is the thing that is down.
+    const paths = healthPaths();
+    expect(paths).toContain('/api/health');
+    expect(paths).toContain('/api/ready');
+  });
+
+  it('the metrics endpoint is NOT bypassed', () => {
+    // It is bearer-authenticated on purpose (see below). Bypassing the
+    // middleware for it is a step toward publishing it.
+    expect(healthPaths()).not.toContain('/api/metrics');
+  });
+});
+
 describe('the metrics endpoint is not public', () => {
   it('the metrics route exists', () => {
     expect(existsSync(METRICS)).toBe(true);
@@ -162,8 +226,40 @@ describe('the metrics endpoint is not public', () => {
     // publish our booking volume to the internet.
     const src = code(readFileSync(METRICS, 'utf8'));
 
-    // The `!expected` branch must return, not fall through to serving.
-    expect(src).toMatch(/if \(!expected\)[\s\S]{0,120}(?:404|401|403)/);
+    // The `!expected` branch must RETURN, not fall through to serving.
+    expect(src).toMatch(/if \(!expected\)\s*\{[\s\S]{0,120}?return/);
+  });
+
+  it('whatever the closed branches return is a 4xx', () => {
+    // Follows the indirection rather than string-matching a status next to
+    // the `if`: the branch may return a helper, but the helper must still
+    // close. Asserting on the `if` alone would pass a helper that 200s.
+    const src = code(readFileSync(METRICS, 'utf8'));
+
+    const returned = src.match(/if \(!expected\)\s*\{\s*return ([A-Za-z0-9_.]+)\(/);
+    const status = returned
+      ? // A helper — find its definition and check the status there.
+        src.match(new RegExp(`function ${returned[1]!}\\([\\s\\S]{0,400}?(40[134])`))
+      : // Inline — check next to the branch.
+        src.match(/if \(!expected\)[\s\S]{0,160}(40[134])/);
+
+    expect(status).not.toBeNull();
+  });
+
+  it('BOTH closed paths return the identical body', () => {
+    // "No token configured" and "wrong token" must be indistinguishable.
+    // They were not: two different bodies behind the same 404 told a scanner
+    // that the endpoint is real and currently switched off — the one fact the
+    // 404 exists to withhold.
+    //
+    // Pinned as "both branches call the same thing" rather than comparing
+    // literals, because two literals is exactly how they drifted apart.
+    const src = code(readFileSync(METRICS, 'utf8'));
+
+    const closers = [...src.matchAll(/return ([A-Za-z0-9_.]+)\(\);/g)].map((m) => m[1]!);
+
+    expect(closers.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(closers).size).toBe(1);
   });
 });
 
