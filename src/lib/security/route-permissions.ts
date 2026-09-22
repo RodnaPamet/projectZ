@@ -12,6 +12,14 @@ import type { Permission } from '@/lib/permissions';
  * (`route-permission-coverage`) fails the build if a mutating route exists
  * with no rule. A new admin endpoint cannot ship unprotected by omission —
  * which is exactly how these holes are usually created.
+ *
+ * Every pattern accepts an OPTIONAL version segment (`/api/v1/t/:slug/...`)
+ * because this table denies by MATCHING. A rule anchored at `^/api/t/` does
+ * not merely miss a versioned route — it returns `null`, which
+ * `middleware.ts` reads as "no permission required". Shipping `/api/v1`
+ * against an unversioned table would silently open every mutation in it to
+ * any authenticated member. `route-permissions.test.ts` asserts the version
+ * group on every rule so a new one cannot be added without it.
  */
 
 export interface RoutePermission {
@@ -23,22 +31,22 @@ export interface RoutePermission {
 export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
   // ── Venue administration ──────────────────────────────────────────
   {
-    pattern: /^\/api\/t\/[^/]+\/admin\/venues/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/venues/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'admin.venue_manage',
   },
   {
-    pattern: /^\/api\/t\/[^/]+\/admin\/staff/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/staff/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'admin.staff_manage',
   },
   {
-    pattern: /^\/api\/t\/[^/]+\/admin\/pricing/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/pricing/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'admin.pricing_manage',
   },
   {
-    pattern: /^\/api\/t\/[^/]+\/admin\/courts/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/courts/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'courts.manage',
   },
@@ -50,36 +58,36 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
   // first match. Reversed, a refund would only require `bookings.create`,
   // and any PLAYER could refund themselves.
   {
-    pattern: /^\/api\/t\/[^/]+\/bookings\/[^/]+\/refund/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings\/[^/]+\/refund/,
     methods: ['POST'],
     permission: 'payments.refund',
   },
   {
-    pattern: /^\/api\/t\/[^/]+\/bookings\/[^/]+\/cancel/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings\/[^/]+\/cancel/,
     methods: ['POST'],
     permission: 'bookings.cancel',
   },
   {
-    pattern: /^\/api\/t\/[^/]+\/bookings/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings/,
     methods: ['POST'],
     permission: 'bookings.create',
   },
 
   // ── Players / credit ──────────────────────────────────────────────
   {
-    pattern: /^\/api\/t\/[^/]+\/players\/[^/]+\/credit/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/players\/[^/]+\/credit/,
     methods: ['POST', 'PUT', 'PATCH'],
     permission: 'players.credit_adjust',
   },
 
   // ── Open play ─────────────────────────────────────────────────────
   {
-    pattern: /^\/api\/t\/[^/]+\/sessions\/[^/]+\/moderate/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/sessions\/[^/]+\/moderate/,
     methods: ['POST', 'DELETE'],
     permission: 'openplay.moderate',
   },
   {
-    pattern: /^\/api\/t\/[^/]+\/sessions/,
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/sessions/,
     methods: ['POST'],
     permission: 'openplay.host',
   },

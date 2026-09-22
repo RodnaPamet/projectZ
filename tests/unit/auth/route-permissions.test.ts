@@ -66,6 +66,63 @@ describe('route permissions', () => {
     }
   });
 
+  // ── Versioned API prefix ──────────────────────────────────────────
+  //
+  // These rules deny by MATCHING. A pattern that does not match returns
+  // `null` from `requiredPermission`, and `middleware.ts` reads `null` as
+  // "no permission required" — so a rule that misses `/api/v1` does not
+  // half-protect the route, it leaves it open to every authenticated
+  // member of the tenant, PLAYERs included.
+
+  it.each([
+    ['/api/v1/t/sofia/admin/venues', 'POST', 'admin.venue_manage'],
+    ['/api/v1/t/sofia/admin/staff', 'DELETE', 'admin.staff_manage'],
+    ['/api/v1/t/sofia/admin/pricing', 'PUT', 'admin.pricing_manage'],
+    ['/api/v1/t/sofia/admin/courts', 'PATCH', 'courts.manage'],
+    ['/api/v1/t/sofia/bookings', 'POST', 'bookings.create'],
+    ['/api/v1/t/sofia/bookings/bk_1/cancel', 'POST', 'bookings.cancel'],
+    ['/api/v1/t/sofia/bookings/bk_1/refund', 'POST', 'payments.refund'],
+    ['/api/v1/t/sofia/players/p1/credit', 'POST', 'players.credit_adjust'],
+    ['/api/v1/t/sofia/sessions', 'POST', 'openplay.host'],
+    ['/api/v1/t/sofia/sessions/s1/moderate', 'DELETE', 'openplay.moderate'],
+  ])('versioned %s %s still requires %s', (path, method, expected) => {
+    expect(requiredPermission(path, method)).toBe(expected);
+  });
+
+  it('ordering survives the version prefix — a versioned refund is not bookings.create', () => {
+    // The specific-before-generic ordering and the version group are
+    // independent edits. This pins that they compose: widening the prefix
+    // must not let `/bookings` win over `/bookings/:id/refund`.
+    expect(requiredPermission('/api/v1/t/sofia/bookings/bk_1/refund', 'POST')).toBe(
+      'payments.refund',
+    );
+  });
+
+  it('EVERY rule carries the version group, including ones added later', () => {
+    // The point of this test is the rules nobody has written yet. Adding a
+    // literal `^/api/t/...` rule alongside the versioned ones is the natural
+    // mistake: it looks exactly like its neighbours, reviews cleanly, and is
+    // wrong only for URLs that do not exist yet. This fails when it lands,
+    // not when someone finally calls the endpoint.
+    const VERSIONED_TENANT_PREFIX = String.raw`^\/api\/(?:v\d+\/)?t\/`;
+
+    for (const rule of ROUTE_PERMISSIONS) {
+      // Compare the prefix as a string rather than testing a sample path —
+      // a mismatch then prints both regexes, which is what you want when
+      // one is a single character off.
+      expect(rule.pattern.source.slice(0, VERSIONED_TENANT_PREFIX.length)).toBe(
+        VERSIONED_TENANT_PREFIX,
+      );
+    }
+  });
+
+  it('a version segment does not smuggle past the tenant anchor', () => {
+    // `/api/v1/admin/venues` has no tenant in it. It must NOT match a rule
+    // whose whole purpose is to scope by tenant.
+    expect(requiredPermission('/api/v1/admin/venues', 'POST')).toBeNull();
+    expect(requiredPermission('/api/vx/t/sofia/admin/venues', 'POST')).toBeNull();
+  });
+
   it('the more specific booking rules precede the generic one', () => {
     // Pins the ORDER, not just the outcome — a future edit that reorders
     // the array reintroduces the refund bug, and this catches it directly.

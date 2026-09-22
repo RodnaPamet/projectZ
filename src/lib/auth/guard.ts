@@ -70,9 +70,21 @@ export function checkInviteCarveout(pathname: string): boolean {
   return INVITE_PATTERNS.some((re) => re.test(pathname));
 }
 
-/** Pull the tenant slug out of `/t/:slug/...` or `/api/t/:slug/...`. */
+/**
+ * Pull the tenant slug out of `/t/:slug/...`, `/api/t/:slug/...`, or the
+ * versioned API form `/api/v1/t/:slug/...`.
+ *
+ * The optional version segment is load-bearing, not tidiness. This matcher
+ * fails toward "no tenant in this path", and `checkTenantAccess` reads that
+ * as `{ kind: 'allow' }` — so a tenant URL shape this regex does NOT
+ * recognise is not merely unmatched, it is UNGUARDED, and `requiredPermission`
+ * goes quiet at the same moment for the same reason.
+ *
+ * Any new URL shape carrying a tenant must be added here in the commit that
+ * introduces it, and to the patterns in `@/lib/security/route-permissions`.
+ */
 export function tenantSlugFromPath(pathname: string): string | null {
-  const m = pathname.match(/^\/(?:api\/)?t\/([^/]+)/);
+  const m = pathname.match(/^\/(?:api\/(?:v\d+\/)?)?t\/([^/]+)/);
   return m?.[1] ?? null;
 }
 
