@@ -26,6 +26,7 @@
     "db:reset": "prisma migrate reset --force && npm run db:seed",
     "db:seed": "tsx scripts/seed.ts",
     "worker": "tsx scripts/worker.ts",
+    "postinstall": "prisma generate",
     "prepare": "husky"
   },
   "dependencies": {
