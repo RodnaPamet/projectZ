@@ -123,3 +123,15 @@ enum Locale {
   bg
   en
 }
+
+/// Who or what performed an audited action.
+///
+/// SYSTEM is not "no actor" — it is a deliberate claim that no human chose
+/// this. A directory-driven role sync is SYSTEM even though it changes a
+/// person's access, and telling that apart from an administrator doing it by
+/// hand is most of the value of an audit trail.
+enum AuditActorType {
+  USER
+  SYSTEM
+  API_KEY
+}
