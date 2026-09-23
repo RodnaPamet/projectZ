@@ -94,6 +94,32 @@ export async function listVenues(
   };
 }
 
+/**
+ * Public venue detail, BY ID and deliberately cross-tenant.
+ *
+ * Not by slug: `@@unique([tenantId, slug])` means slugs are unique WITHIN a
+ * tenant, so two clubs can both own `central-courts`. A public route that has
+ * only a slug cannot say which one it means, and picking the first match would
+ * be a coin flip that occasionally shows the wrong club's opening hours.
+ *
+ * Ids are cuids and globally unique. The list endpoint returns them, and a
+ * native client follows ids — slugs are an SEO concern for the web, not a
+ * client-facing identifier.
+ */
+export async function getVenueById(db: PrismaClient, venueId: string) {
+  // guardrail-allow: cross-tenant — the public detail read, reached from the
+  // public index. Same rationale as listVenues: a player opening a venue card
+  // does not know which club owns it. `status: ACTIVE` is the only filter.
+  return db.venue.findFirst({
+    where: { id: venueId, status: 'ACTIVE' },
+    include: {
+      resources: { where: { status: 'ACTIVE' }, orderBy: { name: 'asc' }, take: 50 },
+      photos: { orderBy: { position: 'asc' }, take: 20 },
+      amenities: { take: 30 },
+    },
+  });
+}
+
 export async function getVenueBySlug(db: PrismaClient, tenantId: string, venueSlug: string) {
   return db.venue.findFirst({
     // tenantId is redundant under RLS — the policy adds it anyway. It is
