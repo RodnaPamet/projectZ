@@ -44,7 +44,7 @@ export const authOptions: NextAuthOptions = {
    *
    * This does NOT fix revocation. It shortens the tail.
    */
-  session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 },
+  session: { strategy: 'jwt', maxAge: SESSION_MAX_AGE_SECONDS },
 
   /**
    * Point every page at our own UI.
