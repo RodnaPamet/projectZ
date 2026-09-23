@@ -259,3 +259,68 @@ export function toGroupMapping(m: {
     updatedAt: rfc3339(m.updatedAt),
   };
 }
+
+export interface BookingDto {
+  id: string;
+  status: string;
+  startTs: string;
+  endTs: string;
+  totalCents: number;
+  currency: string;
+  /** When a PENDING booking stops holding its slot. Null once confirmed. */
+  expiresAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  resource: {
+    id: string;
+    name: string;
+    sport: string;
+  };
+  venue: {
+    id: string;
+    name: string;
+    timezone: string;
+  };
+}
+
+type BookingRow = {
+  id: string;
+  startTs: Date;
+  endTs: Date;
+  status: string;
+  totalCents: number;
+  currency: string;
+  expiresAt: Date | null;
+  cancelledAt: Date | null;
+  createdAt: Date;
+  resource: {
+    id: string;
+    name: string;
+    sport: string;
+    venue: { id: string; name: string; timezone: string };
+  };
+};
+
+/**
+ * The venue is lifted OUT of the resource rather than left nested.
+ *
+ * A client rendering "Court 1 — Slot Club" should not have to know that the
+ * venue happens to hang off the resource in our schema. Flattening it here
+ * means the wire shape survives a schema change that moves the relation, and
+ * a Swift struct does not acquire a pointless intermediate type.
+ */
+export function toBooking(b: BookingRow): BookingDto {
+  return {
+    id: b.id,
+    status: b.status,
+    startTs: rfc3339(b.startTs),
+    endTs: rfc3339(b.endTs),
+    totalCents: b.totalCents,
+    currency: b.currency,
+    expiresAt: b.expiresAt ? rfc3339(b.expiresAt) : null,
+    cancelledAt: b.cancelledAt ? rfc3339(b.cancelledAt) : null,
+    createdAt: rfc3339(b.createdAt),
+    resource: { id: b.resource.id, name: b.resource.name, sport: b.resource.sport },
+    venue: b.resource.venue,
+  };
+}
