@@ -221,3 +221,217 @@ export async function touchSession(userSessionId: string): Promise<void> {
     // A failed heartbeat must never fail the request it was riding on.
   });
 }
+
+/**
+ * ═══ NATIVE REFRESH ═══
+ *
+ * A native access token is deliberately SHORT, because the edge middleware
+ * never checks revocation: `middleware.ts` reads the token and inspects claims,
+ * and `checkSession` runs only inside a route. `exp` is therefore the only
+ * revocation the edge honours, and a long access token is a long window in
+ * which a revoked session still clears the tenant and permission checks.
+ *
+ * The refresh token is long and ROTATES, which is what makes a stolen one
+ * detectable: presenting a token that was already rotated away means two
+ * parties hold it.
+ */
+
+/**
+ * The WEB cookie's lifetime.
+ *
+ * Lives here rather than in src/auth.ts so that reading it does not drag in
+ * authOptions — and with it PrismaAdapter and @auth/prisma-adapter. A constant
+ * should not pull an ESM-only adapter into every bundle that needs a number.
+ */
+export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
+/** Access token. Short, because the edge only honours `exp`. */
+export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+
+/** Refresh token. Long, because it is checked against the database every time. */
+export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+/**
+ * How long an already-rotated refresh token keeps working.
+ *
+ * 60s, and the number is doing real work. An iOS app resumed from the switcher
+ * fires several requests at once; they all 401 and all call /auth/refresh with
+ * the same token within milliseconds. Strict rotation calls the second one
+ * replay and kills the session — a user logged out for using their phone
+ * normally, and not reproducible on a desk where requests happen one at a time.
+ *
+ * Long enough to absorb that burst plus a retry on a bad network. Short enough
+ * that a genuinely stolen token is useful for a minute rather than a month.
+ */
+export const REFRESH_GRACE_SECONDS = 60;
+
+export type RefreshOutcome =
+  | {
+      ok: true;
+      userId: string;
+      userSessionId: string;
+      /**
+       * NULL means "keep the token you already have".
+       *
+       * Not an empty string — a falsy-but-present value is what ends up
+       * written to a keychain. Null is only ever returned inside the grace
+       * window, and it is not a shortcut: the server stores the HASH of the
+       * current refresh token, so it genuinely cannot hand back the plaintext
+       * to a caller that presented the previous one.
+       *
+       * The client does not need it. The caller that rotated is receiving the
+       * new token in its own response; every other caller in the burst keeps
+       * whatever its latest value is and converges on the same one.
+       */
+      refreshToken: string | null;
+      rotated: boolean;
+    }
+  | { ok: false; reason: 'unknown' | 'revoked' | 'expired' | 'stale-version' | 'replayed' };
+
+/**
+ * Exchange a refresh token for a new one, or recognise a replay.
+ *
+ * ═══ THE THREE CASES, AND WHY THE MIDDLE ONE EXISTS ═══
+ *
+ *   matches refreshTokenHash          rotate, return the new token
+ *   matches previous, inside grace    do NOT rotate, return the CURRENT token
+ *   matches previous, outside grace   REPLAY — revoke the whole session
+ *
+ * The middle case is the entire point. Without it, concurrent refreshes from
+ * one legitimate client are indistinguishable from theft, and the safe-looking
+ * choice (revoke) logs people out constantly. With it, every caller in the
+ * burst converges on the same current token instead of racing to rotate again.
+ *
+ * ═══ WHAT THIS CANNOT TELL YOU ═══
+ *
+ * A replay OUTSIDE the window is not proof of theft. A client that was
+ * suspended for two minutes mid-refresh looks identical to an attacker
+ * replaying a stolen token. We revoke anyway, because the alternative is
+ * accepting a token we know was superseded — and a user who has to sign in
+ * again is a far cheaper mistake than a session an attacker keeps.
+ */
+export async function rotateRefreshToken(input: {
+  presented: string;
+  now?: Date;
+}): Promise<RefreshOutcome> {
+  const now = input.now ?? new Date();
+  const presentedHash = hashForLookup(input.presented);
+
+  return runAsSuperuser(async (db) => {
+    const row = await db.userSession.findFirst({
+      where: {
+        OR: [{ refreshTokenHash: presentedHash }, { previousRefreshTokenHash: presentedHash }],
+      },
+      select: {
+        id: true,
+        userId: true,
+        revokedAt: true,
+        expiresAt: true,
+        sessionVersion: true,
+        refreshTokenHash: true,
+        previousRefreshTokenHash: true,
+        previousRefreshExpiresAt: true,
+        user: { select: { sessionVersion: true } },
+      },
+    });
+
+    if (!row) return { ok: false, reason: 'unknown' };
+    if (row.revokedAt) return { ok: false, reason: 'revoked' };
+    if (row.expiresAt.getTime() <= now.getTime()) return { ok: false, reason: 'expired' };
+
+    // The password-change lever still applies to refresh. A session whose user
+    // bumped their counter must not be able to mint new access tokens.
+    if (row.user.sessionVersion !== row.sessionVersion) {
+      return { ok: false, reason: 'stale-version' };
+    }
+
+    const isCurrent = row.refreshTokenHash === presentedHash;
+
+    if (!isCurrent) {
+      const graceOpen =
+        row.previousRefreshExpiresAt !== null &&
+        row.previousRefreshExpiresAt.getTime() > now.getTime();
+
+      if (!graceOpen) {
+        // ═══ REPLAY ═══
+        //
+        // A token that was rotated away, presented after the window closed.
+        // Revoke the SESSION, not just the token: if it was stolen, the thief
+        // may already hold the current one too, and leaving it live would mean
+        // detecting the theft and doing nothing about it.
+        await db.userSession.update({
+          where: { id: row.id },
+          data: { revokedAt: now },
+        });
+        return { ok: false, reason: 'replayed' };
+      }
+
+      // Inside the window. Issue an access token, rotate NOTHING, and return
+      // no refresh token — rotating again here is what turns one client's
+      // burst into a rotation storm.
+      return {
+        ok: true,
+        userId: row.userId,
+        userSessionId: row.id,
+        refreshToken: null,
+        rotated: false,
+      };
+    }
+
+    const next = newSessionSecret();
+
+    // ═══ COMPARE-AND-SWAP, NOT UPDATE ═══
+    //
+    // `refreshTokenHash: presentedHash` in the WHERE is the whole point. The
+    // read above and this write are not atomic, so several concurrent callers
+    // can all reach here having seen the same current token. A plain update
+    // lets every one of them rotate, last writer wins, and the losers walk
+    // away holding tokens the server never stored — their next refresh fails
+    // as `unknown` and they are logged out.
+    //
+    // Measured before this guard existed: 25 concurrent refreshes produced TEN
+    // rotations. Three produced one, which is why a three-way test passed five
+    // times in a row and proved nothing.
+    //
+    // With the condition, exactly one write matches. The rest see count 0 and
+    // fall through to the grace-window answer — which is correct, because
+    // losing this race IS the burst, not a replay.
+    const updated = await db.userSession.updateMany({
+      where: { id: row.id, refreshTokenHash: presentedHash },
+      data: {
+        refreshTokenHash: hashForLookup(next),
+        previousRefreshTokenHash: presentedHash,
+        previousRefreshExpiresAt: new Date(now.getTime() + REFRESH_GRACE_SECONDS * 1000),
+        lastSeenAt: now,
+      },
+    });
+
+    if (updated.count === 0) {
+      return {
+        ok: true,
+        userId: row.userId,
+        userSessionId: row.id,
+        refreshToken: null,
+        rotated: false,
+      };
+    }
+
+    return {
+      ok: true,
+      userId: row.userId,
+      userSessionId: row.id,
+      refreshToken: next,
+      rotated: true,
+    };
+  });
+}
+
+/** Attach the first refresh token to a session created by the native path. */
+export async function setRefreshToken(userSessionId: string, token: string): Promise<void> {
+  await runAsSuperuser((db) =>
+    db.userSession.update({
+      where: { id: userSessionId },
+      data: { refreshTokenHash: hashForLookup(token) },
+    }),
+  );
+}

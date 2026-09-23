@@ -66,6 +66,18 @@ const PUBLIC_PATTERNS: RegExp[] = [
   /^\/api\/health$/,
   /^\/api\/ready$/,
   /^\/api\/auth(\/|$)/,
+  // The NATIVE auth endpoints. Sign-in cannot require a session.
+  //
+  // Like /login, these are reachable today only because `checkTenantAccess`
+  // finds no tenant slug in the path and falls through to `allow`. Naming them
+  // means a future tightening of that default does not silently make it
+  // impossible to obtain a token — which would be unrecoverable for a native
+  // client, since there is no cookie path it could fall back to.
+  //
+  // Scoped to the three that must be anonymous. /api/v1/auth is NOT wildcarded:
+  // this list's polarity is the opposite of the tenant matchers', so a loose
+  // pattern here over-EXPOSES rather than over-enforces.
+  /^\/api\/v1\/auth\/(token|refresh|logout)$/,
 ];
 
 /**
