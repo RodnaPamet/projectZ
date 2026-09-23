@@ -4,8 +4,8 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
 import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-claims';
-import { dummyVerify, verifyPassword } from '@/lib/auth/passwords';
-import { createUserSession, newSessionSecret } from '@/lib/auth/sessions';
+import { createUserSession, newSessionSecret, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
+import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { prisma } from '@/lib/db/prisma';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -17,14 +17,9 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
  * there is no `app.tenant_id` to bind, and an RLS-scoped query for the User
  * would return zero rows and look exactly like "wrong password".
  */
-/**
- * 7 days, and the session ROW must expire with the cookie.
- *
- * A row that outlives its token is a session list that shows devices which
- * cannot actually do anything; a row that dies first revokes a token the user
- * still holds. One constant, used by both.
- */
-export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+// Defined in lib/auth/sessions so that reading it does not pull authOptions
+// (and PrismaAdapter) into a bundle. Re-exported because callers expect it here.
+export { SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
@@ -75,26 +70,10 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        const email = credentials?.email?.toLowerCase().trim();
-        const password = credentials?.password;
-        if (!email || !password) return null;
-
-        const user = await runAsSuperuser((db) => db.user.findUnique({ where: { email } }));
-
-        // EVERY failure path burns the same bcrypt time. Returning early on
-        // "user not found" (~1ms) versus a real compare (~100ms) is a
-        // user-enumeration oracle — an attacker learns which emails have
-        // accounts purely from response timing, with no error message
-        // needed. See lib/auth/passwords.ts.
-        if (!user?.passwordHash) {
-          await dummyVerify(password);
-          return null;
-        }
-
-        const ok = await verifyPassword(password, user.passwordHash);
-        if (!ok) return null;
-
-        return { id: user.id, email: user.email, name: user.name ?? undefined };
+        // Shared with the native token endpoint, deliberately. The
+        // enumeration defence (equal bcrypt time on every failure path) lives
+        // in ONE place; two copies is how one of them loses it.
+        return verifyCredentials(credentials?.email, credentials?.password);
       },
     }),
   ],

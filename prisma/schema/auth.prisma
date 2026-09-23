@@ -171,6 +171,8 @@ model UserSession {
   userId   String
   tenantId String?
 
+  /// Binds the ACCESS token to this row. Deliberately never rotated — see
+  /// refreshTokenHash.
   tokenHash      String    @unique
   sessionVersion Int       @default(0)
   ipAddress      String?
@@ -178,6 +180,42 @@ model UserSession {
   lastSeenAt     DateTime  @default(now())
   expiresAt      DateTime
   revokedAt      DateTime?
+
+  /// ─── NATIVE REFRESH, AND WHY IT IS A SEPARATE SLOT ───────────────
+  ///
+  /// A native access token is short (minutes) because the EDGE middleware
+  /// never checks revocation — it reads the JWT and inspects claims, and
+  /// `checkSession` only runs inside a route. So `exp` is the only
+  /// revocation the edge honours, and a long access token is a long window
+  /// in which a revoked session still passes the tenant and permission
+  /// checks.
+  ///
+  /// The refresh token is long-lived and ROTATES on every use, which is how
+  /// a stolen one is detected: presenting a token that was already rotated
+  /// away means two parties hold it.
+  ///
+  /// It cannot reuse `tokenHash`. That column binds the ACCESS token's
+  /// embedded secret, so rotating it would invalidate every access token
+  /// already in flight — which is precisely the logout cannon this design
+  /// exists to avoid. Rotating only this column leaves those alone.
+  refreshTokenHash String? @unique
+
+  /// ─── THE GRACE WINDOW ────────────────────────────────────────────
+  ///
+  /// An iOS app resumed from the switcher fires several requests at once.
+  /// All of them 401, all of them call /auth/refresh with the SAME token
+  /// within milliseconds. Strict rotation says the second one is a replay
+  /// and kills the session — a user logged out for using their phone
+  /// normally.
+  ///
+  /// So the previous token stays acceptable for a short window after
+  /// rotation. Inside it, a request gets a fresh access token and the
+  /// CURRENT refresh token back, so every concurrent caller converges on
+  /// the same value instead of racing to rotate again.
+  ///
+  /// Presenting it AFTER the window has closed is the real replay signal.
+  previousRefreshTokenHash  String?
+  previousRefreshExpiresAt  DateTime?
 
   createdAt DateTime @default(now())
 
@@ -187,6 +225,11 @@ model UserSession {
   @@index([userId])
   @@index([tenantId])
   @@index([expiresAt])
+  /// The grace-window lookup. Not unique: two rows may briefly hold the same
+  /// previous hash only if a hash collided, which the HMAC makes impossible —
+  /// but a plain index is what the query needs and a unique constraint here
+  /// would turn a collision into a write failure rather than a lookup miss.
+  @@index([previousRefreshTokenHash])
   @@map("user_session")
 }
 
