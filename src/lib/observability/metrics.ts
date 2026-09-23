@@ -715,7 +715,12 @@ export function recordEntraRoleSync(attrs: {
     | 'no_membership'
     | 'owner_immune'
     | 'no_match'
-    | 'no_mappings';
+    | 'no_mappings'
+    // Added on wiring: the group list could not be established (Graph
+    // unreachable, or truncated). Distinct from 'no_match', which means we
+    // looked and the user is in none of them. Conflating the two is how a
+    // Microsoft outage becomes a club-wide lockout.
+    | 'unresolved';
 }): void {
   getEntraRoleSync().add(1, { outcome: attrs.outcome });
 }

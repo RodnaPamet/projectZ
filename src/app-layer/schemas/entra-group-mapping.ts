@@ -39,7 +39,15 @@ export const EntraGroupMappingCreateSchema = z.object({
    * what Entra issues — a display name here would silently never match any
    * `groups` claim, and the mapping would look configured while doing nothing.
    */
-  aadGroupId: z.string().uuid(),
+  //
+  // Lower-cased on the way in. Entra emits GUIDs in lower case, but an admin
+  // pasting one from a portal that upper-cases it would store a value that
+  // never matches any claim — a mapping that looks configured and silently
+  // grants nothing.
+  aadGroupId: z
+    .string()
+    .uuid()
+    .transform((v) => v.toLowerCase()),
   /** Cached Graph display name; cosmetics only, never matched on. */
   aadGroupName: z.string().trim().min(1).max(256).optional(),
   role: z.enum(ENTRA_MAPPABLE_ROLES),

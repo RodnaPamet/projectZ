@@ -13,6 +13,8 @@ declare module 'next-auth/jwt' {
     tenantSlug?: string | null;
     role?: string | null;
     permissions?: Permission[];
+    /** The Entra `groups` claim overflowed and Graph was consulted. Telemetry only. */
+    aadGroupsOverage?: boolean;
     memberships?: MembershipClaim[];
     membershipsTruncated?: boolean;
   }
