@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 
 import type { RequestContext } from '@/app-layer/types';
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
+import { checkSession } from '@/lib/auth/sessions';
 import { getPermissionsForRole } from '@/lib/permissions';
 
 /**
@@ -61,17 +62,41 @@ export async function contextFromRequest(
     appPermissions: [] as readonly string[],
   };
 
-  if (!raw?.sub) {
-    // Anonymous is a first-class case: public venue search, guest booking.
-    return {
-      ...base,
-      userId: null,
-      tenantId: null,
-      tenantSlug: null,
-      role: null,
-      permissions: [],
-    };
-  }
+  const anonymous: RequestContext = {
+    ...base,
+    userId: null,
+    tenantId: null,
+    tenantSlug: null,
+    role: null,
+    permissions: [],
+  };
+
+  // Anonymous is a first-class case: public venue search, guest booking.
+  if (!raw?.sub) return anonymous;
+
+  // ═══ A VALID SIGNATURE IS NOT THE SAME AS A WANTED SESSION ═══
+  //
+  // A JWT is valid because it verifies, not because anybody still wants it to
+  // be. Without this check a token stays good until it expires: a password
+  // change does not evict it, "sign out everywhere" does not reach it, and a
+  // stolen token from a sold phone keeps working for its full lifetime.
+  //
+  // One indexed lookup, on a path that previously had none. That is the cost
+  // of being able to take a token back, and it is the reason stateless JWTs
+  // are attractive in the first place — worth paying here, and worth knowing
+  // we are paying it.
+  //
+  // A dead session degrades to ANONYMOUS rather than throwing. The caller
+  // already handles "not signed in" on every route; making it also handle
+  // "signed in but revoked" would be a second path to get wrong, and the
+  // observable behaviour is identical — you are not authenticated.
+  const session = await checkSession({
+    userSessionId: raw.userSessionId ?? null,
+    sessionVersion: raw.sessionVersion ?? -1,
+    sessionSecret: raw.sessionSecret ?? null,
+  });
+
+  if (!session.usable) return anonymous;
 
   const slug = input.slug ?? null;
   if (!slug) {
