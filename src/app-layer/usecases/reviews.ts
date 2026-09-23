@@ -239,7 +239,49 @@ export async function reportContent(
     skipDuplicates: true,
   });
 
-  const existing = await db.moderationCase.findFirst({
+  // ═══ CHECK-THEN-INSERT IS WRONG HERE, FOR THE SAME REASON IT IS WRONG
+  //     FOR BOOKINGS ═══
+  //
+  // The previous shape was `findFirst` then `create`. Ten people reporting
+  // the same review at once all read "no open case", all ten insert, and the
+  // partial unique index rejects nine of them with a 23505 that reaches the
+  // reporter as a 500. The test named "ten people reporting one review is ONE
+  // job for a moderator" is precisely that scenario, and it failed
+  // intermittently on main — passing whenever the ten requests happened not
+  // to interleave, which is the worst possible kind of green.
+  //
+  // `createMany` with `skipDuplicates` compiles to INSERT ... ON CONFLICT DO
+  // NOTHING. The database arbitrates instead of us, exactly as the
+  // contentReport insert above already does, and unlike a caught exception it
+  // does NOT abort the surrounding transaction — a violation inside a
+  // transaction poisons it, so the obvious catch-and-re-read recovery would
+  // throw a second, more confusing error on top of the first.
+  //
+  // The index is partial (WHERE status = 'OPEN'), so closing a case correctly
+  // allows a new one to be opened for the same subject later.
+  await db.moderationCase.createMany({
+    data: [
+      {
+        tenantId: input.tenantId ?? null,
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        reason: 'user_report',
+        status: 'OPEN',
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Whether we inserted or lost the race, the open case now exists and this
+  // read returns the one winner — which is the point: ten reports, one job.
+  //
+  // It throws rather than returning null if somehow neither happened. The one
+  // way that could occur is a pre-existing wrinkle, unchanged by this fix: the
+  // partial index keys on (subjectType, subjectId) WITHOUT tenantId, so an
+  // open case belonging to another tenant would block the insert and then not
+  // match this read. Throwing is right — returning the other tenant's case id
+  // would be a cross-tenant leak, and silently returning null would hide it.
+  const openCase = await db.moderationCase.findFirstOrThrow({
     where: {
       tenantId: input.tenantId ?? null,
       subjectType: input.subjectType,
@@ -248,17 +290,5 @@ export async function reportContent(
     },
   });
 
-  if (existing) return { caseId: existing.id };
-
-  const created = await db.moderationCase.create({
-    data: {
-      tenantId: input.tenantId ?? null,
-      subjectType: input.subjectType,
-      subjectId: input.subjectId,
-      reason: 'user_report',
-      status: 'OPEN',
-    },
-  });
-
-  return { caseId: created.id };
+  return { caseId: openCase.id };
 }
