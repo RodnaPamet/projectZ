@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
       day: monday
@@ -10,26 +10,51 @@ updates:
       # Batch the noisy ecosystems so Dependabot doesn't open 30 PRs
       # that each have to clear the full CI gate.
       react:
-        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
       next:
-        patterns: ["next", "eslint-config-next", "@next/*"]
+        patterns: ['next', 'eslint-config-next', '@next/*']
       prisma:
-        patterns: ["prisma", "@prisma/*"]
+        patterns: ['prisma', '@prisma/*']
       testing:
         patterns:
-          ["jest", "@types/jest", "ts-jest", "@swc/jest", "@testing-library/*", "@playwright/*", "playwright"]
+          [
+            'jest',
+            '@types/jest',
+            'ts-jest',
+            '@swc/jest',
+            '@testing-library/*',
+            '@playwright/*',
+            'playwright',
+          ]
       opentelemetry:
-        patterns: ["@opentelemetry/*"]
-    labels: ["dependencies"]
+        patterns: ['@opentelemetry/*']
+    labels: ['dependencies']
 
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
-    labels: ["dependencies", "ci"]
+    labels: ['dependencies', 'ci']
 
   - package-ecosystem: docker
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
-    labels: ["dependencies", "container"]
+    labels: ['dependencies', 'container']
+    ignore:
+      # Node MAJORS only, and only for the container.
+      #
+      # Odd-numbered Node lines NEVER become LTS. Dependabot proposed
+      # node:24-alpine -> node:25-alpine (#67), which would have moved
+      # production off Krypton (LTS, maintained) onto a line that was already
+      # end-of-life — its last release was six months earlier.
+      #
+      # It also only ever edits the Dockerfile, leaving .nvmrc and CI's
+      # NODE_VERSION behind, so the container would run a runtime CI does not
+      # test. That is a three-file change a human should make deliberately when
+      # the next EVEN line reaches LTS.
+      #
+      # Patches and minors still come through, which is what matters for
+      # security.
+      - dependency-name: 'node'
+        update-types: ['version-update:semver-major']
