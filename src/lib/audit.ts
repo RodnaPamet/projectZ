@@ -50,6 +50,8 @@ export const AUDIT_ACTIONS = {
   MEMBER_ROLE_CHANGED: 'MEMBER_ROLE_CHANGED',
   MEMBER_REMOVED: 'MEMBER_REMOVED',
   BOOKING_CANCELLED: 'BOOKING_CANCELLED',
+  /// A PENDING booking whose checkout window elapsed. Nobody decided it.
+  BOOKING_EXPIRED: 'BOOKING_EXPIRED',
   BOOKING_CONFIRMED: 'BOOKING_CONFIRMED',
   /// Money arrived that could not be applied to its booking. Always needs a human.
   PAYMENT_UNAPPLIED: 'PAYMENT_UNAPPLIED',
