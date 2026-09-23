@@ -123,3 +123,109 @@ export function toVenueDetail(v: VenueFull): VenueDetail {
  * `updatedAt`. `email` is the club's internal contact, not a public field;
  * `tenantId` would hand a client the tenancy model it is not supposed to know.
  */
+
+/**
+ * RFC 3339 with NO fractional seconds.
+ *
+ * ═══ WHY NOT toISOString() ═══
+ *
+ * `Date.toISOString()` always emits milliseconds — `2026-09-24T09:00:00.000Z`.
+ * Swift's `JSONDecoder.DateDecodingStrategy.iso8601` wraps `ISO8601DateFormatter`
+ * with its default option set, which does NOT include `.withFractionalSeconds`,
+ * and it REJECTS a string that carries them.
+ *
+ * So the obvious, correct-looking spelling produces a payload the native client
+ * cannot decode — and it fails at the decoder, so the thrown error names the
+ * whole response rather than the offending field. On a shipped binary that is a
+ * week of review to fix a trailing `.000`.
+ *
+ * Every timestamp crossing this boundary goes through here.
+ */
+export function rfc3339(d: Date): string {
+  return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+export interface SlotDto {
+  startTs: string;
+  endTs: string;
+  priceCents: number;
+  available: boolean;
+  /** Present only when `available` is false. Currently always "booked". */
+  blockedReason?: string;
+}
+
+export interface ResourceSlotsDto {
+  resourceId: string;
+  name: string;
+  sport: string;
+  currency: string;
+  minBookingMinutes: number;
+  slotStepMinutes: number;
+  slots: SlotDto[];
+}
+
+export interface AvailabilityDto {
+  venueId: string;
+  venueName: string;
+  /** IANA zone. The client needs it to render "09:00" rather than doing UTC maths. */
+  timezone: string;
+  from: string;
+  to: string;
+  resources: ResourceSlotsDto[];
+}
+
+/**
+ * Unavailable slots are INCLUDED, deliberately.
+ *
+ * Returning only bookable slots would be a smaller payload and a worse app: a
+ * grid that silently omits 18:00–19:00 reads as "the club is shut then", and
+ * the player has no way to see that the court is simply taken. Showing it
+ * greyed out is the difference between "closed" and "try another time".
+ */
+export function toAvailability(args: {
+  venue: { id: string; name: string; timezone: string };
+  from: Date;
+  to: Date;
+  resources: Array<{
+    resource: {
+      id: string;
+      name: string;
+      sport: string;
+      currency: string;
+      minBookingMinutes: number;
+      slotStepMinutes: number;
+    };
+    slots: Array<{
+      startTs: Date;
+      endTs: Date;
+      priceCents: number;
+      available: boolean;
+      blockedReason?: string;
+    }>;
+  }>;
+}): AvailabilityDto {
+  return {
+    venueId: args.venue.id,
+    venueName: args.venue.name,
+    timezone: args.venue.timezone,
+    from: rfc3339(args.from),
+    to: rfc3339(args.to),
+    resources: args.resources.map(({ resource, slots }) => ({
+      resourceId: resource.id,
+      name: resource.name,
+      sport: resource.sport,
+      currency: resource.currency,
+      minBookingMinutes: resource.minBookingMinutes,
+      slotStepMinutes: resource.slotStepMinutes,
+      slots: slots.map((s) => ({
+        startTs: rfc3339(s.startTs),
+        endTs: rfc3339(s.endTs),
+        // Already an integer count of cents from the pricing engine. Never a
+        // Decimal, so no Number() coercion is needed or wanted here.
+        priceCents: s.priceCents,
+        available: s.available,
+        ...(s.blockedReason ? { blockedReason: s.blockedReason } : {}),
+      })),
+    })),
+  };
+}
