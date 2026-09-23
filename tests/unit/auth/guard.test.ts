@@ -2,6 +2,7 @@ import {
   checkInviteCarveout,
   checkPublicRoute,
   checkTenantAccess,
+  permissionsForPath,
   tenantSlugFromPath,
   type TokenClaims,
 } from '@/lib/auth/guard';
@@ -129,5 +130,84 @@ describe('tenantSlugFromPath', () => {
     expect(checkTenantAccess('/api/v1/t/sofia-padel/bookings', member('sofia-padel'))).toEqual({
       kind: 'allow',
     });
+  });
+});
+
+describe('permissionsForPath', () => {
+  /**
+   * An OWNER at one club who is merely a PLAYER at another. This is not an
+   * exotic shape — it is a club owner who also plays somewhere else, i.e.
+   * most club owners.
+   */
+  const ownerAtSofiaPlayerAtPlovdiv: TokenClaims = {
+    sub: 'u1',
+    memberships: [
+      { tenantSlug: 'sofia-padel', role: 'OWNER' },
+      { tenantSlug: 'plovdiv-tennis', role: 'PLAYER' },
+    ],
+  };
+
+  it('gives OWNER permissions at the club they own', () => {
+    expect(
+      permissionsForPath('/api/t/sofia-padel/admin/venues', ownerAtSofiaPlayerAtPlovdiv),
+    ).toContain('admin.venue_manage');
+  });
+
+  it('DENIES those same permissions one path segment away', () => {
+    // The bug, stated as a test. Same token, same request shape, different
+    // slug — and the answer has to change, because the ROLE changed.
+    const perms = permissionsForPath(
+      '/api/t/plovdiv-tennis/admin/venues',
+      ownerAtSofiaPlayerAtPlovdiv,
+    );
+    expect(perms).not.toContain('admin.venue_manage');
+    expect(perms).toEqual(expect.arrayContaining(['bookings.create']));
+  });
+
+  it('does not read token.permissions, even when it disagrees', () => {
+    // auth.ts mints `permissions` from memberships[0]. If this helper ever
+    // falls back to that array, the escalation is back — so hand it a token
+    // whose frozen array is maximally wrong and check it is ignored.
+    const token = {
+      ...ownerAtSofiaPlayerAtPlovdiv,
+      permissions: ['admin.venue_manage', 'admin.tenant_lifecycle'],
+      role: 'OWNER',
+    } as TokenClaims;
+
+    expect(permissionsForPath('/api/t/plovdiv-tennis/admin/venues', token)).not.toContain(
+      'admin.venue_manage',
+    );
+  });
+
+  it('is empty for a member of nothing, an anonymous caller, and a non-tenant path', () => {
+    expect(
+      permissionsForPath('/api/t/sofia-padel/admin/venues', { sub: 'u1', memberships: [] }),
+    ).toEqual([]);
+    expect(permissionsForPath('/api/t/sofia-padel/admin/venues', null)).toEqual([]);
+    expect(permissionsForPath('/api/v1/auth/token', ownerAtSofiaPlayerAtPlovdiv)).toEqual([]);
+  });
+
+  it('is empty when the list was truncated and the slug is not in the visible part', () => {
+    // Documented cost, pinned so it is a decision rather than a surprise: a
+    // player in more than MAX_JWT_MEMBERSHIPS clubs cannot mutate at club 51
+    // until the edge can resolve membership authoritatively. Fail closed.
+    expect(
+      permissionsForPath('/api/t/club-51/admin/venues', {
+        sub: 'u1',
+        memberships: [{ tenantSlug: 'sofia-padel', role: 'OWNER' }],
+        membershipsTruncated: true,
+      }),
+    ).toEqual([]);
+  });
+
+  it('an unknown role grants nothing rather than throwing', () => {
+    // The claim is a string off a token. A role renamed in the schema must
+    // degrade to "no permissions", not to a 500 at the edge.
+    expect(
+      permissionsForPath('/api/t/sofia-padel/admin/venues', {
+        sub: 'u1',
+        memberships: [{ tenantSlug: 'sofia-padel', role: 'ARCHDUKE' }],
+      }),
+    ).toEqual([]);
   });
 });

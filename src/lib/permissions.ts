@@ -116,6 +116,23 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   PLAYER: ['bookings.create', 'bookings.cancel', 'coaches.list', 'coaches.book', 'openplay.join'],
 };
 
+/**
+ * Is this string one of the roles the schema defines?
+ *
+ * Every caller inside the app already holds a `Role` that Prisma produced.
+ * The edge does not — it holds a string off a JWT, and that token may have
+ * been minted by a deploy that predates a role being renamed or removed.
+ * Indexing the table with such a string yields `undefined`, which the caller
+ * then spreads or calls `.includes` on: a 500 at the edge, on every request,
+ * from a claim we had already decided we do not recognise.
+ *
+ * Keyed off ROLE_PERMISSIONS itself, so it cannot drift from the table it
+ * guards.
+ */
+export function isRole(value: string): value is Role {
+  return Object.hasOwn(ROLE_PERMISSIONS, value);
+}
+
 export function getPermissionsForRole(role: Role): readonly Permission[] {
   return ROLE_PERMISSIONS[role];
 }
