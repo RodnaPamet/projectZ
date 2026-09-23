@@ -51,6 +51,17 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     permission: 'courts.manage',
   },
 
+  // ── SSO / identity federation ─────────────────────────────────────
+  //
+  // Every mutating verb, including DELETE: removing a mapping silently stops
+  // a whole group being promoted at their next sign-in, which is as
+  // consequential as adding one and far less likely to be noticed.
+  {
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/sso\/entra\/group-mappings/,
+    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
+    permission: 'sso.manage',
+  },
+
   // ── Bookings ──────────────────────────────────────────────────────
   //
   // ORDER MATTERS. `/bookings/:id/refund` also matches `/bookings`, so the

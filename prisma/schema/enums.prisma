@@ -135,3 +135,8 @@ enum AuditActorType {
   SYSTEM
   API_KEY
 }
+
+/// External identity providers a club can federate with.
+enum IdentityProviderType {
+  ENTRA_ID
+}

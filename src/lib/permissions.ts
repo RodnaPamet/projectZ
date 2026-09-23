@@ -21,6 +21,14 @@ export const PERMISSIONS = [
   'admin.owner_management',
   /// Suspending or closing the tenant itself. OWNER only, always.
   'admin.tenant_lifecycle',
+  /// Configuring which Entra security group grants which role.
+  ///
+  /// OWNER only, and deliberately not given to MANAGER. Creating a mapping is
+  /// not "an SSO setting" — it is the power to promote everyone in a directory
+  /// group to that role, exercised by editing a group this application does not
+  /// control. A MANAGER holding this could map a group they administer to
+  /// MANAGER and mint peers at will.
+  'sso.manage',
 
   // ── Bookings ──────────────────────────────────────────────────────
   'bookings.create',

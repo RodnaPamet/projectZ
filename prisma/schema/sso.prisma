@@ -1,0 +1,70 @@
+/// A tenant's external identity provider.
+///
+/// One row per club per provider type. `configJson` carries the provider's own
+/// shape — validated by Zod at every read and write, never trusted raw — so
+/// that adding a second provider type does not mean a migration.
+model TenantIdentityProvider {
+  id       String @id @default(cuid())
+  tenantId String
+
+  type IdentityProviderType
+
+  /// Provider-specific settings. For ENTRA_ID: the directory tenant id, the
+  /// app-registration client id, and whether the group gate is enforced.
+  /// Validated by `EntraProviderConfigSchema` on the way in AND on the way
+  /// out — a row written by an older deploy is untrusted input.
+  configJson Json @default("{}")
+
+  enabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One provider of each type per club. A second ENTRA_ID row would make
+  /// "which config applies?" a coin flip resolved by insertion order.
+  @@unique([tenantId, type])
+  @@index([tenantId])
+  @@map("tenant_identity_provider")
+}
+
+/// Entra security group → club role.
+///
+/// ─── OWNER is deliberately absent from the mappable set ─────────────
+///
+/// Not an oversight, and not a limitation to lift later. OWNER carries
+/// `admin.tenant_lifecycle` and `admin.owner_management` — the ability to
+/// suspend the club and to change who owns it. A directory group is managed
+/// outside this application by people who may not know that, and a mapping
+/// that grants it would make club ownership transferable by editing an AD
+/// group.
+///
+/// The enforcement lives in `ENTRA_MAPPABLE_ROLES`, in the Zod schema, and in
+/// the sync's OWNER-immunity check — three places, because one would be a
+/// single edit away from disappearing.
+model TenantEntraGroupMapping {
+  id       String @id @default(cuid())
+  tenantId String
+
+  /// Entra security-group object id (a GUID).
+  aadGroupId   String
+  /// Cached Graph display name. Admin-UI cosmetics only — never matched on,
+  /// because a group can be renamed in the directory at any time and this copy
+  /// would then be a lie that looks authoritative.
+  aadGroupName String?
+
+  role Role
+
+  /// Higher wins when a user is in several mapped groups. Set by the admin,
+  /// not derived from role seniority: a club may deliberately want a narrow
+  /// group to beat a broad one.
+  priority Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One mapping per group per club. Two rows for the same group would make
+  /// the winner depend on scan order.
+  @@unique([tenantId, aadGroupId])
+  @@index([tenantId, priority])
+  @@map("tenant_entra_group_mapping")
+}
