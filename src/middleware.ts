@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-import { checkTenantAccess, type TokenClaims } from '@/lib/auth/guard';
+import { checkTenantAccess, permissionsForPath, type TokenClaims } from '@/lib/auth/guard';
 import { requiredPermission } from '@/lib/security/route-permissions';
 
 /**
@@ -118,9 +118,14 @@ export async function middleware(req: NextRequest) {
   }
 
   // 4. Permission on mutations.
+  //
+  // Derived from the membership matching THIS path, never from
+  // `token.permissions` — which auth.ts freezes to memberships[0], the club
+  // joined first. Reading that array here let an OWNER at one club perform
+  // owner-only mutations at every other club they had merely joined.
   const needed = requiredPermission(pathname, req.method);
   if (needed) {
-    const perms = (raw as { permissions?: string[] } | null)?.permissions ?? [];
+    const perms = permissionsForPath(pathname, token);
     if (!perms.includes(needed)) {
       return apiError(403, 'FORBIDDEN', 'Forbidden', { requiredPermission: needed });
     }

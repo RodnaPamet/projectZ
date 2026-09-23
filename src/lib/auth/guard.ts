@@ -11,6 +11,8 @@
  * confusing empty page, and a request that never touches the database.
  */
 
+import { getPermissionsForRole, isRole } from '@/lib/permissions';
+
 export type AccessDecision =
   | { kind: 'allow' }
   | { kind: 'public' }
@@ -103,6 +105,61 @@ export function checkInviteCarveout(pathname: string): boolean {
 export function tenantSlugFromPath(pathname: string): string | null {
   const m = pathname.match(/^\/(?:api\/(?:v\d+\/)?)?t\/([^/]+)/);
   return m?.[1] ?? null;
+}
+
+/**
+ * The permissions this token actually holds AT THIS PATH.
+ *
+ * ═══ THE ESCALATION THIS REPLACES ═══
+ *
+ * `auth.ts` mints `token.permissions` from `memberships[0]` — whichever club
+ * the player joined FIRST (the list is ordered by createdAt). The middleware
+ * then checked that frozen array against the permission required by the URL.
+ *
+ * `checkTenantAccess` above correctly verifies you are a MEMBER of the slug in
+ * the path. The permission check used a different club's ROLE. So an OWNER at
+ * club A who is merely a PLAYER at club B passed both:
+ *
+ *   membership check   member of B?            yes
+ *   permission check   has admin.venue_manage? yes — because A made them OWNER
+ *
+ * That is cross-tenant privilege escalation on every mutating tenant route,
+ * and it is live the moment authentication is mounted.
+ *
+ * Deriving from the membership that matches the PATH is the same thing
+ * `contextFromRequest` does for v1 routes. This is the edge half of that fix.
+ * `token.permissions` and `token.role` are not read here, deliberately.
+ *
+ * ═══ THE TRUNCATED CASE, AND WHY IT DENIES ═══
+ *
+ * `buildMembershipClaims` caps the list at MAX_JWT_MEMBERSHIPS for a header
+ * budget. A player in more clubs than that carries an incomplete list, so a
+ * missing membership does not prove non-membership — which is why
+ * `checkTenantAccess` returns `needs_db_check` and lets the request through.
+ *
+ * This cannot do the same. Letting a mutation through with NO permission check
+ * would mean the one class of user whose claims we admit are incomplete is
+ * also the one class that bypasses authorisation entirely — and the routes do
+ * not re-check: the admin stub says outright that it has no permission check
+ * "on purpose — the middleware has already enforced admin.venue_manage".
+ *
+ * So it denies, and the honest cost is recorded: a player in more than
+ * MAX_JWT_MEMBERSHIPS clubs cannot perform a mutation at a club outside the
+ * first fifty until the edge can resolve membership authoritatively. Denying a
+ * rare legitimate user beats admitting every attacker who can join fifty-one
+ * clubs.
+ */
+export function permissionsForPath(pathname: string, token: TokenClaims | null): string[] {
+  const slug = tenantSlugFromPath(pathname);
+  if (!slug || !token) return [];
+
+  const membership = (token.memberships ?? []).find((m) => m.tenantSlug === slug);
+
+  // `role` is a string off a token, not a value Prisma produced, so it is
+  // checked rather than cast. An unrecognised role grants nothing.
+  if (!membership || !isRole(membership.role)) return [];
+
+  return [...getPermissionsForRole(membership.role)];
 }
 
 export function checkTenantAccess(pathname: string, token: TokenClaims | null): AccessDecision {

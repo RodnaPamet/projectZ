@@ -165,8 +165,30 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       // Mirror the JWT onto the session so a client component sees the same
-      // claims the middleware enforced. A session that disagrees with the
-      // token is how a UI shows an admin button the API then refuses.
+      // claims the token carries.
+      //
+      // ═══ `role` AND `permissions` ARE DISPLAY-ONLY. DO NOT AUTHORISE ON
+      //     THEM. ═══
+      //
+      // They are derived from `memberships[0]` above — the club this user
+      // joined FIRST, which has nothing to do with the club any given request
+      // is about. Reading them to decide whether an action is allowed is
+      // cross-tenant privilege escalation: an OWNER at one club would pass an
+      // owner-only check at every other club they had merely joined. The
+      // middleware used to do exactly that.
+      //
+      // Both authoritative paths derive permissions from the membership
+      // matching the tenant being addressed, and neither reads these fields:
+      //
+      //   edge      `permissionsForPath`   in `@/lib/auth/guard`
+      //   routes    `contextFromRequest`   in `@/app/api/v1/_lib/context`
+      //
+      // `token-permissions-are-not-authorisation` fails the build if anything
+      // else starts reading them.
+      //
+      // `memberships` is the honest field: it says which club grants which
+      // role, so a UI that wants to know whether to draw an admin button can
+      // look up the club it is actually drawing.
       return Object.assign(session, {
         userId: token.sub,
         tenantId: token.tenantId,
