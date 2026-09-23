@@ -1,0 +1,60 @@
+/// Who changed what, and when.
+///
+/// ─── Append-only, enforced by the database ──────────────────────────
+///
+/// A history you can edit is not a history. The trigger in P26 raises on
+/// UPDATE and DELETE, so a repository bug, an admin script, or an operator
+/// with a `psql` prompt cannot quietly rewrite it. There is no compensating
+/// entry to write either, unlike the credit ledger: a wrong audit row stays,
+/// and the correction is another row saying so.
+///
+/// ─── No foreign key on actorUserId, deliberately ────────────────────
+///
+/// An audit entry has to outlive its actor. ON DELETE CASCADE would erase the
+/// record of what someone did at the moment their account is removed — which
+/// is precisely when the record matters most — and RESTRICT would make the
+/// audit log block account deletion forever. So the id is stored bare.
+///
+/// Erasure is handled by anonymising the `User` row, not by deleting history.
+model AuditEntry {
+  id       String @id @default(cuid())
+  tenantId String
+
+  /// NULL when nothing human acted: a scheduled job, a webhook, a group sync.
+  actorUserId String?
+  actorType   AuditActorType @default(USER)
+
+  /// Prisma model name and row id of the thing acted upon.
+  entity   String
+  entityId String
+
+  /// SCREAMING_SNAKE verb — MEMBER_ROLE_CHANGED, BOOKING_CANCELLED.
+  ///
+  /// A String and not an enum on purpose: the set grows with every feature,
+  /// and an enum would mean a migration each time. The cost is that a typo is
+  /// not caught by the compiler, which is why callers pass a constant.
+  action String
+
+  /// One human-readable line, for an admin list view.
+  details String?
+
+  /// The structured payload an investigation actually reads: before/after,
+  /// what triggered it, which inputs matched.
+  detailsJson Json @default("{}")
+
+  /// Correlates this row with `x-request-id` and every log line for the same
+  /// request. Without it, "what else happened in that request?" is unanswerable.
+  requestId String?
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  /// The list view: one tenant's history, newest first.
+  @@index([tenantId, createdAt])
+  /// "What happened to THIS booking/membership?"
+  @@index([tenantId, entity, entityId])
+  /// "What did this person do?"
+  @@index([tenantId, actorUserId])
+  @@map("audit_entry")
+}
