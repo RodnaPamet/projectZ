@@ -51,6 +51,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   InvalidChannelIdError: { status: 400, code: 'INVALID_CHANNEL_ID' },
   InvalidCoordinateError: { status: 400, code: 'INVALID_COORDINATES' },
   RangeTooWideError: { status: 400, code: 'RANGE_TOO_WIDE' },
+  // 400: the club asked for a role an Entra group may never grant. Retrying
+  // with the same body cannot succeed.
+  RoleNotMappableError: { status: 400, code: 'ROLE_NOT_MAPPABLE' },
   ShareSumMismatchError: { status: 400, code: 'SHARE_SUM_MISMATCH' },
   EmptyMessageError: { status: 400, code: 'EMPTY_MESSAGE' },
   UnsupportedCapabilityError: { status: 400, code: 'UNSUPPORTED_CAPABILITY' },
@@ -75,6 +78,7 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
 
   // ── 404: it is not there, or not there for you ────────────────────
   UnknownPlayerRatingError: { status: 404, code: 'UNKNOWN_PLAYER_RATING' },
+  MappingNotFoundError: { status: 404, code: 'MAPPING_NOT_FOUND' },
   WearableNotConnectedError: { status: 404, code: 'WEARABLE_NOT_CONNECTED' },
 
   // ── 409: the world moved; the request was fine ────────────────────
@@ -86,6 +90,7 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   SessionFullError: { status: 409, code: 'SESSION_FULL' },
   TournamentStateError: { status: 409, code: 'TOURNAMENT_STATE' },
   IdempotencyRaceError: { status: 409, code: 'IDEMPOTENCY_RACE' },
+  DuplicateGroupMappingError: { status: 409, code: 'DUPLICATE_GROUP_MAPPING' },
   PayoutsNotEnabledError: { status: 409, code: 'PAYOUTS_NOT_ENABLED' },
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
 

@@ -229,3 +229,33 @@ export function toAvailability(args: {
     })),
   };
 }
+
+export interface GroupMappingDto {
+  id: string;
+  aadGroupId: string;
+  aadGroupName: string | null;
+  role: string;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toGroupMapping(m: {
+  id: string;
+  aadGroupId: string;
+  aadGroupName: string | null;
+  role: string;
+  priority: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): GroupMappingDto {
+  return {
+    id: m.id,
+    aadGroupId: m.aadGroupId,
+    aadGroupName: m.aadGroupName,
+    role: m.role,
+    priority: m.priority,
+    createdAt: rfc3339(m.createdAt),
+    updatedAt: rfc3339(m.updatedAt),
+  };
+}
