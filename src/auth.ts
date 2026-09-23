@@ -18,8 +18,38 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
  */
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
-  session: { strategy: 'jwt' },
-  pages: { signIn: '/login' },
+  /**
+   * 7 days, not next-auth's 30-day default.
+   *
+   * `GET /api/auth/session` re-encodes the JWT and re-chunks the cookie with a
+   * FRESH expiry on every single call, ungated — there is no updateAge check on
+   * that path (next-auth/core/routes/session.js:60-79). The React client polls
+   * it on focus and on an interval, so a session slides for as long as anything
+   * holds it open.
+   *
+   * With UserSession unimplemented there is no revocation to bound that: a
+   * stolen cookie that is merely polled never expires. Until sessionVersion is
+   * wired, a shorter window is the only thing limiting the damage, and 30 days
+   * of unrevocable access is too much to leave as a default nobody chose.
+   *
+   * This does NOT fix revocation. It shortens the tail.
+   */
+  session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 },
+
+  /**
+   * Point every page at our own UI.
+   *
+   * With only `signIn` set, next-auth serves its built-in unbranded ENGLISH
+   * pages for the rest — from playerz.bg, to an audience whose default locale
+   * is Bulgarian. `verify-request` is the worst of them: it says "A sign in
+   * link has been sent to your email address" for an app that has no Email
+   * provider and never sent one.
+   */
+  pages: {
+    signIn: '/login',
+    signOut: '/login',
+    error: '/login',
+  },
 
   providers: [
     GoogleProvider({

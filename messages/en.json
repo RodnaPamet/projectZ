@@ -199,5 +199,17 @@
     "ESPORTS": "E-sports",
     "RUNNING": "Running",
     "CYCLING": "Cycling"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Sign in to book a court.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "withGoogle": "Sign in with Google",
+    "or": "or",
+    "invalid": "Wrong email or password.",
+    "throttled": "Too many attempts. Please try again later.",
+    "unavailable": "Sign-in is temporarily unavailable."
   }
 }
