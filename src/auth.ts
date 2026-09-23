@@ -5,6 +5,7 @@ import GoogleProvider from 'next-auth/providers/google';
 
 import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-claims';
 import { dummyVerify, verifyPassword } from '@/lib/auth/passwords';
+import { createUserSession, newSessionSecret } from '@/lib/auth/sessions';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { prisma } from '@/lib/db/prisma';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -16,6 +17,15 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
  * there is no `app.tenant_id` to bind, and an RLS-scoped query for the User
  * would return zero rows and look exactly like "wrong password".
  */
+/**
+ * 7 days, and the session ROW must expire with the cookie.
+ *
+ * A row that outlives its token is a session list that shows devices which
+ * cannot actually do anything; a row that dies first revokes a token the user
+ * still holds. One constant, used by both.
+ */
+export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
   /**
@@ -34,7 +44,7 @@ export const authOptions: NextAuthOptions = {
    *
    * This does NOT fix revocation. It shortens the tail.
    */
-  session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 },
+  session: { strategy: 'jwt', maxAge: SESSION_MAX_AGE_SECONDS },
 
   /**
    * Point every page at our own UI.
@@ -118,6 +128,36 @@ export const authOptions: NextAuthOptions = {
         token.tenantSlug = first?.tenantSlug ?? null;
         token.role = first?.role ?? null;
         token.permissions = first ? [...getPermissionsForRole(first.role as never)] : [];
+
+        // ═══ RECORD THE SESSION SO IT CAN BE TAKEN BACK ═══
+        //
+        // `user` is present only on SIGN-IN. This callback also runs on every
+        // session poll, and creating a row there would mint a new session on
+        // every page focus — thousands of rows per user, and a "sign out
+        // everywhere" that misses the ones created since.
+        //
+        // sessionVersion is snapshotted from the user's CURRENT counter. When
+        // a password change increments that counter, every token carrying an
+        // older value stops being accepted — including tokens we have never
+        // seen, held by instances that have since died.
+        //
+        // If this write fails, sign-in fails. That is the intended direction:
+        // a session that cannot be revoked is worse than a sign-in that has
+        // to be retried.
+        const sessionSecret = newSessionSecret();
+        const created = await createUserSession({
+          userId: user.id,
+          // NULL until a tenant is selected. `user_session`'s WITH CHECK
+          // rejects a tenant that is not the bound one, which is why this
+          // whole path runs as superuser.
+          tenantId: null,
+          sessionSecret,
+          expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
+        });
+
+        token.userSessionId = created.userSessionId;
+        token.sessionVersion = created.sessionVersion;
+        token.sessionSecret = sessionSecret;
       }
 
       return token;

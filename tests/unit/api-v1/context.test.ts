@@ -3,6 +3,15 @@ import { getToken } from 'next-auth/jwt';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
+
+// `contextFromRequest` now verifies the session, which reaches Prisma and
+// therefore `pg` — a Node-only chain that does not load under jsdom. These
+// tests are about PERMISSION DERIVATION, so the session check is stubbed
+// usable; tests/unit/api-v1/context-revocation.test.ts covers the other half.
+jest.mock('@/lib/auth/sessions', () => ({
+  checkSession: jest.fn(async () => ({ usable: true })),
+}));
+
 const mockToken = getToken as unknown as jest.Mock;
 
 const req = {} as never;

@@ -33,9 +33,26 @@ export interface PlayerzJWT {
    * only sound if the list is complete, and the API is the authority anyway.
    */
   membershipsTruncated: boolean;
-  /** Lets a password change revoke every issued token. */
+  /**
+   * Snapshot of `User.sessionVersion` when this token was minted.
+   *
+   * A password change increments the user's counter, and every token carrying
+   * an older value stops being accepted — including tokens we have never seen,
+   * held by instances that have since died. No revocation list, no cleanup job.
+   */
   sessionVersion: number;
+  /** The `user_session` row this token belongs to. Null on a pre-P25 token. */
   userSessionId: string | null;
+  /**
+   * Binds the token to that row: the row stores `hashForLookup(secret)`.
+   *
+   * Belt and braces for the web cookie, which is an encrypted, signed JWE and
+   * cannot be forged anyway. It earns its keep in the native flow, where
+   * refresh-token rotation needs to tell the CURRENT token for a session from
+   * one that was valid before the last refresh — which is how replay of a
+   * stolen refresh token gets detected.
+   */
+  sessionSecret?: string | null;
 }
 
 export function buildMembershipClaims(all: readonly MembershipClaim[]): {
