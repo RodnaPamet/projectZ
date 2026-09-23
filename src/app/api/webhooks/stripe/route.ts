@@ -6,7 +6,7 @@ import {
   handleInvoicePaid,
   handleSubscriptionDeleted,
 } from '@/lib/billing/webhook-handlers';
-import { prisma } from '@/lib/db/prisma';
+import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { WebhookSignatureError, verifyStripeWebhook } from '@/lib/stripe';
 
 /**
@@ -43,17 +43,23 @@ export async function POST(req: NextRequest) {
 
     // The ONLY thing that may set `payoutsEnabled`. See handleAccountUpdated.
     case 'account.updated': {
-      const r = await handleAccountUpdated(prisma, event.data.object as Stripe.Account);
+      const r = await runAsSuperuser((db) =>
+        handleAccountUpdated(db, event.data.object as Stripe.Account),
+      );
       return NextResponse.json({ received: true, type: event.type, ...r });
     }
 
     case 'invoice.paid': {
-      const r = await handleInvoicePaid(prisma, event.data.object as Stripe.Invoice);
+      const r = await runAsSuperuser((db) =>
+        handleInvoicePaid(db, event.data.object as Stripe.Invoice),
+      );
       return NextResponse.json({ received: true, type: event.type, ...r });
     }
 
     case 'customer.subscription.deleted': {
-      const r = await handleSubscriptionDeleted(prisma, event.data.object as Stripe.Subscription);
+      const r = await runAsSuperuser((db) =>
+        handleSubscriptionDeleted(db, event.data.object as Stripe.Subscription),
+      );
       return NextResponse.json({ received: true, type: event.type, ...r });
     }
 

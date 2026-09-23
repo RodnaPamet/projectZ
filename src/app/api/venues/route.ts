@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { prisma } from '@/lib/db/prisma';
+import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { clampLimit, listVenues } from '@/app-layer/repositories/venue';
 
 /**
@@ -14,19 +14,25 @@ import { clampLimit, listVenues } from '@/app-layer/repositories/venue';
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
 
-  const page = await listVenues(
-    prisma,
-    {
-      q: sp.get('q') ?? undefined,
-      city: sp.get('city') ?? undefined,
-      sport: (sp.get('sport') as never) ?? undefined,
-      indoor: sp.has('indoor') ? sp.get('indoor') === 'true' : undefined,
-      maxPriceCents: sp.has('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
-    },
-    {
-      cursor: sp.get('cursor') ?? undefined,
-      limit: clampLimit(sp.has('limit') ? Number(sp.get('limit')) : undefined),
-    },
+  // BYPASSRLS, not the raw singleton. `venue` has FORCE RLS keyed on
+  // app.tenant_id and this read has no tenant, so bound as app_user it returns
+  // ZERO ROWS — an empty city, silently. It only appeared to work because the
+  // dev connection role is a cluster superuser and is exempt from row security.
+  const page = await runAsSuperuser((db) =>
+    listVenues(
+      db,
+      {
+        q: sp.get('q') ?? undefined,
+        city: sp.get('city') ?? undefined,
+        sport: (sp.get('sport') as never) ?? undefined,
+        indoor: sp.has('indoor') ? sp.get('indoor') === 'true' : undefined,
+        maxPriceCents: sp.has('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
+      },
+      {
+        cursor: sp.get('cursor') ?? undefined,
+        limit: clampLimit(sp.has('limit') ? Number(sp.get('limit')) : undefined),
+      },
+    ),
   );
 
   return NextResponse.json({
@@ -39,7 +45,9 @@ export async function GET(req: NextRequest) {
       avgRating: Number(v.avgRating),
       reviewCount: v.reviewCount,
       sports: [...new Set(v.resources.map((c) => c.sport))],
-      fromPriceCents: v.resources.length ? Math.min(...v.resources.map((c) => c.basePriceCents)) : null,
+      fromPriceCents: v.resources.length
+        ? Math.min(...v.resources.map((c) => c.basePriceCents))
+        : null,
     })),
     nextCursor: page.nextCursor,
   });

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { InvalidCoordinateError, clampRadiusKm, nearVenues } from '@/app-layer/repositories/geo';
-import { prisma } from '@/lib/db/prisma';
+import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
 /**
  * "Venues near me". Public, unauthenticated.
@@ -17,13 +17,16 @@ export async function GET(req: NextRequest) {
   const radiusKm = sp.has('radius') ? Number(sp.get('radius')) : undefined;
 
   try {
-    const venues = await nearVenues(prisma, {
-      lat,
-      lng,
-      radiusKm,
-      sport: (sp.get('sport') as never) ?? undefined,
-      limit: sp.has('limit') ? Number(sp.get('limit')) : undefined,
-    });
+    // BYPASSRLS — see /api/venues. A public geo read has no tenant to bind.
+    const venues = await runAsSuperuser((db) =>
+      nearVenues(db, {
+        lat,
+        lng,
+        radiusKm,
+        sport: (sp.get('sport') as never) ?? undefined,
+        limit: sp.has('limit') ? Number(sp.get('limit')) : undefined,
+      }),
+    );
 
     return NextResponse.json({
       venues,
