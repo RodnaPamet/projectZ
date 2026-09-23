@@ -1,3 +1,5 @@
+import { fromZonedTime } from 'date-fns-tz';
+
 import {
   MAX_RANGE_DAYS,
   RangeTooWideError,
@@ -186,5 +188,79 @@ describe('slot materialisation', () => {
 
     expect(slots.length).toBeGreaterThan(0);
     expect(slots.every((s) => s.priceCents === 1500)).toBe(true);
+  });
+});
+
+/**
+ * The changeover DAYS, as opposed to the changeover INSTANT that test 4
+ * covers. Sofia moves on the last Sunday of March and October: in 2026 that
+ * is 29 March (23 hours long) and 25 October (25 hours long).
+ *
+ * Every one of these failed before the local-calendar day walk landed, and
+ * none of them could have been caught by reasoning about the code — the
+ * duplicate count was measured.
+ */
+describe('slot materialisation across a changeover DAY', () => {
+  const oneWindow = (dayOfWeek: number): AvailabilityWindow[] => [
+    { dayOfWeek, openMinutes: 9 * 60, closeMinutes: 12 * 60 },
+  ];
+
+  const localMidnight = (y: number, m: number, d: number) =>
+    fromZonedTime(new Date(y, m, d, 0, 0, 0, 0), SOFIA);
+
+  it('the 25-hour day produces each slot ONCE, not twice', () => {
+    // 2026-10-25 is a Sunday and 25 hours long. Stepping the loop by a fixed
+    // 86_400_000ms lands back inside the same local date, so the day's windows
+    // were materialised a second time: six slots for a club offering three,
+    // each one duplicated. A player would see the same 09:00 court listed
+    // twice and the second tap would collide.
+    const slots = computeSlots({
+      ...base,
+      windows: oneWindow(0),
+      slotStepMinutes: 60,
+      from: localMidnight(2026, 9, 25),
+      to: localMidnight(2026, 9, 26),
+    });
+
+    const starts = slots.map((s) => s.startTs.toISOString());
+
+    expect(slots).toHaveLength(3);
+    expect(new Set(starts).size).toBe(3);
+  });
+
+  it('the 23-hour day comes back intact across a multi-day range', () => {
+    // A guard, NOT a reproduction — stated plainly because the difference
+    // matters when someone later wonders what this is protecting.
+    //
+    // The 24-hour step gets March right by luck: the short day pushes each
+    // following day-start an hour later instead of colliding, and slot times
+    // are built from the calendar date rather than that drifted instant, so a
+    // daytime window still lands. Only the October collision actually
+    // duplicates. This pins the correct answer either way, since the local
+    // day walk is what now has to produce it.
+    const slots = computeSlots({
+      ...base,
+      windows: oneWindow(0), // 2026-03-29 is a Sunday
+      slotStepMinutes: 60,
+      from: localMidnight(2026, 2, 28),
+      to: localMidnight(2026, 2, 31),
+    });
+
+    expect(slots).toHaveLength(3);
+    // 09:00 local on the day the clocks went forward is 06:00Z (UTC+3).
+    expect(slots[0]!.startTs.toISOString()).toBe('2026-03-29T06:00:00.000Z');
+  });
+
+  it('a full 14-day range spanning the changeover is NOT rejected', () => {
+    // 14 local days across the October changeover measure 14 days and one
+    // hour, so a ceil() over a fixed day length called a legitimate request a
+    // DoS attempt — every October, and only in October.
+    expect(() =>
+      computeSlots({
+        ...base,
+        from: localMidnight(2026, 9, 18),
+        to: localMidnight(2026, 10, 1),
+      }),
+    ).not.toThrow();
   });
 });
