@@ -1,0 +1,42 @@
+/// Every provider webhook we have already processed.
+///
+/// ─── Why this table exists ──────────────────────────────────────────
+///
+/// Stripe guarantees AT LEAST ONCE delivery, and retries on any non-2xx. It
+/// will deliver the same event twice in ordinary operation, and an event can
+/// also be replayed deliberately from the dashboard.
+///
+/// Until now the only replay protection was the signed timestamp inside
+/// `constructEvent`, so a replay within Stripe's tolerance window was accepted
+/// and re-processed. That was survivable while every handler was idempotent by
+/// accident — they wrote absolute state, or nothing at all. It stops being
+/// survivable the moment a handler CONFIRMS A BOOKING and records a payment.
+///
+/// ─── Deliberately NOT tenant-scoped ─────────────────────────────────
+///
+/// A webhook arrives before anything knows which tenant it concerns — that is
+/// discovered by looking the event up. So there is no `tenantId` here, and
+/// therefore no tenant policy.
+///
+/// P28 still enables AND forces row-level security on it with NO policy at
+/// all, which in Postgres means "deny everyone except a role holding
+/// BYPASSRLS". That is exactly the intent: only the webhook path, which runs
+/// as app_superuser, may touch this table. `app_user` cannot read it even
+/// though the blanket GRANT names it.
+model WebhookEvent {
+  id String @id @default(cuid())
+
+  provider  String @default("STRIPE")
+  /// The provider's own event id — `evt_…` for Stripe.
+  eventId   String
+  eventType String
+
+  receivedAt DateTime @default(now())
+
+  /// One row per event, per provider. This is the whole point of the table:
+  /// the unique index is what makes a replay a no-op rather than a second
+  /// confirmation.
+  @@unique([provider, eventId])
+  @@index([receivedAt])
+  @@map("webhook_event")
+}

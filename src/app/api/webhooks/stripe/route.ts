@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import type { PrismaClient } from '@prisma/client';
 import type Stripe from 'stripe';
 
 import {
@@ -6,6 +7,7 @@ import {
   handleInvoicePaid,
   handleSubscriptionDeleted,
 } from '@/lib/billing/webhook-handlers';
+import { handlePaymentIntentSucceeded } from '@/lib/billing/booking-payment';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { WebhookSignatureError, verifyStripeWebhook } from '@/lib/stripe';
 
@@ -17,10 +19,26 @@ import { WebhookSignatureError, verifyStripeWebhook } from '@/lib/stripe';
  * anything else happens. `req.json()` would already have destroyed the
  * bytes the signature was computed over.
  *
- * Confirming a booking is idempotent: Stripe retries on any non-2xx, and it
- * will happily deliver the same event twice. `updateMany` on a PENDING row
- * means the second delivery is a no-op rather than a second confirmation
- * email and a second set of reminder jobs.
+ * ═══ DELIVERY IS AT LEAST ONCE, SO PROCESSING IS ONCE ═══
+ *
+ * Stripe retries on any non-2xx and will deliver the same event twice in
+ * ordinary operation; an event can also be replayed from the dashboard. Until
+ * P28 the only protection was the signed timestamp inside `constructEvent`, so
+ * a replay inside that tolerance window was processed again.
+ *
+ * Every handled event now claims its `event.id` in `webhook_event` first, and
+ * a claim that loses to an existing row means we have already done this work.
+ *
+ * ═══ THE CLAIM AND THE WORK SHARE ONE TRANSACTION ═══
+ *
+ * That is the part worth being careful about. If the claim committed
+ * separately and the work then failed, the event would be permanently marked
+ * done while nothing had happened — and Stripe's retry, the one mechanism that
+ * could have fixed it, would be turned away by our own dedupe row.
+ *
+ * Sharing the transaction means a failure rolls back BOTH, the retry arrives
+ * to an unclaimed event, and the work happens. Success commits both, and the
+ * replay is a no-op.
  */
 export async function POST(req: NextRequest) {
   const raw = await req.text();
@@ -37,35 +55,51 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
-  switch (event.type) {
-    case 'payment_intent.succeeded':
-      return NextResponse.json({ received: true, type: event.type });
+  const dispatch = async (db: PrismaClient): Promise<Record<string, unknown>> => {
+    // Claim the event. `createMany` with skipDuplicates compiles to
+    // INSERT ... ON CONFLICT DO NOTHING, which — unlike a caught unique
+    // violation — does not abort the transaction we still need.
+    const claim = await db.webhookEvent.createMany({
+      data: [{ provider: 'STRIPE', eventId: event.id, eventType: event.type }],
+      skipDuplicates: true,
+    });
 
-    // The ONLY thing that may set `payoutsEnabled`. See handleAccountUpdated.
-    case 'account.updated': {
-      const r = await runAsSuperuser((db) =>
-        handleAccountUpdated(db, event.data.object as Stripe.Account),
-      );
-      return NextResponse.json({ received: true, type: event.type, ...r });
+    if (claim.count === 0) {
+      return { received: true, type: event.type, duplicate: true };
     }
 
-    case 'invoice.paid': {
-      const r = await runAsSuperuser((db) =>
-        handleInvoicePaid(db, event.data.object as Stripe.Invoice),
-      );
-      return NextResponse.json({ received: true, type: event.type, ...r });
-    }
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const r = await handlePaymentIntentSucceeded(db, event.data.object as Stripe.PaymentIntent);
+        return { received: true, type: event.type, ...r };
+      }
 
-    case 'customer.subscription.deleted': {
-      const r = await runAsSuperuser((db) =>
-        handleSubscriptionDeleted(db, event.data.object as Stripe.Subscription),
-      );
-      return NextResponse.json({ received: true, type: event.type, ...r });
-    }
+      // The ONLY thing that may set `payoutsEnabled`. See handleAccountUpdated.
+      case 'account.updated': {
+        const r = await handleAccountUpdated(db, event.data.object as Stripe.Account);
+        return { received: true, type: event.type, ...r };
+      }
 
-    default:
-      // Acknowledge everything else. A non-2xx makes Stripe retry forever —
-      // and an event we do not handle is not an error, it is just noise.
-      return NextResponse.json({ received: true, ignored: event.type });
-  }
+      case 'invoice.paid': {
+        const r = await handleInvoicePaid(db, event.data.object as Stripe.Invoice);
+        return { received: true, type: event.type, ...r };
+      }
+
+      case 'customer.subscription.deleted': {
+        const r = await handleSubscriptionDeleted(db, event.data.object as Stripe.Subscription);
+        return { received: true, type: event.type, ...r };
+      }
+
+      default:
+        // Acknowledge everything else. A non-2xx makes Stripe retry forever —
+        // and an event we do not handle is not an error, it is just noise.
+        //
+        // The claim row is still written, so an unhandled event is recorded as
+        // seen. That is deliberate: it makes "did this arrive?" answerable
+        // without reading Stripe's dashboard.
+        return { received: true, ignored: event.type };
+    }
+  };
+
+  return NextResponse.json(await runAsSuperuser(dispatch));
 }
