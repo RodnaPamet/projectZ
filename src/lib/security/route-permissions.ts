@@ -74,6 +74,13 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     permission: 'payments.refund',
   },
   {
+    // Paying for your OWN booking. Ownership is enforced in the handler —
+    // this only establishes that a random member of the club cannot POST it.
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings\/[^/]+\/checkout/,
+    methods: ['POST'],
+    permission: 'bookings.create',
+  },
+  {
     pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings\/[^/]+\/cancel/,
     methods: ['POST'],
     permission: 'bookings.cancel',
