@@ -104,6 +104,13 @@ model Payment {
   booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   refunds Refund[]
 
+  /// One row per provider charge. Added in P28: `skipDuplicates` on the
+  /// webhook's Payment write silently did nothing without it — there was an
+  /// INDEX on providerRefId but no UNIQUE, so a redelivered event produced a
+  /// second PAID row for one charge and the club's books showed double the
+  /// money. NULLs do not conflict in Postgres, so a payment with no provider
+  /// reference is unaffected.
+  @@unique([provider, providerRefId])
   @@index([tenantId])
   @@index([bookingId])
   @@index([providerRefId])

@@ -214,8 +214,8 @@ model UserSession {
   /// the same value instead of racing to rotate again.
   ///
   /// Presenting it AFTER the window has closed is the real replay signal.
-  previousRefreshTokenHash  String?
-  previousRefreshExpiresAt  DateTime?
+  previousRefreshTokenHash String?
+  previousRefreshExpiresAt DateTime?
 
   createdAt DateTime @default(now())
 
