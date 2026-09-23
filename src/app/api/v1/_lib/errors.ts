@@ -54,6 +54,11 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // 400: the club asked for a role an Entra group may never grant. Retrying
   // with the same body cannot succeed.
   RoleNotMappableError: { status: 400, code: 'ROLE_NOT_MAPPABLE' },
+  // 400, not 409. The club never offered that time — outside opening hours,
+  // off the step grid, or not a whole number of billable units. Retrying
+  // unchanged will never succeed, which is exactly what separates this from
+  // SlotTakenError below.
+  SlotNotBookableError: { status: 400, code: 'SLOT_NOT_BOOKABLE' },
   ShareSumMismatchError: { status: 400, code: 'SHARE_SUM_MISMATCH' },
   EmptyMessageError: { status: 400, code: 'EMPTY_MESSAGE' },
   UnsupportedCapabilityError: { status: 400, code: 'UNSUPPORTED_CAPABILITY' },

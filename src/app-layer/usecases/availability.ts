@@ -120,6 +120,186 @@ function ymdFromDateColumn(d: Date): string {
   return `${d.getUTCFullYear()}-${m}-${day}`;
 }
 
+/**
+ * Which opening rules govern one local day.
+ *
+ * Shared by `computeSlots` and `quoteBooking` deliberately. These two answer
+ * the same question from opposite directions — "what can be booked?" and "may
+ * THIS be booked?" — and if they ever disagreed, the app would show a slot the
+ * booking endpoint then refuses, or worse, refuse a slot it had just offered.
+ * One implementation is the only way that stays true.
+ */
+function applicableWindows(
+  windows: readonly AvailabilityWindow[],
+  day: { dateKey: string; dayOfWeek: number; dayStartUtc: Date },
+): readonly AvailabilityWindow[] {
+  // An exception row for this date REPLACES the recurring rule. A holiday
+  // closure must not be additively merged with "we're open Mondays".
+  const exceptions = windows.filter(
+    (w) => w.exceptionDate && ymdFromDateColumn(w.exceptionDate) === day.dateKey,
+  );
+
+  if (exceptions.length > 0) return exceptions;
+
+  return windows.filter((w) => {
+    if (w.exceptionDate) return false;
+    if (w.dayOfWeek !== day.dayOfWeek) return false;
+    if (w.effectiveFrom && day.dayStartUtc < w.effectiveFrom) return false;
+    if (w.effectiveTo && day.dayStartUtc > w.effectiveTo) return false;
+    return true;
+  });
+}
+
+export class SlotNotBookableError extends Error {
+  readonly code = 'slot_not_bookable';
+  constructor(reason: string) {
+    super(`That time cannot be booked: ${reason}.`);
+    this.name = 'SlotNotBookableError';
+  }
+}
+
+export interface BookingQuote {
+  priceCents: number;
+  /** How many billable units of `minBookingMinutes` the span covers. */
+  units: number;
+}
+
+export interface BookingQuoteOptions {
+  startTs: Date;
+  endTs: Date;
+  timezone: string;
+  windows: readonly AvailabilityWindow[];
+  basePriceCents: number;
+  minBookingMinutes: number;
+  maxBookingMinutes: number;
+  slotStepMinutes: number;
+  pricingRules?: readonly PricingRuleRow[];
+  playerTags?: readonly string[];
+  membershipLevel?: string | null;
+}
+
+/**
+ * What a span costs, and whether the club offers it at all.
+ *
+ * ═══ WHY THE SERVER PRICES, ALWAYS ═══
+ *
+ * `createBooking` takes `totalCents` from its caller and writes it down
+ * without opinion — correctly, because it is a persistence concern. That
+ * makes the ROUTE the last place a price can be decided, and a route that
+ * forwards a client-supplied number lets anyone book a €24 court for one
+ * cent. No constraint downstream catches it: the amount is perfectly valid,
+ * it is just wrong.
+ *
+ * ═══ WHY IT COUNTS UNITS INSTEAD OF PRICING ONCE ═══
+ *
+ * `computePrice` answers for ONE slot and knows nothing about duration —
+ * `basePriceCents` is the price of a single `minBookingMinutes` block, which
+ * is exactly how `computeSlots` uses it. Calling it once for a three-hour
+ * booking would therefore charge for one hour.
+ *
+ * So the span is decomposed into consecutive units and each is priced on its
+ * own. That is not merely safer arithmetic: pricing rules are time-of-day
+ * dependent, so a booking running from off-peak into peak picks up the peak
+ * rate for the part that is actually peak. Pricing the whole span by its start
+ * time would sell the evening at the afternoon rate.
+ *
+ * The cost is a real restriction, stated rather than hidden: a span must be a
+ * whole number of `minBookingMinutes` units. A club wanting 90-minute
+ * bookings sets a 30-minute minimum. Anything else would require deciding how
+ * to price a fraction of a unit, and every answer to that is a guess about the
+ * club's intent.
+ */
+export function quoteBooking(opts: BookingQuoteOptions): BookingQuote {
+  const durationMs = opts.endTs.getTime() - opts.startTs.getTime();
+
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    throw new SlotNotBookableError('the end is not after the start');
+  }
+  if (durationMs % 60_000 !== 0) {
+    throw new SlotNotBookableError('bookings are made in whole minutes');
+  }
+
+  const durationMinutes = durationMs / 60_000;
+
+  if (durationMinutes < opts.minBookingMinutes) {
+    throw new SlotNotBookableError(`the minimum booking is ${opts.minBookingMinutes} minutes`);
+  }
+  if (durationMinutes > opts.maxBookingMinutes) {
+    throw new SlotNotBookableError(`the maximum booking is ${opts.maxBookingMinutes} minutes`);
+  }
+  if (durationMinutes % opts.minBookingMinutes !== 0) {
+    throw new SlotNotBookableError(`bookings are made in ${opts.minBookingMinutes}-minute units`);
+  }
+
+  const localStart = toZonedTime(opts.startTs, opts.timezone);
+  const startMinutes = localStart.getHours() * 60 + localStart.getMinutes();
+  const endMinutes = startMinutes + durationMinutes;
+
+  // ═══ THE ROUND TRIP ═══
+  //
+  // `startMinutes` came from the instant the client sent. Rebuilding the
+  // instant from those minutes must land back on it.
+  //
+  // It does not for an AMBIGUOUS wall clock — the hour that happens twice on
+  // the autumn fall-back day. Measured on Sofia's 2026-10-25, where 03:30
+  // local is both 00:30Z and 01:30Z: rebuilding resolves to 01:30Z, so a
+  // booking sent as the FIRST 03:30 would be priced against one instant and
+  // checked for clashes against another an hour away.
+  //
+  // The mirror case needs no guard: a wall clock skipped by a spring-forward
+  // morning corresponds to no instant at all, so a client cannot express one.
+  //
+  // Rejecting costs one bookable hour a year, at 03:30. Accepting costs a
+  // booking that silently is not when the player thinks it is.
+  const rebuilt = localMinutesToUtc(localStart, startMinutes, opts.timezone);
+  if (rebuilt.getTime() !== opts.startTs.getTime()) {
+    throw new SlotNotBookableError('that wall-clock time does not exist on that date');
+  }
+
+  const dayStartUtc = localMinutesToUtc(localStart, 0, opts.timezone);
+  const applicable = applicableWindows(opts.windows, {
+    dateKey: ymd(localStart),
+    dayOfWeek: localStart.getDay(),
+    dayStartUtc,
+  });
+
+  // The whole span must sit inside ONE window. A booking that bridges the
+  // lunchtime closure is two bookings with a gap, not one long one.
+  const window = applicable.find(
+    (w) => startMinutes >= w.openMinutes && endMinutes <= w.closeMinutes,
+  );
+
+  if (!window) {
+    throw new SlotNotBookableError('the club is not open for that whole period');
+  }
+
+  // Offsets are measured from the window's opening, not from midnight: a club
+  // opening at 09:15 with 30-minute steps offers 09:15 and 09:45, never 09:30.
+  if ((startMinutes - window.openMinutes) % opts.slotStepMinutes !== 0) {
+    throw new SlotNotBookableError(
+      `bookings start every ${opts.slotStepMinutes} minutes from opening`,
+    );
+  }
+
+  const units = durationMinutes / opts.minBookingMinutes;
+  let priceCents = 0;
+
+  for (let u = 0; u < units; u++) {
+    const unitStart = startMinutes + u * opts.minBookingMinutes;
+    const ctx: PriceContext = {
+      basePriceCents: opts.basePriceCents,
+      localDayOfWeek: localStart.getDay(),
+      localStartMinutes: unitStart,
+      localEndMinutes: unitStart + opts.minBookingMinutes,
+      playerTags: opts.playerTags,
+      membershipLevel: opts.membershipLevel,
+    };
+    priceCents += computePrice(opts.pricingRules ?? [], ctx).finalPriceCents;
+  }
+
+  return { priceCents, units };
+}
+
 export function computeSlots(opts: SlotOptions): Slot[] {
   const {
     from,
@@ -180,20 +360,7 @@ export function computeSlots(opts: SlotOptions): Slot[] {
 
     // An exception row for this date REPLACES the recurring rule. A holiday
     // closure must not be additively merged with "we're open Mondays".
-    const exceptions = windows.filter(
-      (w) => w.exceptionDate && ymdFromDateColumn(w.exceptionDate) === dateKey,
-    );
-
-    const applicable =
-      exceptions.length > 0
-        ? exceptions
-        : windows.filter((w) => {
-            if (w.exceptionDate) return false;
-            if (w.dayOfWeek !== dayOfWeek) return false;
-            if (w.effectiveFrom && dayStartUtc < w.effectiveFrom) return false;
-            if (w.effectiveTo && dayStartUtc > w.effectiveTo) return false;
-            return true;
-          });
+    const applicable = applicableWindows(windows, { dateKey, dayOfWeek, dayStartUtc });
 
     for (const w of applicable) {
       for (let m = w.openMinutes; m + minBookingMinutes <= w.closeMinutes; m += slotStepMinutes) {
