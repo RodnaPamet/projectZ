@@ -87,6 +87,49 @@ interface Field {
   source: string;
 }
 
+/**
+ * The ELEMENT a match sits in, not the line.
+ *
+ * This used to read one line and look for `autoComplete` on that same line —
+ * which only works for an input written as a single line. Prettier formats JSX
+ * attributes one per line at this repo's width, so a correctly-written field:
+ *
+ *     <input
+ *       type="password"
+ *       autoComplete="current-password"
+ *     />
+ *
+ * was reported as a violation, because the attribute is two lines below the
+ * match. This guard shipped before any auth form existed and its own prose said
+ * so ("allowed to be guarding an empty set today"), so nothing ever exercised
+ * it against real JSX until the first login form arrived and it failed on
+ * correct code.
+ *
+ * The window is bounded by the element, not by a fixed line count: a ±N window
+ * would happily read a NEIGHBOURING field's autoComplete and pass a password
+ * input that has none.
+ */
+function elementAround(lines: string[], index: number): string {
+  let start = index;
+  // Walk back to the opening tag. 12 lines is more attributes than any input
+  // in this repo carries, and stopping is better than running into the field
+  // above.
+  for (let i = index; i >= 0 && index - i < 12; i--) {
+    if (/<[A-Za-z][A-Za-z0-9.]*\b/.test(lines[i]!)) {
+      start = i;
+      break;
+    }
+  }
+
+  let end = index;
+  for (let i = index; i < lines.length && i - index < 12; i++) {
+    end = i;
+    if (/\/?>\s*$/.test(lines[i]!)) break;
+  }
+
+  return lines.slice(start, end + 1).join('\n');
+}
+
 function passwordFields(): Field[] {
   const found: Field[] = [];
 
@@ -95,7 +138,7 @@ function passwordFields(): Field[] {
 
     lines.forEach((line, i) => {
       if (PASSWORD_FIELD.test(line)) {
-        found.push({ file, line: i + 1, source: line.trim() });
+        found.push({ file, line: i + 1, source: elementAround(lines, i) });
       }
     });
   }
@@ -117,7 +160,6 @@ describe('the scan is not vacuous', () => {
     // set today (there are no auth routes yet). What it is not allowed to do is
     // pretend that means something is verified.
     if (fields.length === 0) {
-       
       console.info(
         '\n  [auth-autofill] No password fields exist yet — no auth routes have been built.\n' +
           '  This guard is armed, not satisfied. It will fire on the first login form that\n' +

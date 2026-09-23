@@ -42,6 +42,16 @@ const PUBLIC_PATTERNS: RegExp[] = [
   /^\/open-play(\/|$)/,
   /^\/coaches(\/|$)/,
   /^\/design-system(\/|$)/,
+  // Sign-in must be public, and EXPLICITLY so.
+  //
+  // It reaches users today only because `checkTenantAccess` finds no tenant
+  // slug in `/login` and falls through to its `allow` default — the same
+  // fail-open behaviour being tightened everywhere else. That matters more
+  // here than elsewhere: middleware REDIRECTS unauthenticated users to
+  // /login, so the day that default is tightened, /login denies, which
+  // redirects to /login, which denies. A redirect loop on the one page that
+  // could fix it.
+  /^\/login$/,
   /^\/api\/venues(\/|$)/,
   // The orchestrator's probes. These are the paths that EXIST — `/api/livez`
   // and `/api/readyz` were listed here for a while and are not routes, which
