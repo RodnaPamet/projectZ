@@ -26,16 +26,31 @@ import { globSync, readFileSync } from 'node:fs';
 const FORBIDDEN = /\b(?:token|session|claims|jwt|raw)(?:\.user)?\.(permissions|role)\b/;
 
 /**
- * `auth.ts` mints them. `guard.ts`, `context.ts` and `middleware.ts` name them
- * in prose to say they are deliberately NOT read — the regex ignores comments,
- * but an allowlist entry costs nothing and a false positive costs a build.
+ * ONLY the file that MINTS them.
+ *
+ * ═══ WHY guard.ts, middleware.ts AND context.ts ARE NOT HERE ═══
+ *
+ * They were, and that made this rule unable to catch the bug it exists for.
+ *
+ * Those three are the only files in the codebase that DECIDE authorisation, so
+ * they are the only three places the one-line regression can be written. An
+ * allowlist naming them exempts precisely its own subject. Demonstrated rather
+ * than argued: inserting `if (token.permissions) return token.permissions` into
+ * `permissionsForPath` — the exact cross-tenant escalation this rule describes,
+ * where an OWNER at one club performs owner-only mutations at another — left
+ * this suite passing.
+ *
+ * The original justification was that those files mention the fields in prose
+ * and an allowlist entry "costs nothing". Both halves were wrong. `code()`
+ * below already strips comments, so prose never matched; and the entries cost
+ * the entire rule. Removing them on an unmodified tree leaves the suite green,
+ * which is the proof they were buying nothing.
+ *
+ * If a genuine need arises to read these fields in an authorisation file, that
+ * is the conversation this rule exists to force — not something to wave through
+ * with a new entry here.
  */
-const ALLOWED = new Set([
-  'src/auth.ts',
-  'src/lib/auth/guard.ts',
-  'src/middleware.ts',
-  'src/app/api/v1/_lib/context.ts',
-]);
+const ALLOWED = new Set(['src/auth.ts']);
 
 /** Strip comments, so prose about the rule is not mistaken for a breach. */
 function code(source: string): string {
@@ -53,6 +68,26 @@ describe('token permissions are not authorisation', () => {
 
     const auth = code(readFileSync('src/auth.ts', 'utf8'));
     expect(auth).toMatch(FORBIDDEN);
+  });
+
+  it('the allowlist names ONLY the mint site', () => {
+    // The failure this rule actually suffered was not someone reading the
+    // fields — it was the allowlist growing to cover the files that do. An
+    // entry added here is indistinguishable from a fix, so the set is pinned:
+    // widening it has to be a deliberate edit to this assertion, in a diff a
+    // reviewer will see.
+    expect([...ALLOWED]).toEqual(['src/auth.ts']);
+  });
+
+  it('would catch the escalation in an authorisation file', () => {
+    // The regression is one line in permissionsForPath. This proves the
+    // scanner reaches that file and that the pattern matches the shape the
+    // regression takes — the two things the old allowlist quietly disabled.
+    const guard = 'src/lib/auth/guard.ts';
+
+    expect(files).toContain(guard);
+    expect(ALLOWED.has(guard)).toBe(false);
+    expect(FORBIDDEN.test('  if (token.permissions) return token.permissions;')).toBe(true);
   });
 
   it('is read nowhere else', () => {
