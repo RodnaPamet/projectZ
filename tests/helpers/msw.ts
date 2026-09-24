@@ -13,8 +13,20 @@ import { setupServer } from 'msw/node';
  * amount, currency and idempotency key that actually go over the wire.
  */
 
-/** Every request MSW intercepted this run, for assertions. */
-export const recorded: Array<{ url: string; method: string; body: unknown }> = [];
+/**
+ * Every request MSW intercepted this run, for assertions.
+ *
+ * Headers are recorded as well as the body, because some guarantees live
+ * ONLY in a header — an `Idempotency-Key` on a Stripe POST is the difference
+ * between two simultaneous clicks creating one connected account and creating
+ * two, and there is no way to observe that from the body.
+ */
+export const recorded: Array<{
+  url: string;
+  method: string;
+  body: unknown;
+  headers: Record<string, string>;
+}> = [];
 
 async function record(request: Request) {
   let body: unknown = null;
@@ -24,7 +36,15 @@ async function record(request: Request) {
   } catch {
     body = null;
   }
-  recorded.push({ url: request.url, method: request.method, body });
+
+  // Lower-cased keys: Headers normalises on read, and a test asserting
+  // `Idempotency-Key` should not fail because the SDK sent `idempotency-key`.
+  const headers: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    headers[key.toLowerCase()] = value;
+  });
+
+  recorded.push({ url: request.url, method: request.method, body, headers });
   return body;
 }
 

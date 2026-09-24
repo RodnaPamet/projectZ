@@ -51,6 +51,15 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     permission: 'courts.manage',
   },
 
+  // ── Payouts / Stripe Connect ──────────────────────────────────────
+  //
+  // Where the club's money lands. Billing, not venue administration.
+  {
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/connect\//,
+    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
+    permission: 'admin.billing_manage',
+  },
+
   // ── SSO / identity federation ─────────────────────────────────────
   //
   // Every mutating verb, including DELETE: removing a mapping silently stops
