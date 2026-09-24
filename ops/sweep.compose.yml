@@ -1,0 +1,74 @@
+# The expiry sweep, on a schedule.
+#
+# ═══ WHY THIS EXISTS ═══
+#
+# `POST /api/cron/release-expired-bookings` shipped in #119 and NOTHING EVER
+# CALLED IT. There is no vercel.json, and neither ops/ nor .github/workflows
+# referenced the route. An abandoned checkout held its court indefinitely, and
+# the availability endpoint mirrors the exclusion constraint exactly, so the
+# hold was invisible in the UI too.
+#
+# Since #136 it is also the ONLY thing that returns wallet credit spent on an
+# abandoned checkout. `checkoutBooking` spends the wallet before charging the
+# card, so a player who closes the tab has had credit debited for a court they
+# never got. Unscheduled, that credit stays spent — permanently, and with no
+# audit entry, because nothing knows it happened.
+#
+# ═══ HOW TO USE IT ═══
+#
+#   docker compose -f docker-compose.prod.yml -f ops/sweep.compose.yml up -d
+#
+# This repo carries no production compose file — deployment lives elsewhere —
+# so this is an OVERLAY, not a stack. It expects a service reachable as `app`
+# on port 3000; override SWEEP_URL if yours is named differently.
+#
+# ═══ WHY A LOOP AND NOT A CRON IMAGE ═══
+#
+# No new image to trust. `alpine` is already in every layer cache, and busybox
+# `wget` is enough to POST a header. A cron scheduler would buy minute-aligned
+# firing, which is worth nothing here: the sweep is idempotent, capped at 500
+# bookings per run, and reports `truncated` when a backlog remains.
+services:
+  booking-sweep:
+    image: alpine:3
+    container_name: playerz-booking-sweep
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      # No default. A sweep running without the secret gets a 401 for ever and
+      # looks exactly like a sweep with nothing to do.
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the expiry sweep}
+      SWEEP_URL: ${SWEEP_URL:-http://app:3000/api/cron/release-expired-bookings}
+      SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-60}
+    # `--post-data=""` is how BUSYBOX wget sends a POST. It has no `--method`
+    # flag at all — that is GNU wget, and using it here fails every request
+    # with a usage error that the loop reports as "app down, or wrong secret".
+    # Found by running it: `wget --help` in alpine:3 lists
+    # `--post-data STR | --post-file FILE` and nothing else.
+    #
+    # `-O-` writes the body to stdout so `released` and `creditRefundedCents`
+    # land in the container log. `--header` keeps the secret out of the URL,
+    # which would otherwise reach access logs and `ps`.
+    #
+    # `$$` throughout: compose interpolates `${VAR}` at CONFIG time from the
+    # host environment. These must survive into the container and be expanded
+    # by ITS shell, from the `environment:` block above — written with a single
+    # `$` they resolve to empty strings at `docker compose up` and the loop
+    # silently POSTs to nowhere with no secret.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "sweep: every $${SWEEP_INTERVAL_SECONDS}s -> $${SWEEP_URL}"
+        while true; do
+          sleep "$${SWEEP_INTERVAL_SECONDS}"
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${SWEEP_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"released":0'*'"truncated":false'*) : ;;   # nothing to do — stay quiet
+                 *) echo "sweep: $$body" ;;
+               esac \
+            || echo "sweep: request failed (app down, or wrong secret)"
+        done
