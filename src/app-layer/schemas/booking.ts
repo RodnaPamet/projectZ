@@ -5,14 +5,33 @@ import { MAX_BOOKING_HOURS } from '@/lib/db/booking-invariants';
 import { cuidSchema } from './common';
 
 /**
- * The booking span is validated in three places, on purpose:
+ * NOT IMPORTED BY ANYTHING. Scaffolding from P06 that the real route, which
+ * arrived ~100 PRs later, never referenced.
  *
- *   1. here (Zod)  — a 400 with a useful message
- *   2. the app     — assertBookingSpanValid()
- *   3. POSTGRES    — the booking_span_valid CHECK constraint
+ * The comment here used to say the booking span is validated in THREE places
+ * — this schema, `assertBookingSpanValid()`, and the `booking_span_valid`
+ * CHECK constraint. It is two. Layer (1) never runs on any request: the route
+ * hand-rolls its validation with `requireString`/`requireInstant`.
  *
- * Only (3) is a guarantee. (1) and (2) exist so the user gets a sentence
- * instead of a 500. If they ever disagree, the database wins.
+ * ═══ DO NOT "RESTORE" THIS BY IMPORTING IT ═══
+ *
+ * That reads like the fix and would break the published contract in four
+ * ways. The permissive behaviour is deliberate and DOCUMENTED:
+ * openapi/playerz-v1.json types `Idempotency-Key` with `minLength: 1` and
+ * calls a UUID merely "the expected form", says of `notes` that "no length
+ * limit is enforced at this route", and names the field `resourceId` —
+ * where this schema says `courtId`. openapi/NOTES.md explains the
+ * non-strictness as a choice, because describing a strictness the server does
+ * not have is worse than describing none.
+ *
+ * So this is dead code with a false comment, not a validation bypass. The two
+ * rules it declares and nobody enforces — `notes` max 2000 and a UUID
+ * idempotency key — are unenforced BY DESIGN today. Tightening either is a
+ * contract change that starts with the spec, not with this file.
+ *
+ * Kept rather than deleted: five sibling schema modules are in the same state
+ * and they form a closed island, so removing one at a time is churn. See
+ * tests/guardrails/usecase-reachability.test.ts for the policy.
  */
 export const createBookingSchema = z
   .object({

@@ -241,10 +241,22 @@ export async function refundBooking(
 /**
  * Split a booking N ways and mint one payment link per person.
  *
- * The raw token is returned ONCE, to be emailed. Only its hash is stored —
- * a leaked database backup must not hand an attacker every open payment link
- * in the system. Same reasoning as a password: we never need the original back,
- * only to recognise it when it is presented.
+ * NOT WIRED. No route creates or redeems a split, nothing sends the token,
+ * and `SPLIT_REIMBURSEMENT` is never written outside tests. The only callers
+ * of this function and of `findSplitByToken` are in
+ * tests/integration/payments.test.ts.
+ *
+ * This comment used to say the raw token is "returned ONCE, to be emailed",
+ * which describes a flow that does not exist — `resend` is installed and no
+ * sender was ever written. Said plainly here because the alternative is the
+ * next reader tracing imports by hand to find out, which is exactly what an
+ * audit had to do.
+ *
+ * The mechanism itself is correct and tested, and the hashing is the part
+ * worth keeping right: only the hash is stored, so a leaked database backup
+ * must not hand an attacker every open payment link in the system. Same
+ * reasoning as a password — we never need the original back, only to
+ * recognise it when it is presented.
  */
 export async function createSplit(
   db: PrismaClient,
@@ -300,15 +312,20 @@ export async function createSplit(
   return created;
 }
 
-/** Look a split up by the token the user presented. Constant-time by hashing. */
+/**
+ * Look a split up by the token the user presented. Constant-time by hashing.
+ *
+ * NOT WIRED — see `createSplit`. There is no POST for this to get past yet.
+ */
 export async function findSplitByToken(db: PrismaClient, token: string) {
   const tokenHash = createHash('sha256').update(token).digest('hex');
 
   const split = await db.bookingSplit.findUnique({ where: { tokenHash } });
   if (!split) return null;
 
-  // An expired link is not a payable link. Checked here rather than only in the
-  // UI, because the UI is not what a POST has to get past.
+  // An expired link is not a payable link. Checked here rather than in a UI,
+  // because a check in a UI is not a check — whenever the route that redeems
+  // this is written, it will arrive through this function.
   if (split.expiresAt.getTime() < Date.now()) return null;
 
   return split;
