@@ -229,8 +229,13 @@ export const env = createEnv({
     // Stripe Billing
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    // One per paid PlanTier. The names must match `enum PlanTier`
+    // (FREE | CLUB | PRO) — this was STRIPE_PRICE_ID_ENTERPRISE, a tier that
+    // does not exist in the schema or in the commission table, while CLUB (the
+    // 3% middle tier) had no price id at all. Neither variable was read
+    // anywhere, so nothing ever forced the two to agree.
     STRIPE_PRICE_ID_PRO: z.string().optional(),
-    STRIPE_PRICE_ID_ENTERPRISE: z.string().optional(),
+    STRIPE_PRICE_ID_CLUB: z.string().optional(),
     APP_URL: z.string().url().optional(),
 
     // AI Risk Assessment
@@ -403,7 +408,7 @@ export const env = createEnv({
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PRICE_ID_PRO: process.env.STRIPE_PRICE_ID_PRO,
-    STRIPE_PRICE_ID_ENTERPRISE: process.env.STRIPE_PRICE_ID_ENTERPRISE,
+    STRIPE_PRICE_ID_CLUB: process.env.STRIPE_PRICE_ID_CLUB,
     APP_URL: process.env.APP_URL,
 
     AI_RISK_PROVIDER: process.env.AI_RISK_PROVIDER,
