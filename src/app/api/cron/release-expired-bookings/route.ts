@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { releaseExpiredBookings } from '@/app-layer/usecases/release-expired-bookings';
-import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -87,8 +87,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Cross-tenant by nature: a sweep runs for the whole platform and has no
-  // session to bind to.
-  const result = await runAsSuperuser((db) => releaseExpiredBookings(db));
+  // session to bind to — but it opens that superuser transaction itself, one
+  // per booking, because the ledger reversal it may have to write needs
+  // SERIALIZABLE and only the outermost BEGIN can ask for it.
+  const result = await releaseExpiredBookings(prisma);
 
   if (result.released > 0 || result.truncated) {
     logger.info('released expired bookings', {

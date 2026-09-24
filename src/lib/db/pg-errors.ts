@@ -26,6 +26,15 @@ const SQLSTATE = /^\d{2}[0-9A-Z]{3}$/;
 export const PG_EXCLUSION_VIOLATION = '23P01';
 export const PG_UNIQUE_VIOLATION = '23505';
 export const PG_CHECK_VIOLATION = '23514';
+/**
+ * The transaction could not be serialized and was aborted.
+ *
+ * Not a bug and not a data problem: SERIALIZABLE is DOING ITS JOB, and the
+ * documented response is to retry. Code that runs at that isolation level has
+ * to be able to tell this apart from a genuine failure, or it treats a routine
+ * abort as an outage.
+ */
+export const PG_SERIALIZATION_FAILURE = '40001';
 
 export function pgErrorCode(err: unknown): string | undefined {
   const seen = new Set<unknown>();
@@ -65,4 +74,8 @@ export function isUniqueViolation(err: unknown): boolean {
 
 export function isCheckViolation(err: unknown): boolean {
   return pgErrorCode(err) === PG_CHECK_VIOLATION;
+}
+
+export function isSerializationFailure(err: unknown): boolean {
+  return pgErrorCode(err) === PG_SERIALIZATION_FAILURE;
 }

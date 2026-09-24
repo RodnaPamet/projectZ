@@ -216,9 +216,17 @@ export async function runAsUserOnly<T>(
 export async function runAsSuperuser<T>(
   fn: (tx: PrismaClient) => Promise<T>,
   client: PrismaClient = defaultPrisma,
+  opts: { isolationLevel?: Prisma.TransactionIsolationLevel } = {},
 ): Promise<T> {
-  return client.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
-    return fn(tx as unknown as PrismaClient);
-  });
+  return client.$transaction(
+    async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+      return fn(tx as unknown as PrismaClient);
+    },
+    // Same reason `runInTenantContext` takes one: isolation can only be set on
+    // the OUTERMOST begin. A job that touches the credit ledger has to request
+    // SERIALIZABLE here, because by the time `appendEntry` asks for it the
+    // transaction is already open and its request is silently a SAVEPOINT.
+    opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : undefined,
+  );
 }
