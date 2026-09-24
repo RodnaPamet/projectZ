@@ -101,7 +101,24 @@
       "clearFilters": "Изчисти филтрите",
       "noEntitiesAvailable": "Няма налични {entity}s",
       "noEntitiesMatch": "Няма съвпадащи {entity}s",
-      "moreActions": "Още действия"
+      "moreActions": "Още действия",
+      "selectDate": "Изберете дата",
+      "clearRange": "Изчисти периода",
+      "selectDateRange": "Изберете период",
+      "resetToDefaults": "Върни по подразбиране",
+      "editColumns": "Редактирай колоните",
+      "editFilterCards": "Редактирай филтрите",
+      "askAi": "Попитай ИИ",
+      "startTypingToSearch": "Започнете да пишете, за да търсите…",
+      "menu": "Меню",
+      "popoverContent": "Съдържание на изскачащ прозорец",
+      "learnMore": "Научете повече",
+      "activity": "Активност",
+      "context": "Контекст",
+      "mainNav": "Основна навигация",
+      "is": "е",
+      "isNot": "не е",
+      "popoverContentDesc": "Съдържание на изскачащ прозорец"
     },
     "calendar": {
       "prevYear": "Към предходната година",
@@ -154,7 +171,8 @@
       "trendAria": "тенденция на {label}",
       "ganttEmptyMessage": "Няма събития от времевата линия в този диапазон.",
       "risksEmpty": "Все още няма регистрирани рискове.",
-      "severityBandsEmpty": "Няма конфигурирани нива на тежест."
+      "severityBandsEmpty": "Няма конфигурирани нива на тежест.",
+      "noDataForRange": "Няма данни за този период."
     },
     "sections": {
       "accessReviews": "Прегледи на достъпа",
@@ -180,7 +198,12 @@
       "tests": "Тестове",
       "vendors": "Доставчици"
     },
-    "scrollToTop": "Обратно нагоре"
+    "scrollToTop": "Обратно нагоре",
+    "skeleton": {
+      "dashboard": "Зареждане на таблото",
+      "details": "Зареждане на детайлите",
+      "settings": "Зареждане на настройките"
+    }
   },
   "sports": {
     "TENNIS": "Тенис",
@@ -211,5 +234,26 @@
     "invalid": "Грешен имейл или парола.",
     "throttled": "Твърде много опити. Опитайте отново по-късно.",
     "unavailable": "Входът е временно недостъпен."
+  },
+  "venues": {
+    "metaTitle": "Обекти — playerz.bg",
+    "title": "Играй",
+    "count": "{count, plural, one {# наличен обект} other {# налични обекта}}",
+    "empty": {
+      "title": "Няма обекти, отговарящи на търсенето",
+      "description": "Опитайте с друг град или спорт."
+    },
+    "priceFrom": "от {price} / час"
+  },
+  "offline": {
+    "title": "Нямате връзка",
+    "body": "В момента не можем да достигнем playerz.bg. Резервациите ви са запазени — тази страница ще работи отново веднага щом има връзка."
+  },
+  "home": {
+    "tagline": "Резервирай корт за минути."
+  },
+  "engine": {
+    "analysisBy": "Анализ от",
+    "usedUnmodified": ", използван без промени под"
   }
 }

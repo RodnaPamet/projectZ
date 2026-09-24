@@ -46,6 +46,7 @@ import { toYMD } from './date-utils';
 import { DatePickerContext } from './shared';
 import { Trigger } from './trigger';
 import type { ControlledDateValueProps, DateValue, PickerProps } from './types';
+import { useTranslations } from 'next-intl';
 
 export interface DatePickerTriggerRenderProps {
   displayValue: string | null;
@@ -115,7 +116,7 @@ export function DatePicker({
   disabledDays,
   showYearNavigation = false,
   locale = enUS,
-  placeholder = 'Select date',
+  placeholder: placeholderProp,
   hasError,
   invalid,
   align = 'center',
@@ -123,6 +124,11 @@ export function DatePicker({
   clearable = false,
   ...props
 }: DatePickerProps) {
+  const t = useTranslations('common.ui');
+  // The placeholder default moved out of the parameter list: a literal
+  // default cannot be translated, because a hook cannot run there.
+  const placeholder = placeholderProp ?? t('selectDate');
+
   const [open, setOpen] = useState(false);
   const isControlled = value !== undefined;
   const [internal, setInternal] = useState<DateValue>(
@@ -192,7 +198,7 @@ export function DatePicker({
                 data-testid="date-picker-clear"
               >
                 <X className="size-3.5" aria-hidden="true" />
-                <span>Clear</span>
+                <span>{t('clear')}</span>
               </button>
             )}
           </div>

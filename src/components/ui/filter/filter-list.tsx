@@ -18,6 +18,7 @@ import {
   normalizeActiveFilter,
   parseRangeToken,
 } from './types';
+import { useTranslations } from 'next-intl';
 
 type FilterListProps = {
   filters: Filter[];
@@ -31,15 +32,18 @@ type FilterListProps = {
   className?: string;
 };
 
-function getOperatorLabel(operator: FilterOperator): string {
+/**
+ * The catalogue KEY for an operator, not the label.
+ *
+ * Returning the English word here and rendering it directly is what made
+ * "is" / "is not" untranslatable — the value reached the DOM without ever
+ * passing a catalogue. The caller resolves the key with its own `t`.
+ */
+function getOperatorKey(operator: FilterOperator): 'is' | 'isNot' {
   switch (operator) {
-    case 'IS':
-    case 'IS_ONE_OF':
-      return 'is';
-
     case 'IS_NOT':
     case 'IS_NOT_ONE_OF':
-      return 'is not';
+      return 'isNot';
 
     default:
       return 'is';
@@ -57,6 +61,8 @@ export function FilterList({
   isAdvancedFilter = false,
   className,
 }: FilterListProps) {
+  const t = useTranslations('common.ui');
+
   // Epic 57 — Escape clears all active filters. Priority 1 so the
   // selection-toolbar clear (priority 2) wins when rows are selected,
   // and any overlay's native Radix/Vaul Escape handler wins when a
@@ -244,7 +250,7 @@ export function FilterList({
             )}
             onClick={onRemoveAll}
           >
-            Clear Filters
+            {t('clearFilters')}
             <kbd className="border-border-subtle text-content-emphasis group-hover:bg-bg-muted rounded-md border px-1.5 py-0.5 text-xs">
               ESC
             </kbd>
@@ -278,6 +284,7 @@ function OperatorFilterPill({
   onToggleOperator?: (key: string) => void;
   isAdvancedFilter?: boolean;
 }) {
+  const t = useTranslations('common.ui');
   const [operatorDropdownOpen, setOperatorDropdownOpen] = useState(false);
   const [valueDropdownOpen, setValueDropdownOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -464,7 +471,7 @@ function OperatorFilterPill({
                   setOperatorDropdownOpen(false);
                 }}
               >
-                is not
+                {t('isNot')}
               </button>
             </div>
           }
@@ -479,7 +486,7 @@ function OperatorFilterPill({
               'active:scale-[0.98] motion-reduce:active:scale-100',
             )}
           >
-            {getOperatorLabel(operator)}
+            {getOperatorKey(operator)}
           </button>
         </Popover>
       ) : (

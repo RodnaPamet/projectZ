@@ -44,6 +44,7 @@
  */
 import { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { useTranslations } from 'next-intl';
 
 export interface ListPageShellProps {
   children: ReactNode;
@@ -103,6 +104,8 @@ function ListPageShellFilters({ children, className }: ListPageShellProps) {
 }
 
 function ListPageShellBody({ children, className, aside, leftRail }: ListPageShellBodyProps) {
+  const t = useTranslations('common.ui');
+
   // No aside, no left rail — the prior single-column body,
   // unchanged. The `data-list-page-body` marker stays on this
   // div: DataTable's whole-row clip useEffect walks up to find
@@ -133,7 +136,7 @@ function ListPageShellBody({ children, className, aside, leftRail }: ListPageShe
       {leftRail && (
         <aside
           className="flex-shrink-0 xl:self-start"
-          aria-label="Orientation"
+          aria-label={t('tableOrientation')}
           data-testid="list-page-left-rail"
         >
           {leftRail}
@@ -156,7 +159,7 @@ function ListPageShellBody({ children, className, aside, leftRail }: ListPageShe
           // own `overflow-y-auto` content scrolls, instead of the
           // panel growing past the fold and getting clipped.
           className="flex-shrink-0 xl:min-h-0 xl:self-stretch"
-          aria-label="Context"
+          aria-label={t('context')}
           data-testid="list-page-aside"
         >
           {aside}

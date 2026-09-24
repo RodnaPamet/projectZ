@@ -47,6 +47,7 @@ import { AutoSizer } from 'react-virtualized-auto-sizer';
 import { SortOrder } from '../icons';
 import { Tooltip } from '../tooltip';
 import { cn, isClickOnInteractiveChild } from './table-utils';
+import { useTranslations } from 'next-intl';
 
 export const DEFAULT_VIRTUAL_ROW_HEIGHT = 44;
 
@@ -526,6 +527,8 @@ function VirtualTableHeader<T>({
   onSortChange,
   columnsAfterSelect,
 }: VirtualTableHeaderProps<T>) {
+  const t = useTranslations('common.table');
+
   return (
     <div
       role="rowgroup"
@@ -559,7 +562,7 @@ function VirtualTableHeader<T>({
                   {isSortable ? (
                     <button
                       type="button"
-                      aria-label="Sort by column"
+                      aria-label={t('sortByColumn')}
                       className="gap-tight flex items-center"
                       onClick={() =>
                         onSortChange?.({

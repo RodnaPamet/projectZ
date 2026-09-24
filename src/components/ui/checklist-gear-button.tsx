@@ -32,6 +32,7 @@ import { Popover } from './popover';
 import { ScrollContainer } from './scroll-container';
 import { cn } from '@/lib/cn';
 import type { ChecklistGearItem } from './checklist-order';
+import { useTranslations } from 'next-intl';
 
 export interface ChecklistGearButtonProps {
   /** Rows in DISPLAY order: visible (numbered) first, then hidden. */
@@ -70,6 +71,8 @@ export function ChecklistGearButton({
   className,
   id,
 }: ChecklistGearButtonProps) {
+  const t = useTranslations('common.ui');
+
   const [open, setOpen] = useState(false);
   // The id being dragged (handle → drop target). A ref, not state — it
   // mutates across native drag events without needing a re-render.
@@ -206,7 +209,7 @@ export function ChecklistGearButton({
                     data-testid="checklist-reset"
                   >
                     <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-                    <span>Reset to defaults</span>
+                    <span>{t('resetToDefaults')}</span>
                   </Command.Item>
                 </>
               )}

@@ -35,6 +35,11 @@ export interface TokenClaims {
   memberships?: Array<{ tenantSlug: string; role: string }>;
   /** Set when memberships[] was capped at MAX_JWT_MEMBERSHIPS. */
   membershipsTruncated?: boolean;
+  /**
+   * The user's UI language, carried on the token so middleware can seed the
+   * locale cookie without a database read on every request.
+   */
+  locale?: string;
 }
 
 /** Routes anyone may see, signed in or not. */

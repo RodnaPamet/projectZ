@@ -101,7 +101,24 @@
       "clearFilters": "Clear filters",
       "noEntitiesAvailable": "No {entity}s available",
       "noEntitiesMatch": "No {entity}s match",
-      "moreActions": "More actions"
+      "moreActions": "More actions",
+      "selectDate": "Select date",
+      "clearRange": "Clear range",
+      "selectDateRange": "Select date range",
+      "resetToDefaults": "Reset to defaults",
+      "editColumns": "Edit columns",
+      "editFilterCards": "Edit filter cards",
+      "askAi": "Ask AI",
+      "startTypingToSearch": "Start typing to search…",
+      "menu": "Menu",
+      "popoverContent": "Popover content",
+      "learnMore": "Learn more",
+      "activity": "Activity",
+      "context": "Context",
+      "mainNav": "Main",
+      "is": "is",
+      "isNot": "is not",
+      "popoverContentDesc": "Popover content"
     },
     "calendar": {
       "prevYear": "Go to previous year",
@@ -154,7 +171,8 @@
       "trendAria": "{label} trend",
       "ganttEmptyMessage": "No timeline events in this range.",
       "risksEmpty": "No risks registered yet.",
-      "severityBandsEmpty": "No severity bands configured."
+      "severityBandsEmpty": "No severity bands configured.",
+      "noDataForRange": "No data available for this range."
     },
     "sections": {
       "accessReviews": "Access reviews",
@@ -180,7 +198,12 @@
       "tests": "Tests",
       "vendors": "Vendors"
     },
-    "scrollToTop": "Back to top"
+    "scrollToTop": "Back to top",
+    "skeleton": {
+      "dashboard": "Loading dashboard",
+      "details": "Loading details",
+      "settings": "Loading settings"
+    }
   },
   "sports": {
     "TENNIS": "Tennis",
@@ -211,5 +234,26 @@
     "invalid": "Wrong email or password.",
     "throttled": "Too many attempts. Please try again later.",
     "unavailable": "Sign-in is temporarily unavailable."
+  },
+  "venues": {
+    "metaTitle": "Venues — playerz.bg",
+    "title": "Play",
+    "count": "{count, plural, one {# venue available} other {# venues available}}",
+    "empty": {
+      "title": "No venues match your search",
+      "description": "Try a different city or sport."
+    },
+    "priceFrom": "from {price} / hour"
+  },
+  "offline": {
+    "title": "You’re offline",
+    "body": "We can’t reach playerz.bg right now. Your bookings are safe — this page will work again as soon as you have a connection."
+  },
+  "home": {
+    "tagline": "Book a court in minutes."
+  },
+  "engine": {
+    "analysisBy": "Analysis by",
+    "usedUnmodified": ", used unmodified under the"
   }
 }

@@ -23,6 +23,7 @@ import { useState } from 'react';
 import { Button } from '../button';
 import { Popover } from '../popover';
 import { ScrollContainer } from '../scroll-container';
+import { useTranslations } from 'next-intl';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -63,8 +64,12 @@ export function EditColumnsButton<T>({
   table,
   onReset,
   className,
-  title = 'Edit columns',
+  title: titleProp,
 }: EditColumnsButtonProps<T>) {
+  const t = useTranslations('common.ui');
+  // Default moved out of the parameter list — a hook cannot run there.
+  const title = titleProp ?? t('editColumns');
+
   const [isOpen, setIsOpen] = useState(false);
 
   const hideableColumns = table.getAllColumns().filter((c) => c.getCanHide());
@@ -130,7 +135,7 @@ export function EditColumnsButton<T>({
                     data-testid="column-reset"
                   >
                     <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-                    <span>Reset to defaults</span>
+                    <span>{t('resetToDefaults')}</span>
                   </Command.Item>
                 </>
               )}

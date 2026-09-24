@@ -32,6 +32,7 @@ import {
   resolveEmptyStateFor,
 } from './filter-select-utils';
 import { ActiveFilterInput, Filter, FilterOption, parseRangeToken } from './types';
+import { useTranslations } from 'next-intl';
 
 type FilterSelectProps = {
   filters: Filter[];
@@ -129,7 +130,6 @@ export function FilterSelect({
 
   // Reset state when closed
   useEffect(() => {
-     
     if (!isOpen) reset();
   }, [isOpen]);
 
@@ -578,6 +578,8 @@ const CommandEmpty = ({
   onSelect: () => void;
   askAI?: boolean;
 }>) => {
+  const t = useTranslations('common.ui');
+
   // If the selected filter has no options (and shouldFilter is true,
   // meaning it's leveraging Command.List's native filtering and not external/async filtering),
   // show the search input as an option
@@ -590,7 +592,7 @@ const CommandEmpty = ({
     if (!search)
       return (
         <Command.Empty className="text-content-muted p-2 text-center text-sm">
-          Start typing to search...
+          {t('startTypingToSearch')}
         </Command.Empty>
       );
 
@@ -612,7 +614,7 @@ const CommandEmpty = ({
       <Command.Empty className="bg-bg-muted flex min-w-[180px] items-center space-x-2 rounded-md px-3 py-2">
         <Magic className="h-4 w-4" />
         <p className="text-content-default text-center text-sm">
-          Ask AI <span className="text-content-emphasis">&quot;{search}&quot;</span>
+          {t('askAi')} <span className="text-content-emphasis">&quot;{search}&quot;</span>
         </p>
       </Command.Empty>
     );
