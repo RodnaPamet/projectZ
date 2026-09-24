@@ -1,6 +1,13 @@
 import type { PrismaClient } from '@prisma/client';
 import type Stripe from 'stripe';
 
+import {
+  isPayingStatus,
+  planTierForPriceId,
+  priceIdFromInvoice,
+  priceIdFromSubscription,
+} from './plan-tier';
+
 /**
  * What each Stripe event actually does to our database.
  *
@@ -79,11 +86,72 @@ export async function handleInvoicePaid(
 
   // Not a player membership — maybe it is the VENUE's own subscription to us,
   // which sets their plan tier and therefore our commission.
+  //
+  // This branch used to look the venue up and `return { handled: true }`
+  // having written NOTHING. A club upgrading FREE → PRO through Stripe Billing
+  // was answered "handled", kept planTier FREE, and paid 5% instead of 1.5% on
+  // every booking thereafter — 120¢ instead of 36¢ on a €24 court.
   const venue = await db.venueOrg.findUnique({
     where: { stripeSubscriptionId: subscriptionId },
   });
 
   if (!venue) return { handled: false };
+
+  const planTier = planTierForPriceId(priceIdFromInvoice(invoice));
+
+  // An unrecognised price is reported UNHANDLED rather than silently accepted.
+  // Defaulting to FREE here would downgrade a paying club the day a price id
+  // is rotated in the dashboard — tripling our commission against a customer
+  // who is up to date.
+  if (!planTier) return { handled: false };
+
+  // Set absolutely, not incremented, so a redelivered invoice is a no-op —
+  // the idempotency contract this file's header describes.
+  await db.venueOrg.update({ where: { id: venue.id }, data: { planTier } });
+
+  return { handled: true };
+}
+
+/**
+ * The venue's subscription was created or changed → set the tier.
+ *
+ * ═══ THIS IS THE INGRESS THAT WAS MISSING ═══
+ *
+ * `handleInvoicePaid` finds the venue by `stripeSubscriptionId`. Nothing ever
+ * WROTE that column, so that lookup could never match and the branch above was
+ * unreachable in production — not merely wrong, unreachable. Fixing the write
+ * without this would have changed nothing observable.
+ *
+ * ═══ AND A LAPSED SUBSCRIPTION LOSES THE DISCOUNT ═══
+ *
+ * `past_due` or `unpaid` means the card has been failing. Keeping that club on
+ * PRO hands out the 1.5% rate to somebody who is not paying for it, and
+ * because the tier is only ever read at checkout, nothing else would notice.
+ */
+export async function handleSubscriptionUpserted(
+  db: PrismaClient,
+  subscription: Stripe.Subscription,
+): Promise<{ handled: boolean }> {
+  const customerId =
+    typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
+
+  if (!customerId) return { handled: false };
+
+  const venue = await db.venueOrg.findUnique({ where: { stripeCustomerId: customerId } });
+
+  // Not a venue subscription — a player membership arrives through its own
+  // path. Unhandled rather than an error.
+  if (!venue) return { handled: false };
+
+  const priced = planTierForPriceId(priceIdFromSubscription(subscription));
+  const planTier = isPayingStatus(subscription.status) ? priced : 'FREE';
+
+  if (!planTier) return { handled: false };
+
+  await db.venueOrg.update({
+    where: { id: venue.id },
+    data: { stripeSubscriptionId: subscription.id, planTier },
+  });
 
   return { handled: true };
 }
@@ -103,11 +171,30 @@ export async function handleSubscriptionDeleted(
     where: { stripeSubscriptionId: subscription.id },
   });
 
-  if (!membership) return { handled: false };
+  if (membership) {
+    await db.membership.update({
+      where: { id: membership.id },
+      data: { status: 'EXPIRED', autoRenew: false },
+    });
 
-  await db.membership.update({
-    where: { id: membership.id },
-    data: { status: 'EXPIRED', autoRenew: false },
+    return { handled: true };
+  }
+
+  // The mirror of handleInvoicePaid: it may be the VENUE's subscription. This
+  // only searched Membership, so a club that cancelled kept its discounted
+  // commission for ever — we would go on taking 1.5% from a club paying us
+  // nothing, and the cancellation would look handled.
+  const venue = await db.venueOrg.findUnique({
+    where: { stripeSubscriptionId: subscription.id },
+  });
+
+  if (!venue) return { handled: false };
+
+  await db.venueOrg.update({
+    where: { id: venue.id },
+    // The link is cleared too. Leaving a dead subscription id would make a
+    // later invoice for a NEW subscription match the wrong row.
+    data: { planTier: 'FREE', stripeSubscriptionId: null },
   });
 
   return { handled: true };

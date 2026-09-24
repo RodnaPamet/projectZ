@@ -13,13 +13,19 @@ import {
   InsufficientCreditError,
   LedgerIsolationError,
 } from '@/app-layer/usecases/wallet';
+import { env } from '@/env';
 import { PayoutsNotEnabledError } from '@/lib/billing/connect';
-import { handleAccountUpdated, handleInvoicePaid } from '@/lib/billing/webhook-handlers';
+import {
+  handleAccountUpdated,
+  handleInvoicePaid,
+  handleSubscriptionDeleted,
+  handleSubscriptionUpserted,
+} from '@/lib/billing/webhook-handlers';
 import { pgErrorCode } from '@/lib/db/pg-errors';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
-import { findRequest, useMswServer } from '../helpers/msw';
+import { findRequest, recorded, useMswServer } from '../helpers/msw';
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
@@ -821,5 +827,184 @@ describe('Stripe webhooks', () => {
   it('an invoice with no subscription is reported unhandled, not silently swallowed', async () => {
     const r = await handleInvoicePaid(db, { id: 'in_oneoff', parent: null } as never);
     expect(r.handled).toBe(false);
+  });
+
+  describe('the venue plan tier, which decides our commission', () => {
+    // `PLATFORM_FEE_BPS` charges 5% / 3% / 1.5% and is well tested. Its only
+    // input, `venueOrg.planTier`, had NO WRITER anywhere in src/ — two reads
+    // and nothing else. Every club sat on FREE for ever, and a club that
+    // upgraded paid 5% instead of 1.5% with no signal but the word "handled"
+    // in a webhook response nobody reads.
+
+    // From .env.test, NOT assigned here. `env` is validated once at import, so
+    // a process.env write in beforeEach lands after the module has already read
+    // it — the first version of these tests failed for exactly that reason.
+    const PRO_PRICE = 'price_test_pro';
+    const CLUB_PRICE = 'price_test_club';
+
+    it('the fixture price ids are the ones the app resolved', () => {
+      // If .env.test and these constants drift, every assertion below would
+      // silently exercise the unknown-price path and still look plausible.
+      expect(env.STRIPE_PRICE_ID_PRO).toBe(PRO_PRICE);
+      expect(env.STRIPE_PRICE_ID_CLUB).toBe(CLUB_PRICE);
+    });
+
+    const venue = () =>
+      asAppSuperuser(db, (tx) => tx.venueOrg.findUniqueOrThrow({ where: { id: tenant.tenantId } }));
+
+    const linkCustomer = (customerId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.venueOrg.update({
+          where: { id: tenant.tenantId },
+          data: { stripeCustomerId: customerId },
+        }),
+      );
+
+    const subscription = (opts: { id: string; customer: string; price: string; status?: string }) =>
+      ({
+        id: opts.id,
+        customer: opts.customer,
+        status: opts.status ?? 'active',
+        items: { data: [{ price: { id: opts.price } }] },
+      }) as never;
+
+    const invoice = (opts: { subscription: string; price: string }) =>
+      ({
+        parent: { subscription_details: { subscription: opts.subscription } },
+        lines: { data: [{ pricing: { price_details: { price: opts.price } } }] },
+      }) as never;
+
+    it('subscription.created writes BOTH the link and the tier', async () => {
+      // The missing ingress. Nothing in src/ ever wrote stripeSubscriptionId,
+      // so invoice.paid's venue lookup could never match — the branch was
+      // unreachable, not merely wrong.
+      await linkCustomer('cus_tier_a');
+
+      const r = await handleSubscriptionUpserted(
+        db,
+        subscription({ id: 'sub_tier_a', customer: 'cus_tier_a', price: PRO_PRICE }),
+      );
+
+      expect(r.handled).toBe(true);
+      const v = await venue();
+      expect(v.stripeSubscriptionId).toBe('sub_tier_a');
+      expect(v.planTier).toBe('PRO');
+    });
+
+    it('invoice.paid SETS the tier, it does not merely acknowledge', async () => {
+      // Deliberately an upgrade the subscription handler has not seen: the
+      // venue is on CLUB and a PRO invoice arrives. Stripe does not guarantee
+      // event order, so invoice.paid has to be able to move the tier itself.
+      //
+      // The first version of this test set CLUB and then sent a CLUB invoice,
+      // and PASSED with the invoice write deleted entirely — the tier was
+      // already right. Mutation testing caught it. That is the same shape as
+      // the bug being fixed here: a handler reporting success for work it did
+      // not do.
+      await linkCustomer('cus_tier_b');
+      await handleSubscriptionUpserted(
+        db,
+        subscription({ id: 'sub_tier_b', customer: 'cus_tier_b', price: CLUB_PRICE }),
+      );
+      expect((await venue()).planTier).toBe('CLUB');
+
+      const r = await handleInvoicePaid(
+        db,
+        invoice({ subscription: 'sub_tier_b', price: PRO_PRICE }),
+      );
+
+      expect(r.handled).toBe(true);
+      expect((await venue()).planTier).toBe('PRO');
+    });
+
+    it('an UNKNOWN price is unhandled, and does not touch the tier', async () => {
+      // Defaulting to FREE here would silently downgrade a paying club the day
+      // somebody rotates a price id in the dashboard — tripling our commission
+      // against a customer who is up to date.
+      await linkCustomer('cus_tier_c');
+      await handleSubscriptionUpserted(
+        db,
+        subscription({ id: 'sub_tier_c', customer: 'cus_tier_c', price: PRO_PRICE }),
+      );
+
+      const r = await handleInvoicePaid(
+        db,
+        invoice({ subscription: 'sub_tier_c', price: 'price_rotated_last_week' }),
+      );
+
+      expect(r.handled).toBe(false);
+      expect((await venue()).planTier).toBe('PRO');
+    });
+
+    it('a PAST_DUE subscription loses the discount', async () => {
+      await linkCustomer('cus_tier_d');
+      await handleSubscriptionUpserted(
+        db,
+        subscription({ id: 'sub_tier_d', customer: 'cus_tier_d', price: PRO_PRICE }),
+      );
+      expect((await venue()).planTier).toBe('PRO');
+
+      await handleSubscriptionUpserted(
+        db,
+        subscription({
+          id: 'sub_tier_d',
+          customer: 'cus_tier_d',
+          price: PRO_PRICE,
+          status: 'past_due',
+        }),
+      );
+
+      expect((await venue()).planTier).toBe('FREE');
+    });
+
+    it('a cancelled subscription returns the venue to FREE and clears the link', async () => {
+      // This only searched Membership, so a club that cancelled kept its
+      // discounted commission for ever.
+      await linkCustomer('cus_tier_e');
+      await handleSubscriptionUpserted(
+        db,
+        subscription({ id: 'sub_tier_e', customer: 'cus_tier_e', price: PRO_PRICE }),
+      );
+
+      const r = await handleSubscriptionDeleted(db, { id: 'sub_tier_e' } as never);
+
+      expect(r.handled).toBe(true);
+      const v = await venue();
+      expect(v.planTier).toBe('FREE');
+      // Left set, a later invoice for a NEW subscription would match this row.
+      expect(v.stripeSubscriptionId).toBeNull();
+    });
+
+    it('THE ONE THAT TIES IT TO MONEY: upgrading changes the fee Stripe is sent', async () => {
+      // Every test above could pass while the tier still reached no charge.
+      // This asserts the application_fee_amount that actually goes over the
+      // wire, before and after an upgrade.
+      await enablePayouts(tenant.tenantId, 'FREE');
+      await linkCustomer('cus_tier_f');
+
+      // Reads the application_fee_amount that actually went over the wire —
+      // stubbing the SDK would only prove we called our own function.
+      const feeForOneBooking = async () => {
+        recorded.length = 0;
+        const booking = await seedBooking(2400);
+        await checkoutBooking(db, {
+          tenantId: tenant.tenantId,
+          userId: tenant.userId,
+          bookingId: booking.id,
+        });
+        const body = findRequest('payment_intents')!.body as Record<string, string>;
+        return Number(body.application_fee_amount);
+      };
+
+      expect(await feeForOneBooking()).toBe(120); // 5% of 2400
+
+      await handleSubscriptionUpserted(
+        db,
+        subscription({ id: 'sub_tier_f', customer: 'cus_tier_f', price: PRO_PRICE }),
+      );
+      expect((await venue()).planTier).toBe('PRO');
+
+      expect(await feeForOneBooking()).toBe(36); // 1.5% of 2400
+    });
   });
 });

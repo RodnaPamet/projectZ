@@ -30,6 +30,13 @@ env:
   CENTRIFUGO_API_URL: 'http://localhost:8000/api'
   CENTRIFUGO_API_KEY: 'test-api-key' # pragma: allowlist secret
   CENTRIFUGO_TOKEN_SECRET: 'test-token-secret' # pragma: allowlist secret
+  # Plan price ids, one per paid PlanTier. These are NOT secrets — a Stripe
+  # price id is public — but they must match .env.test, because the plan-tier
+  # tests assert that the ids the app resolved are the ones they send. Without
+  # them those tests would silently exercise the unknown-price path and still
+  # look plausible, which is the exact failure mode the suite exists to catch.
+  STRIPE_PRICE_ID_PRO: 'price_test_pro'
+  STRIPE_PRICE_ID_CLUB: 'price_test_club'
 
 jobs:
   # ═══════════════════════════════════════════════════════════════

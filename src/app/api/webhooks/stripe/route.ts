@@ -6,6 +6,7 @@ import {
   handleAccountUpdated,
   handleInvoicePaid,
   handleSubscriptionDeleted,
+  handleSubscriptionUpserted,
 } from '@/lib/billing/webhook-handlers';
 import { notifyAfterCommit, type NotifyInput } from '@/app-layer/usecases/notifications';
 import { handlePaymentIntentSucceeded } from '@/lib/billing/booking-payment';
@@ -94,6 +95,16 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.paid': {
         const r = await handleInvoicePaid(db, event.data.object as Stripe.Invoice);
+        return { received: true, type: event.type, ...r };
+      }
+
+      // Created AND updated: an upgrade arrives as `updated`, and without both
+      // cases they fell through to `default:` and were answered
+      // `{received: true, ignored: ...}` — which is how the venue's
+      // subscription id never got written in the first place.
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const r = await handleSubscriptionUpserted(db, event.data.object as Stripe.Subscription);
         return { received: true, type: event.type, ...r };
       }
 
