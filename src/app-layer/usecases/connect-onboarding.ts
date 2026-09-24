@@ -1,7 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
-import { createConnectedAccount, createOnboardingLink } from '@/lib/billing/connect';
+import {
+  createBillingCustomer,
+  createConnectedAccount,
+  createOnboardingLink,
+} from '@/lib/billing/connect';
 
 /**
  * Getting a club to the point where it can be paid.
@@ -54,6 +58,7 @@ export async function startConnectOnboarding(
       contactEmail: true,
       country: true,
       stripeAccountId: true,
+      stripeCustomerId: true,
       payoutsEnabled: true,
     },
   });
@@ -85,6 +90,49 @@ export async function startConnectOnboarding(
         category: 'billing',
         summary: 'Stripe Connect account created',
         after: { stripeAccountId },
+      },
+    });
+  }
+
+  // ═══ AND THE VENUE AS A CUSTOMER OF OURS ═══
+  //
+  // The other direction. The Connect account is how the club RECEIVES money;
+  // the customer is how they PAY us, and it is what their plan subscription
+  // bills against.
+  //
+  // Created here rather than at upgrade time because
+  // `handleSubscriptionUpserted` resolves the venue by `stripeCustomerId`.
+  // With no customer there is nothing to join on — which is exactly why the
+  // plan tier path shipped correct and unreachable.
+  //
+  // Separate from the account block above, deliberately: a venue that already
+  // has an account from before this existed still needs a customer, and
+  // nesting this inside `if (!stripeAccountId)` would skip every one of them
+  // for ever.
+  if (!venue.stripeCustomerId) {
+    const stripeCustomerId = await createBillingCustomer({
+      email: venue.contactEmail,
+      venueName: venue.name,
+      tenantId: venue.id,
+      idempotencyKey: `billing:customer:${venue.id}`,
+    });
+
+    await db.venueOrg.update({
+      where: { id: venue.id },
+      data: { stripeCustomerId },
+    });
+
+    await appendAuditEntry(db, {
+      tenantId: venue.id,
+      actorUserId: input.actorUserId,
+      entity: 'VenueOrg',
+      entityId: venue.id,
+      action: AUDIT_ACTIONS.BILLING_CUSTOMER_CREATED,
+      details: `Stripe billing customer ${stripeCustomerId} created for ${venue.name}`,
+      detailsJson: {
+        category: 'billing',
+        summary: 'Stripe billing customer created',
+        after: { stripeCustomerId },
       },
     });
   }
