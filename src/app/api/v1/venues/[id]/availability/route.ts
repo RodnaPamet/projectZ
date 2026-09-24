@@ -31,18 +31,28 @@ import { getRequestId } from '@/lib/observability/context';
  * opening hours, prices, and which slots are taken. Never WHO took them: the
  * booking query selects three columns and the booker is not among them.
  *
- * ═══ PENDING BOOKINGS BLOCK, AND NOTHING SWEEPS THEM ═══
+ * ═══ PENDING BOOKINGS BLOCK, AND THE SWEEPER IS NOT SCHEDULED ═══
  *
  * `SLOT_HOLDING_STATUSES` mirrors the `booking_no_overlap` exclusion
  * constraint, which counts PENDING as occupying the slot. `Booking.expiresAt`
- * exists to bound that, but nothing in the repository currently acts on it —
- * there is no sweeper and no job registered to cancel an expired PENDING.
+ * bounds that.
+ *
+ * This comment used to say "there is no sweeper and no job registered". The
+ * sweeper shipped in #119: `releaseExpiredBookings` cancels expired PENDINGs
+ * and, since the wallet fix, returns any credit spent on them. What is still
+ * missing is the SCHEDULE. `POST /api/cron/release-expired-bookings` exists
+ * and nothing calls it — there is no vercel.json, and neither ops/ nor
+ * .github/workflows references the route.
+ *
+ * The distinction matters to whoever reads this next. "No mechanism exists"
+ * invites building a second one. "The mechanism exists and nobody runs it" is
+ * a five-line cron entry, and until it is made, an abandoned checkout still
+ * holds its court indefinitely — the symptom is identical.
  *
  * This route deliberately does NOT filter expired PENDINGs out. Doing so would
  * make it offer a slot whose INSERT the database then rejects, which surfaces
- * to the player as a random failure at the last step of checkout. Until the
- * sweeper exists, an abandoned checkout holds its slot, and that is visible
- * here rather than hidden.
+ * to the player as a random failure at the last step of checkout. So the hold
+ * stays visible here rather than hidden.
  */
 async function handler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

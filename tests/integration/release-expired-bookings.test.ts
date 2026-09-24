@@ -23,6 +23,16 @@ describe('releasing expired PENDING bookings', () => {
   // Same treatment as TEST_WEBHOOK_SECRET in tests/helpers/stripe-webhook.ts.
   const SECRET = 'cron-fixture-not-a-real-secret'; // pragma: allowlist secret
 
+  /**
+   * The same byte length as SECRET, differing in the final byte.
+   *
+   * DERIVED, not written out, so it cannot drift if SECRET changes — which is
+   * exactly what had happened: the "wrong secret" test sent a 23-byte value
+   * against a 30-byte secret, so `authorised` returned at the length check and
+   * `timingSafeEqual` was never reached by any test in the suite.
+   */
+  const WRONG_SAME_LENGTH = `${SECRET.slice(0, -1)}X`;
+
   let tenant: SeededTenant;
   let resourceId: string;
 
@@ -198,13 +208,32 @@ describe('releasing expired PENDING bookings', () => {
       expect(res.status).toBe(200);
     });
 
-    it('401s on a wrong secret', async () => {
-      const id = await makeBooking({});
+    it('401s on a wrong secret of the SAME LENGTH — the constant-time compare', async () => {
+      // THE test for the route's stated security boundary: "`timingSafeEqual`
+      // rather than `===`, because a string compare returns early on the first
+      // differing byte and leaks the secret a character at a time."
+      //
+      // The length check short-circuits anything shorter or longer, so only a
+      // same-length value reaches that call. Asserting the premise here means
+      // the test cannot quietly degrade into a second copy of the length test,
+      // which is what it had already become.
+      expect(Buffer.byteLength(WRONG_SAME_LENGTH)).toBe(Buffer.byteLength(SECRET));
 
-      const res = await call({ 'x-cron-secret': 'wrong-but-same-length!!' });
+      const id = await makeBooking({});
+      const res = await call({ 'x-cron-secret': WRONG_SAME_LENGTH });
 
       expect(res.status).toBe(401);
       // And nothing ran.
+      expect(await statusOf(id)).toBe('PENDING');
+    });
+
+    it('401s on a wrong secret of a DIFFERENT length — the length check', async () => {
+      // A real branch, and previously the only one three separate tests
+      // exercised while two of them claimed otherwise.
+      const id = await makeBooking({});
+      const res = await call({ 'x-cron-secret': 'wrong-and-shorter' });
+
+      expect(res.status).toBe(401);
       expect(await statusOf(id)).toBe('PENDING');
     });
 

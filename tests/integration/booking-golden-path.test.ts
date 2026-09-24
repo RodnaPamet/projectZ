@@ -89,13 +89,31 @@ describe('booking golden path', () => {
     expect(count).toBe(1);
   });
 
-  it('TWO GENUINELY CONCURRENT bookings for one slot: exactly one wins', async () => {
-    // THE test. This is the scenario a check-then-insert implementation
-    // passes every unit test for and then fails on a busy Saturday: both
-    // requests read "free", both insert, the court is sold twice.
+  it('TWO CONCURRENT bookings for one slot: exactly one wins, cleanly', async () => {
+    // What this DOES prove: two transactions racing inside Postgres produce
+    // one booking and one SlotTakenError, and the 23P01 from the exclusion
+    // constraint is mapped all the way out to a domain error rather than
+    // escaping as a raw 500. Both promises are started before either is
+    // awaited, so they really do overlap.
     //
-    // Both promises are started BEFORE either is awaited, so they really do
-    // race inside Postgres.
+    // What it does NOT prove, checked rather than assumed: every assertion
+    // below is produced by the `booking_no_overlap` EXCLUDE constraint, which
+    // stays in the schema no matter what the application does. Give
+    // `createBooking` the check-then-insert anti-pattern its own header
+    // forbids — a findFirst overlap pre-check before the insert — and this
+    // test stays green.
+    //
+    // It was titled "THE test", and said it was the scenario a check-then-
+    // insert implementation fails on a busy Saturday. It is not, and cannot
+    // be: the outcome is identical either way, so no assertion on the outcome
+    // can tell them apart. Its sibling in api-v1-bookings.test.ts had already
+    // been corrected to say exactly this; this one was left claiming the
+    // opposite, so the repo held two contradictory answers and the false one
+    // was the one labelled definitive.
+    //
+    // The guarantee lives where it can actually be checked:
+    // `booking-exclusion.test.ts` asserts booking_no_overlap exists in the
+    // live schema, and `migration-safety` fails any migration that drops it.
     const a = prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
       return mk(tx as unknown as PrismaClient, { idempotencyKey: 'race-a' });
