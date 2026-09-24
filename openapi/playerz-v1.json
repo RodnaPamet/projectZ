@@ -2179,6 +2179,114 @@
           }
         }
       }
+    },
+    "/devices": {
+      "post": {
+        "operationId": "registerDevice",
+        "summary": "Register this device for push notifications",
+        "tags": ["Devices"],
+        "description": "Registers an APNs device token for the signed-in user, or refreshes an existing one.\n\n**Call this on every launch.** A device token is not stable — iOS reissues it on reinstall, on restore from backup, and sometimes unprompted. The server upserts on (deviceToken, environment), so repeat calls are free and a re-registered token has its failure count cleared.\n\n**`environment` must match the build.** SANDBOX and PRODUCTION are different APNs hosts with different token namespaces; only the client knows which build it is. A debug build registering as PRODUCTION receives `BadDeviceToken` for ever, which presents as 'push is broken' rather than as a configuration mistake. Anything other than `SANDBOX` is treated as `PRODUCTION`.\n\nA device belongs to a person, not a club: one registration covers every club the user belongs to.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registered, or refreshed if the token was already known.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RegisteredDevice"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — missing `deviceToken`/`bundleId`, or a `deviceToken` that is not an APNs hex token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unregisterDevice",
+        "summary": "Stop sending push to this device",
+        "tags": ["Devices"],
+        "description": "Removes the registration. Call it on sign-out, so the next person to use the phone does not receive the previous user's notifications.\n\nIdempotent: unregistering an unknown or already-removed token succeeds. Row-level security means this can only ever reach the caller's own devices — there is no way to name somebody else's.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deviceToken",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The APNs token to forget."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed, or there was nothing to remove."
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — `deviceToken` missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3397,6 +3505,51 @@
                 "description": "Present on some validation errors."
               }
             }
+          }
+        }
+      },
+      "DeviceRegistration": {
+        "type": "object",
+        "required": ["deviceToken", "bundleId"],
+        "properties": {
+          "deviceToken": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64,200}$",
+            "description": "The APNs token from `didRegisterForRemoteNotificationsWithDeviceToken`, hex-encoded."
+          },
+          "bundleId": {
+            "type": "string",
+            "description": "The app's bundle identifier. A token is only valid for the topic it was issued to."
+          },
+          "environment": {
+            "type": "string",
+            "enum": ["SANDBOX", "PRODUCTION"],
+            "default": "PRODUCTION",
+            "description": "SANDBOX for debug builds, PRODUCTION for TestFlight and the App Store. Getting this wrong is the usual cause of 'works in TestFlight, not in the App Store'."
+          },
+          "deviceName": {
+            "type": "string",
+            "description": "Cosmetic, for a 'your devices' screen."
+          },
+          "osVersion": {
+            "type": "string",
+            "description": "Cosmetic."
+          }
+        }
+      },
+      "RegisteredDevice": {
+        "type": "object",
+        "required": ["id", "environment", "bundleId"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string",
+            "enum": ["SANDBOX", "PRODUCTION"]
+          },
+          "bundleId": {
+            "type": "string"
           }
         }
       }

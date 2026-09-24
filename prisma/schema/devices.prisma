@@ -1,0 +1,60 @@
+/// An iOS device registered for Apple Push Notification service.
+///
+/// ─── Why this is not PushSubscription ───────────────────────────────
+///
+/// `PushSubscription` is Web Push and nothing else: an `endpoint` URL that is
+/// unique because it IS the address, plus `p256dh` and `auth` — the browser's
+/// keys, used to encrypt the payload so the push service cannot read it.
+///
+/// APNs shares none of that. There is no endpoint (the host is Apple's, and
+/// differs by environment), no per-device encryption keys (the connection is
+/// authenticated to Apple with a JWT signed by a .p8 key), and the failure
+/// semantics differ — a `BadDeviceToken` or `Unregistered` from Apple is
+/// permanent in a way a Web Push 500 is not.
+///
+/// Folding the two into one table would mean a discriminator, roughly half the
+/// columns inapplicable per row, and `endpoint @unique` — the thing that stops
+/// a browser accumulating duplicate rows — no longer being the right key.
+///
+/// ─── environment is load-bearing ────────────────────────────────────
+///
+/// SANDBOX and PRODUCTION are DIFFERENT APNs hosts, and a token minted for one
+/// is rejected by the other. Getting this wrong produces the classic
+/// "notifications work in TestFlight and not in the App Store" — which looks
+/// like a certificate problem and is not. It is stored per device because the
+/// same user can have a debug build and a released one on two phones.
+model DeviceToken {
+  id     String @id @default(cuid())
+  userId String
+
+  /// The APNs device token, hex. Rotates — iOS reissues it on reinstall, on
+  /// restore from backup, and occasionally for its own reasons, so the client
+  /// re-registers on every launch and this row is upserted.
+  deviceToken String
+
+  /// Which app this token belongs to. An APNs push carries it as `apns-topic`,
+  /// and a token is only valid for the bundle it was issued to.
+  bundleId String
+
+  environment ApnsEnvironment @default(PRODUCTION)
+
+  /// Cosmetic, for a "your devices" screen: "iPhone 15 Pro", "iOS 18.2".
+  deviceName String?
+  osVersion  String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastSuccessAt DateTime?
+
+  /// Consecutive failures. Apple telling us a token is dead removes the row
+  /// outright; this counts the transient failures that have not yet resolved.
+  failureCount Int @default(0)
+
+  /// One row per token per environment. The same hex string CAN legitimately
+  /// exist in sandbox and production — they are different namespaces — so the
+  /// environment is part of the key. Without it, a developer's debug build
+  /// would evict their own production registration.
+  @@unique([deviceToken, environment])
+  @@index([userId])
+  @@map("device_token")
+}
