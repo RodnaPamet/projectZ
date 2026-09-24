@@ -106,6 +106,26 @@ const PAIRINGS: Pairing[] = [
     why: 'the label on the PRIMARY BUTTON — the single most-clicked thing in the product',
   },
 
+  // ── The translucent glass button fill ─────────────────────────────
+  //
+  // `<Button variant="secondary">` paints
+  // `bg-[var(--btn-glass-fill-secondary)]` with a `text-content-emphasis`
+  // label (button-variants.ts). The fill is TRANSLUCENT, so it has no ratio of
+  // its own — it depends on the surface behind it, which is why it needs the
+  // backdrop treatment rather than a naive measurement.
+  //
+  // This pairing was missing when issue #115 reported the secondary button at
+  // 2.99:1 from an E2E axe run. That reading turned out to be a sample taken
+  // mid-theme-flip, not the settled colour — but nothing here could say so,
+  // because nothing here measured this button. Now it does, on every run,
+  // without a browser.
+  {
+    fg: '--content-emphasis',
+    bg: '--btn-glass-fill-secondary',
+    backdrop: '--bg-page',
+    why: 'the label on the SECONDARY button — the second-most-clicked thing in the product',
+  },
+
   // ── Status colours, which carry MEANING and must be readable ──────
   { fg: '--content-success', bg: '--bg-default', why: 'a confirmed booking' },
   { fg: '--content-warning', bg: '--bg-default', why: 'a pending payment' },
