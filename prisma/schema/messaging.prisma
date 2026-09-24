@@ -64,9 +64,9 @@ model ChatMessage {
   conversationId String
   senderId       String
 
-  /// Encrypted at rest + HTML-sanitised on write. Chat is the highest-risk
-  /// surface in the product: text one user writes and another user's BROWSER
-  /// renders.
+  /// NOT encrypted. Sanitised by the messaging use case, which no route calls
+  /// yet. Chat is the highest-risk surface in the product: text one user
+  /// writes and another user's BROWSER renders.
   body String
 
   attachmentsJson Json?

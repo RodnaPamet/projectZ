@@ -44,9 +44,17 @@ const SOURCE = [
 
 const ALL_SOURCE = SOURCE.map((f) => readFileSync(f, 'utf8')).join('\n');
 
-/** Config files where a package can be named without ever being imported. */
+/**
+ * Config files where a package can be named without ever being imported.
+ *
+ * `package.json` IS NOT ONE OF THEM, and used to be. Every dependency appears
+ * in package.json as its own key — `"nanoid": "^6.0.1"` — so the
+ * `CONFIG.includes('"' + name + '"')` escape below matched EVERY package, and
+ * this rule could not fail for any input. It reported green while 12 runtime
+ * dependencies went unimported, which is exactly the Dependabot-noise problem
+ * the docblock above describes.
+ */
 const CONFIG = [
-  'package.json',
   'next.config.mjs',
   'jest.config.mjs',
   'tailwind.config.ts',
@@ -56,6 +64,34 @@ const CONFIG = [
   .filter((f) => globSync(f).length > 0)
   .map((f) => readFileSync(f, 'utf8'))
   .join('\n');
+
+/**
+ * Unimported, and NOT legitimate — a shrinking list, not an allowlist.
+ *
+ * These were invisible for as long as the `package.json` escape hatch existed.
+ * They are recorded rather than deleted because removing a dependency is a
+ * product decision, not a guardrail's: `resend` and `bullmq` are the transport
+ * and the queue that several half-built features are documented as using.
+ *
+ * The tests below make this list self-cleaning. An entry that becomes imported
+ * FAILS, and an entry removed from package.json FAILS, so the only way to
+ * silence either is to delete the line. It cannot rot into a dumping ground
+ * the way a plain allowlist does.
+ */
+const KNOWN_UNUSED: Record<string, string> = {
+  '@tanstack/react-query': 'no data-fetching layer written yet',
+  bullmq: 'the job queue the notification and sweep docs describe; nothing enqueues',
+  'canvas-confetti': 'gamification UI, unbuilt',
+  'driver.js': 'onboarding tour, unbuilt',
+  glicko2: 'superseded by openskill, which IS imported — this one is dead',
+  jsonwebtoken: 'APNs signs with node:crypto directly; this is left over',
+  'maplibre-gl': 'the venue map, unbuilt — geo search exists server-side only',
+  nanoid: 'ids come from cuid() in Prisma',
+  'p-retry': 'no retry wrapper written',
+  'react-map-gl': 'the React wrapper for the venue map, also unbuilt',
+  resend: 'the mailer for split payment links and booking email; no sender exists',
+  superjson: 'no RPC boundary that needs it',
+};
 
 /**
  * Packages that are legitimately never imported. Each one has to say WHY, so the
@@ -104,6 +140,7 @@ describe('every runtime dependency is actually used', () => {
   it('none is unimported and undeclared', () => {
     const orphans = runtime.filter((name) => {
       if (name in CONFIG_ONLY) return false;
+      if (name in KNOWN_UNUSED) return false;
       if (isImported(name)) return false;
       // A `@types/*` package is consumed by the compiler, never imported.
       if (name.startsWith('@types/')) return false;
@@ -159,5 +196,54 @@ describe('the CONFIG_ONLY escape hatch is honest', () => {
     const stale = Object.keys(CONFIG_ONLY).filter((name) => !(name in all));
 
     expect(stale).toEqual([]);
+  });
+});
+
+describe('the KNOWN_UNUSED ratchet only shrinks', () => {
+  const runtime = Object.keys(pkg.dependencies ?? {});
+
+  it('every entry is still a runtime dependency', () => {
+    // Removed from package.json but left here = a stale line that silently
+    // re-opens the hole if somebody reinstalls that package later.
+    const stale = Object.keys(KNOWN_UNUSED).filter((name) => !runtime.includes(name));
+    expect(stale).toEqual([]);
+  });
+
+  it('every entry is still unimported — importing one means deleting its line', () => {
+    // The whole point. The day somebody writes the mailer, `resend` becomes
+    // imported and this fails, forcing the line out. Without this the list
+    // would be indistinguishable from a permanent exemption.
+    const nowUsed = Object.keys(KNOWN_UNUSED).filter((name) => isImported(name));
+    expect(nowUsed).toEqual([]);
+  });
+
+  it('every entry says why it is still installed', () => {
+    // Reported by NAME, so a bare "unused" tells you which line to rewrite.
+    const unexplained = Object.entries(KNOWN_UNUSED)
+      .filter(([, reason]) => reason.trim().length <= 15)
+      .map(([name]) => name);
+
+    expect(unexplained).toEqual([]);
+  });
+
+  it('the list has not grown', () => {
+    // A number, deliberately. A new unimported dependency has to come past a
+    // human editing this line downward-only.
+    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(12);
+  });
+});
+
+describe('the rule can actually fail', () => {
+  it('a name that is imported nowhere is not silently excused', () => {
+    // The regression guard. `package.json` was in CONFIG, so every dependency
+    // matched the config escape and NOTHING could ever be reported — the suite
+    // was green by construction. This asserts the two predicates that decide a
+    // verdict still discriminate.
+    expect(isImported('this-package-does-not-exist-anywhere')).toBe(false);
+    expect(CONFIG.includes('"next"')).toBe(false);
+
+    // And that a real import IS seen, so the above is not passing because
+    // `isImported` returns false for everything.
+    expect(isImported('next')).toBe(true);
   });
 });

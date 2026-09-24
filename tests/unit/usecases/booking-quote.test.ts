@@ -185,6 +185,50 @@ describe('quoteBooking', () => {
     );
   });
 
+  it('rejects a start that is not on a whole minute, and SAYS so', () => {
+    // An ordinary Wednesday in July, nowhere near a changeover.
+    //
+    // The round-trip guard rebuilds the start from getHours()/getMinutes(),
+    // which cannot represent seconds, so a sub-minute start never round-trips
+    // and was rejected as an impossible wall clock. A client deriving startTs
+    // from Date.now() arithmetic, or echoing a timestamp that kept its
+    // seconds, got a 400 blaming DST on 15 July.
+    const wednesday: AvailabilityWindow[] = [
+      { dayOfWeek: 3, openMinutes: 6 * 60, closeMinutes: 22 * 60 },
+    ];
+
+    expect(() =>
+      quoteBooking({
+        ...base,
+        windows: wednesday,
+        startTs: new Date('2026-07-15T06:00:30Z'),
+        endTs: new Date('2026-07-15T07:00:30Z'),
+      }),
+    ).toThrow(/whole minute/);
+
+    // Milliseconds alone are enough — a client doing Date.now() arithmetic
+    // never sees the seconds it is carrying.
+    expect(() =>
+      quoteBooking({
+        ...base,
+        windows: wednesday,
+        startTs: new Date('2026-07-15T06:00:00.500Z'),
+        endTs: new Date('2026-07-15T07:00:00.500Z'),
+      }),
+    ).toThrow(/whole minute/);
+
+    // And the same span on the minute is fine, so the guard is not rejecting
+    // the window or the day.
+    expect(
+      quoteBooking({
+        ...base,
+        windows: wednesday,
+        startTs: new Date('2026-07-15T06:00:00Z'),
+        endTs: new Date('2026-07-15T07:00:00Z'),
+      }).priceCents,
+    ).toBeGreaterThan(0);
+  });
+
   it('rejects an AMBIGUOUS wall-clock time, and accepts the unambiguous one', () => {
     // Sofia's clocks go back on 2026-10-25, so 03:30 local happens twice —
     // once at 00:30Z and again at 01:30Z. Rebuilding the instant from the wall
@@ -199,14 +243,18 @@ describe('quoteBooking', () => {
     const firstOccurrence = new Date('2026-10-25T00:30:00Z');
     const secondOccurrence = new Date('2026-10-25T01:30:00Z');
 
-    expect(() =>
-      quoteBooking({
-        ...base,
-        windows: sunday,
-        startTs: firstOccurrence,
-        endTs: new Date(firstOccurrence.getTime() + 3_600_000),
-      }),
-    ).toThrow(SlotNotBookableError);
+    expect(
+      () =>
+        quoteBooking({
+          ...base,
+          windows: sunday,
+          startTs: firstOccurrence,
+          endTs: new Date(firstOccurrence.getTime() + 3_600_000),
+        }),
+      // The REASON, not just the class. A class-only assertion is what let a
+      // sub-minute start hide behind this guard for so long: it threw the same
+      // error with a message about a date nobody had asked for.
+    ).toThrow(/ambiguous/);
 
     expect(
       quoteBooking({

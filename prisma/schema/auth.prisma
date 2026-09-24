@@ -88,7 +88,11 @@ model User {
   /// logout). A JWT carrying a stale version is rejected.
   sessionVersion Int @default(0)
 
-  /// Encrypted at rest — never a plaintext TOTP seed.
+  /// NOT encrypted, and nothing writes it. MFA is unimplemented: the string
+  /// "mfaSecret" appeared in exactly one other place in src/, a manifest that
+  /// was never wired to anything and has been removed. Whoever implements MFA
+  /// must encrypt this on the way in — a plaintext TOTP seed defeats the
+  /// entire second factor — and there is no mechanism waiting to do it.
   mfaSecret String?
 
   createdAt DateTime @default(now())
@@ -118,8 +122,9 @@ model PlayerProfile {
   /// unit, and never queried across players by a single sport's mu.
   skillRatingsJson Json @default("{}")
 
-  /// Encrypted at rest and HTML-sanitised on write — free text a stranger
-  /// will read is both a PII surface and an XSS surface.
+  /// NOT encrypted and NOT sanitised today. Free text a stranger will read is
+  /// both a PII surface and an XSS surface, so it must be sanitised on write
+  /// before anything renders it.
   bio           String?
   dateOfBirth   DateTime?
   preferredHand String?

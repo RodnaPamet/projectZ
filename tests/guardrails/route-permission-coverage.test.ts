@@ -3,6 +3,8 @@ import { globSync } from 'node:fs';
 
 import { requiredPermission } from '@/lib/security/route-permissions';
 
+import { exportsMethod } from '../helpers/route-exports';
+
 /**
  * DEFAULT-DENY RATCHET.
  *
@@ -40,25 +42,9 @@ function discoverRoutes(): RouteFile[] {
     const file = f.toString();
     const src = readFileSync(file, 'utf8');
 
-    // Which HTTP verbs does this file actually export?
-    //
-    // Both spellings. Next.js honours a re-export — `export { POST }` and
-    // `export { handler as POST }` mount the route exactly as a direct
-    // declaration does, and matching only `export const|function POST` meant
-    // an unguarded admin route could ship with a green build.
-    const methods = MUTATING.filter((m) => {
-      const declared = new RegExp(`export\\s+(?:async\\s+)?(?:const|function)\\s+${m}\\b`).test(
-        src,
-      );
-
-      // `export { POST }`, `export { POST, DELETE }`, `export { h as POST }`
-      const reExported = new RegExp(
-        `export\\s*\\{[^}]*?\\b(?:\\w+\\s+as\\s+)?${m}\\b[^}]*?\\}`,
-        's',
-      ).test(src);
-
-      return declared || reExported;
-    });
+    // Which HTTP verbs does this file actually mount? Both spellings — see
+    // tests/helpers/route-exports.ts, which openapi-coverage now shares.
+    const methods = MUTATING.filter((m) => exportsMethod(src, m));
     if (methods.length === 0) continue;
 
     // src/app/api/t/[slug]/bookings/route.ts -> /api/t/:slug/bookings

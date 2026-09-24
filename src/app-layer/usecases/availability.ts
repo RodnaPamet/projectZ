@@ -256,6 +256,32 @@ export function quoteBooking(opts: BookingQuoteOptions): BookingQuote {
     throw new SlotNotBookableError('bookings are made in whole minutes');
   }
 
+  // ═══ THE START MUST ALSO BE ON A WHOLE MINUTE ═══
+  //
+  // The duration check above does NOT imply this: 06:00:30 → 07:00:30 is
+  // exactly one hour, so it passes, and both endpoints carry the same stray
+  // half-second.
+  //
+  // It matters because the round-trip guard further down rebuilds the start
+  // from `getHours() * 60 + getMinutes()`, which cannot represent seconds. A
+  // sub-minute start therefore never round-trips, and the guard rejected it
+  // with "that wall-clock time does not exist on that date" — on an ordinary
+  // Wednesday in July, nowhere near a changeover. A client author reading that
+  // message has no way to find the real cause.
+  //
+  // Epoch-ms modulo needs no timezone: every IANA offset in the bookable era
+  // is a whole number of minutes (+05:30, +05:45 and +12:45 included), so
+  // "whole minute in UTC" and "whole minute on the club's wall clock" are the
+  // same predicate.
+  //
+  // Rejected rather than rounded. Truncating to 06:00 would write a booking
+  // whose range is off the step grid that `computeSlots` and the
+  // `booking_no_overlap` EXCLUDE constraint both work in, while the pricing
+  // below would have charged it as 06:00 regardless.
+  if (opts.startTs.getTime() % 60_000 !== 0) {
+    throw new SlotNotBookableError('bookings start on a whole minute');
+  }
+
   const durationMinutes = durationMs / 60_000;
 
   if (durationMinutes < opts.minBookingMinutes) {
@@ -288,9 +314,16 @@ export function quoteBooking(opts: BookingQuoteOptions): BookingQuote {
   //
   // Rejecting costs one bookable hour a year, at 03:30. Accepting costs a
   // booking that silently is not when the player thinks it is.
+  //
+  // The message says AMBIGUOUS, which is what this actually catches. It used
+  // to say "does not exist on that date" — a description of the spring-forward
+  // case, which the paragraph above correctly explains is unreachable. So the
+  // string contradicted the comment directly over it, and it was also the
+  // message a sub-minute start got before the whole-minute guard above
+  // existed. Two different wrong answers from one line.
   const rebuilt = localMinutesToUtc(localStart, startMinutes, opts.timezone);
   if (rebuilt.getTime() !== opts.startTs.getTime()) {
-    throw new SlotNotBookableError('that wall-clock time does not exist on that date');
+    throw new SlotNotBookableError('that wall-clock time is ambiguous on that date');
   }
 
   const dayStartUtc = localMinutesToUtc(localStart, 0, opts.timezone);
