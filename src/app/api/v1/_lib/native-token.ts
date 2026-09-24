@@ -1,6 +1,10 @@
 import { encode } from 'next-auth/jwt';
 
-import { ACCESS_TOKEN_TTL_SECONDS, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  REFRESH_TOKEN_TTL_SECONDS,
+  SESSION_MAX_AGE_SECONDS,
+} from '@/lib/auth/sessions';
 
 /**
  * Minting an access token a Swift client can actually use.
@@ -38,6 +42,13 @@ export interface NativeTokens {
   expiresIn: number;
   /** Null from /refresh inside the grace window: "keep the one you have". */
   refreshToken: string | null;
+  /**
+   * The SESSION ROW's expiry, which is the deadline refresh is judged against.
+   *
+   * Fixed when the session is created and never extended — refreshing does not
+   * move it, so this value counts DOWN across responses rather than sliding
+   * forward. A client may schedule re-authentication against it.
+   */
   refreshExpiresAt: string;
 }
 
@@ -96,5 +107,16 @@ export async function mintAccessToken(claims: {
   };
 }
 
-/** The session ROW outlives the access token — it is scoped to the refresh window. */
-export const NATIVE_SESSION_TTL_SECONDS = Math.max(SESSION_MAX_AGE_SECONDS, 30 * 24 * 60 * 60);
+/**
+ * The session ROW outlives the access token — it is scoped to the refresh
+ * window, and its `expiresAt` IS the refresh deadline the server enforces.
+ *
+ * Derived from REFRESH_TOKEN_TTL_SECONDS rather than repeating 30 days, so the
+ * row cannot end up shorter than the window it exists to cover: a refresh token
+ * outliving its own session row would be refused as `expired` before its
+ * advertised deadline.
+ */
+export const NATIVE_SESSION_TTL_SECONDS = Math.max(
+  SESSION_MAX_AGE_SECONDS,
+  REFRESH_TOKEN_TTL_SECONDS,
+);
