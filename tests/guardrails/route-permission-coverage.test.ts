@@ -27,17 +27,38 @@ interface RouteFile {
   methods: string[];
 }
 
+/**
+ * ONE definition, used by discovery AND by the check that discovery works.
+ * They were two separate literals, and they disagreed.
+ */
+const ROUTE_GLOB = 'src/app/api/**/route.ts';
+
 function discoverRoutes(): RouteFile[] {
   const routes: RouteFile[] = [];
 
-  for (const f of globSync('src/app/api/**/route.ts')) {
+  for (const f of globSync(ROUTE_GLOB)) {
     const file = f.toString();
     const src = readFileSync(file, 'utf8');
 
     // Which HTTP verbs does this file actually export?
-    const methods = MUTATING.filter((m) =>
-      new RegExp(`export\\s+(?:async\\s+)?(?:const|function)\\s+${m}\\b`).test(src),
-    );
+    //
+    // Both spellings. Next.js honours a re-export — `export { POST }` and
+    // `export { handler as POST }` mount the route exactly as a direct
+    // declaration does, and matching only `export const|function POST` meant
+    // an unguarded admin route could ship with a green build.
+    const methods = MUTATING.filter((m) => {
+      const declared = new RegExp(`export\\s+(?:async\\s+)?(?:const|function)\\s+${m}\\b`).test(
+        src,
+      );
+
+      // `export { POST }`, `export { POST, DELETE }`, `export { h as POST }`
+      const reExported = new RegExp(
+        `export\\s*\\{[^}]*?\\b(?:\\w+\\s+as\\s+)?${m}\\b[^}]*?\\}`,
+        's',
+      ).test(src);
+
+      return declared || reExported;
+    });
     if (methods.length === 0) continue;
 
     // src/app/api/t/[slug]/bookings/route.ts -> /api/t/:slug/bookings
@@ -68,24 +89,31 @@ describe('route permission coverage (default deny)', () => {
   const tenantScoped = routes.filter((r) => TENANT_SCOPED.test(r.urlPath));
 
   it('the discovery actually walks the route tree', () => {
-    // If the glob broke, this suite would pass by finding nothing — the
-    // classic vacuous guardrail.
-    expect(globSync('src/app/**/*.tsx').length).toBeGreaterThan(0);
+    // ═══ THIS MUST ASSERT ON THE GLOB DISCOVERY USES ═══
+    //
+    // It used to assert `globSync('src/app/**/*.tsx').length > 0` — page
+    // components, which discovery never looks at. Nothing tied the two, so the
+    // guard against vacuity was itself vacuous: repointing discovery at
+    // `route.tsx` (zero matches) left every real route unexamined and this
+    // suite reporting 2 passed, including this very test.
+    expect(globSync(ROUTE_GLOB).length).toBeGreaterThanOrEqual(10);
+
+    // And the route tree must actually contain tenant-scoped mutating routes.
+    // A discovery that finds files but classifies none of them is the same
+    // failure wearing a different hat.
+    expect(tenantScoped.length).toBeGreaterThanOrEqual(3);
   });
 
   const cases = tenantScoped.flatMap((r) => r.methods.map((m) => [r.file, m, r.urlPath] as const));
 
-  // `it.each([])` is itself a jest error, and P08 lands the first routes.
-  const eachOrSkip = cases.length > 0 ? it.each(cases) : it.each([['(none yet)', '-', '-']]);
+  // The `(none yet)` placeholder that used to live here dated from before any
+  // tenant route existed, and its body asserted `cases.length === 0` — which
+  // is trivially true precisely when discovery has broken. It converted the
+  // one symptom worth alarming on into a passing test. Routes exist now, so an
+  // empty `cases` is a broken scan and the assertion above fails on it.
+  const eachCase = it.each(cases);
 
-  eachOrSkip('%s exports %s — it must require a permission', (file, method, urlPath) => {
-    if (file === '(none yet)') {
-      // No tenant-scoped API routes exist yet. P08 lands the first, and this
-      // ratchet starts biting the moment it does.
-      expect(cases).toHaveLength(0);
-      return;
-    }
-
+  eachCase('%s exports %s — it must require a permission', (file, method, urlPath) => {
     const needed = requiredPermission(urlPath, method);
 
     if (!needed) {
