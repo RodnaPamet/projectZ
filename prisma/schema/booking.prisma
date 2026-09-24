@@ -23,7 +23,10 @@ model Booking {
   status     BookingStatus @default(PENDING)
   totalCents Int
   currency   String        @default("EUR")
-  /// Encrypted at rest + sanitised.
+  /// NOT encrypted and NOT sanitised, and written straight from the request
+  /// body with no length cap. Often holds access details — "ring the bell,
+  /// gate code 4471" — which is why it was listed in the encrypted-field
+  /// manifest that turned out to be wired to nothing.
   notes      String?
 
   /// Client-generated. A retried request with the same key returns the

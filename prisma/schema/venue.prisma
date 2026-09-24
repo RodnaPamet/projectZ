@@ -4,7 +4,8 @@ model Venue {
 
   slug        String
   name        String
-  /// Encrypted at rest + HTML-sanitised on write.
+  /// NOT encrypted and NOT sanitised. Author-written marketing copy, rendered
+  /// publicly.
   description String?
 
   addressLine String
@@ -204,7 +205,8 @@ model Review {
 
   authorUserId String
   rating       Int
-  /// Encrypted at rest + sanitised — free text a stranger will read.
+  /// NOT encrypted. Sanitised by the reviews use case, which no route calls
+  /// yet. Free text a stranger will read.
   body         String?
 
   /// PROOF OF VISIT. A review must point at a booking the author actually
