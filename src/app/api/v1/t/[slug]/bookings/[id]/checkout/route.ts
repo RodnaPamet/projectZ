@@ -6,6 +6,7 @@ import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ok } from '@/app/api/v1/_lib/envelope';
+import { notifyAfterCommit } from '@/app-layer/usecases/notifications';
 import { recordPaymentAndConfirm } from '@/lib/billing/booking-payment';
 import { ConflictError, NotFoundError, UnauthorizedError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
@@ -99,13 +100,16 @@ async function handler(req: NextRequest, { params }: Ctx) {
       if (quote.cardDueCents === 0) {
         // Credit covered it. No Stripe leg exists, so nothing else will ever
         // confirm this booking.
-        await recordPaymentAndConfirm(db, {
+        const confirmed = await recordPaymentAndConfirm(db, {
           booking: {
             id: booking.id,
             tenantId: ctx.tenantId!,
             status: booking.status,
             totalCents: booking.totalCents,
             currency: booking.currency,
+            // This path is reached only for a signed-in player paying from
+            // their own wallet, so the booker is the caller.
+            bookedByUserId: ctx.userId!,
           },
           provider: 'WALLET',
           // Unique per booking, which is what `(provider, providerRefId)`
@@ -115,12 +119,25 @@ async function handler(req: NextRequest, { params }: Ctx) {
           receivedCents: 0,
           creditUsedCents: quote.walletAppliedCents,
         });
+
+        // Carried OUT of the transaction rather than written from inside it.
+        // `notification` is owner-only on app.user_id and this handle is bound
+        // to the TENANT, so the insert would fail the policy and take the
+        // wallet write with it.
+        return { ...quote, notify: confirmed.notify };
       }
 
       return quote;
     },
     { isolationLevel: 'Serializable' },
   );
+
+  // Committed. Now it is safe to write the notification and make the phone
+  // buzz — and `notifyAfterCommit` never throws, so a push failure cannot turn
+  // a completed payment into a 500.
+  if ('notify' in result && result.notify) {
+    await notifyAfterCommit(result.notify);
+  }
 
   return ok({
     bookingId: id,

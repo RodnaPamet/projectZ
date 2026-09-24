@@ -5,13 +5,14 @@ import {
   markAllRead,
   markRead,
   notify,
+  notifyAfterCommit,
   subscribeDevice,
   unreadCount,
   unsubscribeDevice,
 } from '@/app-layer/usecases/notifications';
 
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
-import { asAppSuperuser, asAppUserAs } from '../helpers/rls';
+import { asAppSuperuser, asAppUser, asAppUserAs } from '../helpers/rls';
 
 let db: PrismaClient;
 let tenant: SeededTenant;
@@ -32,6 +33,89 @@ beforeEach(async () => {
     }),
   );
   other = u.id;
+});
+
+// ══ Notifying after somebody else's transaction committed ════════════
+
+describe('notifyAfterCommit', () => {
+  it('binds the recipient itself, so a tenant-bound caller can still notify', () => {
+    // The reason this function exists. `notification` is owner-only on
+    // app.user_id, and the checkout route holds a TENANT binding — writing the
+    // row inside its transaction fails the policy's WITH CHECK and takes the
+    // payment down with it. The caller therefore hands over a description and
+    // this binds app.user_id for the insert.
+    //
+    // Proven by the sibling test below: the same input, written from a
+    // tenant-bound handle, is refused by the database.
+    return expect(
+      notifyAfterCommit({
+        tenantId: tenant.tenantId,
+        userId: me,
+        kind: 'BOOKING_CONFIRMED',
+        title: 'Booking confirmed',
+        body: 'Your court is booked.',
+        refType: 'booking',
+        refId: 'bk_test',
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('actually wrote the row', async () => {
+    await notifyAfterCommit({
+      tenantId: tenant.tenantId,
+      userId: me,
+      kind: 'BOOKING_CONFIRMED',
+      title: 'Booking confirmed',
+      body: 'Your court is booked.',
+      refType: 'booking',
+      refId: 'bk_written',
+    });
+
+    const rows = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({ where: { userId: me, refId: 'bk_written' } }),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].kind).toBe('BOOKING_CONFIRMED');
+  });
+
+  it('a TENANT-bound write of the same row is refused by the database', async () => {
+    // Pins the constraint the design is built around. If this ever starts
+    // passing, `notifyAfterCommit` can be simplified back into the caller's
+    // transaction — and until it does, it cannot.
+    await expect(
+      // `asAppUser` sets app.tenant_id and NOT app.user_id — exactly the
+      // context `inTenant` gives the checkout route.
+      asAppUser(db, tenant.tenantId, (tx) =>
+        tx.notification.create({
+          data: {
+            tenantId: tenant.tenantId,
+            userId: me,
+            kind: 'BOOKING_CONFIRMED',
+            title: 'Booking confirmed',
+            body: 'Your court is booked.',
+          },
+        }),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('NEVER throws — the caller has already committed money', async () => {
+    // A push failure must not turn a completed payment into a 500, and for the
+    // Stripe webhook it must not produce a non-2xx for an event already
+    // claimed, since the retry would be discarded as a duplicate.
+    //
+    // `not-a-cuid` fails runAsUserOnly's own id guard, so this exercises the
+    // catch with a real throw from inside rather than a mocked one.
+    await expect(
+      notifyAfterCommit({
+        tenantId: tenant.tenantId,
+        userId: 'not-a-cuid',
+        kind: 'BOOKING_CONFIRMED',
+        title: 'Booking confirmed',
+        body: 'Your court is booked.',
+      }),
+    ).resolves.toBe(0);
+  });
 });
 
 // ══ The row is the notification ══════════════════════════════════════

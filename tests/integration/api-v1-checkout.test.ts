@@ -170,6 +170,19 @@ describe('POST /api/v1/t/:slug/bookings/:id/checkout', () => {
       tx.auditEntry.findMany({ where: { tenantId: tenant.tenantId } }),
     );
     expect(audit.map((a) => a.action)).toContain('BOOKING_CONFIRMED');
+
+    // And the player is TOLD. `notify` had no production call site at all
+    // until this — a device could register, the APNs transport was correct and
+    // tested, and the phone never rang for anything.
+    const notes = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({ where: { userId: player.userId } }),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      kind: 'BOOKING_CONFIRMED',
+      refType: 'booking',
+      refId: bookingId,
+    });
   });
 
   it('splits between wallet and card when credit is partial', async () => {

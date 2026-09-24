@@ -125,6 +125,47 @@ describe('POST /api/webhooks/stripe — payment_intent.succeeded', () => {
     expect(p[0]).toMatchObject({ status: 'PAID', providerRefId: PI, amountCents: 2400 });
   });
 
+  it('tells the player their booking is confirmed', async () => {
+    // Until this was wired, `notify` had no production call site anywhere. A
+    // device could register through POST /v1/devices, the APNs transport was
+    // correct and tested, and the phone never rang — for anything.
+    await asAppSuperuser(db, (tx) =>
+      tx.booking.update({
+        where: { id: bookingId },
+        data: { bookedByUserId: tenant.userId },
+      }),
+    );
+
+    await send();
+
+    const notes = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({ where: { userId: tenant.userId } }),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      kind: 'BOOKING_CONFIRMED',
+      refType: 'booking',
+      refId: bookingId,
+    });
+    // The money is on the receipt, because "confirmed" without an amount is
+    // the notification people screenshot and then argue about.
+    expect(notes[0].body).toMatch(/24\.00 EUR/);
+  });
+
+  it('notifies NOBODY for a guest booking, and still confirms it', async () => {
+    // The fixture booking has no `bookedByUserId` — a walk-in who gave an
+    // email. There is no account to notify and no device to notify it on, and
+    // that must not be an error on the payment path.
+    const { res, body } = await send();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ handled: true, reason: 'confirmed' });
+    expect((await bookingRow()).status).toBe('CONFIRMED');
+
+    const notes = await asAppSuperuser(db, (tx) => tx.notification.findMany({}));
+    expect(notes).toHaveLength(0);
+  });
+
   it('audits the confirmation as SYSTEM', async () => {
     await send();
 

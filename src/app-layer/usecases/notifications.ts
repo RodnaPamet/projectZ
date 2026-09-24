@@ -1,5 +1,7 @@
 import type { NotificationKind, PrismaClient } from '@prisma/client';
 
+import { runAsUserOnly } from '@/lib/db/rls-middleware';
+import { logger } from '@/lib/observability/logger';
 import { sendApns } from '@/lib/push/apns';
 import { sendPush } from '@/lib/push/send';
 import { sanitizePlainText } from '@/lib/security/sanitize';
@@ -37,6 +39,10 @@ export interface NotifyInput {
 
 /**
  * Create a notification and try to push it.
+ *
+ * Takes a handle bound to the RECIPIENT — `notification`, `push_subscription`
+ * and `device_token` are all owner-only on `app.user_id`. Most callers want
+ * `notifyAfterCommit`, which binds it for them.
  */
 export async function notify(
   db: PrismaClient,
@@ -329,4 +335,51 @@ export async function markAllRead(
   });
 
   return { marked: result.count };
+}
+
+/**
+ * Notify somebody once the work being notified about has COMMITTED.
+ *
+ * ═══ WHY THIS CANNOT GO IN THE CALLER'S TRANSACTION ═══
+ *
+ * The obvious wiring is to write the notification inside the transaction that
+ * confirms the booking, so the two are atomic. It does not work, and the
+ * reason is not performance:
+ *
+ *   `notification` is OWNER-ONLY on `app.user_id` (P22), like
+ *   `push_subscription` and `device_token`. A notification belongs to a
+ *   PERSON, not to a club.
+ *
+ * The checkout route holds a TENANT binding — `app.tenant_id` is set,
+ * `app.user_id` is not — so the INSERT fails the policy's WITH CHECK and the
+ * whole payment transaction dies. Found by exactly that: the wallet-covers-it
+ * test started returning 500 INTERNAL.
+ *
+ * So it is a separate, user-bound piece of work, and it runs AFTER the commit.
+ * That ordering is the one this module's header insists on anyway: push only
+ * what is already on the record. A crash in between costs the user a banner,
+ * not a booking.
+ *
+ * ═══ NEVER THROWS ═══
+ *
+ * The caller has already committed money. A push failure — Apple having a bad
+ * minute, a dead endpoint — must not turn a completed payment into a 500, and
+ * for the Stripe webhook it must not produce a non-2xx for an event we have
+ * already claimed, since the retry would be discarded as a duplicate.
+ */
+export async function notifyAfterCommit(input: NotifyInput): Promise<number> {
+  try {
+    const { pushed } = await runAsUserOnly(input.userId, (db) => notify(db, input));
+    return pushed;
+  } catch (err) {
+    logger.warn('notification failed after commit', {
+      component: 'notifications',
+      userId: input.userId,
+      kind: input.kind,
+      refType: input.refType,
+      refId: input.refId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return 0;
+  }
 }
