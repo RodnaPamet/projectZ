@@ -255,5 +255,11 @@
   "engine": {
     "analysisBy": "Анализ от",
     "usedUnmodified": ", използван без промени под"
+  },
+  "notifications": {
+    "bookingConfirmed": {
+      "title": "Резервацията е потвърдена",
+      "body": "Кортът е запазен. Получено плащане {amount}."
+    }
   }
 }

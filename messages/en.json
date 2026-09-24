@@ -255,5 +255,11 @@
   "engine": {
     "analysisBy": "Analysis by",
     "usedUnmodified": ", used unmodified under the"
+  },
+  "notifications": {
+    "bookingConfirmed": {
+      "title": "Booking confirmed",
+      "body": "Your court is booked. Payment of {amount} received."
+    }
   }
 }
