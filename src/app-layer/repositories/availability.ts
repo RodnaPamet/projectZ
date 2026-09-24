@@ -210,6 +210,17 @@ export async function getAvailabilityInputs(
   // all if it comes back. The ceiling is far above anything reachable — 50
   // resources over 14 days, booked solid every half hour, is under 34,000 —
   // so hitting it means something is wrong that guessing cannot fix.
+  //
+  // That arithmetic depends on 14 days being a real bound on the window, which
+  // it briefly was not: `MAX_RANGE_DAYS` was enforced inside `computeSlots`,
+  // and the route called THIS first. `?from=2016-01-01&to=2036-01-01` reached
+  // here having been checked for nothing but `to > from`, and a venue past
+  // 50,000 lifetime bookings answered 500 INTERNAL — "something is wrong" —
+  // for a request that had simply asked for too much.
+  //
+  // `resolveAvailabilityRange` now applies the ceiling before the query. Keep
+  // it that way: this tripwire is a corruption detector, not a range check,
+  // and it has no useful thing to say about a range nobody bounded.
   if (bookings.length > MAX_BOOKINGS_IN_WINDOW) {
     throw new InternalError(
       `Availability window for venue ${opts.venue.id} contains more than ` +

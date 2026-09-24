@@ -239,7 +239,7 @@ describe('booking golden path', () => {
         }),
       );
 
-      const swept = await asAppSuperuser(prisma, (tx) => releaseExpiredBookings(tx));
+      const swept = await releaseExpiredBookings(prisma);
       expect(swept.released).toBeGreaterThanOrEqual(1);
 
       await expect(
@@ -270,9 +270,7 @@ describe('booking golden path', () => {
         }),
       );
 
-      const swept = await asAppSuperuser(prisma, (tx) =>
-        releaseExpiredBookings(tx, { now: sweptAt }),
-      );
+      const swept = await releaseExpiredBookings(prisma, { now: sweptAt });
       expect(swept.released).toBeGreaterThanOrEqual(1);
 
       await expect(

@@ -33,6 +33,18 @@ const BINDINGS =
  */
 const EXEMPT: ReadonlyArray<{ file: string; why: string }> = [
   {
+    file: 'src/app/api/cron/release-expired-bookings/route.ts',
+    why:
+      'Hands the singleton STRAIGHT to `releaseExpiredBookings`, which binds it ' +
+      'itself: every database access in that use case is inside `runAsSuperuser`, ' +
+      'and the route performs none of its own. It cannot bind here instead, ' +
+      'because the sweep opens one SERIALIZABLE transaction PER BOOKING for the ' +
+      'credit-ledger reversal, and isolation can only be set on the outermost ' +
+      'BEGIN — a route that opened the transaction would silently downgrade it ' +
+      'to a SAVEPOINT. The sweep verifies its own isolation on the first booking ' +
+      'of every run and refuses to continue if it was handed an open transaction.',
+  },
+  {
     file: 'src/app/api/ready/route.ts',
     why:
       'Connectivity probe only: `prisma.$queryRaw`SELECT 1``. It touches no table, ' +
@@ -59,6 +71,24 @@ describe('route database bindings', () => {
     // An exemption for a deleted path is a hole waiting for someone to recreate
     // that file, and it would never fail on its own.
     for (const { file } of EXEMPT) expect(existsSync(file)).toBe(true);
+  });
+
+  it('the cron sweep exemption still rests on the use case binding for it', () => {
+    // The exemption is granted on a claim about ANOTHER file: that
+    // `releaseExpiredBookings` binds every access itself. If that stops being
+    // true, this route becomes an unbound singleton call with a written excuse
+    // — the exact shape the exemption list is supposed to make impossible.
+    const useCase = readFileSync('src/app-layer/usecases/release-expired-bookings.ts', 'utf8');
+
+    expect(BINDINGS.test(useCase)).toBe(true);
+    // And it must still be the one asking for the isolation the ledger needs.
+    expect(useCase).toMatch(/isolationLevel: 'Serializable'/);
+
+    // The route itself must still do nothing but pass the client through.
+    const route = readFileSync('src/app/api/cron/release-expired-bookings/route.ts', 'utf8');
+    expect(route).toMatch(/releaseExpiredBookings\(prisma\)/);
+    // No model access of its own — that is what the exemption claims.
+    expect(route).not.toMatch(/prisma\.\w+\./);
   });
 
   it.each(ROUTES.filter((f) => !EXEMPT_FILES.has(f)))(

@@ -35,6 +35,43 @@ export class RangeTooWideError extends Error {
   }
 }
 
+/**
+ * The widest window anyone may ask for, in milliseconds.
+ *
+ * ═══ THE RANGE GUARD TOLERATES ONE DST HOUR ═══
+ *
+ * A local day is 23 or 25 hours. Measuring the request as a fixed number of
+ * 86_400_000ms days means a legitimate 14-day window spanning the October
+ * changeover measures 14 days and 1 hour, and gets rejected as a DoS attempt
+ * — in late October only.
+ */
+export const MAX_RANGE_MS = MAX_RANGE_DAYS * 86_400_000 + 3_600_000;
+
+/**
+ * One ceiling, checked in two places on purpose.
+ *
+ * `computeSlots` enforces it because it is the thing that materialises the
+ * slots. The ROUTE enforces it too, before it queries — and that is not
+ * belt-and-braces, it is the only one that bounds the database.
+ *
+ * The route used to leave this entirely to the use case, on the reasoning that
+ * "it is the use case's ceiling, not this route's". But the route fetches the
+ * bookings FIRST and computes slots second, so `?from=2016-01-01&to=2036-01-01`
+ * ran a twenty-year query across every court in the venue before anything
+ * looked at the width. A venue past the booking tripwire then answered 500
+ * INTERNAL for a request that had earned a 400.
+ *
+ * Exported as one function so the two call sites cannot drift: a route that
+ * bounds the range slightly differently from the use case is a route that
+ * either rejects legitimate requests or fails to bound the query.
+ */
+export function assertRangeWithinLimit(from: Date, to: Date): void {
+  const spanMs = to.getTime() - from.getTime();
+  if (spanMs > MAX_RANGE_MS) {
+    throw new RangeTooWideError(Math.ceil(spanMs / 86_400_000));
+  }
+}
+
 export interface AvailabilityWindow {
   dayOfWeek: number;
   /** Venue-local clock, minutes from midnight. */
@@ -312,16 +349,7 @@ export function computeSlots(opts: SlotOptions): Slot[] {
     booked,
   } = opts;
 
-  // ═══ THE RANGE GUARD TOLERATES ONE DST HOUR ═══
-  //
-  // A local day is 23 or 25 hours. Measuring the request as a fixed number of
-  // 86_400_000ms days means a legitimate 14-day window spanning the October
-  // changeover measures 14 days and 1 hour, and gets rejected as a DoS attempt
-  // — in late October only.
-  const spanMs = to.getTime() - from.getTime();
-  if (spanMs > MAX_RANGE_DAYS * 86_400_000 + 3_600_000) {
-    throw new RangeTooWideError(Math.ceil(spanMs / 86_400_000));
-  }
+  assertRangeWithinLimit(from, to);
 
   const slots: Slot[] = [];
 
