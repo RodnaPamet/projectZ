@@ -61,6 +61,30 @@ import { appendEntry } from './wallet';
  * it. That is not silent, which is what matters.
  */
 
+/**
+ * The sweep asked for SERIALIZABLE and did not get it.
+ *
+ * Means it was handed an already-open transaction. Prisma treats the inner
+ * `$transaction` as NESTED, issues SAVEPOINT instead of BEGIN, and silently
+ * discards the isolation level — it can only be set on the outermost BEGIN.
+ */
+export class SweepIsolationError extends Error {
+  constructor(actual: string) {
+    super(
+      `releaseExpiredBookings requires SERIALIZABLE and is running at "${actual}".\n\n` +
+        `It was handed a transaction handle rather than a top-level client, so its ` +
+        `own $transaction became a SAVEPOINT and the isolation request was dropped.\n\n` +
+        `Fix the CALLER: pass the top-level client. The sweep opens its own ` +
+        `superuser transaction per booking precisely so it can ask for the ` +
+        `isolation the credit ledger needs —\n` +
+        `  await releaseExpiredBookings(prisma)\n` +
+        `not\n` +
+        `  await runAsSuperuser((db) => releaseExpiredBookings(db))`,
+    );
+    this.name = 'SweepIsolationError';
+  }
+}
+
 /** One run's ceiling. A sweep is not a migration; it comes back in a minute. */
 const MAX_PER_RUN = 500;
 
@@ -193,11 +217,31 @@ async function releaseOne(
   client: PrismaClient,
 ): Promise<number | null> {
   try {
-    return await runAsSuperuser(fn, client, {
+    return await runAsSuperuser(
+      async (db) => {
+        // Verify the isolation we actually GOT, before doing any work.
+        //
+        // `appendEntry` makes this same check, and its message is the one
+        // worth reading — but it only runs when there is credit to return. So
+        // a sweep handed an open transaction works perfectly until the first
+        // player with a wallet balance abandons a checkout, and then fails on
+        // the one path where money is at stake. Checking here makes it fail on
+        // the first booking of the first run instead, which is the difference
+        // between a caught mistake and a production incident.
+        const [level] = await db.$queryRawUnsafe<{ iso: string }[]>(
+          `SELECT current_setting('transaction_isolation') AS iso`,
+        );
+        if (level?.iso !== 'serializable') {
+          throw new SweepIsolationError(level?.iso ?? 'unknown');
+        }
+
+        return fn(db);
+      },
+      client,
       // The ledger append inside refuses to run at anything weaker, and only
       // the outermost BEGIN can ask for it.
-      isolationLevel: 'Serializable',
-    });
+      { isolationLevel: 'Serializable' },
+    );
   } catch (err) {
     if (isSerializationFailure(err)) return null;
     throw err;

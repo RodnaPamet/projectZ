@@ -254,6 +254,21 @@ describe('releasing expired PENDING bookings', () => {
         reason: 'ADMIN_ADJUST',
       });
 
+    it("refuses to run inside somebody else's transaction", async () => {
+      // The trap this guard exists for: handed an open transaction, the sweep
+      // works perfectly — until the first player with a wallet balance
+      // abandons a checkout, because only THEN does the ledger append run and
+      // notice the isolation was silently downgraded to a SAVEPOINT.
+      //
+      // Failing on the first booking of the first run is the difference
+      // between a caught mistake and a production incident.
+      await makeBooking({});
+
+      await expect(asAppSuperuser(db, (tx) => releaseExpiredBookings(tx))).rejects.toThrow(
+        /requires SERIALIZABLE/,
+      );
+    });
+
     it('hands the credit back when it releases the slot', async () => {
       const player = await seedPlayer(db, tenant.tenantId, 'sweep-refund');
       await giveCredit(player, 1000);
