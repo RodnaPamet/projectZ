@@ -1,4 +1,5 @@
 import { prismaTestClient } from '../helpers/db';
+import { parseSchemaModels } from '../helpers/prisma-schema-models';
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
@@ -34,6 +35,84 @@ describe('installed RLS policy shape', () => {
 
   it('reads the installed policies (an empty read would pass everything)', async () => {
     expect((await policies()).length).toBeGreaterThan(20);
+  });
+
+  // ═══ IS ROW SECURITY ACTUALLY ON? ═══
+  //
+  // Nothing in this repository asked. `grep -rn 'relrowsecurity' src/ tests/`
+  // returned nothing at all.
+  //
+  // The guardrail's ENABLE + FORCE check scans migration history, which is
+  // IMMUTABLE — so a later `ALTER TABLE "audit_entry" DISABLE ROW LEVEL
+  // SECURITY` can never turn it red: the original ENABLE is still sitting in
+  // the file that created it. And the policy-shape tests above read
+  // `pg_policies`, where a table with RLS disabled and its policies dropped
+  // produces ZERO ROWS and passes every assertion silently.
+  //
+  // Measured: a migration doing exactly that passed all 38 guardrail suites
+  // and this file. Turning off tenant isolation on a table was a green build.
+  //
+  // `pg_class` is the only thing that knows, so this asks it.
+
+  const GLOBAL_BY_DESIGN = new Set(['User', 'PlayerProfile']);
+  const tenantScoped = parseSchemaModels().filter(
+    (m) => m.hasTenantId && !GLOBAL_BY_DESIGN.has(m.name),
+  );
+
+  type RelRow = { relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean };
+
+  async function tableSecurity(): Promise<RelRow[]> {
+    return asAppSuperuser(db, (tx) =>
+      tx.$queryRawUnsafe<RelRow[]>(
+        `SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relkind = 'r'`,
+      ),
+    );
+  }
+
+  it('the schema parse and the catalogue read both found something', async () => {
+    // Either one returning nothing makes the two assertions below vacuous —
+    // and "no tenant-scoped tables are insecure" is trivially true of an empty
+    // list, which is exactly how this class of hole survives.
+    expect(tenantScoped.length).toBeGreaterThanOrEqual(20);
+    expect((await tableSecurity()).length).toBeGreaterThan(20);
+  });
+
+  it('every tenant-scoped table has RLS ENABLED and FORCED in the database', async () => {
+    const byName = new Map((await tableSecurity()).map((r) => [r.relname, r]));
+
+    const insecure = tenantScoped
+      .map((m) => ({ model: m.name, row: byName.get(m.table) }))
+      .filter(({ row }) => !row || !row.relrowsecurity || !row.relforcerowsecurity)
+      .map(({ model, row }) =>
+        !row
+          ? `${model}: no such table`
+          : `${model}: enabled=${row.relrowsecurity} forced=${row.relforcerowsecurity}`,
+      );
+
+    if (insecure.length > 0) {
+      throw new Error(
+        `Tenant-scoped tables without row security ACTUALLY in force:\n\n` +
+          insecure.map((s) => `  ${s}`).join('\n') +
+          `\n\nENABLE without FORCE exempts the table OWNER — and migrations run as\n` +
+          `the owner. Neither is visible in the migration text once a later\n` +
+          `migration turns it off, which is why this is asked of pg_class and not\n` +
+          `of the schema.`,
+      );
+    }
+
+    expect(insecure).toEqual([]);
+  });
+
+  it('every tenant-scoped table has at least one policy INSTALLED', async () => {
+    // RLS enabled with no policy denies everything, which is a silent outage
+    // rather than a silent breach — but a bare `DROP POLICY` that leaves RLS
+    // on is invisible to a migration text scan just the same.
+    const withPolicy = new Set((await policies()).map((p) => p.tablename));
+    const bare = tenantScoped.filter((m) => !withPolicy.has(m.table)).map((m) => m.name);
+
+    expect(bare).toEqual([]);
   });
 
   it('NO policy is trivially permissive', async () => {
