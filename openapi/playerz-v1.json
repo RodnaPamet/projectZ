@@ -74,7 +74,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED`. Two independent limiters can produce this:\n\n1. The wrapper's default mutation limit (60/min, keyed by client IP alone) — body carries extra `error.retryAfterSeconds` and `error.scope` fields, plus `X-RateLimit-Limit`/`-Remaining`/`-Reset` headers.\n2. The sign-in throttle shared with the web login (10 per 15 min per IP, 15 min lockout) — body is `code` + `message` only.\n\nBoth set a retry-after header (case differs; HTTP header names are case-insensitive). Honour it: further attempts during a lockout do not extend it.",
+            "description": "`RATE_LIMITED`. Two independent limiters can produce this, and since #124 both return the same canonical `Error` SHAPE — `code` + `message`, no `requestId`. Only the wording of `message` and the headers differ:\n\n1. The wrapper's default mutation limit (60/min, keyed by client IP alone), which also sets `X-RateLimit-Limit`/`-Remaining`/`-Reset`.\n2. The sign-in throttle shared with the web login (10 per 15 min per IP, 15 min lockout), which sets none of those.\n\nThe body no longer distinguishes them; the presence of the `X-RateLimit-*` headers does. Both set a retry-after header (case differs; HTTP header names are case-insensitive). Honour it: further attempts during a lockout do not extend it.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying.",
@@ -167,7 +167,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED` from the wrapper's default mutation limit — 60 requests/minute keyed by client IP alone (not per user), shared across every v1 POST/PUT/PATCH/DELETE. Body carries extra `error.retryAfterSeconds` and `error.scope` fields.",
+            "description": "`RATE_LIMITED` from the wrapper's default mutation limit — 60 requests/minute keyed by client IP alone (not per user), shared across every v1 POST/PUT/PATCH/DELETE. Body is the canonical `Error` envelope with no `requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying.",
@@ -238,7 +238,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED` from the wrapper's default mutation limit — 60 requests/minute keyed by client IP alone. Body carries extra `error.retryAfterSeconds` and `error.scope` fields.",
+            "description": "`RATE_LIMITED` from the wrapper's default mutation limit — 60 requests/minute keyed by client IP alone. Body is the canonical `Error` envelope with no `requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying.",
@@ -952,7 +952,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`. The default mutation budget is 60 requests per 60 seconds, keyed by client IP (this route does not supply a user-id resolver, so the budget is shared across ALL v1 mutations from that IP — which behind carrier NAT is shared across users). The body adds `error.retryAfterSeconds` and `error.scope` and omits `error.requestId`.",
+            "description": "Code `RATE_LIMITED`. The default mutation budget is 60 requests per 60 seconds, keyed by client IP (this route does not supply a user-id resolver, so the budget is shared across ALL v1 mutations from that IP — which behind carrier NAT is shared across users). The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying, minimum 1.",
@@ -1107,7 +1107,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body adds `error.retryAfterSeconds` and `error.scope` and omits `error.requestId`.",
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying, minimum 1.",
@@ -1262,7 +1262,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body adds `error.retryAfterSeconds` and `error.scope` and omits `error.requestId`.",
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying, minimum 1.",
@@ -1514,7 +1514,7 @@
             }
           },
           "429": {
-            "description": "Mutation rate limit exhausted (keyed on client IP plus, where known, user). Code `RATE_LIMITED`. This body is produced by the rate-limit middleware and differs slightly from the standard error shape: it adds `error.retryAfterSeconds` and `error.scope`, and carries no `requestId`. Respect `Retry-After` rather than retrying immediately.",
+            "description": "Mutation rate limit exhausted (keyed on client IP plus, where known, user). Code `RATE_LIMITED`. The body is the canonical `Error` envelope, produced by the rate-limit middleware, and carries no `requestId`. Respect `Retry-After` rather than retrying immediately.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying; always at least 1.",
@@ -1741,7 +1741,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`. The mutation budget for this caller/IP is exhausted. The error object additionally carries `retryAfterSeconds` and `scope` alongside `code` and `message`, and the response has no `requestId`.",
+            "description": "Code `RATE_LIMITED`. The mutation budget for this caller/IP is exhausted. The error object carries `code` and `message` only, with no `requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Integer seconds to wait before retrying.",
@@ -1898,7 +1898,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`. The error object additionally carries `retryAfterSeconds` and `scope`, and no `requestId`.",
+            "description": "Code `RATE_LIMITED`. The error object carries `code` and `message` only, with no `requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Integer seconds to wait before retrying.",
@@ -1996,7 +1996,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`. The error object additionally carries `retryAfterSeconds` and `scope`, and no `requestId`.",
+            "description": "Code `RATE_LIMITED`. The error object carries `code` and `message` only, with no `requestId`; the wait is in the `Retry-After` header.",
             "headers": {
               "Retry-After": {
                 "description": "Integer seconds to wait before retrying.",
@@ -2090,7 +2090,7 @@
             }
           },
           "429": {
-            "description": "Mutation rate limit exhausted (60 requests per 60 seconds). NOTE: this body is NOT the canonical error envelope — it has no `requestId`, and it carries `retryAfterSeconds` and `scope` directly on `error`. The bucket is keyed by client IP and the anonymous actor (this route passes no user-id resolver), so callers sharing an egress IP share the budget.",
+            "description": "Mutation rate limit exhausted (60 requests per 60 seconds). The body IS the canonical error envelope, though it has no `requestId`, and the wait is in the `Retry-After` header. The bucket is keyed by client IP and the anonymous actor (this route passes no user-id resolver), so callers sharing an egress IP share the budget.",
             "headers": {
               "Retry-After": {
                 "description": "Whole seconds to wait before retrying.",
@@ -2119,7 +2119,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RateLimitError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -3374,39 +3374,6 @@
             "format": "uri",
             "description": "The public Centrifugo WebSocket URL, from `NEXT_PUBLIC_CENTRIFUGO_URL`. NULL when that variable is unset on the server — the token is still minted and the response is still 200, so a client must handle null rather than assume a URL is always present.",
             "examples": ["wss://realtime.playerz.bg/connection/websocket"]
-          }
-        }
-      },
-      "RateLimitError": {
-        "type": "object",
-        "description": "The 429 body emitted by the shared rate-limit middleware. It resembles the canonical error envelope but is NOT the same shape: `requestId` is absent, and `retryAfterSeconds` and `scope` sit directly on `error` rather than under `details`. Decode it as its own type.",
-        "required": ["error"],
-        "properties": {
-          "error": {
-            "type": "object",
-            "required": ["code", "message", "retryAfterSeconds", "scope"],
-            "properties": {
-              "code": {
-                "type": "string",
-                "description": "Always `RATE_LIMITED`.",
-                "examples": ["RATE_LIMITED"]
-              },
-              "message": {
-                "type": "string",
-                "examples": ["Too many requests. Retry after 12 seconds."]
-              },
-              "retryAfterSeconds": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Mirrors the `Retry-After` header.",
-                "examples": [12]
-              },
-              "scope": {
-                "type": "string",
-                "description": "The limiter bucket that blocked the request.",
-                "examples": ["api-mutation"]
-              }
-            }
           }
         }
       },

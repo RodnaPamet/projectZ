@@ -125,14 +125,39 @@ export function buildRateLimitKey(scope: string, ip: string, userId?: string | n
  *   - status 429
  *   - `Retry-After` header (integer seconds)
  *   - `X-RateLimit-*` informational headers
- *   - application/json body with a stable `error.code` for clients
+ *   - the CANONICAL error envelope as its body — `{ error: { code,
+ *     message } }`, and nothing else. See `ApiErrorResponse` in
+ *     src/lib/errors/types.ts.
+ *
+ * ═══ WHY THE BODY CARRIES NOTHING BEYOND code + message (#124) ═══
+ *
+ * This body used to add `retryAfterSeconds` and `scope` inside
+ * `error`. No other error in the API has extra keys there, and a
+ * native client decodes ONE error type: a lenient decoder drops them,
+ * a strict one fails on a response it is otherwise able to handle.
+ * Neither field bought anything that was not already on the wire:
+ *
+ *   - `retryAfterSeconds` duplicated the `Retry-After` header built
+ *     from the same local, just above. That header is the
+ *     HTTP-standard channel for exactly this value and it reaches the
+ *     caller without decoding the body at all, so it survives the 429s
+ *     a client never parses. A second copy is a second thing to drift.
+ *   - `scope` is the name of an INTERNAL limiter bucket
+ *     (`api-mutation`, `login`, …). A caller cannot act on it — the
+ *     correct response is "wait for Retry-After" whichever bucket
+ *     fired — and publishing it maps which surfaces share a budget to
+ *     anyone willing to trip the limit. It is diagnostic, so it goes
+ *     where diagnostics go: `enforceRateLimit` already logs it on
+ *     every block, and `withApiErrorHandling` records it as the
+ *     `rate_limit.scope` span attribute.
+ *
+ * The number a human needs is still in `message`; the number a program
+ * needs is still in `Retry-After`.
  *
  * Never includes the key itself or the caller's IP in the body — log
- * them instead. The caller gets enough info to back off intelligently
- * and nothing extra.
+ * them instead.
  */
 function buildTooManyRequestsResponse(
-  scope: string,
   config: RateLimitConfig,
   result: RateLimitResult,
 ): NextResponse {
@@ -151,8 +176,6 @@ function buildTooManyRequestsResponse(
       error: {
         code: 'RATE_LIMITED',
         message: `Too many requests. Retry after ${retryAfterSeconds} seconds.`,
-        retryAfterSeconds,
-        scope,
       },
     },
     { status: 429, headers },
@@ -193,7 +216,7 @@ export function enforceRateLimit(
     return {
       key,
       result,
-      response: buildTooManyRequestsResponse(scope.scope, scope.config, result),
+      response: buildTooManyRequestsResponse(scope.config, result),
     };
   }
 
