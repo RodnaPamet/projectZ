@@ -8,12 +8,7 @@ import {
   type NativeTokens,
 } from '@/app/api/v1/_lib/native-token';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
-import {
-  createUserSession,
-  newSessionSecret,
-  REFRESH_TOKEN_TTL_SECONDS,
-  setRefreshToken,
-} from '@/lib/auth/sessions';
+import { createUserSession, newSessionSecret, setRefreshToken } from '@/lib/auth/sessions';
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { checkRateLimit, LOGIN_LIMIT } from '@/lib/security/rate-limit';
 import { getClientIp } from '@/lib/security/rate-limit-middleware';
@@ -79,7 +74,11 @@ async function handler(req: NextRequest) {
   const sessionSecret = newSessionSecret();
   const refreshToken = newSessionSecret();
 
-  const { userSessionId, sessionVersion } = await createUserSession({
+  const {
+    userSessionId,
+    sessionVersion,
+    expiresAt: sessionExpiresAt,
+  } = await createUserSession({
     userId: user.id,
     tenantId: null,
     sessionSecret,
@@ -106,7 +105,11 @@ async function handler(req: NextRequest) {
     expiresAt: rfc3339(expiresAt),
     expiresIn: Math.floor((expiresAt.getTime() - now) / 1000),
     refreshToken,
-    refreshExpiresAt: rfc3339(new Date(now + REFRESH_TOKEN_TTL_SECONDS * 1000)),
+    // The ROW's expiry, as stored — not a window measured from this response.
+    // `rotateRefreshToken` rejects against that column and nothing ever writes
+    // it again, so this is the only value that stays true as the session is
+    // refreshed. /auth/refresh returns the same column for the same reason.
+    refreshExpiresAt: rfc3339(sessionExpiresAt),
   });
 }
 

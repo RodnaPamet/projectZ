@@ -44,6 +44,33 @@ describe('refresh token rotation', () => {
     expect(r.refreshToken).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('rotation does NOT extend the session — the deadline is absolute', async () => {
+    // What /auth/token and /auth/refresh both advertise as `refreshExpiresAt`
+    // is this column. They may only do that while rotation leaves it alone: the
+    // moment a rotation slides it, the advertised value becomes a sliding
+    // window again and #123 is back, this time in the database.
+    const s = await issue();
+
+    const before = await asAppSuperuser(db, (tx) =>
+      tx.userSession.findUniqueOrThrow({
+        where: { id: s.userSessionId },
+        select: { expiresAt: true },
+      }),
+    );
+
+    const r = await rotateRefreshToken({ presented: s.refresh });
+    expect(r.ok && r.rotated).toBe(true);
+
+    const after = await asAppSuperuser(db, (tx) =>
+      tx.userSession.findUniqueOrThrow({
+        where: { id: s.userSessionId },
+        select: { expiresAt: true },
+      }),
+    );
+
+    expect(after.expiresAt.getTime()).toBe(before.expiresAt.getTime());
+  });
+
   it('THE BURST: three concurrent refreshes with the same token all succeed', async () => {
     // ═══ THE WHOLE POINT ═══
     //
