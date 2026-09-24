@@ -46,6 +46,153 @@ export interface ConfirmResult {
     'no-payment-intent-link' | 'metadata-mismatch' | 'amount-short' | 'not-pending' | 'confirmed';
 }
 
+export interface ConfirmInput {
+  booking: {
+    id: string;
+    tenantId: string;
+    status: string;
+    totalCents: number;
+    currency: string;
+  };
+  provider: string;
+  /** Unique per charge. `(provider, providerRefId)` is a UNIQUE index. */
+  providerRefId: string;
+  receivedCents: number;
+  creditUsedCents: number;
+}
+
+/**
+ * Record the money, then decide about the booking. Shared by the webhook and
+ * by the checkout route.
+ *
+ * ═══ WHY SHARED RATHER THAN WRITTEN TWICE ═══
+ *
+ * A booking can be paid two ways: a card, confirmed later by a Stripe webhook,
+ * or entirely from wallet credit, which produces no PaymentIntent and
+ * therefore no webhook at all. Those are different triggers for identical
+ * bookkeeping — record the payment, flip PENDING to CONFIRMED, audit it.
+ *
+ * Two copies of that would drift, and the drift would be silent: a change to
+ * the card path fixing something the wallet path still gets wrong, discovered
+ * by a player whose credit-paid booking quietly expired.
+ */
+export async function recordPaymentAndConfirm(
+  db: PrismaClient,
+  input: ConfirmInput,
+): Promise<ConfirmResult> {
+  const { booking, receivedCents, creditUsedCents } = input;
+
+  // ═══ THE MONEY IS RECORDED BEFORE ANY DECISION ABOUT THE BOOKING ═══
+  //
+  // An earlier draft returned early on every refusal and wrote nothing. Stripe
+  // has already CAPTURED the card by the time its event fires, so those paths
+  // left real money in the club's balance with no Payment row, no audit entry
+  // and no alert — and because the webhook's event claim commits with the
+  // refusal, Stripe never retries and a dashboard replay is discarded as a
+  // duplicate. The charge became undiscoverable except by reading Stripe.
+  //
+  // Payment succeeding means the money moved. Whether we then confirm the
+  // booking is a separate question, and it must not decide whether we write
+  // down that it moved.
+  await db.payment.createMany({
+    data: [
+      {
+        tenantId: booking.tenantId,
+        bookingId: booking.id,
+        provider: input.provider,
+        providerRefId: input.providerRefId,
+        amountCents: receivedCents,
+        currency: booking.currency,
+        status: 'PAID',
+        paidAt: new Date(),
+      },
+    ],
+    // Real, since P28 added UNIQUE(provider, providerRefId). Before that this
+    // silently inserted a second PAID row for a redelivered event.
+    skipDuplicates: true,
+  });
+
+  if (receivedCents + creditUsedCents < booking.totalCents) {
+    await appendAuditEntry(db, {
+      tenantId: booking.tenantId,
+      actorUserId: null,
+      actorType: 'SYSTEM',
+      entity: 'Booking',
+      entityId: booking.id,
+      action: AUDIT_ACTIONS.PAYMENT_UNAPPLIED,
+      details: `Payment ${input.providerRefId} of ${receivedCents} does not cover ${booking.totalCents}; booking NOT confirmed`,
+      detailsJson: {
+        category: 'payment',
+        summary: 'Payment received but insufficient — needs manual reconciliation',
+        providerRefId: input.providerRefId,
+        amountReceivedCents: receivedCents,
+        walletAppliedCents: creditUsedCents,
+        bookingTotalCents: booking.totalCents,
+        reason: 'amount-short',
+      },
+    });
+
+    return { handled: false, bookingId: booking.id, reason: 'amount-short' };
+  }
+
+  // `updateMany` filtered on PENDING, not `update`. A second delivery — or a
+  // race with a cancellation — then changes zero rows instead of resurrecting
+  // a booking the player has already cancelled.
+  const updated = await db.booking.updateMany({
+    where: { id: booking.id, status: 'PENDING' },
+    data: { status: 'CONFIRMED', expiresAt: null },
+  });
+
+  if (updated.count === 0) {
+    // Cancelled (or already confirmed) between checkout and payment — a player
+    // cancelling mid-3DS is an ordinary race, and nothing voids the intent.
+    // The charge stands and is recorded above; this entry is what makes it
+    // findable.
+    await appendAuditEntry(db, {
+      tenantId: booking.tenantId,
+      actorUserId: null,
+      actorType: 'SYSTEM',
+      entity: 'Booking',
+      entityId: booking.id,
+      action: AUDIT_ACTIONS.PAYMENT_UNAPPLIED,
+      details: `Payment ${input.providerRefId} arrived for a booking that is no longer PENDING; refund likely required`,
+      detailsJson: {
+        category: 'payment',
+        summary: 'Payment received for a booking that could not be confirmed',
+        providerRefId: input.providerRefId,
+        amountReceivedCents: receivedCents,
+        bookingStatus: booking.status,
+        reason: 'not-pending',
+      },
+    });
+
+    return { handled: false, bookingId: booking.id, reason: 'not-pending' };
+  }
+
+  await appendAuditEntry(db, {
+    tenantId: booking.tenantId,
+    actorUserId: null,
+    // Nobody at the club decided this. The payment did.
+    actorType: 'SYSTEM',
+    entity: 'Booking',
+    entityId: booking.id,
+    action: AUDIT_ACTIONS.BOOKING_CONFIRMED,
+    details: `Payment ${input.providerRefId} confirmed booking for ${receivedCents} ${booking.currency}`,
+    detailsJson: {
+      category: 'payment',
+      summary: 'Booking confirmed by payment',
+      before: { status: 'PENDING' },
+      after: { status: 'CONFIRMED' },
+      provider: input.provider,
+      providerRefId: input.providerRefId,
+      amountReceivedCents: receivedCents,
+      walletAppliedCents: creditUsedCents,
+    },
+  });
+
+  return { handled: true, bookingId: booking.id, reason: 'confirmed' };
+}
+
 export async function handlePaymentIntentSucceeded(
   db: PrismaClient,
   intent: Stripe.PaymentIntent,
@@ -58,12 +205,12 @@ export async function handlePaymentIntentSucceeded(
       status: true,
       totalCents: true,
       currency: true,
-      bookedByUserId: true,
     },
   });
 
   // Not ours, or a payment for something that is not a booking. Acknowledged
-  // rather than retried — Stripe cannot fix this by sending it again.
+  // rather than retried — Stripe cannot fix this by sending it again, and
+  // there is no booking to attach a Payment row to (bookingId is required).
   if (!booking) return { handled: false, reason: 'no-payment-intent-link' };
 
   const claimed = typeof intent.metadata?.bookingId === 'string' ? intent.metadata.bookingId : null;
@@ -91,46 +238,9 @@ export async function handlePaymentIntentSucceeded(
     return { handled: false, bookingId: booking.id, reason: 'metadata-mismatch' };
   }
 
-  const received = intent.amount_received ?? 0;
-
-  // ═══ THE MONEY IS RECORDED BEFORE ANY DECISION ABOUT THE BOOKING ═══
-  //
-  // An earlier draft returned early on every refusal — a cancelled booking, a
-  // short payment — and wrote nothing. Stripe had already CAPTURED the card by
-  // the time this event fires, so those paths left real money in the club's
-  // balance with no Payment row, no audit entry and no alert. And because the
-  // event claim commits with the refusal, Stripe never retries and a
-  // deliberate dashboard replay is discarded as a duplicate. The charge became
-  // undiscoverable except by reading Stripe.
-  //
-  // `payment_intent.succeeded` means the money moved. Whether we then confirm
-  // the booking is a separate question, and it must not decide whether we
-  // write down that it moved.
-  await db.payment.createMany({
-    data: [
-      {
-        tenantId: booking.tenantId,
-        bookingId: booking.id,
-        provider: 'STRIPE',
-        providerRefId: intent.id,
-        amountCents: received,
-        currency: booking.currency,
-        status: 'PAID',
-        paidAt: new Date(),
-      },
-    ],
-    // Keyed on the intent, so a second event for the same charge cannot
-    // create a second row.
-    skipDuplicates: true,
-  });
-
-  // Wallet credit is applied before the card, so the charge is legitimately
-  // smaller than the booking total. What must never happen is the card
-  // covering LESS than the part the wallet did not.
   // `spendCredit` records the spend as a NEGATIVE deltaCents with
   // refType 'booking' — there is no bookingId column on the ledger, so the
-  // polymorphic ref is the link. Summing and taking the absolute value gives
-  // what the wallet covered.
+  // polymorphic ref is the link.
   const walletApplied = await db.creditLedgerEntry.aggregate({
     where: {
       tenantId: booking.tenantId,
@@ -141,91 +251,11 @@ export async function handlePaymentIntentSucceeded(
     _sum: { deltaCents: true },
   });
 
-  const creditUsed = Math.abs(walletApplied._sum?.deltaCents ?? 0);
-
-  if (received + creditUsed < booking.totalCents) {
-    // Deliberately NOT confirmed — guessing which of the two numbers is wrong
-    // is not this function's job. But the money is real, so it is recorded
-    // above and flagged here. Somebody has to reconcile this by hand, and they
-    // cannot do that if nothing says it happened.
-    await appendAuditEntry(db, {
-      tenantId: booking.tenantId,
-      actorUserId: null,
-      actorType: 'SYSTEM',
-      entity: 'Booking',
-      entityId: booking.id,
-      action: AUDIT_ACTIONS.PAYMENT_UNAPPLIED,
-      details: `Payment ${intent.id} of ${received} does not cover ${booking.totalCents}; booking NOT confirmed`,
-      detailsJson: {
-        category: 'payment',
-        summary: 'Payment received but insufficient — needs manual reconciliation',
-        paymentIntentId: intent.id,
-        amountReceivedCents: received,
-        walletAppliedCents: creditUsed,
-        bookingTotalCents: booking.totalCents,
-        reason: 'amount-short',
-      },
-    });
-
-    return { handled: false, bookingId: booking.id, reason: 'amount-short' };
-  }
-
-  // `updateMany` filtered on PENDING, not `update`. A second delivery — or a
-  // race with a cancellation — then changes zero rows instead of resurrecting
-  // a booking the player has already cancelled.
-  const updated = await db.booking.updateMany({
-    where: { id: booking.id, status: 'PENDING' },
-    data: { status: 'CONFIRMED', expiresAt: null },
+  return recordPaymentAndConfirm(db, {
+    booking,
+    provider: 'STRIPE',
+    providerRefId: intent.id,
+    receivedCents: intent.amount_received ?? 0,
+    creditUsedCents: Math.abs(walletApplied._sum?.deltaCents ?? 0),
   });
-
-  if (updated.count === 0) {
-    // The booking was cancelled (or already confirmed) between checkout and
-    // this event — a player cancelling mid-3DS is an ordinary race, not an
-    // exotic one, and nothing voids the intent when they do.
-    //
-    // The charge stands and is recorded above. This entry is what makes it
-    // findable: without it the club holds money for a court nobody booked and
-    // the only trace is in Stripe.
-    await appendAuditEntry(db, {
-      tenantId: booking.tenantId,
-      actorUserId: null,
-      actorType: 'SYSTEM',
-      entity: 'Booking',
-      entityId: booking.id,
-      action: AUDIT_ACTIONS.PAYMENT_UNAPPLIED,
-      details: `Payment ${intent.id} arrived for a booking that is no longer PENDING; refund likely required`,
-      detailsJson: {
-        category: 'payment',
-        summary: 'Payment received for a booking that could not be confirmed',
-        paymentIntentId: intent.id,
-        amountReceivedCents: received,
-        bookingStatus: booking.status,
-        reason: 'not-pending',
-      },
-    });
-
-    return { handled: false, bookingId: booking.id, reason: 'not-pending' };
-  }
-
-  await appendAuditEntry(db, {
-    tenantId: booking.tenantId,
-    actorUserId: null,
-    // Stripe told us this happened. No human at this club decided it.
-    actorType: 'SYSTEM',
-    entity: 'Booking',
-    entityId: booking.id,
-    action: AUDIT_ACTIONS.BOOKING_CONFIRMED,
-    details: `Payment ${intent.id} confirmed booking for ${received} ${booking.currency}`,
-    detailsJson: {
-      category: 'payment',
-      summary: 'Booking confirmed by Stripe payment',
-      before: { status: 'PENDING' },
-      after: { status: 'CONFIRMED' },
-      paymentIntentId: intent.id,
-      amountReceivedCents: received,
-      walletAppliedCents: creditUsed,
-    },
-  });
-
-  return { handled: true, bookingId: booking.id, reason: 'confirmed' };
 }
