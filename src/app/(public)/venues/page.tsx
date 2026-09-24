@@ -5,7 +5,7 @@ import { MobileListAffordances } from '@/components/mobile/MobileListAffordances
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { listVenues } from '@/app-layer/repositories/venue';
-import { prisma } from '@/lib/db/prisma';
+import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
 export async function generateMetadata() {
   const t = await getTranslations('venues');
@@ -15,9 +15,10 @@ export async function generateMetadata() {
 /**
  * Public venue search.
  *
- * A server component reading through the repository, so the query-shape and
- * tenant-isolation ratchets police it like any other call site — a page that
- * reached for Prisma directly would slip past both.
+ * A server component reading through the repository, so the QUERY lives in
+ * venue.ts where the query-shape and tenant-isolation ratchets scan it. The
+ * BINDING is this file's own responsibility, and nothing about going through
+ * the repository supplies it — see the comment on the call below.
  */
 export default async function VenuesPage({
   searchParams,
@@ -29,14 +30,29 @@ export default async function VenuesPage({
   const locale = await getLocale();
   const money = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' });
 
-  const { items } = await listVenues(
-    prisma,
-    {
-      q: sp.q,
-      city: sp.city,
-      sport: sp.sport as never,
-    },
-    { limit: 20 },
+  // BYPASSRLS, not the raw singleton — the same binding /api/venues uses, and
+  // for the same reason. `venue` carries FORCE ROW LEVEL SECURITY keyed on
+  // app.tenant_id, and a public search has no tenant to bind: as app_user this
+  // returns ZERO ROWS, so the page renders "no venues in Sofia" with nothing in
+  // the logs. It only appeared to work because the dev connection role is a
+  // cluster superuser and is exempt from row security.
+  //
+  // Cross-tenant is the point — a player hunting a padel court does not know
+  // which club owns it — so what keeps this read safe is `status: ACTIVE` in
+  // listVenues, not the tenant policy.
+  //
+  // `runAsSuperuser` directly rather than `asSuperuser` from the v1 bindings:
+  // that helper takes a RequestContext, which a page does not have.
+  const { items } = await runAsSuperuser((db) =>
+    listVenues(
+      db,
+      {
+        q: sp.q,
+        city: sp.city,
+        sport: sp.sport as never,
+      },
+      { limit: 20 },
+    ),
   );
 
   return (
