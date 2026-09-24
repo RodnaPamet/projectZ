@@ -148,6 +148,17 @@ export async function createDestinationCharge(input: DestinationChargeInput) {
  * club's cancellations out of our own pocket, and the shortfall only surfaces
  * when our Stripe balance goes negative.
  */
+/**
+ * Fetch an existing PaymentIntent.
+ *
+ * Needed because `client_secret` is not stored — it is returned once at
+ * creation and a client that lost it (app relaunched, sheet dismissed) has no
+ * way back to the charge it was already shown without this.
+ */
+export async function retrievePaymentIntent(paymentIntentId: string) {
+  return stripe().paymentIntents.retrieve(paymentIntentId);
+}
+
 export async function refundWithFeeReversal(input: {
   paymentIntentId: string;
   refundCents: number;

@@ -5,6 +5,7 @@ import type { PrismaClient } from '@prisma/client';
 import {
   PayoutsNotEnabledError,
   createDestinationCharge,
+  retrievePaymentIntent,
   refundWithFeeReversal,
 } from '@/lib/billing/connect';
 import { refundSplit } from '@/lib/billing/platform-fee';
@@ -74,6 +75,50 @@ export async function checkoutBooking(
     throw new PayoutsNotEnabledError(venue.name);
   }
 
+  // ═══ A CHECKOUT ALREADY IN FLIGHT IS RESUMED, NOT RESTARTED ═══
+  //
+  // Without this, a second tap on Pay was not idempotent in any of the three
+  // ways that matter, and the combination lost money outright:
+  //
+  //   - `spendCredit` ran AGAIN, draining more of the wallet;
+  //   - `cardDueCents` therefore differed, so the idempotency key differed —
+  //     the key included the amount, which is the one thing that changes
+  //     between attempts — and Stripe minted a SECOND PaymentIntent;
+  //   - `stripePaymentIntentId` was overwritten to point at it.
+  //
+  // The player then paid the sheet they were first shown. The webhook looks a
+  // booking up BY that column, found nothing for the intent that was actually
+  // charged, and returned `no-payment-intent-link` before writing a Payment
+  // row or an audit entry. Card captured, booking left PENDING, swept fifteen
+  // minutes later — and the money existed nowhere in our database.
+  //
+  // So the intent is the lock. Once one exists for a booking, that IS the
+  // checkout: the split is fixed until it is paid or the booking is cancelled.
+  // A caller changing `useWallet` on a retry gets the original split back
+  // rather than a second charge, which is the safe direction.
+  if (booking.stripePaymentIntentId) {
+    const existing = await retrievePaymentIntent(booking.stripePaymentIntentId);
+
+    // Whatever the wallet already covered, read back from the ledger rather
+    // than recomputed — `spendCredit` must not run twice.
+    const spent = await db.creditLedgerEntry.aggregate({
+      where: {
+        tenantId: input.tenantId,
+        refType: 'booking',
+        refId: booking.id,
+        reason: 'SPEND',
+      },
+      _sum: { deltaCents: true },
+    });
+
+    return {
+      walletAppliedCents: Math.abs(spent._sum?.deltaCents ?? 0),
+      cardDueCents: existing.amount,
+      paymentIntentId: existing.id,
+      clientSecret: existing.client_secret ?? null,
+    };
+  }
+
   // ── 1. Wallet ──────────────────────────────────────────────────────
   const { walletAppliedCents, cardDueCents } = input.useWallet
     ? await spendCredit(db, {
@@ -92,16 +137,22 @@ export async function checkoutBooking(
 
   // ── 2. Card ────────────────────────────────────────────────────────
   //
-  // The idempotency key is derived from what makes this charge unique. Two
-  // taps on Pay produce the same key, and Stripe returns the SAME
-  // PaymentIntent rather than charging the customer twice.
+  // The key names the BOOKING, and nothing that can change between attempts.
+  //
+  // It used to include `cardDueCents`, described as "what makes this charge
+  // unique". That is exactly backwards: the amount is the one input a retry
+  // alters, because the wallet has been drained in between. Two taps produced
+  // two keys and two PaymentIntents — the opposite of what the key is for.
+  //
+  // Belt and braces with the resume path above: that stops a second intent
+  // being requested at all, and this stops Stripe minting one if it is.
   const intent = await createDestinationCharge({
     totalCents: cardDueCents,
     currency: venue.currency,
     tier: venue.planTier,
     stripeAccountId: venue.stripeAccountId,
     bookingId: booking.id,
-    idempotencyKey: `booking:${booking.id}:card:${cardDueCents}`,
+    idempotencyKey: `booking:${booking.id}:checkout`,
   });
 
   await db.booking.update({

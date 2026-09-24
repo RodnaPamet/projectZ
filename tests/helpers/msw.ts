@@ -110,12 +110,20 @@ export function setStravaActivities(activities: unknown[]) {
   stravaActivities = activities;
 }
 
+/** PaymentIntents created this run, so RETRIEVE mirrors CREATE like Stripe. */
+const createdIntents = new Map<string, Record<string, unknown>>();
+
 export const handlers = [
   // ── Stripe ────────────────────────────────────────────────────────
   http.post('https://api.stripe.com/v1/payment_intents', async ({ request }) => {
     const body = (await record(request)) as Record<string, string> | null;
     const id = `pi_test_${Math.random().toString(36).slice(2, 12)}`;
-    return HttpResponse.json({
+
+    // Remembered so a RETRIEVE returns what was CREATED, as Stripe does. A
+    // retrieve handler that invents a response cannot support any test about
+    // resuming an existing checkout — it would return an amount nobody
+    // charged, and the test would be asserting against the mock's imagination.
+    const intent = {
       id,
       object: 'payment_intent',
       amount: Number(body?.amount ?? 0),
@@ -133,17 +141,27 @@ export const handlers = [
         ? { destination: body['transfer_data[destination]'] }
         : null,
       on_behalf_of: body?.on_behalf_of ?? null,
-      metadata: {},
-    });
+      metadata: body?.['metadata[bookingId]'] ? { bookingId: body['metadata[bookingId]'] } : {},
+    };
+
+    createdIntents.set(id, intent);
+    return HttpResponse.json(intent);
   }),
 
-  http.get('https://api.stripe.com/v1/payment_intents/:id', ({ params }) =>
-    HttpResponse.json({
+  http.get('https://api.stripe.com/v1/payment_intents/:id', ({ params }) => {
+    const known = createdIntents.get(String(params.id));
+    if (known) return HttpResponse.json(known);
+
+    // Unknown to this run: a plausible shape rather than a 404, so a test that
+    // did not create the intent still gets something decodable.
+    return HttpResponse.json({
       id: params.id,
       object: 'payment_intent',
-      status: 'succeeded',
-    }),
-  ),
+      amount: 0,
+      status: 'requires_payment_method',
+      client_secret: `${params.id}_secret_test`,
+    });
+  }),
 
   http.post('https://api.stripe.com/v1/refunds', async ({ request }) => {
     const body = (await record(request)) as Record<string, string> | null;
@@ -282,6 +300,10 @@ export function useMswServer() {
     setHibpClean();
     setModerationClean();
     stravaActivities = [];
+  });
+
+  afterEach(() => {
+    createdIntents.clear();
   });
 
   afterAll(() => {

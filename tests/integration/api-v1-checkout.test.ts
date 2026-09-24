@@ -4,7 +4,7 @@ import { POST as checkoutRoute } from '@/app/api/v1/t/[slug]/bookings/[id]/check
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
-import { useMswServer } from '../helpers/msw';
+import { findRequest, useMswServer } from '../helpers/msw';
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
@@ -249,5 +249,72 @@ describe('POST /api/v1/t/:slug/bookings/:id/checkout', () => {
 
     expect(res.status).toBe(409);
     expect((body as { error: { code: string } }).error.code).toBe('PAYOUTS_NOT_ENABLED');
+  });
+
+  it('a SECOND checkout resumes the first — it does not mint a second intent', async () => {
+    // The failure this closes, in full: tap 1 spent 1000 credit and created an
+    // intent for 1400. Tap 2 found the wallet already drained, so cardDue was
+    // 2400 — a DIFFERENT idempotency key, a second PaymentIntent, and
+    // `stripePaymentIntentId` overwritten to point at it.
+    //
+    // The player then paid the sheet they were first shown. The webhook looks
+    // a booking up by that column, found nothing for the intent that was
+    // actually charged, and returned `no-payment-intent-link` BEFORE writing a
+    // Payment row or an audit entry. Card captured, booking left PENDING,
+    // swept 15 minutes later, money nowhere in the database.
+    await giveCredit(1000);
+
+    const first = await checkout(player, { useWallet: true });
+    const second = await checkout(player, { useWallet: true });
+
+    const a = (first.body as Body).data;
+    const b = (second.body as Body).data;
+
+    // Same intent, same split — the second call resumed rather than restarted.
+    expect(b.cardDueCents).toBe(a.cardDueCents);
+    expect(b.walletAppliedCents).toBe(a.walletAppliedCents);
+    expect(b.clientSecret).toBeTruthy();
+
+    // And the wallet was spent ONCE.
+    const spends = await asAppSuperuser(db, (tx) =>
+      tx.creditLedgerEntry.findMany({
+        where: { refType: 'booking', refId: bookingId, reason: 'SPEND' },
+      }),
+    );
+    expect(spends).toHaveLength(1);
+
+    // The booking still points at the intent the player was shown.
+    const booking = await asAppSuperuser(db, (tx) =>
+      tx.booking.findFirstOrThrow({ where: { id: bookingId } }),
+    );
+    expect(booking.stripePaymentIntentId).toBeTruthy();
+  });
+
+  it('does not spend more credit when a retry flips useWallet', async () => {
+    // Once an intent exists the split is fixed. A retry that changes its mind
+    // about the wallet must not drain more of it — the safe direction is the
+    // original split, not a second charge.
+    await giveCredit(1000);
+
+    await checkout(player, { useWallet: true });
+    const retry = await checkout(player, {});
+
+    expect((retry.body as Body).data.walletAppliedCents).toBe(1000);
+
+    const spends = await asAppSuperuser(db, (tx) =>
+      tx.creditLedgerEntry.findMany({
+        where: { refType: 'booking', refId: bookingId, reason: 'SPEND' },
+      }),
+    );
+    expect(spends).toHaveLength(1);
+  });
+
+  it('sends an idempotency key that does not vary with the amount', async () => {
+    // The old key was `booking:<id>:card:<cardDueCents>` — keyed on the ONE
+    // input a retry alters. Belt and braces behind the resume path.
+    await checkout(player);
+
+    const req = findRequest('/v1/payment_intents');
+    expect(req!.headers['idempotency-key']).toBe(`booking:${bookingId}:checkout`);
   });
 });
