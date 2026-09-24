@@ -1,5 +1,7 @@
 import { readFileSync, existsSync, globSync } from 'node:fs';
 
+import ts from 'typescript';
+
 /**
  * ONE ERROR SHAPE, EVERYWHERE.
  *
@@ -62,12 +64,107 @@ const SOURCES = [
 ].filter((f) => !EXEMPT_FILES.has(f));
 
 /**
- * A JSON body paired with a 4xx/5xx status. Deliberately narrow: it matches
- * the literal `{ error: ... }` bodies this rule is about and ignores
- * everything else, because a guardrail that tries to understand all of
- * JavaScript is a guardrail that fails on a refactor.
+ * Every `error` property handed to a `.json(...)` response, and whether its
+ * value is a struct.
+ *
+ * ═══ WHY AN AST AND NOT A REGEX ═══
+ *
+ * This was `/\{\s*error:\s*(['"`]|\{)/g`, which required `error:` to be the
+ * FIRST key after the brace and its value to be a literal quote or brace. So
+ * it saw none of:
+ *
+ *     NextResponse.json({ error: msg }, { status: 403 })          // a variable
+ *     NextResponse.json({ ok: false, error: 'forbidden' }, ...)   // not first
+ *     NextResponse.json({ error }, { status: 403 })               // shorthand
+ *
+ * All three serialise to a top-level `"error"` holding a String — the exact
+ * `{"error":"forbidden"}` shape the docblock above quotes as the thing that
+ * breaks a native client.
+ *
+ * It was also blind in the other direction: matching raw text meant
+ * `const shape = { error: 'x' }` counted as a response, and it could not see
+ * the ternary at src/middleware.ts:70 — the one file the second describe block
+ * below exists to pin. Inspecting only `.json()` arguments fixes both.
+ *
+ * KNOWN GAP, stated rather than papered over: a body built into a variable and
+ * then passed — `const body = { error: msg }; return NextResponse.json(body)`
+ * — still escapes. Resolving locals is where a guardrail starts trying to
+ * understand all of JavaScript.
+ *
+ * ═══ WHY STATUS IS NOT PART OF THE RULE ═══
+ *
+ * The old docblock claimed to match "a JSON body paired with a 4xx/5xx
+ * status". It never read the status argument at all — and it must not start.
+ * src/app/api/v1/realtime/subscribe/route.ts returns the canonical envelope at
+ * status 200 in four places, because Centrifugo's proxy protocol demands a
+ * 200. Gating on 4xx/5xx would silently stop policing that entire file.
  */
-const ERROR_BODY = /\{\s*error:\s*(['"`]|\{)/g;
+function envelopeViolations(file: string, src: string): string[] {
+  const sourceFile = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true);
+  const violations: string[] = [];
+
+  const lineOf = (node: ts.Node) =>
+    sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+
+  /** A struct with both `code` and `message` — the canonical envelope. */
+  const isEnvelopeObject = (node: ts.Node): boolean => {
+    if (!ts.isObjectLiteralExpression(node)) return false;
+    const keys = node.properties
+      .map((prop) => (prop.name && ts.isIdentifier(prop.name) ? prop.name.text : null))
+      .filter(Boolean);
+    return keys.includes('code') && keys.includes('message');
+  };
+
+  /** Every branch of a ternary or `??`/`||` chain must be an envelope. */
+  const isEnvelope = (node: ts.Node): boolean => {
+    if (ts.isParenthesizedExpression(node)) return isEnvelope(node.expression);
+    if (ts.isConditionalExpression(node)) {
+      return isEnvelope(node.whenTrue) && isEnvelope(node.whenFalse);
+    }
+    if (ts.isBinaryExpression(node)) {
+      return isEnvelope(node.left) && isEnvelope(node.right);
+    }
+    return isEnvelopeObject(node);
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'json' &&
+      node.arguments.length > 0
+    ) {
+      const body = node.arguments[0];
+
+      if (ts.isObjectLiteralExpression(body)) {
+        for (const prop of body.properties) {
+          const named =
+            prop.name && (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))
+              ? prop.name.text
+              : null;
+          if (named !== 'error') continue;
+
+          // `{ error }` — a shorthand carrying whatever that variable holds.
+          if (ts.isShorthandPropertyAssignment(prop)) {
+            violations.push(`${file}:${lineOf(prop)}  { error }  (shorthand)`);
+            continue;
+          }
+
+          if (ts.isPropertyAssignment(prop) && !isEnvelope(prop.initializer)) {
+            violations.push(
+              `${file}:${lineOf(prop)}  ${prop.getText(sourceFile).slice(0, 60).replace(/\s+/g, ' ')}`,
+            );
+          }
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+  return violations;
+}
 
 describe('every hand-written error response uses the canonical envelope', () => {
   it('the scan found the sources it is meant to police', () => {
@@ -85,17 +182,10 @@ describe('every hand-written error response uses the canonical envelope', () => 
   });
 
   it.each(SOURCES)('%s', (file) => {
-    const src = code(readFileSync(file, 'utf8'));
-    const violations: string[] = [];
-
-    for (const match of src.matchAll(ERROR_BODY)) {
-      // Group 1 is `{` for the canonical nested object, or a quote character
-      // for the flat `{ error: 'forbidden' }` shape this rule forbids.
-      if (match[1] !== '{') {
-        const line = src.slice(0, match.index).split('\n').length;
-        violations.push(`${file}:${line}  ${src.slice(match.index, match.index + 60).trim()}`);
-      }
-    }
+    // The RAW source, not `code()`. Stripping comments shifted every reported
+    // line number — a violation on line 39 was reported as line 30 — and the
+    // AST has no trouble with comments.
+    const violations = envelopeViolations(file, readFileSync(file, 'utf8'));
 
     if (violations.length > 0) {
       throw new Error(

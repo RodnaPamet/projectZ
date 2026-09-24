@@ -1,5 +1,7 @@
 import { globSync, readFileSync } from 'node:fs';
 
+import { exportsMethod } from '../helpers/route-exports';
+
 /**
  * THE SPEC DESCRIBES EVERY v1 ROUTE, OR THE BUILD FAILS.
  *
@@ -48,30 +50,39 @@ describe('OpenAPI coverage', () => {
   const routeFiles = globSync('src/app/api/v1/**/route.ts').map((f) => f.toString());
   const spec = JSON.parse(readFileSync('openapi/playerz-v1.json', 'utf8')) as OpenApiDoc;
 
+  /**
+   * Every (method, specPath) this suite is going to check, resolved ONCE.
+   *
+   * Hoisted out of the test so the sanity check below can count it. It used to
+   * be computed inside the assertion, where nothing could see it — and a
+   * detector that matched nothing produced an empty `missing` array and a
+   * green suite, with the glob assertions still passing happily above it.
+   */
+  const discovered: Array<[string, string]> = routeFiles.flatMap((file) => {
+    const src = readFileSync(file, 'utf8');
+    const specPath = toSpecPath(file);
+    return METHODS.filter((m) => exportsMethod(src, m)).map(
+      (m) => [m, specPath] as [string, string],
+    );
+  });
+
   it('found the routes and the spec — a broken glob would pass everything', () => {
     expect(routeFiles.length).toBeGreaterThanOrEqual(10);
     expect(spec.openapi).toMatch(/^3\./);
     expect(Object.keys(spec.paths ?? {}).length).toBeGreaterThanOrEqual(10);
+
+    // And that the DETECTOR found something. The glob checks above prove the
+    // files were read; they say nothing about whether any HTTP verb was
+    // recognised inside them, which is the half that actually drives the
+    // coverage assertion. 21 pairs exist today; 15 leaves room to delete a
+    // route without turning this into a tripwire.
+    expect(discovered.length).toBeGreaterThanOrEqual(15);
   });
 
   it('every route + method is described', () => {
-    const missing: string[] = [];
-
-    for (const file of routeFiles) {
-      const src = readFileSync(file, 'utf8');
-      const specPath = toSpecPath(file);
-
-      for (const method of METHODS) {
-        const exported = new RegExp(
-          `export\\s+(?:async\\s+)?(?:const|function)\\s+${method}\\b`,
-        ).test(src);
-
-        if (!exported) continue;
-
-        const operation = spec.paths?.[specPath]?.[method.toLowerCase()];
-        if (!operation) missing.push(`${method} ${specPath}`);
-      }
-    }
+    const missing = discovered
+      .filter(([method, specPath]) => !spec.paths?.[specPath]?.[method.toLowerCase()])
+      .map(([method, specPath]) => `${method} ${specPath}`);
 
     expect(missing).toEqual([]);
   });
