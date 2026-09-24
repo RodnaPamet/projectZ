@@ -40,6 +40,11 @@ const ESM_PACKAGES = [
   '@formatjs/[^/]+',
   // MSW and its interceptors ship ESM-only.
   'msw',
+  // meilisearch is ESM-only from 0.62 (0.47 shipped CJS too). Reproduction:
+  // tests/integration/search-sync.test.ts fails to PARSE without this —
+  // "Jest encountered an unexpected token", naming the test file rather than
+  // the package, which is the usual misdirection.
+  'meilisearch',
   // @t3-oss/env-nextjs (and the env-core it wraps) are "type": "module" with no
   // CJS entry. src/env.ts imports it at module load, so ANY test that reaches
   // src/lib/errors/types.ts — which imports @/env — dies on a parse error that
