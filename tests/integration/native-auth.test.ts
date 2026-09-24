@@ -20,9 +20,11 @@ describe('native auth', () => {
   const db = prismaTestClient();
   const PASSWORD = 'correct horse battery staple';
   let email: string;
+  let userId: string;
 
   beforeEach(async () => {
     const t = await seedTenant({}, db);
+    userId = t.userId;
     email = `native-${Date.now()}@playerz.test`;
     const pwHash = await hashPassword(PASSWORD);
     await asAppSuperuser(db, (tx) =>
@@ -81,6 +83,85 @@ describe('native auth', () => {
     const d = await signIn();
     expect(String(d.expiresAt)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     expect(String(d.refreshExpiresAt)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  });
+
+  /**
+   * The session row this test's sign-in created. The database is truncated
+   * before every test and `signIn` is the only thing here that opens a
+   * session, so the newest row for this user is that one.
+   */
+  const sessionRow = () =>
+    asAppSuperuser(db, (tx) =>
+      tx.userSession.findFirstOrThrow({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+    );
+
+  /** rfc3339 truncates, so compare against the row's time floored to a second. */
+  const toSecond = (d: Date) => Math.floor(d.getTime() / 1000) * 1000;
+
+  it('refreshExpiresAt is the SESSION ROW deadline at sign-in', async () => {
+    // Honest about what this proves: the row is created at now + 30 days and
+    // the broken code returned now + 30 days, so this assertion passes either
+    // way. It is here to catch the two drifting apart later — a shorter row, a
+    // changed constant — and NOT as the regression test for #123. That is the
+    // next case, and tests/unit/api-v1/native-token-expiry.test.ts.
+    const d = await signIn();
+    const row = await sessionRow();
+
+    expect(new Date(String(d.refreshExpiresAt)).getTime()).toBe(toSecond(row.expiresAt));
+  });
+
+  it('refreshExpiresAt reports the row even when the row says something else', async () => {
+    // ═══ #123 ═══
+    //
+    // The field used to be `now + REFRESH_TOKEN_TTL_SECONDS`, recomputed on
+    // every response. Because the row is ALSO created at now + 30 days, the two
+    // agree at sign-in and a test taken at sign-in cannot tell them apart — it
+    // would pass on the broken code. Moving the row's deadline first is what
+    // makes this decisive: only an implementation that reads the row can report
+    // three days.
+    //
+    // It is not a contrived state either. The deadline is what
+    // `rotateRefreshToken` enforces, so anything that shortens a session —
+    // support closing one early, a future sweep — lands here, and the client
+    // must be told the truth about it.
+    const d = await signIn();
+
+    const shortened = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    await asAppSuperuser(db, (tx) =>
+      tx.userSession.updateMany({ where: { userId }, data: { expiresAt: shortened } }),
+    );
+
+    const res = await refresh(
+      post('http://t/api/v1/auth/refresh', { refreshToken: d.refreshToken }),
+      undefined,
+    );
+    expect(res.status).toBe(200);
+    const r = ((await res.json()) as { data: Record<string, string> }).data;
+
+    expect(new Date(r.refreshExpiresAt).getTime()).toBe(toSecond(shortened));
+  });
+
+  it('refreshing does not push the deadline out', async () => {
+    // A client that refreshes often must not read a session that renews itself.
+    // Nothing writes `expiresAt` after the row is created, so every response in
+    // a session names the same instant — the one sign-in fixed.
+    const d = await signIn();
+    const row = await sessionRow();
+
+    const once = await refresh(
+      post('http://t/api/v1/auth/refresh', { refreshToken: d.refreshToken }),
+      undefined,
+    );
+    const first = ((await once.json()) as { data: Record<string, string> }).data;
+
+    const twice = await refresh(
+      post('http://t/api/v1/auth/refresh', { refreshToken: first.refreshToken ?? d.refreshToken }),
+      undefined,
+    );
+    const second = ((await twice.json()) as { data: Record<string, string> }).data;
+
+    expect(new Date(first.refreshExpiresAt).getTime()).toBe(toSecond(row.expiresAt));
+    expect(second.refreshExpiresAt).toBe(first.refreshExpiresAt);
   });
 
   it('THE POINT: the access token authenticates as a Bearer credential', async () => {

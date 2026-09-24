@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { ok } from '@/app/api/v1/_lib/envelope';
 import { mintAccessToken, rfc3339, type NativeTokens } from '@/app/api/v1/_lib/native-token';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
-import { REFRESH_TOKEN_TTL_SECONDS, rotateRefreshToken } from '@/lib/auth/sessions';
+import { rotateRefreshToken } from '@/lib/auth/sessions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
 /**
@@ -57,7 +57,9 @@ async function handler(req: NextRequest) {
   const session = await runAsSuperuser((db) =>
     db.userSession.findUniqueOrThrow({
       where: { id: outcome.userSessionId },
-      select: { sessionVersion: true },
+      // `expiresAt` is not checked here — it is the refresh deadline the
+      // response advertises. See `refreshExpiresAt` below.
+      select: { sessionVersion: true, expiresAt: true },
     }),
   );
 
@@ -77,7 +79,20 @@ async function handler(req: NextRequest) {
     // Null inside the grace window: "keep the token you already have". Not an
     // empty string — a falsy-but-present value is what ends up in a keychain.
     refreshToken: outcome.refreshToken,
-    refreshExpiresAt: rfc3339(new Date(now + REFRESH_TOKEN_TTL_SECONDS * 1000)),
+    // ═══ THE ROW'S DEADLINE, NOT now + 30 DAYS ═══
+    //
+    // This used to be recomputed as now + REFRESH_TOKEN_TTL_SECONDS on every
+    // response, including the ones that rotated nothing. The deadline the
+    // server ENFORCES is `user_session.expiresAt` — `rotateRefreshToken`
+    // rejects against that column, and nothing anywhere writes it after the
+    // row is created. So the advertised value slid forward on every call while
+    // the real one stood still, and a client refreshing daily would read a
+    // session that never ends and be signed out without warning on day 30.
+    //
+    // Rotation does NOT extend it: the rotating update writes the token
+    // hashes, the grace deadline and `lastSeenAt`, and leaves `expiresAt`
+    // alone. The refresh window is an ABSOLUTE 30 days from sign-in.
+    refreshExpiresAt: rfc3339(session.expiresAt),
   });
 }
 
