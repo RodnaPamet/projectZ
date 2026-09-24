@@ -19,17 +19,22 @@ async function main() {
 
     const index = client.index(def.uid);
 
-    const task = await index.updateSettings({
-      searchableAttributes: [...def.searchable],
-      filterableAttributes: [...def.filterable, '_geo'],
-      sortableAttributes: [...def.sortable, '_geo'],
-      // Typo tolerance is the point. "padle" must find padel — that is what a
-      // user actually types on a phone.
-      typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
-    });
-
-    await index.waitForTask(task.taskUid);
-    console.log(`  ✓ ${def.uid} — ${def.searchable.length} searchable, ${def.filterable.length} filterable`);
+    // 0.62 returns an EnqueuedTaskPromise: `.waitTask()` chains off the call
+    // rather than the old `waitForTask(task.taskUid)`, which no longer exists
+    // on an index.
+    await index
+      .updateSettings({
+        searchableAttributes: [...def.searchable],
+        filterableAttributes: [...def.filterable, '_geo'],
+        sortableAttributes: [...def.sortable, '_geo'],
+        // Typo tolerance is the point. "padle" must find padel — that is what a
+        // user actually types on a phone.
+        typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
+      })
+      .waitTask();
+    console.log(
+      `  ✓ ${def.uid} — ${def.searchable.length} searchable, ${def.filterable.length} filterable`,
+    );
   }
 
   console.log('\nSearch indexes configured.');

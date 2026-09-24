@@ -27,15 +27,15 @@ describe('search sync', () => {
       await meili()
         .createIndex(def.uid, { primaryKey: def.primaryKey })
         .catch(() => {});
-      const t = await meili()
+      await meili()
         .index(def.uid)
         .updateSettings({
           searchableAttributes: [...def.searchable],
           filterableAttributes: [...def.filterable],
           sortableAttributes: [...def.sortable],
           typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 } },
-        });
-      await meili().index(def.uid).waitForTask(t.taskUid);
+        })
+        .waitTask();
     }
   }, 60_000);
 
@@ -44,8 +44,7 @@ describe('search sync', () => {
     // Start from empty so a stale doc from a previous test cannot make a
     // failing assertion pass.
     for (const def of Object.values(INDEXES)) {
-      const t = await meili().index(def.uid).deleteAllDocuments();
-      await meili().index(def.uid).waitForTask(t.taskUid);
+      await meili().index(def.uid).deleteAllDocuments().waitTask();
     }
   });
 
@@ -115,7 +114,7 @@ describe('search sync', () => {
     const index = meili().index(uid);
     // 30s, not the client's 5s default: the point is to outlast a slow host, and
     // a barrier that times out is just a delay that fails more loudly.
-    await index.waitForTask((await index.addDocuments([])).taskUid, { timeOutMs: 30_000 });
+    await index.addDocuments([]).waitTask({ timeout: 30_000 });
   }
 
   it('a venue update reaches the index', async () => {
