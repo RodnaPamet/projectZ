@@ -58,10 +58,29 @@ const EXEMPT: ReadonlyArray<{ file: string; why: string }> = [
 
 const EXEMPT_FILES = new Set(EXEMPT.map((e) => e.file));
 
+/**
+ * Everything that BUILDS a response, not just everything that routes one.
+ *
+ * This was `src/middleware.ts` plus `src/app/api/**` route files. The 429 body
+ * is built in src/lib/security/rate-limit-middleware.ts — shared by every v1
+ * route through `defineV1Route` — and was therefore never scanned. It carried
+ * `retryAfterSeconds` and `scope` inside `error` for as long as this rule has
+ * existed, which is issue #124.
+ *
+ * So the most widely-emitted error body in the API was the one body this rule
+ * could not see.
+ *
+ * `src/lib` and `src/app-layer` are cheap to include: the walk only inspects
+ * the first argument of a `.json()` call, so a file that builds no responses
+ * contributes nothing, and `await res.json()` (parsing, no argument) is
+ * invisible to it.
+ */
 const SOURCES = [
   'src/middleware.ts',
   ...globSync('src/app/api/**/route.ts').map((f) => f.toString()),
-].filter((f) => !EXEMPT_FILES.has(f));
+  ...globSync('src/lib/**/*.ts').map((f) => f.toString()),
+  ...globSync('src/app-layer/**/*.ts').map((f) => f.toString()),
+].filter((f) => !EXEMPT_FILES.has(f) && !f.endsWith('.d.ts'));
 
 /**
  * Every `error` property handed to a `.json(...)` response, and whether its
@@ -99,6 +118,15 @@ const SOURCES = [
  * status 200 in four places, because Centrifugo's proxy protocol demands a
  * 200. Gating on 4xx/5xx would silently stop policing that entire file.
  */
+/**
+ * The ONLY keys `ApiErrorResponse['error']` declares.
+ *
+ * A key outside this set is a field one endpoint has and no other does — which
+ * a strict decoder fails on and a lenient one silently drops. Either way the
+ * caller did not get what the contract promised.
+ */
+const ENVELOPE_KEYS = new Set(['code', 'message', 'requestId', 'details']);
+
 function envelopeViolations(file: string, src: string): string[] {
   const sourceFile = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true);
   const violations: string[] = [];
@@ -107,12 +135,30 @@ function envelopeViolations(file: string, src: string): string[] {
     sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 
   /** A struct with both `code` and `message` — the canonical envelope. */
+  /**
+   * Carries `code` and `message` AND NOTHING FOREIGN.
+   *
+   * The second half was missing, and it is not academic: the 429 from the rate
+   * limiter carried `retryAfterSeconds` and `scope` inside `error` for as long
+   * as this rule has existed, and putting them BACK passed every guardrail in
+   * the repo — measured, on the branch that removed them.
+   *
+   * Presence-only answers "is this roughly an envelope?" when the question the
+   * docblock asks is "is this THE envelope?".
+   */
   const isEnvelopeObject = (node: ts.Node): boolean => {
     if (!ts.isObjectLiteralExpression(node)) return false;
+
+    // A spread carries keys this walk cannot see, so it cannot be cleared.
+    if (node.properties.some((prop) => ts.isSpreadAssignment(prop))) return false;
+
     const keys = node.properties
       .map((prop) => (prop.name && ts.isIdentifier(prop.name) ? prop.name.text : null))
-      .filter(Boolean);
-    return keys.includes('code') && keys.includes('message');
+      .filter((k): k is string => k !== null);
+
+    if (!keys.includes('code') || !keys.includes('message')) return false;
+
+    return keys.every((k) => ENVELOPE_KEYS.has(k));
   };
 
   /** Every branch of a ternary or `??`/`||` chain must be an envelope. */
