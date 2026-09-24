@@ -68,8 +68,9 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
     return {
       resource,
       // RangeTooWideError escapes to defineV1Route, which maps it to
-      // 400 RANGE_TOO_WIDE via DOMAIN_ERROR_MAP. It is the use case's ceiling,
-      // not this route's, so it is not duplicated here.
+      // 400 RANGE_TOO_WIDE via DOMAIN_ERROR_MAP. `resolveAvailabilityRange`
+      // has already applied the same ceiling above — it has to, because the
+      // booking query runs before this line and would otherwise be unbounded.
       slots: computeSlots({
         from,
         to,

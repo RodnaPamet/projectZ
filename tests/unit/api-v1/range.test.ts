@@ -1,3 +1,4 @@
+import { MAX_RANGE_DAYS, RangeTooWideError } from '@/app-layer/usecases/availability';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
 import { ValidationError } from '@/lib/errors/types';
 
@@ -86,5 +87,59 @@ describe('resolveAvailabilityRange', () => {
     // NaN is false — so an unguarded parse produces an empty slot list that
     // looks like a fully booked club.
     expect(() => resolveAvailabilityRange(q('from=tomorrow'), SOFIA)).toThrow(ValidationError);
+  });
+
+  describe('the from/to path is bounded, not just ordered', () => {
+    // It used to check `to > from` and nothing else. The route queries
+    // bookings BEFORE computing slots, so `MAX_RANGE_DAYS` — enforced inside
+    // `computeSlots` — came too late to bound the database. An unauthenticated
+    // GET could ask for twenty years across every court in the venue.
+
+    it('rejects a range wider than the ceiling', () => {
+      expect(() =>
+        resolveAvailabilityRange(q('from=2016-01-01T00:00:00Z&to=2036-01-01T00:00:00Z'), SOFIA),
+      ).toThrow(RangeTooWideError);
+    });
+
+    it('rejects it as RANGE_TOO_WIDE, not as a validation error', () => {
+      // The client can act on "you asked for too much" and cannot act on a
+      // generic 400 — and it must not be the 500 a venue past the booking
+      // tripwire used to get.
+      try {
+        resolveAvailabilityRange(q('from=2026-01-01T00:00:00Z&to=2027-01-01T00:00:00Z'), SOFIA);
+        throw new Error('expected a throw');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RangeTooWideError);
+        expect(err).not.toBeInstanceOf(ValidationError);
+        expect((err as Error).message).toMatch(/the maximum is 14/);
+      }
+    });
+
+    it('accepts exactly the ceiling', () => {
+      // The boundary is the whole point of a ceiling. Rejecting 14 days would
+      // break the longest legitimate request the API advertises.
+      const from = '2026-07-01T00:00:00Z';
+      const to = new Date(Date.parse(from) + MAX_RANGE_DAYS * 86_400_000).toISOString();
+
+      expect(() => resolveAvailabilityRange(q(`from=${from}&to=${to}`), SOFIA)).not.toThrow();
+    });
+
+    it('still tolerates the DST hour at the ceiling', () => {
+      // A 14-day window spanning the October changeover measures 14 days and
+      // one hour. Measuring in fixed 86_400_000ms days would reject it — in
+      // late October only, which is exactly the bug nobody finds in July.
+      const from = '2026-10-18T00:00:00Z';
+      const to = new Date(Date.parse(from) + MAX_RANGE_DAYS * 86_400_000 + 3_600_000).toISOString();
+
+      expect(() => resolveAvailabilityRange(q(`from=${from}&to=${to}`), SOFIA)).not.toThrow();
+    });
+
+    it('rejects an open-ended `from` that would run to the default window only', () => {
+      // `?from=` with no `?to=` defaults to a 24-hour window, so it is bounded
+      // already. Pinned so a future "default to the venue's whole calendar"
+      // change has to come past this test.
+      const { from, to } = resolveAvailabilityRange(q('from=2026-07-01T00:00:00Z'), SOFIA);
+      expect(to.getTime() - from.getTime()).toBe(86_400_000);
+    });
   });
 });

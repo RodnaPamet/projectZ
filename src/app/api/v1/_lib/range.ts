@@ -1,6 +1,6 @@
 import { fromZonedTime } from 'date-fns-tz';
 
-import { MAX_RANGE_DAYS } from '@/app-layer/usecases/availability';
+import { assertRangeWithinLimit, MAX_RANGE_DAYS } from '@/app-layer/usecases/availability';
 import { ValidationError } from '@/lib/errors/types';
 
 /**
@@ -90,6 +90,12 @@ export function resolveAvailabilityRange(
   if (end <= start) {
     throw new ValidationError('`to` must be after `from`', { field: 'to' });
   }
+
+  // The `date`/`days` path is bounded by `parseDays`. This one was bounded by
+  // nothing: `end > start` was its only rule, so a caller could ask for twenty
+  // years and the route would query for them before anything checked the
+  // width. Same ceiling, applied before a single row is read.
+  assertRangeWithinLimit(start, end);
 
   return { from: start, to: end };
 }
