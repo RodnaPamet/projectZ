@@ -8,7 +8,7 @@ import {
   handleSubscriptionDeleted,
   handleSubscriptionUpserted,
 } from '@/lib/billing/webhook-handlers';
-import { notifyAfterCommit, type NotifyInput } from '@/app-layer/usecases/notifications';
+import { notifyAfterCommit, type LocalisedNotifyInput } from '@/app-layer/usecases/notifications';
 import { handlePaymentIntentSucceeded } from '@/lib/billing/booking-payment';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { WebhookSignatureError, verifyStripeWebhook } from '@/lib/stripe';
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   // would hold this transaction open across a call to Apple, and would put a
   // banner on the phone even if the transaction — including the event claim —
   // then rolled back.
-  let pending: NotifyInput | undefined;
+  let pending: LocalisedNotifyInput | undefined;
 
   const dispatch = async (db: PrismaClient): Promise<Record<string, unknown>> => {
     // Claim the event. `createMany` with skipDuplicates compiles to

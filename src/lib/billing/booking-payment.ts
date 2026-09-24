@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type Stripe from 'stripe';
 
-import type { NotifyInput } from '@/app-layer/usecases/notifications';
+import type { LocalisedNotifyInput } from '@/app-layer/usecases/notifications';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 
 /**
@@ -51,7 +51,7 @@ export interface ConfirmResult {
    * its caller holds — a tenant one, for checkout. The caller passes this to
    * `notifyAfterCommit` once its transaction commits.
    */
-  notify?: NotifyInput;
+  notify?: LocalisedNotifyInput;
   reason?:
     'no-payment-intent-link' | 'metadata-mismatch' | 'amount-short' | 'not-pending' | 'confirmed';
 }
@@ -215,16 +215,20 @@ export async function recordPaymentAndConfirm(
   //
   // A guest booking has nobody to notify. That is not a failure — the guest
   // gave an email, and email is the channel they get.
-  const notify: NotifyInput | undefined = booking.bookedByUserId
+  const notify: LocalisedNotifyInput | undefined = booking.bookedByUserId
     ? {
         tenantId: booking.tenantId,
         userId: booking.bookedByUserId,
         kind: 'BOOKING_CONFIRMED',
-        title: 'Booking confirmed',
-        body: `Your court is booked. Payment of ${formatMoney(
-          receivedCents + creditUsedCents,
-          booking.currency,
-        )} received.`,
+        // A KEY, not a sentence. This code cannot know what language to write
+        // in — a Stripe webhook has no user and no request locale. The
+        // recipient's own `User.locale` decides, and is read at send time.
+        messageKey: 'bookingConfirmed',
+        // Cents, formatted in the recipient's locale rather than here.
+        // Bulgarian writes "24,00 €", not "€24.00".
+        money: {
+          amount: { cents: receivedCents + creditUsedCents, currency: booking.currency },
+        },
         href: `/bookings/${booking.id}`,
         refType: 'booking',
         refId: booking.id,

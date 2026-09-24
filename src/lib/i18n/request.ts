@@ -19,6 +19,11 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from './locales'
  * Middleware seeds the cookie from the signed-in user's stored preference, so
  * the FIRST server-rendered byte is already in their language — no client
  * round-trip and no flash of the wrong one.
+ *
+ * This deliberately does NOT honour an explicitly-passed locale. Writing to a
+ * specific person — a notification, a push — does not go through here at all:
+ * see src/lib/i18n/server-messages.ts, which takes the recipient's locale as
+ * an argument and needs no request scope.
  */
 export default getRequestConfig(async () => {
   let locale: Locale = DEFAULT_LOCALE;

@@ -52,8 +52,8 @@ describe('notifyAfterCommit', () => {
         tenantId: tenant.tenantId,
         userId: me,
         kind: 'BOOKING_CONFIRMED',
-        title: 'Booking confirmed',
-        body: 'Your court is booked.',
+        messageKey: 'bookingConfirmed',
+        money: { amount: { cents: 2400, currency: 'EUR' } },
         refType: 'booking',
         refId: 'bk_test',
       }),
@@ -65,8 +65,8 @@ describe('notifyAfterCommit', () => {
       tenantId: tenant.tenantId,
       userId: me,
       kind: 'BOOKING_CONFIRMED',
-      title: 'Booking confirmed',
-      body: 'Your court is booked.',
+      messageKey: 'bookingConfirmed',
+      money: { amount: { cents: 2400, currency: 'EUR' } },
       refType: 'booking',
       refId: 'bk_written',
     });
@@ -99,6 +99,51 @@ describe('notifyAfterCommit', () => {
     ).rejects.toThrow();
   });
 
+  it("writes the notification in the RECIPIENT's language, not the default", async () => {
+    // The point of the whole design. `User.locale` defaults to `bg`, so this
+    // user gets Bulgarian — and the same call for an English user gets
+    // English, decided at send time by the recipient rather than by whoever
+    // triggered it. A Stripe webhook has no user and no request locale at all.
+    await notifyAfterCommit({
+      tenantId: tenant.tenantId,
+      userId: me,
+      kind: 'BOOKING_CONFIRMED',
+      messageKey: 'bookingConfirmed',
+      money: { amount: { cents: 2400, currency: 'EUR' } },
+      refType: 'booking',
+      refId: 'bk_bg',
+    });
+
+    const [bgRow] = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({ where: { userId: me, refId: 'bk_bg' } }),
+    );
+    expect(bgRow!.title).toBe('Резервацията е потвърдена');
+    // Bulgarian money: amount first, comma decimal, symbol last.
+    expect(bgRow!.body).toMatch(/24,00/);
+    expect(bgRow!.body).not.toMatch(/Your court/);
+
+    // Now the same notification for someone who has chosen English.
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: other }, data: { locale: 'en' } }),
+    );
+
+    await notifyAfterCommit({
+      tenantId: tenant.tenantId,
+      userId: other,
+      kind: 'BOOKING_CONFIRMED',
+      messageKey: 'bookingConfirmed',
+      money: { amount: { cents: 2400, currency: 'EUR' } },
+      refType: 'booking',
+      refId: 'bk_en',
+    });
+
+    const [enRow] = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({ where: { userId: other, refId: 'bk_en' } }),
+    );
+    expect(enRow!.title).toBe('Booking confirmed');
+    expect(enRow!.body).toMatch(/€24\.00/);
+  });
+
   it('NEVER throws — the caller has already committed money', async () => {
     // A push failure must not turn a completed payment into a 500, and for the
     // Stripe webhook it must not produce a non-2xx for an event already
@@ -111,8 +156,8 @@ describe('notifyAfterCommit', () => {
         tenantId: tenant.tenantId,
         userId: 'not-a-cuid',
         kind: 'BOOKING_CONFIRMED',
-        title: 'Booking confirmed',
-        body: 'Your court is booked.',
+        messageKey: 'bookingConfirmed',
+        money: { amount: { cents: 2400, currency: 'EUR' } },
       }),
     ).resolves.toBe(0);
   });

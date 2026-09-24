@@ -1,6 +1,8 @@
 import type { NotificationKind, PrismaClient } from '@prisma/client';
 
-import { runAsUserOnly } from '@/lib/db/rls-middleware';
+import { runAsSuperuser, runAsUserOnly } from '@/lib/db/rls-middleware';
+import { resolveLocale } from '@/lib/i18n/locales';
+import { formatMoneyFor, translateFor } from '@/lib/i18n/server-messages';
 import { logger } from '@/lib/observability/logger';
 import { sendApns } from '@/lib/push/apns';
 import { sendPush } from '@/lib/push/send';
@@ -367,9 +369,85 @@ export async function markAllRead(
  * for the Stripe webhook it must not produce a non-2xx for an event we have
  * already claimed, since the retry would be discarded as a duplicate.
  */
-export async function notifyAfterCommit(input: NotifyInput): Promise<number> {
+/**
+ * A notification described by CATALOGUE KEY, not by sentence.
+ *
+ * The caller cannot write the copy, because the caller does not know what
+ * language to write it in — a Stripe webhook has no user, no cookie and no
+ * request locale. Only the recipient's own `User.locale` decides that, and it
+ * is read here, at the moment of sending.
+ */
+export interface LocalisedNotifyInput {
+  tenantId?: string | null;
+  userId: string;
+  kind: NotificationKind;
+  /**
+   * A key under the `notifications` namespace. The catalogue holds `.title`
+   * and `.body` beneath it.
+   */
+  messageKey: string;
+  /** ICU values for the body. Money arrives as CENTS and is formatted here. */
+  params?: Record<string, string | number>;
+  /** Amounts to render in the recipient's locale, keyed by placeholder name. */
+  money?: Record<string, { cents: number; currency: string }>;
+  href?: string;
+  refType?: string;
+  refId?: string;
+}
+
+/**
+ * Notify somebody, in THEIR language, once the work has committed.
+ *
+ * ═══ WHY THE COPY IS NOT PASSED IN ═══
+ *
+ * It used to be: `title: 'Booking confirmed'`, written into the call site.
+ * That is English for every recipient for ever, on a product that ships in
+ * Bulgarian — and it is not reachable by any translator, because it never
+ * touches a catalogue.
+ *
+ * The recipient's `User.locale` is the only thing that can answer this, so it
+ * is read here rather than guessed upstream. It defaults to `bg` at the
+ * database level, so the answer for a user who has never chosen is Bulgarian.
+ *
+ * Money is formatted in that same locale: Bulgarian writes "24,00 €", not
+ * "€24.00", and a notification is exactly where that is noticed.
+ *
+ * ═══ NEVER THROWS ═══
+ *
+ * See below. The caller has already committed money.
+ */
+export async function notifyAfterCommit(input: LocalisedNotifyInput): Promise<number> {
   try {
-    const { pushed } = await runAsUserOnly(input.userId, (db) => notify(db, input));
+    const locale = await runAsSuperuser((db) =>
+      db.user
+        .findUnique({ where: { id: input.userId }, select: { locale: true } })
+        .then((u) => resolveLocale(u?.locale)),
+    );
+
+    const values: Record<string, string | number> = { ...input.params };
+    for (const [name, amount] of Object.entries(input.money ?? {})) {
+      values[name] = formatMoneyFor(locale, amount.cents, amount.currency);
+    }
+
+    const key = `notifications.${input.messageKey}`;
+    const [title, body] = await Promise.all([
+      translateFor(locale, `${key}.title`),
+      translateFor(locale, `${key}.body`, values),
+    ]);
+
+    const { pushed } = await runAsUserOnly(input.userId, (db) =>
+      notify(db, {
+        tenantId: input.tenantId,
+        userId: input.userId,
+        kind: input.kind,
+        title,
+        body,
+        href: input.href,
+        refType: input.refType,
+        refId: input.refId,
+      }),
+    );
+
     return pushed;
   } catch (err) {
     logger.warn('notification failed after commit', {

@@ -148,8 +148,12 @@ describe('POST /api/webhooks/stripe — payment_intent.succeeded', () => {
       refId: bookingId,
     });
     // The money is on the receipt, because "confirmed" without an amount is
-    // the notification people screenshot and then argue about.
-    expect(notes[0].body).toMatch(/24\.00 EUR/);
+    // the notification people screenshot and then argue about — and it is
+    // written the way a Bulgarian reads it: amount first, comma decimal,
+    // symbol last. This asserted /24\.00 EUR/ while the copy was hardcoded
+    // English.
+    expect(notes[0].title).toBe('Резервацията е потвърдена');
+    expect(notes[0].body).toMatch(/24,00\s*€/);
   });
 
   it('notifies NOBODY for a guest booking, and still confirms it', async () => {
