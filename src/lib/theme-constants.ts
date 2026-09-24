@@ -2,9 +2,16 @@
  * Theme constants — SERVER-SAFE.
  *
  * This module MUST NOT carry a `'use client'` directive and MUST NOT import any
- * client-only module. The root layout (`src/app/layout.tsx`) is a SERVER
- * component and reads these to render `<html data-theme>` from the persisted
- * cookie and to build the anti-FOUC inline script.
+ * client-only module, so that a SERVER component can read the literal values.
+ *
+ * NOT YET WIRED (found while diagnosing issue #115): nothing on the server
+ * reads them today. `src/app/layout.tsx` renders `<html>` with no `data-theme`
+ * and no anti-FOUC inline script, so SSR always ships the dark `:root` palette
+ * and `ThemeProvider`'s mount effect flips it AFTER first paint. A
+ * light-preferring visitor therefore still sees a dark→light flash on first
+ * load, and anything sampling colour just after `load` can catch the 150ms
+ * button transition mid-flight — which is exactly what made the design-system
+ * axe check fail on an unchanged tree.
  *
  * Why this file exists (load-bearing): these constants previously lived in
  * `ThemeProvider.tsx`, which is a `'use client'` module. When a server
