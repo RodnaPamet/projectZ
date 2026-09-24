@@ -1,0 +1,3405 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "playerz.bg v1",
+    "version": "1.0.0",
+    "description": "The native-client API for playerz.bg.\n\nAUTHORED BY HAND, KEPT HONEST BY A RATCHET. `tests/guardrails/openapi-coverage.test.ts` fails the build if a v1 route gains, loses or renames an operation without this file following. It does NOT verify that the schemas below match the DTOs — that would need the DTOs to be runtime values rather than TypeScript interfaces. It catches the failure that actually happens; it is silent about the one it cannot see.\n\nENVELOPE. Success is `{\"data\": T}`; a paged read is `{\"data\": {\"items\": [...], \"nextCursor\": string|null}}`. Errors are `{\"error\": {\"code\", \"message\", \"requestId\"}}`. A client generated against the unwrapped shapes cannot decode anything.\n\nTIMESTAMPS are RFC 3339 with NO fractional seconds. Swift's default `JSONDecoder.DateDecodingStrategy.iso8601` rejects the `.000` that `toISOString()` emits, and it fails at the decoder — naming the whole response rather than the field.\n\nMONEY is always integer cents. Never a float, never a string."
+  },
+  "servers": [
+    {
+      "url": "https://playerz.bg/api/v1",
+      "description": "production"
+    },
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "local development"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "operationId": "authSignIn",
+        "summary": "Sign in with email and password (native)",
+        "tags": ["Auth"],
+        "description": "Exchanges email + password for an access/refresh token pair. This is the native-client equivalent of the web credentials sign-in; both share one throttle bucket keyed `login:<ip>` (10 attempts / 15 min, 15 min lockout), so attempts here draw down the same allowance as the web form — and a SUCCESSFUL sign-in still consumes one attempt (the bucket is never reset).\n\nThe throttle runs BEFORE the body is parsed, so a 429 tells you nothing about the credentials.\n\nThere is no validation error on this endpoint: a missing, malformed or non-JSON body leaves email/password undefined, which falls through to the same opaque 401 as a wrong password. The 401 is deliberately identical for \"no such account\" and \"wrong password\" (and the server burns equal bcrypt time on both), so a client must not try to distinguish them.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in. `data.refreshToken` is always a non-null string from this endpoint (the nullable type is shared with POST /auth/refresh). Store `accessToken` and `refreshToken` in the Keychain.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. `2026-04-29`. Stamped on every v1 response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; echoed from the request's `x-request-id` when supplied.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeTokensResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`INVALID_CREDENTIALS` — wrong password, unknown account, or a missing/unparseable body. One message for all cases, by design. NOTE: this body is written inline by the handler and carries NO `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`. Two independent limiters can produce this:\n\n1. The wrapper's default mutation limit (60/min, keyed by client IP alone) — body carries extra `error.retryAfterSeconds` and `error.scope` fields, plus `X-RateLimit-Limit`/`-Remaining`/`-Reset` headers.\n2. The sign-in throttle shared with the web login (10 per 15 min per IP, 15 min lockout) — body is `code` + `message` only.\n\nBoth set a retry-after header (case differs; HTTP header names are case-insensitive). Honour it: further attempts during a lockout do not extend it.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL` — session creation, refresh-token persistence or token minting failed. Generic message; `requestId` IS present on this one (produced by the error wrapper).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "authRefresh",
+        "summary": "Exchange a refresh token for a new access token",
+        "tags": ["Auth"],
+        "description": "Trades a refresh token for a fresh 15-minute access token, rotating the refresh token in the process.\n\n**Rotation with a 60-second grace window.** The normal case rotates: the presented token becomes the \"previous\" token, a new one is returned, and the old one keeps working for 60 more seconds. Inside that window (or when a concurrent caller loses the compare-and-swap race) the call still succeeds but `data.refreshToken` is **null**, meaning \"keep the token you already have\". This is what makes a burst of simultaneous refreshes — an iOS app resumed from the app switcher — safe: every caller gets a valid access token and they converge on one refresh token.\n\n**Presenting a rotated-away token after the grace window is treated as replay and REVOKES THE WHOLE SESSION.** Never persist a stale refresh token and retry it later.\n\nAll failure reasons (unknown, revoked, expired, stale session version, replay) collapse into one 401 on purpose — a client cannot act differently on any of them, and the only correct response is to discard both tokens and sign in again.\n\nThis endpoint does not rotate the session's access-token binding, so access tokens already in flight keep working.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A new access token. `data.refreshToken` is a NEW token to store, or **null** meaning keep the one you already hold — never overwrite stored credentials with null or an empty string. See the note on `refreshExpiresAt`: it slides on every call but the server's real deadline does not.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeTokensResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — `refreshToken` absent, empty, or the body was not parseable JSON. Written inline by the handler: NO `requestId` in this body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`INVALID_REFRESH_TOKEN`, message \"Sign in again.\" Covers unknown token, revoked session, expired session, a session invalidated by `logout {everywhere:true}` or a password change, AND replay outside the grace window. Discard both tokens and present the sign-in screen. Written inline: NO `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` from the wrapper's default mutation limit — 60 requests/minute keyed by client IP alone (not per user), shared across every v1 POST/PUT/PATCH/DELETE. Body carries extra `error.retryAfterSeconds` and `error.scope` fields.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL` — the rotation or the follow-up session read failed. `requestId` present.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "authLogout",
+        "summary": "End this session, or every session for the user",
+        "tags": ["Auth"],
+        "description": "Revokes the session behind the presented access token. With `{\"everywhere\": true}` it instead revokes every session for the user and bumps the user's session version, which invalidates tokens on devices the server has never seen — use that after a password change or a suspected compromise.\n\n**This endpoint always returns 204.** Anonymous callers, expired tokens and already-revoked sessions all get 204: the caller's intent is satisfied either way, and a sign-out button must never be able to fail and spin. Do not branch on the response; clear local credentials unconditionally.\n\nRevoking the session also kills its refresh token — a subsequent POST /auth/refresh with it returns 401.\n\nThe `bearerAuth` requirement below reflects what a client MUST send for this call to do anything; the handler itself does not enforce it and returns 204 without a token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "Optional. Omit entirely (or send no body) for \"this device only\". Must be valid JSON with a JSON content type — a body the server cannot parse is swallowed and silently degrades to this-device-only.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLogoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done, or nothing to do. No body. Returned for a valid session, an anonymous call, an expired or already-revoked token, and a repeated logout.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` from the wrapper's default mutation limit — 60 requests/minute keyed by client IP alone. Body carries extra `error.retryAfterSeconds` and `error.scope` fields.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL` — the revocation write failed. `requestId` present. The client should still clear local credentials; retrying is safe because logout is idempotent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues": {
+      "get": {
+        "operationId": "listVenues",
+        "summary": "Search venues",
+        "description": "Public, unauthenticated, cross-tenant venue search. Returns ACTIVE venues only, ordered by `id` ascending, paged with an opaque keyset cursor.\n\nThe response is the PAGE envelope: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nNo query parameter here is rejected: unparseable numbers fall back to the default and an unknown `sport` reaches the query layer, where it fails as a 500. `limit` is clamped, never refused.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive substring match against the venue's name OR city.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Keep only venues with at least one ACTIVE resource for this sport. Not validated server-side: a value outside the enum produces a 500.",
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          },
+          {
+            "name": "indoor",
+            "in": "query",
+            "required": false,
+            "description": "Keep only venues with at least one ACTIVE resource whose `isIndoor` matches. Compared against the literal string \"true\": sending `indoor=1` or `indoor=yes` therefore filters for OUTDOOR. Omit the parameter entirely to not filter.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "description": "Integer CENTS. Keep only venues with an ACTIVE resource whose `basePriceCents` is <= this. A value of 0 or a non-numeric value is silently ignored rather than rejected.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` from the previous page, passed back verbatim.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size. Clamped server-side, never rejected: anything above 50 returns 50, anything below 1 (or unparseable) returns the default 20.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of venues.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. \"2026-04-29\".",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on a failure and every server log line for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueSummaryPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. Reachable from this endpoint by sending a `sport` outside the enum (it is passed through unvalidated), as well as by an ordinary backend failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/near": {
+      "get": {
+        "operationId": "findVenuesNear",
+        "summary": "Venues near a point",
+        "description": "Public, unauthenticated, cross-tenant geo search, ordered by ascending distance and capped at 50 results.\n\nDeliberately NOT paginated: there is no cursor, and `data.paginated` is always false. A distance-ordered cursor cannot be stable while the caller moves, so the way to see more is a larger `radiusKm`.\n\nThe response is the plain `ok()` envelope: `{\"data\":{\"venues\":[...],\"radiusKm\":...,\"maxResults\":...,\"paginated\":false}}`. Note the items are `NearVenue`, not `VenueSummary`.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "description": "WGS-84 latitude. Missing, blank or non-numeric is a 400 `BAD_REQUEST`; outside -90..90 is a 400 `INVALID_COORDINATES`.",
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "description": "WGS-84 longitude. Missing, blank or non-numeric is a 400 `BAD_REQUEST`; outside -180..180 is a 400 `INVALID_COORDINATES`.",
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "radiusKm",
+            "in": "query",
+            "required": false,
+            "description": "Search radius in KILOMETRES — note the name is `radiusKm`, not `radius`. Silently clamped, never rejected: above 50 becomes 50; zero, negative or unparseable becomes the default 10. Always read `data.radiusKm` back to learn what was actually searched.",
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Keep only venues with an ACTIVE resource for this sport. Not validated before it reaches SQL: a value outside the enum is a 500.",
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum venues to return; the server takes min(limit, 50) and defaults to 20 when omitted. Unlike `/venues`, this value is NOT sanitised — a non-numeric or negative `limit` reaches the SQL LIMIT and surfaces as a 500. Send a positive integer or omit it.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Venues within the (possibly clamped) radius, nearest first.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NearVenueResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` when `lat`/`lng` is absent, blank or not a finite number; `INVALID_COORDINATES` when it parses but falls outside -90..90 / -180..180.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. Reachable by an out-of-enum `sport` or a `limit` that is not a positive integer, both of which reach the database unvalidated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/{id}": {
+      "get": {
+        "operationId": "getVenue",
+        "summary": "Venue detail",
+        "description": "Public, unauthenticated, cross-tenant venue detail. Wrapped in the `ok()` envelope: `{\"data\": VenueDetail}`.\n\nBy id, never by slug: slugs are unique only within a tenant, so two clubs can both own `central-courts` and a public slug route could not say which it meant. Ids come from `GET /venues` or `GET /venues/near`.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The venue's cuid.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The venue.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no venue with that id, or the venue is not ACTIVE. A suspended club is indistinguishable from a non-existent one here, deliberately. The body is the error envelope, never `{\"data\":null}`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/{id}/availability": {
+      "get": {
+        "operationId": "getVenueAvailability",
+        "summary": "Bookable slots for a venue",
+        "description": "Public, unauthenticated, cross-tenant. Materialises every candidate slot in a time window for each ACTIVE resource of the venue, including the ones already taken (`available: false`), so a grid can grey them out instead of implying the club is shut. Wrapped in the `ok()` envelope: `{\"data\": VenueAvailability}`.\n\nCHOOSING THE WINDOW — three mutually exclusive forms, resolved by `_lib/range.ts`:\n\n1. `?date=YYYY-MM-DD` (optionally with `?days=`) — the calendar date AT THE CLUB. Both ends are resolved against the VENUE's timezone (each local midnight against that date's real UTC offset), so a window spanning a DST changeover is still a whole number of local days. This exists so a client never computes the window with the DEVICE's calendar: a player in London tapping \"Thursday\" for a Sofia court would otherwise ask for a window shifted by two hours at both ends, with nothing reporting an error.\n2. `?from=` and/or `?to=` — absolute instants, for a caller that genuinely means instants. `from` alone implies `to = from + 24h`; `to` alone implies `from = now`.\n3. Neither — the window is `now` to `now + 24h`.\n\nSending `date` together with `from` or `to` is a 400 rather than a silent preference for one of them. `days` is only read in form 1; with `from`/`to` it is ignored silently.\n\nThe window is capped at 14 days (plus one hour of DST tolerance). `days` cannot exceed that, so `RANGE_TOO_WIDE` is only reachable through `from`/`to`.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The venue's cuid.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "A calendar date, `YYYY-MM-DD`, interpreted in the VENUE's timezone (not UTC, and not the device's zone). The window runs from local midnight on this date to local midnight `days` later. Mutually exclusive with `from`/`to`.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "description": "Number of whole VENUE-LOCAL days from `date`. Only meaningful alongside `date` — silently ignored otherwise. Must be an integer 1..14; anything else (including 0, 2.5 or an empty value) is a 400 `BAD_REQUEST`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 14,
+              "default": 1
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Absolute start instant, RFC 3339. Mutually exclusive with `date`. Defaults to now when only `to` is given. Parsed with JavaScript `new Date()`, so it also accepts looser forms — notably a bare `YYYY-MM-DD`, which is read as UTC midnight and NOT as a venue-local date; use `date` for that.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive end instant, RFC 3339. Mutually exclusive with `date`. Defaults to `from + 24h`. Must be strictly after `from`, otherwise 400 `BAD_REQUEST`.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": false,
+            "description": "Restrict the response to one resource of this venue. An id that does not belong to the venue (or is not ACTIVE) yields a 200 with an empty `resources` array, not a 404.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The resolved window and one slot list per ACTIVE resource.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueAvailability"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` for a malformed window: `date` combined with `from`/`to`, a `date` that is not `YYYY-MM-DD`, a `days` outside 1..14 or non-integer, an unparseable `from`/`to`, or `to` not after `from`. `error.details` then carries `{\"field\": \"date\"|\"days\"|\"from\"|\"to\"}`.\n\n`RANGE_TOO_WIDE` when the resolved window exceeds 14 days (plus one hour of DST tolerance) — only reachable via `from`/`to`, and only when the venue has at least one matching ACTIVE resource, since the ceiling is enforced while materialising slots.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no ACTIVE venue with that id. Checked BEFORE the window is parsed, so a bad date on a missing venue reports the missing venue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. Besides ordinary failures, the server refuses to answer rather than report availability from a truncated booking list if the window somehow contains more than 50,000 slot-holding bookings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/bookings": {
+      "get": {
+        "summary": "List my bookings at this club",
+        "description": "The caller's OWN bookings at `{slug}`, newest first (ordered by `startTs` descending, then `id` descending).\n\nOwnership is enforced in the SQL `WHERE` clause (`bookedByUserId = ctx.userId`), not filtered after the read. Staff permissions do NOT widen this route — `bookings.view_all` has no effect here; a club admin wanting every booking needs a different route.\n\nPagination is KEYSET, not offset. `nextCursor` is the `id` of the last item on the page; pass it back verbatim as `cursor` and never parse it. `nextCursor` is `null` on the last page.\n\nResponse is WRAPPED twice: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nThis route is NOT rate-limited (the wrapper only limits POST/PUT/PATCH/DELETE), so there is no 429 here.",
+        "tags": ["Bookings"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug, e.g. `sofia-padel`. The caller must hold a membership for it; the edge middleware answers 403 otherwise.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size. Clamped server-side: anything absent, non-numeric, or less than 1 becomes 20; anything above 100 becomes 100. An out-of-range value is silently clamped, never rejected.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque keyset cursor — the `nextCursor` from the previous page, passed back verbatim. Omit for the first page. A cursor that no longer resolves to a row yields an empty page rather than an error.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of the caller's bookings.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and every server log line for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingPageEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a token whose session has been revoked (sign-out-everywhere, password change). Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not a member of `{slug}`. Code `FORBIDDEN`, message `Forbidden` — deliberately indistinguishable from \"no such club\", so this cannot be used to enumerate tenants. Produced by the edge middleware, whose body carries no `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`. Reachable in one non-obvious case: a caller whose JWT membership list was truncated (more clubs than `MAX_JWT_MEMBERSHIPS`) passes the edge as `needs_db_check`, but the request context then resolves no `tenantId`, and the tenant binding throws `MissingTenantError`, which is deliberately absent from the domain error map.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a booking (hold a slot)",
+        "description": "Creates a PENDING booking that HOLDS the slot for 15 minutes (`expiresAt`), then releases it. Pay for it with `POST /t/{slug}/bookings/{id}/checkout` before then, or it lapses.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, or a wall-clock time that does not exist on that date) and which retrying unchanged can never fix.",
+        "tags": ["Bookings"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must be a member holding `bookings.create` (every PLAYER does).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "REQUIRED. A client-generated key (a UUID is the expected form) that identifies this booking ATTEMPT, so that a retry after a network stall returns the original booking instead of creating and charging a second one. Unique per `(tenant, key)`; reusing a key returns the booking it first created, whatever this request's body says. Missing, empty or whitespace-only is a 400.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Which slot, never what it costs.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent replay. A booking already existed for this `(tenant, Idempotency-Key)` and is returned unchanged; nothing was created and nothing will be charged twice. The body is byte-identical in shape to the 201.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created. A genuine new PENDING booking now holds the slot until `expiresAt`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "One of:\n\n- `BAD_REQUEST` — the `Idempotency-Key` header is missing/blank (`details.field = \"Idempotency-Key\"`), the body is not JSON, or `resourceId`/`startTs`/`endTs` is missing, blank or not an RFC 3339 instant (`details.field` names it).\n- `SLOT_NOT_BOOKABLE` — the club never offered that span: end not after start, not a whole number of minutes, shorter than `minBookingMinutes`, longer than `maxBookingMinutes`, not a whole number of billable units, not on the step grid measured FROM OPENING, not inside a single opening window, or an ambiguous local wall clock (the repeated hour on a DST fall-back day). The `message` says which. Retrying the same body can never succeed.\n- `INVALID_BOOKING_SPAN` — mirrors the database CHECK constraint: end not after start, or a span longer than 4 hours.\n- `GUEST_CONTACT_REQUIRED` — a booking must be attributable to someone. Not reachable on this authenticated route (the caller's user id is always supplied); listed because the mapping exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Either not a member of `{slug}`, or a member lacking `bookings.create` — in the latter case the edge middleware adds `details.requiredPermission = \"bookings.create\"`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`. No such resource, a resource belonging to another club, or a resource whose venue is not ACTIVE — all three are deliberately indistinguishable, so this cannot probe other clubs' courts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "One of:\n\n- `SLOT_TAKEN` — another player's INSERT won the race for this exact span. The request was fine; the world moved. Refresh availability and offer another slot. Do NOT blind-retry with the same body.\n- `IDEMPOTENCY_RACE` — two requests carrying the SAME `Idempotency-Key` are in flight. Genuinely rare (it needs two concurrent retries of one tap). Re-issue the identical request; the replay path will then find the winner's row and return it with 200.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The default mutation budget is 60 requests per 60 seconds, keyed by client IP (this route does not supply a user-id resolver, so the budget is shared across ALL v1 mutations from that IP — which behind carrier NAT is shared across users). The body adds `error.retryAfterSeconds` and `error.scope` and omits `error.requestId`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, with a generic message — the server fails closed on disclosure for anything unclassified. Covers a truncated-membership caller whose tenant could not be resolved (`MissingTenantError`), and any unmapped database or infrastructure failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/bookings/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a booking and quote its refund",
+        "description": "Cancels a PENDING or CONFIRMED booking and returns the refund QUOTE resolved against the club's cancellation policy at this instant.\n\n**This endpoint does not move money.** It sets the booking to CANCELLED, writes a Cancellation receipt with the resolved percentage frozen onto it, and returns what that receipt says. Issuing the actual Stripe refund is a separate operation. A client must not tell the user \"refunded\" — only \"refund of X due\".\n\n**Ownership is checked here, not by the permission.** `bookings.cancel` is held by every PLAYER, so the middleware only establishes that the caller may cancel SOMETHING at this club. This handler then loads the caller's OWN booking — unless they hold `bookings.view_all`, in which case staff may cancel on a player's behalf (the front desk taking a phone call). Someone else's booking answers 404, never 403: a 403 would confirm the booking exists and let a club's reservations be enumerated one id at a time.\n\n**Cancelling twice is a 409, not a no-op.** Each call writes a fresh Cancellation row and recomputes the refund from the CURRENT hours-until-start, so a second call would produce two receipts for one booking that disagree about the amount.\n\nThe request body is optional; a body-less POST is the common case and is not an error.",
+        "tags": ["Bookings"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must be a member holding `bookings.cancel`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The booking id. Must be the caller's own booking, unless the caller holds `bookings.view_all`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "Optional. A missing body, an empty body, or a body that is not valid JSON are all accepted and treated as \"no reason given\" — requiring JSON for a plain \"cancel\" tap would be ceremony. A non-string `reason` is silently ignored rather than rejected.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled. The body is the refund quote that was written onto the Cancellation receipt.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelQuoteEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Not a member of `{slug}`, or a member lacking `bookings.cancel` (then `details.requiredPermission = \"bookings.cancel\"`). Note that cancelling SOMEONE ELSE'S booking is a 404 here, not a 403.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`. No such booking at this club, or a booking that is not the caller's (and the caller is not staff). The two are deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `CONFLICT`. Either the booking is already CANCELLED (`This booking is already cancelled`), or it is in a state that cannot be cancelled at all — COMPLETED or NO_SHOW (`A completed booking cannot be cancelled`). Only PENDING and CONFIRMED are cancellable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body adds `error.retryAfterSeconds` and `error.scope` and omits `error.requestId`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message. Includes the truncated-membership case where no tenant could be resolved, and any unmapped failure while writing the cancellation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/bookings/{id}/checkout": {
+      "post": {
+        "summary": "Pay for a booking (wallet, card, or both)",
+        "description": "Starts payment for a PENDING booking. Credit is spent first, and only the remainder is charged to a card.\n\n**Read `confirmed` before doing anything else.**\n\n- `confirmed: true` — wallet credit covered the whole price. `cardDueCents` is 0 and `paymentIntentId` / `clientSecret` are both `null`. The booking has ALREADY been confirmed inline by this call. **Do NOT present a PaymentSheet**; go straight to the success screen. (No zero-amount PaymentIntent is created, because Stripe rejects those — and without this inline confirmation there would be no `payment_intent.succeeded` webhook, so a fully-credit-paid booking would sit PENDING until its slot expired.)\n- `confirmed: false` — `cardDueCents` is greater than 0 and `clientSecret` is non-null. Present the PaymentSheet with `clientSecret` and `publishableKey`. The booking is confirmed later, by the Stripe webhook; this response does NOT mean it is paid.\n\n**Show the split.** When `walletAppliedCents > 0` and `cardDueCents > 0`, the card amount is LESS than the booking total. Rendering the card amount alone next to the booking price looks like a bug to the user, which is why both numbers are returned: \"€10.00 from credit, €14.00 on card\".\n\n**`useWallet` is opt-in and strict.** Only the literal JSON `true` spends credit. A missing body, an unparseable body, `false`, `\"true\"`, or `1` all mean card-only — spending someone's credit because a field was omitted would be taking a decision that is theirs.\n\n**Own bookings only, with no staff escape hatch.** Unlike cancel, `bookings.view_all` grants nothing here: a manager must not be able to charge a player's saved card. Someone else's booking answers 404, not 403.\n\nCalling this twice on the same booking is safe on the card path — the Stripe idempotency key is derived from `booking id + amount due`, so a second tap returns the SAME PaymentIntent rather than charging twice.",
+        "tags": ["Bookings", "Payments"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must be a member holding `bookings.create` (the permission gating this route — it only establishes that a random member cannot POST it; ownership is enforced in the handler).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The booking id. Must belong to the calling user; staff permissions do not widen this.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "description": "Optional. A missing, empty or non-JSON body means `useWallet: false` (card only).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checkout prepared. Branch on `confirmed`: `true` means paid in full from credit and already confirmed (no PaymentSheet); `false` means present the PaymentSheet with `clientSecret`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Not a member of `{slug}`, or a member lacking `bookings.create` (then `details.requiredPermission = \"bookings.create\"`). Paying for someone else's booking is a 404, not a 403.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`. No such booking at this club, or a booking that is not the caller's — deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "One of:\n\n- `CONFLICT` — the booking is not PENDING. `This booking is already paid for` when it is CONFIRMED; `A cancelled booking cannot be paid for` (or completed / no_show) otherwise. A PENDING booking whose `expiresAt` has passed may also have been released by then.\n- `PAYOUTS_NOT_ENABLED` — the club has not finished Stripe Connect onboarding, so it cannot receive a destination charge. Checked BEFORE a card is requested, so the user is never shown a payment failure caused by the club's incomplete setup. The client cannot fix this; surface it as \"this club can't take payments yet\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body adds `error.retryAfterSeconds` and `error.scope` and omits `error.requestId`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message. Covers the truncated-membership case with no resolvable tenant, a Stripe API failure while creating the PaymentIntent, and `LedgerIsolationError` (the credit ledger demanded SERIALIZABLE and did not get it) — all deliberately unmapped, so the client learns nothing about internals. Retry is reasonable; the Stripe idempotency key prevents a double charge.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/me": {
+      "get": {
+        "operationId": "getTenantMe",
+        "summary": "Who am I at this club",
+        "tags": ["Tenant"],
+        "description": "Resolves the caller's identity **and their membership of the club addressed by `{slug}`**, reading the membership authoritatively from the database rather than from the bearer token's claims.\n\nThe token's `memberships` array is a mint-time snapshot: an access token lives 15 minutes and its refresh token 30 days, and nothing re-mints the claims in between. This endpoint therefore re-reads the membership and reports the disagreement via `data.tokenStale`.\n\n**`tokenStale` handling (important for a native client).** `tokenStale` is `true` when the token's tenant id or role for this slug differs from the database — including the case where the token carries no membership for this slug at all. It is **not** an error and the rest of the payload is still correct. The client should refresh its access token (so the edge middleware, which authorises mutations from claims alone and never consults the database, stops working from a stale role) and then continue. Do not surface it to the user, and do not retry this call in a loop expecting it to flip on its own — only a token refresh clears it.\n\n**404, not 403.** When the caller holds no `ACTIVE` membership for this slug the handler answers `404 NOT_FOUND` with the message `Not found.`, deliberately making \"no such club\" and \"you are not a member of it\" indistinguishable so the endpoint cannot be used to enumerate tenants. Note that a `403 FORBIDDEN` is still possible for a non-member, but it comes from the edge middleware *before* this handler runs — see the 403 response.\n\nMemberships whose status is not `ACTIVE` (`INVITED`, `SUSPENDED`, `EXPIRED`) are filtered out by the query and therefore also produce a 404.\n\nRead-only; no rate limit applies (the shared wrapper rate-limits mutating methods only).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug, as it appears in `/t/{slug}/…`.",
+            "schema": {
+              "type": "string",
+              "examples": ["slot-club-sofia"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's identity, the club, and the membership held at it.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. `2026-04-29`. Set on every response from a wrapped v1 route.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id, matching the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantMeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable session. Either the edge middleware saw no token (`{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}}`), or the token verified but its session row has been revoked/superseded — a password change, a \"sign out everywhere\", a stolen-device eviction — in which case the handler answers `{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required.\"}}`. Neither body carries `requestId`. The client should refresh, and re-authenticate if the refresh also fails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused by the edge middleware before the handler ran: the token carries a complete membership list that does not include this slug. Code `FORBIDDEN`, message `Forbidden`, no `requestId`, and none of the `X-API-Version`/`x-request-id` headers (the middleware runs on the Edge runtime and does not go through the API wrapper). A non-member whose token list was *truncated* (more clubs than fit in the token) is let through instead and receives the 404 below.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No `ACTIVE` membership for this user at this slug — which also covers \"no such club\", deliberately indistinguishable. Code `NOT_FOUND`, message `Not found.`; the body carries no `requestId` (the `x-request-id` response header is still set).",
+            "headers": {
+              "X-API-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unclassified server-side failure (for example the membership read failing). Code `INTERNAL` with a generic message — details are never disclosed. `requestId` is present and matches the `x-request-id` header.",
+            "headers": {
+              "X-API-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/connect/onboarding": {
+      "post": {
+        "operationId": "startConnectOnboarding",
+        "summary": "Start or resume Stripe Connect onboarding",
+        "tags": ["Payouts"],
+        "description": "Creates the club's Stripe Express connected account if it does not have one, then mints a **fresh, short-lived** Stripe-hosted onboarding link and returns it. Until a club has both a `stripeAccountId` and `payoutsEnabled`, checkout for its bookings fails with `PAYOUTS_NOT_ENABLED`.\n\n**Requires `admin.billing_manage`** — held by `OWNER` and `MANAGER` only. This is enforced twice: by the edge route-permission table (`/api/v1/t/:slug/connect/*` on any mutating verb) and again in the handler from the role held *at this slug*. Neither check reads the token's flat `permissions` claim.\n\n**No request body.** The handler reads nothing from the body; anything sent is ignored. `return_url` and `refresh_url` are built server-side from `NEXTAUTH_URL` on purpose — a caller-supplied return URL would be an open redirect dressed as the last step of our own flow.\n\n**`payoutsEnabled` is NOT set by this call.** It is echoed from the stored venue row and stays `false` until Stripe's `account.updated` webhook says otherwise. Finishing the onboarding form is not the same as Stripe having accepted the club's identity documents. A client that treats a 200 here, or a return to `?onboarding=complete`, as \"payouts are live\" will show a club it can take money it cannot be paid. Poll `payoutsEnabled` from the club's own state, never infer it from this response.\n\n**Idempotency.** Calling this repeatedly is safe: the stored `stripeAccountId` is reused, and account creation carries a tenant-derived idempotency key so two simultaneous first calls resolve to one Stripe account. Every call returns a *new* `onboardingUrl` (Stripe's links expire), so the URL must not be cached. `created` distinguishes the call that created the account from the ones that reused it.\n\nIt is a POST rather than a GET precisely because the first call has an external, non-reversible side effect that must not sit behind a verb a browser, crawler or prefetcher will follow on its own.\n\nRate-limited as a mutation (see the 429 response).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug, as it appears in `/t/{slug}/…`.",
+            "schema": {
+              "type": "string",
+              "examples": ["slot-club-sofia"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding started or resumed. Send the admin to `data.onboardingUrl`.",
+            "headers": {
+              "X-API-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectOnboardingStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable session — either no token at the edge (`UNAUTHORIZED`, `Authentication required`, no `requestId`) or a verified token whose session has been revoked, in which case the handler throws and the body carries `code: \"UNAUTHORIZED\"`, `message: \"Authentication required\"` and a `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed to manage payouts at this club. Two distinguishable sources: the edge middleware answers `FORBIDDEN` with `details: {\"requiredPermission\": \"admin.billing_manage\"}` and no `requestId` (this also covers a non-member with a complete token membership list, where the message is a bare `Forbidden`); the handler answers `FORBIDDEN` with `Managing payouts requires billing permission` and a `requestId`. A `STAFF`, `COACH` or `PLAYER` member always lands here, as does any caller whose token carries no membership for this slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The tenant row named by the caller's membership claim no longer exists, so the venue lookup finds nothing. Code `NOT_FOUND`, message `Resource not found or already deleted`. Reachable when a club is deleted while a token that still lists it is in flight; the client should refresh its token.",
+            "headers": {
+              "X-API-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Mutation rate limit exhausted (keyed on client IP plus, where known, user). Code `RATE_LIMITED`. This body is produced by the rate-limit middleware and differs slightly from the standard error shape: it adds `error.retryAfterSeconds` and `error.scope`, and carries no `requestId`. Respect `Retry-After` rather than retrying immediately.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying; always at least 1.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the budget resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-API-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Stripe rejected or could not be reached (account creation or link creation), Stripe is not configured (`code: \"CONFIGURATION_ERROR\"`), or another unclassified failure (`code: \"INTERNAL\"`). The message is always generic — nothing about the failure is disclosed. Because account creation carries an idempotency key, retrying after a 500 will not orphan a second Stripe account.",
+            "headers": {
+              "X-API-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/sso/entra/group-mappings": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "description": "The club's tenant slug, exactly as it appears in the caller's membership. A slug the caller holds no membership for is 403 — never 404, because \"no such club\" and \"not a member of it\" must be indistinguishable or this becomes a tenant-enumeration oracle.",
+          "schema": {
+            "type": "string"
+          },
+          "examples": {
+            "club": {
+              "value": "slot-club-sofia"
+            }
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listEntraGroupMappings",
+        "summary": "List Entra group → role mappings",
+        "tags": ["SSO"],
+        "description": "Every Entra security group mapped to a role at this club, ordered by `priority` DESC then `createdAt` ASC.\n\nRequires `sso.manage`, which only OWNER holds (MANAGER deliberately does not: a MANAGER could otherwise map a directory group they administer to MANAGER and mint peers at will).\n\nENFORCEMENT NOTE: the edge middleware does NOT gate this read — `requiredPermission()` returns null for non-mutating methods — so the permission is checked in the handler (`requireSsoManage`). The list is sensitive not because it holds secrets but because it is reconnaissance: it is a map of which directory groups confer administrative access to this club.\n\nThe response is the `ok()` envelope wrapping a BARE ARRAY (`{\"data\": [ ... ]}`), not the `page()` shape. The underlying query takes at most 200 rows and there is no cursor.\n\nNot rate-limited: the wrapper only rate-limits POST/PUT/PATCH/DELETE.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The club's mappings. May be an empty array.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, set on every wrapped v1 response (currently `2026-04-29`). Informational — the server does not branch on a request version.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntraGroupMappingListEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable session. Code `UNAUTHORIZED`. Produced by the edge middleware for an anonymous caller on any `/api/v1/t/{slug}/**` path, and by the handler (`UnauthorizedError`) when the token verified but its session was revoked — `contextFromRequest` degrades a revoked session to anonymous. The edge variant carries no `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Either the caller holds no membership for `slug` (edge middleware; message `Forbidden`, and an unknown club looks identical) or they are a member without `sso.manage` (handler `ForbiddenError`; message `Managing SSO group mappings requires the club owner`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message. Database or infrastructure failure; nothing on this path is classified in DOMAIN_ERROR_MAP as a 5xx.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createEntraGroupMapping",
+        "summary": "Map an Entra group to a role",
+        "tags": ["SSO"],
+        "description": "Create one mapping: everyone in the named Entra security group is granted `role` at this club from their next sign-in, subject to `priority` when several mapped groups match.\n\nRequires `sso.manage` (OWNER only), enforced twice — at the edge by ROUTE_PERMISSIONS and again in the handler.\n\nThe write and its audit entry share one transaction, so a mapping cannot exist without its audit record.\n\nDuplicate detection is arbitrated by the `@@unique([tenantId, aadGroupId])` index, not by a read-then-write, so two admins adding the same group concurrently produce exactly one row and one 409.\n\nRate-limited: mutating verbs go through the wrapper's default `API_MUTATION_LIMIT`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntraGroupMappingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created. The body is the `ok()` envelope around the stored row — read `aadGroupId` back from it, since it has been lower-cased. No `Location` header is set.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker set on every wrapped v1 response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntraGroupMappingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`. Either the body was not JSON (`Body must be JSON`) or it failed validation (`Invalid group mapping`), in which case `details` is `{\"issues\": [ ... ]}` — the raw Zod issue array, each entry carrying `path`, `code` and `message`.\n\nThis is what `\"role\": \"OWNER\"` returns: the Zod enum rejects it before the use case is reached, so the code is `BAD_REQUEST`, NOT `ROLE_NOT_MAPPABLE`.\n\nCode `ROLE_NOT_MAPPABLE` (also 400) is defined in DOMAIN_ERROR_MAP for `RoleNotMappableError`, thrown by `assertMappable()` in the use case. That guard exists for callers that bypass this schema (seed scripts, jobs, a future admin tool) and is unreachable through this HTTP route today. A generated client should still handle it: it means the role can never be granted by a directory group, so retrying the same body cannot succeed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Not a member of `slug`, or a member without `sso.manage` (OWNER only). When the edge middleware denies it, `details` is `{\"requiredPermission\": \"sso.manage\"}`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `DUPLICATE_GROUP_MAPPING` — that Entra group is already mapped at this club (one mapping per group per club; two rows would make the winner depend on scan order). Edit or delete the existing mapping instead. NOTE: if the SQLSTATE cannot be recovered from the driver error, the same collision surfaces with the generic code `CONFLICT`; a client should treat both 409 codes as \"already mapped\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The mutation budget for this caller/IP is exhausted. The error object additionally carries `retryAfterSeconds` and `scope` alongside `code` and `message`, and the response has no `requestId`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Integer seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the budget resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message. Database or audit-write failure; the transaction is rolled back, so no mapping is created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/sso/entra/group-mappings/{mappingId}": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "description": "The club's tenant slug. A slug the caller holds no membership for is 403, never 404.",
+          "schema": {
+            "type": "string"
+          },
+          "examples": {
+            "club": {
+              "value": "slot-club-sofia"
+            }
+          }
+        },
+        {
+          "name": "mappingId",
+          "in": "path",
+          "required": true,
+          "description": "The mapping's `id` as returned by the list or create operation — a cuid, NOT a UUID. The lookup is scoped to the tenant, so an id belonging to another club is 404 `MAPPING_NOT_FOUND`, indistinguishable from an id that never existed.",
+          "schema": {
+            "type": "string"
+          },
+          "examples": {
+            "mapping": {
+              "value": "clz3k9q1p0001s601f8m2h7xa"
+            }
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateEntraGroupMapping",
+        "summary": "Update a group mapping",
+        "tags": ["SSO"],
+        "description": "Partially update one mapping. Only `aadGroupName`, `role` and `priority` can change; `aadGroupId` is immutable through this API.\n\nRequires `sso.manage` (OWNER only), enforced at the edge and again in the handler.\n\nThe row is read before it is written so the audit entry can record the BEFORE state (role and priority), not just the new value — an entry that records only what it is now answers a question anyone can answer by looking.\n\nThere is no 409 on this operation: since `aadGroupId` cannot be changed, there is no unique-constraint path to collide on.\n\nRate-limited by the wrapper's default mutation limit.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntraGroupMappingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated. The body is the `ok()` envelope around the full row after the write, with a refreshed `updatedAt`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker set on every wrapped v1 response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntraGroupMappingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`. The body was not JSON (`Body must be JSON`), or validation failed (`Invalid group mapping`) with `details` = `{\"issues\": [ ... ]}`. Empty objects, bodies whose only keys are unknown (including `aadGroupId`), `\"role\": \"OWNER\"`, a `priority` outside [0, 1000] or non-integer, and an explicit `null` name all land here.\n\nCode `ROLE_NOT_MAPPABLE` (400) is mapped for `RoleNotMappableError` from the use case's `assertMappable()`, but the Zod enum rejects OWNER first, so it is unreachable through this route today.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Not a member of `slug`, or a member without `sso.manage` (OWNER only). From the edge, `details` is `{\"requiredPermission\": \"sso.manage\"}`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `MAPPING_NOT_FOUND`, message `No such group mapping.` — no mapping with that id exists at this club. The lookup is `findFirst({ id, tenantId })`, so another club's mapping id is reported identically. Authorisation is checked before the lookup, so this cannot be used to probe ids without `sso.manage`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The error object additionally carries `retryAfterSeconds` and `scope`, and no `requestId`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Integer seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the budget resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message. Database or audit-write failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteEntraGroupMapping",
+        "summary": "Delete a group mapping",
+        "tags": ["SSO"],
+        "description": "Remove one mapping. Everyone whose role came from this group stops being granted it at their next sign-in — a silent mass revocation that tends to present as \"SSO is broken\" rather than as a change somebody made, which is why DELETE is gated exactly as hard as POST and why the audit entry carries the FULL before-state (`aadGroupId`, `aadGroupName`, `role`, `priority`): once the row is gone, that entry is the only remaining evidence the group ever granted anything.\n\nRequires `sso.manage` (OWNER only), enforced at the edge and again in the handler.\n\nNot idempotent in the usual REST sense: a second DELETE of the same id returns 404, not 204.\n\nRate-limited by the wrapper's default mutation limit.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted. NO BODY — `noContent()` returns a bare 204, so there is no envelope to decode. A generated client must not attempt to parse a response body here.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker set on every wrapped v1 response, 204 included.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No usable session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. Not a member of `slug`, or a member without `sso.manage` (OWNER only). From the edge, `details` is `{\"requiredPermission\": \"sso.manage\"}`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `MAPPING_NOT_FOUND`, message `No such group mapping.` — no mapping with that id exists at this club, or it was already deleted. Another club's mapping id is reported identically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The error object additionally carries `retryAfterSeconds` and `scope`, and no `requestId`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Integer seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the budget resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message. Database or audit-write failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/realtime/token": {
+      "post": {
+        "operationId": "createRealtimeToken",
+        "summary": "Mint a short-lived Centrifugo connection token",
+        "description": "Returns a 15-minute HS256 JWT the client presents to Centrifugo when opening its WebSocket, together with the broker URL so no second config call is needed.\n\nThe connection is per-PERSON, not per-club: there is no tenant slug in the path, and one socket carries every club the user belongs to. The token carries only `sub`, `iat` and `exp` — it is NOT a capability list. What the holder may actually subscribe to is decided per subscription by Centrifugo's subscribe proxy against the database at subscribe time, so a token minted before the user was removed from a conversation does not keep them reading it. The TTL is the revocation window; a token cannot be revoked, so the client must refresh before `expiresInSeconds` elapses.\n\nThe handler reads no request body. Send an empty POST.\n\nAuthentication is `Authorization: Bearer <jwe>` for a native client; a browser session cookie is equally accepted by the same code path.",
+        "tags": ["Realtime"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A token that is valid for `expiresInSeconds` seconds.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, stamped on every wrapped v1 response including successes.",
+                "schema": {
+                  "type": "string",
+                  "examples": ["2026-04-29"]
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; the same value appears in every server log line for this request.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeTokenEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, a credential whose signature does not verify, or a session that has been revoked (sign-out-everywhere, password change, server-side eviction). A revoked session degrades to anonymous before the handler sees it, so it is indistinguishable from never having signed in. `error.code` is `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Mutation rate limit exhausted (60 requests per 60 seconds). NOTE: this body is NOT the canonical error envelope — it has no `requestId`, and it carries `retryAfterSeconds` and `scope` directly on `error`. The bucket is keyed by client IP and the anonymous actor (this route passes no user-id resolver), so callers sharing an egress IP share the budget.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unclassified failure while resolving the caller — the session lookup is a database round trip on this path. `error.code` is `INTERNAL` and the message is generic by design.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/realtime/subscribe": {
+      "post": {
+        "operationId": "centrifugoSubscribeProxy",
+        "summary": "Centrifugo subscribe proxy (SERVER-TO-SERVER — do not generate a client for this)",
+        "description": "**Not a client endpoint.** Centrifugo calls this before admitting a connection to a channel; no application client should ever call it, and its request and response shapes are Centrifugo's, not this API's.\n\nFour ways this operation differs from every other v1 route:\n\n1. **It always returns HTTP 200**, including when it denies. A non-200 makes Centrifugo treat the proxy as broken rather than as having decided, and the broker then falls back to its own configuration. The decision is in the BODY.\n2. **No success envelope.** `{\"result\":{}}` allows, `{\"error\":{...}}` denies. An `{\"error\":{\"code\":\"...\"}}` body in our canonical shape would be read by the broker as an allow carrying unknown fields, so this route must never use it. Note that `error.code` here is an INTEGER, not the string code used everywhere else in this API.\n3. **Authentication is a shared secret in the `x-centrifugo-secret` header**, compared in constant time against `CENTRIFUGO_PROXY_SECRET`. There is no user session, because the request is not made by a user — Centrifugo names the user itself in the body, having derived it from the JWT this server signed. `security: []` reflects only that no bearer token applies; the endpoint is NOT public.\n4. **No `X-API-Version` or `x-request-id` response header**, because this route is not wrapped by the shared v1 handler. It is also not rate limited.\n\nDenials are deliberately indistinguishable: a wrong secret, an absent secret header, an anonymous (empty) user, an unrecognised channel shape, a non-participant, and a participant who has LEFT the conversation all produce exactly `{\"error\":{\"code\":403,\"message\":\"forbidden\"}}`. The real reason is logged and never returned — saying \"not a participant\" rather than \"no such channel\" would confirm the conversation exists and turn the proxy into a membership oracle.\n\nAn unset server secret yields `{\"error\":{\"code\":503,\"message\":\"proxy not configured\"}}` for every request, still over HTTP 200. Unset never means allow.\n\nRecognised channels: `conv:<cuid>` (conversation; requires a participant row with `leftAt` null), `notif:<cuid>` and `presence:user:<cuid>` (both require the id to equal the caller's user id). Anything else is denied as an unknown shape.",
+        "tags": ["Realtime", "Internal"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "x-centrifugo-secret",
+            "in": "header",
+            "required": true,
+            "description": "The shared proxy secret, compared in constant time against `CENTRIFUGO_PROXY_SECRET`. This is the entire authorization boundary for the endpoint — the path sits outside `/api/t/`, so no middleware or permission rule covers it. Omitting it does not produce a 401; it produces HTTP 200 with the standard `403 forbidden` deny body.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Centrifugo's subscribe-proxy payload. Only `user` and `channel` are read; every other field Centrifugo sends (client, transport, protocol, encoding, headers, …) is ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CentrifugoSubscribeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The decision. ALWAYS 200 — inspect the body, never the status. `{\"result\":{}}` allows the subscription; `{\"error\":{...}}` refuses it. A malformed or absent JSON body is not an error either: it parses to `{}` and is answered with the `403 forbidden` deny body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CentrifugoSubscribeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWE",
+        "description": "The access token from POST /auth/token or /auth/refresh, sent as `Authorization: Bearer <token>`. next-auth's `getToken` reads this header when no cookie is present, which is what lets a native client reuse the web pipeline unchanged. Access tokens last 15 minutes; refresh before they expire."
+      }
+    },
+    "schemas": {
+      "NativeTokens": {
+        "type": "object",
+        "title": "NativeTokens",
+        "description": "The token pair. POST /auth/token and POST /auth/refresh return the identical shape, so a client needs one type for both.",
+        "required": [
+          "tokenType",
+          "accessToken",
+          "expiresAt",
+          "expiresIn",
+          "refreshToken",
+          "refreshExpiresAt"
+        ],
+        "properties": {
+          "tokenType": {
+            "type": "string",
+            "const": "Bearer",
+            "description": "Always \"Bearer\". Send the access token as `Authorization: Bearer <accessToken>`."
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "OPAQUE to the client. It is a next-auth JWE (`alg=dir`, `enc=A256GCM`) — the payload is encrypted, so `exp` and every other claim are unreadable client-side. Never try to parse it; use `expiresAt`/`expiresIn`. Lifetime is 15 minutes (900s), deliberately short because the edge middleware honours only `exp` and never checks revocation."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When `accessToken` expires. RFC 3339, UTC `Z`, SECOND precision — fractional seconds are stripped server-side because Swift's `JSONDecoder.DateDecodingStrategy.iso8601` rejects them. Truncation rounds DOWN, so the value is never later than the real expiry.",
+            "examples": ["2026-09-24T09:15:00Z"]
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Seconds until `accessToken` expires, floored. Currently always ~900. Provided so a client doing its own clock arithmetic need not parse a date.",
+            "examples": [900]
+          },
+          "refreshToken": {
+            "type": ["string", "null"],
+            "description": "A NEW refresh token to store, or **null**.\n\nNull only ever comes from POST /auth/refresh and means \"keep the token you already have\": the call landed inside the 60-second grace window, or it lost the compare-and-swap race against a concurrent refresh. The server stores only a hash and genuinely cannot hand back the current plaintext in that case.\n\nNull is used rather than an empty string precisely because a falsy-but-present value is what ends up written to a keychain. From POST /auth/token this is always a non-null string."
+          },
+          "refreshExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Advertised refresh-token expiry: always computed as now + 30 days, on EVERY response including refreshes that rotated nothing. It is NOT the server's real deadline — see the notes. The authoritative limit is the session row's expiry, fixed at sign-in + 30 days and never extended.",
+            "examples": ["2026-10-24T09:00:00Z"]
+          }
+        }
+      },
+      "NativeTokensResponse": {
+        "type": "object",
+        "title": "NativeTokensResponse",
+        "description": "The v1 success envelope around a token pair. Every successful v1 body is `{\"data\": <T>}` — there is no unwrapped form.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/NativeTokens"
+          }
+        }
+      },
+      "AuthTokenRequest": {
+        "type": "object",
+        "title": "AuthTokenRequest",
+        "description": "Sign-in credentials. Both fields are functionally required, but omitting either produces a 401, never a validation error.",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Lower-cased and trimmed server-side before lookup, so casing and surrounding whitespace do not matter.",
+            "examples": ["player@example.com"]
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Plaintext over TLS; compared with bcrypt. Failure paths burn equal time whether or not the account exists."
+          }
+        }
+      },
+      "AuthRefreshRequest": {
+        "type": "object",
+        "title": "AuthRefreshRequest",
+        "description": "The refresh token most recently stored by the client.",
+        "required": ["refreshToken"],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The refresh token from the last sign-in or the last refresh that returned a non-null one. An empty string is rejected with 400, not 401."
+          }
+        }
+      },
+      "AuthLogoutRequest": {
+        "type": "object",
+        "title": "AuthLogoutRequest",
+        "description": "Optional logout scope. An absent or unparseable body means this device only.",
+        "properties": {
+          "everywhere": {
+            "type": "boolean",
+            "default": false,
+            "description": "True revokes every session for the user and bumps the user's session version, which reaches devices that are offline and tokens minted by instances that have since died. Default (false/absent) signs out only the session behind the presented token — \"log out\" on a phone means this phone."
+          }
+        }
+      },
+      "SportType": {
+        "type": "string",
+        "description": "Prisma `SportType`. The server does NOT validate this value before handing it to the query layer, so a value outside this enum produces a 500, not a 400.",
+        "enum": [
+          "TENNIS",
+          "PADEL",
+          "BADMINTON",
+          "TABLE_TENNIS",
+          "BEACH_TENNIS",
+          "PICKLEBALL",
+          "FOOTBALL5",
+          "FOOTBALL",
+          "BASKETBALL",
+          "VOLLEYBALL",
+          "BEACH_VOLLEYBALL",
+          "HANDBALL",
+          "CHESS",
+          "ESPORTS",
+          "RUNNING",
+          "CYCLING"
+        ]
+      },
+      "VenueSummary": {
+        "type": "object",
+        "description": "Card-sized venue, as produced by `toVenueSummary`. Only ACTIVE venues are ever returned.",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "city",
+          "country",
+          "avgRating",
+          "reviewCount",
+          "sports",
+          "fromPriceCents",
+          "coverPhotoUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "cuid, globally unique. This is the identifier clients follow; `GET /venues/{id}` takes it."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Unique only WITHIN a tenant (`@@unique([tenantId, slug])`), so two clubs may share one. Not addressable on the public API."
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2, defaults to \"BG\"."
+          },
+          "avgRating": {
+            "type": "number",
+            "description": "Denormalised average review score, Decimal(2,1) coerced to a JSON number at the DTO boundary. 0 when there are no reviews."
+          },
+          "reviewCount": {
+            "type": "integer"
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "Distinct sports over the venue's ACTIVE resources. On the list endpoint it is derived from at most 20 resources (the list query's `take: 20`), so a venue with more may report fewer sports there than on `GET /venues/{id}`."
+          },
+          "fromPriceCents": {
+            "type": ["integer", "null"],
+            "description": "Lowest `basePriceCents` among ACTIVE resources, in integer CENTS. Null — never 0 — when the venue has no active bookable resource. The currency is NOT carried on the summary; it only appears per-resource on the availability response."
+          },
+          "coverPhotoUrl": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "VenueResource": {
+        "type": "object",
+        "description": "One bookable resource (court, field, table, lobby, route) as embedded in `VenueDetail`. ACTIVE only, ordered by name, capped at 50.",
+        "required": ["id", "name", "sport", "surface", "isIndoor", "basePriceCents"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/SportType"
+          },
+          "surface": {
+            "type": ["string", "null"],
+            "description": "`CourtSurface`: CLAY | HARD | GRASS | ARTIFICIAL_GRASS | CARPET | WOOD | CONCRETE. Typed nullable by the DTO and therefore modelled nullable, although the column is currently NOT NULL."
+          },
+          "isIndoor": {
+            "type": "boolean"
+          },
+          "basePriceCents": {
+            "type": "integer",
+            "description": "Integer CENTS, before pricing rules. The currency is not on this object — read it from the matching resource in the availability response."
+          }
+        }
+      },
+      "VenueDetail": {
+        "type": "object",
+        "description": "Full public venue, as produced by `toVenueDetail`. Written out in full rather than as an allOf of VenueSummary so generated clients get one flat struct. Deliberately absent: `email`, `tenantId`, `cancellationPolicyJson`, `amenityIds`, `geog`, `createdAt`, `updatedAt`. Photos and amenities are loaded by the query but NOT serialised by the DTO.",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "city",
+          "country",
+          "avgRating",
+          "reviewCount",
+          "sports",
+          "fromPriceCents",
+          "coverPhotoUrl",
+          "description",
+          "addressLine",
+          "lat",
+          "lng",
+          "timezone",
+          "phone",
+          "openingHours",
+          "resources"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Unique only within a tenant; not a public identifier."
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "avgRating": {
+            "type": "number"
+          },
+          "reviewCount": {
+            "type": "integer"
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "Distinct sports over the ACTIVE resources listed below (capped at 50 here)."
+          },
+          "fromPriceCents": {
+            "type": ["integer", "null"],
+            "description": "Lowest `basePriceCents` among ACTIVE resources, integer CENTS; null when there are none."
+          },
+          "coverPhotoUrl": {
+            "type": ["string", "null"]
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Plaintext. The schema comment claims \"encrypted at rest\"; nothing encrypts or decrypts this column today, so it is returned as stored."
+          },
+          "addressLine": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number",
+            "description": "WGS-84. Decimal(10,7) in the database, coerced to a JSON number at the DTO boundary — it is a number on the wire, not a string."
+          },
+          "lng": {
+            "type": "number",
+            "description": "WGS-84, coerced to a JSON number. See `lat`."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone, e.g. \"Europe/Sofia\". This is the zone `?date=` on the availability endpoint is resolved in."
+          },
+          "phone": {
+            "type": ["string", "null"]
+          },
+          "openingHours": {
+            "description": "The venue's `openingHoursJson` column, passed through verbatim. No shape is enforced anywhere in the codebase and nothing else reads it; the column default is `{}`. Modelled as free-form JSON on purpose — do not generate a typed struct for it."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueResource"
+            }
+          }
+        }
+      },
+      "VenueSummaryPage": {
+        "type": "object",
+        "description": "The `data` of a paged venue response (`page()` in _lib/envelope.ts).",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueSummary"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "Opaque; pass back verbatim as `?cursor=`. Null on the last page. (It is currently the last item's venue id — keyset pagination on `id asc` — but clients must not parse it.)"
+          }
+        }
+      },
+      "NearVenue": {
+        "type": "object",
+        "description": "A venue from the geo search. NOT a `VenueSummary`: it adds `distanceKm` and omits `sports`, `fromPriceCents` and `coverPhotoUrl`. A client that needs those must fetch `GET /venues/{id}`.",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "city",
+          "country",
+          "distanceKm",
+          "avgRating",
+          "reviewCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "distanceKm": {
+            "type": "number",
+            "description": "Great-circle distance from the query point, computed with PostGIS `geography` and rounded to one decimal place."
+          },
+          "avgRating": {
+            "type": "number"
+          },
+          "reviewCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "NearVenueResult": {
+        "type": "object",
+        "description": "The `data` of `GET /venues/near`. The echoed `radiusKm` and `maxResults` are part of the contract: a caller that asked for 500 km and got 50 must be able to tell, rather than rendering \"nothing within 500 km\".",
+        "required": ["venues", "radiusKm", "maxResults", "paginated"],
+        "properties": {
+          "venues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NearVenue"
+            },
+            "description": "Ordered by ascending distance."
+          },
+          "radiusKm": {
+            "type": "number",
+            "description": "The radius ACTUALLY used after clamping, not the one requested. Max 50, default 10."
+          },
+          "maxResults": {
+            "type": "integer",
+            "description": "Server ceiling on `venues.length` (currently 50)."
+          },
+          "paginated": {
+            "type": "boolean",
+            "description": "Always false. This endpoint has no page two by design — a distance-ordered cursor is unstable once the caller moves. Widen `radiusKm` instead."
+          }
+        }
+      },
+      "AvailabilitySlot": {
+        "type": "object",
+        "description": "One candidate booking window. Half-open [startTs, endTs); its length is the resource's `minBookingMinutes`, and consecutive slots are `slotStepMinutes` apart, so slots OVERLAP whenever the step is smaller than the minimum booking.",
+        "required": ["startTs", "endTs", "priceCents", "available"],
+        "properties": {
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 UTC, no fractional seconds (e.g. \"2026-09-24T09:00:00Z\")."
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 UTC, no fractional seconds."
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Integer CENTS for this slot after pricing rules are applied, in the parent resource's `currency`."
+          },
+          "available": {
+            "type": "boolean",
+            "description": "False when a PENDING or CONFIRMED booking overlaps. Unavailable slots are returned deliberately, so the client can grey them out rather than making the club look shut."
+          },
+          "blockedReason": {
+            "type": "string",
+            "description": "Present ONLY when `available` is false. Currently always the literal \"booked\"."
+          }
+        }
+      },
+      "ResourceSlots": {
+        "type": "object",
+        "description": "One ACTIVE resource and its materialised slots for the requested window.",
+        "required": [
+          "resourceId",
+          "name",
+          "sport",
+          "currency",
+          "minBookingMinutes",
+          "slotStepMinutes",
+          "slots"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/SportType"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217, e.g. \"EUR\". The unit for every `priceCents` under this resource."
+          },
+          "minBookingMinutes": {
+            "type": "integer",
+            "description": "Length of each slot below."
+          },
+          "slotStepMinutes": {
+            "type": "integer",
+            "description": "Spacing between consecutive slot starts."
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AvailabilitySlot"
+            },
+            "description": "May be empty when the resource is closed for the whole window. Ordered by day, then by start time within each opening window."
+          }
+        }
+      },
+      "VenueAvailability": {
+        "type": "object",
+        "description": "The `data` of `GET /venues/{id}/availability`.",
+        "required": ["venueId", "venueName", "timezone", "from", "to", "resources"],
+        "properties": {
+          "venueId": {
+            "type": "string"
+          },
+          "venueName": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone of the venue. The client needs it to render \"09:00\" instead of doing UTC arithmetic — and it is the zone `?date=` was resolved in."
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start of the window the server actually resolved, RFC 3339 UTC with no fractional seconds. Echoed because the resolution depends on the venue's timezone and on defaults the client did not send."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Exclusive end of the resolved window, RFC 3339 UTC with no fractional seconds."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceSlots"
+            },
+            "description": "ACTIVE resources of the venue (capped at 50), ordered by name; narrowed to one when `?resourceId=` is given. EMPTY when the venue has no active resource, or when `resourceId` matches none — that is a 200, not a 404."
+          }
+        }
+      },
+      "Booking": {
+        "type": "object",
+        "title": "Booking",
+        "description": "The v1 booking wire shape, produced by `toBooking` in `src/app/api/v1/_lib/dto.ts`. The venue is deliberately FLATTENED out of the resource, so a client never has to know that the venue hangs off the resource in the database schema. Every field listed is always present; nullables are explicit nulls, never omitted keys.",
+        "required": [
+          "id",
+          "status",
+          "startTs",
+          "endTs",
+          "totalCents",
+          "currency",
+          "expiresAt",
+          "cancelledAt",
+          "createdAt",
+          "resource",
+          "venue"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Booking id. Also the value used as a pagination cursor."
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle state. Known values: `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `NO_SHOW`. Deliberately typed as an open string rather than a closed enum — a shipped iOS binary decoding a closed enum would fail outright on a status added later, and this codebase cannot hotfix a binary for a week. Treat an unrecognised value as \"unknown\" rather than failing the decode."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start instant, RFC 3339 in UTC with NO fractional seconds (e.g. `2026-09-24T09:00:00Z`). Swift's default `.iso8601` strategy REJECTS fractional seconds, which is why the server strips them."
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End instant, RFC 3339 UTC with no fractional seconds."
+          },
+          "totalCents": {
+            "type": "integer",
+            "description": "The full booking price in integer CENTS of `currency`. Never a float, never a string. Computed server-side at creation and written down; it does not change afterwards."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code for `totalCents`, e.g. `EUR` (the column default). Upper-case."
+          },
+          "expiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When a PENDING booking stops holding its slot — 15 minutes after creation. `null` once the booking is no longer merely held (confirmed, cancelled). A client should count down against this and stop offering payment when it passes."
+          },
+          "cancelledAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the booking was cancelled, or `null` if it was not."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the booking was created. RFC 3339 UTC, no fractional seconds."
+          },
+          "resource": {
+            "type": "object",
+            "description": "The court/pitch/table booked. Trimmed deliberately: no price, no status, no tenant id.",
+            "required": ["id", "name", "sport"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Resource id — the same value passed as `resourceId` when creating a booking."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name, e.g. `Court 1`."
+              },
+              "sport": {
+                "type": "string",
+                "description": "Sport code for the resource."
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "description": "The club/venue, lifted out of the resource so the wire shape survives a schema change that moves the relation.",
+            "required": ["id", "name", "timezone"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Venue id."
+              },
+              "name": {
+                "type": "string",
+                "description": "Venue display name."
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone, e.g. `Europe/Sofia`. The client needs it to render `startTs` as local wall-clock time rather than doing UTC arithmetic."
+              }
+            }
+          }
+        }
+      },
+      "BookingEnvelope": {
+        "type": "object",
+        "title": "BookingEnvelope",
+        "description": "The success envelope for a single booking. Every v1 success body is an object from the first commit — a bare value has nowhere to grow a cursor or a deprecation notice without breaking binaries already in the field.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Booking"
+          }
+        }
+      },
+      "BookingPage": {
+        "type": "object",
+        "title": "BookingPage",
+        "description": "One keyset page of bookings.",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "The bookings on this page, newest `startTs` first. May be empty.",
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "OPAQUE. Pass back verbatim as the `cursor` query parameter to fetch the next page; never parse it. `null` means this is the last page. (It is currently the last item's `id`, but that is an implementation detail a client must not rely on.)"
+          }
+        }
+      },
+      "BookingPageEnvelope": {
+        "type": "object",
+        "title": "BookingPageEnvelope",
+        "description": "The paginated success envelope: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`. Note the DOUBLE nesting — a client generated against the unwrapped page shape cannot decode this at all.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingPage"
+          }
+        }
+      },
+      "CreateBookingRequest": {
+        "type": "object",
+        "title": "CreateBookingRequest",
+        "description": "Which slot to book. It carries NO price: the server prices the span itself from the resource's base price, opening windows and pricing rules, so a client cannot book a €24 court for one cent. Any price-shaped field sent here is silently ignored. Unknown properties are ignored rather than rejected.",
+        "required": ["resourceId", "startTs", "endTs"],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The resource (court, pitch, table) to book. Must be an ACTIVE resource at an ACTIVE venue belonging to `{slug}`; anything else is a 404. A missing, non-string or blank value is a 400 with `details.field = \"resourceId\"`."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start instant, RFC 3339. Parsed with `new Date(...)`; anything that does not parse is a 400 with `details.field = \"startTs\"`. Must land exactly on the resource's step grid measured FROM THE OPENING TIME (a club opening at 09:15 with 30-minute steps offers 09:15 and 09:45, never 09:30), and must not be an ambiguous local wall clock on a DST fall-back day."
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End instant, RFC 3339. Must be after `startTs`, a whole number of minutes later, at least `minBookingMinutes`, at most `maxBookingMinutes`, a whole multiple of `minBookingMinutes`, no more than 4 hours in total, and inside the SAME opening window as `startTs` (a span bridging a lunchtime closure is two bookings, not one)."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Optional free-text note stored on the booking. A non-string value is silently coerced to `null` rather than rejected. No length limit is enforced at this route."
+          }
+        }
+      },
+      "CancelBookingRequest": {
+        "type": "object",
+        "title": "CancelBookingRequest",
+        "description": "Optional cancellation body. The whole body may be omitted.",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Free-text reason, recorded on the Cancellation receipt and on the booking. A non-string value is ignored (treated as no reason). Not shown to the player anywhere in this response."
+          }
+        }
+      },
+      "CancelQuote": {
+        "type": "object",
+        "title": "CancelQuote",
+        "description": "What the cancellation receipt says. The percentage is RESOLVED AND WRITTEN DOWN at cancellation time, not recomputed later — the club may change its policy next month, and this receipt must not change with it. No money is moved by the cancel call itself.",
+        "required": ["bookingId", "refundPercent", "refundAmountCents", "reason"],
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "description": "The booking that was cancelled."
+          },
+          "refundPercent": {
+            "type": "integer",
+            "description": "The policy band that applied, as a whole percentage. Currently one of `100` (cancelled at or before the club's full-refund deadline), `50` (at or before the half-refund deadline), or `0` (later than that)."
+          },
+          "refundAmountCents": {
+            "type": "integer",
+            "description": "The refund due, in integer CENTS of the booking's currency. 50% of an odd total is ROUNDED, not floored. This is a QUOTE: the booking is cancelled, but the Stripe refund is a separate operation — do not tell the user the money has been returned."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why that band applied, as a human-readable string built server-side, e.g. `26.0h before start (>= 24h)` or `3.2h before start (< 12h)`. NOT the `reason` the client sent in the request body, and not machine-parseable — display it or ignore it."
+          }
+        }
+      },
+      "CancelQuoteEnvelope": {
+        "type": "object",
+        "title": "CancelQuoteEnvelope",
+        "description": "The success envelope wrapping the cancellation quote: `{\"data\": CancelQuote}`.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CancelQuote"
+          }
+        }
+      },
+      "CheckoutRequest": {
+        "type": "object",
+        "title": "CheckoutRequest",
+        "description": "Optional checkout body. The whole body may be omitted, which means card-only.",
+        "properties": {
+          "useWallet": {
+            "type": "boolean",
+            "default": false,
+            "description": "Spend the player's club credit before charging the card. ONLY the literal JSON `true` enables it — `\"true\"`, `1`, `false`, a missing field, a missing body and an unparseable body all mean card-only. This strictness is deliberate: spending someone's credit because a field was omitted would take a decision that is theirs. Credit is capped at the booking total and at the available balance, so it can never overspend."
+          }
+        }
+      },
+      "CheckoutSession": {
+        "type": "object",
+        "title": "CheckoutSession",
+        "description": "Everything the client needs to finish paying — or to know that there is nothing left to pay. Branch on `confirmed` first.",
+        "required": [
+          "bookingId",
+          "walletAppliedCents",
+          "cardDueCents",
+          "paymentIntentId",
+          "clientSecret",
+          "publishableKey",
+          "confirmed"
+        ],
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "description": "Echo of the `{id}` path parameter."
+          },
+          "walletAppliedCents": {
+            "type": "integer",
+            "description": "How much club credit was spent, in integer CENTS. `0` when `useWallet` was not `true` or the balance was empty. Already debited from the ledger by the time this response is returned. Show it alongside `cardDueCents` so the user sees why the card amount is less than the booking price."
+          },
+          "cardDueCents": {
+            "type": "integer",
+            "description": "How much is still to be charged to a card, in integer CENTS. `walletAppliedCents + cardDueCents` equals the booking's `totalCents`. `0` means credit covered everything."
+          },
+          "paymentIntentId": {
+            "type": ["string", "null"],
+            "description": "The Stripe PaymentIntent id, or `null` when `cardDueCents` is 0 (no zero-amount intent is created — Stripe rejects those). Also stored on the booking for reconciliation."
+          },
+          "clientSecret": {
+            "type": ["string", "null"],
+            "description": "The PaymentIntent client secret for the PaymentSheet. `null` when `cardDueCents` is 0. Can also be `null` in the unlikely event Stripe returns an intent without one — treat a `null` secret with `confirmed: false` as a failure to present the sheet, not as success."
+          },
+          "publishableKey": {
+            "type": ["string", "null"],
+            "description": "The Stripe publishable key, returned here so the app needs neither a second config endpoint nor a rebuild to follow a key rotation. `null` if the server has no key configured — with `confirmed: false` that means the PaymentSheet cannot be presented."
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "`true` when `cardDueCents` is 0: credit covered the whole price and this call has ALREADY confirmed the booking inline (through the same path the Stripe webhook uses). **Do not present a PaymentSheet** — go to the success screen. `false` means a card charge is still outstanding; present the sheet, and treat the booking as confirmed only once Stripe reports success. This response by itself never means \"card paid\"."
+          }
+        }
+      },
+      "CheckoutSessionEnvelope": {
+        "type": "object",
+        "title": "CheckoutSessionEnvelope",
+        "description": "The success envelope wrapping the checkout result: `{\"data\": CheckoutSession}`.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CheckoutSession"
+          }
+        }
+      },
+      "TenantMeResponse": {
+        "type": "object",
+        "description": "Success envelope produced by `ok(data)`. The payload is always under `data`; there is no unwrapped form.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TenantMe"
+          }
+        }
+      },
+      "TenantMe": {
+        "type": "object",
+        "required": ["user", "tenant", "membership", "tokenStale"],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/TenantMeUser"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/TenantMeTenant"
+          },
+          "membership": {
+            "$ref": "#/components/schemas/TenantMeMembership"
+          },
+          "tokenStale": {
+            "type": "boolean",
+            "description": "True when the bearer token's claims disagree with the database for this club — either the token's tenant id differs from the club's, or the token's role differs from the role actually held (a token carrying no membership for this slug also reports true). Not an error: the rest of this payload is authoritative. The correct client response is to refresh the access token, because the edge middleware authorises mutations from claims alone and will otherwise keep working from the stale role. It cannot clear itself; only a refresh clears it."
+          }
+        }
+      },
+      "TenantMeUser": {
+        "type": "object",
+        "required": ["id", "email", "name", "locale"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque user id (cuid)."
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Display name. Null when the account has never set one."
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["bg", "en"],
+            "description": "The user's preferred locale, lowercase."
+          }
+        }
+      },
+      "TenantMeTenant": {
+        "type": "object",
+        "description": "The club the caller is a member of.",
+        "required": ["id", "slug", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque tenant id (cuid). Compare against nothing; it is returned so a client can key local state per club."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The slug used in `/t/{slug}/…`. Echoes the request path."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable club name."
+          }
+        }
+      },
+      "TenantMeMembership": {
+        "type": "object",
+        "description": "The caller's membership AT THIS CLUB, read from the database — never from token claims.",
+        "required": ["role", "status", "permissions", "joinedAt"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["OWNER", "MANAGER", "COACH", "STAFF", "PLAYER"],
+            "description": "The role held at this club, and only this club. A user may hold a different role at every club they belong to."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["INVITED", "ACTIVE", "SUSPENDED", "EXPIRED"],
+            "description": "Membership status. In practice only `ACTIVE` is ever returned: the query filters on it, and any other status produces a 404. The other values are the field's domain, present so the enum does not have to change if the filter is relaxed."
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Dotted permission strings derived server-side from `role` at this club. Not an open set in practice, but treat unknown values as opaque strings rather than failing to decode: permissions are added over time. Known values today: admin.venue_manage, admin.staff_manage, admin.pricing_manage, admin.billing_manage, admin.owner_management, admin.tenant_lifecycle, sso.manage, bookings.create, bookings.cancel, bookings.refund, bookings.view_all, courts.manage, availability.manage, coaches.list, coaches.manage_own_calendar, coaches.book, openplay.host, openplay.join, openplay.moderate, players.view, players.credit_adjust, payments.refund, payments.view.",
+            "items": {
+              "type": "string"
+            },
+            "examples": [
+              [
+                "bookings.create",
+                "bookings.cancel",
+                "coaches.list",
+                "coaches.book",
+                "openplay.join"
+              ]
+            ]
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the membership was accepted, falling back to when it was created. RFC 3339, UTC, with NO fractional seconds — decodable by Swift's default `.iso8601` strategy.",
+            "examples": ["2026-09-24T09:00:00Z"]
+          }
+        }
+      },
+      "ConnectOnboardingStartResponse": {
+        "type": "object",
+        "description": "Success envelope produced by `ok(data)`. The payload is always under `data`; there is no unwrapped form.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConnectOnboardingStart"
+          }
+        }
+      },
+      "ConnectOnboardingStart": {
+        "type": "object",
+        "required": ["stripeAccountId", "onboardingUrl", "payoutsEnabled", "created"],
+        "properties": {
+          "stripeAccountId": {
+            "type": "string",
+            "description": "The club's Stripe Express connected account id. Stable across calls once created.",
+            "examples": ["acct_1PqReSTuVwXyZ012"]
+          },
+          "onboardingUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Stripe-hosted onboarding URL to send the club admin to. Single-use and short-lived — a fresh one is minted on every call, so it must not be cached, persisted or shared. Stripe returns the admin to `/t/{slug}/settings/payouts?onboarding=complete`, or to `?onboarding=refresh` if the link expired (which should trigger a new call to this endpoint)."
+          },
+          "payoutsEnabled": {
+            "type": "boolean",
+            "description": "Whether Stripe has actually approved the club for payouts. NOT set by this call — it is echoed from the stored venue row and only ever flipped to true by Stripe's `account.updated` webhook. It is normally false in this response even on a successful onboarding start, and finishing Stripe's form does not change it. Never treat a 200 from this endpoint as \"payouts are live\"."
+          },
+          "created": {
+            "type": "boolean",
+            "description": "True when this call created the Stripe connected account; false when it reused an existing one and only minted a new link."
+          }
+        }
+      },
+      "EntraMappableRole": {
+        "type": "string",
+        "enum": ["MANAGER", "COACH", "STAFF", "PLAYER"],
+        "description": "A club role an Entra security group may be mapped to.\n\nOWNER is deliberately absent (ENTRA_MAPPABLE_ROLES in src/app-layer/schemas/entra-group-mapping.ts is `every Role except OWNER`). OWNER carries `admin.tenant_lifecycle` (suspend or close the club) and `admin.owner_management` (change who owns it); a mapping that granted it would make club ownership transferable by editing an Active Directory group, by directory administrators outside this application who have no way of knowing what the role means here.\n\nThe refusal is repeated four times: this Zod enum, `assertMappable` in the use case, the sync's OWNER-immunity check, and a CHECK constraint in migration P27. Sending `\"OWNER\"` to this API is rejected by the Zod enum FIRST, so the response is 400 with code `BAD_REQUEST` (not `ROLE_NOT_MAPPABLE`) — see the 400 response description."
+      },
+      "EntraGroupMapping": {
+        "type": "object",
+        "description": "One Entra group → role mapping, as produced by `toGroupMapping` in src/app/api/v1/_lib/dto.ts. Every property is always present; `aadGroupName` is nullable rather than omitted.",
+        "required": [
+          "id",
+          "aadGroupId",
+          "aadGroupName",
+          "role",
+          "priority",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Server-generated identifier (Prisma `@default(cuid())`) — a cuid, NOT a UUID. Treat it as an opaque string.",
+            "examples": ["clz3k9q1p0001s601f8m2h7xa"]
+          },
+          "aadGroupId": {
+            "type": "string",
+            "description": "The Entra security-group object id. Always LOWER CASE here: the create schema lower-cases on the way in, so this can differ from the string the client sent (an admin pasting an upper-cased GUID from a portal gets it back lower-cased). Compare case-insensitively, or re-read this value after a write.",
+            "examples": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
+          },
+          "aadGroupName": {
+            "type": ["string", "null"],
+            "description": "Cached Microsoft Graph display name. Cosmetics only — the sync never matches on it, because a group can be renamed in the directory at any time and this copy would then be a lie that looks authoritative. Null when never supplied.",
+            "examples": ["Coaching staff"]
+          },
+          "role": {
+            "$ref": "#/components/schemas/EntraMappableRole"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000,
+            "description": "Higher wins when a user is in several mapped groups. Admin-set, never derived from role seniority: a club may deliberately want a narrow group to beat a broad one (\"everyone\" → PLAYER at 0, \"coaching staff\" → COACH at 100)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC, with NO fractional seconds (`rfc3339()` strips the milliseconds `toISOString()` emits, because Swift's `.iso8601` decoding strategy rejects them).",
+            "examples": ["2026-09-24T09:00:00Z"]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC, no fractional seconds. Maintained by Prisma `@updatedAt`.",
+            "examples": ["2026-09-24T09:00:00Z"]
+          }
+        }
+      },
+      "EntraGroupMappingEnvelope": {
+        "type": "object",
+        "description": "The v1 success envelope around a single mapping: `ok(data)` emits `{\"data\": <T>}`. There is no top-level bare object on any v1 route.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EntraGroupMapping"
+          }
+        }
+      },
+      "EntraGroupMappingListEnvelope": {
+        "type": "object",
+        "description": "The list response. NOTE: this route calls `ok(array)`, not `page()` — `data` is a bare ARRAY, with no `items`/`nextCursor` object. Do not generate a paginated decoder for it.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntraGroupMapping"
+            },
+            "description": "Ordered by `priority` DESC, then `createdAt` ASC. Hard-capped server-side at 200 rows with no cursor and no indication of truncation — deliberate: a club with more mapped groups than that has a configuration problem, not a pagination problem."
+          }
+        }
+      },
+      "EntraGroupMappingCreate": {
+        "type": "object",
+        "description": "Request body for creating a mapping (`EntraGroupMappingCreateSchema`). Unknown properties are stripped, not rejected.",
+        "required": ["aadGroupId", "role"],
+        "properties": {
+          "aadGroupId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "The Entra security-group OBJECT ID — a GUID, never a display name. Validated with Zod 4 `z.string().uuid()`, which is RFC 9562-strict: the version nibble must be 1–8 and the variant nibble 8/9/a/b (the nil and max UUIDs are also accepted). A display name here would silently never match any `groups` claim and the mapping would look configured while doing nothing, which is why this is validated rather than accepted as free text.\n\nAccepted in any case and STORED LOWER-CASED; the response echoes the lower-cased form.",
+            "examples": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
+          },
+          "aadGroupName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Optional cached Graph display name. Trimmed first, then length-checked, so a whitespace-only string is a 400. Must be a string or omitted — explicit `null` is rejected (400). Omitted stores null.",
+            "examples": ["Coaching staff"]
+          },
+          "role": {
+            "$ref": "#/components/schemas/EntraMappableRole"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000,
+            "default": 0,
+            "description": "Optional; defaults to 0. Must be an integer in [0, 1000] — a float or a numeric string is a 400."
+          }
+        }
+      },
+      "EntraGroupMappingUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Request body for a partial update (`EntraGroupMappingUpdateSchema`). At least one of the three properties must be present: an empty object is rejected with 400 (\"At least one field must be provided\") rather than returning 200 having changed nothing, because an empty PATCH is a client bug that would otherwise read as success.\n\n`aadGroupId` is NOT updatable — it is absent from the update schema, so unknown keys are stripped and a body containing only `aadGroupId` parses to `{}` and fails the same 400. Re-point a group by deleting the mapping and creating a new one.",
+        "properties": {
+          "aadGroupName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Trimmed, then length-checked. There is NO way to clear a name back to null through this API: `null` is rejected by the schema, and an omitted property leaves the stored value untouched."
+          },
+          "role": {
+            "$ref": "#/components/schemas/EntraMappableRole"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        }
+      },
+      "RealtimeTokenEnvelope": {
+        "type": "object",
+        "description": "The success envelope produced by `ok(data)`. The payload is under `data`; nothing is returned at the top level.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RealtimeToken"
+          }
+        }
+      },
+      "RealtimeToken": {
+        "type": "object",
+        "description": "A Centrifugo connection credential and where to spend it.",
+        "required": ["token", "expiresInSeconds", "url"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "HS256 JWT, three base64url segments. Its claims are exactly `sub`, `iat` and `exp` — no channel grants, no role, no tenant.",
+            "examples": ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbHg...ifQ.9mV1r_Qq0tE"]
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "description": "Lifetime of `token` in SECONDS from issuance (currently 900). This is a duration, not a timestamp. Refresh before it elapses: a minted token cannot be revoked, so this value is the revocation window.",
+            "examples": [900]
+          },
+          "url": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "The public Centrifugo WebSocket URL, from `NEXT_PUBLIC_CENTRIFUGO_URL`. NULL when that variable is unset on the server — the token is still minted and the response is still 200, so a client must handle null rather than assume a URL is always present.",
+            "examples": ["wss://realtime.playerz.bg/connection/websocket"]
+          }
+        }
+      },
+      "RateLimitError": {
+        "type": "object",
+        "description": "The 429 body emitted by the shared rate-limit middleware. It resembles the canonical error envelope but is NOT the same shape: `requestId` is absent, and `retryAfterSeconds` and `scope` sit directly on `error` rather than under `details`. Decode it as its own type.",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message", "retryAfterSeconds", "scope"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Always `RATE_LIMITED`.",
+                "examples": ["RATE_LIMITED"]
+              },
+              "message": {
+                "type": "string",
+                "examples": ["Too many requests. Retry after 12 seconds."]
+              },
+              "retryAfterSeconds": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Mirrors the `Retry-After` header.",
+                "examples": [12]
+              },
+              "scope": {
+                "type": "string",
+                "description": "The limiter bucket that blocked the request.",
+                "examples": ["api-mutation"]
+              }
+            }
+          }
+        }
+      },
+      "CentrifugoSubscribeRequest": {
+        "type": "object",
+        "description": "What Centrifugo POSTs to the subscribe proxy. `user` is a claim from the BROKER, not from the browser: Centrifugo derived it from the JWT this server signed, and the shared header secret is what makes it trustworthy. Additional properties are permitted and ignored.",
+        "additionalProperties": true,
+        "required": ["user", "channel"],
+        "properties": {
+          "user": {
+            "type": "string",
+            "description": "The connecting user's id (a cuid). Marked required because Centrifugo always sends it; at runtime a missing, empty or non-string value is not a 4xx — it is answered HTTP 200 with the `403 forbidden` deny body, since every channel this server issues is personal and none is subscribable anonymously.",
+            "examples": ["clx8h2k9d0001qz7r4t6m2v8p"]
+          },
+          "channel": {
+            "type": "string",
+            "description": "The channel being joined. Recognised shapes: `conv:<cuid>`, `notif:<cuid>`, `presence:user:<cuid>`. Marked required because Centrifugo always sends it; a missing or unrecognised value is answered HTTP 200 with the `403 forbidden` deny body.",
+            "examples": [
+              "conv:clx8h2k9d0001qz7r4t6m2v8p",
+              "notif:clx8h2k9d0001qz7r4t6m2v8p",
+              "presence:user:clx8h2k9d0001qz7r4t6m2v8p"
+            ]
+          }
+        }
+      },
+      "CentrifugoSubscribeResponse": {
+        "description": "Centrifugo's proxy decision. Exactly one of `result` or `error` is present; both arrive with HTTP status 200.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CentrifugoSubscribeAllow"
+          },
+          {
+            "$ref": "#/components/schemas/CentrifugoSubscribeDeny"
+          }
+        ]
+      },
+      "CentrifugoSubscribeAllow": {
+        "type": "object",
+        "description": "Subscription permitted.",
+        "required": ["result"],
+        "properties": {
+          "result": {
+            "type": "object",
+            "description": "Always the empty object. This server attaches no subscription options (no info, data or expire_at).",
+            "properties": {}
+          }
+        }
+      },
+      "CentrifugoSubscribeDeny": {
+        "type": "object",
+        "description": "Subscription refused. The reason is logged server-side and never disclosed here — every refusal is byte-identical, so the response cannot be used to probe whether a conversation exists.",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "integer",
+                "description": "An INTEGER, unlike the string `code` used in this API's own error envelope. 403 for every refusal decision; 503 when `CENTRIFUGO_PROXY_SECRET` is unset on the server, in which case every request is refused.",
+                "enum": [403, 503],
+                "examples": [403]
+              },
+              "message": {
+                "type": "string",
+                "description": "`forbidden` for 403, `proxy not configured` for 503.",
+                "examples": ["forbidden", "proxy not configured"]
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable machine-readable code. Branch on this, never on `message`."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable. Wording may change without notice."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "Correlates with the server's logs. Present on errors produced by the route wrapper; ABSENT on a few written inline by handlers (the 401 from /auth/token, the 400 and 401 from /auth/refresh). Treat it as optional."
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Present on some validation errors."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
