@@ -1,7 +1,7 @@
 import { readFileSync, existsSync, globSync } from 'node:fs';
 
 /**
- * EVERY ROUTE BINDS ITS DATABASE HANDLE.
+ * EVERY SERVER-SIDE ENTRY POINT BINDS ITS DATABASE HANDLE.
  *
  * ═══ THE OUTAGE THIS PREVENTS ═══
  *
@@ -20,8 +20,20 @@ import { readFileSync, existsSync, globSync } from 'node:fs';
  * Three routes shipped exactly this: /api/venues, /api/venues/near and the
  * Stripe webhook, which would have silently updated nothing.
  *
- * So: a route file may not import the singleton. It goes through one of the
- * three bindings, each of which states which RLS context it is asking for.
+ * So: a file under src/app may not import the singleton. It goes through one of
+ * the bindings, each of which states which RLS context it is asking for.
+ *
+ * ═══ WHY THIS SCANS PAGES TOO ═══
+ *
+ * It did not, and `/venues` — a server component, not a route — shipped the
+ * same defect and was found by hand rather than by this file. A page is an
+ * entry point like any other: it runs on the server, it reaches the same
+ * repositories, and an unbound read there renders an empty city instead of
+ * returning an empty JSON array.
+ *
+ * Pages do NOT use the bind.ts helpers, which take a RequestContext a page does
+ * not have. They call runInTenantContext / runAsSuperuser directly, which is
+ * why the check is on the binding rather than on a particular import.
  */
 
 const BINDINGS =
@@ -60,11 +72,58 @@ const ROUTES = globSync('src/app/api/**/route.ts')
   // `_lib` is a Next private folder and is never routed.
   .filter((f) => !f.includes('/_lib/'));
 
-describe('route database bindings', () => {
+/**
+ * Everything else under src/app: pages, layouts, and anything co-located with
+ * them. `.tsx` as well as `.ts`, deliberately — the query-shape ratchet globs
+ * `src/app/**\/*.ts` only, so `page.tsx` is invisible to that one, and a scan
+ * that stops at the extension is how a server component goes unread.
+ */
+const SERVER_COMPONENTS = globSync(['src/app/**/*.ts', 'src/app/**/*.tsx'])
+  .map((f) => f.toString())
+  .filter((f) => !f.includes('/api/'));
+
+const SCANNED = [...ROUTES, ...SERVER_COMPONENTS];
+
+/**
+ * Comment lines removed, so the binding check reads CODE.
+ *
+ * Not cosmetic: the fixed venues page explains its choice of binding in prose,
+ * and a scan over raw text would then accept that page even if the call itself
+ * were reverted to the singleton. Whole comment lines only — a `//` inside a
+ * string is left alone, because cutting there could delete a real call.
+ */
+function codeOnly(src: string): string {
+  let inBlock = false;
+
+  return src
+    .split('\n')
+    .filter((line) => {
+      const t = line.trim();
+      if (inBlock) {
+        if (t.includes('*/')) inBlock = false;
+        return false;
+      }
+      if (t.startsWith('/*')) {
+        if (!t.includes('*/')) inBlock = true;
+        return false;
+      }
+      return !t.startsWith('//') && !t.startsWith('*');
+    })
+    .join('\n');
+}
+
+describe('app-router database bindings', () => {
   it('the scan found the routes', () => {
     // A broken glob would make every assertion below vacuous.
     expect(ROUTES.length).toBeGreaterThan(5);
     expect(ROUTES).toContain('src/app/api/venues/route.ts');
+  });
+
+  it('the scan found the server components', () => {
+    // Same reason, and specifically the page that shipped the defect: a glob
+    // that silently matched nothing would pass every assertion below.
+    expect(SERVER_COMPONENTS.length).toBeGreaterThan(3);
+    expect(SERVER_COMPONENTS).toContain('src/app/(public)/venues/page.tsx');
   });
 
   it('every exemption points at a file that still exists', () => {
@@ -91,7 +150,7 @@ describe('route database bindings', () => {
     expect(route).not.toMatch(/prisma\.\w+\./);
   });
 
-  it.each(ROUTES.filter((f) => !EXEMPT_FILES.has(f)))(
+  it.each(SCANNED.filter((f) => !EXEMPT_FILES.has(f)))(
     '%s does not use the raw Prisma singleton',
     (file) => {
       const src = readFileSync(file, 'utf8');
@@ -103,26 +162,29 @@ describe('route database bindings', () => {
             `It will run with no RLS context: as a superuser in dev (every row), ` +
             `and as a least-privileged role in production (permission denied, or ` +
             `zero rows with no error).\n\n` +
-            `Use inTenant / asUser / asSuperuser from src/app/api/v1/_lib/bind.ts, ` +
-            `or runInTenantContext / runAsSuperuser directly. If this route ` +
+            `In a v1 route, use inTenant / asUser / asSuperuser from ` +
+            `src/app/api/v1/_lib/bind.ts. Elsewhere — a page, a layout, any other ` +
+            `route — call runInTenantContext / runAsSuperuser directly; the bind.ts ` +
+            `helpers take a RequestContext those do not have. If this file ` +
             `genuinely touches no table, add it to EXEMPT with the reason.`,
         );
       }
     },
   );
 
-  it.each(ROUTES.filter((f) => !EXEMPT_FILES.has(f)))(
+  it.each(SCANNED.filter((f) => !EXEMPT_FILES.has(f)))(
     '%s names the RLS context it wants',
     (file) => {
       const src = readFileSync(file, 'utf8');
 
-      // A route that touches no database at all is fine — health, metrics.
-      // One that does must say which context, rather than inheriting whatever
-      // the connection happens to be.
-      const touchesDb = /\b(db|prisma|tx)\b/.test(src) && /@\/app-layer|@\/lib\/db/.test(src);
+      // A file that touches no database at all is fine — health, metrics, and
+      // most pages. One that does must say which context, rather than
+      // inheriting whatever the connection happens to be.
+      const code = codeOnly(src);
+      const touchesDb = /\b(db|prisma|tx)\b/.test(code) && /@\/app-layer|@\/lib\/db/.test(code);
       if (!touchesDb) return;
 
-      expect(BINDINGS.test(src)).toBe(true);
+      expect(BINDINGS.test(code)).toBe(true);
     },
   );
 });
