@@ -90,6 +90,55 @@ export async function createConnectedAccount(input: {
   return account.id;
 }
 
+/**
+ * The venue as a CUSTOMER of ours — the other direction from the Connect
+ * account.
+ *
+ * Two different Stripe objects with opposite roles, and conflating them is
+ * the easy mistake here:
+ *
+ *   Account  — the club RECEIVES money. Destination charges settle into it.
+ *   Customer — the club PAYS us. Their plan subscription bills against it,
+ *              and `planTier` (and therefore our commission) follows from it.
+ *
+ * Created during onboarding rather than at upgrade time, because
+ * `handleSubscriptionUpserted` resolves the venue by `stripeCustomerId`. With
+ * no customer there is nothing to join on, which is precisely why the plan
+ * tier path shipped correct and unreachable: `invoice.paid` looked the venue
+ * up by a `stripeSubscriptionId` that nothing ever wrote, because nothing had
+ * a customer to subscribe.
+ *
+ * Every venue gets one whether or not they ever upgrade. A Stripe customer
+ * with no subscription costs nothing and is not billed.
+ */
+export async function createBillingCustomer(input: {
+  email: string;
+  venueName: string;
+  tenantId: string;
+  /**
+   * Stripe dedupes on this, and it is not optional — for the same reason the
+   * connected account needs one. Creating a customer is an external side
+   * effect our database cannot roll back, and two admins opening onboarding
+   * at once would otherwise leave an orphan in the dashboard that nothing in
+   * this application knows about.
+   */
+  idempotencyKey: string;
+}): Promise<string> {
+  const customer = await stripe().customers.create(
+    {
+      email: input.email,
+      name: input.venueName,
+      // So a human in the Stripe dashboard can get back to the tenant. Read by
+      // nothing — the join is on the id we store, never on metadata Stripe
+      // hands back to us unverified.
+      metadata: { tenantId: input.tenantId },
+    },
+    { idempotencyKey: input.idempotencyKey },
+  );
+
+  return customer.id;
+}
+
 export interface DestinationChargeInput {
   totalCents: number;
   currency: string;

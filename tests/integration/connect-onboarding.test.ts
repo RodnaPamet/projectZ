@@ -1,156 +1,122 @@
-import { NextRequest } from 'next/server';
+import type { PrismaClient } from '@prisma/client';
 
-import { POST as onboarding } from '@/app/api/v1/t/[slug]/connect/onboarding/route';
+import { startConnectOnboarding } from '@/app-layer/usecases/connect-onboarding';
+import { handleSubscriptionUpserted } from '@/lib/billing/webhook-handlers';
 
-import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
-import { findRequest, useMswServer } from '../helpers/msw';
+import { findRequest, recorded, useMswServer } from '../helpers/msw';
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
- * Stripe Connect onboarding — the piece without which the whole payment path
- * is unusable for real money.
+ * Onboarding creates BOTH Stripe objects, and they point opposite ways.
  *
- * `createConnectedAccount` and `createOnboardingLink` have both existed,
- * correct and complete, with zero call sites, so no venue could ever obtain a
- * `stripeAccountId` and `checkoutBooking` threw PayoutsNotEnabledError for
- * everyone.
+ *   Account  — the club RECEIVES money. Destination charges settle into it.
+ *   Customer — the club PAYS us. Their plan subscription bills against it,
+ *              and `planTier` — our commission — follows from it.
+ *
+ * Only the account was ever created. `stripeCustomerId` was declared on
+ * VenueOrg and written by nothing, so `handleSubscriptionUpserted` had
+ * nothing to resolve a venue by — which is why the plan tier path shipped
+ * correct and UNREACHABLE. The last test here is the one that matters: it
+ * closes that join end to end.
  */
-describe('POST /api/v1/t/:slug/connect/onboarding', () => {
+describe('Stripe Connect onboarding', () => {
+  const db = prismaTestClient();
   useMswServer();
 
-  const db = prismaTestClient();
-
   let tenant: SeededTenant;
-  let owner: TestIdentity;
-  let player: TestIdentity;
 
   beforeEach(async () => {
-    process.env.NEXTAUTH_URL = 'https://playerz.test';
-    tenant = await seedTenant({});
-
-    owner = await signInAs(db, {
-      userId: tenant.userId,
-      memberships: [{ tenantId: tenant.tenantId, tenantSlug: tenant.tenantSlug, role: 'OWNER' }],
-    });
-
-    const playerId = await seedPlayer(db, tenant.tenantId);
-    player = await signInAs(db, {
-      userId: playerId,
-      memberships: [{ tenantId: tenant.tenantId, tenantSlug: tenant.tenantSlug, role: 'PLAYER' }],
-    });
+    tenant = await seedTenant();
   });
 
-  const call = async (who: TestIdentity) => {
-    const res = await onboarding(
-      new NextRequest(`http://t/api/v1/t/${tenant.tenantSlug}/connect/onboarding`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${who.bearer}`, 'content-type': 'application/json' },
+  const onboard = () =>
+    asAppSuperuser(db, (tx: PrismaClient) =>
+      startConnectOnboarding(tx, {
+        tenantId: tenant.tenantId,
+        actorUserId: tenant.userId,
+        returnUrl: 'https://playerz.bg/settings/payouts',
+        refreshUrl: 'https://playerz.bg/settings/payouts',
       }),
-      { params: Promise.resolve({ slug: tenant.tenantSlug }) },
     );
-    return { res, body: (await res.json()) as never };
-  };
 
-  const venueRow = () =>
+  const venue = () =>
     asAppSuperuser(db, (tx) => tx.venueOrg.findUniqueOrThrow({ where: { id: tenant.tenantId } }));
 
-  type Body = {
-    data: {
-      stripeAccountId: string;
-      onboardingUrl: string;
-      payoutsEnabled: boolean;
-      created: boolean;
-    };
-  };
+  it('creates the payouts account and stores its id', async () => {
+    await onboard();
 
-  it('creates the Stripe account and returns an onboarding link', async () => {
-    const { res, body } = await call(owner);
-    const d = (body as Body).data;
-
-    expect(res.status).toBe(200);
-    expect(d.stripeAccountId).toMatch(/^acct_/);
-    expect(d.onboardingUrl).toContain('connect.stripe.com');
-    expect(d.created).toBe(true);
-
-    // Stored, or the next call creates a second account.
-    expect((await venueRow()).stripeAccountId).toBe(d.stripeAccountId);
+    const v = await venue();
+    expect(v.stripeAccountId).toMatch(/^acct_test_/);
   });
 
-  it('does NOT mark payouts enabled — only the webhook may do that', async () => {
-    // Finishing Stripe's form is not the same as Stripe accepting the club's
-    // documents. Setting this optimistically would let a club take bookings
-    // whose money can never be paid out.
-    const { body } = await call(owner);
+  it('creates the BILLING customer too, and stores its id', async () => {
+    await onboard();
 
-    expect((body as Body).data.payoutsEnabled).toBe(false);
-    expect((await venueRow()).payoutsEnabled).toBe(false);
-  });
+    const v = await venue();
+    expect(v.stripeCustomerId).toMatch(/^cus_test_/);
 
-  it('audits the account creation against the admin who did it', async () => {
-    await call(owner);
-
-    const audit = await asAppSuperuser(db, (tx) =>
-      tx.auditEntry.findMany({ where: { tenantId: tenant.tenantId } }),
-    );
-
-    expect(audit).toHaveLength(1);
-    expect(audit[0]).toMatchObject({
-      action: 'CONNECT_ACCOUNT_CREATED',
-      actorUserId: tenant.userId,
-      entity: 'VenueOrg',
-    });
-  });
-
-  it('REUSES the account on a second call and mints a fresh link', async () => {
-    // Stripe's onboarding links expire, so an admin returning to a
-    // half-finished setup needs a new link — but not a new account.
-    const first = await call(owner);
-    const second = await call(owner);
-
-    expect((first.body as Body).data.stripeAccountId).toBe(
-      (second.body as Body).data.stripeAccountId,
-    );
-    expect((second.body as Body).data.created).toBe(false);
-    expect((second.body as Body).data.onboardingUrl).toContain('connect.stripe.com');
-  });
-
-  it('sends an idempotency key, so two simultaneous clicks cannot orphan an account', async () => {
-    // A database transaction can roll back our row. It cannot un-create an
-    // Express account sitting half-onboarded in the club's Stripe dashboard
-    // that nothing here knows about.
-    await call(owner);
-
-    const req = findRequest('/v1/accounts');
-    expect(req).toBeTruthy();
-    expect(req!.headers['idempotency-key']).toBe(`connect:account:${tenant.tenantId}`);
-  });
-
-  it('builds the return URLs server-side, never from the request', async () => {
-    // A caller-supplied returnUrl is an open redirect with extra steps: Stripe
-    // would send the club's admin wherever the body said, on a page that looks
-    // like the last step of our own flow.
-    await call(owner);
-
-    const req = findRequest('/v1/account_links');
+    // Asserted on what went over the wire, not on our own call.
+    const req = findRequest('/v1/customers');
     const body = req!.body as Record<string, string>;
-    expect(body.return_url).toContain('https://playerz.test');
-    expect(body.refresh_url).toContain('https://playerz.test');
+    expect(body.email).toBe(v.contactEmail);
+    expect(body['metadata[tenantId]']).toBe(tenant.tenantId);
   });
 
-  it('403s for a PLAYER — this is where the club’s money lands', async () => {
-    const { res } = await call(player);
-    expect(res.status).toBe(403);
+  it('is idempotent — a second onboarding creates neither again', async () => {
+    await onboard();
+    const first = await venue();
+
+    recorded.length = 0;
+    await onboard();
+    const second = await venue();
+
+    expect(second.stripeAccountId).toBe(first.stripeAccountId);
+    expect(second.stripeCustomerId).toBe(first.stripeCustomerId);
+    // Not merely "the same id came back" — Stripe was not asked at all.
+    expect(findRequest('/v1/customers')).toBeUndefined();
+    expect(findRequest('/v1/accounts')).toBeUndefined();
   });
 
-  it('401s without a token', async () => {
-    const res = await onboarding(
-      new NextRequest(`http://t/api/v1/t/${tenant.tenantSlug}/connect/onboarding`, {
-        method: 'POST',
+  it('creates a customer for a venue that already had an account', async () => {
+    // The upgrade path for every club onboarded before billing existed.
+    // Nesting the customer inside the `if (!stripeAccountId)` block would skip
+    // all of them, for ever.
+    await asAppSuperuser(db, (tx) =>
+      tx.venueOrg.update({
+        where: { id: tenant.tenantId },
+        data: { stripeAccountId: 'acct_test_preexisting' },
       }),
-      { params: Promise.resolve({ slug: tenant.tenantSlug }) },
     );
 
-    expect(res.status).toBe(401);
+    await onboard();
+
+    const v = await venue();
+    expect(v.stripeAccountId).toBe('acct_test_preexisting');
+    expect(v.stripeCustomerId).toMatch(/^cus_test_/);
+  });
+
+  it('CLOSES THE JOIN: a subscription can now find the venue', async () => {
+    // The whole point. Before this, `handleSubscriptionUpserted` resolved the
+    // venue by `stripeCustomerId` and no code path had ever written one — so
+    // the plan tier, and therefore our commission, could never move off FREE.
+    await onboard();
+    const v = await venue();
+    expect(v.planTier).toBe('FREE');
+
+    const r = await asAppSuperuser(db, (tx) =>
+      handleSubscriptionUpserted(tx, {
+        id: 'sub_onboarded',
+        customer: v.stripeCustomerId,
+        status: 'active',
+        items: { data: [{ price: { id: process.env.STRIPE_PRICE_ID_PRO } }] },
+      } as never),
+    );
+
+    expect(r.handled).toBe(true);
+
+    const after = await venue();
+    expect(after.planTier).toBe('PRO');
+    expect(after.stripeSubscriptionId).toBe('sub_onboarded');
   });
 });

@@ -192,6 +192,20 @@ export const handlers = [
     });
   }),
 
+  http.post('https://api.stripe.com/v1/customers', async ({ request }) => {
+    const body = (await record(request)) as Record<string, string> | null;
+    return HttpResponse.json({
+      id: `cus_test_${Math.random().toString(36).slice(2, 12)}`,
+      object: 'customer',
+      email: body?.email ?? null,
+      name: body?.name ?? null,
+      // Form-encoded nested params arrive FLAT, so a test asserting on
+      // `metadata.tenantId` would read undefined and pass for the wrong
+      // reason — the same trap the payment_intents handler documents.
+      metadata: body?.['metadata[tenantId]'] ? { tenantId: body['metadata[tenantId]'] } : {},
+    });
+  }),
+
   http.post('https://api.stripe.com/v1/account_links', async ({ request }) => {
     await record(request);
     return HttpResponse.json({
