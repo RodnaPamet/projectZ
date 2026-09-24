@@ -4,6 +4,7 @@ import { assertBookingSpanValid, computeExpiresAt } from '@/lib/db/booking-invar
 import { isExclusionViolation, isUniqueViolation } from '@/lib/db/pg-errors';
 
 import { computeRefundAmount, hoursUntil, parsePolicy } from './refund';
+import { appendEntry } from './wallet';
 
 /**
  * The booking golden path.
@@ -210,7 +211,10 @@ export async function createBooking(
 export interface CancelResult {
   bookingId: string;
   refundPercent: number;
+  /** TOTAL owed back across both legs. */
   refundAmountCents: number;
+  /** The part of that total returned as wallet credit. */
+  refundCreditCents: number;
   reason: string;
 }
 
@@ -249,38 +253,101 @@ export async function cancelBooking(
   // So the predicate carries the status. The loser of that race updates zero
   // rows and writes nothing at all.
   try {
-    return await db.$transaction(async (tx) => {
-      const updated = await tx.booking.updateMany({
-        where: { id: booking.id, tenantId, status: { in: ['PENDING', 'CONFIRMED'] } },
-        data: {
-          status: 'CANCELLED',
-          cancelledAt: now,
-          cancellationReasonJson: { reason: input.reason ?? null, quote: { ...quote } },
-        },
-      });
+    return await db.$transaction(
+      async (tx) => {
+        const updated = await tx.booking.updateMany({
+          where: { id: booking.id, tenantId, status: { in: ['PENDING', 'CONFIRMED'] } },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: now,
+            cancellationReasonJson: { reason: input.reason ?? null, quote: { ...quote } },
+          },
+        });
 
-      if (updated.count === 0) throw new BookingNotCancellableError();
+        if (updated.count === 0) throw new BookingNotCancellableError();
 
-      // The resolved percentage is WRITTEN DOWN, not recomputed later. The
-      // venue's policy may change next month; this receipt must not.
-      await tx.cancellation.create({
-        data: {
-          tenantId,
+        // ═══ THE WALLET LEG ═══
+        //
+        // The receipt used to quote a refund percentage and return NOTHING of
+        // the credit the player had spent. `checkoutBooking` spends the wallet
+        // before charging the card, so a part-paid booking cancelled at 100%
+        // gave back the card money and silently kept the credit.
+        //
+        // The same percentage applies to both legs. A cancellation policy is
+        // about the BOOKING, not about how it happened to be paid for — and a
+        // policy that returned credit in full while forfeiting card money would
+        // make paying by wallet strictly better than paying by card, which is an
+        // arbitrage the club did not agree to.
+        //
+        // Summed from the ledger rather than derived from `booking.totalCents`,
+        // because only the ledger knows what was actually taken.
+        const spent = await tx.creditLedgerEntry.groupBy({
+          by: ['userId'],
+          where: { tenantId, refType: 'booking', refId: booking.id, reason: 'SPEND' },
+          _sum: { deltaCents: true },
+        });
+
+        let refundCreditCents = 0;
+
+        for (const row of spent) {
+          const spentCents = Math.abs(row._sum.deltaCents ?? 0);
+          if (spentCents === 0) continue;
+
+          // Round, don't floor — the same reasoning as the card leg. Flooring
+          // quietly keeps a cent of somebody's money on every odd total.
+          const give = Math.round((spentCents * quote.refundPercent) / 100);
+          if (give === 0) continue;
+
+          // `tx` is a transaction client; appendEntry's signature takes the
+          // full client. Cast as the RLS wrappers do — appendEntry opens its own
+          // nested $transaction and verifies the isolation it actually got.
+          await appendEntry(tx as unknown as PrismaClient, {
+            tenantId,
+            userId: row.userId,
+            deltaCents: give,
+            reason: 'REFUND_CREDIT',
+            refType: 'booking',
+            refId: booking.id,
+          });
+
+          refundCreditCents += give;
+        }
+
+        // The resolved percentage is WRITTEN DOWN, not recomputed later. The
+        // venue's policy may change next month; this receipt must not.
+        await tx.cancellation.create({
+          data: {
+            tenantId,
+            bookingId: booking.id,
+            cancelledByUserId: input.cancelledByUserId ?? null,
+            reason: input.reason ?? null,
+            refundPercent: quote.refundPercent,
+            refundAmountCents: quote.refundAmountCents,
+            refundCreditCents,
+          },
+        });
+
+        return {
           bookingId: booking.id,
-          cancelledByUserId: input.cancelledByUserId ?? null,
-          reason: input.reason ?? null,
           refundPercent: quote.refundPercent,
           refundAmountCents: quote.refundAmountCents,
-        },
-      });
-
-      return {
-        bookingId: booking.id,
-        refundPercent: quote.refundPercent,
-        refundAmountCents: quote.refundAmountCents,
-        reason: quote.reason,
-      };
-    });
+          refundCreditCents,
+          reason: quote.reason,
+        };
+      },
+      {
+        // Asked for HERE, not left to the caller.
+        //
+        // The wallet leg goes through `appendEntry`, which refuses anything
+        // weaker. When this is the outermost transaction — a script, a test, any
+        // future non-route caller — this is what makes it serializable. When it
+        // is nested inside `inTenant(..., { isolationLevel: 'Serializable' })`
+        // the request is dropped and the outer level already holds, so asking
+        // costs nothing and forgetting costs a runtime failure on the one path
+        // that moves money.
+        isolationLevel: 'Serializable',
+      },
+    );
   } catch (err) {
     // `Cancellation.bookingId` is @unique, so the database — not the route's
     // read, and not the predicate above — is what makes a second receipt

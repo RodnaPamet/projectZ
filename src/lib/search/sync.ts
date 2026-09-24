@@ -28,7 +28,10 @@ export async function syncVenue(db: PrismaClient, venueId: string): Promise<void
   });
 
   if (!venue) {
-    await meili().index(INDEXES.venues.uid).deleteDocument(venueId).catch(noteFailure('venue delete'));
+    await meili()
+      .index(INDEXES.venues.uid)
+      .deleteDocument(venueId)
+      .catch(noteFailure('venue delete'));
     return;
   }
 
@@ -97,12 +100,10 @@ export async function reindexAll(
   const coaches = await db.coach.findMany({ include: { coachSports: { take: 20 } }, take: 10_000 });
 
   if (venues.length) {
-    const t = await meili().index(INDEXES.venues.uid).addDocuments(venues.map(toVenueDoc));
-    await meili().index(INDEXES.venues.uid).waitForTask(t.taskUid);
+    await meili().index(INDEXES.venues.uid).addDocuments(venues.map(toVenueDoc)).waitTask();
   }
   if (sessions.length) {
-    const t = await meili().index(INDEXES.sessions.uid).addDocuments(sessions.map(toSessionDoc));
-    await meili().index(INDEXES.sessions.uid).waitForTask(t.taskUid);
+    await meili().index(INDEXES.sessions.uid).addDocuments(sessions.map(toSessionDoc)).waitTask();
   }
 
   if (coaches.length) {
@@ -112,10 +113,10 @@ export async function reindexAll(
     });
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.displayName]));
 
-    const t = await meili()
+    await meili()
       .index(INDEXES.coaches.uid)
-      .addDocuments(coaches.map((c) => toCoachDoc(c, nameByUser.get(c.userId) ?? 'Coach', null)));
-    await meili().index(INDEXES.coaches.uid).waitForTask(t.taskUid);
+      .addDocuments(coaches.map((c) => toCoachDoc(c, nameByUser.get(c.userId) ?? 'Coach', null)))
+      .waitTask();
   }
 
   return { venues: venues.length, sessions: sessions.length, coaches: coaches.length };
@@ -130,7 +131,7 @@ function noteFailure(what: string) {
     // would roll back a legitimate write because a SEARCH server was down.
     // But a silently-swallowed sync failure is how an index rots unnoticed,
     // so it must leave SOME trace.
-    // eslint-disable-next-line no-console
+     
     console.warn(`[search] ${what} failed (index stale, data safe):`, err); // guardrail-allow: console — a swallowed sync failure needs one signal
   };
 }

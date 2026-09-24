@@ -76,6 +76,11 @@ const SCOPED_CALLS = [
   'deleteMany',
   'count',
   'aggregate',
+  // `groupBy` was absent, and it is the aggregate form MOST likely to be used
+  // for reporting — a read that returns rows summarised across whatever the
+  // where clause admits. An unscoped one run as app_superuser sums every
+  // tenant's data into a single number and looks entirely plausible.
+  'groupBy',
 ] as const;
 
 const ALLOW = /guardrail-allow:\s*cross-tenant/;

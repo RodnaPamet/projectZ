@@ -85,7 +85,7 @@ export async function createUserSession(input: {
   expiresAt: Date;
   ipAddress?: string | null;
   userAgent?: string | null;
-}): Promise<{ userSessionId: string; sessionVersion: number }> {
+}): Promise<{ userSessionId: string; sessionVersion: number; expiresAt: Date }> {
   return runAsSuperuser(async (db) => {
     // Snapshot the user's CURRENT counter. A token minted now is valid until
     // that counter moves.
@@ -104,10 +104,17 @@ export async function createUserSession(input: {
         ipAddress: input.ipAddress ?? null,
         userAgent: input.userAgent ?? null,
       },
-      select: { id: true, sessionVersion: true },
+      // `expiresAt` comes back out rather than being assumed from the input:
+      // it is the refresh deadline this session will be judged against, and
+      // the native sign-in endpoint reports it to the client verbatim.
+      select: { id: true, sessionVersion: true, expiresAt: true },
     });
 
-    return { userSessionId: row.id, sessionVersion: row.sessionVersion };
+    return {
+      userSessionId: row.id,
+      sessionVersion: row.sessionVersion,
+      expiresAt: row.expiresAt,
+    };
   });
 }
 
@@ -248,7 +255,16 @@ export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 /** Access token. Short, because the edge only honours `exp`. */
 export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 
-/** Refresh token. Long, because it is checked against the database every time. */
+/**
+ * Refresh token. Long, because it is checked against the database every time.
+ *
+ * Nothing compares a token against this number. It SIZES the row a native
+ * sign-in creates, through NATIVE_SESSION_TTL_SECONDS; what the server then
+ * enforces is that row's `expiresAt`, which is fixed at creation and never
+ * written again. The refresh window is therefore an ABSOLUTE 30 days from
+ * sign-in rather than a sliding one, and both native endpoints advertise the
+ * column instead of recomputing a window from this constant.
+ */
 export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 /**
@@ -337,6 +353,9 @@ export async function rotateRefreshToken(input: {
 
     if (!row) return { ok: false, reason: 'unknown' };
     if (row.revokedAt) return { ok: false, reason: 'revoked' };
+    // THE refresh deadline. It is the row's own column, not a window measured
+    // from this request, and nothing in this function moves it — which is why
+    // both native endpoints return this value as `refreshExpiresAt`.
     if (row.expiresAt.getTime() <= now.getTime()) return { ok: false, reason: 'expired' };
 
     // The password-change lever still applies to refresh. A session whose user

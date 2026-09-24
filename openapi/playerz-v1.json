@@ -123,7 +123,7 @@
         },
         "responses": {
           "200": {
-            "description": "A new access token. `data.refreshToken` is a NEW token to store, or **null** meaning keep the one you already hold — never overwrite stored credentials with null or an empty string. See the note on `refreshExpiresAt`: it slides on every call but the server's real deadline does not.",
+            "description": "A new access token. `data.refreshToken` is a NEW token to store, or **null** meaning keep the one you already hold — never overwrite stored credentials with null or an empty string. `data.refreshExpiresAt` is the session's fixed deadline and is identical on every response in a session: refreshing buys no extra time.",
             "headers": {
               "X-API-Version": {
                 "description": "Contract version marker, e.g. `2026-04-29`.",
@@ -2339,7 +2339,7 @@
           "refreshExpiresAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Advertised refresh-token expiry: always computed as now + 30 days, on EVERY response including refreshes that rotated nothing. It is NOT the server's real deadline — see the notes. The authoritative limit is the session row's expiry, fixed at sign-in + 30 days and never extended.",
+            "description": "When the refresh token stops being accepted, and the one value here that does not move: the SESSION ROW's own expiry, fixed when the session is created and never extended. Refreshing does NOT push it out — it counts DOWN across responses rather than sliding forward, so a client may schedule re-authentication against it. Sign-in sets it 30 days ahead, every refresh in that session reports the same instant, and once it passes every refresh answers 401. Same format as `expiresAt`: RFC 3339, UTC `Z`, second precision, truncated downwards.",
             "examples": ["2026-10-24T09:00:00Z"]
           }
         }

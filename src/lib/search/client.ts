@@ -1,4 +1,4 @@
-import { MeiliSearch } from 'meilisearch';
+import { Meilisearch } from 'meilisearch';
 
 /**
  * The Meilisearch client.
@@ -14,9 +14,9 @@ import { MeiliSearch } from 'meilisearch';
  *
  * So search goes through /api/search, which applies tenant-safe filters.
  */
-let client: MeiliSearch | undefined;
+let client: Meilisearch | undefined;
 
-export function meili(): MeiliSearch {
+export function meili(): Meilisearch {
   if (!client) {
     const host = process.env.MEILISEARCH_HOST ?? 'http://localhost:7700';
     const apiKey = process.env.MEILISEARCH_MASTER_KEY;
@@ -27,7 +27,7 @@ export function meili(): MeiliSearch {
       throw new Error('MEILISEARCH_MASTER_KEY is required in production.');
     }
 
-    client = new MeiliSearch({ host, apiKey });
+    client = new Meilisearch({ host, apiKey });
   }
   return client;
 }

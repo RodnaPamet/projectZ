@@ -43,6 +43,17 @@ import { getRequestId } from '@/lib/observability/context';
  * So a booking that changes underneath us between here and there surfaces as
  * BookingNotCancellableError — the same 409, raised by the write that actually
  * arbitrates.
+ *
+ * ═══ WHY SERIALIZABLE ═══
+ *
+ * Cancelling returns the wallet leg of the refund, which goes through
+ * `appendEntry`. That REQUIRES SERIALIZABLE and checks that it actually got
+ * it. Postgres can only set isolation on the outermost BEGIN, so a use case
+ * asking for it on a handle already inside a transaction gets a SAVEPOINT and
+ * silently keeps READ COMMITTED — which for a ledger means two concurrent
+ * writes can both read the same balance and both succeed.
+ *
+ * Same reasoning, and the same option, as the checkout route.
  */
 async function handler(
   req: NextRequest,
@@ -55,36 +66,40 @@ async function handler(
 
   const asStaff = hasPermission(ctx, 'bookings.view_all');
 
-  const result = await inTenant(ctx, async (db) => {
-    const booking = asStaff
-      ? await getBookingById(db, ctx.tenantId!, id)
-      : await getOwnBooking(db, ctx.tenantId!, { bookingId: id, userId: ctx.userId! });
+  const result = await inTenant(
+    ctx,
+    async (db) => {
+      const booking = asStaff
+        ? await getBookingById(db, ctx.tenantId!, id)
+        : await getOwnBooking(db, ctx.tenantId!, { bookingId: id, userId: ctx.userId! });
 
-    // 404 rather than 403 for somebody else's booking. A 403 would confirm the
-    // booking exists, which is enough to enumerate a club's reservations one
-    // id at a time.
-    if (!booking) throw new NotFoundError('Booking not found');
+      // 404 rather than 403 for somebody else's booking. A 403 would confirm the
+      // booking exists, which is enough to enumerate a club's reservations one
+      // id at a time.
+      if (!booking) throw new NotFoundError('Booking not found');
 
-    if (booking.status === 'CANCELLED') {
-      throw new ConflictError('This booking is already cancelled');
-    }
-    if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
-      throw new ConflictError(`A ${booking.status.toLowerCase()} booking cannot be cancelled`);
-    }
+      if (booking.status === 'CANCELLED') {
+        throw new ConflictError('This booking is already cancelled');
+      }
+      if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+        throw new ConflictError(`A ${booking.status.toLowerCase()} booking cannot be cancelled`);
+      }
 
-    const reason = await req
-      .json()
-      .then((b: { reason?: unknown }) => (typeof b?.reason === 'string' ? b.reason : undefined))
-      // A cancellation with no body is the common case — the player just taps
-      // "cancel". Requiring JSON for that would be ceremony.
-      .catch(() => undefined);
+      const reason = await req
+        .json()
+        .then((b: { reason?: unknown }) => (typeof b?.reason === 'string' ? b.reason : undefined))
+        // A cancellation with no body is the common case — the player just taps
+        // "cancel". Requiring JSON for that would be ceremony.
+        .catch(() => undefined);
 
-    return cancelBooking(db, ctx.tenantId!, {
-      bookingId: booking.id,
-      cancelledByUserId: ctx.userId,
-      reason,
-    });
-  });
+      return cancelBooking(db, ctx.tenantId!, {
+        bookingId: booking.id,
+        cancelledByUserId: ctx.userId,
+        reason,
+      });
+    },
+    { isolationLevel: 'Serializable' },
+  );
 
   return ok(result);
 }
