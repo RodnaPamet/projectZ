@@ -1,14 +1,28 @@
 import { expect, test } from '@playwright/test';
 
+import bg from '../../messages/bg.json';
+
 /**
  * The public discovery flow, driven through a real browser against a real
  * database — the path every player takes before they ever sign in.
+ *
+ * ═══ THIS PAGE IS BULGARIAN, INCLUDING BEFORE SIGN-IN ═══
+ *
+ * The heading assertion read `name: 'Play'` and broke the moment the default
+ * locale became real. That is the deliberate difference from agri-saas, whose
+ * pre-login pages stay English precisely so its specs do not have to care —
+ * playerz.bg's pre-login page is the shop window, so it is Bulgarian and this
+ * spec follows.
+ *
+ * Asserted FROM THE CATALOGUE rather than retyped. A reworded heading is not a
+ * regression and should not fail here; a heading that stops rendering, or a
+ * key that disappears, still does.
  */
 test.describe('venue discovery', () => {
   test('the venues page lists venues and links through to one', async ({ page }) => {
     await page.goto('/venues');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Play' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
 
     const cards = page.getByRole('link').filter({ hasText: /Sofia|Plovdiv/ });
     await expect(cards.first()).toBeVisible();
