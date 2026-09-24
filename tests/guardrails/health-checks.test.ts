@@ -330,3 +330,53 @@ describe('the rules fire on the code they forbid', () => {
     expect(UNBOUNDED.test("'sport'")).toBe(false);
   });
 });
+
+/**
+ * THE SWEEP ENDPOINT IS A SECRET-GUARDED WRITE, AND NOTHING ELSE GUARDS IT.
+ *
+ * `/api/cron/release-expired-bookings` cancels PENDING bookings across EVERY
+ * tenant and returns wallet credit. Its own header records that none of the
+ * usual machinery covers it: `checkTenantAccess` does not apply (no slug),
+ * `requiredPermission` returns null for a non-`/t/` path, and
+ * route-permission-coverage only looks under `/api/t/` and `/api/v1/t/`.
+ *
+ * Its entire security boundary is one shared secret compared in constant time.
+ *
+ * That was structurally unguarded while `/api/metrics` — which serves
+ * Prometheus counters — had the rules above. Deleting the sweep's
+ * `timingSafeEqual` left all 609 guardrails green. An inverted hierarchy: the
+ * read-only endpoint defended, the cross-tenant write not.
+ */
+describe('the cron sweep endpoint', () => {
+  const CRON = 'src/app/api/cron/release-expired-bookings/route.ts';
+
+  it('exists', () => {
+    // Renaming the file must fail here rather than silently skip every rule
+    // below it.
+    expect(existsSync(CRON)).toBe(true);
+  });
+
+  it('it requires a secret', () => {
+    const src = code(readFileSync(CRON, 'utf8'));
+
+    expect(src).toMatch(/CRON_SECRET/);
+  });
+
+  it('it compares the secret in CONSTANT TIME', () => {
+    // `a === b` returns early on the first differing byte and leaks the secret
+    // a character at a time. The suite covering this route could not catch its
+    // removal: the "wrong secret" fixture was a different LENGTH from the real
+    // one, so the comparison was never reached.
+    const src = code(readFileSync(CRON, 'utf8'));
+
+    expect(src).toMatch(/timingSafeEqual/);
+  });
+
+  it('a MISSING secret closes the endpoint rather than opening it', () => {
+    // The failure mode of a forgotten environment variable must never be "no
+    // security" — least of all on a route that cancels bookings platform-wide.
+    const src = code(readFileSync(CRON, 'utf8'));
+
+    expect(src).toMatch(/if \(!expected\)\s*\{[\s\S]{0,160}?return/);
+  });
+});
