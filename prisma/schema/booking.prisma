@@ -172,7 +172,15 @@ model Cancellation {
   /// moment of cancellation — the policy may change later, and a receipt
   /// must not.
   refundPercent     Int     @default(0)
+  /// TOTAL refunded across both legs, in cents.
   refundAmountCents Int     @default(0)
+  /// The part of that total returned as WALLET CREDIT rather than to a card.
+  ///
+  /// Recorded separately because the two legs settle through different
+  /// systems — the card through Stripe, the wallet through an append-only
+  /// ledger entry — and a receipt that only carried the total could not be
+  /// reconciled against either. Card part = refundAmountCents - this.
+  refundCreditCents Int     @default(0)
 
   createdAt DateTime @default(now())
 

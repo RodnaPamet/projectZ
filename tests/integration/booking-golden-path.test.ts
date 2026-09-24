@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 
+import { appendEntry, getBalance, spendCredit } from '@/app-layer/usecases/wallet';
 import {
   BookingNotCancellableError,
   SlotTakenError,
@@ -200,6 +201,98 @@ describe('booking golden path', () => {
   });
 
   describe('cancellation', () => {
+    describe('the wallet leg', () => {
+      // `checkoutBooking` spends the wallet BEFORE charging the card, so a
+      // part-paid booking cancelled at 100% used to give back the card money
+      // and silently keep the credit. The receipt quoted a full refund while
+      // `REFUND_CREDIT` was written by nothing in src/.
+
+      const giveCredit = (userId: string, cents: number) =>
+        appendEntry(prisma, {
+          tenantId: t.tenantId,
+          userId,
+          deltaCents: cents,
+          reason: 'ADMIN_ADJUST',
+        });
+
+      const balance = (userId: string) => getBalance(prisma, { tenantId: t.tenantId, userId });
+
+      it('returns the SAME percentage of credit as of card', async () => {
+        await giveCredit(t.userId, 1000);
+        // 20h out → the 50% tier.
+        const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(20), endTs: at(21) }));
+
+        await spendCredit(prisma, {
+          tenantId: t.tenantId,
+          userId: t.userId,
+          amountCents: 2400,
+          bookingId: b.bookingId,
+        });
+        expect(await balance(t.userId)).toBe(0);
+
+        const res = await cancelBooking(prisma, t.tenantId, {
+          bookingId: b.bookingId,
+          cancelledByUserId: t.userId,
+        });
+
+        expect(res.refundPercent).toBe(50);
+        expect(res.refundCreditCents).toBe(500);
+        expect(await balance(t.userId)).toBe(500);
+
+        // And it is ON THE RECEIPT, not merely in the ledger — the two legs
+        // settle through different systems and have to be reconcilable.
+        const receipt = await asAppSuperuser(prisma, (tx) =>
+          tx.cancellation.findUniqueOrThrow({ where: { bookingId: b.bookingId } }),
+        );
+        expect(receipt.refundCreditCents).toBe(500);
+        expect(receipt.refundAmountCents).toBe(1200);
+      });
+
+      it('forfeits the credit when the card is forfeited', async () => {
+        // The arbitrage this closes: returning credit in full while keeping
+        // card money would make paying by wallet strictly better than paying
+        // by card, which is not a discount the club agreed to.
+        await giveCredit(t.userId, 1000);
+        const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(6), endTs: at(7) }));
+
+        await spendCredit(prisma, {
+          tenantId: t.tenantId,
+          userId: t.userId,
+          amountCents: 2400,
+          bookingId: b.bookingId,
+        });
+
+        const res = await cancelBooking(prisma, t.tenantId, { bookingId: b.bookingId });
+
+        expect(res.refundPercent).toBe(0);
+        expect(res.refundCreditCents).toBe(0);
+        expect(await balance(t.userId)).toBe(0);
+
+        const refunds = await asAppSuperuser(prisma, (tx) =>
+          tx.creditLedgerEntry.findMany({
+            where: { refId: b.bookingId, reason: 'REFUND_CREDIT' },
+          }),
+        );
+        expect(refunds).toHaveLength(0);
+      });
+
+      it('writes no ledger entry for a booking paid entirely by card', async () => {
+        // The inverse lie. A REFUND_CREDIT entry for credit never spent is the
+        // same class of error as the receipt that used to keep it.
+        const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+
+        const res = await cancelBooking(prisma, t.tenantId, { bookingId: b.bookingId });
+
+        expect(res.refundPercent).toBe(100);
+        expect(res.refundCreditCents).toBe(0);
+
+        const entries = await asAppSuperuser(prisma, (tx) =>
+          tx.creditLedgerEntry.findMany({ where: { refId: b.bookingId } }),
+        );
+        expect(entries).toHaveLength(0);
+      });
+    });
+
     it('> 24h out → 100% refund, written onto the receipt', async () => {
       const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
 
