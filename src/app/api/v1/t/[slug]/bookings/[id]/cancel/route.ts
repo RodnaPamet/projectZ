@@ -30,11 +30,19 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * ═══ ALREADY-CANCELLED IS A CONFLICT, NOT A NO-OP ═══
  *
- * `cancelBooking` writes a Cancellation row every time it is called and
- * recomputes the refund from the CURRENT hours-until-start. Calling it twice
- * therefore produces two receipts for one booking, the second quoting a
- * smaller refund — a double refund record, and an audit trail that disagrees
- * with itself.
+ * The checks below are for the MESSAGE, not for the invariant. They can say
+ * "already cancelled" or "a completed booking cannot be cancelled", which is
+ * worth far more to a client than a generic conflict.
+ *
+ * What they are NOT is the thing preventing a double receipt. Two receipts are
+ * unreachable because `Cancellation.bookingId` is @unique, and the race is
+ * closed because `cancelBooking` carries the status in its UPDATE predicate
+ * and writes nothing when it matches zero rows. A read in a route handler
+ * cannot hold a row against a cron job; only the write can.
+ *
+ * So a booking that changes underneath us between here and there surfaces as
+ * BookingNotCancellableError — the same 409, raised by the write that actually
+ * arbitrates.
  */
 async function handler(
   req: NextRequest,

@@ -1,6 +1,12 @@
 import type { PrismaClient } from '@prisma/client';
 
-import { SlotTakenError, cancelBooking, createBooking } from '@/app-layer/usecases/booking';
+import {
+  BookingNotCancellableError,
+  SlotTakenError,
+  cancelBooking,
+  createBooking,
+} from '@/app-layer/usecases/booking';
+import { releaseExpiredBookings } from '@/app-layer/usecases/release-expired-bookings';
 
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
@@ -212,6 +218,118 @@ describe('booking golden path', () => {
         cancelBooking(tx, t.tenantId, { bookingId: b.bookingId }),
       );
       expect(res.refundPercent).toBe(0);
+    });
+
+    it('loses to the expiry sweeper, and writes NO refund receipt', async () => {
+      // The ledger lie this fix exists to prevent.
+      //
+      // The sweeper releases an expired hold and deliberately writes no
+      // Cancellation row, because no money was ever taken. If a cancel racing
+      // it still wrote one, the books would carry a refund receipt — up to a
+      // FULL refund, since this booking starts >24h out — against a booking
+      // that was never paid for.
+      const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+
+      // Backdate the hold so the sweeper is entitled to it, exactly as a
+      // booking sitting unpaid for 15 minutes would be.
+      await asAppSuperuser(prisma, (tx) =>
+        tx.booking.update({
+          where: { id: b.bookingId },
+          data: { expiresAt: new Date(Date.now() - HOUR) },
+        }),
+      );
+
+      const swept = await asAppSuperuser(prisma, (tx) => releaseExpiredBookings(tx));
+      expect(swept.released).toBeGreaterThanOrEqual(1);
+
+      await expect(
+        asAppSuperuser(prisma, (tx) =>
+          cancelBooking(tx, t.tenantId, { bookingId: b.bookingId, cancelledByUserId: t.userId }),
+        ),
+      ).rejects.toBeInstanceOf(BookingNotCancellableError);
+
+      const receipt = await asAppSuperuser(prisma, (tx) =>
+        tx.cancellation.findUnique({ where: { bookingId: b.bookingId } }),
+      );
+      expect(receipt).toBeNull();
+    });
+
+    it("does not overwrite the sweeper's cancelledAt with a later one", async () => {
+      // The loser must write NOTHING — not "nothing important". An overwritten
+      // cancelledAt moves the booking's recorded end by however long the race
+      // took, and that timestamp is what a dispute is argued from.
+      const b = await asAppSuperuser(prisma, (tx) => mk(tx));
+
+      const sweptAt = new Date(Date.now() - 5 * HOUR);
+      await asAppSuperuser(prisma, (tx) =>
+        tx.booking.update({
+          where: { id: b.bookingId },
+          // Lapsed BEFORE the sweep ran — otherwise the sweeper skips it and
+          // the test would be asserting against a booking nobody touched.
+          data: { expiresAt: new Date(sweptAt.getTime() - HOUR) },
+        }),
+      );
+
+      const swept = await asAppSuperuser(prisma, (tx) =>
+        releaseExpiredBookings(tx, { now: sweptAt }),
+      );
+      expect(swept.released).toBeGreaterThanOrEqual(1);
+
+      await expect(
+        asAppSuperuser(prisma, (tx) => cancelBooking(tx, t.tenantId, { bookingId: b.bookingId })),
+      ).rejects.toBeInstanceOf(BookingNotCancellableError);
+
+      const row = await asAppSuperuser(prisma, (tx) =>
+        tx.booking.findUniqueOrThrow({ where: { id: b.bookingId } }),
+      );
+      expect(row.cancelledAt?.getTime()).toBe(sweptAt.getTime());
+    });
+
+    it('a second cancel is a 409, not a bare INTERNAL', async () => {
+      // Before the fix this escaped as a raw unique violation on
+      // `cancellation_bookingId_key`: only createBooking mapped that, so a
+      // double-tap on Cancel surfaced to the client as a 500.
+      const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+
+      await asAppSuperuser(prisma, (tx) =>
+        cancelBooking(tx, t.tenantId, { bookingId: b.bookingId }),
+      );
+
+      await expect(
+        asAppSuperuser(prisma, (tx) => cancelBooking(tx, t.tenantId, { bookingId: b.bookingId })),
+      ).rejects.toBeInstanceOf(BookingNotCancellableError);
+
+      const receipts = await asAppSuperuser(prisma, (tx) =>
+        tx.cancellation.findMany({ where: { bookingId: b.bookingId } }),
+      );
+      expect(receipts).toHaveLength(1);
+    });
+
+    it('maps a stray Cancellation row to the 409 rather than a raw 23505', async () => {
+      // The status predicate closes the ordinary double-tap, so this backstop
+      // is not reachable through it — which is exactly why it needs its own
+      // test, or it is unverified code that only runs on the day something
+      // else has already gone wrong.
+      //
+      // The state it guards: a Cancellation row exists while the booking is
+      // still live. Then the UPDATE matches, and the receipt INSERT is what
+      // raises. Unmapped, that reached the client as a 500.
+      const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+
+      await asAppSuperuser(prisma, (tx) =>
+        tx.cancellation.create({
+          data: {
+            tenantId: t.tenantId,
+            bookingId: b.bookingId,
+            refundPercent: 100,
+            refundAmountCents: 2400,
+          },
+        }),
+      );
+
+      await expect(
+        asAppSuperuser(prisma, (tx) => cancelBooking(tx, t.tenantId, { bookingId: b.bookingId })),
+      ).rejects.toBeInstanceOf(BookingNotCancellableError);
     });
 
     it('cancelling FREES the slot for someone else', async () => {

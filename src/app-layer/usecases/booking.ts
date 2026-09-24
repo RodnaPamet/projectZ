@@ -75,6 +75,26 @@ export class IdempotencyRaceError extends Error {
   }
 }
 
+/**
+ * The booking moved out of a cancellable state before our write landed.
+ *
+ * This is NOT the same as "you asked to cancel something already cancelled",
+ * which the route rejects from its own read. This is the narrower, nastier
+ * case: the read said PENDING, and by the time the UPDATE took its row lock
+ * the expiry sweeper had already released the hold.
+ *
+ * Getting that wrong writes a Cancellation row — a REFUND RECEIPT — against a
+ * booking nobody ever paid for, which is precisely the ledger lie
+ * `releaseExpiredBookings` refuses to write when it does the same job.
+ */
+export class BookingNotCancellableError extends Error {
+  readonly code = 'booking_not_cancellable';
+  constructor() {
+    super('This booking is no longer cancellable: it was already cancelled, or its hold expired.');
+    this.name = 'BookingNotCancellableError';
+  }
+}
+
 export interface CreateBookingInput {
   resourceId: string;
   startTs: Date;
@@ -213,33 +233,65 @@ export async function cancelBooking(
     policy,
   });
 
-  await db.$transaction([
-    db.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: now,
-        cancellationReasonJson: { reason: input.reason ?? null, quote: { ...quote } },
-      },
-    }),
-    // The resolved percentage is WRITTEN DOWN, not recomputed later. The
-    // venue's policy may change next month; this receipt must not.
-    db.cancellation.create({
-      data: {
-        tenantId,
+  // ═══ THE STATUS IS RE-CHECKED IN THE WRITE, NOT TRUSTED FROM THE READ ═══
+  //
+  // The read above is for the QUOTE. It cannot also be the authorisation to
+  // write, because nothing holds the row between the two — and the thing most
+  // likely to move it is a cron job.
+  //
+  // `releaseExpiredBookings` sweeps PENDING bookings whose hold lapsed and
+  // deliberately writes NO Cancellation row ("a refund receipt for money never
+  // taken would be a lie in the ledger"). If the player taps Cancel in the same
+  // instant, the old check-then-write would read PENDING, block on the
+  // sweeper's lock, and then write CANCELLED *again* plus a receipt quoting up
+  // to a full refund — for a booking that was never paid.
+  //
+  // So the predicate carries the status. The loser of that race updates zero
+  // rows and writes nothing at all.
+  try {
+    return await db.$transaction(async (tx) => {
+      const updated = await tx.booking.updateMany({
+        where: { id: booking.id, tenantId, status: { in: ['PENDING', 'CONFIRMED'] } },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: now,
+          cancellationReasonJson: { reason: input.reason ?? null, quote: { ...quote } },
+        },
+      });
+
+      if (updated.count === 0) throw new BookingNotCancellableError();
+
+      // The resolved percentage is WRITTEN DOWN, not recomputed later. The
+      // venue's policy may change next month; this receipt must not.
+      await tx.cancellation.create({
+        data: {
+          tenantId,
+          bookingId: booking.id,
+          cancelledByUserId: input.cancelledByUserId ?? null,
+          reason: input.reason ?? null,
+          refundPercent: quote.refundPercent,
+          refundAmountCents: quote.refundAmountCents,
+        },
+      });
+
+      return {
         bookingId: booking.id,
-        cancelledByUserId: input.cancelledByUserId ?? null,
-        reason: input.reason ?? null,
         refundPercent: quote.refundPercent,
         refundAmountCents: quote.refundAmountCents,
-      },
-    }),
-  ]);
-
-  return {
-    bookingId: booking.id,
-    refundPercent: quote.refundPercent,
-    refundAmountCents: quote.refundAmountCents,
-    reason: quote.reason,
-  };
+        reason: quote.reason,
+      };
+    });
+  } catch (err) {
+    // `Cancellation.bookingId` is @unique, so the database — not the route's
+    // read, and not the predicate above — is what makes a second receipt
+    // impossible.
+    //
+    // The predicate means an ordinary double-tap never gets this far. What
+    // does is the inconsistent state: a receipt already on file while the
+    // booking is still live. Then the UPDATE matches and the INSERT raises.
+    // Unmapped, that reached the client as a 500, because only `createBooking`
+    // handled unique violations.
+    if (isUniqueViolation(err)) throw new BookingNotCancellableError();
+    throw err;
+  }
 }

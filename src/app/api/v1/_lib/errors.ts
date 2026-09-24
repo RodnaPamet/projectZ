@@ -95,6 +95,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   SessionFullError: { status: 409, code: 'SESSION_FULL' },
   TournamentStateError: { status: 409, code: 'TOURNAMENT_STATE' },
   IdempotencyRaceError: { status: 409, code: 'IDEMPOTENCY_RACE' },
+  // The expiry sweeper (or another tab) moved the booking out of a cancellable
+  // state between our read and our write. Refetch and the client will see why.
+  BookingNotCancellableError: { status: 409, code: 'BOOKING_NOT_CANCELLABLE' },
   DuplicateGroupMappingError: { status: 409, code: 'DUPLICATE_GROUP_MAPPING' },
   PayoutsNotEnabledError: { status: 409, code: 'PAYOUTS_NOT_ENABLED' },
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
