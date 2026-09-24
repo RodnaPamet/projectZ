@@ -283,6 +283,10 @@ export async function playerStats(
     }),
     // Indexed on exactly this: (userId, sport, recordedAt). One grouped count,
     // rather than fetching matches and scanning them in JavaScript.
+    //
+    // guardrail-allow: cross-tenant — see the note above: a rating follows the
+    // player between clubs. Scoping the win/loss tally to one tenant would
+    // show a different record on every venue's page.
     db.matchParticipant.groupBy({
       by: ['outcome'],
       where: { userId: input.userId, sport: input.sport },

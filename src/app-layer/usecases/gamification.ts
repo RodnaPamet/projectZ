@@ -196,6 +196,11 @@ export async function evaluateAchievements(
   if (candidates.length === 0) return [];
 
   // One grouped query for the counts, rather than one per candidate badge.
+  //
+  // guardrail-allow: cross-tenant — an achievement is earned by a PERSON, not
+  // at a club. Scoping this to one tenant would reset every badge each time a
+  // player joined a second venue. Keyed on userId, and xp_event is protected
+  // per-user by its owner-only policy.
   const counts = await db.xpEvent.groupBy({
     by: ['type'],
     where: { userId: input.userId, points: { gt: 0 } },

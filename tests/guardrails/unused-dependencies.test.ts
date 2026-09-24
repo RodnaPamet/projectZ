@@ -69,9 +69,14 @@ const CONFIG = [
  * Unimported, and NOT legitimate — a shrinking list, not an allowlist.
  *
  * These were invisible for as long as the `package.json` escape hatch existed.
- * They are recorded rather than deleted because removing a dependency is a
- * product decision, not a guardrail's: `resend` and `bullmq` are the transport
- * and the queue that several half-built features are documented as using.
+ * They are recorded rather than deleted because each is waiting on a feature
+ * somebody intends to build: `resend` and `bullmq` are the transport and the
+ * queue that several half-built features are documented as using.
+ *
+ * Three came off the list by being REMOVED rather than explained — glicko2
+ * (superseded by openskill), jsonwebtoken (APNs signs with node:crypto) and
+ * nanoid (ids come from cuid()). Those were not unbuilt features, they were
+ * leftovers, and a leftover on an allowlist is just a slower deletion.
  *
  * The tests below make this list self-cleaning. An entry that becomes imported
  * FAILS, and an entry removed from package.json FAILS, so the only way to
@@ -83,10 +88,7 @@ const KNOWN_UNUSED: Record<string, string> = {
   bullmq: 'the job queue the notification and sweep docs describe; nothing enqueues',
   'canvas-confetti': 'gamification UI, unbuilt',
   'driver.js': 'onboarding tour, unbuilt',
-  glicko2: 'superseded by openskill, which IS imported — this one is dead',
-  jsonwebtoken: 'APNs signs with node:crypto directly; this is left over',
   'maplibre-gl': 'the venue map, unbuilt — geo search exists server-side only',
-  nanoid: 'ids come from cuid() in Prisma',
   'p-retry': 'no retry wrapper written',
   'react-map-gl': 'the React wrapper for the venue map, also unbuilt',
   resend: 'the mailer for split payment links and booking email; no sender exists',
@@ -229,7 +231,7 @@ describe('the KNOWN_UNUSED ratchet only shrinks', () => {
   it('the list has not grown', () => {
     // A number, deliberately. A new unimported dependency has to come past a
     // human editing this line downward-only.
-    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(12);
+    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(9);
   });
 });
 
