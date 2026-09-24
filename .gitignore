@@ -8,6 +8,14 @@ test-results/
 .env
 .env.local
 .env.test
+
+# Signing keys. Apple's APNs key downloads as AuthKey_XXXXXXXXXX.p8 and lands
+# in whatever directory the browser chose — frequently this one. A committed
+# .p8 is a permanent push credential for the whole app, and it cannot be
+# rotated without invalidating every provider using it.
+*.p8
+*.pem
+*.key
 *.log
 .DS_Store
 

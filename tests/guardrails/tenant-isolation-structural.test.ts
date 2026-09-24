@@ -43,6 +43,15 @@ const GLOBAL_MODELS = new Set([
   // blocking feature, it is a loophole with extra steps.
   'userBlock',
   //
+  // ── P29 APNs ───────────────────────────────────────────────────────
+  //
+  // `deviceToken` is user-scoped, exactly like `pushSubscription`: a phone
+  // belongs to a PERSON, and it receives their notifications at every club
+  // they belong to. Its RLS policy is keyed on app.user_id and does not
+  // mention a tenant, so a tenantId filter here would match nothing — the
+  // column does not exist.
+  'deviceToken',
+  //
   // `conversation.tenantId` is NULLABLE: a DM between two players who met at
   // different clubs belongs to no tenant. Its RLS policy is asymmetric (the
   // P04 UserSession shape) — readable when null, never writable into a tenant

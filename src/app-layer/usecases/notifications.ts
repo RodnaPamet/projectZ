@@ -1,5 +1,6 @@
 import type { NotificationKind, PrismaClient } from '@prisma/client';
 
+import { sendApns } from '@/lib/push/apns';
 import { sendPush } from '@/lib/push/send';
 import { sanitizePlainText } from '@/lib/security/sanitize';
 
@@ -135,6 +136,68 @@ async function pushToAllDevices(
 
   if (dead.length > 0) {
     await db.pushSubscription.deleteMany({ where: { id: { in: dead } } });
+  }
+
+  // ═══ THE SAME NOTIFICATION, TO APNs DEVICES ═══
+  //
+  // A person can have both: the PWA in a browser and the native app on a
+  // phone. Both are registrations of theirs and both should ring, so this is a
+  // second fan-out rather than a fallback — choosing one transport would mean
+  // silently dropping the other's devices.
+  //
+  // The outcome shape is identical on purpose (see lib/push/apns.ts), so the
+  // handling below mirrors the Web Push loop line for line: success clears the
+  // failure count, `gone` deletes, and anything else counts a strike and keeps
+  // the row.
+  const devices = await db.deviceToken.findMany({
+    where: { userId: input.userId },
+    take: 20,
+  });
+
+  const deadDevices: string[] = [];
+
+  await Promise.all(
+    devices.map(async (device) => {
+      const result = await sendApns(
+        {
+          deviceToken: device.deviceToken,
+          bundleId: device.bundleId,
+          environment: device.environment,
+        },
+        {
+          title: input.payload.title,
+          body: input.payload.body,
+          url: input.payload.url,
+          threadId: input.payload.tag,
+        },
+      );
+
+      if (result.ok) {
+        delivered++;
+        await db.deviceToken.update({
+          where: { id: device.id },
+          data: { lastSuccessAt: new Date(), failureCount: 0 },
+        });
+        return;
+      }
+
+      if (result.gone) {
+        // Apple says this token is dead: the app was deleted, the token was
+        // reissued, or it belongs to the other environment. It will never
+        // accept anything again.
+        deadDevices.push(device.id);
+        return;
+      }
+
+      await db.deviceToken.update({
+        where: { id: device.id },
+        data: { failureCount: { increment: 1 } },
+      });
+    }),
+  );
+
+  if (deadDevices.length > 0) {
+    await db.deviceToken.deleteMany({ where: { id: { in: deadDevices } } });
   }
 
   return delivered;

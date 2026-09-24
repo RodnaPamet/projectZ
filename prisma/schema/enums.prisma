@@ -140,3 +140,14 @@ enum AuditActorType {
 enum IdentityProviderType {
   ENTRA_ID
 }
+
+/// Which APNs host a device token belongs to.
+///
+/// These are different servers with different token namespaces
+/// (api.sandbox.push.apple.com vs api.push.apple.com). A token minted for one
+/// is rejected by the other with BadDeviceToken, which reads as a broken
+/// certificate and is not.
+enum ApnsEnvironment {
+  SANDBOX
+  PRODUCTION
+}
