@@ -37,12 +37,26 @@ const KEY_LENGTH = 32; // AES-256
  *        DATA_ENCRYPTION_KEY). Produced by `encryptField()` — the
  *        Epic B.1 baseline.
  *
- *   v2 — ciphertext under a **per-tenant DEK** (Epic B.2). Produced
- *        by `encryptWithKey(dek, plaintext)` and consumed by
- *        `decryptWithKey(dek, ciphertext)`. The middleware emits v2
- *        when a tenant context is available on the request and
- *        falls back to v1 otherwise, so a gradual rollout works
- *        without any big-bang re-encrypt.
+ *   v2 — ciphertext under a **per-tenant DEK**. Produced by
+ *        `encryptWithKey(dek, plaintext)` and consumed by
+ *        `decryptWithKey(dek, ciphertext)`.
+ *
+ *        NOTHING PRODUCES OR CONSUMES v2 TODAY. This block used to say
+ *        "the middleware emits v2 when a tenant context is available on
+ *        the request and falls back to v1 otherwise". There is no
+ *        middleware — no `$use` and no `$extends` anywhere in src/ — and
+ *        `encryptWithKey`, `decryptWithKey`, `decryptWithKeyOrPrevious`,
+ *        `isEncryptedValue` and `getCiphertextVersion` have zero callers.
+ *
+ *        The v1 path IS live: `encryptField`/`decryptField` protect the
+ *        wearable OAuth tokens, and `hashForLookup` backs session lookup.
+ *        Those are the only encrypted columns in the database.
+ *
+ *        Kept rather than deleted because the envelope format is what a
+ *        future per-tenant rollout would have to match, and re-deriving it
+ *        is how you get two incompatible ciphertext versions. But it is
+ *        unused code: treat it as a design note with tests, not as a
+ *        mechanism anything relies on.
  */
 const VERSION_PREFIX_V1 = 'v1:';
 const VERSION_PREFIX_V2 = 'v2:';

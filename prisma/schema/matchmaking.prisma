@@ -71,8 +71,9 @@ model SessionChatMessage {
   sessionId String
 
   senderUserId String
-  /// Encrypted at rest + HTML-sanitised. User-authored text rendered to
-  /// other users is an XSS surface; treat it as hostile.
+  /// NOT encrypted. Sanitised by `postSessionMessage`, which no route calls
+  /// yet — so nothing reaches this column at all today. User-authored text
+  /// rendered to other users is an XSS surface; treat it as hostile.
   body         String
 
   createdAt DateTime @default(now())

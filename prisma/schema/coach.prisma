@@ -3,7 +3,7 @@ model Coach {
   tenantId String
   userId   String
 
-  /// Encrypted at rest + sanitised.
+  /// NOT encrypted and NOT sanitised. The coach use case has no route.
   bio                String?
   hourlyRateCents    Int
   currency           String       @default("EUR")
@@ -79,7 +79,8 @@ model CoachBooking {
   totalCents Int
   currency   String        @default("EUR")
   paymentId  String?
-  /// Encrypted at rest + sanitised.
+  /// NOT encrypted and NOT sanitised. "Player has a bad knee" is health data
+  /// a coach wrote down; it needs both before this ships.
   notes      String?
 
   createdAt DateTime @default(now())
