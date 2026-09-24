@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { cardVariants } from '@/components/ui/card-variants';
 import { cn } from '@/lib/cn';
+import { useTranslations } from 'next-intl';
 /**
  * Reusable skeleton loading primitives for the dark-themed UI.
  *
@@ -336,8 +337,10 @@ export function SkeletonKpiGrid({ count = 4 }: { count?: number }) {
 // ─── Dashboard skeleton ───
 
 export function SkeletonDashboard() {
+  const t = useTranslations('common.skeleton');
+
   return (
-    <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label="Loading dashboard">
+    <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label={t('dashboard')}>
       {/* Header */}
       <div className="gap-compact flex flex-wrap items-center justify-between">
         <div className="space-y-1.5">
@@ -401,8 +404,10 @@ export function SkeletonDashboard() {
 // ─── Detail page with tabs ───
 
 export function SkeletonDetailTabs({ tabCount = 4 }: { tabCount?: number }) {
+  const t = useTranslations('common.skeleton');
+
   return (
-    <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label="Loading details">
+    <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label={t('details')}>
       {/* Back link + heading */}
       <div className="space-y-tight">
         <Skeleton className="h-4 w-16" />
@@ -431,8 +436,10 @@ export function SkeletonDetailTabs({ tabCount = 4 }: { tabCount?: number }) {
 // ─── Admin / settings skeleton ───
 
 export function SkeletonSettings() {
+  const t = useTranslations('common.skeleton');
+
   return (
-    <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label="Loading settings">
+    <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label={t('settings')}>
       <SkeletonHeading className="w-36" />
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className={cn(cardVariants(), 'space-y-default')}>

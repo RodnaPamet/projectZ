@@ -33,6 +33,7 @@ import { useMediaQuery } from './hooks';
 import { Tooltip } from './tooltip';
 import { keyboardAvoidanceStyle, useKeyboardInset } from '@/lib/hooks/use-keyboard-inset';
 import { OverlayDepthProvider, useIsNestedInOverlay } from './overlay-depth';
+import { useTranslations } from 'next-intl';
 
 export type PopoverProps = PropsWithChildren<{
   content: ReactNode | string;
@@ -80,6 +81,8 @@ function PopoverRoot({
   anchor,
   triggerTooltip,
 }: PopoverProps) {
+  const t = useTranslations('common.ui');
+
   // The soft keyboard covers the bottom of the screen. This overlay caps its
   // height in `vh` — the LAYOUT viewport — which does not shrink when the
   // keyboard opens, so any input near the bottom ends up BEHIND it. The user is
@@ -136,8 +139,8 @@ function PopoverRoot({
                 — content-specific titles still win via Drawer.Title
                 inside the `content` slot. */}
             <VisuallyHidden.Root>
-              <Drawer.Title>Menu</Drawer.Title>
-              <Drawer.Description>Popover content</Drawer.Description>
+              <Drawer.Title>{t('menu')}</Drawer.Title>
+              <Drawer.Description>{t('popoverContentDesc')}</Drawer.Description>
             </VisuallyHidden.Root>
             <div className="sticky top-0 z-20 flex w-full items-center justify-center rounded-t-[10px] bg-inherit">
               <div className="bg-border-default my-3 h-1 w-12 rounded-full" />

@@ -36,6 +36,7 @@ import { type PropsWithChildren, type ReactNode } from 'react';
 import { Button } from './button';
 import { buttonVariants } from './button-variants';
 import { TextLink } from './typography';
+import { useTranslations } from 'next-intl';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ export interface EmptyStateProps extends PropsWithChildren {
   icon?: React.ElementType;
   title: string;
   description?: ReactNode;
-  /** Optional "Learn more ↗" external link appended to description. */
+  /** Optional "{t('learnMore')} ↗" external link appended to description. */
   learnMore?: string;
   /**
    * Variant drives the default icon and influences default copy
@@ -109,6 +110,8 @@ export function EmptyState({
   className,
   'data-testid': dataTestId,
 }: EmptyStateProps) {
+  const t = useTranslations('common.ui');
+
   const Icon = icon ?? variantIcon[variant];
 
   return (
@@ -139,7 +142,7 @@ export function EmptyState({
           {description}{' '}
           {learnMore && (
             <TextLink href={learnMore} target="_blank" rel="noopener noreferrer" tone="underline">
-              Learn more ↗
+              {t('learnMore')} ↗
             </TextLink>
           )}
         </p>

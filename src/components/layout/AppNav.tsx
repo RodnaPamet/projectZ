@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
+import { useTranslations } from 'next-intl';
 
 /**
  * playerz's own navigation.
@@ -50,6 +51,7 @@ export function AppNav({
   items: NavItem[];
   permissions?: readonly string[];
 }) {
+  const t = useTranslations('common.ui');
   const pathname = usePathname();
 
   // Hiding a link is a UI courtesy, NOT a security control. The route's own
@@ -58,7 +60,7 @@ export function AppNav({
   const visible = items.filter((i) => !i.requires || permissions.includes(i.requires));
 
   return (
-    <nav aria-label="Main" className="border-border-subtle flex gap-1 border-b">
+    <nav aria-label={t('mainNav')} className="border-border-subtle flex gap-1 border-b">
       {visible.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (

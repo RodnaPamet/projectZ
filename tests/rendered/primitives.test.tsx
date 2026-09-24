@@ -30,6 +30,8 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip } from '@/components/ui/tooltip';
 
+import { withIntl } from '../helpers/intl';
+
 const noop = () => {};
 
 describe('Button', () => {
@@ -266,11 +268,18 @@ describe('Table (DataTable)', () => {
   }
 
   it('renders an empty state — not an empty table — when there are no rows', () => {
-    render(<TableHarness data={[]} />);
+    // Wrapped in the real catalogue. Without a provider next-intl renders the
+    // KEY, and this asserted `/emptyFallback/i` — a test that passed only
+    // while the translation was broken, and that would have gone on passing
+    // if the key were deleted.
+    render(withIntl(<TableHarness data={[]} />));
+
     // The primitive swaps the <table> out entirely for an empty fallback.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByText('Court 1')).not.toBeInTheDocument();
-    expect(screen.getByText(/emptyFallback/i)).toBeInTheDocument();
+    // Asserted from the catalogue, not retyped — a reworded string is not a
+    // regression, a missing one is.
+    expect(screen.getByText(/Няма намерени/)).toBeInTheDocument();
   });
 
   it('renders one row per datum plus the header row', () => {

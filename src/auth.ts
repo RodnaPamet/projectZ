@@ -10,6 +10,7 @@ import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { prisma } from '@/lib/db/prisma';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -334,6 +335,16 @@ export const authOptions: NextAuthOptions = {
         token.sub = user.id;
         token.memberships = memberships;
         token.membershipsTruncated = membershipsTruncated;
+
+        // The UI language, so middleware can seed the locale cookie without a
+        // database read per request. `User.locale` defaults to `bg`, which is
+        // also the fallback in src/lib/i18n/locales.ts — so a first sign-in
+        // does not change the language under someone mid-session.
+        token.locale = await runAsSuperuser((db) =>
+          db.user
+            .findUnique({ where: { id: user.id }, select: { locale: true } })
+            .then((u) => u?.locale ?? DEFAULT_LOCALE),
+        );
 
         // Default to the first membership; the tenant switcher re-mints.
         const first = memberships[0];

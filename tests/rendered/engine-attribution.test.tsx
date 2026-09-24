@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { EngineAttribution } from '@/components/chess/EngineAttribution';
 import { ENGINE_SOURCE_URL } from '@/lib/chess/engine';
 
+import { withIntl } from '../helpers/intl';
+
 /**
  * The attribution is a GPL-3 CONDITION, not a credit.
  *
@@ -12,22 +14,23 @@ import { ENGINE_SOURCE_URL } from '@/lib/chess/engine';
  */
 describe('the Stockfish attribution', () => {
   it('renders a working link to the SOURCE', () => {
-    render(<EngineAttribution />);
+    render(withIntl(<EngineAttribution />));
 
     const source = screen.getByRole('link', { name: /stockfish/i });
     expect(source).toHaveAttribute('href', ENGINE_SOURCE_URL);
   });
 
   it('renders a link to the LICENCE text', () => {
-    render(<EngineAttribution />);
+    render(withIntl(<EngineAttribution />));
 
     const licence = screen.getByRole('link', { name: /gpl/i });
     expect(licence).toHaveAttribute('href', '/engine/LICENSE');
   });
 
   it('names the engine and says it is unmodified', () => {
-    render(<EngineAttribution />);
+    render(withIntl(<EngineAttribution />));
 
-    expect(screen.getByText(/unmodified/i)).toBeInTheDocument();
+    // Bulgarian: "използван без промени" — the licence NAME stays Latin.
+    expect(screen.getByText(/без промени/)).toBeInTheDocument();
   });
 });

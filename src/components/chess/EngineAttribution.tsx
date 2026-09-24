@@ -1,4 +1,5 @@
 import { ENGINE_LICENSE_URL, ENGINE_NAME, ENGINE_SOURCE_URL } from '@/lib/chess/engine';
+import { useTranslations } from 'next-intl';
 
 /**
  * The Stockfish attribution.
@@ -18,9 +19,11 @@ import { ENGINE_LICENSE_URL, ENGINE_NAME, ENGINE_SOURCE_URL } from '@/lib/chess/
  * tooltip. If it is in the way, move it — but it ships.
  */
 export function EngineAttribution({ className }: { className?: string }) {
+  const t = useTranslations('engine');
+
   return (
     <p className={className ?? 'text-muted-foreground text-xs'}>
-      Analysis by{' '}
+      {t('analysisBy')}{' '}
       <a
         href={ENGINE_SOURCE_URL}
         target="_blank"
@@ -29,7 +32,7 @@ export function EngineAttribution({ className }: { className?: string }) {
       >
         {ENGINE_NAME}
       </a>
-      , used unmodified under the{' '}
+      {t('usedUnmodified')}{' '}
       <a
         href={ENGINE_LICENSE_URL}
         target="_blank"

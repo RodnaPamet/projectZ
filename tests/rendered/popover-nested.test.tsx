@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { Popover } from '@/components/ui/popover';
 import { OverlayDepthProvider } from '@/components/ui/overlay-depth';
 
+import { withIntl } from '../helpers/intl';
+
 /**
  * THE INTEGRATION, not just the context.
  *
@@ -27,9 +29,11 @@ const drawerCount = () => document.querySelectorAll('[data-vaul-drawer]').length
 describe('a Popover nested inside a sheet', () => {
   it('mounts a drawer when it is NOT nested (the normal mobile case)', async () => {
     render(
-      <Popover openPopover setOpenPopover={() => {}} content={<div>picker</div>}>
-        <button type="button">open</button>
-      </Popover>,
+      withIntl(
+        <Popover openPopover setOpenPopover={() => {}} content={<div>picker</div>}>
+          <button type="button">open</button>
+        </Popover>,
+      ),
     );
 
     // The whole point of the primitive on mobile: a bottom sheet.
@@ -42,11 +46,13 @@ describe('a Popover nested inside a sheet', () => {
     // scroll locks, a drag gesture that dismisses the wrong sheet, and an escape
     // key that closes both or neither.
     render(
-      <OverlayDepthProvider>
-        <Popover openPopover setOpenPopover={() => {}} content={<div>picker</div>}>
-          <button type="button">open</button>
-        </Popover>
-      </OverlayDepthProvider>,
+      withIntl(
+        <OverlayDepthProvider>
+          <Popover openPopover setOpenPopover={() => {}} content={<div>picker</div>}>
+            <button type="button">open</button>
+          </Popover>
+        </OverlayDepthProvider>,
+      ),
     );
 
     expect(await screen.findByText('picker')).toBeInTheDocument();
@@ -59,9 +65,11 @@ describe('a Popover nested inside a sheet', () => {
     // The prop is kept. The 11 existing call sites become redundant rather than
     // wrong, and a caller who knows something the tree does not can still say so.
     render(
-      <Popover openPopover setOpenPopover={() => {}} forceDropdown content={<div>picker</div>}>
-        <button type="button">open</button>
-      </Popover>,
+      withIntl(
+        <Popover openPopover setOpenPopover={() => {}} forceDropdown content={<div>picker</div>}>
+          <button type="button">open</button>
+        </Popover>,
+      ),
     );
 
     expect(await screen.findByText('picker')).toBeInTheDocument();

@@ -34,6 +34,7 @@ import * as React from 'react';
 import { cn } from '@/lib/cn';
 import type { CalendarEvent } from '@/app-layer/schemas/calendar.schemas';
 import { ChartLegend, useHeatScale } from '@/components/ui/charts';
+import { useTranslations } from 'next-intl';
 
 // ─── Public props ─────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ export function CalendarHeatmap({
   'aria-label': ariaLabel = 'Compliance activity heatmap',
   'data-testid': dataTestId = 'calendar-heatmap',
 }: CalendarHeatmapProps) {
+  const t = useTranslations('common.ui');
   // Default range: 12 months back from `to` (or from today).
   const rangeTo = to ?? new Date();
   const rangeFrom = from ?? new Date(rangeTo.getTime() - 365 * DAY_MS);
@@ -224,7 +226,7 @@ export function CalendarHeatmap({
       {/* R21-PR-C: shared gradient legend, painted from the same
                 tokens the cells consume — visually continuous. */}
       <figcaption className="flex justify-end">
-        <ChartLegend variant="gradient" heatScale={heat} label="Activity" unit="" />
+        <ChartLegend variant="gradient" heatScale={heat} label={t('activity')} unit="" />
       </figcaption>
     </figure>
   );

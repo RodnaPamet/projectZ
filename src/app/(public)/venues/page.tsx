@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { MobileListAffordances } from '@/components/mobile/MobileListAffordances';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -6,7 +7,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { listVenues } from '@/app-layer/repositories/venue';
 import { prisma } from '@/lib/db/prisma';
 
-export const metadata = { title: 'Venues — playerz.bg' };
+export async function generateMetadata() {
+  const t = await getTranslations('venues');
+  return { title: t('metaTitle') };
+}
 
 /**
  * Public venue search.
@@ -21,6 +25,9 @@ export default async function VenuesPage({
   searchParams: Promise<{ q?: string; city?: string; sport?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await getTranslations('venues');
+  const locale = await getLocale();
+  const money = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' });
 
   const { items } = await listVenues(
     prisma,
@@ -40,17 +47,15 @@ export default async function VenuesPage({
       <MobileListAffordances />
 
       <header className="mb-8">
-        <h1 className="text-content-emphasis text-3xl font-semibold">Play</h1>
-        <p className="text-content-muted mt-1 text-sm">
-          {items.length} venue{items.length === 1 ? '' : 's'} available
-        </p>
+        <h1 className="text-content-emphasis text-3xl font-semibold">{t('title')}</h1>
+        {/* ICU plural, not `venue{s}`. Bulgarian does not form plurals by
+            appending a letter, and the count word itself changes — so the
+            shape has to come from the catalogue, not from the JSX. */}
+        <p className="text-content-muted mt-1 text-sm">{t('count', { count: items.length })}</p>
       </header>
 
       {items.length === 0 ? (
-        <EmptyState
-          title="No venues match your search"
-          description="Try a different city or sport."
-        />
+        <EmptyState title={t('empty.title')} description={t('empty.description')} />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((v) => {
@@ -88,7 +93,10 @@ export default async function VenuesPage({
 
                   {from !== null && (
                     <p className="text-content-subtle mt-3 text-xs">
-                      from €{(from / 100).toFixed(2)} / hour
+                      {/* Formatted through Intl, not `€` + toFixed. Bulgarian
+                          writes the amount before the symbol and uses a comma
+                          for the decimal separator — "24,00 €", not "€24.00". */}
+                      {t('priceFrom', { price: money.format(from / 100) })}
                     </p>
                   )}
                 </Link>

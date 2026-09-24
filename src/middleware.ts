@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 
 import { checkTenantAccess, permissionsForPath, type TokenClaims } from '@/lib/auth/guard';
 import { requiredPermission } from '@/lib/security/route-permissions';
+import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
 
 /**
  * Edge middleware.
@@ -131,7 +132,44 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return withLocaleCookie(NextResponse.next(), req, token);
+}
+
+/**
+ * Seed the locale cookie from the signed-in user's stored preference.
+ *
+ * `User.locale` has existed since P05, defaulting to `bg`, and drove NOTHING:
+ * the next-intl request config hardcoded its locale and read no cookie, so a
+ * user who set English got Bulgarian anyway, for ever.
+ *
+ * Seeded here rather than read per-request in the request config, because that
+ * config runs on every render and a database round trip there would be on the
+ * critical path of the first byte. The token already carries the value.
+ *
+ * Only written when it DIFFERS from what the browser sent — a `Set-Cookie` on
+ * every response is a cache-defeating header on otherwise static pages.
+ *
+ * Never written for an anonymous request: the absence of the cookie is what
+ * makes the default apply, and stamping `bg` on a first visit would make a
+ * later change of the default silently not reach anyone who had ever visited.
+ */
+function withLocaleCookie(
+  res: NextResponse,
+  req: NextRequest,
+  token: TokenClaims | null,
+): NextResponse {
+  if (!token?.locale || !isLocale(token.locale)) return res;
+  if (req.cookies.get(LOCALE_COOKIE)?.value === token.locale) return res;
+
+  res.cookies.set(LOCALE_COOKIE, token.locale, {
+    // Read by the server on the next request, and by the language switcher.
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  return res;
 }
 
 export const config = {

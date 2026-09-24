@@ -37,6 +37,7 @@ import { cn } from '@/lib/cn';
 import { AlertTriangle, type LucideIcon } from 'lucide-react';
 import { type PropsWithChildren, type ReactNode } from 'react';
 import { Button } from './button';
+import { useTranslations } from 'next-intl';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export interface ErrorStateProps extends PropsWithChildren {
 
 export function ErrorState({
   icon: IconOverride,
-  title = 'Something went wrong',
+  title: titleProp,
   description,
   onRetry,
   retryLabel = 'Try again',
@@ -97,6 +98,12 @@ export function ErrorState({
   className,
   'data-testid': dataTestId,
 }: ErrorStateProps) {
+  const t = useTranslations('common.error');
+  // The default moved out of the parameter list — a literal default cannot
+  // be translated, because a hook cannot run there. `common.error.title` is
+  // the same sentence this file had hardcoded, and it already existed in
+  // the catalogue unused.
+  const title = titleProp ?? t('title');
   const Icon: React.ElementType = IconOverride ?? (AlertTriangle as LucideIcon);
   return (
     <div

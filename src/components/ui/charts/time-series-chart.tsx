@@ -18,6 +18,7 @@ import {
 } from './layout';
 import { ChartProps, Datum, type ChartContext as ChartContextType } from './types';
 import { useTooltip } from './use-tooltip';
+import { useTranslations } from 'next-intl';
 
 /**
  * Epic 59 — canonical interactive time-series chart.
@@ -62,15 +63,26 @@ interface TimeSeriesChartExtraProps {
 type TimeSeriesChartProps<T extends Datum> = PropsWithChildren<ChartProps<T>> &
   TimeSeriesChartExtraProps;
 
-const DEFAULT_EMPTY_STATE = (
-  <div
-    data-chart-empty
-    role="status"
-    className="text-content-muted flex h-full w-full items-center justify-center px-6 py-8 text-center text-sm"
-  >
-    No data available for this range.
-  </div>
-);
+/**
+ * A COMPONENT, not a module-level element.
+ *
+ * This was a `const DEFAULT_EMPTY_STATE = <div>No data available…</div>`
+ * evaluated once at import. A hook cannot run there, so translating the copy
+ * means the element has to be built per render.
+ */
+function DefaultEmptyState() {
+  const t = useTranslations('common.chart');
+
+  return (
+    <div
+      data-chart-empty
+      role="status"
+      className="text-content-muted flex h-full w-full items-center justify-center px-6 py-8 text-center text-sm"
+    >
+      {t('noDataForRange')}
+    </div>
+  );
+}
 
 export function TimeSeriesChart<T extends Datum>(props: TimeSeriesChartProps<T>) {
   const isEmpty = props.data.length === 0 || props.series.length === 0;
@@ -82,7 +94,7 @@ export function TimeSeriesChart<T extends Datum>(props: TimeSeriesChartProps<T>)
         if (isEmpty) {
           return (
             <div style={{ width, height }} className="flex items-center justify-center">
-              {props.emptyState ?? DEFAULT_EMPTY_STATE}
+              {props.emptyState ?? <DefaultEmptyState />}
             </div>
           );
         }

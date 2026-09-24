@@ -72,6 +72,7 @@ import type {
   PickerProps,
   ResolvableDateRangePreset,
 } from './types';
+import { useTranslations } from 'next-intl';
 
 export interface DateRangePickerProps extends ControlledDateRangeProps, PickerProps {
   /**
@@ -110,13 +111,18 @@ export function DateRangePicker({
   disabledDays,
   showYearNavigation = false,
   locale = enUS,
-  placeholder = 'Select date range',
+  placeholder: placeholderProp,
   hasError,
   align = 'center',
   className,
   clearable = true,
   ...props
 }: DateRangePickerProps) {
+  const t = useTranslations('common.ui');
+  // The placeholder default moved out of the parameter list: a literal
+  // default cannot be translated, because a hook cannot run there.
+  const placeholder = placeholderProp ?? t('selectDateRange');
+
   const { isDesktop } = useMediaQuery();
 
   const isControlled = value !== undefined;
@@ -320,7 +326,7 @@ export function DateRangePicker({
                   data-testid="date-range-picker-clear"
                 >
                   <X className="size-3.5" aria-hidden="true" />
-                  <span>Clear range</span>
+                  <span>{t('clearRange')}</span>
                 </button>
               </div>
             )}
