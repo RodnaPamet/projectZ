@@ -60,17 +60,32 @@ export async function createConnectedAccount(input: {
   email: string;
   venueName: string;
   country: string;
+  /**
+   * Stripe dedupes on this, and it is not optional.
+   *
+   * Creating a connected account is an EXTERNAL side effect that our database
+   * cannot roll back. Two admins clicking "set up payouts" at the same moment
+   * would otherwise create two Express accounts, of which we could store only
+   * one id — the other is orphaned in the club's Stripe dashboard, may be
+   * partially onboarded, and nothing in this application knows it exists.
+   *
+   * Keyed on the tenant, so both requests resolve to the same account.
+   */
+  idempotencyKey: string;
 }): Promise<string> {
-  const account = await stripe().accounts.create({
-    type: 'express',
-    country: input.country,
-    email: input.email,
-    business_profile: { name: input.venueName },
-    capabilities: {
-      card_payments: { requested: true },
-      transfers: { requested: true },
+  const account = await stripe().accounts.create(
+    {
+      type: 'express',
+      country: input.country,
+      email: input.email,
+      business_profile: { name: input.venueName },
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
     },
-  });
+    { idempotencyKey: input.idempotencyKey },
+  );
 
   return account.id;
 }
