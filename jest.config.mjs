@@ -2,6 +2,8 @@
  * The four-project test spine.
  *
  *   unit         — jsdom, pure logic + helpers. Fast, no I/O.
+ *   unit-tz      — the timezone-sensitive subset. Run TWICE by `test:tz`,
+ *                  once from a host west of Greenwich and once from one east.
  *   rendered     — jsdom + RTL, component smoke.
  *   integration  — node, REAL Postgres + Redis. Serial (see maxWorkers).
  *   guardrails   — node, structural scans over the source tree.
@@ -145,6 +147,36 @@ const config = {
       displayName: 'guardrails',
       testEnvironment: 'node',
       testMatch: ['<rootDir>/tests/guardrails/**/*.test.ts'],
+    },
+
+    // ─── The timezone-sensitive subset ───────────────────────────────
+    //
+    // A server-timezone bug is DIRECTIONAL. Reading a `@db.Date` column
+    // through local accessors instead of UTC ones only disagrees from a host
+    // WEST of Greenwich; building a day key with `toISOString()` instead of
+    // local fields only disagrees from one EAST. A suite pinned to either
+    // direction is blind to the other, and a suite pinned to neither runs on
+    // whatever the developer's laptop happens to be — which is what this was.
+    //
+    // So these run twice, in both directions, via `npm run test:tz`. The zone
+    // is set by the SHELL, before Node starts, because that is the only thing
+    // that works:
+    //
+    //   - `process.env.TZ = ...` inside a test is inert. Node caches the zone
+    //     and jest's sandboxed `process` never triggers a tzset. Measured:
+    //     assigning Pacific/Honolulu left `resolvedOptions().timeZone`
+    //     reporting the host's own zone and `getHours()` unchanged.
+    //   - a `globalSetup` assignment DOES take effect, and leaks: globalSetup
+    //     runs in the parent process, so pinning there re-timezones every
+    //     OTHER project in the same run. It broke an unrelated DST test.
+    {
+      ...common,
+      displayName: 'unit-tz',
+      testEnvironment: 'jsdom',
+      testMatch: ['<rootDir>/tests/unit-tz/**/*.test.ts?(x)'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+      // No coverageThreshold: this duplicates coverage of the same source as
+      // `unit`, and a second floor over the same files means nothing.
     },
   ],
 

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -186,5 +186,98 @@ describe('test-infra integrity (meta-ratchet)', () => {
       expect(ci).toContain('CREATE ROLE app_user');
       expect(ci).toContain('BYPASSRLS');
     });
+  });
+});
+
+describe('the host timezone is pinned by the runner, never from inside a test', () => {
+  /**
+   * `process.env.TZ = ...` inside a test DOES NOTHING.
+   *
+   * Node caches the zone on first use and jest's sandboxed `process` never
+   * triggers a tzset. Measured: assigning Pacific/Honolulu mid-test left
+   * `Intl.DateTimeFormat().resolvedOptions().timeZone` reporting the host's
+   * own zone and `getHours()` unchanged.
+   *
+   * A file that does it LOOKS pinned, which is worse than not trying — a
+   * reader has no reason to check, and the suite silently runs under whatever
+   * the machine is. One did exactly that, was "pinned" to the side of
+   * Greenwich that could not see the bug it was named after, and passed under
+   * every mutation of the function it guarded.
+   *
+   * The zone must be set by the shell before Node starts: see the `test:tz`
+   * scripts and the `unit-tz` project.
+   */
+  const TZ_ASSIGNMENT = /process\.env\.TZ\s*=/;
+
+  const testFiles = globSync('tests/**/*.{ts,tsx,cjs,mjs}').map((f) => f.toString());
+
+  it('the scan found the test tree', () => {
+    // A broken glob makes the assertion below vacuous.
+    expect(testFiles.length).toBeGreaterThan(30);
+  });
+
+  /** Comments stripped — a docblock QUOTING the banned pattern is not using it. */
+  function codeOnly(source: string): string {
+    const out: string[] = [];
+    let inBlock = false;
+
+    for (const raw of source.split('\n')) {
+      let line = raw;
+
+      if (inBlock) {
+        const end = line.indexOf('*/');
+        if (end === -1) continue;
+        line = line.slice(end + 2);
+        inBlock = false;
+      }
+
+      const block = line.indexOf('/*');
+      if (block !== -1) {
+        const end = line.indexOf('*/', block + 2);
+        if (end === -1) {
+          line = line.slice(0, block);
+          inBlock = true;
+        } else {
+          line = line.slice(0, block) + line.slice(end + 2);
+        }
+      }
+
+      const lineComment = line.indexOf('//');
+      if (lineComment !== -1) line = line.slice(0, lineComment);
+
+      out.push(line);
+    }
+
+    return out.join('\n');
+  }
+
+  it('the comment stripper does not swallow real code', () => {
+    // Without this, a stripper that returned '' would make the rule vacuous —
+    // and this whole describe block exists because something looked like it
+    // was working and was not.
+    expect(codeOnly('const a = 1; // process.env.TZ = "x"')).not.toMatch(TZ_ASSIGNMENT);
+    expect(codeOnly('process.env.TZ = "x";')).toMatch(TZ_ASSIGNMENT);
+    expect(codeOnly('/* process.env.TZ = "x" */\nconst b = 2;')).toContain('const b = 2');
+  });
+
+  it('no test file assigns process.env.TZ', () => {
+    const offenders = testFiles
+      // This file states the pattern as code in order to test the matcher
+      // above. Excluded by name rather than by a comment trick, so the
+      // exclusion is visible.
+      .filter((f) => !f.endsWith('test-infra-integrity.test.ts'))
+      .filter((f) => TZ_ASSIGNMENT.test(codeOnly(readFileSync(f, 'utf8'))));
+
+    if (offenders.length > 0) {
+      throw new Error(
+        `Assigning process.env.TZ inside a test does nothing:\n\n` +
+          offenders.map((o) => `  ${o}`).join('\n') +
+          `\n\nNode caches the zone and jest's sandboxed process never triggers a\n` +
+          `tzset, so the file runs under the host's zone while LOOKING pinned.\n\n` +
+          `Put the file in tests/unit-tz/ instead — \`npm run test:tz\` runs that\n` +
+          `project twice with TZ set by the shell, once from each side of\n` +
+          `Greenwich, so the direction does not have to be guessed.`,
+      );
+    }
   });
 });
