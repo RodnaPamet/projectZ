@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type Stripe from 'stripe';
 
+import type { NotifyInput } from '@/app-layer/usecases/notifications';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 
 /**
@@ -42,6 +43,15 @@ import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 export interface ConfirmResult {
   handled: boolean;
   bookingId?: string;
+  /**
+   * Set only on `confirmed`, and only when there is somebody to tell.
+   *
+   * A DESCRIPTION of the notification, not a written row: `notification` is
+   * owner-only on `app.user_id` and this function runs under whatever binding
+   * its caller holds — a tenant one, for checkout. The caller passes this to
+   * `notifyAfterCommit` once its transaction commits.
+   */
+  notify?: NotifyInput;
   reason?:
     'no-payment-intent-link' | 'metadata-mismatch' | 'amount-short' | 'not-pending' | 'confirmed';
 }
@@ -53,6 +63,8 @@ export interface ConfirmInput {
     status: string;
     totalCents: number;
     currency: string;
+    /** Null for a guest booking: nobody to notify, and no device to notify. */
+    bookedByUserId: string | null;
   };
   provider: string;
   /** Unique per charge. `(provider, providerRefId)` is a UNIQUE index. */
@@ -190,7 +202,41 @@ export async function recordPaymentAndConfirm(
     },
   });
 
-  return { handled: true, bookingId: booking.id, reason: 'confirmed' };
+  // ═══ AND TELL THE PLAYER — AFTER THE CALLER COMMITS ═══
+  //
+  // Described here and written by the caller, because `notification` is
+  // owner-only on `app.user_id` and this function runs under whatever binding
+  // it was handed. Checkout's is a TENANT binding, so the INSERT would fail
+  // the policy's WITH CHECK and take the payment transaction down with it.
+  //
+  // It also has to come after the commit rather than before it: a banner on
+  // the phone for a booking whose transaction then rolled back is the
+  // push-then-persist failure the notifications module refuses by design.
+  //
+  // A guest booking has nobody to notify. That is not a failure — the guest
+  // gave an email, and email is the channel they get.
+  const notify: NotifyInput | undefined = booking.bookedByUserId
+    ? {
+        tenantId: booking.tenantId,
+        userId: booking.bookedByUserId,
+        kind: 'BOOKING_CONFIRMED',
+        title: 'Booking confirmed',
+        body: `Your court is booked. Payment of ${formatMoney(
+          receivedCents + creditUsedCents,
+          booking.currency,
+        )} received.`,
+        href: `/bookings/${booking.id}`,
+        refType: 'booking',
+        refId: booking.id,
+      }
+    : undefined;
+
+  return { handled: true, bookingId: booking.id, reason: 'confirmed', notify };
+}
+
+/** Minor units to a displayable string. `2400, 'eur'` → `24.00 EUR`. */
+function formatMoney(cents: number, currency: string): string {
+  return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
 }
 
 export async function handlePaymentIntentSucceeded(
@@ -205,6 +251,8 @@ export async function handlePaymentIntentSucceeded(
       status: true,
       totalCents: true,
       currency: true,
+      // Who to tell. Null for a guest booking.
+      bookedByUserId: true,
     },
   });
 

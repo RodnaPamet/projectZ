@@ -7,6 +7,7 @@ import {
   handleInvoicePaid,
   handleSubscriptionDeleted,
 } from '@/lib/billing/webhook-handlers';
+import { notifyAfterCommit, type NotifyInput } from '@/app-layer/usecases/notifications';
 import { handlePaymentIntentSucceeded } from '@/lib/billing/booking-payment';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { WebhookSignatureError, verifyStripeWebhook } from '@/lib/stripe';
@@ -55,6 +56,12 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
+  // Set by the handler, sent after the transaction commits. Writing it inside
+  // would hold this transaction open across a call to Apple, and would put a
+  // banner on the phone even if the transaction — including the event claim —
+  // then rolled back.
+  let pending: NotifyInput | undefined;
+
   const dispatch = async (db: PrismaClient): Promise<Record<string, unknown>> => {
     // Claim the event. `createMany` with skipDuplicates compiles to
     // INSERT ... ON CONFLICT DO NOTHING, which — unlike a caught unique
@@ -71,7 +78,12 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const r = await handlePaymentIntentSucceeded(db, event.data.object as Stripe.PaymentIntent);
-        return { received: true, type: event.type, ...r };
+        // `notify` rides out of the transaction and is sent after the commit —
+        // see below. Stripped from the response body: Stripe has no use for a
+        // notification payload in a webhook reply.
+        const { notify, ...body } = r;
+        pending = notify;
+        return { received: true, type: event.type, ...body };
       }
 
       // The ONLY thing that may set `payoutsEnabled`. See handleAccountUpdated.
@@ -101,5 +113,12 @@ export async function POST(req: NextRequest) {
     }
   };
 
-  return NextResponse.json(await runAsSuperuser(dispatch));
+  const body = await runAsSuperuser(dispatch);
+
+  // Committed. `notifyAfterCommit` never throws: a push failure must not make
+  // this a non-2xx, because Stripe would retry an event we have already
+  // claimed and the retry would be discarded as a duplicate.
+  if (pending) await notifyAfterCommit(pending);
+
+  return NextResponse.json(body);
 }
