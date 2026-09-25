@@ -294,19 +294,19 @@ export const env = createEnv({
     // with it, ~50 req / 30s. The sync paces itself to respect both.
     NVD_API_KEY: z.string().optional(),
 
-    // Epic 1, PR 2 — Platform-admin API key.
-    // Optional platform-scoped secret for the tenant-creation endpoint
-    // (POST /api/admin/tenants). Keep out of tenant env — inject via
-    // orchestrator or secret-manager only. When unset, the endpoint
-    // returns 503 "Platform admin API not configured".
-    PLATFORM_ADMIN_API_KEY: z.string().min(32).optional(),
-
-    // R-4: zero-downtime rotation. During key swap, set this to the
-    // OUTGOING key alongside the new PLATFORM_ADMIN_API_KEY. The
-    // verifier accepts either; once you've confirmed callers use the
-    // new key, drop this from env. Same shape as
-    // DATA_ENCRYPTION_KEY_PREVIOUS.
-    PLATFORM_ADMIN_API_KEY_PREVIOUS: z.string().min(32).optional(),
+    // PLATFORM_ADMIN_API_KEY and its _PREVIOUS rotation slot lived here and
+    // were read by NOTHING. They described a shared bearer secret for a
+    // tenant-creation endpoint (POST /api/admin/tenants) that does not exist.
+    //
+    // Removed with P31, which gives platform authority a real identity: a
+    // `platform_admin_grant` row naming a person, a granter, a reason, a
+    // capability list and an expiry, with every use written to an append-only
+    // audit table by a database trigger. A shared secret has none of that — no
+    // owner, no expiry, no audit trail, and no revocation short of a redeploy.
+    //
+    // Leaving it declared was the hazard: it invited someone to wire the shared
+    // secret as the human admin's credential, which is how this capability came
+    // to be half-built twice (`appPermissions` was the other half).
 
     // Local zone for task-due deadline notifications — sets BOTH the
     // cron firing time AND the calendar-day classification ("due
@@ -435,8 +435,6 @@ export const env = createEnv({
     VENDOR_MONITOR_TLS_PROVIDER: process.env.VENDOR_MONITOR_TLS_PROVIDER,
     NVD_SYNC_ENABLED: process.env.NVD_SYNC_ENABLED,
     NVD_API_KEY: process.env.NVD_API_KEY,
-    PLATFORM_ADMIN_API_KEY: process.env.PLATFORM_ADMIN_API_KEY,
-    PLATFORM_ADMIN_API_KEY_PREVIOUS: process.env.PLATFORM_ADMIN_API_KEY_PREVIOUS,
     NOTIFICATIONS_TZ: process.env.NOTIFICATIONS_TZ,
 
     NEXT_PUBLIC_NOTIFICATIONS_SSE: process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE,

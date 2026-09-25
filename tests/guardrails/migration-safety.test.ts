@@ -113,6 +113,39 @@ const PROTECTED: Protected[] = [
     recreate: /CREATE TRIGGER\s+"?audit_append_only_trg/i,
     why: 'an audit log you can UPDATE or DELETE is not evidence, and still looks like it',
   },
+  // ── P31, platform administration ──────────────────────────────────
+  //
+  // These four carry MORE weight than anything above them, because the
+  // platform-admin design deliberately does not rest on a Postgres role.
+  // DATABASE_URL connects as `playerz`, which is rolsuper AND rolbypassrls,
+  // so a role-based guarantee is not one this repo currently has. Triggers
+  // fire for the owner and the superuser alike; that is why they were chosen.
+  // Drop one and the accountability it enforces is gone, silently, because no
+  // application code ever attempts the thing it forbids.
+  {
+    name: 'platform_audit_attribution_trg (forgery / omission)',
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?platform_audit_attribution_trg/i,
+    recreate: /CREATE TRIGGER\s+"?platform_audit_attribution_trg/i,
+    why: 'without it a platform audit row can be forged, attributed to someone else, or simply never written',
+  },
+  {
+    name: 'platform_audit_append_only_trg',
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?platform_audit_append_only_trg/i,
+    recreate: /CREATE TRIGGER\s+"?platform_audit_append_only_trg/i,
+    why: 'the record of who read another club’s data must not be editable by the person who read it',
+  },
+  {
+    name: 'platform_admin_grant_immutable_trg',
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?platform_admin_grant_immutable_trg/i,
+    recreate: /CREATE TRIGGER\s+"?platform_admin_grant_immutable_trg/i,
+    why: 'without it expiresAt is advisory — anyone reaching the table can push it forward or widen capabilities',
+  },
+  {
+    name: 'platform_admin_grant_one_live_idx (PARTIAL unique index)',
+    drop: /DROP INDEX\s+(?:IF EXISTS\s+)?"?platform_admin_grant_one_live_idx/i,
+    recreate: /CREATE UNIQUE INDEX\s+(?:IF NOT EXISTS\s+)?"?platform_admin_grant_one_live_idx/i,
+    why: 'overlapping live grants make "what could this person do?" unanswerable',
+  },
 ];
 
 /** A DROP inside a comment is documentation, not a statement. */

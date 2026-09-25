@@ -106,6 +106,10 @@ model User {
   apiKeys     ApiKey[]
   invitedBy   TenantMembership[]   @relation("MembershipInvitedBy")
 
+  /// Platform authority, if any. Almost always empty — see platform.prisma for
+  /// why this is a grant row rather than a value in `enum Role` or a flag here.
+  platformGrants PlatformAdminGrant[] @relation("PlatformGrantHolder")
+
   @@map("app_user")
 }
 

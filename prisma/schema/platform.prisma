@@ -1,0 +1,150 @@
+/// ═══════════════════════════════════════════════════════════════════════
+///  PLATFORM ADMINISTRATION — the only authority that spans clubs.
+/// ═══════════════════════════════════════════════════════════════════════
+///
+/// Everything else in this schema is tenant-scoped: a `Membership` says what
+/// you may do inside ONE club, and RLS makes that binding physical. This file
+/// is the single exception, and it is deliberately small and deliberately
+/// hostile to use.
+///
+/// ═══ WHY THIS IS NOT A VALUE IN `enum Role` ═══
+///
+/// `Role` is `OWNER | MANAGER | COACH | STAFF | PLAYER` and lives on a
+/// membership — a row joining ONE user to ONE tenant. An `ADMIN` member would
+/// therefore mean "admin of that one club", which is the opposite of what a
+/// platform administrator is.
+///
+/// There is a sharper reason too. The P27 migration defends OWNER against
+/// Entra group mapping with `CHECK (role <> 'OWNER')` — a DENYLIST. A new
+/// `ADMIN` value added to `Role` would be ACCEPTED by that constraint, so the
+/// documented four-layer defence around the most privileged role in the
+/// system would silently become three for the MOST privileged value of all.
+///
+/// So platform authority is a row in its own table, and the table denies
+/// everything to `app_user` at the RLS layer.
+///
+/// ═══ WHY A GRANT AND NOT A FLAG ON `User` ═══
+///
+/// `User.isPlatformAdmin Boolean` cannot answer any of the questions that
+/// matter after an incident: who granted it, when, why, what it allowed, and
+/// when it stops. A boolean also has no natural expiry, so it is permanent by
+/// construction. A grant row carries all of that, and `expiresAt` is NOT NULL
+/// with a database CHECK capping it — "admin for ever" is not expressible
+/// rather than merely discouraged.
+
+/// What a platform grant may do. A Postgres enum rather than `String[]` so an
+/// ungranted capability cannot be spelled, and adding one is a migration a
+/// reviewer sees.
+///
+/// TENANT_SUSPEND is declared but REFUSED by the binding. Stepping up to a
+/// cross-club write should require a second factor and there is none:
+/// `User.mfaSecret` is unencrypted and nothing writes it. Declaring the shape
+/// without shipping the power is the honest position — see
+/// `PlatformWriteNotEnabledError`.
+enum PlatformCapability {
+  /// Read any club's operational data — bookings, venues, members.
+  TENANT_READ
+  /// Read any club's audit log.
+  AUDIT_READ
+  /// Read user records across clubs, through the directory view only.
+  USER_READ
+  /// Suspend a club. DECLARED, NOT ENABLED.
+  TENANT_SUSPEND
+}
+
+/// One person's platform authority, for a bounded window.
+///
+/// Written ONLY by `scripts/grant-platform-admin.ts` against
+/// `DIRECT_DATABASE_URL`. There is deliberately no API route and no capability
+/// that grants this: with one, a stolen admin session mints a second admin and
+/// survives revocation of the first. Without one, a compromised session is
+/// bounded by the grant it already holds and dies when that grant is revoked
+/// or expires.
+model PlatformAdminGrant {
+  id String @id @default(cuid())
+
+  /// Who holds the authority.
+  userId String
+  user   User   @relation("PlatformGrantHolder", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Who issued it. NOT NULL and, by a database CHECK, never the recipient —
+  /// so the first grant is two-party by construction and nobody can bootstrap
+  /// themselves. A person, not an environment variable, so there is someone to
+  /// ask about it later.
+  grantedByUserId String
+
+  /// Free text, required, with a minimum length enforced in the database.
+  /// A grant with no stated reason is one nobody has to justify.
+  reason String
+
+  capabilities PlatformCapability[]
+
+  grantedAt DateTime @default(now())
+
+  /// NOT NULL, and capped at 90 days after `grantedAt` by a CHECK constraint.
+  expiresAt DateTime
+
+  revokedAt       DateTime?
+  revokedByUserId String?
+  revokeReason    String?
+
+  /// The per-request lookup: the live grant for this user. Also satisfies the
+  /// foreign-key index requirement in schema-index-coverage.
+  @@index([userId, revokedAt])
+  @@map("platform_admin_grant")
+}
+
+/// What a platform admin did, written BEFORE the work in the same transaction.
+///
+/// Separate from `AuditEntry` because that model cannot express this row:
+/// `AuditEntry.tenantId` is `TEXT NOT NULL`, its RLS policy's `WITH CHECK` is
+/// symmetric on `tenantId`, and `AuditInput.tenantId` is a required string
+/// written unconditionally. A platform action may name no club at all — a
+/// cross-club search belongs to none of them.
+model PlatformAuditEntry {
+  id String @id @default(cuid())
+
+  /// Bare id with no FK, matching `AuditEntry.actorUserId`: the log must
+  /// outlive the account it describes.
+  ///
+  /// A database trigger refuses any insert where this does not equal
+  /// `app.platform_admin_id` on the transaction, so a row cannot be forged,
+  /// written on someone else's behalf, or omitted by a caller who forgot.
+  actorUserId String
+
+  /// Which grant authorised it, and under which capability.
+  grantId    String
+  capability PlatformCapability
+
+  /// SCREAMING_SNAKE verb, a String for the same reason `AuditEntry.action`
+  /// is one: the set grows with every feature and callers pass a constant.
+  action String
+
+  /// The club this action was ABOUT, when it was about exactly one.
+  ///
+  /// Deliberately NOT named `tenantId`. The name is load-bearing: both
+  /// rls-coverage and tenant-isolation-structural key off that exact field
+  /// name, and this row REFERENCES a tenant rather than BELONGING to one.
+  /// Calling it `tenantId` would enlist this table in tenant-scoped RLS, which
+  /// is precisely backwards for the one table that spans tenants.
+  subjectTenantId String?
+
+  entity   String?
+  entityId String?
+
+  /// Why. Carried from the grant's reason or supplied per action.
+  reason String
+
+  detailsJson Json @default("{}")
+
+  requestId String?
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([subjectTenantId, createdAt])
+  @@map("platform_audit_entry")
+}

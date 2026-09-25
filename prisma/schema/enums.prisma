@@ -136,6 +136,13 @@ enum AuditActorType {
   API_KEY
 }
 
+/// NOTE: a PLATFORM value was drafted here for a club-side mirror of platform
+/// access, then removed before it shipped. The owner decided platform reads are
+/// recorded in `platform_audit_entry` only and are NOT surfaced in a club's own
+/// audit log. Nothing would have written PLATFORM, and Postgres cannot DROP an
+/// enum value — so adding it speculatively is a one-way door. If that decision
+/// is revisited, adding it then is a one-line migration.
+
 /// External identity providers a club can federate with.
 enum IdentityProviderType {
   ENTRA_ID

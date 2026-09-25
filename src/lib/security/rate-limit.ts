@@ -442,11 +442,20 @@ export const EMAIL_DISPATCH_LIMIT: RateLimitConfig = {
 /**
  * Platform-admin tenant creation: 5 per hour per calling IP.
  *
- * Threat model: a leaked PLATFORM_ADMIN_API_KEY being used to spin up
- * many tenants in rapid succession. 5/hour is comfortable for
- * orchestrator-driven batch provisioning while throttling an attacker
- * who obtained the key. Keyed by IP (the platform key itself is a
- * single shared secret, so per-key bucketing would add no isolation).
+ * ⚠️ UNUSED, and describing a threat model that no longer exists. Kept only so
+ * removing it is a decision somebody makes on purpose rather than a side effect
+ * of P31.
+ *
+ * Its original threat model was "a leaked PLATFORM_ADMIN_API_KEY used to spin up
+ * many tenants in rapid succession", guarding `POST /api/admin/tenants`. Neither
+ * exists: the endpoint was never built, and P31 deleted the shared secret in
+ * favour of `platform_admin_grant` — a named person, a granter, a reason, a
+ * capability list, an expiry, and an append-only audit row per use.
+ *
+ * If tenant creation ever does get a platform endpoint, it will be authorised by
+ * a capability rather than a shared key, so this bucket's IP keying (chosen
+ * because "the platform key is a single shared secret, so per-key bucketing adds
+ * no isolation") no longer follows either.
  */
 export const TENANT_CREATE_LIMIT: RateLimitConfig = {
   maxAttempts: 5,
