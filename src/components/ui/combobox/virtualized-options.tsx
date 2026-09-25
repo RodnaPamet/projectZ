@@ -329,6 +329,12 @@ export function VirtualizedComboboxOptions<TMeta>({
         height={viewportHeight}
         width="100%"
         overscanCount={5}
+        // react-window 2 puts `role="list"` on its scroller. Between the
+        // `role="listbox"` above and the `role="option"` rows below, that
+        // is invalid ARIA — the options stop being this listbox's children,
+        // so screen readers lose the option count and arrow-key semantics.
+        // v1 set no role, so nothing here had to say this before.
+        role="presentation"
         renderItem={({ index, style }) => {
           const option = options[index]!;
           const isSelected = selectedSet.has(option.value);

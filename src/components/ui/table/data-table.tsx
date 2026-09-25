@@ -295,10 +295,10 @@ export interface DataTableProps<T> {
 
   /**
    * Explicit body height (px) when virtualization is on. When
-   * omitted, the body fills its parent via AutoSizer — which is the
+   * omitted, the body measures its own parent — which is the
    * production default (use inside `<ListPageShell.Body>` or any
-   * sized flex parent). Set this only when AutoSizer can't reach a
-   * sized ancestor (e.g. test harnesses, or ad-hoc layouts).
+   * sized flex parent). Set this only when that measurement can't
+   * reach a sized ancestor (e.g. test harnesses, or ad-hoc layouts).
    */
   virtualHeight?: number;
 }
