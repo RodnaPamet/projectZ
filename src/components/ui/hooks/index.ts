@@ -85,13 +85,16 @@ export {
   type UseThresholdLoadMoreResult,
 } from './use-threshold-load-more';
 
-// ─── Celebration (Epic 62) ────────────────────────────────────────────
-export {
-  useCelebration,
-  type CelebrateInput,
-  type CelebrateAdHocInput,
-  type UseCelebrationResult,
-} from './use-celebration';
+// ─── Celebration (Epic 62) — REMOVED ──────────────────────────────────
+//
+// `useCelebration` and `src/lib/celebrations.ts` were ported from
+// inflect-compliance and their milestones were that product's: "100% framework
+// coverage", "Every applicable control is implemented", "Audit pack ready".
+//
+// Nothing outside this barrel ever called the hook, so the confetti mechanism
+// existed to fire for achievements playerz.bg does not have. When there is a
+// reason to celebrate something here — a first booking, a tournament won — it
+// wants a milestone list written for this product, not that one. See #176.
 
 // ─── View mode (Epic 66) ──────────────────────────────────────────────
 export { useViewMode, viewModeStorageKey, type ViewMode } from './use-view-mode';
