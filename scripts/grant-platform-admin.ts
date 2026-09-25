@@ -53,6 +53,12 @@ import { PlatformCapability, PrismaClient } from '@prisma/client';
  *     --granted-by bob@playerz.bg \
  *     --reason "rota ended"
  *
+ *   tsx scripts/grant-platform-admin.ts --list
+ *
+ * `--list` answers "who holds cross-club authority right now", which the audit
+ * table cannot: that records ACTIONS, and reconstructing current state from a
+ * log of grants and revocations is the arithmetic nobody should do at 03:00.
+ *
  * Every flag is mandatory and nothing has a default. A default expiry would be
  * the expiry everybody uses, and a default reason would be no reason at all.
  */
@@ -118,8 +124,69 @@ async function main() {
       expires: { type: 'string' },
       reason: { type: 'string' },
       revoke: { type: 'string' },
+      list: { type: 'boolean' },
     },
   });
+
+  // ═══ --list FIRST: IT WRITES NOTHING AND NEEDS NOTHING ═══
+  //
+  // Placed before the --granted-by and --reason checks because reading who holds
+  // authority is not an act that needs a justification or a second party.
+  //
+  // The runbook could already query platform_audit_entry, but that shows ACTIONS
+  // — every grant and revocation ever. The question somebody actually has at
+  // 03:00 is "who can reach our customers' data right now", and reconstructing
+  // that from a log of mutations is exactly the arithmetic nobody should be doing
+  // at that hour.
+  if (values.list) {
+    const rows = await prisma.platformAdminGrant.findMany({
+      where: { revokedAt: null },
+      select: {
+        id: true,
+        userId: true,
+        capabilities: true,
+        grantedAt: true,
+        expiresAt: true,
+        reason: true,
+      },
+      orderBy: { expiresAt: 'asc' },
+    });
+
+    if (rows.length === 0) {
+      console.log('\nNo live platform grants. Nobody holds cross-club authority.\n');
+      return;
+    }
+
+    // Resolve ids to emails: an id is not who you page.
+    const users = await prisma.$queryRawUnsafe<{ id: string; email: string }[]>(
+      `SELECT id, email FROM app_user WHERE id = ANY($1::text[])`,
+      rows.map((r) => r.userId),
+    );
+    const emailOf = new Map(users.map((u) => [u.id, u.email]));
+
+    const now = Date.now();
+    console.log(`\n${rows.length} live platform grant(s), soonest to expire first:\n`);
+    for (const r of rows) {
+      const hours = (r.expiresAt.getTime() - now) / 36e5;
+      // A lapsed-but-unrevoked grant is the state the runbook devotes a section
+      // to: the holder is locked out AND the row still occupies their one live
+      // slot, so a renewal is refused until somebody revokes it. It must not read
+      // as merely "expiring soon".
+      const state =
+        hours <= 0
+          ? `LAPSED ${Math.abs(hours / 24).toFixed(1)}d ago — still holding the live slot, revoke it before reissuing`
+          : hours < 48
+            ? `expires in ${hours.toFixed(1)}h`
+            : `expires in ${(hours / 24).toFixed(1)}d`;
+
+      console.log(`  ${emailOf.get(r.userId) ?? r.userId}`);
+      console.log(`    ${r.capabilities.join(', ')}`);
+      console.log(`    ${state}  (${r.expiresAt.toISOString()})`);
+      console.log(`    granted ${r.grantedAt.toISOString().slice(0, 10)} — ${r.reason}`);
+      console.log(`    grant id: ${r.id}\n`);
+    }
+    return;
+  }
 
   const grantedByEmail = values['granted-by'];
   const reason = values.reason;

@@ -333,6 +333,71 @@ describe('grant-platform-admin CLI', () => {
     });
   });
 
+  describe('--list', () => {
+    // The audit table records ACTIONS — every grant and revocation ever. The
+    // question at 03:00 is "who can reach our customers' data right now", and
+    // reconstructing that from a log of mutations is arithmetic nobody should do
+    // at that hour.
+    it('says so plainly when nobody holds authority', async () => {
+      const r = cli(['--list']);
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/No live platform grants/);
+    });
+
+    it('names the holder by email, not by id', async () => {
+      // An id is not who you page.
+      cli([
+        '--user',
+        alice,
+        '--granted-by',
+        bob,
+        '--capabilities',
+        'TENANT_READ,AUDIT_READ',
+        '--expires',
+        soon(),
+        '--reason',
+        'incident response rota',
+      ]);
+
+      const r = cli(['--list']);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain(alice);
+      expect(r.out).toContain('TENANT_READ, AUDIT_READ');
+    });
+
+    it('distinguishes a LAPSED grant from one merely expiring', async () => {
+      // The state the runbook devotes a section to: the holder is locked out AND
+      // the row still occupies their one live slot, so a renewal is refused until
+      // somebody revokes it. Reading as "expiring soon" would bury the one case
+      // that needs a different action.
+      await asAppSuperuser(db, (tx) =>
+        tx.$executeRawUnsafe(
+          `INSERT INTO platform_admin_grant
+             (id,"userId","grantedByUserId",reason,capabilities,"grantedAt","expiresAt")
+           SELECT 'glapsed', u.id, g.id, 'a grant that already lapsed',
+                  ARRAY['USER_READ']::"PlatformCapability"[],
+                  now() - interval '40 days', now() - interval '3 days'
+             FROM app_user u, app_user g WHERE u.email = $1 AND g.email = $2`,
+          alice,
+          bob,
+        ),
+      );
+
+      const r = cli(['--list']);
+      expect(r.out).toMatch(/LAPSED/);
+      expect(r.out).toMatch(/revoke it before reissuing/);
+    });
+
+    it('needs neither --granted-by nor --reason, because it writes nothing', async () => {
+      // Reading who holds authority is not an act that needs a justification or a
+      // second party. Requiring them would make the fast diagnostic slower than
+      // the mutation it precedes.
+      const r = cli(['--list']);
+      expect(r.code).toBe(0);
+      expect(r.out).not.toMatch(/--granted-by is required|--reason is required/);
+    });
+  });
+
   describe('expiry semantics', () => {
     it('treats a bare date as the END of that day, not the start', async () => {
       // `new Date('2026-09-26')` is midnight UTC. So the runbook's own incident

@@ -82,6 +82,21 @@ that is a decision to make deliberately, not a flag to flip during an incident.
 
 ---
 
+## Who holds authority right now
+
+```bash
+npm run grant:platform-admin -- --list
+```
+
+Needs no `--granted-by` and no `--reason`: reading is not an act that needs
+justifying or a second party.
+
+Start here. The audit query at the bottom of this document records **actions** —
+every grant and revocation ever — and reconstructing current state from a log of
+mutations is the arithmetic you should not be doing at 03:00. `--list` also marks
+a grant that has **lapsed but not been revoked**, which is the trap the section
+below covers.
+
 ## Revoking
 
 ```bash
