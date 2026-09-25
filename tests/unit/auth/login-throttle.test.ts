@@ -9,7 +9,7 @@ jest.mock('next-auth', () => ({
 }));
 jest.mock('@/auth', () => ({ authOptions: {} }));
 
-import { LOGIN_LIMIT } from '@/lib/security/rate-limit';
+import { clearAllRateLimits, LOGIN_LIMIT } from '@/lib/security/rate-limit';
 
 import { POST } from '@/app/api/auth/[...nextauth]/route';
 
@@ -31,7 +31,29 @@ const credentialsPost = (ip: string) =>
   });
 
 describe('credentials login throttling', () => {
+  // ═══ WHY THIS CLEAR IS NEW, AND WHY THE RANDOM IP WAS NOT ENOUGH ═══
+  //
+  // A random IP from a 200-address space used to be safe: the limiter was an
+  // in-memory Map, so every run started empty and a collision was impossible
+  // across runs.
+  //
+  // #162 moved the limiter to Redis so it spans instances — which also means it
+  // PERSISTS between test runs. A repeated address now arrives already at its
+  // limit, and LOGIN_LIMIT carries a lockout that outlives the run, so the first
+  // attempt 429s and the test fails. Measured: passed on one `npm test`, failed
+  // on the next, with nothing changed between them.
+  //
+  // AWAITED. An un-awaited clear lands mid-test and deletes the key between two
+  // attempts, which is the same bug wearing a different hat — see
+  // tests/unit/lib/rate-limit-429-envelope.test.ts, which learned this first.
+  beforeEach(async () => {
+    await clearAllRateLimits();
+  });
+
   it('allows attempts up to the limit, then 429s', async () => {
+    // Still randomised, so two tests in this file cannot collide with each other
+    // even if one forgets to clear. The clear above is what makes it correct;
+    // this only keeps it independent.
     const ip = `10.0.0.${Math.floor(Math.random() * 200) + 1}`;
 
     for (let i = 0; i < LOGIN_LIMIT.maxAttempts; i++) {

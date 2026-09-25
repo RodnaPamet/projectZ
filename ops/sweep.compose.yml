@@ -72,3 +72,59 @@ services:
                esac \
             || echo "sweep: request failed (app down, or wrong secret)"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  The platform-grant expiry warning.
+  #
+  #  Same shape, same reason, and the reason is that this file exists at
+  #  all: `POST /api/cron/release-expired-bookings` shipped in #119 and
+  #  nothing called it for seventeen prompts. The grant-expiry route
+  #  shipped in #174 and would have repeated that exactly — written,
+  #  tested, reachable, and never invoked.
+  #
+  #  ═══ WHY DAILY AND NOT EVERY MINUTE ═══
+  #
+  #  The route warns inside a 7-day horizon, so the useful question is
+  #  "did anyone see it today", not "was it caught within the minute".
+  #  Running it per-minute would emit the same warning 1,440 times and
+  #  teach everyone to filter it out, which is how an alert stops working.
+  #
+  #  It is read-only: it cannot extend a grant, and the immutability
+  #  trigger would refuse it if it tried. So a missed run delays a warning
+  #  and loses nothing.
+  # ═══════════════════════════════════════════════════════════════════
+  grant-expiry-warn:
+    image: alpine:3
+    container_name: playerz-grant-expiry-warn
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the grant-expiry warning}
+      WARN_URL: ${WARN_URL:-http://app:3000/api/cron/warn-expiring-platform-grants}
+      WARN_INTERVAL_SECONDS: ${WARN_INTERVAL_SECONDS:-86400}
+    # busybox wget, `--post-data=""`, `$$` escaping — all for the reasons
+    # spelled out on booking-sweep above. Do not switch to `--method=POST`:
+    # that is GNU wget and busybox fails every request with a usage error.
+    #
+    # NOTE the loop order differs from booking-sweep DELIBERATELY: that one
+    # sleeps before its first request, this one requests first. At a 60s
+    # interval the difference is invisible; at 86400s, sleeping first means a
+    # restarted container tells you nothing for a full day — including about a
+    # grant that lapses tomorrow.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "grant-expiry: every $${WARN_INTERVAL_SECONDS}s -> $${WARN_URL}"
+        while true; do
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${WARN_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"expiringSoon":0'*'"lapsed":0'*) : ;;   # nothing expiring — stay quiet
+                 *) echo "grant-expiry: $$body" ;;
+               esac \
+            || echo "grant-expiry: request failed (app down, or wrong secret)"
+          sleep "$${WARN_INTERVAL_SECONDS}"
+        done
