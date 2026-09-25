@@ -131,6 +131,74 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
 
+  # ═══════════════════════════════════════════════════════════════════
+  #  A red nightly that nobody sees is the same as no nightly.
+  #
+  #  Every defect the PostGIS/firefox fix removed had been failing here
+  #  for weeks. None of them was subtle; they were simply invisible,
+  #  because this workflow reports at 02:00 into a tab nobody opens and
+  #  a scheduled run cannot fail a PR. The YAML fixes stop TODAY's four
+  #  failures — this job is what stops the next one lasting weeks.
+  #
+  #  It files ONE issue and keeps commenting on it, rather than opening a
+  #  fresh issue per night: a nightly that breaks and stays broken would
+  #  otherwise generate an issue every 24h, and the fastest way to make
+  #  people ignore an alert is to send it repeatedly.
+  # ═══════════════════════════════════════════════════════════════════
+  report-failure:
+    name: Report nightly failure
+    runs-on: ubuntu-latest
+    needs: [e2e-full, visual-regression, trivy-full]
+    # `failure()` alone would stay silent when a job is cancelled or when
+    # one is skipped because an earlier one died — both of which mean the
+    # nightly did not prove what it claims to prove.
+    # Parenthesised deliberately: `&&` binds tighter than `||` in GitHub
+    # expressions, so `always() && A || B` parses as `(always() && A) || B`
+    # and the cancelled branch would sit outside the always() guard.
+    if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the nightly-failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          E2E: ${{ needs.e2e-full.result }}
+          VISUAL: ${{ needs.visual-regression.result }}
+          TRIVY: ${{ needs.trivy-full.result }}
+        run: |
+          set -euo pipefail
+
+          TITLE="Nightly is failing"
+          BODY=$(printf '%s\n' \
+            "The [Nightly]($RUN_URL) did not pass." \
+            "" \
+            "| Job | Result |" \
+            "| --- | --- |" \
+            "| E2E (chromium + firefox) | \`$E2E\` |" \
+            "| Visual Regression | \`$VISUAL\` |" \
+            "| Trivy (full) | \`$TRIVY\` |" \
+            "" \
+            "Nothing here gates a merge, which is exactly why it needs saying out loud." \
+            "" \
+            "_Filed automatically by \`.github/workflows/nightly.yml\`._")
+
+          # --search rather than --label: the label may not exist yet, and a
+          # missing label would make this list EMPTY and open a duplicate
+          # every single night.
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" \
+                       --json number,title \
+                       --jq "[.[] | select(.title == \"$TITLE\")] | first | .number // empty")
+
+          if [ -n "$EXISTING" ]; then
+            echo "Commenting on existing #$EXISTING"
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            echo "Opening a new issue"
+            gh issue create --title "$TITLE" --body "$BODY" --label bug
+          fi
+
   trivy-full:
     name: Trivy (full, incl. unfixed)
     runs-on: ubuntu-latest
