@@ -30,6 +30,20 @@ cannot edit the record afterwards.
 
 ---
 
+## Running the commands at all
+
+Every command below is `npm run grant:platform-admin -- …`, and the `--` is
+required: it is what passes the flags to the script rather than to npm.
+
+An earlier version of this document said `tsx scripts/grant-platform-admin.ts`.
+**That fails with `command not found`** — `tsx` is a local devDependency, not on
+`PATH` and not installed globally. Which is the worst possible bug for a
+break-glass runbook to have, since the first time anybody finds out is the one
+night they need it. Verified by running it.
+
+If you are somewhere `npm` is unavailable, `npx tsx scripts/grant-platform-admin.ts`
+is the equivalent.
+
 ## Granting
 
 Needs `DIRECT_DATABASE_URL` — the **owner** connection. That credential is
@@ -37,7 +51,7 @@ strictly more authority than any grant it issues, which makes whoever holds it
 the real bar for platform access.
 
 ```bash
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --user alice@playerz.bg \
   --granted-by bob@playerz.bg \
   --capabilities TENANT_READ,AUDIT_READ \
@@ -71,7 +85,7 @@ that is a decision to make deliberately, not a flag to flip during an incident.
 ## Revoking
 
 ```bash
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --revoke alice@playerz.bg \
   --granted-by bob@playerz.bg \
   --reason "rota ended"
@@ -112,12 +126,12 @@ concrete rather than moralising:
 
 ```bash
 # 1. revoke the lapsed grant to free the slot
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --revoke alice@playerz.bg --granted-by bob@playerz.bg \
   --reason "lapsed during incident 2026-09-25"
 
 # 2. issue a short one
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --user alice@playerz.bg --granted-by bob@playerz.bg \
   --capabilities TENANT_READ --expires <tomorrow> \
   --reason "incident 2026-09-25 — expires tomorrow"

@@ -60,9 +60,29 @@ import { PlatformCapability, PrismaClient } from '@prisma/client';
 const url = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!url) {
   throw new Error(
-    'DIRECT_DATABASE_URL is unset. Granting platform authority needs the OWNER\n' +
-      'connection: platform_admin_grant denies app_user, and after P24 the runtime\n' +
-      'role cannot write tables at all.',
+    'Neither DIRECT_DATABASE_URL nor DATABASE_URL is set. Granting platform authority\n' +
+      'needs the OWNER connection: platform_admin_grant denies app_user, and after P24\n' +
+      'the runtime role cannot write tables at all.',
+  );
+}
+
+// ═══ THE FALLBACK IS FOR LOCAL DEV, AND IT SAYS SO OUT LOUD ═══
+//
+// Locally both URLs are the owner, so falling back is convenient and harmless.
+// In any environment that has adopted P24 it is neither: DATABASE_URL names
+// `playerz_app`, which owns no table and does not inherit its memberships — so
+// the insert fails with `permission denied for table platform_admin_grant`.
+//
+// That error is technically accurate and completely unhelpful at 03:00. It looks
+// like the grant table is misconfigured rather than like the wrong credential
+// was used. One line of warning now beats ten minutes of reading RLS policies.
+if (!process.env.DIRECT_DATABASE_URL) {
+  console.warn(
+    '\n⚠ DIRECT_DATABASE_URL is unset; falling back to DATABASE_URL.\n' +
+      '  That is fine locally, where both name the owner. If this is a deployed\n' +
+      '  environment, DATABASE_URL names playerz_app — which cannot write tables —\n' +
+      '  and the grant below will fail with "permission denied for table\n' +
+      '  platform_admin_grant". Set DIRECT_DATABASE_URL to the owner connection.\n',
   );
 }
 
