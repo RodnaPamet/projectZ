@@ -221,6 +221,29 @@ export const env = createEnv({
     VAPID_PRIVATE_KEY: z.string().optional(),
     VAPID_SUBJECT: z.string().optional(),
 
+    // APNs (native iOS push). Optional for the same reason as VAPID above: the
+    // notification CENTRE keeps the row either way, so push is an enhancement.
+    //
+    // ═══ WHY THESE ARE DECLARED EVEN THOUGH apns.ts READS process.env ═══
+    //
+    // `src/lib/push/apns.ts:85-87` reads all three straight from process.env
+    // and returns null if any is missing, disabling the whole APNs path. That
+    // guard is correct — push must not throw into whatever was trying to notify
+    // somebody — but combined with NOT being declared here it meant APNs was
+    // invisible to the config surface entirely. A deploy that intended to have
+    // native push on had no way to discover it did not: no validation, no
+    // warning, no health signal.
+    //
+    // `send.ts` reads VAPID from process.env too, so reading-at-use is the
+    // house style. Being DECLARED is what makes a variable part of the
+    // documented surface, and that is the asymmetry this fixes.
+    //
+    // The private key is the PKCS#8 PEM Apple issues. `\n` escapes are accepted
+    // and restored by apns.ts, because newlines survive an env var badly.
+    APNS_KEY_ID: z.string().optional(),
+    APNS_TEAM_ID: z.string().optional(),
+    APNS_PRIVATE_KEY: z.string().optional(),
+
     // The Prometheus scrape token. Optional — and when it is ABSENT the metrics
     // endpoint returns 404 rather than serving. A missing secret must never mean
     // "no security".
@@ -404,6 +427,9 @@ export const env = createEnv({
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     VAPID_SUBJECT: process.env.VAPID_SUBJECT,
+    APNS_KEY_ID: process.env.APNS_KEY_ID,
+    APNS_TEAM_ID: process.env.APNS_TEAM_ID,
+    APNS_PRIVATE_KEY: process.env.APNS_PRIVATE_KEY,
     METRICS_TOKEN: process.env.METRICS_TOKEN,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
