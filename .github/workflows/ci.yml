@@ -121,6 +121,18 @@ jobs:
     needs: [preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The rate limiter is Redis-backed as of #125, and REDIS_URL is set for
+    # every job in this workflow — so without a Redis here the limiter's unit
+    # tests would each pay the client's 2s connect timeout before falling back
+    # to the in-memory store, and would then be exercising the FALLBACK rather
+    # than the path that ships. Cheap service, real coverage.
+    services:
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v7
       - if: needs.preflight.outputs.has_app == 'true'

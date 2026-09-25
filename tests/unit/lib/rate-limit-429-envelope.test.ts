@@ -57,10 +57,10 @@ const request = () =>
  */
 const SENTINEL_SCOPE = 'internal-bucket-name-that-must-not-ship';
 
-function blockedResponse() {
+async function blockedResponse() {
   const scope = { scope: SENTINEL_SCOPE, config: ONE_PER_MINUTE };
-  enforceRateLimit(request(), scope);
-  const { response } = enforceRateLimit(request(), scope);
+  await enforceRateLimit(request(), scope);
+  const { response } = await enforceRateLimit(request(), scope);
 
   // Without this the suite would quietly test nothing if the limiter stopped
   // blocking — every assertion below lives on `response`.
@@ -68,14 +68,17 @@ function blockedResponse() {
   return response;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   // The store is module-level state shared by every test in this process.
-  clearAllRateLimits();
+  // AWAITED. It clears Redis as well as the Map now, and an un-awaited clear
+  // lands mid-test — deleting the key between the two calls below, so the
+  // second one starts fresh and is allowed. That is what broke this suite.
+  await clearAllRateLimits();
 });
 
 describe('the rate-limit 429 body', () => {
   it('is the canonical envelope and carries no foreign keys', async () => {
-    const response = blockedResponse();
+    const response = await blockedResponse();
     const body = (await response.json()) as { error: Record<string, unknown> };
 
     expect(response.status).toBe(429);
@@ -94,7 +97,7 @@ describe('the rate-limit 429 body', () => {
   it('never names the limiter bucket that blocked the request', async () => {
     // Which internal budget a caller exhausted is not actionable for them and
     // maps our rate-limiting topology for anyone willing to trip it.
-    const response = blockedResponse();
+    const response = await blockedResponse();
 
     expect(JSON.stringify(await response.json())).not.toContain(SENTINEL_SCOPE);
   });
@@ -103,7 +106,7 @@ describe('the rate-limit 429 body', () => {
     // The retry hint is the one genuinely useful thing in a 429. Dropping it
     // from the body is only correct because the header carries it — if this
     // assertion ever goes, the removal above stops being a fair trade.
-    const response = blockedResponse();
+    const response = await blockedResponse();
     const retryAfter = response.headers.get('Retry-After');
 
     expect(retryAfter).toMatch(/^\d+$/);

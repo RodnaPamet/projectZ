@@ -1,13 +1,57 @@
+import { randomUUID } from 'node:crypto';
+
+import { redis } from '@/lib/redis';
+import { logger } from '@/lib/observability/logger';
+
 /**
- * In-Memory Rate Limiter
+ * Rate limiter — a SHARED sliding window, with a per-instance fallback.
  *
- * Simple sliding-window rate limiter for brute-force protection.
- * Uses a Map to track attempt timestamps per key (IP, userId, etc.).
+ * ═══ WHY IT IS NOT A Map ANY MORE ═══
  *
- * DESIGN: In-memory is appropriate for single-instance deployments.
- * For multi-instance, swap to Redis-backed limiter.
+ * It was, and the docblock said "In-memory is appropriate for single-instance
+ * deployments. For multi-instance, swap to Redis-backed limiter." Two problems
+ * with leaving it there:
  *
- * This module is intentionally simple and dependency-free.
+ *   PER INSTANCE. With N instances behind a load balancer the effective limit
+ *   is N× what it says. The sign-in throttle — 10 attempts per 15 minutes —
+ *   becomes 10×N, and nothing anywhere reports that. It is the defence against
+ *   credential stuffing on /auth/token and the web login, which draw on the
+ *   same bucket.
+ *
+ *   CLEARED ON DEPLOY. A lockout evaporates when the process restarts. An
+ *   attacker who notices a deploy cadence gets a fresh budget every release.
+ *
+ * `REDIS_URL` has been a REQUIRED, authenticated production variable all along,
+ * and src/env.ts refuses a password-less `redis://` in production with a
+ * comment saying rate-limit counters live there. The intended design was
+ * already written down; only the implementation was missing.
+ *
+ * ═══ WHY A LUA SCRIPT AND NOT INCR ═══
+ *
+ * The check and the record have to be ONE atomic step. Read-then-write over
+ * the network is the same check-then-act race `createBooking` refuses: two
+ * concurrent requests both read `count = max - 1`, both decide they are
+ * allowed, and both insert. At the sign-in throttle that is an attacker
+ * getting 2N attempts out of a budget of N by firing in pairs.
+ *
+ * So the window lives in a sorted set and the whole decision runs inside
+ * Redis, in one round trip. The Lua reproduces the previous in-memory
+ * semantics exactly — sliding window, then the lockout branch, then the
+ * budget branch — so this commit changes WHERE the state lives and not what
+ * the limits mean.
+ *
+ * ═══ WHAT HAPPENS WHEN REDIS IS DOWN ═══
+ *
+ * It falls back to the in-memory Map, which is exactly today's behaviour: a
+ * per-instance limit. Deliberately not the two alternatives —
+ *
+ *   fail open  — no limiting at all, which is the vulnerability this fixes
+ *   fail closed — nobody can sign in, an outage caused by the limiter
+ *
+ * so degrading to "the limit we had yesterday" is the only option that is
+ * never worse than the status quo. The client is configured with
+ * `commandTimeout: 2_000`, so a dead Redis costs one 2-second wait and then a
+ * short circuit-break rather than 2 seconds on every subsequent request.
  */
 
 interface RateLimitEntry {
@@ -59,7 +103,14 @@ export interface RateLimitResult {
  * @param config - Rate limit configuration
  * @returns Whether the request is allowed and how many attempts remain
  */
-export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitResult {
+/**
+ * The previous implementation, kept verbatim as the FALLBACK.
+ *
+ * Unchanged on purpose: when Redis is unavailable this is the behaviour the
+ * product had yesterday, so the degraded mode is a known quantity rather than
+ * a second implementation to reason about.
+ */
+export function checkRateLimitInMemory(key: string, config: RateLimitConfig): RateLimitResult {
   startCleanup(config.windowMs);
 
   const now = Date.now();
@@ -108,18 +159,165 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
 /**
  * Reset rate limit for a key (e.g., after successful auth).
  */
-export function resetRateLimit(key: string): void {
+export async function resetRateLimit(key: string): Promise<void> {
   store.delete(key);
+
+  if (redisUsable()) {
+    try {
+      await redis().del(redisKey(key));
+    } catch (err) {
+      noteRedisFailure(err);
+    }
+  }
 }
 
 /**
  * For testing: clear all rate limit state.
  */
-export function clearAllRateLimits(): void {
+export async function clearAllRateLimits(): Promise<void> {
   store.clear();
   if (cleanupTimer) {
     clearInterval(cleanupTimer);
     cleanupTimer = null;
+  }
+
+  redisDownUntil = 0;
+
+  // Only the keys this module owns. A FLUSHDB in a shared database would take
+  // the leaderboard and every cache with it.
+  if (redisUsable()) {
+    try {
+      const keys = await redis().keys(`${KEY_PREFIX}*`);
+      if (keys.length > 0) await redis().del(...keys);
+    } catch (err) {
+      noteRedisFailure(err);
+    }
+  }
+}
+
+// ─── The shared store ───────────────────────────────────────────────
+
+const KEY_PREFIX = 'ratelimit:';
+
+const redisKey = (key: string) => `${KEY_PREFIX}${key}`;
+
+/**
+ * How long to stop asking Redis after it fails.
+ *
+ * Without this, a dead Redis costs `commandTimeout` (2s) on EVERY request —
+ * turning a limiter outage into a site-wide latency outage, which is worse
+ * than the problem being fixed.
+ */
+const REDIS_COOLDOWN_MS = 10_000;
+let redisDownUntil = 0;
+
+function redisUsable(): boolean {
+  if (!process.env.REDIS_URL) return false;
+  return Date.now() >= redisDownUntil;
+}
+
+function noteRedisFailure(err: unknown): void {
+  const firstFailure = redisDownUntil === 0 || Date.now() >= redisDownUntil;
+  redisDownUntil = Date.now() + REDIS_COOLDOWN_MS;
+
+  // Logged once per cooldown, not per request. A limiter that floods the log
+  // when Redis blinks is a limiter nobody reads the log of.
+  if (firstFailure) {
+    logger.warn('rate limiter fell back to the in-memory store', {
+      component: 'rate-limit',
+      cooldownMs: REDIS_COOLDOWN_MS,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * The whole decision, in one atomic step, inside Redis.
+ *
+ * Reproduces `checkRateLimitInMemory` branch for branch:
+ *
+ *   1. drop entries older than the window
+ *   2. LOCKOUT branch — at or over budget and a lockout is configured: denied
+ *      until `last attempt + lockoutMs`, then the window is wiped and the
+ *      caller starts fresh
+ *   3. BUDGET branch — at or over budget: denied until the OLDEST entry in the
+ *      window falls out of it
+ *   4. otherwise record the attempt and allow
+ *
+ * Returns `{allowed, remaining, retryAfterMs}` as three integers, in that
+ * order, because a Lua table of mixed types is not worth the parsing.
+ *
+ * The member is a UUID passed in from Node rather than the timestamp: two
+ * attempts in the same millisecond would otherwise be one ZADD overwriting the
+ * other, and the second request would be free.
+ */
+const SCRIPT = `
+local key        = KEYS[1]
+local now        = tonumber(ARGV[1])
+local windowMs   = tonumber(ARGV[2])
+local maxAttempts= tonumber(ARGV[3])
+local lockoutMs  = tonumber(ARGV[4])
+local member     = ARGV[5]
+
+redis.call('ZREMRANGEBYSCORE', key, 0, now - windowMs)
+local count = redis.call('ZCARD', key)
+
+if lockoutMs > 0 and count >= maxAttempts then
+  local newest = redis.call('ZRANGE', key, -1, -1, 'WITHSCORES')
+  local lockoutEnd = tonumber(newest[2]) + lockoutMs
+  if now < lockoutEnd then
+    return {0, 0, lockoutEnd - now}
+  end
+  redis.call('DEL', key)
+  count = 0
+end
+
+if count >= maxAttempts then
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  return {0, 0, tonumber(oldest[2]) + windowMs - now}
+end
+
+redis.call('ZADD', key, now, member)
+-- Expire covers the window AND any lockout that could still be pending, so a
+-- key never outlives the decision it can still influence.
+redis.call('PEXPIRE', key, windowMs + lockoutMs)
+
+return {1, maxAttempts - (count + 1), 0}
+`;
+
+/**
+ * Check a rate limit against the SHARED store.
+ *
+ * Async, which it was not before. That ripples to every caller and is
+ * unavoidable: a shared counter lives over a network. The alternative — a
+ * synchronous local guess — is the bug.
+ */
+export async function checkRateLimit(
+  key: string,
+  config: RateLimitConfig,
+): Promise<RateLimitResult> {
+  if (!redisUsable()) return checkRateLimitInMemory(key, config);
+
+  try {
+    const raw = (await redis().eval(
+      SCRIPT,
+      1,
+      redisKey(key),
+      String(Date.now()),
+      String(config.windowMs),
+      String(config.maxAttempts),
+      String(config.lockoutMs ?? 0),
+      randomUUID(),
+    )) as [number, number, number];
+
+    return {
+      allowed: raw[0] === 1,
+      remaining: raw[1],
+      retryAfterMs: raw[2],
+    };
+  } catch (err) {
+    noteRedisFailure(err);
+    return checkRateLimitInMemory(key, config);
   }
 }
 

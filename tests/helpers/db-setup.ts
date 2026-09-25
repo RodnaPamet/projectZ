@@ -1,4 +1,5 @@
 import { prismaTestClient, resetDatabase } from './db';
+import { closeRedis } from '@/lib/redis';
 
 /**
  * ═══ 30s, BECAUSE 5s IS A BUDGET FOR A TEST THAT TOUCHES NOTHING ═══
@@ -48,4 +49,17 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+
+  // And Redis. The rate limiter is Redis-backed as of #125, so ANY suite that
+  // exercises a rate-limited route now opens a connection — not just the two
+  // files that use Redis deliberately and close it themselves.
+  //
+  // An open socket keeps the event loop alive, so jest runs every test, prints
+  // nothing, and never exits. Measured: a full integration run sat at three
+  // live processes for over half an hour with zero output, which reads exactly
+  // like a deadlocked test rather than a finished one.
+  //
+  // Closing an already-closed client is a no-op, so this is safe for the
+  // suites that also close it themselves.
+  await closeRedis();
 });

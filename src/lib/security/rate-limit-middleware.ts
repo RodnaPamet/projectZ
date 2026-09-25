@@ -197,13 +197,13 @@ function buildTooManyRequestsResponse(
  * success and a `warn` on block, so abuse patterns show up in the
  * standard log stream without per-route wiring.
  */
-export function enforceRateLimit(
+export async function enforceRateLimit(
   req: NextRequest | Request,
   scope: RateLimitScope,
-): RateLimitEnforcement {
+): Promise<RateLimitEnforcement> {
   const ip = scope.ip ?? getClientIp(req);
   const key = buildRateLimitKey(scope.scope, ip, scope.userId ?? null);
-  const result = checkRateLimit(key, scope.config);
+  const result = await checkRateLimit(key, scope.config);
 
   if (!result.allowed) {
     logger.warn('rate-limit.blocked', {
@@ -281,7 +281,7 @@ export function withRateLimit<Args extends unknown[]>(
       }
     }
 
-    const { response } = enforceRateLimit(req, {
+    const { response } = await enforceRateLimit(req, {
       scope: options.scope,
       config: options.config,
       userId,

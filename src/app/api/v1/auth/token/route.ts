@@ -45,7 +45,7 @@ async function handler(req: NextRequest) {
 
   // Before reading the body: an attacker should not get to spend our parsing
   // or our bcrypt on attempt eleven.
-  const limit = checkRateLimit(`login:${ip}`, LOGIN_LIMIT);
+  const limit = await checkRateLimit(`login:${ip}`, LOGIN_LIMIT);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: { code: 'RATE_LIMITED', message: 'Too many sign-in attempts. Try again later.' } },

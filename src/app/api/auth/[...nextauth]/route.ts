@@ -58,7 +58,7 @@ function isCredentialsSubmission(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest, ctx: unknown) {
   if (isCredentialsSubmission(req)) {
-    const result = checkRateLimit(`login:${getClientIp(req)}`, LOGIN_LIMIT);
+    const result = await checkRateLimit(`login:${getClientIp(req)}`, LOGIN_LIMIT);
 
     if (!result.allowed) {
       // 429 with a generic body. It must NOT say whether the address exists —
