@@ -2,18 +2,37 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 
 import type { RequestContext } from '@/app-layer/types';
 import { runAsSuperuser, runAsUserOnly, runInTenantContext } from '@/lib/db/rls-middleware';
+import { runAsPlatformAdmin, type PlatformAction } from '@/lib/db/platform-admin-context';
 
 /**
- * The three ways a v1 route gets a database handle, and there is no fourth.
+ * The four ways a v1 route gets a database handle, and there is no fifth.
  *
  * Each one binds a different RLS context, and picking the wrong one does not
  * raise — it returns ZERO ROWS. An empty list reads as "you have no bookings"
  * rather than "this query was bound wrong", which is why the choice is made
  * explicit at the route rather than inferred.
  *
- *   inTenant      app.tenant_id set    → tenant-scoped tables
- *   asUser        app.user_id set      → owner-scoped tables (no tenant)
- *   asSuperuser   BYPASSRLS            → cross-tenant, and obvious in review
+ *   inTenant         app.tenant_id set  → tenant-scoped tables
+ *   asUser           app.user_id set    → owner-scoped tables (no tenant)
+ *   asSuperuser      BYPASSRLS          → cross-tenant, and obvious in review
+ *   asPlatformAdmin  BYPASSRLS + audit  → cross-club, by a live grant only
+ *
+ * This said "three, and there is no fourth" until P31. Leaving that would have
+ * made it a lie in the one file whose entire job is to make the choice
+ * explicit — so the count is stated, and `asPlatformAdmin` is deliberately the
+ * LAST resort rather than a convenience.
+ *
+ * ═══ asPlatformAdmin vs asSuperuser ═══
+ *
+ * Both end up with BYPASSRLS. The difference is accountability, not reach:
+ * `asSuperuser` leaves no trace, and `asPlatformAdmin` cannot run without
+ * writing an append-only row naming who, which grant, which capability and
+ * why — enforced by a database trigger, not by this file.
+ *
+ * So `asSuperuser` remains correct for machine work with no human actor (the
+ * public venue index spans every club; sign-in must read a User before any
+ * tenant exists), and is wrong the moment a PERSON is reaching into a club
+ * that is not theirs.
  */
 
 export class MissingTenantError extends Error {
@@ -95,4 +114,67 @@ export async function asSuperuser<T>(
   fn: (db: PrismaClient) => Promise<T>,
 ): Promise<T> {
   return runAsSuperuser(fn);
+}
+
+export class MissingPlatformGrantError extends Error {
+  constructor() {
+    super(
+      'asPlatformAdmin() was called without a live platform grant. Platform authority is ' +
+        'a row in platform_admin_grant with an expiry, re-read from the database on every ' +
+        'request — never a token claim. An expired or revoked grant is an ordinary 403.',
+    );
+    this.name = 'MissingPlatformGrantError';
+  }
+}
+
+export class MissingPlatformCapabilityError extends Error {
+  constructor(capability: string, held: readonly string[]) {
+    super(
+      `asPlatformAdmin() needs ${capability}; this grant holds [${held.join(', ') || 'nothing'}]. ` +
+        'Capabilities are enumerated in a Postgres enum and a grant is immutable, so widening ' +
+        'one means issuing a new grant with its own reason and its own granter.',
+    );
+    this.name = 'MissingPlatformCapabilityError';
+  }
+}
+
+/**
+ * Cross-club work by a named person, recorded before it happens.
+ *
+ * Checks three things this file can see, then delegates the ones only the
+ * database can enforce:
+ *
+ *   here        a user, a live grant, and the capability the action needs
+ *   downstream  the audit row, the attribution trigger, the write refusal,
+ *               and the refusal to nest inside a tenant transaction
+ *
+ * `ctx.appPermissions` and `ctx.platformGrantId` are derived per request from
+ * the grant table, never from the JWT. That is not caution for its own sake:
+ * `context.ts` documents at length why `token.role` and `token.permissions` are
+ * ignored, because a cached claim went stale and became a cross-tenant
+ * escalation. This is the highest privilege in the system, so it gets the
+ * treatment that bug earned.
+ */
+export async function asPlatformAdmin<T>(
+  ctx: RequestContext,
+  act: Omit<PlatformAction, 'actorUserId' | 'grantId' | 'requestId'>,
+  fn: (db: PrismaClient) => Promise<T>,
+): Promise<T> {
+  if (!ctx.userId || !ctx.platformGrantId) throw new MissingPlatformGrantError();
+  if (!ctx.appPermissions.includes(act.capability)) {
+    throw new MissingPlatformCapabilityError(act.capability, ctx.appPermissions);
+  }
+
+  return runAsPlatformAdmin(
+    {
+      ...act,
+      actorUserId: ctx.userId,
+      grantId: ctx.platformGrantId,
+      // Correlates the audit row with every log line for the same request.
+      // Without it, "what else happened while they were in there?" has no
+      // answer.
+      requestId: ctx.requestId,
+    },
+    fn,
+  );
 }
