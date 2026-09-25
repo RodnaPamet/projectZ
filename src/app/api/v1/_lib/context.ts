@@ -43,6 +43,17 @@ export interface ContextInput {
   slug?: string | null;
   requestId: string;
   locale?: 'bg' | 'en';
+  /**
+   * Set ONLY by routes under `/api/v1/platform/**`, which is the only place
+   * platform authority may be acted on.
+   *
+   * It exists to bound a cost. Almost nobody holds a grant, so resolving one on
+   * every authenticated request would spend an indexed query per request to
+   * answer "no". Everywhere else `appPermissions` stays `[]` — not a shortcut,
+   * but the truth, and a guardrail keeps it true by asserting platform work
+   * lives only under that prefix.
+   */
+  platformRoute?: boolean;
 }
 
 export async function contextFromRequest(
@@ -82,7 +93,37 @@ export async function contextFromRequest(
    */
   const noPlatformAuthority = {
     appPermissions: [] as readonly PlatformCapability[],
-    platformGrantId: null,
+    platformGrantId: null as string | null,
+  };
+
+  /**
+   * Platform authority, read from the database — never from the token.
+   *
+   * `token.role` and `token.permissions` are ignored throughout this file
+   * because a stale claim became a cross-tenant escalation. This is the highest
+   * privilege in the system and the one most likely to be revoked in a hurry,
+   * so it gets the treatment that bug earned: revocation takes effect on the
+   * next request, not when the token happens to expire.
+   */
+  const platformAuthority = async (userId: string | null) => {
+    if (!input.platformRoute) return noPlatformAuthority;
+
+    // ═══ DYNAMIC IMPORT, AND NOT FOR STYLE ═══
+    //
+    // A static import here pulls `@/lib/auth/platform-admin` →
+    // `rls-middleware` → the Prisma singleton → `pg` into this module's graph.
+    // `pg` touches `TextEncoder` at import time, which jsdom does not provide,
+    // so every unit test that imports this file died with
+    // "ReferenceError: TextEncoder is not defined" — measured, not predicted.
+    //
+    // Deferring it also matches the cost decision above: a request that is not
+    // a platform route never loads the database layer through this path at all.
+    //
+    // Same shape as the `next-intl/server` problem this repo already hit: a
+    // module that is fine in one runtime and fatal at import time in another.
+    const { resolvePlatformAuthority } = await import('@/lib/auth/platform-admin');
+    const { grantId, capabilities } = await resolvePlatformAuthority(userId);
+    return { appPermissions: capabilities, platformGrantId: grantId };
   };
 
   const anonymous: RequestContext = {
@@ -124,10 +165,11 @@ export async function contextFromRequest(
 
   const slug = input.slug ?? null;
   if (!slug) {
-    // Signed in, but not addressing a club: /me/**, account settings.
+    // Signed in, but not addressing a club: /me/**, account settings, and
+    // every platform route — which is why the grant read happens here.
     return {
       ...base,
-      ...noPlatformAuthority,
+      ...(await platformAuthority(raw.sub)),
       userId: raw.sub,
       tenantId: null,
       tenantSlug: null,
