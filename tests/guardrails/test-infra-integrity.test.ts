@@ -444,6 +444,33 @@ describe('the nightly workflow can actually run', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('says something out loud when it fails', () => {
+    // The four defects this block exists for were not subtle. They survived
+    // for weeks because a scheduled run reports at 02:00 into a tab nobody
+    // opens, and cannot fail a PR. Fixing the YAML fixed those four; this is
+    // what stops the next one lasting weeks.
+    const nightly = parseYaml(read('.github/workflows/nightly.yml')) as {
+      jobs: Record<string, { needs?: string[]; if?: string; permissions?: Record<string, string> }>;
+    };
+
+    const reporter = Object.entries(nightly.jobs).find(([, job]) =>
+      /contains\(needs\.\*\.result/.test(job.if ?? ''),
+    );
+    expect(reporter).toBeDefined();
+    const [, job] = reporter!;
+
+    // It must depend on every OTHER job, or a failure in one it forgot about
+    // is a failure it stays quiet about.
+    const others = Object.keys(nightly.jobs).filter((n) => n !== reporter![0]);
+    expect([...(job.needs ?? [])].sort()).toEqual([...others].sort());
+
+    // Without `always()` the job is SKIPPED precisely when a dependency
+    // failed — the one case it exists for.
+    expect(job.if).toContain('always()');
+    // Reporting means writing an issue; the default token is read-only.
+    expect(job.permissions?.issues).toBe('write');
+  });
+
   it('pins the visual compare to the one browser that has baselines', () => {
     // The baselines are committed as `*-chromium-linux.png`. Playwright names
     // a snapshot after the project that took it, so an unpinned @visual run
