@@ -378,6 +378,26 @@ jobs:
     needs: [preflight, build]
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # ═══ THE ONLY PLACE THE APP RUNS UNDER LEAST PRIVILEGE ═══
+    #
+    # P24 created `playerz_app` — LOGIN, NOINHERIT, no table privileges of its
+    # own, both memberships granted WITH INHERIT FALSE — and then nothing ever
+    # connected as it. `least-privileged-role.test.ts` verified its SHAPE in
+    # eight tests while every real query kept running as the owner.
+    #
+    # That matters because the owner is `rolsuper=true, rolbypassrls=true`
+    # (measured). A query that forgets its binding therefore returns EVERY
+    # club's rows instead of failing, and the only thing between those two
+    # outcomes is a text scan that accepts `runAsSuperuser` as a valid answer.
+    #
+    # E2E is where the app actually runs, so this is where it is proved: the
+    # webServer connects as `playerz_app`, and anything that queries unbound
+    # fails the job. Migrations and the seed keep the owner URL, because they
+    # create and populate tables — which is exactly what `playerz_app` may not
+    # do, and exactly why the two-URL split exists.
+    env:
+      DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
+      DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -409,9 +429,26 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Apply migrations + seed
         if: needs.preflight.outputs.has_e2e == 'true'
+        # Both run as the OWNER. `prisma migrate deploy` reads
+        # DIRECT_DATABASE_URL via prisma.config.ts, and scripts/seed.ts prefers
+        # it for the same reason — seeding writes tables, so it is an owner
+        # operation, not a runtime one.
         run: |
           if [ -d prisma/migrations ]; then npx prisma migrate deploy; fi
           if [ -f scripts/seed.ts ]; then npx tsx scripts/seed.ts; fi
+
+      - name: Give playerz_app a password for this run
+        if: needs.preflight.outputs.has_e2e == 'true'
+        # P24 creates the role with LOGIN and NO PASSWORD, so as shipped it
+        # cannot authenticate at all — a blocker its own comments do not
+        # mention. A password must never live in a migration, because migrations
+        # are git. Production sets it from a secret store; CI sets a throwaway
+        # scoped to one ephemeral container.
+        #
+        # This runs AFTER migrate deploy, since P24 is what creates the role.
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d playerz_test -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE playerz_app PASSWORD 'ci-least-privilege';"
       - name: Run Playwright
         if: needs.preflight.outputs.has_e2e == 'true'
         # The projects are named EXPLICITLY, not left to the config's default.

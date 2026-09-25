@@ -12,9 +12,21 @@ import bcrypt from 'bcryptjs';
  * duplicate. Courts land in P05, once the schema has them.
  */
 
-const url = process.env.DATABASE_URL;
+/**
+ * DIRECT_DATABASE_URL first, exactly as prisma.config.ts prefers it.
+ *
+ * Seeding WRITES tables, so it is an owner operation like a migration, not a
+ * runtime one. Once `DATABASE_URL` names `playerz_app` — a role that owns no
+ * table and does not inherit its memberships, which is the whole point of P24 —
+ * reading `DATABASE_URL` here would make the seed fail with "permission denied
+ * for table …", and the fix somebody reaches for under time pressure is to
+ * point runtime back at the owner.
+ *
+ * The fallback keeps local dev working unchanged, where both URLs are the owner.
+ */
+const url = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!url) {
-  throw new Error('DATABASE_URL is unset — refusing to seed.');
+  throw new Error('Neither DIRECT_DATABASE_URL nor DATABASE_URL is set — refusing to seed.');
 }
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
