@@ -99,30 +99,11 @@ export const BACK_AFFORDANCE_COHORT_TODO: readonly string[] = [] as const;
  * navigation; they have no parent within the tenant scope. The back
  * affordance is forbidden here.
  */
-export const MAIN_PAGES: readonly string[] = [
-  '/access-reviews',
-  '/admin',
-  '/assets',
-  '/audits',
-  '/calendar',
-  '/clauses',
-  '/controls',
-  '/coverage',
-  '/dashboard',
-  '/evidence',
-  '/findings',
-  '/framework-updates',
-  '/issues',
-  '/mapping',
-  '/notifications',
-  '/policies',
-  '/processes',
-  '/reports',
-  '/risks',
-  '/tasks',
-  '/tests',
-  '/vendors',
-] as const;
+// Emptied with #176. This held inflect-compliance routes — ~25 /admin/* paths
+// among them — for pages that do not exist in playerz.bg. `classifyRoute` below
+// is kept as the mechanism; with these empty it returns 'unknown' for every
+// route, which is the correct answer for a page nobody has classified yet.
+export const MAIN_PAGES: readonly string[] = [] as const;
 
 /**
  * Every other tenant-scoped route. The back affordance is required here
@@ -132,143 +113,11 @@ export const MAIN_PAGES: readonly string[] = [
  * `classifyRoute` helper normalises a runtime pathname to the same form
  * before lookup.
  */
-export const SUBPAGES: readonly string[] = [
-  // Access reviews
-  '/access-reviews/[reviewId]',
-
-  // Admin subpages
-  '/admin/api-keys',
-  '/admin/audit-log',
-  '/admin/billing',
-  '/admin/devices',
-  '/admin/entra',
-  '/admin/integrations',
-  '/admin/integrations/sharepoint-health',
-  '/admin/mcp',
-  '/admin/mcp/agent-receipts',
-  '/admin/members',
-  '/admin/notifications',
-  '/admin/personnel',
-  '/admin/rbac',
-  '/admin/risk-appetite',
-  '/admin/risk-matrix',
-  '/admin/roles',
-  '/admin/scim',
-  '/admin/security',
-  '/admin/sso',
-  '/admin/training',
-  '/admin/trust-center',
-  '/admin/vendor-assessment-reviews/[assessmentId]',
-  '/admin/vendor-templates',
-  '/admin/vendor-templates/[templateId]',
-
-  // Agent (MCP) — reached from the /admin/mcp hub, not the sidebar.
-  '/agent-proposals',
-  '/agent-runs',
-
-  // Assets
-  '/assets/[id]',
-  '/assets/new',
-
-  // Audits
-  '/audits/auditor',
-  '/audits/business-continuity',
-  '/audits/business-continuity/[id]',
-  '/audits/cycles',
-  '/audits/cycles/[cycleId]',
-  '/audits/cycles/[cycleId]/readiness',
-  '/audits/nis2-gap',
-  '/audits/nis2-gap/respond/[assignmentId]',
-
-  '/audits/new',
-  '/audits/packs/[packId]',
-  '/audits/readiness',
-
-  // Auth (in-app)
-  '/auth/mfa',
-
-  // Controls
-  '/controls/[controlId]',
-  '/controls/[controlId]/tests/[planId]',
-  '/controls/dashboard',
-  '/controls/new',
-  '/controls/sankey',
-  '/controls/templates',
-
-  // Incidents (NIS2 Article 23) — subpage of Internal Audit
-  '/incidents',
-  '/incidents/[incidentId]',
-
-  // Frameworks — subpages of Internal Audit
-  '/frameworks',
-  '/frameworks/[frameworkKey]',
-  '/frameworks/[frameworkKey]/diff',
-  '/frameworks/[frameworkKey]/readiness',
-  '/frameworks/[frameworkKey]/self-assessment',
-  '/frameworks/[frameworkKey]/install',
-  '/frameworks/[frameworkKey]/templates',
-
-  // Security testing (scans) — subpage of Internal Audit
-  '/security-testing',
-
-  // Issues
-  '/issues/[issueId]',
-  '/issues/dashboard',
-  '/issues/new',
-
-  // Onboarding
-  '/onboarding',
-
-  // Policies
-  '/policies/[policyId]',
-  '/policies/new',
-  '/policies/templates',
-
-  // Processes
-  '/processes/governance',
-
-  // Reports
-  '/reports/soa',
-  '/reports/soa/print',
-
-  // Risks
-  '/risks/[riskId]',
-  '/risks/ai',
-  '/risks/ai-systems',
-  '/risks/ai-systems/[systemId]',
-  '/risks/board',
-  '/risks/correlations',
-  '/risks/dashboard',
-  '/risks/hierarchy',
-  '/risks/import',
-  '/risks/kri',
-  '/risks/loss-events',
-  '/risks/new',
-  '/risks/reports',
-  '/risks/scenarios',
-
-  // Security (self-service)
-  '/security/mfa',
-
-  // Tasks
-  '/tasks/[taskId]',
-  '/tasks/dashboard',
-  '/tasks/new',
-
-  // Tests
-  '/tests/dashboard',
-  '/tests/due',
-  '/tests/runs/[runId]',
-
-  // Vendors
-  '/vendors/[vendorId]',
-  '/vendors/[vendorId]/assessment/[assessmentId]',
-  '/vendors/dashboard',
-  '/vendors/new',
-
-  // Vulnerabilities — subpage of the Risk Register
-  '/vulnerabilities',
-] as const;
+// Emptied with #176. This held inflect-compliance routes — ~25 /admin/* paths
+// among them — for pages that do not exist in playerz.bg. `classifyRoute` below
+// is kept as the mechanism; with these empty it returns 'unknown' for every
+// route, which is the correct answer for a page nobody has classified yet.
+export const SUBPAGES: readonly string[] = [] as const;
 
 /**
  * Normalise a runtime pathname (with the tenant prefix and concrete dynamic

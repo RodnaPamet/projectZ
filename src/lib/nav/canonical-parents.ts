@@ -28,177 +28,23 @@ export interface CanonicalParent {
   label: string;
 }
 
-const PARENT_MAP: Record<string, CanonicalParent> = {
-  '/frameworks/[frameworkKey]/readiness': { href: '/frameworks/[frameworkKey]', label: 'NIS2' },
-  '/frameworks/[frameworkKey]/self-assessment': {
-    href: '/frameworks/[frameworkKey]',
-    label: 'NIS2',
-  },
-  // Access reviews
-  '/access-reviews/[reviewId]': { href: '/access-reviews', label: 'Access reviews' },
-
-  // Agent (MCP) — both hang off the /admin/mcp hub.
-  '/agent-proposals': { href: '/admin/mcp', label: 'MCP' },
-  '/agent-runs': { href: '/admin/mcp', label: 'MCP' },
-  '/admin/mcp/agent-receipts': { href: '/admin/mcp', label: 'MCP' },
-
-  // Admin subpages
-  '/admin/api-keys': { href: '/admin', label: 'Admin' },
-  '/admin/audit-log': { href: '/admin', label: 'Admin' },
-  '/admin/billing': { href: '/admin', label: 'Admin' },
-  '/admin/devices': { href: '/admin', label: 'Admin' },
-  '/admin/entra': { href: '/admin', label: 'Admin' },
-  '/admin/integrations': { href: '/admin', label: 'Admin' },
-  '/admin/integrations/sharepoint-health': { href: '/admin/integrations', label: 'Integrations' },
-  '/admin/mcp': { href: '/admin', label: 'Admin' },
-  '/admin/members': { href: '/admin', label: 'Admin' },
-  '/admin/notifications': { href: '/admin', label: 'Admin' },
-  '/admin/personnel': { href: '/admin', label: 'Admin' },
-  '/admin/rbac': { href: '/admin', label: 'Admin' },
-  '/admin/risk-appetite': { href: '/admin', label: 'Admin' },
-  '/admin/risk-matrix': { href: '/admin', label: 'Admin' },
-  '/admin/roles': { href: '/admin', label: 'Admin' },
-  '/admin/scim': { href: '/admin', label: 'Admin' },
-  '/admin/security': { href: '/admin', label: 'Admin' },
-  '/admin/sso': { href: '/admin', label: 'Admin' },
-  '/admin/training': { href: '/admin', label: 'Admin' },
-  '/admin/trust-center': { href: '/admin', label: 'Admin' },
-  '/admin/vendor-assessment-reviews/[assessmentId]': { href: '/admin', label: 'Admin' },
-  '/admin/vendor-templates': { href: '/admin', label: 'Admin' },
-  '/admin/vendor-templates/[templateId]': {
-    href: '/admin/vendor-templates',
-    label: 'Vendor templates',
-  },
-
-  // Assets
-  '/assets/[id]': { href: '/assets', label: 'Assets' },
-  '/assets/new': { href: '/assets', label: 'Assets' },
-
-  // Audits
-  '/audits/auditor': { href: '/audits', label: 'Audits' },
-  '/audits/business-continuity': { href: '/audits', label: 'Internal Audit' },
-  '/audits/business-continuity/[id]': {
-    href: '/audits/business-continuity',
-    label: 'Business Continuity',
-  },
-  '/audits/cycles': { href: '/audits', label: 'Audits' },
-  '/audits/cycles/[cycleId]': { href: '/audits/cycles', label: 'Audit cycles' },
-  '/audits/cycles/[cycleId]/readiness': {
-    href: '/audits/cycles/[cycleId]',
-    label: 'Audit cycle',
-  },
-  '/audits/nis2-gap': { href: '/audits', label: 'Internal Audit' },
-  '/audits/nis2-gap/respond/[assignmentId]': {
-    href: '/audits/nis2-gap',
-    label: 'NIS2 Gap Assessment',
-  },
-  '/audits/new': { href: '/audits', label: 'Audits' },
-  '/audits/packs/[packId]': { href: '/audits', label: 'Audits' },
-  '/audits/readiness': { href: '/audits', label: 'Audits' },
-
-  // Auth
-  '/auth/mfa': { href: '/dashboard', label: 'Dashboard' },
-
-  // Controls
-  '/controls/[controlId]': { href: '/controls', label: 'Controls' },
-  // Incidents (NIS2 Article 23) — subpage of Internal Audit
-  '/incidents': { href: '/audits', label: 'Internal Audit' },
-  '/incidents/[incidentId]': { href: '/incidents', label: 'Incidents' },
-  // Test-plan detail lives URL-wise under a control, but the user's
-  // mental model is "I'm working on a test"; the canonical parent is
-  // the Tests list. The in-tab referrer still wins — drilling in from
-  // a control detail shows "Back to Control" via the smart referrer.
-  '/controls/[controlId]/tests/[planId]': {
-    href: '/tests',
-    label: 'Tests',
-  },
-  '/controls/dashboard': { href: '/controls', label: 'Controls' },
-  '/controls/new': { href: '/controls', label: 'Controls' },
-  '/controls/sankey': { href: '/controls', label: 'Controls' },
-  '/controls/templates': { href: '/controls', label: 'Controls' },
-
-  // Frameworks — a subpage of Internal Audit (frameworks are the
-  // standards an audit is conducted against; not a top-level section).
-  '/frameworks': { href: '/audits', label: 'Internal Audit' },
-  '/frameworks/[frameworkKey]': { href: '/frameworks', label: 'Frameworks' },
-  '/frameworks/[frameworkKey]/diff': {
-    href: '/frameworks/[frameworkKey]',
-    label: 'Framework',
-  },
-  '/frameworks/[frameworkKey]/install': {
-    href: '/frameworks/[frameworkKey]',
-    label: 'Framework',
-  },
-  '/frameworks/[frameworkKey]/templates': {
-    href: '/frameworks/[frameworkKey]',
-    label: 'Framework',
-  },
-
-  // Security testing (scans) — a subpage of Internal Audit; scanner
-  // findings are audit evidence, so the entry point lives under Audits.
-  '/security-testing': { href: '/audits', label: 'Internal Audit' },
-
-  // Issues
-  '/issues/[issueId]': { href: '/issues', label: 'Issues' },
-  '/issues/dashboard': { href: '/issues', label: 'Issues' },
-  '/issues/new': { href: '/issues', label: 'Issues' },
-
-  // Onboarding
-  '/onboarding': { href: '/dashboard', label: 'Dashboard' },
-
-  // Policies
-  '/policies/[policyId]': { href: '/policies', label: 'Policies' },
-  '/policies/new': { href: '/policies', label: 'Policies' },
-  '/policies/templates': { href: '/policies', label: 'Policies' },
-
-  // Processes
-  '/processes/governance': { href: '/processes', label: 'Processes' },
-
-  // Reports
-  '/reports/soa': { href: '/reports', label: 'Reports' },
-  '/reports/soa/print': { href: '/reports/soa', label: 'SoA' },
-
-  // Risks
-  '/risks/[riskId]': { href: '/risks', label: 'Risks' },
-  '/risks/ai': { href: '/risks', label: 'Risks' },
-  '/risks/ai-systems': { href: '/risks', label: 'Risks' },
-  '/risks/ai-systems/[systemId]': { href: '/risks/ai-systems', label: 'AI Systems' },
-  '/risks/board': { href: '/risks', label: 'Risks' },
-  '/risks/correlations': { href: '/risks', label: 'Risks' },
-  '/risks/dashboard': { href: '/risks', label: 'Risks' },
-  '/risks/hierarchy': { href: '/risks', label: 'Risks' },
-  '/risks/import': { href: '/risks', label: 'Risks' },
-  '/risks/kri': { href: '/risks', label: 'Risks' },
-  '/risks/loss-events': { href: '/risks', label: 'Risks' },
-  '/risks/new': { href: '/risks', label: 'Risks' },
-  '/risks/reports': { href: '/risks', label: 'Risks' },
-  '/risks/scenarios': { href: '/risks', label: 'Risks' },
-
-  // Security (self-service)
-  '/security/mfa': { href: '/dashboard', label: 'Dashboard' },
-
-  // Tasks
-  '/tasks/[taskId]': { href: '/tasks', label: 'Tasks' },
-  '/tasks/dashboard': { href: '/tasks', label: 'Tasks' },
-  '/tasks/new': { href: '/tasks', label: 'Tasks' },
-
-  // Tests
-  '/tests/dashboard': { href: '/tests', label: 'Tests' },
-  '/tests/due': { href: '/tests', label: 'Tests' },
-  '/tests/runs/[runId]': { href: '/tests', label: 'Tests' },
-
-  // Vendors
-  '/vendors/[vendorId]': { href: '/vendors', label: 'Vendors' },
-  '/vendors/[vendorId]/assessment/[assessmentId]': {
-    href: '/vendors/[vendorId]',
-    label: 'Vendor',
-  },
-  '/vendors/dashboard': { href: '/vendors', label: 'Vendors' },
-  '/vendors/new': { href: '/vendors', label: 'Vendors' },
-
-  // Vulnerabilities — subpage of the Risk Register
-  '/vulnerabilities': { href: '/risks', label: 'Risk Register' },
-};
+// ═══ THE MAP IS EMPTY, AND THAT IS THE POINT ═══
+//
+// It held ~170 lines of inflect-compliance routes — /frameworks/[frameworkKey],
+// /access-reviews, /internal-audit, /business-continuity — with labels like
+// "NIS2" and "Access reviews". None of those routes exist here, and none of it
+// was reachable from any page in this app (#176 traces the chain).
+//
+// `resolveCanonicalParent` below is KEPT, because the idea is sound and
+// playerz.bg will want it: a subpage should know its canonical parent so the
+// back affordance goes somewhere predictable rather than wherever the referrer
+// happened to be.
+//
+// Populate this with real playerz routes once the pages exist. Until then it
+// resolves nothing, which is honest — an empty map is obviously unfinished,
+// whereas a map of the wrong product reads as finished. That misreading is the
+// whole reason #176 was filed.
+const PARENT_MAP: Record<string, CanonicalParent> = {};
 
 /**
  * Resolve the canonical parent for a runtime pathname. Returns `null` for

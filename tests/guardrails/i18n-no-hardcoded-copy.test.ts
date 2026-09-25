@@ -195,36 +195,17 @@ describe('navigation copy is never a literal', () => {
     expect(files.length).toBeGreaterThan(100);
   });
 
-  /**
-   * Exempt, with the reason stated and an issue to point at.
-   *
-   * `canonical-parents.ts` is 256 lines of inflect-compliance nav — "Internal
-   * Audit", "NIS2 Gap Assessment", "Vendor templates". It is not reachable from
-   * any page (#176 traces the chain), and deciding its fate is a product call,
-   * not a lint fix: it encodes a real idea (canonical back-navigation) with
-   * entirely the wrong data.
-   *
-   * Exempting it keeps this rule honest about what it does — stop NEW literal
-   * nav copy — rather than pretending those 256 lines are fixed. The count is
-   * pinned below so the exemption cannot quietly grow.
-   */
-  const KNOWN_COMPLIANCE_NAV = 'src/lib/nav/canonical-parents.ts';
-
-  it('the pre-existing compliance nav has not grown', () => {
-    // A ratchet, not a pass. If somebody adds another literal label to that
-    // file this fails — and if somebody fixes them, the number comes down and
-    // this fails too, which is the prompt to lower it.
-    const findings = navLiterals(KNOWN_COMPLIANCE_NAV, readFileSync(KNOWN_COMPLIANCE_NAV, 'utf8'));
-    // 13, measured. I guessed 31 when writing this and the test said otherwise,
-    // which is the whole argument for pinning a number rather than asserting
-    // "some".
-    expect(findings.length).toBe(13);
-  });
-
+  // The exemption that used to live here is GONE.
+  //
+  // `canonical-parents.ts` carried 13 literal labels — "Internal Audit", "NIS2
+  // Gap Assessment", "Access reviews" — exempted with the count pinned so it
+  // could not quietly grow, and so that fixing it would force the number down.
+  //
+  // #176 emptied that map, the pin failed with 13 → 0, and the exemption came
+  // out. That is the ratchet completing its job rather than being defeated: it
+  // held the line, then made its own removal the next obvious step.
   it('no nav item carries literal copy', () => {
-    const findings = files
-      .filter((f) => f !== KNOWN_COMPLIANCE_NAV)
-      .flatMap((f) => navLiterals(f, readFileSync(f, 'utf8')));
+    const findings = files.flatMap((f) => navLiterals(f, readFileSync(f, 'utf8')));
 
     if (findings.length > 0) {
       throw new Error(
