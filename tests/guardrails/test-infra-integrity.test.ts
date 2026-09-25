@@ -184,6 +184,47 @@ describe('test-infra integrity (meta-ratchet)', () => {
       expect(ci).toContain('failure|cancelled');
     });
 
+    it('runs the E2E app under LEAST PRIVILEGE, not as the table owner', () => {
+      // ═══ WHY THIS IS A RATCHET AND NOT A COMMENT ═══
+      //
+      // P24 created `playerz_app` — LOGIN, NOINHERIT, no table privileges, both
+      // memberships WITH INHERIT FALSE — and nothing connected as it for the
+      // next seven migrations. Its shape was verified in eight tests while
+      // every real query kept running as the owner, which is
+      // `rolsuper=true, rolbypassrls=true`.
+      //
+      // Under the owner, a query that forgets its binding returns EVERY club's
+      // rows instead of failing. E2E is the only place the app genuinely runs,
+      // so it is the only place that difference can be observed — and the
+      // cheapest way to lose it again is a routine edit to this workflow.
+      //
+      // The two URLs must differ and must differ in the RIGHT direction:
+      // runtime least-privileged, migrations owning.
+      const e2e = (
+        parseYaml(read('.github/workflows/ci.yml')) as {
+          jobs: Record<string, { env?: Record<string, string> }>;
+        }
+      ).jobs.e2e;
+
+      expect(e2e?.env?.DATABASE_URL).toContain('playerz_app');
+      // Migrations and the seed create and populate tables, which is precisely
+      // what playerz_app may not do. Pointing this at the app role instead is
+      // the mistake that makes somebody "fix" it by granting privileges.
+      expect(e2e?.env?.DIRECT_DATABASE_URL).not.toContain('playerz_app');
+      expect(e2e?.env?.DIRECT_DATABASE_URL).toBeTruthy();
+
+      // The role ships with no password and cannot authenticate, so the job has
+      // to set one AFTER migrate deploy (which is what creates the role).
+      const steps = JSON.stringify(
+        (
+          parseYaml(read('.github/workflows/ci.yml')) as {
+            jobs: Record<string, { steps?: unknown[] }>;
+          }
+        ).jobs.e2e?.steps ?? [],
+      );
+      expect(steps).toMatch(/ALTER ROLE playerz_app PASSWORD/);
+    });
+
     it('creates the RLS roles before running integration tests', () => {
       expect(ci).toContain('CREATE ROLE app_user');
       expect(ci).toContain('BYPASSRLS');

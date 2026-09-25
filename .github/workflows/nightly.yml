@@ -28,6 +28,13 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox]
+    # Runtime connects as `playerz_app`, migrations and the seed as the owner —
+    # the same split as ci.yml's E2E job, and for the same reason: this is where
+    # the app actually runs, so it is where least privilege can be proved. See
+    # that job for the full rationale.
+    env:
+      DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
+      DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
     services:
       # postgis/postgis, NOT postgres:16. `prisma migrate deploy` runs
       # `CREATE EXTENSION postgis` and plain Postgres answers `extension
@@ -67,6 +74,14 @@ jobs:
         run: |
           if [ -d prisma/migrations ]; then npx prisma migrate deploy; fi
           if [ -f scripts/seed.ts ]; then npx tsx scripts/seed.ts; fi
+      - name: Give playerz_app a password for this run
+        if: steps.gate.outputs.go == 'true'
+        # P24 creates the role with LOGIN and no password, so it cannot
+        # authenticate as shipped. Must run AFTER migrate deploy, which is what
+        # creates it.
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d playerz_test -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE playerz_app PASSWORD 'ci-least-privilege';"
       - if: steps.gate.outputs.go == 'true'
         run: npx playwright test --project=${{ matrix.browser }}
       - if: failure()
