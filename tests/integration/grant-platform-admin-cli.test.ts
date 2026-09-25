@@ -221,6 +221,71 @@ describe('grant-platform-admin CLI', () => {
       expect(await grants()).toHaveLength(0);
     });
 
+    it('tolerates a trailing comma in --capabilities', async () => {
+      // A trailing comma is the easiest possible typo when copying a line out of
+      // the runbook, and it used to fail with `Unknown capability: ` followed by
+      // nothing — which tells the operator nothing about what to change.
+      //
+      // Forgiving about punctuation, strict about names: see the next test.
+      const r = cli([
+        '--user',
+        alice,
+        '--granted-by',
+        bob,
+        '--capabilities',
+        'TENANT_READ,',
+        '--expires',
+        soon(),
+        '--reason',
+        'a trailing comma should be fine',
+      ]);
+
+      expect(r.code).toBe(0);
+      const rows = await grants();
+      expect(rows[0]!.capabilities).toEqual(['TENANT_READ']);
+    });
+
+    it('still refuses a genuine misspelling', async () => {
+      // The reason the tolerance above is safe. `AUDIT_RAED` is not punctuation.
+      const r = cli([
+        '--user',
+        alice,
+        '--granted-by',
+        bob,
+        '--capabilities',
+        'AUDIT_RAED',
+        '--expires',
+        soon(),
+        '--reason',
+        'a genuine misspelling here',
+      ]);
+
+      expect(r.code).toBe(1);
+      expect(r.out).toContain('AUDIT_RAED');
+      expect(await grants()).toHaveLength(0);
+    });
+
+    it('refuses --capabilities that is only punctuation, and says what is valid', async () => {
+      const r = cli([
+        '--user',
+        alice,
+        '--granted-by',
+        bob,
+        '--capabilities',
+        ',,',
+        '--expires',
+        soon(),
+        '--reason',
+        'only commas were supplied',
+      ]);
+
+      expect(r.code).toBe(1);
+      expect(r.out).toMatch(/no capability names/i);
+      // Listing them, so the operator does not go reading source at 03:00.
+      expect(r.out).toContain('TENANT_READ');
+      expect(await grants()).toHaveLength(0);
+    });
+
     it('refuses an email that is not a real account', async () => {
       const r = cli([
         '--user',

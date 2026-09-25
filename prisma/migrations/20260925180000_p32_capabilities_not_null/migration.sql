@@ -1,0 +1,56 @@
+-- ═══════════════════════════════════════════════════════════════════════
+--  P32 — platform_admin_grant.capabilities must be NOT NULL
+-- ═══════════════════════════════════════════════════════════════════════
+--
+-- A hole in P31, and the SECOND instance of the same mistake in the same
+-- constraint.
+--
+-- ═══ WHAT WAS WRONG ═══
+--
+-- P31 added:
+--
+--   CHECK (cardinality("capabilities") >= 1)
+--
+-- having already learned, and written a comment about, the fact that
+-- `array_length(ARRAY[]::x[], 1)` returns NULL and that a CHECK treats NULL as
+-- SATISFIED. That fix covered the EMPTY ARRAY. It did not cover NULL itself:
+--
+--   cardinality(NULL::"PlatformCapability"[])  →  NULL
+--   NULL >= 1                                  →  NULL
+--   CHECK(NULL)                                →  passes
+--
+-- And the column was never declared NOT NULL, because Prisma cannot express a
+-- nullable scalar list, so the hand-written DDL simply omitted it — and
+-- `prisma migrate diff` reported ZERO DRIFT, because Prisma considers a nullable
+-- array column equivalent to its non-nullable list type. Neither the constraint
+-- nor the drift check could see it.
+--
+-- ═══ WHAT IT COST ═══
+--
+-- Measured against a real database:
+--
+--   1. a grant with NULL capabilities is ACCEPTED
+--   2. it occupies the one-live-grant slot (platform_admin_grant_one_live_idx)
+--   3. so it BLOCKS a legitimate grant for that user — 23505, unique violation
+--
+-- Authorisation still fails closed: `liveCapabilities` receives null,
+-- `null.length` throws, and `resolvePlatformAuthority`'s catch returns no
+-- authority. So this was never an escalation. It was a denial of service on the
+-- grant path, with the runbook's revoke-then-reissue as the only way out — and a
+-- row in the table that no code could interpret.
+--
+-- ═══ WHY NOT JUST FIX THE CHECK ═══
+--
+-- `CHECK (capabilities IS NOT NULL AND cardinality(capabilities) >= 1)` would
+-- also work. NOT NULL is better: it is the constraint that actually expresses
+-- the intent, the planner knows about it, and it cannot be defeated by a third
+-- NULL-swallowing expression somebody adds later. The CHECK stays for the
+-- empty-array case, which NOT NULL does not cover.
+--
+-- Two constraints, two distinct failure modes, neither redundant.
+
+-- No backfill: this is being added before any deployment holds a grant, and a
+-- NULL row would fail the ALTER loudly rather than being silently rewritten.
+-- Silently coercing NULL to an empty array would substitute one invalid state
+-- for another — the empty array is what the CHECK already refuses.
+ALTER TABLE "platform_admin_grant" ALTER COLUMN "capabilities" SET NOT NULL;

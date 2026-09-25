@@ -206,7 +206,26 @@ async function main() {
     );
   }
 
-  const caps = capsRaw.split(',').map((c) => c.trim().toUpperCase());
+  // Empty segments are dropped, not rejected. `--capabilities TENANT_READ,` and
+  // `TENANT_READ,,AUDIT_READ` are trailing-comma typos — trivially easy when
+  // copying a line out of the runbook — and both used to fail with
+  // `Unknown capability: ` followed by nothing at all, which tells the operator
+  // precisely nothing about what to change.
+  //
+  // This is forgiving about punctuation and strict about NAMES: a real typo like
+  // `AUDIT_RAED` is still an unknown capability and still refused.
+  const caps = capsRaw
+    .split(',')
+    .map((c) => c.trim().toUpperCase())
+    .filter((c) => c.length > 0);
+
+  if (caps.length === 0) {
+    fail(
+      `--capabilities contained no capability names (got ${JSON.stringify(capsRaw)}).\n` +
+        `  Valid: ${Object.values(PlatformCapability).join(', ')}`,
+    );
+  }
+
   const unknown = caps.filter((c) => !(c in PlatformCapability));
   if (unknown.length > 0) {
     fail(
