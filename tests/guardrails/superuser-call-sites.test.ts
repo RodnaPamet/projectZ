@@ -66,6 +66,8 @@ const ALLOWED: Record<string, string> = {
   // ── Machine work with no human actor ────────────────────────────────
   'src/app/api/webhooks/stripe/route.ts': 'Stripe posts with no session and no tenant slug',
   'src/app-layer/usecases/release-expired-bookings.ts': 'the sweeper spans every club',
+  'src/app/api/cron/warn-expiring-platform-grants/route.ts':
+    'reads grant expiry dates; platform_admin_grant denies app_user, and a cron job is not a person',
   'src/app-layer/usecases/notifications.ts': 'writes a user-bound row after the tenant tx commits',
   'src/app/api/v1/realtime/subscribe/route.ts': 'resolves channel membership before binding',
   'src/app/api/v1/t/[slug]/me/route.ts': 'resolves the membership that the binding needs',

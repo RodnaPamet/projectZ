@@ -59,25 +59,30 @@ export async function resolvePlatformAuthority(
   if (!userId) return NONE;
 
   try {
-    const grant = await runAsSuperuser(async (db) => {
-      const rows = await db.$queryRawUnsafe<
-        {
-          id: string;
-          capabilities: PlatformCapability[];
-          expiresAt: Date;
-          revokedAt: Date | null;
-        }[]
-      >(
-        // `revokedAt IS NULL` matches the partial unique index exactly, so this
-        // is an index-only probe and there can be at most one row.
-        `SELECT id, capabilities, "expiresAt", "revokedAt"
-           FROM platform_admin_grant
-          WHERE "userId" = $1 AND "revokedAt" IS NULL
-          LIMIT 1`,
-        userId,
-      );
-      return rows[0] ?? null;
-    });
+    // ═══ THE TYPED CLIENT, NOT $queryRaw — THIS WAS A REAL BUG ═══
+    //
+    // The first version used `$queryRawUnsafe`. Measured: Prisma returns a
+    // Postgres enum ARRAY from a raw query as the STRING "{TENANT_READ,AUDIT_READ}",
+    // not as a JS array. So `appPermissions` held a string while typed as
+    // `readonly PlatformCapability[]`, and `bind.ts` does
+    // `ctx.appPermissions.includes(capability)` — which on a string is SUBSTRING
+    // matching.
+    //
+    // Nothing was wrongly granted today, because no capability name is a
+    // substring of another. That is luck, not design: add TENANT_READ_PII beside
+    // TENANT_READ and each would satisfy the other's check. It is also exactly
+    // the failure `app-layer/types.ts` narrowed this field's type to prevent —
+    // reintroduced by a raw query that bypasses the type.
+    //
+    // `findFirst` parses the enum array properly, so the value matches its type.
+    const grant = await runAsSuperuser((db) =>
+      // `revokedAt: null` matches the partial unique index exactly, so this is
+      // an index probe and there can be at most one row.
+      db.platformAdminGrant.findFirst({
+        where: { userId, revokedAt: null },
+        select: { id: true, capabilities: true, expiresAt: true, revokedAt: true },
+      }),
+    );
 
     if (!grant) return NONE;
 
