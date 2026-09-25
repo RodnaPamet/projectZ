@@ -7,7 +7,9 @@
 
 import { NextRequest } from 'next/server';
 
-import { clearAllRateLimits, enforceRateLimit } from '@/lib/security/rate-limit-middleware';
+import { enforceRateLimit } from '@/lib/security/rate-limit-middleware';
+
+import { uniqueTestIp } from '../../helpers/rate-limit-key';
 
 /**
  * THE 429 BODY IS THE CANONICAL ENVELOPE, AND NOTHING ELSE (#124).
@@ -42,10 +44,10 @@ const CANONICAL_ERROR_FIELDS = new Set(['code', 'message', 'requestId', 'details
 /** One request per minute, so the second one is always refused. */
 const ONE_PER_MINUTE = { maxAttempts: 1, windowMs: 60_000 };
 
-const request = () =>
+const request = (ip: string) =>
   new NextRequest('https://playerz.bg/api/v1/t/sofia-padel/bookings', {
     method: 'POST',
-    headers: { 'x-forwarded-for': '203.0.113.7' },
+    headers: { 'x-forwarded-for': ip },
   });
 
 /**
@@ -58,9 +60,12 @@ const request = () =>
 const SENTINEL_SCOPE = 'internal-bucket-name-that-must-not-ship';
 
 async function blockedResponse() {
+  // A key unique to THIS call, so nothing else in the suite can reset it and
+  // this needs no clearing. See tests/helpers/rate-limit-key.ts.
+  const ip = uniqueTestIp();
   const scope = { scope: SENTINEL_SCOPE, config: ONE_PER_MINUTE };
-  await enforceRateLimit(request(), scope);
-  const { response } = await enforceRateLimit(request(), scope);
+  await enforceRateLimit(request(ip), scope);
+  const { response } = await enforceRateLimit(request(ip), scope);
 
   // Without this the suite would quietly test nothing if the limiter stopped
   // blocking — every assertion below lives on `response`.
@@ -68,13 +73,17 @@ async function blockedResponse() {
   return response;
 }
 
-beforeEach(async () => {
-  // The store is module-level state shared by every test in this process.
-  // AWAITED. It clears Redis as well as the Map now, and an un-awaited clear
-  // lands mid-test — deleting the key between the two calls below, so the
-  // second one starts fresh and is allowed. That is what broke this suite.
-  await clearAllRateLimits();
-});
+// No `beforeEach(clearAllRateLimits)`, deliberately.
+//
+// It used to be here, awaited, with a comment explaining that an un-awaited
+// clear lands mid-test and breaks this suite. That was true and the fix was
+// right at the time — but the clear deletes EVERY ratelimit key, and once a
+// second unit file started clearing too, one file's clear began wiping the
+// other's counter between attempts. Measured: the sibling suite's eleventh
+// request started returning 200.
+//
+// Each case now uses a key no other test can touch, which needs no clearing at
+// all. tests/helpers/rate-limit-key.ts records both failure modes.
 
 describe('the rate-limit 429 body', () => {
   it('is the canonical envelope and carries no foreign keys', async () => {

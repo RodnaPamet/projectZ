@@ -125,7 +125,25 @@ async function main() {
   const reason = values.reason;
 
   if (!grantedByEmail) fail('--granted-by is required. A grant with no issuer answers nothing.');
-  if (!reason) fail('--reason is required, and the database enforces at least 12 characters.');
+  if (!reason) fail('--reason is required.');
+
+  // ═══ THE DATABASE CHECKS `reason`, NOT `revokeReason` ═══
+  //
+  // `platform_admin_grant_reason_stated` covers the grant's reason only. The
+  // revocation reason has no CHECK at all, so `--revoke … --reason "x"` was
+  // accepted while this script claimed twelve characters were enforced — and
+  // the runbook's own example, "rota ended", is ten.
+  //
+  // Validated here for both paths, so the claim is true again.
+  const MIN_REASON = 12;
+  if (reason.trim().length < MIN_REASON) {
+    fail(
+      `--reason must be at least ${MIN_REASON} characters (got ${reason.trim().length}).\n` +
+        `  It lands in an append-only table and is the only thing that makes the row\n` +
+        `  answerable months later. For a grant the database enforces this too; for a\n` +
+        `  REVOCATION it does not, so this check is the only one.`,
+    );
+  }
 
   // ── Revocation ────────────────────────────────────────────────────
   if (values.revoke) {
@@ -234,8 +252,38 @@ async function main() {
     );
   }
 
-  const expiresAt = new Date(expires);
+  // ═══ A BARE DATE MEANS THE END OF THAT DAY, NOT THE START ═══
+  //
+  // `new Date('2026-09-26')` is 2026-09-26T00:00:00.000Z. So the runbook's own
+  // incident recipe — `--expires <tomorrow>` — produced a grant that died at
+  // midnight UTC: issued at 19:37 it lasted 4h22m, issued at 23:30 it lasted
+  // thirty minutes. Measured, both.
+  //
+  // Worse in a positive offset. `--expires 2026-11-01` from Europe/Sofia (UTC+2)
+  // expired at 02:00 local on the 1st — dead for the whole working day it was
+  // meant to cover, which is exactly the "lapses at 03:00 during an outage"
+  // failure this feature exists to prevent.
+  //
+  // And `--expires <today>` was REFUSED as being in the past, so there was no way
+  // to say "expires at the end of the day I named" at all.
+  //
+  // A full ISO timestamp is still honoured verbatim for anyone who wants a
+  // precise instant.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(expires.trim());
+  const expiresAt = dateOnly ? new Date(`${expires.trim()}T23:59:59.999Z`) : new Date(expires);
   if (Number.isNaN(expiresAt.getTime())) fail(`--expires is not a date I can parse: ${expires}`);
+
+  // An accidentally tiny window is indistinguishable from an intended one in the
+  // output, and the warn job runs DAILY — so it cannot warn about a grant that
+  // lives for an hour. Say so at issue time instead.
+  const hours = (expiresAt.getTime() - Date.now()) / 36e5;
+  if (hours > 0 && hours < 2) {
+    console.warn(
+      `\n⚠ That grant lasts ${hours.toFixed(1)} hours. The expiry warning job runs daily,\n` +
+        `  so nothing will warn before it lapses. If you meant the end of a day, pass\n` +
+        `  a bare date (YYYY-MM-DD); if you meant this, carry on.\n`,
+    );
+  }
 
   const holderId = await userIdByEmail(prisma, userEmail, '--user');
   const granterId = await userIdByEmail(prisma, grantedByEmail, '--granted-by');
@@ -243,7 +291,18 @@ async function main() {
   // The grant and its audit row in ONE transaction, attributed to the GRANTER.
   // A grant that committed without its audit row would be authority nobody
   // issued, which is the state this whole design exists to make impossible.
-  await prisma.$transaction(async (tx) => {
+  // ═══ PRINTED AFTER THE AWAIT, NOT INSIDE THE CALLBACK ═══
+  //
+  // The success block used to be the last thing INSIDE the transaction, so it
+  // reached stdout before COMMIT. A commit failure — Prisma's 5s interactive
+  // transaction timeout (P2028), a dropped connection on a pooled database —
+  // printed the full "✓ Granted … grant id: …" and THEN an error, exit 1, with no
+  // row written. An operator scanning for the tick mark concludes authority was
+  // issued when nothing was.
+  //
+  // The revoke path already printed after its await. The two halves of the same
+  // CLI disagreed, and this half was the wrong one.
+  const issued = await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
 
     const grantId = `cg${randomUUID().replace(/-/g, '').slice(0, 20)}`;
@@ -276,15 +335,19 @@ async function main() {
       JSON.stringify({ holder: userEmail, capabilities: caps, expiresAt: expiresAt.toISOString() }),
     );
 
-    console.log(`\n✓ Granted platform authority to ${userEmail}`);
-    console.log(`  capabilities: ${caps.join(', ')}`);
-    console.log(`  expires:      ${expiresAt.toISOString()}`);
-    console.log(`  granted by:   ${grantedByEmail}`);
-    console.log(`  reason:       ${reason}`);
-    console.log(`  grant id:     ${grantId}\n`);
-    console.log(`  It expires on its own. Nobody has to remember to remove it — which`);
-    console.log(`  is the point, and is why there is a 90-day cap in the database.\n`);
+    return grantId;
   });
+
+  console.log(`\n✓ Granted platform authority to ${userEmail}`);
+  console.log(`  capabilities: ${caps.join(', ')}`);
+  console.log(
+    `  expires:      ${expiresAt.toISOString()}${dateOnly ? '  (end of the day you named)' : ''}`,
+  );
+  console.log(`  granted by:   ${grantedByEmail}`);
+  console.log(`  reason:       ${reason}`);
+  console.log(`  grant id:     ${issued}\n`);
+  console.log(`  It expires on its own. Nobody has to remember to remove it — which`);
+  console.log(`  is the point, and is why there is a 90-day cap in the database.\n`);
 }
 
 /**

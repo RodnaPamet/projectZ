@@ -98,6 +98,10 @@ admin keeps working until something expires.
 This is the fast path during a suspected compromise. Use it first and ask
 questions afterwards — a revoked grant costs one CLI call to reissue.
 
+**You can do this alone.** `--granted-by` here records who revoked, and it may be
+yourself; the two-party rule applies to issuing authority, not to taking it away.
+Nothing about revocation should wait for a second person.
+
 ---
 
 ## When a grant lapses mid-incident
@@ -140,10 +144,26 @@ npm run grant:platform-admin -- \
 Make the incident grant **short**. An incident grant with a 90-day expiry is how
 a temporary permission becomes permanent.
 
-Both commands need someone with `DIRECT_DATABASE_URL` and someone else to be the
-granter. If those are the same person, you cannot proceed — that is the
-two-party rule working, not a bug, and it is worth knowing **before** the
-incident that you need two people reachable.
+A bare `YYYY-MM-DD` means the **end** of that day, UTC. It used to mean the start
+— so `--expires <tomorrow>` typed at 23:30 produced a thirty-minute grant, and
+`--expires 2026-11-01` from Sofia expired at 02:00 local, dead for the working day
+it was meant to cover. Both measured. Pass a full ISO timestamp if you want a
+precise instant; the CLI warns if the window is under two hours, because the
+expiry job runs daily and cannot warn about a grant that short.
+
+**Only the second command is two-party.** `--revoke` is not: the no-self-grant
+CHECK applies to issuing a grant, not to ending one, so one person can revoke —
+including revoking their own grant. Verified by doing it.
+
+That distinction matters more than it sounds. An earlier version of this document
+said both commands needed two people, which would have told a lone on-call they
+were blocked from **revocation** — the fast path during a suspected compromise,
+and the one thing you should never hesitate over. Revoke first, alone, and find a
+second person afterwards for the reissue.
+
+So: revoking needs one person with `DIRECT_DATABASE_URL`. Reissuing needs that
+person plus somebody else to name as `--granted-by`. Worth knowing **before** the
+incident which of those you can reach.
 
 ---
 
@@ -167,11 +187,23 @@ fix it now rather than during the next incident.
 ## Reading the audit trail
 
 ```sql
-SELECT "createdAt", "actorUserId", action, capability, "subjectTenantId", reason
+SELECT "createdAt", "actorUserId", action, capability, "subjectTenantId", reason,
+       "detailsJson"
   FROM platform_audit_entry
  ORDER BY "createdAt" DESC
  LIMIT 50;
 ```
+
+`detailsJson` is in that list deliberately. For `PLATFORM_GRANT_ISSUED` and
+`PLATFORM_GRANT_REVOKED` the `capability` column holds only the **first** of the
+grant's capabilities — it is a single-valued enum column and a grant may carry
+several. Reading `capability` alone on a lifecycle row tells you `TENANT_READ`
+about a grant that also carried `AUDIT_READ`. The full list is in
+`detailsJson.capabilities` / `detailsJson.revokedCapabilities`, which is
+authoritative for those two actions.
+
+For every other action the row describes one capability being exercised, and
+`capability` is exactly right.
 
 `PLATFORM_GRANT_ISSUED` and `PLATFORM_GRANT_REVOKED` are written by the CLI;
 everything else is written by `runAsPlatformAdmin` before the work it describes.

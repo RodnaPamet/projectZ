@@ -117,7 +117,41 @@ services:
       - -c
       - |
         echo "grant-expiry: every $${WARN_INTERVAL_SECONDS}s -> $${WARN_URL}"
+
+        # ═══ WAIT FOR THE APP BEFORE THE FIRST REQUEST ═══
+        #
+        # `depends_on` without `condition: service_healthy` waits for the
+        # container to START, not to be LISTENING — and this is an overlay, so
+        # the app service is defined elsewhere and may have no healthcheck to
+        # depend on.
+        #
+        # Requesting first (rather than sleeping first, as booking-sweep does) is
+        # deliberate: at 86400s, sleeping first means a restarted container says
+        # nothing for a full day. But it also means the very first request races
+        # the app's startup — and on losing that race the loop would log
+        # "request failed" and then sleep TWENTY-FOUR HOURS before trying again.
+        # So the benefit of going first needs this wait to be real.
+        #
+        # 30 attempts at 2s: a minute of grace, then proceed anyway so a genuinely
+        # broken app still produces a logged failure rather than silence.
+        i=0
+        while [ "$$i" -lt 30 ]; do
+          wget -q -O- --spider "$${WARN_URL}" 2>/dev/null && break
+          # --spider on a POST-only route answers 405, which still proves the app
+          # is listening. Any response at all is enough; only a connection
+          # failure means "not up yet".
+          wget -q -O- --post-data="" --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${WARN_URL}" >/dev/null 2>&1 && break
+          i=$$((i + 1))
+          sleep 2
+        done
+        echo "grant-expiry: app reachable after $${i} attempt(s); starting"
+
         while true; do
+          # stderr is CAPTURED, not discarded. The previous version printed a
+          # fixed "app down, or wrong secret" for every failure — including DNS
+          # failures, TLS errors and 500s, none of which that sentence describes.
+          # A wrong diagnosis sends somebody to check the wrong thing.
           body=$$(wget -q -O- --post-data="" \
             --header="x-cron-secret: $${CRON_SECRET}" \
             "$${WARN_URL}" 2>&1) \
@@ -125,6 +159,6 @@ services:
                  *'"expiringSoon":0'*'"lapsed":0'*) : ;;   # nothing expiring — stay quiet
                  *) echo "grant-expiry: $$body" ;;
                esac \
-            || echo "grant-expiry: request failed (app down, or wrong secret)"
+            || echo "grant-expiry: request FAILED -> $$body"
           sleep "$${WARN_INTERVAL_SECONDS}"
         done

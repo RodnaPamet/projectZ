@@ -333,6 +333,67 @@ describe('grant-platform-admin CLI', () => {
     });
   });
 
+  describe('expiry semantics', () => {
+    it('treats a bare date as the END of that day, not the start', async () => {
+      // `new Date('2026-09-26')` is midnight UTC. So the runbook's own incident
+      // recipe — `--expires <tomorrow>` — produced a grant that died at midnight:
+      // issued at 19:37 it lasted 4h22m, at 23:30 it lasted thirty minutes. Both
+      // measured. From a positive offset it was worse: `--expires 2026-11-01`
+      // from Sofia expired at 02:00 local, dead for the working day it covered.
+      const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+
+      const r = cli([
+        '--user',
+        alice,
+        '--granted-by',
+        bob,
+        '--capabilities',
+        'TENANT_READ',
+        '--expires',
+        tomorrow,
+        '--reason',
+        'an incident grant for tomorrow',
+      ]);
+
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('23:59:59.999Z');
+      // And it says so, because the ISO string alone is easy to skim past at 03:00.
+      expect(r.out).toMatch(/end of the day you named/);
+
+      const rows = await asAppSuperuser(db, (tx) =>
+        tx.$queryRawUnsafe<{ hours: number }[]>(
+          `SELECT EXTRACT(EPOCH FROM ("expiresAt" - now()))/3600 AS hours
+             FROM platform_admin_grant`,
+        ),
+      );
+      // Comfortably more than a day away, whatever hour this test runs at. The
+      // old behaviour could leave under an hour.
+      expect(Number(rows[0]!.hours)).toBeGreaterThan(24);
+    });
+
+    it('honours a full ISO timestamp verbatim', async () => {
+      // Anyone who wants a precise instant must still be able to say so.
+      const precise = new Date(Date.now() + 5 * 864e5).toISOString();
+
+      const r = cli([
+        '--user',
+        alice,
+        '--granted-by',
+        bob,
+        '--capabilities',
+        'TENANT_READ',
+        '--expires',
+        precise,
+        '--reason',
+        'a precise expiry instant',
+      ]);
+
+      expect(r.code).toBe(0);
+      expect(r.out).toContain(precise);
+      expect(r.out).not.toMatch(/end of the day you named/);
+    });
+  });
+
   describe('revoking', () => {
     const issue = () =>
       cli([
@@ -388,6 +449,43 @@ describe('grant-platform-admin CLI', () => {
       const rows = await grants();
       expect(rows).toHaveLength(2);
       expect(rows.filter((g) => g.revokedAt === null)).toHaveLength(1);
+    });
+
+    it('lets ONE person revoke, including their own grant', async () => {
+      // The fast path during a suspected compromise, and nothing about it should
+      // wait for a second person. The no-self-grant CHECK applies to ISSUING
+      // authority, not to ending it.
+      //
+      // The runbook said both commands needed two people, which would have told a
+      // lone on-call they were blocked from revocation. Verified by doing it.
+      expect(issue().code).toBe(0);
+
+      const r = cli([
+        '--revoke',
+        alice,
+        '--granted-by',
+        alice,
+        '--reason',
+        'revoking my own grant',
+      ]);
+
+      expect(r.code).toBe(0);
+      const rows = await grants();
+      expect(rows[0]!.revokedAt).not.toBeNull();
+    });
+
+    it('refuses a revoke reason under 12 characters, which the database does not check', async () => {
+      // `platform_admin_grant_reason_stated` covers the GRANT's reason only;
+      // `revokeReason` has no CHECK. So "rota ended" — the runbook's own example,
+      // ten characters — was accepted while the CLI claimed twelve were enforced.
+      expect(issue().code).toBe(0);
+
+      const r = cli(['--revoke', alice, '--granted-by', bob, '--reason', 'rota ended']);
+
+      expect(r.code).toBe(1);
+      expect(r.out).toMatch(/at least 12 characters/);
+      const rows = await grants();
+      expect(rows[0]!.revokedAt).toBeNull();
     });
 
     it('says so plainly when there is nothing to revoke', async () => {
