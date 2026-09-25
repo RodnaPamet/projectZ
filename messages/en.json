@@ -272,5 +272,10 @@
       "title": "Booking confirmed",
       "body": "Your court is booked. Payment of {amount} received."
     }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "That address does not exist. The link may be out of date, or the page may not be built yet.",
+    "backToVenues": "Browse venues"
   }
 }
