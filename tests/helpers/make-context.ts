@@ -14,7 +14,12 @@ export function buildRequestContext(overrides: Partial<RequestContext> = {}): Re
     tenantSlug: null,
     role: null,
     permissions: [],
+    // Defaults to NO platform authority for the same reason the role defaults
+    // to null: a test that needs cross-club reach must ask for it by name.
+    // A default that carried a capability would let a platform-authorisation
+    // test pass while the check did nothing.
     appPermissions: [],
+    platformGrantId: null,
     requestId: 'test-request',
     locale: 'bg',
     ...overrides,

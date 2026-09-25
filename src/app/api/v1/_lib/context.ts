@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 
 import type { RequestContext } from '@/app-layer/types';
+import type { PlatformCapability } from '@/lib/platform/capabilities';
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
 import { checkSession } from '@/lib/auth/sessions';
 import { getPermissionsForRole } from '@/lib/permissions';
@@ -56,14 +57,37 @@ export async function contextFromRequest(
     secret: process.env.NEXTAUTH_SECRET,
   })) as unknown as PlayerzJWT | null;
 
+  // ═══ PLATFORM AUTHORITY IS NOT IN `base`, DELIBERATELY ═══
+  //
+  // `appPermissions` used to live here as `[] as readonly string[]`, spread
+  // into all four returns below. That is how it stayed dead for two rounds: an
+  // unread field with a plausible default reads as finished.
+  //
+  // It is now stated per-branch. A field in `base` is one every future return
+  // path inherits WITHOUT deciding, and the whole reason this file exists is
+  // that inheriting an authorisation value without deriving it is what caused
+  // the cross-tenant escalation documented above.
   const base = {
     requestId: input.requestId,
     locale: input.locale ?? 'bg',
-    appPermissions: [] as readonly string[],
+  };
+
+  /**
+   * No platform authority. The answer for every branch in this file today.
+   *
+   * Resolving a real grant needs a database read — it must NOT come from the
+   * token, for exactly the reason `token.role` and `token.permissions` are
+   * ignored here: a cached claim goes stale, and this is the highest privilege
+   * in the system. That read lands with the `asPlatformAdmin` binding.
+   */
+  const noPlatformAuthority = {
+    appPermissions: [] as readonly PlatformCapability[],
+    platformGrantId: null,
   };
 
   const anonymous: RequestContext = {
     ...base,
+    ...noPlatformAuthority,
     userId: null,
     tenantId: null,
     tenantSlug: null,
@@ -103,6 +127,7 @@ export async function contextFromRequest(
     // Signed in, but not addressing a club: /me/**, account settings.
     return {
       ...base,
+      ...noPlatformAuthority,
       userId: raw.sub,
       tenantId: null,
       tenantSlug: null,
@@ -122,6 +147,7 @@ export async function contextFromRequest(
     // Denying here instead would lock a player out of their 51st club.
     return {
       ...base,
+      ...noPlatformAuthority,
       userId: raw.sub,
       tenantId: null,
       tenantSlug: null,
@@ -134,6 +160,7 @@ export async function contextFromRequest(
 
   return {
     ...base,
+    ...noPlatformAuthority,
     userId: raw.sub,
     tenantId: membership.tenantId,
     tenantSlug: membership.tenantSlug,
