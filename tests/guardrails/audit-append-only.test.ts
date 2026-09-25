@@ -74,6 +74,47 @@ describe('the audit log is append-only', () => {
     expect(violations).toEqual([]);
   });
 
+  it('raw SQL does not mutate an audit entry either', () => {
+    // Prisma is not the only way to reach the table. `$executeRaw` is, and the
+    // check above only sees `auditEntry.update` — a hand-written statement
+    // walks straight past it. ledger-append-only.test.ts:75-89 has had this
+    // scan since it landed; the audit log, which is the record of who changed
+    // what, did not.
+    const forbidden = /(?:UPDATE|DELETE\s+FROM)\s+"?audit_entry"?/i;
+    const violations: string[] = [];
+
+    for (const file of sourceFiles) {
+      const src = readFileSync(file, 'utf8');
+      src.split('\n').forEach((line, i) => {
+        const t = line.trim();
+        if (t.startsWith('*') || t.startsWith('//')) return;
+        if (forbidden.test(line)) violations.push(`${file}:${i + 1}: ${t}`);
+      });
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  // ── Negative control ───────────────────────────────────────────────
+  it('the patterns actually fire on the code they forbid', () => {
+    // Both scans above pass today by finding nothing. That is indistinguishable
+    // from a regex that matches nothing ever — which is what a ratchet looks
+    // like the day after someone "simplifies" it.
+    const prisma = /auditEntry\s*\.\s*(update|updateMany|delete|deleteMany|upsert)\b/;
+    const raw = /(?:UPDATE|DELETE\s+FROM)\s+"?audit_entry"?/i;
+
+    expect(prisma.test('await db.auditEntry.update({ where: { id } });')).toBe(true);
+    expect(prisma.test('await tx.auditEntry.deleteMany({});')).toBe(true);
+    expect(raw.test('await db.$executeRaw`UPDATE audit_entry SET action = $1`;')).toBe(true);
+    expect(raw.test('await db.$executeRawUnsafe(`DELETE FROM "audit_entry"`);')).toBe(true);
+
+    // …and do not fire on the writes that ARE allowed. `create` is the only
+    // mutation an append-only log has, and reads must stay legal.
+    expect(prisma.test('await db.auditEntry.create({ data });')).toBe(false);
+    expect(prisma.test('await db.auditEntry.findFirst({ where });')).toBe(false);
+    expect(raw.test('await db.$queryRaw`SELECT * FROM audit_entry`;')).toBe(false);
+  });
+
   it('appendAuditEntry takes a caller-supplied client', () => {
     // The signature IS the guarantee. A helper that reaches for its own client
     // writes on a separate connection, so the audit row can commit while the

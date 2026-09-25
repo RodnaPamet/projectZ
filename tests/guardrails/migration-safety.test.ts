@@ -99,6 +99,20 @@ const PROTECTED: Protected[] = [
     recreate: /CREATE TRIGGER\s+"?ledger_append_only/i,
     why: 'a wallet you can UPDATE is not a ledger, it is a mutable number',
   },
+  {
+    name: 'audit_append_only_trg (append-only trigger)',
+    // The ledger trigger above has been protected since it landed; the audit
+    // one never was, so `migrate diff` could propose dropping it and every
+    // guardrail would still pass. An audit log that can be edited after the
+    // fact is worth less than no audit log, because it still looks like
+    // evidence.
+    //
+    // `DROP TRIGGER IF EXISTS` followed by `CREATE TRIGGER` is how P26 installs
+    // it, and the recreate pattern is what keeps that idempotent pair legal.
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?audit_append_only_trg/i,
+    recreate: /CREATE TRIGGER\s+"?audit_append_only_trg/i,
+    why: 'an audit log you can UPDATE or DELETE is not evidence, and still looks like it',
+  },
 ];
 
 /** A DROP inside a comment is documentation, not a statement. */
@@ -159,5 +173,24 @@ describe('migration safety', () => {
     expect(all).toMatch(/ADD CONSTRAINT\s+booking_no_overlap/i);
     expect(all).toMatch(/ADD CONSTRAINT\s+coach_no_overlap/i);
     expect(all).toMatch(/CREATE INDEX\s+(?:IF NOT EXISTS\s+)?"?venue_geog_idx"?/i);
+    // Both append-only triggers, for the same reason.
+    expect(all).toMatch(/CREATE TRIGGER\s+"?ledger_append_only/i);
+    expect(all).toMatch(/CREATE TRIGGER\s+"?audit_append_only_trg/i);
+  });
+
+  it('every protected object names something that exists in the migrations', () => {
+    // A typo in a pattern is INVISIBLE: the regex never matches, the ratchet
+    // passes on every migration, and the object it claims to guard is
+    // unguarded. So each entry must be able to point at the statement that
+    // created the thing it protects.
+    //
+    // `booking_no_overlap` is the one entry whose recreate pattern is an
+    // alternation ending in `RENAME COLUMN` — it still matches real SQL, so it
+    // needs no exemption here.
+    const all = migrations.map((f) => readFileSync(f, 'utf8')).join('\n');
+
+    const unmatched = PROTECTED.filter((p) => !p.recreate.test(all)).map((p) => p.name);
+
+    expect(unmatched).toEqual([]);
   });
 });
