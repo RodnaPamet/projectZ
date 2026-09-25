@@ -116,6 +116,40 @@ describe('platform admin grants and audit (database-enforced)', () => {
       expect(r.error).toMatch(/capabilities_nonempty/);
     });
 
+    it('refuses NULL capabilities, which the CHECK alone did not', async () => {
+      // P31's second NULL hole, in the same constraint as the first.
+      //
+      // `cardinality(NULL)` is NULL and a CHECK treats NULL as SATISFIED — the
+      // identical mechanism to the `array_length` bug fixed one line above,
+      // caught for the empty array and missed for NULL itself. The column was
+      // never declared NOT NULL either, because Prisma cannot express a nullable
+      // scalar list, so the hand-written DDL omitted it AND `prisma migrate diff`
+      // reported zero drift. Neither the constraint nor the drift check could see
+      // it.
+      //
+      // Measured before P32: accepted, and then it occupied the one-live-grant
+      // slot and BLOCKED a legitimate grant for that user. Never an escalation —
+      // `liveCapabilities` throws on null and the resolver's catch returns no
+      // authority — but a denial of service on the grant path.
+      let error: string | undefined;
+      try {
+        await asAppSuperuser(db, (tx) =>
+          tx.$executeRawUnsafe(
+            `INSERT INTO platform_admin_grant
+               (id,"userId","grantedByUserId",reason,capabilities,"expiresAt")
+             VALUES ($1,$2,$3,'a grant with null capabilities',NULL, now() + interval '5 days')`,
+            `g${randomUUID().replace(/-/g, '').slice(0, 20)}`,
+            holder,
+            granter,
+          ),
+        );
+      } catch (e) {
+        error = e instanceof Error ? e.message : String(e);
+      }
+
+      expect(error).toMatch(/null value in column "capabilities"|not-null constraint/i);
+    });
+
     it('refuses a grant with no stated reason', async () => {
       const r = await grant({ reason: 'why' });
       expect(r.ok).toBe(false);

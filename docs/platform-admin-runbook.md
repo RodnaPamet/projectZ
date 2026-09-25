@@ -30,6 +30,20 @@ cannot edit the record afterwards.
 
 ---
 
+## Running the commands at all
+
+Every command below is `npm run grant:platform-admin -- …`, and the `--` is
+required: it is what passes the flags to the script rather than to npm.
+
+An earlier version of this document said `tsx scripts/grant-platform-admin.ts`.
+**That fails with `command not found`** — `tsx` is a local devDependency, not on
+`PATH` and not installed globally. Which is the worst possible bug for a
+break-glass runbook to have, since the first time anybody finds out is the one
+night they need it. Verified by running it.
+
+If you are somewhere `npm` is unavailable, `npx tsx scripts/grant-platform-admin.ts`
+is the equivalent.
+
 ## Granting
 
 Needs `DIRECT_DATABASE_URL` — the **owner** connection. That credential is
@@ -37,7 +51,7 @@ strictly more authority than any grant it issues, which makes whoever holds it
 the real bar for platform access.
 
 ```bash
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --user alice@playerz.bg \
   --granted-by bob@playerz.bg \
   --capabilities TENANT_READ,AUDIT_READ \
@@ -68,10 +82,25 @@ that is a decision to make deliberately, not a flag to flip during an incident.
 
 ---
 
+## Who holds authority right now
+
+```bash
+npm run grant:platform-admin -- --list
+```
+
+Needs no `--granted-by` and no `--reason`: reading is not an act that needs
+justifying or a second party.
+
+Start here. The audit query at the bottom of this document records **actions** —
+every grant and revocation ever — and reconstructing current state from a log of
+mutations is the arithmetic you should not be doing at 03:00. `--list` also marks
+a grant that has **lapsed but not been revoked**, which is the trap the section
+below covers.
+
 ## Revoking
 
 ```bash
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --revoke alice@playerz.bg \
   --granted-by bob@playerz.bg \
   --reason "rota ended"
@@ -83,6 +112,10 @@ admin keeps working until something expires.
 
 This is the fast path during a suspected compromise. Use it first and ask
 questions afterwards — a revoked grant costs one CLI call to reissue.
+
+**You can do this alone.** `--granted-by` here records who revoked, and it may be
+yourself; the two-party rule applies to issuing authority, not to taking it away.
+Nothing about revocation should wait for a second person.
 
 ---
 
@@ -112,12 +145,12 @@ concrete rather than moralising:
 
 ```bash
 # 1. revoke the lapsed grant to free the slot
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --revoke alice@playerz.bg --granted-by bob@playerz.bg \
   --reason "lapsed during incident 2026-09-25"
 
 # 2. issue a short one
-tsx scripts/grant-platform-admin.ts \
+npm run grant:platform-admin -- \
   --user alice@playerz.bg --granted-by bob@playerz.bg \
   --capabilities TENANT_READ --expires <tomorrow> \
   --reason "incident 2026-09-25 — expires tomorrow"
@@ -126,10 +159,26 @@ tsx scripts/grant-platform-admin.ts \
 Make the incident grant **short**. An incident grant with a 90-day expiry is how
 a temporary permission becomes permanent.
 
-Both commands need someone with `DIRECT_DATABASE_URL` and someone else to be the
-granter. If those are the same person, you cannot proceed — that is the
-two-party rule working, not a bug, and it is worth knowing **before** the
-incident that you need two people reachable.
+A bare `YYYY-MM-DD` means the **end** of that day, UTC. It used to mean the start
+— so `--expires <tomorrow>` typed at 23:30 produced a thirty-minute grant, and
+`--expires 2026-11-01` from Sofia expired at 02:00 local, dead for the working day
+it was meant to cover. Both measured. Pass a full ISO timestamp if you want a
+precise instant; the CLI warns if the window is under two hours, because the
+expiry job runs daily and cannot warn about a grant that short.
+
+**Only the second command is two-party.** `--revoke` is not: the no-self-grant
+CHECK applies to issuing a grant, not to ending one, so one person can revoke —
+including revoking their own grant. Verified by doing it.
+
+That distinction matters more than it sounds. An earlier version of this document
+said both commands needed two people, which would have told a lone on-call they
+were blocked from **revocation** — the fast path during a suspected compromise,
+and the one thing you should never hesitate over. Revoke first, alone, and find a
+second person afterwards for the reissue.
+
+So: revoking needs one person with `DIRECT_DATABASE_URL`. Reissuing needs that
+person plus somebody else to name as `--granted-by`. Worth knowing **before** the
+incident which of those you can reach.
 
 ---
 
@@ -153,11 +202,23 @@ fix it now rather than during the next incident.
 ## Reading the audit trail
 
 ```sql
-SELECT "createdAt", "actorUserId", action, capability, "subjectTenantId", reason
+SELECT "createdAt", "actorUserId", action, capability, "subjectTenantId", reason,
+       "detailsJson"
   FROM platform_audit_entry
  ORDER BY "createdAt" DESC
  LIMIT 50;
 ```
+
+`detailsJson` is in that list deliberately. For `PLATFORM_GRANT_ISSUED` and
+`PLATFORM_GRANT_REVOKED` the `capability` column holds only the **first** of the
+grant's capabilities — it is a single-valued enum column and a grant may carry
+several. Reading `capability` alone on a lifecycle row tells you `TENANT_READ`
+about a grant that also carried `AUDIT_READ`. The full list is in
+`detailsJson.capabilities` / `detailsJson.revokedCapabilities`, which is
+authoritative for those two actions.
+
+For every other action the row describes one capability being exercised, and
+`capability` is exactly right.
 
 `PLATFORM_GRANT_ISSUED` and `PLATFORM_GRANT_REVOKED` are written by the CLI;
 everything else is written by `runAsPlatformAdmin` before the work it describes.

@@ -11,6 +11,8 @@ jest.mock('@/auth', () => ({ authOptions: {} }));
 
 import { LOGIN_LIMIT } from '@/lib/security/rate-limit';
 
+import { uniqueTestIp } from '../../helpers/rate-limit-key';
+
 import { POST } from '@/app/api/auth/[...nextauth]/route';
 
 /**
@@ -31,8 +33,15 @@ const credentialsPost = (ip: string) =>
   });
 
 describe('credentials login throttling', () => {
+  // No `clearAllRateLimits()` here, deliberately — it deletes every ratelimit
+  // key and a sibling file's clear would wipe this test's counter mid-run. See
+  // tests/helpers/rate-limit-key.ts, which records both failure modes measured
+  // on this exact test.
   it('allows attempts up to the limit, then 429s', async () => {
-    const ip = `10.0.0.${Math.floor(Math.random() * 200) + 1}`;
+    // Still randomised, so two tests in this file cannot collide with each other
+    // even if one forgets to clear. The clear above is what makes it correct;
+    // this only keeps it independent.
+    const ip = uniqueTestIp();
 
     for (let i = 0; i < LOGIN_LIMIT.maxAttempts; i++) {
       const res = await POST(credentialsPost(ip), undefined);

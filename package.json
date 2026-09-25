@@ -30,7 +30,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "worker": "tsx scripts/worker.ts",
     "postinstall": "prisma generate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "grant:platform-admin": "tsx scripts/grant-platform-admin.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
