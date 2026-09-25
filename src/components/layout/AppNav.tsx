@@ -22,26 +22,47 @@ import { useTranslations } from 'next-intl';
 
 export interface NavItem {
   href: string;
-  label: string;
+  /**
+   * A key under `common.nav`, NOT display text.
+   *
+   * ═══ WHY THIS IS A KEY AND NOT A STRING ═══
+   *
+   * These were literal English — 'Play', 'Calendar', 'Courts' — rendered
+   * straight into the nav of an app whose default locale is Bulgarian. Nine
+   * user-visible strings, on the most visible surface there is.
+   *
+   * They survived because `i18n-no-hardcoded-copy` is an AST scan of JSX: it
+   * reads text nodes and copy-carrying ATTRIBUTES. These lived in a plain
+   * object literal at module scope and were rendered as `{item.label}` — a JSX
+   * expression, not a text node. Copy declared in a data structure and rendered
+   * through a variable was invisible to it, which is a blind spot worth knowing
+   * about rather than a gap in the rule.
+   *
+   * Naming the field `labelKey` rather than `label` is deliberate: `label` is
+   * in that guardrail's COPY_ATTRS set, so a future `label="Courts"` on a JSX
+   * element WOULD be caught — and a field called `label` holding a key invites
+   * somebody to put text back in it.
+   */
+  labelKey: string;
   /** Hidden unless the viewer holds this permission. */
   requires?: string;
 }
 
 /** The player-facing surface. */
 export const PLAYER_NAV: NavItem[] = [
-  { href: '/venues', label: 'Play' },
-  { href: '/open-play', label: 'Open play' },
-  { href: '/coaches', label: 'Coaches' },
-  { href: '/my-bookings', label: 'My bookings' },
+  { href: '/venues', labelKey: 'play' },
+  { href: '/open-play', labelKey: 'openPlay' },
+  { href: '/coaches', labelKey: 'coaches' },
+  { href: '/my-bookings', labelKey: 'myBookings' },
 ];
 
 /** The venue-staff surface. Each item is permission-gated. */
 export const ADMIN_NAV: NavItem[] = [
-  { href: '/admin/calendar', label: 'Calendar', requires: 'bookings.view_all' },
-  { href: '/admin/courts', label: 'Courts', requires: 'courts.manage' },
-  { href: '/admin/pricing', label: 'Pricing', requires: 'admin.pricing_manage' },
-  { href: '/admin/players', label: 'Players', requires: 'players.view' },
-  { href: '/admin/staff', label: 'Staff', requires: 'admin.staff_manage' },
+  { href: '/admin/calendar', labelKey: 'calendar', requires: 'bookings.view_all' },
+  { href: '/admin/courts', labelKey: 'courts', requires: 'courts.manage' },
+  { href: '/admin/pricing', labelKey: 'pricing', requires: 'admin.pricing_manage' },
+  { href: '/admin/players', labelKey: 'players', requires: 'players.view' },
+  { href: '/admin/staff', labelKey: 'staff', requires: 'admin.staff_manage' },
 ];
 
 export function AppNav({
@@ -52,6 +73,7 @@ export function AppNav({
   permissions?: readonly string[];
 }) {
   const t = useTranslations('common.ui');
+  const tNav = useTranslations('common.nav');
   const pathname = usePathname();
 
   // Hiding a link is a UI courtesy, NOT a security control. The route's own
@@ -75,7 +97,7 @@ export function AppNav({
                 : 'text-content-muted hover:text-content-default',
             )}
           >
-            {item.label}
+            {tNav(item.labelKey)}
           </Link>
         );
       })}

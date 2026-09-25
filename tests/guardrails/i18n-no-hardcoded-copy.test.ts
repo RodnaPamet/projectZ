@@ -112,6 +112,158 @@ function copyLiterals(file: string, src: string): Finding[] {
   return found;
 }
 
+/**
+ * ═══ THE BLIND SPOT THIS CLOSES ═══
+ *
+ * The scan above is an AST walk over JSX: text nodes and copy-carrying
+ * ATTRIBUTES. `AppNav` shipped nine literal English strings past it — 'Play',
+ * 'Calendar', 'Courts', 'Pricing', 'Staff' and four more — on the most visible
+ * surface in an app whose default locale is Bulgarian.
+ *
+ * They were invisible because they lived in a plain object literal at module
+ * scope (`{ href: '/admin/courts', label: 'Courts' }`) and rendered as
+ * `{item.label}` — a JSX *expression*, not a text node. Copy declared in a data
+ * structure and rendered through a variable escapes both halves of the rule.
+ *
+ * ═══ WHY THIS RULE IS NARROW ═══
+ *
+ * The obvious generalisation — flag every object-literal `label`/`title`/
+ * `description` with a string value — was MEASURED on this tree: 203 hits, and
+ * most of them legitimate. Prometheus metric descriptions, zod error messages,
+ * NextAuth credential field labels. A guardrail with 200 exemptions is a list
+ * somebody stops reading.
+ *
+ * So this targets the shape that actually shipped: an object literal carrying
+ * BOTH `href` and a copy field. That is a navigation item, its text is always
+ * user-facing, and there is no legitimate reason for it to be a literal.
+ */
+const NAV_COPY_KEYS = new Set(['label', 'title', 'text']);
+
+describe('navigation copy is never a literal', () => {
+  const files = globSync('src/**/*.{ts,tsx}').map((f) => f.toString());
+
+  interface NavFinding {
+    file: string;
+    line: number;
+    text: string;
+  }
+
+  function navLiterals(file: string, src: string): NavFinding[] {
+    const sourceFile = ts.createSourceFile(
+      file,
+      src,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const found: NavFinding[] = [];
+
+    const visit = (node: ts.Node): void => {
+      if (ts.isObjectLiteralExpression(node)) {
+        const props = node.properties.filter(ts.isPropertyAssignment);
+        const nameOf = (n: ts.PropertyAssignment) =>
+          ts.isIdentifier(n.name) || ts.isStringLiteral(n.name) ? n.name.text : '';
+
+        const hasHref = props.some((pr) => nameOf(pr) === 'href');
+        if (hasHref) {
+          for (const pr of props) {
+            const key = nameOf(pr);
+            if (
+              NAV_COPY_KEYS.has(key) &&
+              ts.isStringLiteral(pr.initializer) &&
+              // A key like 'myBookings' is the fix, not the defect. Copy has a
+              // space or starts a sentence; a key is one camelCase word.
+              /\s/.test(pr.initializer.text)
+            ) {
+              found.push({
+                file,
+                line: sourceFile.getLineAndCharacterOfPosition(pr.getStart(sourceFile)).line + 1,
+                text: `${key}: '${pr.initializer.text}'`,
+              });
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+    return found;
+  }
+
+  it('the scan reads the source tree', () => {
+    expect(files.length).toBeGreaterThan(100);
+  });
+
+  /**
+   * Exempt, with the reason stated and an issue to point at.
+   *
+   * `canonical-parents.ts` is 256 lines of inflect-compliance nav — "Internal
+   * Audit", "NIS2 Gap Assessment", "Vendor templates". It is not reachable from
+   * any page (#176 traces the chain), and deciding its fate is a product call,
+   * not a lint fix: it encodes a real idea (canonical back-navigation) with
+   * entirely the wrong data.
+   *
+   * Exempting it keeps this rule honest about what it does — stop NEW literal
+   * nav copy — rather than pretending those 256 lines are fixed. The count is
+   * pinned below so the exemption cannot quietly grow.
+   */
+  const KNOWN_COMPLIANCE_NAV = 'src/lib/nav/canonical-parents.ts';
+
+  it('the pre-existing compliance nav has not grown', () => {
+    // A ratchet, not a pass. If somebody adds another literal label to that
+    // file this fails — and if somebody fixes them, the number comes down and
+    // this fails too, which is the prompt to lower it.
+    const findings = navLiterals(KNOWN_COMPLIANCE_NAV, readFileSync(KNOWN_COMPLIANCE_NAV, 'utf8'));
+    // 13, measured. I guessed 31 when writing this and the test said otherwise,
+    // which is the whole argument for pinning a number rather than asserting
+    // "some".
+    expect(findings.length).toBe(13);
+  });
+
+  it('no nav item carries literal copy', () => {
+    const findings = files
+      .filter((f) => f !== KNOWN_COMPLIANCE_NAV)
+      .flatMap((f) => navLiterals(f, readFileSync(f, 'utf8')));
+
+    if (findings.length > 0) {
+      throw new Error(
+        `Navigation items with literal copy:\n\n` +
+          findings.map((f) => `  ${f.file}:${f.line}  ${f.text}`).join('\n') +
+          `\n\nThis app's default locale is Bulgarian. A nav label written in the source\n` +
+          `is English on every screen, and the JSX scan above cannot see it because the\n` +
+          `string lives in a data structure rather than in markup.\n\n` +
+          `Carry a KEY instead and resolve it at render — see NavItem.labelKey in\n` +
+          `src/components/layout/AppNav.tsx, and add the key to messages/bg.json and\n` +
+          `messages/en.json.`,
+      );
+    }
+  });
+
+  // ── Negative control ───────────────────────────────────────────────
+  it('the detector fires on the shape that shipped, and not on a key', () => {
+    // Passing by finding nothing is indistinguishable from a detector that
+    // matches nothing — which is what this became the day it was written.
+    const bad = navLiterals(
+      't.tsx',
+      `const NAV = [{ href: '/admin/courts', label: 'Open play' }];`,
+    );
+    expect(bad).toHaveLength(1);
+
+    // A translation key is the fix, so it must NOT be flagged.
+    expect(
+      navLiterals('t.tsx', `const NAV = [{ href: '/admin/courts', labelKey: 'courts' }];`),
+    ).toEqual([]);
+    expect(navLiterals('t.tsx', `const NAV = [{ href: '/venues', label: 'myBookings' }];`)).toEqual(
+      [],
+    );
+
+    // An object with copy but no href is out of scope — that is the 203-hit
+    // generalisation this rule deliberately does not attempt.
+    expect(navLiterals('t.tsx', `const m = { label: 'Total requests handled' };`)).toEqual([]);
+  });
+});
+
 describe('no hardcoded user-facing copy', () => {
   it('the scan reads the component tree', () => {
     // A broken glob, or a parser that yields no JSX, makes this vacuous.

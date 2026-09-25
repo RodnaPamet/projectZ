@@ -203,6 +203,17 @@
       "dashboard": "Loading dashboard",
       "details": "Loading details",
       "settings": "Loading settings"
+    },
+    "nav": {
+      "play": "Play",
+      "openPlay": "Open play",
+      "coaches": "Coaches",
+      "myBookings": "My bookings",
+      "calendar": "Calendar",
+      "courts": "Courts",
+      "pricing": "Pricing",
+      "players": "Players",
+      "staff": "Staff"
     }
   },
   "sports": {
