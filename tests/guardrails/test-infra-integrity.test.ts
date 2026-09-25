@@ -1,6 +1,8 @@
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { parse as parseYaml } from 'yaml';
+
 /**
  * THE META-RATCHET.
  *
@@ -279,5 +281,181 @@ describe('the host timezone is pinned by the runner, never from inside a test', 
           `Greenwich, so the direction does not have to be guessed.`,
       );
     }
+  });
+});
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ *  THE NIGHTLY IS CI NOBODY WATCHES, SO IT NEEDS A TEST THAT SOMEBODY DOES
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Every assertion below is a defect that was live on main, in a workflow
+ * that had been red every night without anyone looking:
+ *
+ *   1. `e2e-full` ran `postgres:16`. `prisma migrate deploy` issues
+ *      `CREATE EXTENSION postgis` and got `extension "postgis" is not
+ *      available`. ci.yml had moved to the PostGIS image at all three of
+ *      its call sites; this job was left behind.
+ *   2. `visual-regression` declared NO services at all, while the
+ *      Playwright globalSetup migrates and seeds before any spec runs.
+ *      It died at P1001 — it had never compared a single screenshot.
+ *   3. The matrix ran `--project=firefox` against a config defining only
+ *      `chromium` and `mobile`, so that leg could only ever have exited
+ *      on `Project(s) "firefox" not found`.
+ *   4. `--grep @visual` was unpinned, so it would run under whichever
+ *      projects matched — and the baselines exist for exactly one.
+ *
+ * None of these is a broken test. All four are drift between three files
+ * that have to agree and nothing forced to. That is what this asserts.
+ *
+ * It is deliberately structural — it parses the workflows rather than
+ * grepping them — because defect 3 hides behind `${{ matrix.browser }}`,
+ * which no amount of string matching resolves.
+ */
+describe('the nightly workflow can actually run', () => {
+  const workflows = ['.github/workflows/ci.yml', '.github/workflows/nightly.yml'] as const;
+
+  /** Every job in every workflow, tagged with where it came from. */
+  const jobs = workflows.flatMap((file) => {
+    const doc = parseYaml(read(file)) as {
+      jobs: Record<string, Record<string, unknown>>;
+    };
+    return Object.entries(doc.jobs).map(([name, job]) => ({ file, name, job }));
+  });
+
+  const npmScripts = (JSON.parse(read('package.json')) as { scripts: Record<string, string> })
+    .scripts;
+
+  /**
+   * The `steps:` of a job, flattened to the shell they run — with `npm run X`
+   * expanded to what X actually is.
+   *
+   * Without the expansion this whole block has a blind spot exactly where the
+   * bug lives: a job whose only Playwright call is `npm run test:e2e` looks,
+   * to a plain scan of the YAML, like a job that never runs Playwright at all.
+   */
+  const shellOf = (job: Record<string, unknown>): string => {
+    const raw = ((job.steps as { run?: string }[] | undefined) ?? [])
+      .map((s) => s.run ?? '')
+      .join('\n');
+
+    return raw.replace(/npm run ([\w:-]+)/g, (whole, script: string) =>
+      script in npmScripts ? `${whole}\n${npmScripts[script]}` : whole,
+    );
+  };
+
+  const playwrightProjects = [...read('playwright.config.ts').matchAll(/name:\s*'([\w-]+)'/g)].map(
+    (m) => m[1],
+  );
+
+  /**
+   * Resolve `--project=${{ matrix.browser }}` against the job's own matrix.
+   * Returns every project name a job could run under.
+   */
+  const projectsRunBy = (job: Record<string, unknown>): string[] => {
+    const shell = shellOf(job);
+    if (!/playwright test/.test(shell)) return [];
+    // The value may be a `${{ ... }}` expression, which CONTAINS spaces — a
+    // bare \S+ swallows only `${{` and reports a project nobody wrote.
+    const named = [...shell.matchAll(/--project[= ](\$\{\{.*?\}\}|\S+)/g)].map((m) => m[1]);
+    const matrix = ((job.strategy as { matrix?: Record<string, unknown> } | undefined)?.matrix ??
+      {}) as Record<string, unknown>;
+
+    // No --project flag at all means Playwright runs EVERY project in the
+    // config. That is the shape of the regression this guards against: adding
+    // a project to playwright.config.ts silently enlists every unpinned job,
+    // including ones that download only one browser.
+    if (named.length === 0) return playwrightProjects;
+
+    return named.flatMap((raw) => {
+      const expr = raw.match(/\$\{\{\s*matrix\.([\w-]+)\s*\}\}/);
+      if (!expr) return [raw];
+      const values = matrix[expr[1]];
+      // A matrix reference that names no matrix key would expand to the empty
+      // string and silently run EVERY project. Surface it rather than skip it.
+      if (!Array.isArray(values)) return [`<unresolvable: matrix.${expr[1]}>`];
+      return values.map(String);
+    });
+  };
+
+  it('defines the projects the workflows ask for', () => {
+    // Sanity: if this ever reads zero projects the whole block goes vacuous.
+    expect(playwrightProjects).toContain('chromium');
+
+    const missing = jobs.flatMap(({ file, name, job }) =>
+      projectsRunBy(job)
+        .filter((p) => !playwrightProjects.includes(p))
+        .map((p) => `${file} → ${name} runs --project=${p}`),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  it('installs a browser binary for every project it runs', () => {
+    // `mobile` is a Pixel 5 EMULATION — it runs on the chromium binary, so a
+    // job that installs chromium can run it. Firefox is a separate download.
+    const binaryFor: Record<string, string> = {
+      chromium: 'chromium',
+      mobile: 'chromium',
+      firefox: 'firefox',
+      webkit: 'webkit',
+    };
+
+    const gaps = jobs.flatMap(({ file, name, job }) => {
+      const shell = shellOf(job);
+      if (!/playwright test/.test(shell)) return [];
+
+      const installed = [...shell.matchAll(/playwright install[^\n]*/g)].join('\n');
+
+      return (
+        projectsRunBy(job)
+          .map((p) => binaryFor[p])
+          // An unknown project name is caught by the test above; don't double-report.
+          .filter((binary): binary is string => Boolean(binary))
+          .filter((binary) => !installed.includes(binary) && !/\$\{\{/.test(installed))
+          .map(
+            (binary) => `${file} → ${name} runs a ${binary} project but never installs ${binary}`,
+          )
+      );
+    });
+
+    expect(gaps).toEqual([]);
+  });
+
+  it('gives every job that touches the database a PostGIS Postgres', () => {
+    const offenders = jobs.flatMap(({ file, name, job }) => {
+      const services = (job.services ?? {}) as Record<string, { image?: string }>;
+      const image = services.postgres?.image;
+      const shell = shellOf(job);
+
+      // A job needs a database if it migrates directly, OR if it runs
+      // Playwright — whose globalSetup migrates and seeds before spec one.
+      const needsDb = /prisma migrate|prisma db push|playwright test/.test(shell);
+      if (!needsDb) return [];
+
+      if (!image) return [`${file} → ${name} needs a database and declares no postgres service`];
+      // The schema has a postgis extension; the stock image cannot create it.
+      if (!image.includes('postgis')) {
+        return [`${file} → ${name} uses ${image}, which has no postgis extension`];
+      }
+      return [];
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('pins the visual compare to the one browser that has baselines', () => {
+    // The baselines are committed as `*-chromium-linux.png`. Playwright names
+    // a snapshot after the project that took it, so an unpinned @visual run
+    // fails as a MISSING snapshot — which reads like a real regression.
+    const visual = jobs.find(({ job }) => /--grep @visual/.test(shellOf(job)));
+    expect(visual).toBeDefined();
+    expect(shellOf(visual!.job)).toMatch(/--project=chromium[^\n]*--grep @visual/);
+
+    const baselines = globSync('tests/e2e/**/*-snapshots/*.png', { cwd: root });
+    expect(baselines.length).toBeGreaterThan(0);
+    // If firefox baselines are ever added on purpose, the pin above is what
+    // should change — this catches the half-done version of that.
+    expect(baselines.filter((b) => !b.includes('-chromium-'))).toEqual([]);
   });
 });

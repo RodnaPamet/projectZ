@@ -414,7 +414,16 @@ jobs:
           if [ -f scripts/seed.ts ]; then npx tsx scripts/seed.ts; fi
       - name: Run Playwright
         if: needs.preflight.outputs.has_e2e == 'true'
-        run: npm run test:e2e
+        # The projects are named EXPLICITLY, not left to the config's default.
+        # This step installs the chromium binary only (above), and `mobile` is
+        # a Pixel 5 emulation that also runs on chromium — but the config now
+        # defines a `firefox` project too, and an unpinned run would try to
+        # launch a browser this job never downloaded.
+        #
+        # Firefox is deliberately nightly-only: a slow second browser must not
+        # gate a merge. Pinning here is what keeps that true as projects are
+        # added, instead of relying on nobody touching the config.
+        run: npx playwright test --project=chromium --project=mobile --pass-with-no-tests
       - name: Upload Playwright report
         if: ${{ failure() && needs.preflight.outputs.has_e2e == 'true' }}
         uses: actions/upload-artifact@v7

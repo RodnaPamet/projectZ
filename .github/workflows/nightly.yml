@@ -29,8 +29,13 @@ jobs:
       matrix:
         browser: [chromium, firefox]
     services:
+      # postgis/postgis, NOT postgres:16. `prisma migrate deploy` runs
+      # `CREATE EXTENSION postgis` and plain Postgres answers `extension
+      # "postgis" is not available` — the nightly never reached a single
+      # spec. ci.yml has used the PostGIS image at all three call sites
+      # since the extension landed; this job was simply never updated.
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -42,6 +47,9 @@ jobs:
       redis:
         image: redis:7
         ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
       mailhog:
         image: mailhog/mailhog:latest
         ports: ['1025:1025', '8025:8025']
@@ -73,6 +81,30 @@ jobs:
     name: Visual Regression
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # This job declared no services, so it could never have passed: the
+    # Playwright globalSetup runs `prisma migrate deploy` + the seed before
+    # any spec, and its webServer boots the real app. Without a database
+    # the run died at P1001 long before a screenshot was taken.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: playerz_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports: ['1025:1025', '8025:8025']
     steps:
       - uses: actions/checkout@v7
       - id: gate
@@ -87,7 +119,11 @@ jobs:
       - if: steps.gate.outputs.go == 'true'
         run: npx playwright install --with-deps chromium
       - if: steps.gate.outputs.go == 'true'
-        run: npx playwright test --grep @visual
+        # --project=chromium is load-bearing. The committed baselines are
+        # `*-chromium-linux.png`; Playwright names snapshots per project, so
+        # an unpinned run on any other project looks for a file that does not
+        # exist and fails as a missing snapshot rather than a real diff.
+        run: npx playwright test --project=chromium --grep @visual
       - if: failure()
         uses: actions/upload-artifact@v7
         with:

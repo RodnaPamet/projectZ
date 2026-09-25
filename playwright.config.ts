@@ -33,6 +33,32 @@ export default defineConfig({
     },
 
     /**
+     * Firefox. Runs ONLY in the nightly (`nightly.yml` matrix), never per-PR —
+     * a slow second browser must not gate a merge.
+     *
+     * Until now `nightly.yml` passed `--project=firefox` at a config that
+     * defined only `chromium` and `mobile`, so the firefox leg died on
+     * `Project(s) "firefox" not found` — it had never run a spec.
+     *
+     * ═══ WHY IT SKIPS THE VISUAL SPEC ═══
+     *
+     * Playwright names a snapshot after the project that took it, and the only
+     * committed baselines are `dark-*-chromium-linux.png`. Running the @visual
+     * spec here would look for `dark-buttons-firefox-linux.png`, find nothing,
+     * and fail as a MISSING snapshot — which reads exactly like a real visual
+     * regression while proving nothing about the dark theme.
+     *
+     * Cross-browser coverage is about behaviour; pixel comparison stays on one
+     * browser deliberately. Adding firefox baselines would double the images to
+     * re-bless on every token change for no extra signal.
+     */
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      testIgnore: [/mobile\/.*\.spec\.ts$/, /-dark\.spec\.ts$/],
+    },
+
+    /**
      * The mobile project. Everything under tests/e2e/mobile/ runs HERE and only
      * here.
      *
