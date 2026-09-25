@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/db/prisma';
+import { pushChannels } from '@/lib/push/channels';
 import { redis } from '@/lib/redis';
 
 /**
@@ -73,8 +74,18 @@ export async function GET() {
 
   const ready = checks.every((c) => c.ok);
 
+  // Reported, and deliberately NOT part of `ready`. Push is an enhancement: a
+  // missing optional credential must not take a pod out of rotation, or a
+  // deploy gets blocked by something nobody considered load-bearing.
+  //
+  // It is here because both push paths disable themselves SILENTLY when their
+  // credentials are absent, and nothing said so — APNs had never sent a
+  // notification and no deploy could discover that (#166). "configured" means
+  // the credentials are present, not that they work.
+  const features = { push: pushChannels() };
+
   return NextResponse.json(
-    { status: ready ? 'ready' : 'not_ready', checks },
+    { status: ready ? 'ready' : 'not_ready', checks, features },
     {
       // 503, so the load balancer actually takes the pod out of rotation. A 200
       // with `{"status": "not_ready"}` in the body is a health check that nothing
