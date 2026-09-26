@@ -38,7 +38,51 @@ generate:
   - types
   - client
 accessModifier: public
+filter:
+  tags:
+    - Auth
+    - Bookings
+    - Devices
+    - Payments
+    - Payouts
+    - Realtime
+    - SSO
+    - Tenant
+    - Venues
 ```
+
+## What the filter is for, and why it needs watching
+
+Two tags are deliberately absent from that list.
+
+**`Platform`** is cross-club administration — every club's records, reachable by
+a person holding a row in `platform_admin_grant`. It is documented here because
+an undocumented privileged API is worse than a documented one: the operators who
+use it need to know what it records about them, and the next person adding a
+platform route needs a shape to copy. It is not shipped in the app because the
+phone has no business being able to call it. A grant is issued by CLI, held for
+at most 90 days, and audited on every use; a generated Swift method sitting in
+the binary invites all three to be worked around.
+
+**`Internal`** is the Centrifugo subscribe proxy — the callback Centrifugo makes
+to ask whether a connection may join a channel. Infrastructure calls it; a phone
+never does. (The phone calls `POST /realtime/token`, which is tagged `Realtime`
+and ships.)
+
+That operation used to carry `["Realtime", "Internal"]`, which excluded nothing:
+the filter is evaluated as a **union**, so one listed tag is enough to include an
+operation however it is otherwise marked. It now carries `Internal` alone, and a
+guardrail asserts no operation mixes an excluded tag with an included one.
+
+**The filter is an include-list, not an exclude-list.** `swift-openapi-generator`
+has no `excludeTags`, so a tag added to the spec and not added above is silently
+missing from the client — which presents as "the SDK has no method for that
+endpoint" long after the endpoint shipped.
+
+`tests/guardrails/platform-route-discipline.test.ts` fails the build when the
+two lists disagree: every tag in the spec must be either listed above or
+deliberately excluded there, by name. Adding a feature area means editing both,
+and forgetting is a red build rather than a missing method.
 
 ## Three things that will bite a client author
 

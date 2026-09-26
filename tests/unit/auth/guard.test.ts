@@ -58,6 +58,68 @@ describe('checkTenantAccess', () => {
   });
 });
 
+describe('the platform tree', () => {
+  /**
+   * ═══ WHY THIS BRANCH EXISTS AT ALL ═══
+   *
+   * `/api/v1/platform/**` carries no tenant slug. Without an explicit branch it
+   * falls into `if (!slug) return allow` — which sits BEFORE the token check —
+   * so an anonymous request reaches the route.
+   *
+   * It still failed closed there: `asPlatformAdmin` throws without a grant. The
+   * branch buys a 401 instead of a 403, and it avoids burning a database query
+   * per anonymous probe, since `resolvePlatformAuthority` reads the grant table.
+   *
+   * Moving the branch BELOW the slug check breaks the anonymous case, and the
+   * assertion for it fails. Moving it ABOVE the public-route check breaks
+   * nothing today — no public route lives under this prefix — so the last test
+   * pins the ordering as a fact rather than pretending to detect it.
+   */
+
+  // Someone signed in with no club at all — the ordinary shape of a platform
+  // admin, who is deliberately not a member of the clubs they administer.
+  const signedIn: TokenClaims = { sub: 'admin-1', memberships: [] };
+
+  it('lets a signed-in caller through to the route, which does the real check', () => {
+    // 'allow' here is not authorisation. The grant is read per request inside
+    // the route, from the database, because a token claim goes stale and
+    // revocation has to bite on the next request.
+    expect(checkTenantAccess('/api/v1/platform/tenants', signedIn)).toEqual({ kind: 'allow' });
+    expect(checkTenantAccess('/api/v1/platform/audit', signedIn)).toEqual({ kind: 'allow' });
+  });
+
+  it('401s an anonymous caller instead of letting the route answer', () => {
+    // The regression this guards: without the branch, `!slug` allows it.
+    expect(checkTenantAccess('/api/v1/platform/tenants', null).kind).toBe('unauthenticated');
+    expect(checkTenantAccess('/api/v1/platform/audit', null).kind).toBe('unauthenticated');
+  });
+
+  it('does not require a membership, which a platform admin will not have', () => {
+    // A token with zero memberships is forbidden from every /t/** path and
+    // must still reach the platform tree.
+    expect(checkTenantAccess('/t/sofia-padel/x', signedIn).kind).toBe('forbidden');
+    expect(checkTenantAccess('/api/v1/platform/tenants', signedIn).kind).toBe('allow');
+  });
+
+  it('matches the tree, not merely the word "platform"', () => {
+    // The prefix ends in a slash on purpose. `/api/v1/platformish/...` is not
+    // the platform tree, and a tenant path that happens to contain the word is
+    // still tenant-scoped.
+    expect(checkTenantAccess('/api/v1/platformish/x', null).kind).not.toBe('unauthenticated');
+    expect(checkTenantAccess('/t/platform-padel/x', member('sofia-padel')).kind).toBe('forbidden');
+  });
+
+  it('is not a public route, and the public check still runs first', () => {
+    // NOT a detector: with nothing public under the prefix, moving the branch
+    // above the public check would change no behaviour and this would still
+    // pass. It records the two facts the ordering rests on, so that the day
+    // something public IS added under /api/v1/platform/, whoever adds it finds
+    // the assumption written down instead of discovering it.
+    expect(checkPublicRoute('/api/v1/platform/tenants')).toBe(false);
+    expect(checkTenantAccess('/venues', null).kind).toBe('public');
+  });
+});
+
 describe('public routes', () => {
   it.each(['/', '/venues', '/venues/sofia-padel', '/open-play', '/coaches', '/api/venues'])(
     '%s is public',

@@ -76,8 +76,22 @@ const ALLOWED: Record<string, string> = {
 describe('the BYPASSRLS surface is pinned', () => {
   const sources = globSync('src/**/*.{ts,tsx}').map((f) => f.toString());
 
+  // `runAsPlatformAdmin` is in here beside the untraced pair, and the reason is
+  // worth stating: it is the function that actually opens the BYPASSRLS
+  // transaction, and it does NOT check the grant. `asPlatformAdmin` in bind.ts
+  // is the only place a live grant and its capability are verified; the layer
+  // underneath takes `actorUserId`, `grantId` and `capability` as arguments and
+  // believes them. The attribution trigger cannot help — it compares the row's
+  // actor to a GUC that the same call sets from the same argument — and
+  // `platform_audit_entry` has no foreign key on `grantId`, so a caller with no
+  // grant at all gets every club's rows and a well-formed audit row citing a
+  // grant that does not exist.
+  //
+  // So reaching the inner function directly is a BYPASSRLS call site in exactly
+  // the sense this file pins, and the three files below that legitimately name
+  // it are already listed.
   const reaches = (src: string) =>
-    /\b(?:runAsSuperuser|asSuperuser)\b/.test(
+    /\b(?:runAsSuperuser|asSuperuser|runAsPlatformAdmin)\b/.test(
       // Comments mentioning the name are documentation, not privilege.
       src
         .split('\n')
@@ -140,6 +154,13 @@ describe('the BYPASSRLS surface is pinned', () => {
     // after somebody simplifies it.
     expect(reaches('const x = await runAsSuperuser((db) => db.user.findMany());')).toBe(true);
     expect(reaches('return asSuperuser(ctx, (db) => db.venue.findMany());')).toBe(true);
+    // The inner, grant-unchecked one. `asPlatformAdmin` does not match this —
+    // different identifier — which is how a direct call slipped past every
+    // guardrail until it was listed here.
+    expect(reaches('return runAsPlatformAdmin(act, (db) => db.venueOrg.findMany());')).toBe(true);
+    expect(reaches('return asPlatformAdmin(ctx, act, (db) => db.venueOrg.findMany());')).toBe(
+      false,
+    );
 
     // …and not on a comment that merely names it.
     expect(reaches(' * See runAsSuperuser for the cross-tenant case.')).toBe(false);

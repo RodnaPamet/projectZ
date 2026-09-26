@@ -40,6 +40,66 @@ describe('v1 domain error map', () => {
     }
   });
 
+  it('the platform denials are 403, not the 500 they used to be', () => {
+    // `MissingPlatformGrantError` says in its own message that "an expired or
+    // revoked grant is an ordinary 403" — see src/app/api/v1/_lib/bind.ts.
+    // Unmapped, it was a 500: the routine denial would page somebody, and a
+    // probe would look like a bug.
+    for (const name of [
+      'MissingPlatformGrantError',
+      'MissingPlatformCapabilityError',
+      'PlatformWriteNotEnabledError',
+    ]) {
+      expect(DOMAIN_ERROR_MAP[name]?.status).toBe(403);
+    }
+  });
+
+  it('the platform denials do NOT echo their own message to the client', () => {
+    // Their messages are written for whoever is debugging the binding:
+    // "asPlatformAdmin() was called without a live platform grant. Platform
+    // authority is a row in platform_admin_grant with an expiry, re-read from
+    // the database on every request."
+    //
+    // In a 403 body that is free reconnaissance for anyone probing
+    // /api/v1/platform/*. Same reasoning as the 429 body omitting which limiter
+    // bucket was exhausted.
+    for (const name of [
+      'MissingPlatformGrantError',
+      'MissingPlatformCapabilityError',
+      'PlatformWriteNotEnabledError',
+    ]) {
+      const m = DOMAIN_ERROR_MAP[name];
+      expect(m?.clientMessage).toBeTruthy();
+      // Nothing internal in what the caller receives.
+      expect(m!.clientMessage).not.toMatch(/asPlatformAdmin|platform_admin_grant|Postgres|enum/i);
+    }
+  });
+
+  it('the capability denial does not enumerate what the caller lacks', () => {
+    // Telling them which capability they are missing maps the set that exists.
+    // There is deliberately no self-service alternative either: the CLI's
+    // `--list` prints every live grant, so it is not something a refused caller
+    // is handed.
+    const m = DOMAIN_ERROR_MAP.MissingPlatformCapabilityError;
+    expect(m!.clientMessage).not.toMatch(/TENANT_READ|AUDIT_READ|USER_READ|TENANT_SUSPEND/);
+  });
+
+  it('the platform PROGRAMMER errors stay unmapped, like the tenancy ones', () => {
+    // These mean the code wired something wrong, not that the request was bad,
+    // so a 500 is the honest answer and somebody should be woken by it.
+    //
+    // `PlatformReasonRequiredError` needs the closer look, because the reason
+    // DOES come from the caller now. It stays unmapped because the routes
+    // refuse a short one themselves, with a 400 naming the parameter — see
+    // src/app/api/v1/_lib/platform-reason.ts. Reaching this error therefore
+    // still means a route hardcoded something useless, which is the case it was
+    // written for. Mapping it to 400 would quietly make that programmer error
+    // look like a client mistake.
+    for (const name of ['AmbientPlatformEscalationError', 'PlatformReasonRequiredError']) {
+      expect(DOMAIN_ERROR_MAP[name]).toBeUndefined();
+    }
+  });
+
   it('every mapped name is a class that actually exists', () => {
     // A renamed class silently downgrades its route to a 500. This is the only
     // thing standing between that and production.

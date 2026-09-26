@@ -36,8 +36,23 @@ import { readFileSync, existsSync, globSync } from 'node:fs';
  * why the check is on the binding rather than on a particular import.
  */
 
+/**
+ * `runAsPlatformAdmin` is deliberately ABSENT.
+ *
+ * It was added here and then taken out again. It looks like a peer of the
+ * others — it is what opens the BYPASSRLS transaction — but it does not check
+ * the grant; `asPlatformAdmin` does, one layer up. Listing it meant a route
+ * calling the inner function directly satisfied this file, which was the only
+ * thing rejecting it: `superuser-call-sites` matched neither name at the time,
+ * and `platform-route-discipline` greps `asPlatformAdmin`, which does not match
+ * `runAsPlatformAdmin`.
+ *
+ * Verified by writing that route: 46 of 47 guardrail suites passed, the
+ * exception being an OpenAPI completeness check. `superuser-call-sites` now
+ * pins the inner name, and this list keeps to the bindings a route may name.
+ */
 const BINDINGS =
-  /\b(runInTenantContext|runInUserContext|runAsUserOnly|runAsSuperuser|inTenant|asUser|asSuperuser)\b/;
+  /\b(runInTenantContext|runInUserContext|runAsUserOnly|runAsSuperuser|inTenant|asUser|asSuperuser|asPlatformAdmin)\b/;
 
 /**
  * Deliberate carve-outs. Each names WHY, because an exemption list with no
@@ -181,7 +196,13 @@ describe('app-router database bindings', () => {
       // most pages. One that does must say which context, rather than
       // inheriting whatever the connection happens to be.
       const code = codeOnly(src);
-      const touchesDb = /\b(db|prisma|tx)\b/.test(code) && /@\/app-layer|@\/lib\/db/.test(code);
+      // `_lib/bind` is in the list because the platform routes import their
+      // binding and NOTHING ELSE — no repository, no `@/lib/db`. They therefore
+      // read as "touches no database" and were skipped entirely by this check,
+      // which is the one file whose job is to notice that.
+      const touchesDb =
+        /\b(db|prisma|tx)\b/.test(code) &&
+        /@\/app-layer|@\/lib\/db|@\/app\/api\/v1\/_lib\/bind/.test(code);
       if (!touchesDb) return;
 
       expect(BINDINGS.test(code)).toBe(true);
