@@ -60,6 +60,23 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // could fix it.
   /^\/login$/,
   /^\/api\/venues(\/|$)/,
+  // ═══ THE VERSIONED TWIN, WHICH WAS PUBLIC ONLY BY ACCIDENT ═══
+  //
+  // `/api/venues` was listed here and `/api/v1/venues` was not. The v1 reads
+  // still reached anonymous callers, because `tenantSlugFromPath` finds no slug
+  // in them and `checkTenantAccess` falls through to `allow` — the same
+  // fail-open default this file tightens everywhere else, and warns about by
+  // name three entries up for `/login`.
+  //
+  // Nothing failed while that was true, which is the problem: the day somebody
+  // tightens that default, unauthenticated venue discovery breaks in the native
+  // client, and no test disagrees. `openapi/playerz-v1.json` declares these four
+  // operations `security: []`; a guardrail now holds the two in agreement.
+  /^\/api\/v1\/venues(\/|$)/,
+  // Centrifugo's subscribe callback. It carries no user token and never could:
+  // the shared secret in `x-centrifugo-secret` is the whole boundary, which the
+  // route's own docblock states. Also `security: []` in the spec.
+  /^\/api\/v1\/realtime\/subscribe$/,
   // The orchestrator's probes. These are the paths that EXIST — `/api/livez`
   // and `/api/readyz` were listed here for a while and are not routes, which
   // meant readiness was public only by accident, via the `allow` default.
