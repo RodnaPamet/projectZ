@@ -331,7 +331,7 @@
         "reopen": "Reopen"
       },
       "archive": {
-        "confirm": "{count, plural, one {# upcoming booking on this court. Archiving does not cancel it. Continue?} other {# upcoming bookings on this court. Archiving does not cancel them. Continue?}}"
+        "confirm": "{count, plural, one {This court has # upcoming booking. Archiving does not cancel it. Continue?} other {This court has # upcoming bookings. Archiving does not cancel them. Continue?}}"
       }
     },
     "pricing": {
