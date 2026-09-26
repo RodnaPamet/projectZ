@@ -20,6 +20,52 @@
       "bearerAuth": []
     }
   ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Sign-in, refresh and sign-out. The only operations a client may call before it has a token."
+    },
+    {
+      "name": "Bookings",
+      "description": "A club's bookings, scoped to the caller's membership in that club."
+    },
+    {
+      "name": "Devices",
+      "description": "APNs device registration for push. A device belongs to a person, not a club."
+    },
+    {
+      "name": "Internal",
+      "description": "Called by infrastructure, not by a person. EXCLUDED from the generated client — see openapi/README.md."
+    },
+    {
+      "name": "Payments",
+      "description": "Stripe Checkout for a booking. Money is always integer cents."
+    },
+    {
+      "name": "Payouts",
+      "description": "Stripe Connect onboarding, for a club taking its own payments."
+    },
+    {
+      "name": "Platform",
+      "description": "Cross-club administration, authorised by a row in platform_admin_grant rather than by a role. EXCLUDED from the generated client — see openapi/README.md. Every operation here is recorded in an append-only audit row naming the actor, the grant, the capability and a stated reason BEFORE the work runs; there is no way to call one without leaving that record."
+    },
+    {
+      "name": "Realtime",
+      "description": "Centrifugo connection tokens and channel authorisation."
+    },
+    {
+      "name": "SSO",
+      "description": "Microsoft Entra group → role mapping, administered per club."
+    },
+    {
+      "name": "Tenant",
+      "description": "Who the caller is inside one club: membership, role, permissions."
+    },
+    {
+      "name": "Venues",
+      "description": "Public discovery. Spans every club by design and needs no membership."
+    }
+  ],
   "paths": {
     "/auth/token": {
       "post": {
@@ -2142,7 +2188,7 @@
         "operationId": "centrifugoSubscribeProxy",
         "summary": "Centrifugo subscribe proxy (SERVER-TO-SERVER — do not generate a client for this)",
         "description": "**Not a client endpoint.** Centrifugo calls this before admitting a connection to a channel; no application client should ever call it, and its request and response shapes are Centrifugo's, not this API's.\n\nFour ways this operation differs from every other v1 route:\n\n1. **It always returns HTTP 200**, including when it denies. A non-200 makes Centrifugo treat the proxy as broken rather than as having decided, and the broker then falls back to its own configuration. The decision is in the BODY.\n2. **No success envelope.** `{\"result\":{}}` allows, `{\"error\":{...}}` denies. An `{\"error\":{\"code\":\"...\"}}` body in our canonical shape would be read by the broker as an allow carrying unknown fields, so this route must never use it. Note that `error.code` here is an INTEGER, not the string code used everywhere else in this API.\n3. **Authentication is a shared secret in the `x-centrifugo-secret` header**, compared in constant time against `CENTRIFUGO_PROXY_SECRET`. There is no user session, because the request is not made by a user — Centrifugo names the user itself in the body, having derived it from the JWT this server signed. `security: []` reflects only that no bearer token applies; the endpoint is NOT public.\n4. **No `X-API-Version` or `x-request-id` response header**, because this route is not wrapped by the shared v1 handler. It is also not rate limited.\n\nDenials are deliberately indistinguishable: a wrong secret, an absent secret header, an anonymous (empty) user, an unrecognised channel shape, a non-participant, and a participant who has LEFT the conversation all produce exactly `{\"error\":{\"code\":403,\"message\":\"forbidden\"}}`. The real reason is logged and never returned — saying \"not a participant\" rather than \"no such channel\" would confirm the conversation exists and turn the proxy into a membership oracle.\n\nAn unset server secret yields `{\"error\":{\"code\":503,\"message\":\"proxy not configured\"}}` for every request, still over HTTP 200. Unset never means allow.\n\nRecognised channels: `conv:<cuid>` (conversation; requires a participant row with `leftAt` null), `notif:<cuid>` and `presence:user:<cuid>` (both require the id to equal the caller's user id). Anything else is denied as an unknown shape.",
-        "tags": ["Realtime", "Internal"],
+        "tags": ["Internal"],
         "security": [],
         "parameters": [
           {
@@ -2277,6 +2323,160 @@
           },
           "401": {
             "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/audit": {
+      "get": {
+        "operationId": "listPlatformAudit",
+        "summary": "What platform admins have done",
+        "tags": ["Platform"],
+        "description": "The append-only record of every cross-club action: who, which grant, which capability, against which club, and why.\n\n**Reading this is itself audited.** An audit reader that exempted itself could not answer \"who has been looking at who looked at what\", which is the question an investigation asks. Each page of this read writes its own row.\n\n**Needs `AUDIT_READ`, not `TENANT_READ`.** Read access to a club’s bookings is a different question from read access to the record of platform access, and a grant should be able to carry one without the other.\n\n**Page to the end.** Newest first, 50 per page. A truncated audit log that looks complete is worse than none at all, so keep following `nextCursor` until it is null. Rows written while you page sort above your cursor and will not shift the boundaries underneath you.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque. Pass back `nextCursor` verbatim; never parse it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of audit entries, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAuditPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`INVALID_CURSOR` — `cursor` is malformed, or names no row (it may be from another endpoint, or the row may be gone). An unknown cursor is refused rather than answered with an empty page, which would read as a completed walk.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters. It lands in an append-only row that cannot be pruned; put the detail in the ticket and the ticket number here.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry the capability this operation needs. Neither message names what is missing; the operator finds that in the log.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/tenants": {
+      "get": {
+        "operationId": "listPlatformTenants",
+        "summary": "Every club on the platform",
+        "tags": ["Platform"],
+        "description": "The cross-club club list. A tenant-bound request can only ever see its own club, so this is the smallest question that genuinely needs platform authority.\n\n**Needs `TENANT_READ`.**\n\n**What it does not return:** bookings, members, payments. This answers \"which clubs exist\" and nothing about the people in them. The audit row it writes leaves `subjectTenantId` null on purpose — a list of every club is about no single one.\n\nOldest first, 100 per page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque. Pass back `nextCursor` verbatim; never parse it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of clubs, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`INVALID_CURSOR` — `cursor` is malformed, or names no row (it may be from another endpoint, or the row may be gone). An unknown cursor is refused rather than answered with an empty page, which would read as a completed walk.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters. It lands in an append-only row that cannot be pruned; put the detail in the ticket and the ticket number here.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry the capability this operation needs. Neither message names what is missing; the operator finds that in the log.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3464,7 +3664,7 @@
               },
               "requestId": {
                 "type": "string",
-                "description": "Correlates with the server's logs. Present on errors produced by the route wrapper; ABSENT on a few written inline by handlers (the 401 from /auth/token, the 400 and 401 from /auth/refresh). Treat it as optional."
+                "description": "Correlates with the server’s logs. Present on errors produced by the route wrapper, and on the inline errors from the platform routes; ABSENT on a few written inline by other handlers (the 401 from /auth/token, the 400 and 401 from /auth/refresh). Treat it as optional."
               },
               "details": {
                 "type": "object",
@@ -3517,6 +3717,119 @@
           },
           "bundleId": {
             "type": "string"
+          }
+        }
+      },
+      "PlatformCapability": {
+        "type": "string",
+        "enum": ["TENANT_READ", "AUDIT_READ", "USER_READ", "TENANT_SUSPEND"],
+        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: stepping up to a cross-club write should require a second factor and there is none yet."
+      },
+      "PlatformAuditEntry": {
+        "type": "object",
+        "required": ["id", "actorUserId", "capability", "action", "reason", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "string",
+            "description": "The person. Written by `runAsPlatformAdmin`; a database trigger refuses any row whose value does not match `app.platform_admin_id` on the transaction, so it cannot be forged or written on somebody else’s behalf."
+          },
+          "capability": {
+            "$ref": "#/components/schemas/PlatformCapability"
+          },
+          "action": {
+            "type": "string",
+            "description": "SCREAMING_SNAKE verb, e.g. `PLATFORM_TENANT_LIST`."
+          },
+          "subjectTenantId": {
+            "type": ["string", "null"],
+            "description": "The club this was about, or null when it was about every club."
+          },
+          "entity": {
+            "type": ["string", "null"]
+          },
+          "entityId": {
+            "type": ["string", "null"]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Stated by the caller, at least 12 characters, never editable afterwards."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PlatformTenant": {
+        "type": "object",
+        "required": ["id", "slug", "name", "country", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": ["string", "null"]
+          },
+          "country": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2. NOT NULL in the schema, defaulting to 'BG'."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PlatformAuditPage": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items", "nextCursor"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformAuditEntry"
+                }
+              },
+              "nextCursor": {
+                "type": ["string", "null"],
+                "description": "Null on the last page. Keep following it: a partially-read audit log that looks complete is the failure this endpoint exists to prevent."
+              }
+            }
+          }
+        }
+      },
+      "PlatformTenantPage": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items", "nextCursor"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformTenant"
+                }
+              },
+              "nextCursor": {
+                "type": ["string", "null"],
+                "description": "Null on the last page."
+              }
+            }
           }
         }
       }

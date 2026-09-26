@@ -179,9 +179,45 @@ export function permissionsForPath(pathname: string, token: TokenClaims | null):
   return [...getPermissionsForRole(membership.role)];
 }
 
+/** Everything under here is platform-scoped and never tenant-scoped. */
+const PLATFORM_PREFIX = '/api/v1/platform/';
+
 export function checkTenantAccess(pathname: string, token: TokenClaims | null): AccessDecision {
   if (checkInviteCarveout(pathname)) return { kind: 'public' };
   if (checkPublicRoute(pathname)) return { kind: 'public' };
+
+  // ═══ PLATFORM ROUTES NEED AUTHENTICATION, STATED RATHER THAN INHERITED ═══
+  //
+  // `/api/v1/platform/**` carries no tenant slug, so without this it falls into
+  // the `!slug` allow below and reaches the route anonymously.
+  //
+  // ═══ WHAT THIS DOES AND DOES NOT BUY ═══
+  //
+  // It is worth being exact, because the obvious claims are both wrong.
+  //
+  // It does NOT change the status code. The routes already return 401 when
+  // `ctx.userId` is null, so an anonymous caller got a 401 either way.
+  //
+  // It does NOT save a grant lookup. `contextFromRequest` returns the anonymous
+  // context BEFORE it would resolve one — `resolvePlatformAuthority` is only
+  // reached for a caller with a usable session — so an anonymous probe never
+  // cost a query in the first place.
+  //
+  // What it buys is that the requirement is WRITTEN DOWN. Reaching the route at
+  // all rested on `if (!slug) return allow`, the fail-open default this file
+  // tightens everywhere else and warns about by name for `/login`. The day that
+  // default is tightened or a route forgets its own `!ctx.userId` check, the
+  // platform tree keeps failing closed because of this line rather than by
+  // coincidence. It also refuses at the edge, so an unauthenticated request
+  // never enters the Node handler.
+  //
+  // AUTHENTICATION ONLY. No capability check here: the edge never reads the
+  // database, so it could only consult a token claim — and a token claim is
+  // exactly what this design refuses for platform authority, because a cached
+  // claim goes stale and revocation must take effect on the next request.
+  if (pathname.startsWith(PLATFORM_PREFIX)) {
+    return token?.sub ? { kind: 'allow' } : { kind: 'unauthenticated' };
+  }
 
   const slug = tenantSlugFromPath(pathname);
   if (!slug) return { kind: 'allow' };

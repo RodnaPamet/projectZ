@@ -109,7 +109,17 @@ export interface PlatformAction {
   userAgent?: string | null;
 }
 
-const MIN_REASON_LENGTH = 12;
+/**
+ * Exported so a route can refuse a short reason with a 400 that names the
+ * parameter, rather than letting it reach here and become a 500.
+ *
+ * `PlatformReasonRequiredError` stays deliberately unmapped in the v1 error
+ * table: reaching it means a route hardcoded a useless reason, which is a
+ * programmer error. A reason supplied by the CALLER is a different thing and
+ * belongs to the caller to fix — so the routes check it against this constant
+ * before calling in.
+ */
+export const MIN_REASON_LENGTH = 12;
 
 /**
  * Run `fn` with cross-club reach, having first recorded that it happened.

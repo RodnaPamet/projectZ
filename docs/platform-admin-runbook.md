@@ -227,3 +227,42 @@ A club does **not** see platform access in its own audit log — an owner decisi
 So a club cannot distinguish "nobody looked" from "somebody listed every club
 including mine". If a customer contract ever requires that disclosure, the shape
 of the answer changes and so does the schema.
+
+---
+
+## Reading it over HTTP
+
+The SQL above is the break-glass path and needs a database shell. There are now
+two routes, for when you have a session and not a psql prompt:
+
+```
+GET /api/v1/platform/audit?reason=<why>[&cursor=<opaque>]     needs AUDIT_READ
+GET /api/v1/platform/tenants?reason=<why>[&cursor=<opaque>]   needs TENANT_READ
+```
+
+Three things to know before you use them.
+
+**`reason` is required**, at least 12 characters, and it is written verbatim
+into the row. There is no default: a reason the server invented would satisfy
+the minimum and tell whoever reads the row in six months nothing. Send the
+ticket number.
+
+**Reading the audit log writes to the audit log.** Every page of every read
+leaves its own `PLATFORM_AUDIT_READ` row. That is deliberate — an audit reader
+that exempted itself could not answer "who has been looking at who looked at
+what" — so expect your own reads in the results, and expect the table to grow
+while you page.
+
+**Follow `nextCursor` to the end.** The audit route returns 50 rows a page and
+the tenant route 100. `{"data": {"items": [...], "nextCursor": "..."}}`; keep
+going until `nextCursor` is `null`, passing the value back verbatim. A partly
+read audit log looks exactly like a complete one, which is the failure the
+cursor exists to prevent.
+
+Rows written while you are paging sort above your cursor (newest first), so a
+busy platform does not shift the boundaries underneath you.
+
+A read with no live grant is `403 PLATFORM_AUTHORITY_REQUIRED`; a live grant
+missing the capability is `403 PLATFORM_CAPABILITY_REQUIRED`. Neither says what
+is missing — check your own grant with
+`npm run grant:platform-admin -- --list`.

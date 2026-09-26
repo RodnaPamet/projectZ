@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 import { withApiErrorHandling } from '@/lib/errors/api';
 import { getRequestId } from '@/lib/observability/context';
+import { logger } from '@/lib/observability/logger';
 
 import { toV1ErrorResponse } from './errors';
 
@@ -31,6 +32,28 @@ import { toV1ErrorResponse } from './errors';
  * Generating a fresh id here would mean the id in the error body did not match
  * the id in the logs — which is precisely when somebody needs them to match.
  *
+ * ═══ WHY IT LOGS THE ERROR ITSELF ═══
+ *
+ * Catching here means the wrapper takes its SUCCESS path: it sees a returned
+ * Response, logs `request completed` at info with a status and nothing else,
+ * and its own catch — the only place that records the message, the span
+ * exception, `recordRequestError` and Sentry — never runs.
+ *
+ * So EVERY v1 domain error was invisible in the logs beyond its status code.
+ * A 403 read `{"status":403,"msg":"request completed"}`: no code, no reason, no
+ * actor. That is the wrong shape for a 404 and an actively bad one for the
+ * platform routes, whose 403 bodies deliberately withhold which capability was
+ * missing on the stated grounds that the operator finds it in the log. Nothing
+ * put it there, so somebody probing `/api/v1/platform/*` with a stolen session
+ * was indistinguishable from ordinary traffic.
+ *
+ * WARN for 4xx, ERROR for 5xx. A refused request is not a server fault and
+ * should not page anybody, but it must be searchable. The actor, tenant, route
+ * and request id come from AsyncLocalStorage via the logger itself.
+ *
+ * The internal message is logged and NOT returned — that asymmetry is the whole
+ * point of `clientMessage` in the error map.
+ *
  * ═══ WHAT THIS CANNOT DO ═══
  *
  * Rate-limit a GET. `resolveRateLimitScope` returns null for any non-mutating
@@ -48,6 +71,14 @@ export function defineV1Route<Context = unknown>(
       return await handler(req, ctx);
     } catch (error) {
       const { payload, status } = toV1ErrorResponse(error, getRequestId());
+
+      const detail = error instanceof Error ? error.message : String(error);
+      const line = `v1 ${status} ${payload.error.code}`;
+      const fields = { component: 'api', status, code: payload.error.code, error: detail };
+
+      if (status >= 500) logger.error(line, fields);
+      else logger.warn(line, fields);
+
       return NextResponse.json(payload, { status });
     }
   });

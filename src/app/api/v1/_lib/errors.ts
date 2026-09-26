@@ -34,6 +34,25 @@ export interface ErrorMapping {
   status: number;
   /** Stable, machine-readable. A client switches on this, never on `message`. */
   code: string;
+  /**
+   * Sent to the client INSTEAD of the error's own message.
+   *
+   * The mapper otherwise echoes `error.message` verbatim, which is right for a
+   * domain error whose message is written for the person who caused it —
+   * "that slot is taken" explains itself.
+   *
+   * It is wrong when the message is written for a DEVELOPER. The platform
+   * errors below say things like "asPlatformAdmin() was called without a live
+   * platform grant. Platform authority is a row in platform_admin_grant with an
+   * expiry, re-read from the database on every request." Useful in a stack
+   * trace; free reconnaissance in a 403 body for anyone probing
+   * `/api/v1/platform/*`.
+   *
+   * This repo already draws that line elsewhere: the 429 body deliberately
+   * omits which limiter bucket was exhausted, because naming it "maps our
+   * rate-limiting topology for anyone willing to trip it".
+   */
+  clientMessage?: string;
 }
 
 /**
@@ -80,6 +99,54 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // You cannot review a venue you never visited. A precondition on the actor,
   // not on the payload — hence 403 rather than 400.
   NoProofOfVisitError: { status: 403, code: 'NO_PROOF_OF_VISIT' },
+
+  // ── 400: a malformed platform request ─────────────────────────────
+  //
+  // An unknown cursor otherwise returns zero rows and therefore a null
+  // nextCursor, which tells the caller the walk finished when it read nothing.
+  // See platform-cursor.ts.
+  UnknownPlatformCursorError: {
+    status: 400,
+    code: 'INVALID_CURSOR',
+    // Spelled out here rather than imported from platform-cursor.ts, which
+    // pulls in `next/server`. This module is imported by jsdom unit tests,
+    // where `Request` does not exist — the same import-time-runtime mismatch
+    // context.ts documents for `pg` and TextEncoder, and it fails the whole
+    // suite rather than one assertion.
+    clientMessage:
+      'That cursor does not name a row. It may be from a different endpoint, or the row ' +
+      'may have been removed. Start again from the first page.',
+  },
+
+  // ── 403: platform authority ───────────────────────────────────────
+  //
+  // These were UNMAPPED, and therefore 500s. `MissingPlatformGrantError` in
+  // `src/app/api/v1/_lib/bind.ts` states in its own message that "an expired or
+  // revoked grant is an ordinary 403" — so the routine denial path would have
+  // paged somebody, and a probe would have been indistinguishable from a bug.
+  //
+  // Unreachable until the first platform route exists, which is why it had not
+  // bitten. Each carries a clientMessage because their own messages are written
+  // for whoever is debugging the binding, not for whoever was refused.
+  MissingPlatformGrantError: {
+    status: 403,
+    code: 'PLATFORM_AUTHORITY_REQUIRED',
+    clientMessage: 'Platform authority is required for this endpoint.',
+  },
+  MissingPlatformCapabilityError: {
+    status: 403,
+    code: 'PLATFORM_CAPABILITY_REQUIRED',
+    // Deliberately does not name the missing capability: an enumeration of what
+    // the caller lacks is a map of what exists. Somebody who needs to know what
+    // their grant carries asks whoever can run the CLI — `--list` prints EVERY
+    // live grant, not the caller's own, so it is not a self-service answer.
+    clientMessage: 'Your platform grant does not carry the capability this endpoint needs.',
+  },
+  PlatformWriteNotEnabledError: {
+    status: 403,
+    code: 'PLATFORM_WRITE_NOT_ENABLED',
+    clientMessage: 'Cross-club writes are not enabled.',
+  },
 
   // ── 404: it is not there, or not there for you ────────────────────
   UnknownPlayerRatingError: { status: 404, code: 'UNKNOWN_PLAYER_RATING' },
@@ -138,7 +205,8 @@ export function toV1ErrorResponse(
     payload: {
       error: {
         code: mapped.code,
-        message: (error as Error).message,
+        // The mapping's own wording wins when it has one — see ErrorMapping.
+        message: mapped.clientMessage ?? (error as Error).message,
         requestId,
       },
     },
