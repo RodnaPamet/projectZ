@@ -691,4 +691,38 @@ describe('the platform routes', () => {
       expect(data.nextCursor).toBeNull();
     });
   });
+
+  describe('the indexes the seek depends on', () => {
+    // These pin SCHEMA, not plans. A test cannot honestly assert "Postgres
+    // uses this index" here: the test database holds a handful of rows, and
+    // on a table that small the planner correctly prefers a sequential scan
+    // whatever indexes exist. Asserting a plan would pass for the wrong
+    // reason today and fail for the wrong reason the day someone seeds one
+    // extra row.
+    //
+    // What they do catch is the regression that actually threatens the seek —
+    // someone dropping or narrowing the index while the row-value query in
+    // platform-paging.ts keeps compiling and keeps returning correct rows,
+    // just slowly. Correct-but-slow is the failure mode with no other alarm.
+    //
+    // P34 measured the difference at 500 000 rows: Index Only Scan at 0.29 ms
+    // against an Incremental Sort at 2.17 ms.
+    it.each([
+      ['platform_audit_entry', ['createdAt', 'id']],
+      ['venue_org', ['createdAt', 'id']],
+    ])('%s carries a btree leading with (%s)', async (table, columns) => {
+      const prisma = prismaTestClient();
+      const rows = await prisma.$queryRawUnsafe<{ indexdef: string }[]>(
+        `SELECT indexdef FROM pg_indexes WHERE tablename = $1`,
+        table,
+      );
+
+      // `btree ("createdAt", id)` — quoting differs per column, so match the
+      // ordered column list rather than a literal string.
+      const leading = columns.map((c) => `"?${c}"?`).join(', ');
+      const wanted = new RegExp(`btree \\(${leading}[,)]`);
+
+      expect(rows.map((r) => r.indexdef).filter((d) => wanted.test(d))).toHaveLength(1);
+    });
+  });
 });
