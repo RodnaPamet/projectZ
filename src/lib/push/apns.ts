@@ -58,7 +58,7 @@ export type ApnsOutcome =
   /** The token is DEAD. Delete the row — Apple will never accept it again. */
   | { ok: false; gone: true; reason: string }
   /** Transient. Keep the row and try again. */
-  | { ok: false; gone: false; status?: number; reason?: string };
+  | { ok: false; gone: false; status?: number; reason?: string; configError?: true };
 
 /**
  * Apple's permanent rejections.
@@ -74,10 +74,38 @@ export type ApnsOutcome =
 const PERMANENT = new Set([
   'BadDeviceToken',
   'Unregistered',
+  // A token minted for a DIFFERENT topic than the one it is being sent under.
+  // Unlike the two below, this is a verdict about THIS token: it will never be
+  // valid for this app, so the row is genuinely dead.
   'DeviceTokenNotForTopic',
-  'BadTopic',
-  'TopicDisallowed',
 ]);
+
+/**
+ * Apple rejecting US, not the device. NEVER delete a row for one of these.
+ *
+ * ═══ WHY BadTopic AND TopicDisallowed MOVED OUT OF `PERMANENT` ═══
+ *
+ * They were in it, and that was a mistake with a very large blast radius.
+ * Neither says anything about the device. `BadTopic` means the `apns-topic`
+ * header is not a topic this key may use; `TopicDisallowed` means the key lacks
+ * the entitlement. The topic is IDENTICAL for every device in a fan-out, so the
+ * failure is not per-device — one wrong bundle id returned `gone: true` for
+ * every device it touched, and `notifications.ts` deleted all of them.
+ *
+ * A misconfiguration therefore destroyed the registration table rather than
+ * failing a send, and recovery was not automatic: every user had to reopen the
+ * app to re-register. The two entries that were wrong were also the only two in
+ * the set with no test.
+ *
+ * `BadEnvironmentKeyInToken` is here for the same reason, and was observed for
+ * real: the signing key is enabled for production only, so every sandbox send
+ * returns it (#166). The device is blameless; the key is wrong.
+ *
+ * These stay transient so the row survives — but transient and SILENT is how a
+ * misconfiguration retries forever with nothing reporting why, so the caller is
+ * expected to log `configError` at error level.
+ */
+const CONFIG_ERROR = new Set(['BadTopic', 'TopicDisallowed', 'BadEnvironmentKeyInToken']);
 
 let cachedToken: { jwt: string; mintedAt: number } | null = null;
 
@@ -133,6 +161,13 @@ export const http2Transport: ApnsTransport = {
 
     try {
       return await new Promise((resolve, reject) => {
+        // Without this, a connection-level failure is an 'error' event with no
+        // listener. The stream listener below still rejects first, so the
+        // OUTCOME was always correct — but the unhandled event was left to the
+        // host process to absorb, and borrowing a safety property from Next's
+        // uncaughtException handler is not the same as having one.
+        session.on('error', reject);
+
         const timer = setTimeout(() => {
           stream.close(constants.NGHTTP2_CANCEL);
           reject(new Error('APNs request timed out'));
@@ -166,7 +201,14 @@ export const http2Transport: ApnsTransport = {
         stream.end(body);
       });
     } finally {
-      session.close();
+      // `destroy()`, not `close()`. `close()` is a GRACEFUL shutdown: it sends
+      // GOAWAY and waits, and it cannot cancel a TCP connect that has not
+      // completed. Against a blackholed address the request timed out at 5 s
+      // and returned a clean transient outcome while the socket stayed open
+      // holding the event loop, until the OS gave up ~73 s later and the
+      // session emitted a connect error long after the request it belonged to
+      // had been logged as a normal retry.
+      session.destroy();
     }
   },
 };
@@ -177,7 +219,23 @@ export async function sendApns(
   deps: { transport?: ApnsTransport; now?: () => number } = {},
 ): Promise<ApnsOutcome> {
   const transport = deps.transport ?? http2Transport;
-  const token = mintProviderToken(deps.now?.() ?? Date.now());
+
+  // `crypto.sign` THROWS on a PEM OpenSSL cannot decode — it does not return
+  // null. Unguarded, that escaped sendApns, rejected inside the caller's
+  // Promise.all and rolled back the enclosing transaction, discarding the
+  // notification row that `notify` had already written. The module's contract
+  // is "persist, then push"; a bad credential must not undo the persist.
+  let token: string | null;
+  try {
+    token = mintProviderToken(deps.now?.() ?? Date.now());
+  } catch (err) {
+    return {
+      ok: false,
+      gone: false,
+      configError: true,
+      reason: `bad-signing-key: ${(err as Error).message}`,
+    };
+  }
 
   if (!token) {
     // Not configured. Transient rather than gone — the device is fine, we are
@@ -214,6 +272,18 @@ export async function sendApns(
     );
 
     if (res.status === 200) return { ok: true };
+
+    // Checked BEFORE PERMANENT so a provider-level reason can never be read as
+    // a device verdict, whatever else it might also match.
+    if (res.reason && CONFIG_ERROR.has(res.reason)) {
+      return {
+        ok: false,
+        gone: false,
+        status: res.status,
+        reason: res.reason,
+        configError: true,
+      };
+    }
 
     if (res.reason && PERMANENT.has(res.reason)) {
       return { ok: false, gone: true, reason: res.reason };

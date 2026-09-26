@@ -71,7 +71,27 @@ async function registerHandler(req: NextRequest) {
   }
 
   const bundleId = requireString(body.bundleId, 'bundleId');
-  const environment = body.environment === 'SANDBOX' ? 'SANDBOX' : 'PRODUCTION';
+  // ═══ VALIDATED, NOT DEFAULTED ═══
+  //
+  // This was `body.environment === 'SANDBOX' ? 'SANDBOX' : 'PRODUCTION'`, which
+  // silently resolved a missing field, `"sandbox"` in the wrong case, and
+  // `null` all to PRODUCTION.
+  //
+  // That is the default path for a DEBUG BUILD, which registers a SANDBOX
+  // token. Stored as PRODUCTION, the push goes to api.push.apple.com, Apple
+  // answers `400 BadDeviceToken`, and that IS a correct device verdict — so the
+  // row is deleted. The app re-registers on next launch and it happens again:
+  // push looks broken, the row keeps vanishing, and nothing reports a cause.
+  //
+  // A client that cannot say which environment its token came from is a client
+  // bug, and the same one the `deviceToken` shape check above refuses to paper
+  // over. Rejected here, where it is still attributable.
+  if (body.environment !== 'SANDBOX' && body.environment !== 'PRODUCTION') {
+    throw new ValidationError('`environment` must be exactly "SANDBOX" or "PRODUCTION"', {
+      field: 'environment',
+    });
+  }
+  const environment = body.environment;
 
   const device = await asUser(ctx, (db) =>
     db.deviceToken.upsert({
