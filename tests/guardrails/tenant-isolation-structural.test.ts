@@ -109,6 +109,90 @@ function callEnd(s: string): number {
   return s.length;
 }
 
+/**
+ * Scan one file's SOURCE for tenant-scoped calls with no tenantId filter.
+ *
+ * Lifted out of the loop so it can be run against synthetic input. Without
+ * that, the only way to check the detector is to change real code and see what
+ * happens — which cannot express the case that matters here: a call that
+ * SHOULD be flagged and is not.
+ */
+export function scanSource(file: string, source: string): Finding[] {
+  const findings: Finding[] = [];
+  const lines = source.split('\n');
+
+  // Track block comments. Without this, the doc comment in booking.ts —
+  // which shows the WRONG pattern precisely so nobody writes it — is
+  // itself reported as a violation. A guardrail that flags its own
+  // documentation trains people to ignore it.
+  let inBlockComment = false;
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+
+    if (inBlockComment) {
+      if (trimmed.includes('*/')) inBlockComment = false;
+      return;
+    }
+    if (trimmed.startsWith('/*')) {
+      if (!trimmed.includes('*/')) inBlockComment = true;
+      return;
+    }
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+
+    const m = CALL_RE.exec(line);
+    if (!m) return;
+
+    const [, model, call] = m;
+    if (GLOBAL_MODELS.has(model!)) return;
+    if (ALLOW.test(line)) return;
+
+    // Read the whole call, which may span many lines.
+    //
+    // ═══ THE WINDOW STARTS AT THE CALL, NOT AT THE LINE ═══
+    //
+    // `callEnd` balances brackets from the start of what it is given. Given
+    // the whole LINE, an earlier bracketed expression on that line closes
+    // first and the body is cut before the call's own arguments are seen:
+    //
+    //   if (open) await db.invite.deleteMany({ where: { id, tenantId } });
+    //           ^ callEnd stops here, so `tenantId` is never examined
+    //
+    // That produced a false positive on the invite flow, which is loud and
+    // harmless. The same truncation produces FALSE NEGATIVES, which are
+    // not: anything that shortens the body can hide a genuinely missing
+    // filter, and this file's own error message explains that a missing
+    // filter means "the endpoint 200s with an empty list. No exception, no
+    // log, no failing test."
+    //
+    // A tenant-isolation check that under-reports is worse than none, since
+    // it is trusted. So seek to the call first.
+    const fromLine = lines.slice(i, i + 30).join('\n');
+    const callAt = fromLine.indexOf(`${model}.${call}`);
+    const window = callAt === -1 ? fromLine : fromLine.slice(callAt);
+    const body = window.slice(0, callEnd(window));
+
+    // The justification is normally written ABOVE the call — that is
+    // where a reader looks for it. Accept it there as well as inline.
+    const preamble = lines.slice(Math.max(0, i - 6), i).join('\n');
+
+    if (ALLOW.test(body) || ALLOW.test(preamble)) return;
+    if (/\btenantId\b/.test(body)) return;
+
+    // A lookup by primary key is inherently scoped — the id IS the row.
+    if (/\bwhere:\s*\{\s*id:/.test(body) && call !== 'findMany') return;
+
+    findings.push({
+      file,
+      line: i + 1,
+      model: model!,
+      call: call!,
+      snippet: line.trim().slice(0, 90),
+    });
+  });
+  return findings;
+}
+
 describe('structural tenant isolation', () => {
   const files = globSync('src/app-layer/repositories/**/*.ts')
     .concat(globSync('src/app-layer/usecases/**/*.ts'))
@@ -120,60 +204,107 @@ describe('structural tenant isolation', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
+  describe('the detector itself', () => {
+    // ═══ WHY THESE EXIST ═══
+    //
+    // The scan above passes when the codebase is clean. It ALSO passes when the
+    // detector has quietly stopped detecting — which is exactly what #205 was:
+    // `callEnd` balanced from the start of the matched LINE, so an earlier
+    // bracketed expression closed first and the call's own arguments were never
+    // read.
+    //
+    // On that occasion it produced a false positive, which is loud. The same
+    // truncation produces FALSE NEGATIVES, and a tenant-isolation check that
+    // under-reports is worse than none because it is trusted.
+    //
+    // So both directions are pinned. Fixing the false positive by matching less
+    // would fail the first test here.
+
+    const scan = (src: string) => scanSource('synthetic.ts', src);
+
+    it('FLAGS a single-line call that genuinely has no tenantId', () => {
+      // The case #205 could miss. `if (x)` closes before the call's arguments,
+      // so a body-truncating detector reads nothing and stays silent.
+      const findings = scan(`if (x) await db.booking.findMany({ where: { resourceId } });`);
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({ model: 'booking', call: 'findMany' });
+    });
+
+    it('does NOT flag the same line when the filter is present', () => {
+      // The false positive that surfaced this. Both halves are needed: passing
+      // only this one is satisfied by a detector that flags nothing at all.
+      expect(scan(`if (open) await db.invite.deleteMany({ where: { id, tenantId } });`)).toEqual(
+        [],
+      );
+    });
+
+    it('reads the same either way, whether the call is braced or not', () => {
+      // These are identical semantics. Before the fix, only the braced form was
+      // read correctly — the detector's answer depended on formatting.
+      const inline = scan(`if (open) await db.invite.deleteMany({ where: { id, tenantId } });`);
+      const braced = scan(
+        ['if (open) {', '  await db.invite.deleteMany({ where: { id, tenantId } });', '}'].join(
+          '\n',
+        ),
+      );
+
+      expect(inline).toEqual([]);
+      expect(braced).toEqual([]);
+    });
+
+    it('still reads a call that spans several lines', () => {
+      // The window is 30 lines for a reason; seeking to the call must not have
+      // shortened its reach.
+      const src = [
+        'await db.booking.findMany({',
+        '  where: {',
+        '    resourceId,',
+        '    tenantId,',
+        '  },',
+        '});',
+      ].join('\n');
+
+      expect(scan(src)).toEqual([]);
+    });
+
+    it('flags a multi-line call that omits the filter', () => {
+      const src = [
+        'await db.booking.findMany({',
+        '  where: {',
+        '    resourceId,',
+        '  },',
+        '});',
+      ].join('\n');
+
+      expect(scan(src)).toHaveLength(1);
+    });
+
+    it('honours the allow marker on the line and above it', () => {
+      expect(
+        scan(`await db.booking.findMany({ where: {} }); // guardrail-allow: cross-tenant`),
+      ).toEqual([]);
+      expect(
+        scan(
+          ['// guardrail-allow: cross-tenant', 'await db.booking.findMany({ where: {} });'].join(
+            '\n',
+          ),
+        ),
+      ).toEqual([]);
+    });
+
+    it('does not flag a lookup by primary key, except findMany', () => {
+      expect(scan(`await db.booking.findUnique({ where: { id } });`)).toEqual([]);
+      // findMany by `id` is a list operation and still needs scoping.
+      expect(scan(`await db.booking.findMany({ where: { id } });`)).toHaveLength(1);
+    });
+  });
+
   it('every tenant-scoped Prisma call carries an explicit tenantId filter', () => {
     const findings: Finding[] = [];
 
     for (const file of files) {
-      const lines = readFileSync(file, 'utf8').split('\n');
-
-      // Track block comments. Without this, the doc comment in booking.ts —
-      // which shows the WRONG pattern precisely so nobody writes it — is
-      // itself reported as a violation. A guardrail that flags its own
-      // documentation trains people to ignore it.
-      let inBlockComment = false;
-
-      lines.forEach((line, i) => {
-        const trimmed = line.trim();
-
-        if (inBlockComment) {
-          if (trimmed.includes('*/')) inBlockComment = false;
-          return;
-        }
-        if (trimmed.startsWith('/*')) {
-          if (!trimmed.includes('*/')) inBlockComment = true;
-          return;
-        }
-        if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
-
-        const m = CALL_RE.exec(line);
-        if (!m) return;
-
-        const [, model, call] = m;
-        if (GLOBAL_MODELS.has(model!)) return;
-        if (ALLOW.test(line)) return;
-
-        // Read the whole call, which may span many lines.
-        const window = lines.slice(i, i + 30).join('\n');
-        const body = window.slice(0, callEnd(window));
-
-        // The justification is normally written ABOVE the call — that is
-        // where a reader looks for it. Accept it there as well as inline.
-        const preamble = lines.slice(Math.max(0, i - 6), i).join('\n');
-
-        if (ALLOW.test(body) || ALLOW.test(preamble)) return;
-        if (/\btenantId\b/.test(body)) return;
-
-        // A lookup by primary key is inherently scoped — the id IS the row.
-        if (/\bwhere:\s*\{\s*id:/.test(body) && call !== 'findMany') return;
-
-        findings.push({
-          file,
-          line: i + 1,
-          model: model!,
-          call: call!,
-          snippet: line.trim().slice(0, 90),
-        });
-      });
+      findings.push(...scanSource(file, readFileSync(file, 'utf8')));
     }
 
     if (findings.length > 0) {
