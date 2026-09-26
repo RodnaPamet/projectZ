@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/db/prisma';
+import { signInMethods } from '@/lib/auth/sign-in-methods';
 import { pushChannels } from '@/lib/push/channels';
 import { redis } from '@/lib/redis';
 
@@ -82,7 +83,7 @@ export async function GET() {
   // credentials are absent, and nothing said so — APNs had never sent a
   // notification and no deploy could discover that (#166). "configured" means
   // the credentials are present, not that they work.
-  const features = { push: pushChannels() };
+  const features = { push: pushChannels(), signIn: signInMethods() };
 
   return NextResponse.json(
     { status: ready ? 'ready' : 'not_ready', checks, features },

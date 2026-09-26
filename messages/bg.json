@@ -250,10 +250,12 @@
     "password": "Парола",
     "submit": "Вход",
     "withGoogle": "Вход с Google",
+    "withMicrosoft": "Вход с Microsoft",
     "or": "или",
     "invalid": "Грешен имейл или парола.",
     "throttled": "Твърде много опити. Опитайте отново по-късно.",
-    "unavailable": "Входът е временно недостъпен."
+    "unavailable": "Входът е временно недостъпен.",
+    "noProviders": "Входът не е конфигуриран. Свържете се с администратор."
   },
   "venues": {
     "metaTitle": "Обекти — playerz.bg",

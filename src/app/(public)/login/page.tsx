@@ -1,3 +1,5 @@
+import { signInMethods } from '@/lib/auth/sign-in-methods';
+
 import { LoginForm } from './login-form';
 
 export const metadata = { title: 'Вход — playerz.bg' };
@@ -12,6 +14,13 @@ export const metadata = { title: 'Вход — playerz.bg' };
  * That routing means this page is also the error surface, so it reads
  * `?error=` and maps it to a message rather than leaving next-auth's raw code
  * (`CredentialsSignin`, `OAuthSignin`) on screen.
+ *
+ * ═══ WHICH BUTTONS APPEAR IS DECIDED HERE, NOT IN THE FORM ═══
+ *
+ * A provider with no credentials is not registered by `src/auth.ts`, so its
+ * button would take the user to a next-auth error page for an unknown
+ * provider. That decision needs `process.env`, which a client component cannot
+ * read — so it is made in this server component and passed down.
  */
 export default async function LoginPage({
   searchParams,
@@ -19,10 +28,16 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
   const { error, callbackUrl } = await searchParams;
+  const methods = signInMethods();
 
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4">
-      <LoginForm error={error ?? null} callbackUrl={callbackUrl ?? '/'} />
+      <LoginForm
+        error={error ?? null}
+        callbackUrl={callbackUrl ?? '/'}
+        google={methods.google === 'configured'}
+        microsoft={methods.microsoft === 'configured'}
+      />
     </main>
   );
 }

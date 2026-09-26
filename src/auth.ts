@@ -59,11 +59,31 @@ export const authOptions: NextAuthOptions = {
     error: '/login',
   },
 
+  /**
+   * ═══ A PROVIDER IS REGISTERED ONLY WHEN IT IS CONFIGURED ═══
+   *
+   * These used to be registered unconditionally with `?? ''` for missing
+   * credentials, while `src/env.ts` declared the same variables REQUIRED. The
+   * two disagreed: env validation refused to boot without them, and the code
+   * underneath was written to tolerate their absence.
+   *
+   * Registering a provider with an empty client id does not fail here. It
+   * renders a sign-in button that takes the user to the provider and fails
+   * THERE, with a provider-side error page nobody can act on.
+   *
+   * So: no credentials, no button. `signInMethods()` reports which are live,
+   * for the same reason `pushChannels()` exists — "it is off" should be an
+   * observation, not a discovery.
+   */
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
 
     /**
      * Microsoft Entra ID.
@@ -88,59 +108,63 @@ export const authOptions: NextAuthOptions = {
      * configuration. A club that has not configured it gets no claim, and
      * asking for a broader scope will not change that.
      */
-    AzureADProvider({
-      clientId: process.env.MICROSOFT_CLIENT_ID ?? '',
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? '',
-      tenantId: process.env.MICROSOFT_TENANT_ID ?? 'common',
-      authorization: {
-        params: {
-          scope:
-            'openid email profile offline_access https://graph.microsoft.com/GroupMember.Read.All',
-        },
-      },
+    ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
+      ? [
+          AzureADProvider({
+            clientId: process.env.MICROSOFT_CLIENT_ID,
+            clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+            tenantId: process.env.MICROSOFT_TENANT_ID ?? 'common',
+            authorization: {
+              params: {
+                scope:
+                  'openid email profile offline_access https://graph.microsoft.com/GroupMember.Read.All',
+              },
+            },
 
-      /**
-       * ═══ THIS OVERRIDE EXISTS TO REMOVE A GRAPH CALL, NOT TO ADD ONE ═══
-       *
-       * next-auth v4's default `profile()` for this provider fetches the
-       * user's avatar from `graph.microsoft.com/v1.0/me/photos/...` with NO
-       * timeout, NO abort signal, and no catch around the fetch itself — its
-       * only try/catch sits inside the `response.ok` branch, so a rejected
-       * fetch propagates straight out.
-       *
-       * That call runs during the OAuth callback, in `getProfile`, BEFORE the
-       * jwt callback. So every bound in `entra-graph.ts` — the request
-       * timeout, the total budget, the retries — is irrelevant to it. Two
-       * consequences, both verified against the installed package:
-       *
-       *   - if Graph is unreachable, next-auth swallows the rejection and
-       *     returns no profile, and the user is redirected back to /login with
-       *     NO error code. Silently, on every attempt, for as long as the
-       *     outage lasts.
-       *   - if Graph hangs, node's fetch waits on its default headers timeout,
-       *     which is five minutes.
-       *
-       * An avatar is not worth making Microsoft Graph a hard dependency of
-       * authentication. If profile pictures are wanted later they belong in a
-       * background job, where being slow or failing costs nobody a login.
-       */
-      profile(profile: Record<string, unknown>) {
-        // `email` is absent for some B2B guest accounts; `preferred_username`
-        // carries it there. `upn` is deliberately not used — it is a directory
-        // identifier that is not always routable as an address.
-        const email =
-          (typeof profile.email === 'string' && profile.email) ||
-          (typeof profile.preferred_username === 'string' && profile.preferred_username) ||
-          null;
+            /**
+             * ═══ THIS OVERRIDE EXISTS TO REMOVE A GRAPH CALL, NOT TO ADD ONE ═══
+             *
+             * next-auth v4's default `profile()` for this provider fetches the
+             * user's avatar from `graph.microsoft.com/v1.0/me/photos/...` with NO
+             * timeout, NO abort signal, and no catch around the fetch itself — its
+             * only try/catch sits inside the `response.ok` branch, so a rejected
+             * fetch propagates straight out.
+             *
+             * That call runs during the OAuth callback, in `getProfile`, BEFORE the
+             * jwt callback. So every bound in `entra-graph.ts` — the request
+             * timeout, the total budget, the retries — is irrelevant to it. Two
+             * consequences, both verified against the installed package:
+             *
+             *   - if Graph is unreachable, next-auth swallows the rejection and
+             *     returns no profile, and the user is redirected back to /login with
+             *     NO error code. Silently, on every attempt, for as long as the
+             *     outage lasts.
+             *   - if Graph hangs, node's fetch waits on its default headers timeout,
+             *     which is five minutes.
+             *
+             * An avatar is not worth making Microsoft Graph a hard dependency of
+             * authentication. If profile pictures are wanted later they belong in a
+             * background job, where being slow or failing costs nobody a login.
+             */
+            profile(profile: Record<string, unknown>) {
+              // `email` is absent for some B2B guest accounts; `preferred_username`
+              // carries it there. `upn` is deliberately not used — it is a directory
+              // identifier that is not always routable as an address.
+              const email =
+                (typeof profile.email === 'string' && profile.email) ||
+                (typeof profile.preferred_username === 'string' && profile.preferred_username) ||
+                null;
 
-        return {
-          id: String(profile.sub ?? profile.oid ?? ''),
-          name: typeof profile.name === 'string' ? profile.name : null,
-          email,
-          image: null,
-        };
-      },
-    }),
+              return {
+                id: String(profile.sub ?? profile.oid ?? ''),
+                name: typeof profile.name === 'string' ? profile.name : null,
+                email,
+                image: null,
+              };
+            },
+          }),
+        ]
+      : []),
 
     CredentialsProvider({
       name: 'credentials',

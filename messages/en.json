@@ -250,10 +250,12 @@
     "password": "Password",
     "submit": "Sign in",
     "withGoogle": "Sign in with Google",
+    "withMicrosoft": "Sign in with Microsoft",
     "or": "or",
     "invalid": "Wrong email or password.",
     "throttled": "Too many attempts. Please try again later.",
-    "unavailable": "Sign-in is temporarily unavailable."
+    "unavailable": "Sign-in is temporarily unavailable.",
+    "noProviders": "Sign-in is not configured. Please contact an administrator."
   },
   "venues": {
     "metaTitle": "Venues — playerz.bg",
