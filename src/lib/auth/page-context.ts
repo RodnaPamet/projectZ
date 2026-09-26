@@ -167,3 +167,46 @@ export async function membershipContext(userId: string, slug: string): Promise<T
     },
   };
 }
+
+/**
+ * The same resolution, for a Server Action, with a permission demanded.
+ *
+ * ═══ WHY AN ACTION CANNOT INHERIT THE PAGE'S CHECK ═══
+ *
+ * A Server Action is a POST endpoint. It is reachable by anyone who can
+ * construct the request — the action id is discoverable in the page payload —
+ * and it does NOT re-run the page that rendered the form. So "the page already
+ * checked `courts.manage`" protects the screen, not the mutation behind it.
+ *
+ * Middleware does gate `/t/[slug]/**` for membership, because the action posts
+ * to the page's own path. It does not gate the permission: every rule in
+ * `route-permissions.ts` is anchored at `^/api/`. A COACH — a member, with
+ * `players.view` and nothing else — would pass the edge and reach the action.
+ *
+ * So every action calls this, first, before reading its arguments.
+ *
+ * Throws rather than returning a union: an action that forgets to branch on a
+ * result still runs its mutation, and the whole point is that forgetting is not
+ * survivable. `PermissionDeniedError` is the loud version.
+ */
+export class TenantActionDeniedError extends Error {
+  constructor(slug: string, permission: string) {
+    super(
+      `Refused: this session does not hold "${permission}" at "${slug}". Server Actions are ` +
+        'POST endpoints reachable independently of the page that rendered the form, so each ' +
+        'one authorises itself.',
+    );
+    this.name = 'TenantActionDeniedError';
+  }
+}
+
+export async function requireTenantAction(
+  slug: string,
+  permission: Permission,
+): Promise<TenantPageContext> {
+  const result = await resolveTenantPageContext(slug);
+  if (result.kind !== 'ok' || !result.ctx.permissions.includes(permission)) {
+    throw new TenantActionDeniedError(slug, permission);
+  }
+  return result.ctx;
+}

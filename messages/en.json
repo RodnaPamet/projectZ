@@ -293,7 +293,15 @@
         "venue": "Venue",
         "setting": "Setting",
         "capacity": "Capacity",
-        "basePrice": "Base price"
+        "basePrice": "Base price",
+        "name": "Name",
+        "sport": "Sport",
+        "surface": "Surface",
+        "basePriceCents": "Base price (in cents)",
+        "bookingWindow": "Booking rules",
+        "minBookingMinutes": "Min minutes",
+        "maxBookingMinutes": "Max minutes",
+        "slotStepMinutes": "Slot step (minutes)"
       },
       "setting": {
         "indoor": "Indoor",
@@ -303,6 +311,18 @@
         "ACTIVE": "Active",
         "SUSPENDED": "Suspended",
         "CLOSED": "Closed"
+      },
+      "needVenue": "Add a venue before creating a court.",
+      "action": {
+        "add": "Add court",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "archive": "Archive",
+        "reopen": "Reopen"
+      },
+      "archive": {
+        "confirm": "{count, plural, one {# upcoming booking on this court. Archiving does not cancel it. Continue?} other {# upcoming bookings on this court. Archiving does not cancel them. Continue?}}"
       }
     }
   }

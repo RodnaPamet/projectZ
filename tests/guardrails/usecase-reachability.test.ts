@@ -44,6 +44,20 @@ import { dirname, join, normalize } from 'node:path';
 const ENTRY_POINTS = [
   ...globSync('src/app/**/route.ts').map((f) => f.toString()),
   ...globSync('src/app/**/page.tsx').map((f) => f.toString()),
+  // ═══ SERVER ACTIONS ARE ENTRY POINTS TOO ═══
+  //
+  // A `'use server'` module compiles to POST endpoints the client can call
+  // directly — as reachable as any route.ts, and reachable WITHOUT the page
+  // that rendered the form. Omitting them would report a use case wired to an
+  // action as unreachable scaffolding, which is the opposite of true and would
+  // push the next author to add it to NOT_WIRED_YET and stop thinking.
+  //
+  // Matched on the directive rather than a filename, because there is no
+  // convention yet and `actions.ts` is only where the first ones happened to
+  // land.
+  ...globSync('src/app/**/*.ts')
+    .map((f) => f.toString())
+    .filter((f) => /^\s*['"]use server['"]/.test(readFileSync(f, 'utf8'))),
   'src/middleware.ts',
 ].filter((f) => existsSync(f));
 
