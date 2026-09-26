@@ -143,7 +143,20 @@ model PlatformAuditEntry {
 
   createdAt DateTime @default(now())
 
-  @@index([createdAt])
+  /// Serves `ORDER BY createdAt DESC, id DESC` — the order this log is read
+  /// and paged in. Replaces a bare `@@index([createdAt])`, which it covers as
+  /// a prefix, so nothing that used the old index regresses.
+  ///
+  /// P33 measured this index at 50 000 rows, found it changed no plan, and
+  /// declined it — correctly, for that size. At 500 000 rows with realistic
+  /// tie groups it does: the planner drops an Incremental Sort for an Index
+  /// Only Scan, 2.17 ms to 0.29 ms at the SQL level. P33 said to redo the
+  /// measurement rather than inherit the conclusion; P34 is that redo.
+  ///
+  /// `id` is in the index because it is in the ORDER BY, and it is there
+  /// because `createdAt` is not unique — a non-unique sort key makes a cursor
+  /// skip rows. See src/app-layer/repositories/platform-paging.ts.
+  @@index([createdAt, id])
   @@index([actorUserId, createdAt])
   @@index([subjectTenantId, createdAt])
   @@map("platform_audit_entry")

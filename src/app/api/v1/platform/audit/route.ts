@@ -5,6 +5,11 @@ import { asPlatformAdmin } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { rfc3339 } from '@/app/api/v1/_lib/dto';
+import {
+  auditPageIds,
+  inSeekOrder,
+  type SeekCursor,
+} from '@/app-layer/repositories/platform-paging';
 import { page } from '@/app/api/v1/_lib/envelope';
 import { readPlatformCursor, UnknownPlatformCursorError } from '@/app/api/v1/_lib/platform-cursor';
 import { readPlatformReason } from '@/app/api/v1/_lib/platform-reason';
@@ -121,17 +126,36 @@ async function handler(req: NextRequest) {
       entity: 'PlatformAuditEntry',
     },
     async (db) => {
+      // ═══ SEEK FOR THE IDS, TYPED CLIENT FOR THE ROWS ═══
+      //
+      // Prisma's `cursor` scans from the top of the index rather than seeking
+      // to the cursor. On 500 000 audit rows a deep page costs 18.4 ms against
+      // 7.6 ms for a row-value seek, and a full walk is 184 s against 76 s —
+      // see platform-paging.ts for the method and the trade-off. An
+      // investigator reading an audit log is precisely who walks the whole
+      // thing.
+      //
+      // The raw query returns IDS ONLY. `$queryRawUnsafe` already produced one
+      // authorisation bug here by handing back a Postgres enum array as a
+      // string; `capability` is such an enum, so the typed client reads it.
+      let after: SeekCursor | undefined;
       if (cursor) {
         // Inside the transaction, so a row deleted between a pre-flight check
         // and the read cannot slip through as a silent empty page.
         const anchor = await db.platformAuditEntry.findUnique({
           where: { id: cursor },
-          select: { id: true },
+          select: { id: true, createdAt: true },
         });
         if (!anchor) throw new UnknownPlatformCursorError();
+        after = anchor;
       }
 
-      return db.platformAuditEntry.findMany({
+      // One more than asked, so "is there another page" costs no second count.
+      const ids = await auditPageIds(db, { limit: PAGE_SIZE, after });
+      if (ids.length === 0) return [];
+
+      const rows = await db.platformAuditEntry.findMany({
+        where: { id: { in: ids } },
         select: {
           id: true,
           actorUserId: true,
@@ -143,16 +167,15 @@ async function handler(req: NextRequest) {
           reason: true,
           createdAt: true,
         },
-        // `id` is not decoration: `createdAt` alone is not unique — the audit
-        // row this very request writes shares a timestamp with anything else
-        // committing in the same tick — and a non-unique sort makes the cursor
-        // skip or repeat rows.
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        // One more than asked, so "is there another page" costs no second
-        // count(*). The extra row is trimmed before it is returned.
+        // Bounded by `ids` already — it cannot exceed PAGE_SIZE + 1 — but
+        // stated, because `query-shape` D2 takes no view on whether an `in`
+        // happens to be short today, and it is right not to.
         take: PAGE_SIZE + 1,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       });
+
+      // `IN` does not preserve order, and the seek's order is what makes the
+      // next cursor correct.
+      return inSeekOrder(rows, ids);
     },
   );
 
