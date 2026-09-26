@@ -225,5 +225,48 @@ describe('OpenAPI coverage', () => {
 
       expect(broken).toEqual([]);
     });
+
+    it('every operation has a unique operationId', () => {
+      // ═══ WHY THIS IS NOT COSMETIC ═══
+      //
+      // `operationId` is the method name in every generated client. Without
+      // one, swift-openapi-generator falls back to mangling the path:
+      //
+      //   POST /t/{slug}/bookings  ->  post_sol_t_sol__lcub_slug_rcub__sol_bookings
+      //
+      // Four operations were missing it, and they were not obscure ones — they
+      // were GET and POST /t/{slug}/bookings plus cancel and checkout. The
+      // entire booking flow, which is the product.
+      //
+      // Nothing failed. The spec was valid, the coverage check above passed
+      // because the PATHS were all present, and the client compiled. It was
+      // only unusable, and only in Swift, and only once someone generated it.
+      //
+      // Uniqueness matters for the same reason: a duplicate id makes the
+      // generator emit two methods with one name, which does not compile —
+      // a better failure, but still one worth catching here.
+      const missing: string[] = [];
+      const seen = new Map<string, string>();
+      const duplicated: string[] = [];
+
+      for (const [path, item] of Object.entries(spec.paths ?? {})) {
+        for (const method of METHODS) {
+          const op = (item as Record<string, unknown>)[method.toLowerCase()];
+          if (!op || typeof op !== 'object') continue;
+
+          const id = (op as { operationId?: unknown }).operationId;
+          if (typeof id !== 'string' || id.length === 0) {
+            missing.push(`${method} ${path}`);
+            continue;
+          }
+
+          const previous = seen.get(id);
+          if (previous) duplicated.push(`"${id}" on both ${previous} and ${method} ${path}`);
+          else seen.set(id, `${method} ${path}`);
+        }
+      }
+
+      expect({ missing, duplicated }).toEqual({ missing: [], duplicated: [] });
+    });
   });
 });
