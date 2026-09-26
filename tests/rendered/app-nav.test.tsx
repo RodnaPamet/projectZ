@@ -1,6 +1,14 @@
 import { render, screen } from '@testing-library/react';
 
-import { ADMIN_NAV, AppNav, PLAYER_NAV } from '@/components/layout/AppNav';
+import { adminNav, AppNav, playerNav } from '@/components/layout/AppNav';
+
+/**
+ * The nav takes a slug now: bare `/admin/*` is unguarded at the edge, so the
+ * guarded `/t/[slug]/admin/*` shape is the only one these builders can make.
+ */
+const SLUG = 'sofia-padel';
+const PLAYER_NAV = playerNav(SLUG);
+const ADMIN_NAV = adminNav(SLUG);
 
 import { withIntl } from '../helpers/intl';
 

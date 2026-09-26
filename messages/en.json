@@ -277,5 +277,33 @@
     "title": "Page not found",
     "body": "That address does not exist. The link may be out of date, or the page may not be built yet.",
     "backToVenues": "Browse venues"
+  },
+  "admin": {
+    "courts": {
+      "metaTitle": "Courts",
+      "title": "Courts",
+      "subtitle": "The club's playing surfaces, their pricing and capacity.",
+      "truncated": "Showing the first {limit} courts. This club has more.",
+      "empty": {
+        "title": "No courts yet",
+        "description": "Add the first court to start taking bookings."
+      },
+      "capacity": "{count, plural, one {# player} other {# players}}",
+      "field": {
+        "venue": "Venue",
+        "setting": "Setting",
+        "capacity": "Capacity",
+        "basePrice": "Base price"
+      },
+      "setting": {
+        "indoor": "Indoor",
+        "outdoor": "Outdoor"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed"
+      }
+    }
   }
 }
