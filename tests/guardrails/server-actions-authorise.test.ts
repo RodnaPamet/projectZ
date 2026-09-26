@@ -30,6 +30,21 @@ import { globSync, readFileSync } from 'node:fs';
  * happens, not that it is correct.
  */
 
+/**
+ * Actions that authorise by something OTHER than a club permission.
+ *
+ * Each names why, because an exemption list with no reasons is where holes go
+ * to be forgotten.
+ */
+const ALLOWED_WITHOUT_PERMISSION: Record<string, string> = {
+  'src/app/(public)/invite/[token]/actions.ts':
+    'accepting an invite is how somebody BECOMES a member — there is no membership to ' +
+    'check, and demanding one would make the invite unusable by exactly the people it is ' +
+    'for. The authorisation is the token: 32 random bytes, stored only as a keyed hash, ' +
+    'single-use, expiring, and sent to an address a member of that club chose. The action ' +
+    'still requires a signed-in user, because a membership must belong to an account.',
+};
+
 const ACTION_FILES = globSync('src/app/**/*.ts')
   .map((f) => f.toString())
   .filter((f) => /^\s*['"]use server['"]/.test(readFileSync(f, 'utf8')));
@@ -109,8 +124,39 @@ describe('server actions authorise themselves', () => {
     expect(exportedActions(codeOnly(readFileSync(file, 'utf8'))).length).toBeGreaterThan(0);
   });
 
+  it('every exemption points at a file that still exists and still has actions', () => {
+    // An exemption for a deleted or emptied file is a hole waiting for someone
+    // to recreate that path.
+    for (const file of Object.keys(ALLOWED_WITHOUT_PERMISSION)) {
+      expect(ACTION_FILES).toContain(file);
+      expect(exportedActions(codeOnly(readFileSync(file, 'utf8'))).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('every exemption states a reason', () => {
+    const unexplained = Object.entries(ALLOWED_WITHOUT_PERMISSION)
+      .filter(([, why]) => why.trim().length < 40)
+      .map(([f]) => f);
+    expect(unexplained).toEqual([]);
+  });
+
+  it('an exempt action still demands a signed-in user', () => {
+    // The exemption is from the PERMISSION check, not from authentication.
+    // Without this, "exempt" would drift into "open".
+    for (const file of Object.keys(ALLOWED_WITHOUT_PERMISSION)) {
+      const code = codeOnly(readFileSync(file, 'utf8'));
+      for (const name of exportedActions(code)) {
+        expect({ file, name, guarded: /\brequireSignedIn\b/.test(bodyOf(code, name)) }).toEqual({
+          file,
+          name,
+          guarded: true,
+        });
+      }
+    }
+  });
+
   it.each(
-    ACTION_FILES.flatMap((file) => {
+    ACTION_FILES.filter((f) => !(f in ALLOWED_WITHOUT_PERMISSION)).flatMap((file) => {
       const code = codeOnly(readFileSync(file, 'utf8'));
       return exportedActions(code).map((name) => [`${file}:${name}`, code, name] as const);
     }),

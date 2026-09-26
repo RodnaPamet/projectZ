@@ -210,3 +210,23 @@ export async function requireTenantAction(
   }
   return result.ctx;
 }
+
+/**
+ * The signed-in user, with no club in the question.
+ *
+ * Used by the invite acceptance flow, which is the one place that needs an
+ * account WITHOUT an existing membership — accepting is how the membership
+ * comes to exist.
+ */
+export async function requireSignedIn(): Promise<string | null> {
+  const token = await tokenFromHeaders();
+  if (!token?.sub) return null;
+
+  const session = await checkSession({
+    userSessionId: token.userSessionId ?? null,
+    sessionVersion: token.sessionVersion ?? -1,
+    sessionSecret: token.sessionSecret ?? null,
+  });
+
+  return session.usable ? token.sub : null;
+}

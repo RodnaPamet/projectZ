@@ -440,7 +440,6 @@
       "title": "Staff",
       "subtitle": "Who runs the club, and what they can do.",
       "you": "you",
-      "inviteUnavailable": "Email invitations do not work yet. Promote an existing member to add staff.",
       "role": {
         "OWNER": "Owner",
         "MANAGER": "Manager",
@@ -454,12 +453,17 @@
         "EXPIRED": "Expired"
       },
       "field": {
-        "role": "Role"
+        "role": "Role",
+        "email": "Email"
       },
       "action": {
         "save": "Save",
         "suspend": "Suspend",
-        "reinstate": "Reinstate"
+        "reinstate": "Reinstate",
+        "invite": "New invite",
+        "send": "Send",
+        "cancel": "Cancel",
+        "revoke": "Revoke"
       },
       "suspend": {
         "confirm": "A suspended member loses access on their next request. Continue?"
@@ -474,7 +478,17 @@
         "OWN_ROLE": "You cannot change your own role.",
         "OWNER_MANAGEMENT_REQUIRED": "You do not have permission to manage owners.",
         "NOT_FOUND": "That member no longer exists. Reload the page.",
-        "BAD_ROLE": "Unknown role."
+        "BAD_ROLE": "Unknown role.",
+        "BAD_EMAIL": "Enter a valid email address.",
+        "ALREADY_INVITED": "There is already an open invite for that address. Revoke it first.",
+        "MAIL_FAILED": "The invite could not be sent. Revoke it and try again."
+      },
+      "membersHeading": "Members",
+      "inviteHeading": "Invites",
+      "inviteNote": "An invite cannot grant Owner — that is given by an owner, to an existing member.",
+      "invite": {
+        "expires": "expires {date}",
+        "revokeConfirm": "Revoke the invite for {email}?"
       }
     },
     "calendar": {
@@ -499,6 +513,25 @@
         "badge": "Timezone",
         "note": "All times are the club's local time, not yours."
       }
+    }
+  },
+  "invite": {
+    "metaTitle": "Invitation",
+    "title": "You have been invited to {club}",
+    "asRole": "As a {role}.",
+    "sentTo": "Sent to {email}.",
+    "accept": "Accept",
+    "signInToAccept": "Sign in to accept",
+    "signInNote": "You will come back here afterwards.",
+    "role": {
+      "MANAGER": "Manager",
+      "COACH": "Coach",
+      "STAFF": "Staff",
+      "PLAYER": "Player"
+    },
+    "invalid": {
+      "title": "That invitation is no longer valid",
+      "description": "It may have expired, been revoked, or already been used. Ask the club for another."
     }
   }
 }

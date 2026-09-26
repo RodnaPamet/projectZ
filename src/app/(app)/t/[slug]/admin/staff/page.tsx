@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { countActiveOwners, listStaff } from '@/app-layer/repositories/staff';
+import { countActiveOwners, listOpenInvites, listStaff } from '@/app-layer/repositories/staff';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -42,10 +42,14 @@ export default async function StaffPage({ params }: { params: Promise<{ slug: st
 
   const t = await getTranslations('admin.staff');
 
-  const { members, activeOwnerCount } = await runInTenantContext(ctx.tenantId, async (db) => ({
-    members: await listStaff(db, ctx.tenantId),
-    activeOwnerCount: await countActiveOwners(db, ctx.tenantId),
-  }));
+  const { members, activeOwnerCount, invites } = await runInTenantContext(
+    ctx.tenantId,
+    async (db) => ({
+      members: await listStaff(db, ctx.tenantId),
+      activeOwnerCount: await countActiveOwners(db, ctx.tenantId),
+      invites: await listOpenInvites(db, ctx.tenantId),
+    }),
+  );
 
   const rows = members.map((m): StaffRow => ({
     membershipId: m.membershipId,
@@ -66,6 +70,13 @@ export default async function StaffPage({ params }: { params: Promise<{ slug: st
       <StaffBoard
         slug={slug}
         members={rows}
+        invites={invites.map((i) => ({
+          id: i.id,
+          email: i.email,
+          role: i.role,
+          // ISO across the boundary; the client formats in the viewer's locale.
+          expiresAt: i.expiresAt.toISOString(),
+        }))}
         viewerUserId={ctx.userId}
         canManageOwners={ctx.permissions.includes('admin.owner_management')}
         activeOwnerCount={activeOwnerCount}

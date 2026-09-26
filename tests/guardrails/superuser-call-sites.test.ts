@@ -59,6 +59,16 @@ const ALLOWED: Record<string, string> = {
     'would read as "not a member". One row, by (userId, slug), both from the caller\'s own ' +
     'session; it cannot enumerate. Same shape as auth.ts and /t/[slug]/me.',
 
+  // ── Accepting an invite, which is how a tenant is DISCOVERED ────────
+  'src/app/(public)/invite/[token]/page.tsx':
+    'resolves which club a token belongs to, so there is no app.tenant_id to bind yet — the ' +
+    'same chicken-and-egg as page-context. The lookup is by hashForLookup(token), a keyed ' +
+    'hash of a secret the visitor supplied; it cannot enumerate, and it is filtered to ' +
+    'invites that are unaccepted, unrevoked and unexpired.',
+  'src/app/(public)/invite/[token]/actions.ts':
+    'consumes that token and creates the membership. Same reason: the membership being ' +
+    'created is what would have supplied the binding.',
+
   // ── Public discovery, which spans every club by design ──────────────
   'src/app/(public)/venues/page.tsx': 'the public venue index spans every club',
   'src/app/api/v1/venues/route.ts': 'public venue list',
