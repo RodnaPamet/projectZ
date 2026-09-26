@@ -171,6 +171,50 @@ describe('admin players', () => {
     ).rejects.toThrow(PlayerNotAtThisClubError);
   });
 
+  it.each([
+    ['an object', {} as unknown as string],
+    ['undefined', undefined as unknown as string],
+    ['an empty string', ''],
+  ])('REFUSES %s as a player id, rather than matching every player', async (_label, bad) => {
+    // ═══ THE CLUB-WIDE OVERWRITE ═══
+    //
+    // Prisma reads `undefined` in a where as NOT SPECIFIED. A non-string id
+    // collapsed `where: { tenantId, playerUserId }` to `where: { tenantId }`,
+    // so findFirst returned an arbitrary player and updateMany rewrote EVERY
+    // player's tags — which also silently repriced the club, because
+    // PricingConditions matches on tags.
+    //
+    // A Server Action's arguments are not form fields; a crafted POST supplies
+    // them directly.
+    const t = await seedTenant({}, db);
+    const a = await player(t.tenantId, 'a', { tags: ['keep-a'] });
+    const b = await player(t.tenantId, 'b', { tags: ['keep-b'] });
+
+    await expect(
+      runInTenantContext(t.tenantId, (c) => setPlayerTags(c, t.tenantId, t.userId, bad, ['vip'])),
+    ).rejects.toThrow(PlayerNotAtThisClubError);
+
+    const rows = await runInTenantContext(t.tenantId, (c) => listPlayers(c, t.tenantId));
+    const tags = Object.fromEntries(rows.map((r) => [r.playerUserId, r.tags]));
+    expect(tags[a.id]).toEqual(['keep-a']);
+    expect(tags[b.id]).toEqual(['keep-b']);
+  });
+
+  it('a tag change touches exactly one player', async () => {
+    const t = await seedTenant({}, db);
+    const a = await player(t.tenantId, 'a', { tags: ['keep-a'] });
+    const b = await player(t.tenantId, 'b', { tags: ['keep-b'] });
+
+    await runInTenantContext(t.tenantId, (c) =>
+      setPlayerTags(c, t.tenantId, t.userId, a.id, ['vip']),
+    );
+
+    const rows = await runInTenantContext(t.tenantId, (c) => listPlayers(c, t.tenantId));
+    const tags = Object.fromEntries(rows.map((r) => [r.playerUserId, r.tags]));
+    expect(tags[a.id]).toEqual(['vip']);
+    expect(tags[b.id]).toEqual(['keep-b']);
+  });
+
   it('normalises tags, because they drive pricing rules', async () => {
     // `PricingConditions.playerTags` matches on these strings. " coach" and
     // "coach" would be two different rules' worth of behaviour for what a

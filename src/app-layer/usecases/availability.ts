@@ -1,6 +1,6 @@
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 
-import { computePrice, type PriceContext, type PricingRuleRow } from './pricing';
+import { computePrice, computeSpanPrice, type PriceContext, type PricingRuleRow } from './pricing';
 
 /**
  * Slot materialisation.
@@ -351,23 +351,20 @@ export function quoteBooking(opts: BookingQuoteOptions): BookingQuote {
     );
   }
 
-  const units = durationMinutes / opts.minBookingMinutes;
-  let priceCents = 0;
+  // The decomposition lives in `pricing.ts` so the admin preview can run the
+  // SAME loop. It was inlined here, and the preview — unable to reach it —
+  // priced the whole span in one call and showed half the real figure.
+  const { finalPriceCents, units } = computeSpanPrice(opts.pricingRules ?? [], {
+    basePriceCents: opts.basePriceCents,
+    localDayOfWeek: localStart.getDay(),
+    localStartMinutes: startMinutes,
+    playerTags: opts.playerTags,
+    membershipLevel: opts.membershipLevel,
+    unitMinutes: opts.minBookingMinutes,
+    units: durationMinutes / opts.minBookingMinutes,
+  });
 
-  for (let u = 0; u < units; u++) {
-    const unitStart = startMinutes + u * opts.minBookingMinutes;
-    const ctx: PriceContext = {
-      basePriceCents: opts.basePriceCents,
-      localDayOfWeek: localStart.getDay(),
-      localStartMinutes: unitStart,
-      localEndMinutes: unitStart + opts.minBookingMinutes,
-      playerTags: opts.playerTags,
-      membershipLevel: opts.membershipLevel,
-    };
-    priceCents += computePrice(opts.pricingRules ?? [], ctx).finalPriceCents;
-  }
-
-  return { priceCents, units };
+  return { priceCents: finalPriceCents, units };
 }
 
 export function computeSlots(opts: SlotOptions): Slot[] {

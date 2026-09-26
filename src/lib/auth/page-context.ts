@@ -187,7 +187,7 @@ export async function membershipContext(userId: string, slug: string): Promise<T
  *
  * Throws rather than returning a union: an action that forgets to branch on a
  * result still runs its mutation, and the whole point is that forgetting is not
- * survivable. `PermissionDeniedError` is the loud version.
+ * survivable. `TenantActionDeniedError` below is the loud version.
  */
 export class TenantActionDeniedError extends Error {
   constructor(slug: string, permission: string) {

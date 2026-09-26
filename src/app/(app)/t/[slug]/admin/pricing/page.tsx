@@ -70,6 +70,10 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
         id: c.id,
         name: c.name,
         basePriceCents: c.basePriceCents,
+        // The preview must price per BLOCK, as quoteBooking does. Without this
+        // the island cannot decompose the span and shows the price of a single
+        // unit however long the booking is.
+        minBookingMinutes: c.minBookingMinutes,
       })),
       rulesByCourt: byCourt,
     };

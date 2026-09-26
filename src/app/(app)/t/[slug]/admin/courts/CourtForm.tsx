@@ -14,10 +14,15 @@ import { archiveCourtAction, createCourtAction, updateCourtAction } from './acti
  *
  * ═══ WHY THE SAME COMPONENT FOR BOTH ═══
  *
- * The fields are identical and the validation is identical — `courtCreateSchema`
- * and `courtUpdateSchema` differ only in that create also carries `venueId`.
- * Two components would be two places for the booking-window rules to drift out
- * of agreement with the server, and the server is the one that decides.
+ * The fields are identical and the validation is identical. Two components
+ * would be two places for the booking-window rules to drift out of agreement
+ * with the server, and the server is the one that decides.
+ *
+ * The two schemas are NOT the same shape though, and the difference is not
+ * only `venueId`: `courtCreateSchema` also carries `resourceType`, which
+ * `courtUpdateSchema` has no key for and `updateCourtAction` never reads. A
+ * field added to this form on the assumption that both accept it would save on
+ * create and silently do nothing on edit.
  *
  * ═══ WHAT THIS DOES NOT VALIDATE ═══
  *
