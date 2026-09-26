@@ -76,6 +76,9 @@ export const AUDIT_ACTIONS = {
   /// A staff member moved a player's credit by hand. The ledger row is the
   /// record of the money; this is the record of the decision.
   PLAYER_CREDIT_ADJUSTED: 'PLAYER_CREDIT_ADJUSTED',
+  /// MEMBER_ROLE_CHANGED and MEMBER_REMOVED already exist at the top of this
+  /// list — the staff screen reuses them rather than minting near-duplicates.
+  MEMBER_REINSTATED: 'MEMBER_REINSTATED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

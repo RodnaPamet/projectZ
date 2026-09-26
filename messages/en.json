@@ -431,6 +431,48 @@
         "INSUFFICIENT_CREDIT": "The balance is now lower. Reload and try again.",
         "TOO_LARGE": "That exceeds the limit for a single adjustment."
       }
+    },
+    "staff": {
+      "metaTitle": "Staff",
+      "title": "Staff",
+      "subtitle": "Who runs the club, and what they can do.",
+      "you": "you",
+      "inviteUnavailable": "Email invitations do not work yet. Promote an existing member to add staff.",
+      "role": {
+        "OWNER": "Owner",
+        "MANAGER": "Manager",
+        "COACH": "Coach",
+        "STAFF": "Staff",
+        "PLAYER": "Player"
+      },
+      "status": {
+        "SUSPENDED": "Suspended",
+        "INVITED": "Invited",
+        "EXPIRED": "Expired"
+      },
+      "field": {
+        "role": "Role"
+      },
+      "action": {
+        "save": "Save",
+        "suspend": "Suspend",
+        "reinstate": "Reinstate"
+      },
+      "suspend": {
+        "confirm": "A suspended member loses access on their next request. Continue?"
+      },
+      "locked": {
+        "self": "You cannot change your own role. Ask another owner.",
+        "lastOwner": "The only active owner. Promote somebody else before changing this one.",
+        "ownerManagement": "Changing an owner requires owner-management permission."
+      },
+      "error": {
+        "LAST_OWNER": "This is the club’s only active owner.",
+        "OWN_ROLE": "You cannot change your own role.",
+        "OWNER_MANAGEMENT_REQUIRED": "You do not have permission to manage owners.",
+        "NOT_FOUND": "That member no longer exists. Reload the page.",
+        "BAD_ROLE": "Unknown role."
+      }
     }
   }
 }
