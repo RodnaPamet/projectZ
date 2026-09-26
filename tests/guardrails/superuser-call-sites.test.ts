@@ -53,6 +53,11 @@ const ALLOWED: Record<string, string> = {
   'src/lib/auth/verify-credentials.ts': 'reads a User by email before any tenant is known',
   'src/app/api/v1/auth/refresh/route.ts': 'rotates a refresh token with no tenant context',
   'src/lib/auth/platform-admin.ts': 'reads platform_admin_grant, which denies app_user outright',
+  'src/lib/auth/page-context.ts':
+    'resolves which tenant a PAGE is about, so there is no app.tenant_id to bind yet — ' +
+    'tenant_membership carries FORCE RLS and returns zero rows unbound, which every caller ' +
+    'would read as "not a member". One row, by (userId, slug), both from the caller\'s own ' +
+    'session; it cannot enumerate. Same shape as auth.ts and /t/[slug]/me.',
 
   // ── Public discovery, which spans every club by design ──────────────
   'src/app/(public)/venues/page.tsx': 'the public venue index spans every club',

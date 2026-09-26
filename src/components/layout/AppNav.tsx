@@ -48,22 +48,46 @@ export interface NavItem {
   requires?: string;
 }
 
+/**
+ * ═══ WHY THESE ARE FUNCTIONS OF A SLUG ═══
+ *
+ * They were constants pointing at bare `/admin/courts`, and that path is
+ * UNGUARDED. `tenantSlugFromPath` finds no slug in it, so `checkTenantAccess`
+ * falls through to its `allow` default; and `requiredPermission` returns null
+ * because every rule in `route-permissions.ts` is anchored at `^/api/`. An
+ * anonymous visitor would have reached the page.
+ *
+ * `guard.ts` warns about precisely this: "a tenant URL shape this regex does
+ * NOT recognise is not merely unmatched, it is UNGUARDED, and
+ * `requiredPermission` goes quiet at the same moment for the same reason."
+ *
+ * Nothing rendered this nav, so nobody could click them — but the shape was
+ * the trap waiting for whoever mounted it. Taking a slug makes the guarded
+ * shape the only one expressible.
+ */
+
 /** The player-facing surface. */
-export const PLAYER_NAV: NavItem[] = [
-  { href: '/venues', labelKey: 'play' },
-  { href: '/open-play', labelKey: 'openPlay' },
-  { href: '/coaches', labelKey: 'coaches' },
-  { href: '/my-bookings', labelKey: 'myBookings' },
-];
+export function playerNav(slug: string): NavItem[] {
+  return [
+    // Discovery stays global: a player browsing venues is not yet at a club,
+    // and this is the one page that exists today.
+    { href: '/venues', labelKey: 'play' },
+    { href: `/t/${slug}/open-play`, labelKey: 'openPlay' },
+    { href: `/t/${slug}/coaches`, labelKey: 'coaches' },
+    { href: `/t/${slug}/my-bookings`, labelKey: 'myBookings' },
+  ];
+}
 
 /** The venue-staff surface. Each item is permission-gated. */
-export const ADMIN_NAV: NavItem[] = [
-  { href: '/admin/calendar', labelKey: 'calendar', requires: 'bookings.view_all' },
-  { href: '/admin/courts', labelKey: 'courts', requires: 'courts.manage' },
-  { href: '/admin/pricing', labelKey: 'pricing', requires: 'admin.pricing_manage' },
-  { href: '/admin/players', labelKey: 'players', requires: 'players.view' },
-  { href: '/admin/staff', labelKey: 'staff', requires: 'admin.staff_manage' },
-];
+export function adminNav(slug: string): NavItem[] {
+  return [
+    { href: `/t/${slug}/admin/calendar`, labelKey: 'calendar', requires: 'bookings.view_all' },
+    { href: `/t/${slug}/admin/courts`, labelKey: 'courts', requires: 'courts.manage' },
+    { href: `/t/${slug}/admin/pricing`, labelKey: 'pricing', requires: 'admin.pricing_manage' },
+    { href: `/t/${slug}/admin/players`, labelKey: 'players', requires: 'players.view' },
+    { href: `/t/${slug}/admin/staff`, labelKey: 'staff', requires: 'admin.staff_manage' },
+  ];
+}
 
 export function AppNav({
   items,
