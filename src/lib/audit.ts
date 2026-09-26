@@ -61,6 +61,12 @@ export const AUDIT_ACTIONS = {
   SSO_GROUP_MAPPING_CREATED: 'SSO_GROUP_MAPPING_CREATED',
   SSO_GROUP_MAPPING_UPDATED: 'SSO_GROUP_MAPPING_UPDATED',
   SSO_GROUP_MAPPING_DELETED: 'SSO_GROUP_MAPPING_DELETED',
+  COURT_CREATED: 'COURT_CREATED',
+  COURT_UPDATED: 'COURT_UPDATED',
+  /// Status moved to CLOSED. Deliberately not DELETED: the row stays, because
+  /// bookings, payments and ledger entries still point at it.
+  COURT_ARCHIVED: 'COURT_ARCHIVED',
+  COURT_REOPENED: 'COURT_REOPENED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
