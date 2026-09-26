@@ -120,4 +120,110 @@ describe('OpenAPI coverage', () => {
 
     expect(incomplete).toEqual([]);
   });
+
+  /**
+   * ═══ STRUCTURE, NOT JUST COVERAGE ═══
+   *
+   * Everything above asks whether the spec DESCRIBES the right things. Nothing
+   * asked whether the document holds together.
+   *
+   * That gap matters more than it sounds for a hand-authored file that is
+   * increasingly edited by script: #188 added two paths and six schemas that
+   * way. A `$ref` pointing at a schema that was renamed produces a document
+   * that reads perfectly, passes every assertion above, and generates a Swift
+   * client that does not compile — so the failure lands in an iOS build, days
+   * later, attributed to whoever is standing nearest.
+   *
+   * These three checks are what hand-editing actually breaks. A real validator
+   * (`@redocly/cli`, `swagger-parser`) would be stricter, and is a dependency
+   * for one file that `unused-dependencies` would want justifying. This is a
+   * recursive walk and a pointer resolve.
+   */
+  describe('the document holds together', () => {
+    /** Every `$ref` string anywhere in the document. */
+    const refs = (() => {
+      const found = new Set<string>();
+      (function walk(node: unknown): void {
+        if (node === null || typeof node !== 'object') return;
+        const rec = node as Record<string, unknown>;
+        if (typeof rec.$ref === 'string') found.add(rec.$ref);
+        for (const v of Object.values(rec)) walk(v);
+      })(spec);
+      return [...found];
+    })();
+
+    /** Resolve a local JSON Pointer, honouring the ~0/~1 escapes. */
+    function resolve(ref: string): unknown {
+      if (!ref.startsWith('#/')) return undefined;
+      let cur: unknown = spec;
+      for (const raw of ref.slice(2).split('/')) {
+        const seg = raw.replace(/~1/g, '/').replace(/~0/g, '~');
+        if (cur === null || typeof cur !== 'object') return undefined;
+        cur = (cur as Record<string, unknown>)[seg];
+        if (cur === undefined) return undefined;
+      }
+      return cur;
+    }
+
+    it('found refs and schemas — a walk that matched nothing would pass everything', () => {
+      expect(refs.length).toBeGreaterThanOrEqual(20);
+      expect(Object.keys(spec.components?.schemas ?? {}).length).toBeGreaterThanOrEqual(20);
+      // And that the resolver works, so "nothing dangled" means something.
+      expect(resolve('#/components/schemas/Error')).toBeDefined();
+      expect(resolve('#/components/schemas/NoSuchSchemaAnywhere')).toBeUndefined();
+    });
+
+    it('every $ref resolves', () => {
+      const dangling = refs.filter((r) => resolve(r) === undefined);
+
+      if (dangling.length > 0) {
+        throw new Error(
+          `These $refs point at nothing:\n\n` +
+            dangling.map((r) => `  ${r}`).join('\n') +
+            `\n\nThe spec still reads fine and every coverage check above still passes. The\n` +
+            `generated Swift client is what breaks, in the iOS build, days from here.`,
+        );
+      }
+    });
+
+    it('no schema is declared and never referenced', () => {
+      // An orphan is either dead weight the generator emits for nobody, or the
+      // trace of an operation that was renamed and took its only reference with
+      // it — which is worth looking at either way.
+      const used = new Set(refs.map((r) => r.split('/').pop()));
+      const orphans = Object.keys(spec.components?.schemas ?? {}).filter((n) => !used.has(n));
+
+      expect(orphans).toEqual([]);
+    });
+
+    it('every `required` entry names a property that exists', () => {
+      // `required: ['nextCursor']` beside `properties: { next_cursor }` is a
+      // contract no response can satisfy, and the generator believes it: the
+      // Swift type gets a non-optional field that is never populated, and
+      // decoding throws on the first real response.
+      const broken: string[] = [];
+
+      (function walk(node: unknown, path: string): void {
+        if (node === null || typeof node !== 'object') return;
+        if (Array.isArray(node)) {
+          node.forEach((v, i) => walk(v, `${path}[${i}]`));
+          return;
+        }
+        const rec = node as Record<string, unknown>;
+
+        if (Array.isArray(rec.required) && rec.properties && typeof rec.properties === 'object') {
+          const props = Object.keys(rec.properties as Record<string, unknown>);
+          for (const r of rec.required) {
+            if (typeof r === 'string' && !props.includes(r)) {
+              broken.push(`${path}: required "${r}" is not in properties [${props.join(', ')}]`);
+            }
+          }
+        }
+
+        for (const [k, v] of Object.entries(rec)) walk(v, `${path}/${k}`);
+      })(spec, '#');
+
+      expect(broken).toEqual([]);
+    });
+  });
 });
