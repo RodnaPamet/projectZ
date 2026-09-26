@@ -3682,7 +3682,7 @@
       },
       "DeviceRegistration": {
         "type": "object",
-        "required": ["deviceToken", "bundleId"],
+        "required": ["deviceToken", "bundleId", "environment"],
         "properties": {
           "deviceToken": {
             "type": "string",
@@ -3696,8 +3696,7 @@
           "environment": {
             "type": "string",
             "enum": ["SANDBOX", "PRODUCTION"],
-            "default": "PRODUCTION",
-            "description": "SANDBOX for debug builds, PRODUCTION for TestFlight and the App Store. Getting this wrong is the usual cause of 'works in TestFlight, not in the App Store'."
+            "description": "SANDBOX for debug builds, PRODUCTION for TestFlight and the App Store. REQUIRED and not defaulted: a missing value used to resolve to PRODUCTION, so a debug build's SANDBOX token was stored as PRODUCTION, sent to api.push.apple.com, rejected with BadDeviceToken and DELETED as a dead device — then re-registered on next launch and deleted again. The route now answers 400 rather than guessing."
           },
           "deviceName": {
             "type": "string",
