@@ -190,10 +190,33 @@ async function pushToAllDevices(
       }
 
       if (result.gone) {
-        // Apple says this token is dead: the app was deleted, the token was
-        // reissued, or it belongs to the other environment. It will never
-        // accept anything again.
+        // Apple says THIS TOKEN is dead: the app was deleted or the token was
+        // reissued. It will never accept anything again.
+        //
+        // Deliberately no longer includes "or it belongs to the other
+        // environment". A wrong environment is OUR bookkeeping error, and
+        // deleting a live registration over it was the bug — `devices/route.ts`
+        // now refuses to guess the environment rather than defaulting it.
         deadDevices.push(device.id);
+        return;
+      }
+
+      if (result.configError) {
+        // WE are misconfigured — a topic this key may not use, a key for the
+        // wrong APNs environment, or a signing key that will not parse. The
+        // device is blameless, so the row stays and no strike is counted
+        // against it: a failureCount raised by our own misconfiguration would
+        // outlive the fix.
+        //
+        // Logged at error because this is the failure mode with no other
+        // alarm. It retries forever and looks exactly like "push is quiet".
+        logger.error('APNs rejected the provider, not the device', {
+          component: 'push',
+          reason: result.reason,
+          status: result.status,
+          topic: device.bundleId,
+          environment: device.environment,
+        });
         return;
       }
 

@@ -150,6 +150,53 @@ describe('sendApns', () => {
   });
 
   it.each([
+    // Provider misconfiguration, NOT a device verdict. The topic is identical
+    // for every device in a fan-out, so classifying these as permanent meant
+    // one wrong bundle id deleted every registration it touched — and these
+    // two were the only members of PERMANENT with no test.
+    ['BadTopic', 400],
+    ['TopicDisallowed', 400],
+    // Observed for real against sandbox with a production-only key (#166).
+    ['BadEnvironmentKeyInToken', 403],
+  ])('treats %s as OUR misconfiguration — keep the row, flag it', async (reason, status) => {
+    const { transport } = recordingTransport({ status, reason });
+
+    await expect(sendApns(DEVICE, PAYLOAD, { transport })).resolves.toMatchObject({
+      ok: false,
+      gone: false,
+      configError: true,
+      reason,
+    });
+  });
+
+  it('a malformed signing key is an outcome, not a throw', async () => {
+    // crypto.sign THROWS on a PEM OpenSSL cannot decode. Unguarded that escaped
+    // sendApns, rejected inside the caller's Promise.all and rolled back the
+    // enclosing transaction — discarding the notification row that had already
+    // been written, against the module's "persist, then push" contract.
+    const saved = process.env.APNS_PRIVATE_KEY;
+    // Not a key. PEM armour wrapped around the literal text "not-base64",
+    // which is exactly what OpenSSL's decoder refuses.
+    process.env.APNS_PRIVATE_KEY =
+      '-----BEGIN PRIVATE KEY-----\nnot-base64\n-----END PRIVATE KEY-----'; // pragma: allowlist secret
+    resetProviderTokenCache();
+
+    const { transport, calls } = recordingTransport({ status: 200 });
+    try {
+      await expect(sendApns(DEVICE, PAYLOAD, { transport })).resolves.toMatchObject({
+        ok: false,
+        gone: false,
+        configError: true,
+      });
+      // Nothing should have been attempted against Apple.
+      expect(calls).toHaveLength(0);
+    } finally {
+      process.env.APNS_PRIVATE_KEY = saved;
+      resetProviderTokenCache();
+    }
+  });
+
+  it.each([
     ['BadDeviceToken', 400],
     ['Unregistered', 410],
     ['DeviceTokenNotForTopic', 400],
