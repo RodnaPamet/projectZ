@@ -35,8 +35,30 @@ gate:
 | `postcss: "$postcss"`        | GHSA-qx2v-qp2m-jg93 (XSS via unescaped `</style>`), reached transitively through `next`. npm's own "fix" is to downgrade to `next@9` — not an option. |
 | `uuid: "^11.1.1"`            | GHSA-w5hq-g745-h8pq (missing buffer bounds check), reached via `next-auth` → `@auth/core`.                                                            |
 | `@hono/node-server` + `hono` | Reached via `prisma` → `@prisma/dev`.                                                                                                                 |
+| `nodemailer: "$nodemailer"`  | Added later, with #199. Not transitive — see below.                                                                                                   |
 
 Result: **`npm audit` reports 0 vulnerabilities**, production and dev.
+
+### `nodemailer` is the odd one out
+
+The pins above all reach a vulnerable package _through_ something else. This
+one is a direct dependency, and the override exists to settle a **peer**
+conflict rather than to reach a nested version.
+
+`nodemailer@7.0.13` carries ten advisories, two of them HIGH
+(GHSA-2x7j-588g-ccc2, quadratic time in `addressparser`; GHSA-p6gq-j5cr-w38f,
+`raw` bypassing `disableFileAccess`/`disableUrlAccess`). The highest fix line
+is 9.1.1, so clearing all ten means leaving 7.x, and 10.0.10 has none.
+
+But `next-auth@4.24.15` declares `peerOptional nodemailer@^7.0.7`, and 4.24.15
+is the last of v4 — there is no newer 4.x that widens it. The peer is inert
+here: `next-auth/providers/email` is the only thing that loads nodemailer, and
+this app registers Credentials, AzureAD and Google. So the override pins
+next-auth's peer to the root's version rather than holding a HIGH advisory to
+satisfy a provider that is never imported.
+
+If an Email provider is ever added to `src/auth.ts`, this override stops being
+free and the version pair has to be revisited.
 
 ## `.secret-patterns` is not byte-for-byte
 
