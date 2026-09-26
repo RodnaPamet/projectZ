@@ -212,7 +212,10 @@ export const env = createEnv({
     SMTP_PORT: z.coerce.number().optional(),
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
-    SMTP_FROM: z.string().default('noreply@inflect.app'),
+    // Was `noreply@inflect.app` — a leftover from the compliance product this
+    // codebase started as, which would have put another company's domain in
+    // the From header of every invite.
+    SMTP_FROM: z.string().default('noreply@playerz.bg'),
 
     // Web Push (VAPID). Optional: without them push is simply not sent, and the
     // notification CENTRE still has the row — the user sees it when they open

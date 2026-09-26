@@ -79,6 +79,10 @@ export const AUDIT_ACTIONS = {
   /// MEMBER_ROLE_CHANGED and MEMBER_REMOVED already exist at the top of this
   /// list — the staff screen reuses them rather than minting near-duplicates.
   MEMBER_REINSTATED: 'MEMBER_REINSTATED',
+  INVITE_SENT: 'INVITE_SENT',
+  INVITE_REVOKED: 'INVITE_REVOKED',
+  /// The invitee accepted. actorUserId is THEM, not the person who invited.
+  INVITE_ACCEPTED: 'INVITE_ACCEPTED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

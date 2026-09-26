@@ -3,7 +3,10 @@
 import type { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 
+import { createInvite, revokeInvite, INVITABLE_ROLES } from '@/app-layer/usecases/invites';
 import { changeMemberRole, setMemberSuspended } from '@/app-layer/usecases/staff';
+import { sendMail } from '@/lib/email/mailer';
+import { env } from '@/env';
 import { requireTenantAction } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -93,6 +96,71 @@ export async function setSuspendedAction(
     );
   } catch (err) {
     return mapError(err);
+  }
+
+  revalidatePath(`/t/${slug}/admin/staff`);
+  return { ok: true };
+}
+
+export async function inviteStaffAction(
+  slug: string,
+  _prev: ActionResult | null,
+  form: FormData,
+): Promise<ActionResult> {
+  const ctx = await requireTenantAction(slug, 'admin.staff_manage');
+
+  const email = String(form.get('email') ?? '').trim();
+  const role = String(form.get('role') ?? '');
+
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: 'BAD_EMAIL' };
+  if (!INVITABLE_ROLES.includes(role as Role)) return { ok: false, error: 'BAD_ROLE' };
+
+  let token: string;
+  try {
+    const invite = await runInTenantContext(ctx.tenantId, (db) =>
+      createInvite(db, ctx.tenantId, ctx.userId, { email, role: role as Role }),
+    );
+    token = invite.token;
+  } catch (err) {
+    const name = err instanceof Error ? err.name : '';
+    if (name === 'AlreadyInvitedError') return { ok: false, error: 'ALREADY_INVITED' };
+    if (name === 'RoleNotInvitableError') return { ok: false, error: 'BAD_ROLE' };
+    throw err;
+  }
+
+  // ═══ SENT AFTER THE ROW COMMITS, AND FAILURE IS REPORTED ═══
+  //
+  // The token exists exactly once, in memory, right here — it is stored only
+  // as a keyed hash. So if delivery fails there is no way to resend this one,
+  // and the honest answer is to say so and let the admin revoke and retry
+  // rather than to leave a row nobody can act on.
+  const link = `${env.NEXTAUTH_URL}/invite/${token}`;
+  try {
+    await sendMail({
+      to: email,
+      subject: `You have been invited to join a club on playerz.bg`,
+      text: `You have been invited to help run a club on playerz.bg.\n\nOpen this link to accept:\n${link}\n\nThe link works once and expires in 14 days.`,
+    });
+  } catch {
+    return { ok: false, error: 'MAIL_FAILED' };
+  }
+
+  revalidatePath(`/t/${slug}/admin/staff`);
+  return { ok: true };
+}
+
+export async function revokeInviteAction(slug: string, inviteId: string): Promise<ActionResult> {
+  const ctx = await requireTenantAction(slug, 'admin.staff_manage');
+
+  try {
+    await runInTenantContext(ctx.tenantId, (db) =>
+      revokeInvite(db, ctx.tenantId, ctx.userId, inviteId),
+    );
+  } catch (err) {
+    if (err instanceof Error && err.name === 'InviteNotUsableError') {
+      return { ok: false, error: 'NOT_FOUND' };
+    }
+    throw err;
   }
 
   revalidatePath(`/t/${slug}/admin/staff`);

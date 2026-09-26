@@ -1,12 +1,19 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
 
-import { changeRoleAction, setSuspendedAction } from './actions';
+import {
+  changeRoleAction,
+  inviteStaffAction,
+  revokeInviteAction,
+  setSuspendedAction,
+} from './actions';
 
 /**
  * Who runs the club.
@@ -22,12 +29,17 @@ import { changeRoleAction, setSuspendedAction } from './actions';
  * case, against a counted query rather than this list — which is capped, and
  * so cannot answer "is this the last owner?" for a club of 200.
  *
- * ═══ NO INVITE CONTROL, DELIBERATELY ═══
+ * ═══ INVITES ═══
  *
- * Invites cannot work yet: there is no acceptance route and no mailer (#199).
- * A button that wrote rows nobody can accept, with no way to deliver the
- * token, would be worse than its absence. Promoting an existing member is how
- * a club gains staff until that lands, which is why PLAYER rows are listed.
+ * They work now (#199): a mailer, an acceptance page at `/invite/[token]`, and
+ * a single-use expiring token stored only as a keyed hash.
+ *
+ * An invite cannot name OWNER. It is accepted by whoever holds the link, and
+ * ownership carries the two-party protection the staff list enforces above —
+ * one forwarded email must not be able to route around it.
+ *
+ * Promoting an existing member still works and is often the better route,
+ * which is why PLAYER rows remain in the list.
  */
 
 export interface StaffRow {
@@ -39,17 +51,29 @@ export interface StaffRow {
   status: string;
 }
 
+export interface OpenInviteRow {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+}
+
+/** OWNER is absent on purpose — see the docblock. */
+const INVITE_ROLES = ['MANAGER', 'COACH', 'STAFF', 'PLAYER'] as const;
+
 const ROLES = ['OWNER', 'MANAGER', 'COACH', 'STAFF', 'PLAYER'] as const;
 
 export function StaffBoard({
   slug,
   members,
+  invites,
   viewerUserId,
   canManageOwners,
   activeOwnerCount,
 }: {
   slug: string;
   members: readonly StaffRow[];
+  invites: readonly OpenInviteRow[];
   viewerUserId: string;
   canManageOwners: boolean;
   activeOwnerCount: number;
@@ -58,8 +82,9 @@ export function StaffBoard({
 
   return (
     <>
-      <p className="text-content-muted mb-4 text-sm">{t('inviteUnavailable')}</p>
+      <InviteSection slug={slug} invites={invites} />
 
+      <h2 className="mt-8 mb-2 font-medium">{t('membersHeading')}</h2>
       <ul className="grid gap-2">
         {members.map((m) => {
           const isSelf = m.userId === viewerUserId;
@@ -201,5 +226,105 @@ function SuspendButton({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Inviting somebody, and the invites still waiting.
+ *
+ * Only OPEN invites are listed. An accepted one is answered by the member now
+ * in the list above; a revoked or expired one is answered by its absence. Both
+ * remain in `audit_entry`, which nothing deletes.
+ */
+function InviteSection({ slug, invites }: { slug: string; invites: readonly OpenInviteRow[] }) {
+  const t = useTranslations('admin.staff');
+  const format = useFormatter();
+  const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(inviteStaffAction.bind(null, slug), null);
+
+  // A successful send closes the form; the new invite arrives via revalidation.
+  if (state?.ok && open) setOpen(false);
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="font-medium">{t('inviteHeading')}</h2>
+        {!open && (
+          <Button type="button" onClick={() => setOpen(true)}>
+            {t('action.invite')}
+          </Button>
+        )}
+      </div>
+
+      {open && (
+        <form action={formAction} className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="invite-email">{t('field.email')}</Label>
+            <Input id="invite-email" name="email" type="email" required autoComplete="off" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="invite-role">{t('field.role')}</Label>
+            <select
+              id="invite-role"
+              name="role"
+              defaultValue="COACH"
+              className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
+            >
+              {INVITE_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {t(`role.${r}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button type="submit" disabled={pending}>
+            {t('action.send')}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            {t('action.cancel')}
+          </Button>
+          {/* OWNER is not offered, and the reason is worth saying: an invite is
+              accepted by whoever holds the link. */}
+          <p className="text-content-muted w-full text-sm">{t('inviteNote')}</p>
+          {state && !state.ok && (
+            <p role="alert" className="text-content-error w-full text-sm">
+              {t(`error.${state.error}`)}
+            </p>
+          )}
+        </form>
+      )}
+
+      {invites.length > 0 && (
+        <ul className="mt-3 grid gap-2">
+          {invites.map((i) => (
+            <li
+              key={i.id}
+              className="border-border-subtle flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+            >
+              <div>
+                <span className="font-medium">{i.email}</span>
+                <p className="text-content-muted text-sm">
+                  {t(`role.${i.role}`)} ·{' '}
+                  {t('invite.expires', {
+                    date: format.dateTime(new Date(i.expiresAt), { dateStyle: 'medium' }),
+                  })}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={async () => {
+                  if (window.confirm(t('invite.revokeConfirm', { email: i.email }))) {
+                    await revokeInviteAction(slug, i.id);
+                  }
+                }}
+              >
+                {t('action.revoke')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

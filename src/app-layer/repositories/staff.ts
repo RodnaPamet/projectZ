@@ -73,3 +73,27 @@ export async function listStaff(db: PrismaClient, tenantId: string): Promise<Sta
 export async function countActiveOwners(db: PrismaClient, tenantId: string): Promise<number> {
   return db.tenantMembership.count({ where: { tenantId, role: 'OWNER', status: 'ACTIVE' } });
 }
+
+export interface OpenInvite {
+  id: string;
+  email: string;
+  role: Role;
+  expiresAt: Date;
+}
+
+/**
+ * Invites that are still live: not accepted, not revoked, not expired.
+ *
+ * Spent and revoked rows are deliberately excluded rather than shown greyed
+ * out. The screen's question is "who is still waiting to join"; an accepted
+ * invite is answered by the member now in the list above it, and the history
+ * of both lives in `audit_entry`, which nothing deletes.
+ */
+export async function listOpenInvites(db: PrismaClient, tenantId: string): Promise<OpenInvite[]> {
+  return db.invite.findMany({
+    where: { tenantId, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+    select: { id: true, email: true, role: true, expiresAt: true },
+    orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }],
+    take: 100,
+  });
+}
