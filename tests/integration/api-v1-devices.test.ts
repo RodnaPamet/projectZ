@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { encode } from 'next-auth/jwt';
 import { NextRequest } from 'next/server';
 
@@ -93,6 +95,42 @@ describe('POST /api/v1/devices', () => {
     // Nothing stored: a row written under a guessed environment is the thing
     // that gets deleted later, so there must not be one.
     expect(await db.deviceToken.findFirst({ where: { deviceToken: TOKEN } })).toBeNull();
+  });
+
+  it('the OpenAPI spec agrees that environment is required', () => {
+    // ═══ WHY A SPEC ASSERTION LIVES IN A ROUTE TEST ═══
+    //
+    // The iOS client is GENERATED from that spec. `openapi-coverage` checks
+    // that every route has a path and every path has a route, and is explicit
+    // that it does NOT check schemas — so a spec that disagrees with a route
+    // about which fields are required produces a client that compiles, calls a
+    // real endpoint, and is rejected at runtime.
+    //
+    // That had already happened here. The route stopped defaulting
+    // `environment` (it was silently turning a debug build's SANDBOX token into
+    // PRODUCTION, which got the registration DELETED on first push) but the
+    // spec still said optional, `default: PRODUCTION`. The generated Swift type
+    // made the field optional, so the client could omit what the server now
+    // refuses.
+    //
+    // Narrow on purpose: it pins the one contract this route changed, rather
+    // than pretending to validate every schema in the document.
+    const spec = JSON.parse(readFileSync('openapi/playerz-v1.json', 'utf8')) as {
+      components: {
+        schemas: {
+          DeviceRegistration: {
+            required?: string[];
+            properties: Record<string, { default?: unknown }>;
+          };
+        };
+      };
+    };
+    const schema = spec.components.schemas.DeviceRegistration;
+
+    expect(schema.required).toContain('environment');
+    // A default is what the route used to do and deliberately stopped doing.
+    // Leaving one documented invites a client to omit the field.
+    expect(schema.properties.environment).not.toHaveProperty('default');
   });
 
   it('keeps SANDBOX and PRODUCTION as separate registrations of the same token', async () => {
