@@ -124,7 +124,16 @@
       "prevYear": "Go to previous year",
       "prevMonth": "Go to previous month",
       "nextMonth": "Go to next month",
-      "nextYear": "Go to next year"
+      "nextYear": "Go to next year",
+      "weekdayShort": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      }
     },
     "copy": {
       "copy": "Copy",
@@ -323,6 +332,61 @@
       },
       "archive": {
         "confirm": "{count, plural, one {# upcoming booking on this court. Archiving does not cancel it. Continue?} other {# upcoming bookings on this court. Archiving does not cancel them. Continue?}}"
+      }
+    },
+    "pricing": {
+      "metaTitle": "Pricing",
+      "title": "Pricing",
+      "subtitle": "Rules on top of the base price. Higher priority wins.",
+      "basePrice": "Base price: {price}",
+      "empty": {
+        "title": "No rules for this court",
+        "description": "Without rules every booking is charged at the base price."
+      },
+      "noCourts": {
+        "title": "Add a court first",
+        "description": "Pricing rules belong to a specific court."
+      },
+      "condition": {
+        "always": "Always",
+        "level": "level: {level}"
+      },
+      "trace": {
+        "applied": "Applied",
+        "notApplied": "Not applied"
+      },
+      "effect": {
+        "multiplier": "Multiplier",
+        "fixed": "Fixed price"
+      },
+      "field": {
+        "court": "Court",
+        "name": "Name",
+        "priority": "Priority",
+        "days": "Days",
+        "from": "From",
+        "to": "To",
+        "effect": "Effect",
+        "multiplier": "Multiplier",
+        "fixedPrice": "Fixed price (€)"
+      },
+      "action": {
+        "add": "New rule",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "delete": {
+        "confirm": "Delete the rule “{name}”?"
+      },
+      "preview": {
+        "title": "Price check",
+        "day": "Day",
+        "from": "Start",
+        "duration": "Minutes",
+        "via": "via rule “{name}”",
+        "base": "at the base price"
       }
     }
   }
