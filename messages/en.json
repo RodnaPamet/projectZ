@@ -388,6 +388,49 @@
         "via": "via rule “{name}”",
         "base": "at the base price"
       }
+    },
+    "players": {
+      "metaTitle": "Players",
+      "title": "Players",
+      "subtitle": "The people who play at your club, and their credit.",
+      "search": "Search by name or email",
+      "credit": "credit",
+      "noShows": "{count, plural, one {# no-show} other {# no-shows}}",
+      "truncated": "Showing the first {limit} players.",
+      "empty": {
+        "title": "No players yet",
+        "description": "Players appear here after their first booking."
+      },
+      "noMatch": {
+        "title": "No matches",
+        "description": "Try a different name or email."
+      },
+      "field": {
+        "tags": "Tags",
+        "tagsPlaceholder": "beginner, vip",
+        "tagsHint": "Comma separated. Can be used in pricing rules.",
+        "adjust": "Adjust credit",
+        "direction": "Direction",
+        "maxDebit": "At most {amount} — the balance cannot go negative.",
+        "note": "Reason",
+        "notePlaceholder": "Charged twice for Tuesday 19:00"
+      },
+      "direction": {
+        "credit": "Add",
+        "debit": "Deduct"
+      },
+      "action": {
+        "manage": "Manage",
+        "close": "Close",
+        "saveTags": "Save tags",
+        "adjust": "Record"
+      },
+      "error": {
+        "AMOUNT_INVALID": "Enter an amount greater than zero.",
+        "NOTE_REQUIRED": "The reason must be at least 8 characters — it is the only record of why.",
+        "INSUFFICIENT_CREDIT": "The balance is now lower. Reload and try again.",
+        "TOO_LARGE": "That exceeds the limit for a single adjustment."
+      }
     }
   }
 }
