@@ -473,6 +473,29 @@
         "NOT_FOUND": "That member no longer exists. Reload the page.",
         "BAD_ROLE": "Unknown role."
       }
+    },
+    "calendar": {
+      "metaTitle": "Calendar",
+      "title": "Calendar",
+      "subtitle": "One day, every court. Times are on the club's clock.",
+      "nav": {
+        "previous": "‹ Previous day",
+        "next": "Next day ›",
+        "today": "Today"
+      },
+      "legend": {
+        "confirmed": "Confirmed",
+        "pending": "Pending (holds the slot)"
+      },
+      "expiresAt": "expires {time}",
+      "emptyDay": "No bookings on {day}.",
+      "noCourts": "Add a court first — the calendar shows the club’s courts.",
+      "guest": "Guest",
+      "unknownPlayer": "Unknown player",
+      "tz": {
+        "badge": "Timezone",
+        "note": "All times are the club's local time, not yours."
+      }
     }
   }
 }
