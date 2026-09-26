@@ -17,7 +17,16 @@ import { pushChannels } from '@/lib/push/channels';
  * signal that lies.
  */
 
-const APNS = ['APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_PRIVATE_KEY'] as const;
+const APNS = [
+  'APNS_KEY_ID',
+  'APNS_TEAM_ID',
+  'APNS_PRIVATE_KEY',
+  // The sandbox pair must be saved and cleared too, or the scoped-key test
+  // below leaks a sandbox credential into every test after it and they start
+  // reporting `configured` for reasons that have nothing to do with them.
+  'APNS_KEY_ID_SANDBOX',
+  'APNS_PRIVATE_KEY_SANDBOX',
+] as const;
 const VAPID = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const;
 
 describe('pushChannels', () => {
@@ -39,7 +48,10 @@ describe('pushChannels', () => {
   });
 
   it('reports both channels disabled when nothing is set', () => {
-    expect(pushChannels()).toEqual({ webPush: 'disabled', apns: 'disabled' });
+    expect(pushChannels()).toEqual({
+      webPush: 'disabled',
+      apns: { production: 'disabled', sandbox: 'disabled' },
+    });
   });
 
   it('reports apns configured only when ALL THREE credentials are present', () => {
@@ -47,16 +59,42 @@ describe('pushChannels', () => {
     // null if any is absent, so anything short of three is a disabled channel —
     // and that is exactly the state a partially-configured deploy is in.
     process.env.APNS_KEY_ID = 'ABC123';
-    expect(pushChannels().apns).toBe('disabled');
+    expect(pushChannels().apns.production).toBe('disabled');
 
     process.env.APNS_TEAM_ID = 'TEAM456';
-    expect(pushChannels().apns).toBe('disabled');
+    expect(pushChannels().apns.production).toBe('disabled');
 
     // Deliberately NOT shaped like a PEM. `pushChannels` checks presence, not
     // parseability, so a realistic-looking key would buy nothing here and would
     // trip the secret scanner — which is working as intended when it does.
     process.env.APNS_PRIVATE_KEY = 'any-non-empty-value';
-    expect(pushChannels().apns).toBe('configured');
+    expect(pushChannels().apns.production).toBe('configured');
+    // Sandbox falls back to the production pair, matching `credentials()` in
+    // apns.ts. A one-key deployment can genuinely reach both.
+    expect(pushChannels().apns.sandbox).toBe('configured');
+  });
+
+  it('reports the two APNs environments independently when the keys are scoped', () => {
+    // ═══ WHY THIS SHAPE EXISTS AT ALL ═══
+    //
+    // An APNs auth key can be scoped to ONE environment, and both of this
+    // account's are — each is refused by the other with
+    // BadEnvironmentKeyInToken, measured against Apple.
+    //
+    // A debug build registers against SANDBOX and TestFlight against
+    // PRODUCTION. A single `apns: configured` therefore claimed push worked
+    // while half the devices were unreachable, which is the readiness signal
+    // that lies all over again.
+    process.env.APNS_TEAM_ID = 'TEAM456';
+    process.env.APNS_KEY_ID_SANDBOX = 'SANDBOXKEY';
+    process.env.APNS_PRIVATE_KEY_SANDBOX = 'sandbox-key-value';
+
+    expect(pushChannels().apns).toEqual({ production: 'disabled', sandbox: 'configured' });
+
+    process.env.APNS_KEY_ID = 'PRODKEY';
+    process.env.APNS_PRIVATE_KEY = 'prod-key-value';
+
+    expect(pushChannels().apns).toEqual({ production: 'configured', sandbox: 'configured' });
   });
 
   it('reports web push configured only when all three VAPID values are present', () => {
@@ -75,7 +113,10 @@ describe('pushChannels', () => {
     process.env.VAPID_PRIVATE_KEY = 'priv';
     process.env.VAPID_SUBJECT = 'mailto:ops@playerz.bg';
 
-    expect(pushChannels()).toEqual({ webPush: 'configured', apns: 'disabled' });
+    expect(pushChannels()).toEqual({
+      webPush: 'configured',
+      apns: { production: 'disabled', sandbox: 'disabled' },
+    });
   });
 
   it('treats an empty string as absent, not as a value', () => {
@@ -87,7 +128,7 @@ describe('pushChannels', () => {
     process.env.APNS_TEAM_ID = '';
     process.env.APNS_PRIVATE_KEY = '';
 
-    expect(pushChannels().apns).toBe('disabled');
+    expect(pushChannels().apns).toEqual({ production: 'disabled', sandbox: 'disabled' });
   });
 });
 

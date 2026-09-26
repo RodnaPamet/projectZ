@@ -276,9 +276,13 @@ async function main() {
 
   process.env.APNS_KEY_ID = keyId;
   process.env.APNS_TEAM_ID = teamId;
+  // Both slots, so --key-id applies whichever environment is being probed.
+  process.env.APNS_KEY_ID_SANDBOX = keyId;
+  process.env.APNS_PRIVATE_KEY_SANDBOX = process.env.APNS_PRIVATE_KEY;
   resetProviderTokenCache();
 
-  const jwt = mintProviderToken();
+  // Mint for the environment being probed — the keys are scoped to one.
+  const jwt = mintProviderToken(Date.now(), environment === 'sandbox' ? 'SANDBOX' : 'PRODUCTION');
   if (!jwt) {
     console.error('mintProviderToken returned null with all three present — that is itself a bug.');
     process.exitCode = 1;

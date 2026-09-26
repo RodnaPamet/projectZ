@@ -52,6 +52,73 @@ beforeEach(() => {
   process.env.APNS_KEY_ID = 'ABC123DEFG';
   process.env.APNS_TEAM_ID = 'TEAM123456';
   process.env.APNS_PRIVATE_KEY = privateKey as string;
+  delete process.env.APNS_KEY_ID_SANDBOX;
+  delete process.env.APNS_PRIVATE_KEY_SANDBOX;
+});
+
+/** The `kid` a minted token names, without trusting any other part of it. */
+function keyIdOf(jwt: string): string {
+  const header = JSON.parse(Buffer.from(jwt.split('.')[0]!, 'base64url').toString()) as {
+    kid: string;
+  };
+  return header.kid;
+}
+
+describe('per-environment signing keys', () => {
+  // ═══ WHY THIS EXISTS ═══
+  //
+  // An APNs auth key can be scoped to ONE environment, and both of this
+  // account's are. Measured against Apple with a dead device token:
+  //
+  //   key A  production -> 400 BadDeviceToken            (accepted)
+  //          sandbox    -> 403 BadEnvironmentKeyInToken  (refused)
+  //   key B  sandbox    -> 400 BadDeviceToken            (accepted)
+  //          production -> 403 BadEnvironmentKeyInToken  (refused)
+  //
+  // They are complementary, not alternatives. A debug build registers against
+  // SANDBOX and TestFlight against PRODUCTION, so a single key reaches half the
+  // devices — and before the CONFIG_ERROR split, the other half had their rows
+  // DELETED for it.
+
+  it('signs a SANDBOX send with the sandbox key', () => {
+    process.env.APNS_KEY_ID_SANDBOX = 'SANDBOXKEY';
+    process.env.APNS_PRIVATE_KEY_SANDBOX = privateKey as string;
+
+    expect(keyIdOf(mintProviderToken(Date.now(), 'SANDBOX')!)).toBe('SANDBOXKEY');
+    expect(keyIdOf(mintProviderToken(Date.now(), 'PRODUCTION')!)).toBe('ABC123DEFG');
+  });
+
+  it('falls back to the production key when no sandbox key is set', () => {
+    // A deployment with one both-environment key must keep working untouched.
+    expect(keyIdOf(mintProviderToken(Date.now(), 'SANDBOX')!)).toBe('ABC123DEFG');
+  });
+
+  it('caches per environment, so one send cannot be given the other key', () => {
+    // The cache was a single slot, on the stated assumption that there is one
+    // signing key per app. With scoped keys that slot hands a sandbox token to
+    // a production send, and Apple answers BadEnvironmentKeyInToken for every
+    // push until the 50-minute TTL rolls over.
+    process.env.APNS_KEY_ID_SANDBOX = 'SANDBOXKEY';
+    process.env.APNS_PRIVATE_KEY_SANDBOX = privateKey as string;
+
+    const t = 1_000_000;
+    expect(keyIdOf(mintProviderToken(t, 'SANDBOX')!)).toBe('SANDBOXKEY');
+    // Same instant, so a single-slot cache would return the sandbox token here.
+    expect(keyIdOf(mintProviderToken(t, 'PRODUCTION')!)).toBe('ABC123DEFG');
+    // And back again, proving neither slot was evicted by the other.
+    expect(keyIdOf(mintProviderToken(t, 'SANDBOX')!)).toBe('SANDBOXKEY');
+  });
+
+  it('sendApns signs with the key for the DEVICE’s environment', () => {
+    process.env.APNS_KEY_ID_SANDBOX = 'SANDBOXKEY';
+    process.env.APNS_PRIVATE_KEY_SANDBOX = privateKey as string;
+
+    const { transport, calls } = recordingTransport({ status: 200 });
+    return sendApns({ ...DEVICE, environment: 'SANDBOX' }, PAYLOAD, { transport }).then(() => {
+      const auth = String(calls[0]!.headers.authorization).replace('bearer ', '');
+      expect(keyIdOf(auth)).toBe('SANDBOXKEY');
+    });
+  });
 });
 
 describe('provider token', () => {

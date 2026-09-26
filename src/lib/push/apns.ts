@@ -17,8 +17,8 @@ import { sign } from 'node:crypto';
  * push would work in development and start failing under real traffic, which
  * is the worst possible place to discover it.
  *
- * So it is minted at most every 50 minutes. The cache is keyed by nothing —
- * there is one signing key per app.
+ * So it is minted at most every 50 minutes, per environment. The cache is
+ * keyed by environment because the keys are: see `credentials` below.
  *
  * ═══ ES256 SIGNATURES ARE RAW, NOT DER ═══
  *
@@ -107,19 +107,61 @@ const PERMANENT = new Set([
  */
 const CONFIG_ERROR = new Set(['BadTopic', 'TopicDisallowed', 'BadEnvironmentKeyInToken']);
 
-let cachedToken: { jwt: string; mintedAt: number } | null = null;
+const cachedTokens = new Map<ApnsEnvironment, { jwt: string; mintedAt: number }>();
 
-export function mintProviderToken(now = Date.now()): string | null {
-  const keyId = process.env.APNS_KEY_ID;
-  const teamId = process.env.APNS_TEAM_ID;
-  const privateKey = process.env.APNS_PRIVATE_KEY;
+/**
+ * The signing key for one APNs environment.
+ *
+ * ═══ WHY THERE ARE TWO, AND WHY ONE IS NOT ENOUGH ═══
+ *
+ * An APNs auth key can be scoped to a single environment, and both of this
+ * account's keys are. Measured against Apple with a dead device token:
+ *
+ *   key A   production -> 400 BadDeviceToken            (accepted)
+ *           sandbox    -> 403 BadEnvironmentKeyInToken  (refused)
+ *   key B   sandbox    -> 400 BadDeviceToken            (accepted)
+ *           production -> 403 BadEnvironmentKeyInToken  (refused)
+ *
+ * So they are complementary, not alternatives, and a single `APNS_KEY_ID`
+ * could only ever serve half the devices. A debug build registers against
+ * SANDBOX and TestFlight against PRODUCTION, so with one key half of all
+ * pushes fail — and before the CONFIG_ERROR change above, failed by deleting
+ * the device row.
+ *
+ * Two scoped keys is also the better arrangement: a development key that
+ * leaks cannot notify real users.
+ *
+ * SANDBOX falls back to the production pair when unset, so a deployment with
+ * one key behaves exactly as it did before this change.
+ */
+function credentials(environment: ApnsEnvironment) {
+  const sandbox = environment === 'SANDBOX';
+  return {
+    keyId: (sandbox ? process.env.APNS_KEY_ID_SANDBOX : undefined) ?? process.env.APNS_KEY_ID,
+    teamId: process.env.APNS_TEAM_ID,
+    privateKey:
+      (sandbox ? process.env.APNS_PRIVATE_KEY_SANDBOX : undefined) ?? process.env.APNS_PRIVATE_KEY,
+  };
+}
+
+export function mintProviderToken(
+  now = Date.now(),
+  environment: ApnsEnvironment = 'PRODUCTION',
+): string | null {
+  const { keyId, teamId, privateKey } = credentials(environment);
 
   // Push is an enhancement. Missing credentials disable it rather than
   // throwing into whatever was trying to notify somebody.
   if (!keyId || !teamId || !privateKey) return null;
 
-  if (cachedToken && now - cachedToken.mintedAt < TOKEN_TTL_MS) {
-    return cachedToken.jwt;
+  // Keyed by environment now. The header comment used to say the cache was
+  // "keyed by nothing — there is one signing key per app", which stopped being
+  // true the moment a second, environment-scoped key existed: one slot would
+  // hand a sandbox token to a production send and vice versa, and every push
+  // would come back BadEnvironmentKeyInToken.
+  const cached = cachedTokens.get(environment);
+  if (cached && now - cached.mintedAt < TOKEN_TTL_MS) {
+    return cached.jwt;
   }
 
   const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -137,13 +179,13 @@ export function mintProviderToken(now = Date.now()): string | null {
   }).toString('base64url');
 
   const jwt = `${signingInput}.${signature}`;
-  cachedToken = { jwt, mintedAt: now };
+  cachedTokens.set(environment, { jwt, mintedAt: now });
   return jwt;
 }
 
 /** Only for tests — the cache is otherwise process-lifetime. */
 export function resetProviderTokenCache(): void {
-  cachedToken = null;
+  cachedTokens.clear();
 }
 
 export interface ApnsTransport {
@@ -227,7 +269,7 @@ export async function sendApns(
   // is "persist, then push"; a bad credential must not undo the persist.
   let token: string | null;
   try {
-    token = mintProviderToken(deps.now?.() ?? Date.now());
+    token = mintProviderToken(deps.now?.() ?? Date.now(), device.environment);
   } catch (err) {
     return {
       ok: false,

@@ -39,8 +39,19 @@ export type ChannelState = 'configured' | 'disabled';
 export interface PushChannels {
   /** Web Push (VAPID) — browsers and the PWA. */
   webPush: ChannelState;
-  /** APNs — the native iOS client. */
-  apns: ChannelState;
+  /**
+   * APNs, PER ENVIRONMENT — because an auth key can be scoped to one.
+   *
+   * Reporting a single `apns: configured` was accurate only while one key
+   * served both. It does not: both of this account's keys are scoped, and each
+   * is refused by the other environment with `BadEnvironmentKeyInToken`.
+   *
+   * A debug build registers against SANDBOX and TestFlight against PRODUCTION.
+   * A single flag therefore said "push works" while half of all devices could
+   * not be reached — exactly the readiness signal that lies which #166 was
+   * opened about, one level down.
+   */
+  apns: { production: ChannelState; sandbox: ChannelState };
 }
 
 const state = (present: boolean): ChannelState => (present ? 'configured' : 'disabled');
@@ -58,13 +69,24 @@ export function pushChannels(): PushChannels {
         Boolean(process.env.VAPID_PRIVATE_KEY) &&
         Boolean(process.env.VAPID_SUBJECT),
     ),
-    // All three, because mintProviderToken requires all three and returns null
-    // if any is absent. Reporting "configured" on two of them would be a
-    // readiness signal that lies.
-    apns: state(
-      Boolean(process.env.APNS_KEY_ID) &&
-        Boolean(process.env.APNS_TEAM_ID) &&
-        Boolean(process.env.APNS_PRIVATE_KEY),
-    ),
+    // All three per environment, because mintProviderToken needs all three and
+    // returns null if any is absent. Reporting "configured" on two of them
+    // would be a readiness signal that lies.
+    //
+    // SANDBOX falls back to the production pair, matching `credentials()` in
+    // apns.ts — so one-key deployments report both as configured, which is
+    // true for them, and a scoped pair reports what it can actually reach.
+    apns: {
+      production: state(
+        Boolean(process.env.APNS_KEY_ID) &&
+          Boolean(process.env.APNS_TEAM_ID) &&
+          Boolean(process.env.APNS_PRIVATE_KEY),
+      ),
+      sandbox: state(
+        Boolean(process.env.APNS_KEY_ID_SANDBOX ?? process.env.APNS_KEY_ID) &&
+          Boolean(process.env.APNS_TEAM_ID) &&
+          Boolean(process.env.APNS_PRIVATE_KEY_SANDBOX ?? process.env.APNS_PRIVATE_KEY),
+      ),
+    },
   };
 }
