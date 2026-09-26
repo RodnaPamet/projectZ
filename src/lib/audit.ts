@@ -72,6 +72,10 @@ export const AUDIT_ACTIONS = {
   /// Pricing rules CAN be deleted — unlike a court, nothing references one.
   /// A booking stores the price it was charged, not the rule that produced it.
   PRICING_RULE_DELETED: 'PRICING_RULE_DELETED',
+  PLAYER_TAGS_CHANGED: 'PLAYER_TAGS_CHANGED',
+  /// A staff member moved a player's credit by hand. The ledger row is the
+  /// record of the money; this is the record of the decision.
+  PLAYER_CREDIT_ADJUSTED: 'PLAYER_CREDIT_ADJUSTED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
