@@ -1,0 +1,42 @@
+-- P33: an index for the order the platform club list actually pages in.
+--
+-- ═══ WHAT WAS MEASURED, AND ON WHAT ═══
+--
+-- 50 000 rows in `venue_org` on the test cluster, EXPLAIN (ANALYZE):
+--
+--   page one, no index      86.9 ms   Seq Scan + top-N heapsort
+--   page one, with index     0.3 ms   Index Only Scan, no sort
+--
+-- The route orders by `("createdAt", id)` — `id` because `createdAt` is not
+-- unique and a non-unique sort key makes a cursor skip rows — so an index on
+-- `createdAt` alone would still leave a sort behind.
+--
+-- ═══ WHY platform_audit_entry DOES NOT GET THE SAME INDEX ═══
+--
+-- It was proposed and MEASURED NOT TO HELP. That table already has
+-- `platform_audit_entry_createdAt_idx`, and at 50 000 rows the planner keeps
+-- using it with an Incremental Sort whether or not the composite exists:
+--
+--   page one        1.16 ms → 0.75 ms   (noise)
+--   deep page      18.45 ms → 18.45 ms  (identical)
+--
+-- An index that changes no plan is a write cost and a page-cache cost for
+-- nothing, so it is not created. If that table's access pattern changes, this
+-- is the measurement to redo rather than the conclusion to inherit.
+--
+-- ═══ WHAT THIS DOES NOT FIX ═══
+--
+-- Deep paging. Prisma compiles `cursor` into a correlated subquery, which
+-- filters rather than seeks: at 50 000 rows, page 400 costs ~40 ms with this
+-- index and ~38 ms without it. The seek is available only through row-value
+-- syntax — `WHERE ("createdAt", id) > ($1, $2)` — which the query builder
+-- cannot emit, and which measured 1.3 ms against the same index.
+--
+-- Prisma's other expressible form, `OR: [{createdAt: gt}, {createdAt, id: gt}]`,
+-- is WORSE than the cursor it would replace: 53 ms, same index, identical rows.
+-- So there is no improvement to be had without raw SQL, and raw SQL in this
+-- feature has already produced one authorisation bug (enum arrays returning as
+-- strings from $queryRawUnsafe). Left as a deliberate decision, with numbers,
+-- rather than a silent one.
+
+CREATE INDEX "venue_org_createdAt_id_idx" ON "venue_org"("createdAt", "id");

@@ -70,6 +70,15 @@ model VenueOrg {
 
   @@index([city, country, status])
   @@index([tenantTestRun])
+  /// Serves `ORDER BY createdAt, id` — the stable order the platform club list
+  /// pages through. Measured on 50 000 rows: without it, page one is a
+  /// sequential scan plus a top-N heapsort at 87 ms; with it, an index-only
+  /// scan with no sort at 0.3 ms.
+  ///
+  /// `id` is in the index because it is in the ORDER BY, and it is in the
+  /// ORDER BY because `createdAt` is not unique — a non-unique sort key makes
+  /// a cursor skip rows. See src/app/api/v1/platform/tenants/route.ts.
+  @@index([createdAt, id])
   @@map("venue_org")
 }
 
