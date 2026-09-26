@@ -247,6 +247,20 @@ export const env = createEnv({
     APNS_TEAM_ID: z.string().optional(),
     APNS_PRIVATE_KEY: z.string().optional(),
 
+    // The SANDBOX pair, because an APNs auth key can be scoped to ONE
+    // environment and both of this account's are: each is refused by the other
+    // with `BadEnvironmentKeyInToken`, measured against Apple.
+    //
+    // A debug build of the iOS client registers against SANDBOX; TestFlight and
+    // the App Store register against PRODUCTION. One key reaches half the
+    // devices. Two scoped keys is also the safer arrangement — a development
+    // key that leaks cannot notify real users.
+    //
+    // Unset falls back to the pair above, so a deployment with a single
+    // both-environment key needs no change.
+    APNS_KEY_ID_SANDBOX: z.string().optional(),
+    APNS_PRIVATE_KEY_SANDBOX: z.string().optional(),
+
     // The Prometheus scrape token. Optional — and when it is ABSENT the metrics
     // endpoint returns 404 rather than serving. A missing secret must never mean
     // "no security".
@@ -433,6 +447,8 @@ export const env = createEnv({
     APNS_KEY_ID: process.env.APNS_KEY_ID,
     APNS_TEAM_ID: process.env.APNS_TEAM_ID,
     APNS_PRIVATE_KEY: process.env.APNS_PRIVATE_KEY,
+    APNS_KEY_ID_SANDBOX: process.env.APNS_KEY_ID_SANDBOX,
+    APNS_PRIVATE_KEY_SANDBOX: process.env.APNS_PRIVATE_KEY_SANDBOX,
     METRICS_TOKEN: process.env.METRICS_TOKEN,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
