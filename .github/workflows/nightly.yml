@@ -178,6 +178,30 @@ jobs:
       - name: Open or update the nightly-failure issue
         env:
           GH_TOKEN: ${{ github.token }}
+          # ═══ WITHOUT THIS THE JOB CANNOT FILE ANYTHING ═══
+          #
+          # This job has no `actions/checkout`, deliberately — it needs no repo
+          # content to write an issue. But `gh` resolves the target repository
+          # from the git remote, so with no working tree every `gh issue` call
+          # dies before it starts:
+          #
+          #   failed to run git: fatal: not a git repository
+          #   Process completed with exit code 1
+          #
+          # The step then exits 1 and the nightly failure goes unreported —
+          # the exact inversion this job exists to prevent, and invisible,
+          # because a scheduled run reports at 02:00 into a tab nobody opens.
+          #
+          # MEASURED, not guessed. #183 dispatched the nightly with a
+          # deliberately failing job: the `bug` label exists, the token carried
+          # issue-write, and the heredoc'd body was fine. This was the whole
+          # defect, and the guardrail passed throughout because it checks the
+          # job's SHAPE — needs, always(), issues: write — all of which were
+          # correct.
+          #
+          # `GH_REPO` is gh's documented way to name the repository with no
+          # working tree, and is cheaper than cloning one to write a comment.
+          GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           E2E: ${{ needs.e2e-full.result }}
           VISUAL: ${{ needs.visual-regression.result }}
