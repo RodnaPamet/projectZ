@@ -67,6 +67,11 @@ export const AUDIT_ACTIONS = {
   /// bookings, payments and ledger entries still point at it.
   COURT_ARCHIVED: 'COURT_ARCHIVED',
   COURT_REOPENED: 'COURT_REOPENED',
+  PRICING_RULE_CREATED: 'PRICING_RULE_CREATED',
+  PRICING_RULE_UPDATED: 'PRICING_RULE_UPDATED',
+  /// Pricing rules CAN be deleted — unlike a court, nothing references one.
+  /// A booking stores the price it was charged, not the rule that produced it.
+  PRICING_RULE_DELETED: 'PRICING_RULE_DELETED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
