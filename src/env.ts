@@ -102,18 +102,37 @@ export const env = createEnv({
       (str) => (process.env.VERCEL_URL ? process.env.VERCEL_URL : str),
       process.env.VERCEL ? z.string().optional() : z.string().url(),
     ),
-    AUTH_URL: z.preprocess(
-      (str) => (process.env.VERCEL_URL ? process.env.VERCEL_URL : str),
-      process.env.VERCEL ? z.string().optional() : z.string().url(),
-    ),
-    AUTH_SECRET: z.string().min(16, 'AUTH_SECRET must be at least 16 characters long'),
-    JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long'),
+    // ═══ AUTH_URL, AUTH_SECRET, JWT_SECRET AND UPLOAD_DIR ARE GONE ═══
+    //
+    // All four were REQUIRED here and read by NOTHING — verified by grep over
+    // src, scripts, tests and the workflows. Nothing pinned them: not a test,
+    // not .env.example, not CI.
+    //
+    // `AUTH_URL` and `AUTH_SECRET` are the Auth.js **v5** names. This app is on
+    // next-auth **v4**, which reads `NEXTAUTH_URL` and `NEXTAUTH_SECRET` — both
+    // declared above and both actually used. They arrived with the port from
+    // inflect-compliance, where they are correct.
+    //
+    // The cost was not cosmetic. Four required variables that nothing consumes
+    // made `npm run dev` fail on EVERY route that imports this module, with
+    // "Invalid environment variables" and no hint that the offending names are
+    // never read. /api/health kept working because it imports nothing, which
+    // made it look like a routing problem rather than a config one.
 
-    // Providers
-    GOOGLE_CLIENT_ID: z.string().min(1, 'Google Client ID is required'),
-    GOOGLE_CLIENT_SECRET: z.string().min(1, 'Google Client Secret is required'),
-    MICROSOFT_CLIENT_ID: z.string().min(1, 'Microsoft Client ID is required'),
-    MICROSOFT_CLIENT_SECRET: z.string().min(1, 'Microsoft Client Secret is required'),
+    // ═══ PROVIDERS ═══
+    //
+    // Optional, because `src/auth.ts` now registers each provider only when its
+    // pair is present. Requiring them meant the app could not boot at all
+    // without two OAuth app registrations — including for anyone running tests
+    // or the seed, neither of which signs in through a provider.
+    //
+    // Absent credentials therefore mean "that button is not offered", not "the
+    // app is broken". `/api/ready` reports which methods are live, the same way
+    // it does for push.
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    MICROSOFT_CLIENT_ID: z.string().optional(),
+    MICROSOFT_CLIENT_SECRET: z.string().optional(),
     MICROSOFT_TENANT_ID: z.string().default('common'),
 
     // Rate Limiting
@@ -129,7 +148,6 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 
     // File Storage
-    UPLOAD_DIR: z.string().min(1, 'UPLOAD_DIR must be specified'),
     FILE_STORAGE_ROOT: z.string().optional(),
     FILE_MAX_SIZE_BYTES: z.coerce.number().optional(),
     FILE_ALLOWED_MIME: z.string().optional(),
@@ -395,9 +413,6 @@ export const env = createEnv({
     DATABASE_READ_URL: process.env.DATABASE_READ_URL,
     REDIS_URL: process.env.REDIS_URL,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-    AUTH_URL: process.env.AUTH_URL,
-    AUTH_SECRET: process.env.AUTH_SECRET,
-    JWT_SECRET: process.env.JWT_SECRET,
 
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
@@ -412,7 +427,6 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
 
-    UPLOAD_DIR: process.env.UPLOAD_DIR,
     FILE_STORAGE_ROOT: process.env.FILE_STORAGE_ROOT,
     FILE_MAX_SIZE_BYTES: process.env.FILE_MAX_SIZE_BYTES,
     FILE_ALLOWED_MIME: process.env.FILE_ALLOWED_MIME,
