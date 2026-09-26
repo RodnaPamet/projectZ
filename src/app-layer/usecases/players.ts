@@ -47,7 +47,26 @@ export class CreditAdjustmentTooLargeError extends Error {
  */
 export const MAX_CREDIT_ADJUSTMENT_CENTS = 50_000;
 
+/**
+ * ═══ THE ID IS CHECKED BEFORE IT REACHES PRISMA ═══
+ *
+ * Prisma reads `undefined` in a `where` as NOT SPECIFIED, not as "matches
+ * nothing". So a non-string `playerUserId` — which a crafted POST to a Server
+ * Action can supply, since the argument is not a form field — collapsed
+ * `where: { tenantId, playerUserId }` to `where: { tenantId }`.
+ *
+ * `findFirst` then returned an arbitrary player at the club instead of
+ * refusing, and the `updateMany` below rewrote EVERY player's tags in one
+ * request. Tags drive `PricingConditions.playerTags`, so that is a silent
+ * pricing change for the whole club as well as data loss.
+ */
+function assertId(value: unknown): asserts value is string {
+  if (typeof value !== 'string' || value.trim() === '') throw new PlayerNotAtThisClubError();
+}
+
 async function ownPlayer(db: PrismaClient, tenantId: string, playerUserId: string) {
+  assertId(playerUserId);
+
   const rel = await db.playerVenueRelationship.findFirst({
     where: { tenantId, playerUserId },
     select: { id: true, tags: true },
@@ -70,8 +89,12 @@ export async function setPlayerTags(
   // different rules' worth of behaviour for what a human typed as one tag.
   const cleaned = [...new Set(tags.map((t) => t.trim()).filter(Boolean))].sort();
 
-  await db.playerVenueRelationship.updateMany({
-    where: { tenantId, playerUserId },
+  // By the row's own id, not by a filter. `ownPlayer` has already proved this
+  // row is at this club, and a unique-key update cannot touch a second row
+  // however the arguments arrive. `updateMany` on a filter was what turned a
+  // bad id into a club-wide overwrite.
+  await db.playerVenueRelationship.update({
+    where: { id: before.id },
     data: { tags: cleaned },
   });
 

@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 
-import { computePrice, type PricingRuleRow } from '@/app-layer/usecases/pricing';
+import { computeSpanPrice, type PricingRuleRow } from '@/app-layer/usecases/pricing';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
@@ -60,7 +60,9 @@ export interface PricingRuleView {
 export interface CourtOption {
   id: string;
   name: string;
+  /** The price of ONE minBookingMinutes block, not of a booking. */
   basePriceCents: number;
+  minBookingMinutes: number;
 }
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
@@ -108,11 +110,23 @@ export function PricingBoard({
     if (!court) return null;
     const [h, m] = from.split(':').map((n) => Number.parseInt(n, 10));
     const start = (h ?? 0) * 60 + (m ?? 0);
-    return computePrice(rules as unknown as PricingRuleRow[], {
+    // ═══ PER BLOCK, BECAUSE THAT IS WHAT THE BOOKING ROUTE CHARGES ═══
+    //
+    // `basePriceCents` prices ONE `minBookingMinutes` block. This called
+    // `computePrice` once for the whole span, so a two-hour booking previewed
+    // at the price of one hour — and a peak rule covering only the second hour
+    // was reported as "not applied", which defeats the question this screen
+    // exists to answer.
+    //
+    // `computeSpanPrice` is the same loop `quoteBooking` runs, shared rather
+    // than reimplemented, so the two cannot drift apart again.
+    const units = Math.max(1, Math.floor(duration / court.minBookingMinutes));
+    return computeSpanPrice(rules as unknown as PricingRuleRow[], {
       basePriceCents: court.basePriceCents,
       localDayOfWeek: day,
       localStartMinutes: start,
-      localEndMinutes: start + duration,
+      unitMinutes: court.minBookingMinutes,
+      units,
     });
   }, [court, rules, day, from, duration]);
 
@@ -163,7 +177,10 @@ export function PricingBoard({
         ) : (
           <ul className="grid gap-2">
             {rules.map((r) => {
-              const traced = preview?.ruleTrace.find((x) => x.ruleId === r.id);
+              // Applied to ANY block, not to the span. A rule covering
+              // 18:00–22:00 wins the second hour of a 17:00 two-hour booking
+              // and loses the first, so "did it apply?" has no single answer.
+              const traced = preview ? { matched: preview.appliedRuleIds.includes(r.id) } : null;
               return (
                 <li key={r.id} className="border-border-subtle rounded-lg border p-3">
                   {editingId === r.id ? (
@@ -264,8 +281,10 @@ export function PricingBoard({
               <Input
                 id="pv-dur"
                 type="number"
-                min={15}
-                step={15}
+                // The booking route refuses a duration that is not a whole
+                // number of blocks, so the form must not offer one.
+                min={court?.minBookingMinutes ?? 15}
+                step={court?.minBookingMinutes ?? 15}
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
               />
@@ -277,11 +296,21 @@ export function PricingBoard({
           <div className="border-border-subtle mt-4 border-t pt-4">
             <p className="text-2xl font-semibold tabular-nums">{money(preview.finalPriceCents)}</p>
             <p className="text-content-muted text-sm">
-              {preview.appliedRuleId
-                ? t('preview.via', {
-                    name: rules.find((r) => r.id === preview.appliedRuleId)?.name ?? '',
-                  })
-                : t('preview.base')}
+              {t('preview.units', {
+                units: preview.units,
+                minutes: court?.minBookingMinutes ?? 0,
+              })}
+            </p>
+            <p className="text-content-muted text-sm">
+              {preview.appliedRuleIds.length === 0
+                ? t('preview.base')
+                : preview.appliedRuleIds.length === 1
+                  ? t('preview.via', {
+                      name: rules.find((r) => r.id === preview.appliedRuleIds[0])?.name ?? '',
+                    })
+                  : // Different rules won different blocks; naming one would be
+                    // a lie about the others.
+                    t('preview.mixed')}
             </p>
           </div>
         )}

@@ -386,7 +386,9 @@
         "from": "Start",
         "duration": "Minutes",
         "via": "via rule “{name}”",
-        "base": "at the base price"
+        "base": "at the base price",
+        "units": "{units, plural, one {# block of {minutes} min} other {# blocks of {minutes} min}}",
+        "mixed": "different rules across the blocks"
       }
     },
     "players": {
@@ -429,7 +431,8 @@
         "AMOUNT_INVALID": "Enter an amount greater than zero.",
         "NOTE_REQUIRED": "The reason must be at least 8 characters — it is the only record of why.",
         "INSUFFICIENT_CREDIT": "The balance is now lower. Reload and try again.",
-        "TOO_LARGE": "That exceeds the limit for a single adjustment."
+        "TOO_LARGE": "That exceeds the limit for a single adjustment.",
+        "CONFLICT": "Someone else just changed this balance. Reload and try again."
       }
     },
     "staff": {

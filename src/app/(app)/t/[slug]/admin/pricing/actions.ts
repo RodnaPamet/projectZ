@@ -41,7 +41,12 @@ function parse(form: FormData) {
   const from = clock(form, 'from');
   const to = clock(form, 'to');
   const mode = form.get('mode');
-  const amount = Number(form.get('amount'));
+  // `Number('')` is 0 and `Number(null)` is 0. An absent amount therefore
+  // stored `fixedPriceCents: 0` — a rule making the court free, sitting in the
+  // list looking ordinary — or a x0 multiplier, which does the same.
+  const rawAmount = form.get('amount');
+  const amount =
+    typeof rawAmount === 'string' && rawAmount.trim() !== '' ? Number(rawAmount) : Number.NaN;
 
   return pricingRuleWriteSchema.safeParse({
     resourceId: form.get('resourceId'),
@@ -54,11 +59,17 @@ function parse(form: FormData) {
       // silently dropping it here.
       ...(from && to ? { timeRange: { from, to } } : {}),
     },
-    multiplier: mode === 'multiplier' && Number.isFinite(amount) ? amount : null,
+    // `> 0`, not merely finite: a zero multiplier prices every matching
+    // booking at nothing, and the schema's `.min(0)` permits it.
+    multiplier: mode === 'multiplier' && Number.isFinite(amount) && amount > 0 ? amount : null,
     // The form takes euros for a fixed price because that is what a club
     // thinks in; cents is what the column stores. Rounded, not truncated —
     // 18.99 must not become 1898.
-    fixedPriceCents: mode === 'fixed' && Number.isFinite(amount) ? Math.round(amount * 100) : null,
+    // Zero IS legitimate here (a free members' hour), so it is allowed — but
+    // only when actually typed, which the NaN above distinguishes from an
+    // empty field.
+    fixedPriceCents:
+      mode === 'fixed' && Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : null,
   });
 }
 

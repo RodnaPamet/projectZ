@@ -1,3 +1,5 @@
+import { formatInTimeZone } from 'date-fns-tz';
+
 import { dayWindow } from '@/app-layer/repositories/diary';
 
 /**
@@ -82,5 +84,82 @@ describe('dayWindow', () => {
 
     expect(sofia.from.toISOString()).not.toBe(london.from.toISOString());
     expect(hours(sofia.from, london.from)).toBe(2);
+  });
+});
+
+/**
+ * WHERE A BOOKING IS DRAWN, NOT JUST WHICH DAY IT BELONGS TO.
+ *
+ * `dayWindow` above was correct and its tests passed. The calendar page then
+ * positioned each block with `(startTs - from) / 60000` — elapsed ABSOLUTE
+ * time — which agrees with the wall clock on 363 days a year and diverges by
+ * an hour on the other two, from the transition onward.
+ *
+ * So a booking whose own label read "15:00" was drawn against the 16:00 ruler:
+ * the grid disagreeing with itself, which is exactly what the page's docblock
+ * claimed could not happen. Correct window, wrong placement — the tests
+ * covered the first and not the second.
+ *
+ * This is the arithmetic the page now uses, pinned directly.
+ */
+describe('wall-clock placement on a DST day', () => {
+  const TZ = 'Europe/Sofia';
+
+  /** The page's `wallMinutes`, in the same shape. */
+  const wallMinutes = (d: Date, isoDay: string) => {
+    const [hh, mm] = formatInTimeZone(d, TZ, 'HH:mm').split(':');
+    const minutes = Number(hh) * 60 + Number(mm);
+    const onDay = formatInTimeZone(d, TZ, 'yyyy-MM-dd');
+    if (onDay < isoDay) return minutes - 1440;
+    if (onDay > isoDay) return minutes + 1440;
+    return minutes;
+  };
+
+  /** What the page did before: elapsed absolute minutes from the window start. */
+  const elapsed = (d: Date, isoDay: string) =>
+    Math.round((d.getTime() - dayWindow(isoDay, TZ).from.getTime()) / 60_000);
+
+  it('FALL BACK: a 15:00 booking sits on the 15:00 row, not the 16:00 one', () => {
+    // 25 October 2026, after the 04:00 -> 03:00 shift. 13:00Z is 15:00 local.
+    const b = new Date('2026-10-25T13:00:00Z');
+
+    expect(formatInTimeZone(b, TZ, 'HH:mm')).toBe('15:00');
+    expect(wallMinutes(b, '2026-10-25')).toBe(15 * 60);
+    // The bug, pinned so the fix cannot be quietly reverted.
+    expect(elapsed(b, '2026-10-25')).toBe(16 * 60);
+  });
+
+  it('SPRING FORWARD: the same, an hour the other way', () => {
+    // 29 March 2026, after 03:00 -> 04:00. 16:00Z is 19:00 local.
+    const b = new Date('2026-03-29T16:00:00Z');
+
+    expect(formatInTimeZone(b, TZ, 'HH:mm')).toBe('19:00');
+    expect(wallMinutes(b, '2026-03-29')).toBe(19 * 60);
+    expect(elapsed(b, '2026-03-29')).toBe(18 * 60);
+  });
+
+  it('an ordinary day is unaffected — the two agree', () => {
+    const b = new Date('2026-01-15T17:00:00Z'); // 19:00 in Sofia, UTC+2
+    expect(wallMinutes(b, '2026-01-15')).toBe(19 * 60);
+    expect(elapsed(b, '2026-01-15')).toBe(19 * 60);
+  });
+
+  it('an overlapping booking from the night before gets a NEGATIVE offset', () => {
+    // 23:00 local on the 14th, shown on the 15th's diary because it runs past
+    // midnight. Reading its wall clock alone would put it at 1380 minutes —
+    // the bottom of the wrong day.
+    const b = new Date('2026-01-14T21:00:00Z');
+
+    expect(formatInTimeZone(b, TZ, 'HH:mm')).toBe('23:00');
+    expect(wallMinutes(b, '2026-01-15')).toBe(23 * 60 - 1440);
+    expect(wallMinutes(b, '2026-01-15')).toBeLessThan(0);
+  });
+
+  it('a booking running past midnight is placed beyond the end of its own day', () => {
+    // 00:30 local on the 16th, shown on the 15th's diary.
+    const b = new Date('2026-01-15T22:30:00Z');
+
+    expect(formatInTimeZone(b, TZ, 'HH:mm')).toBe('00:30');
+    expect(wallMinutes(b, '2026-01-15')).toBe(30 + 1440);
   });
 });

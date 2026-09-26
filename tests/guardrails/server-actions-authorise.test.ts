@@ -54,16 +54,32 @@ function codeOnly(src: string): string {
     .join('\n');
 }
 
-/** `export async function name(` — the things that become endpoints. */
+/**
+ * Every exported name that becomes an endpoint.
+ *
+ * ═══ BOTH SPELLINGS, BECAUSE NEXT COMPILES BOTH ═══
+ *
+ * This matched only `export async function`. An arrow function —
+ * `export const doThingAction = async (...) => {}` — is equally a POST
+ * endpoint and was never scanned, so an unauthorised one passed the suite
+ * whose entire job is to catch it. The file-level fallback did not help
+ * either: a compliant neighbour satisfied it.
+ */
 function exportedActions(code: string): string[] {
-  return [...code.matchAll(/^export\s+async\s+function\s+([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]!);
+  const declared = [...code.matchAll(/^export\s+async\s+function\s+([A-Za-z_$][\w$]*)/gm)];
+  const arrows = [
+    ...code.matchAll(/^export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*async\b/gm),
+  ];
+  return [...declared, ...arrows].map((m) => m[1]!);
 }
 
-/** The body of one exported function, to the next top-level declaration. */
+/** The body of one exported action, to the next top-level declaration. */
 function bodyOf(code: string, name: string): string {
   const lines = code.split('\n');
   const start = lines.findIndex((l) =>
-    new RegExp(`^export\\s+async\\s+function\\s+${name}\\b`).test(l),
+    new RegExp(
+      `^export\\s+(?:async\\s+function\\s+${name}\\b|(?:const|let|var)\\s+${name}\\b)`,
+    ).test(l),
   );
   if (start === -1) return '';
   let end = lines.length;
@@ -130,6 +146,42 @@ describe('server actions authorise themselves', () => {
     expect(exportedActions(guarded)).toEqual(['doThing']);
     expect(AUTHORISES.test(bodyOf(guarded, 'doThing'))).toBe(true);
     expect(AUTHORISES.test(bodyOf(unguarded, 'doThing'))).toBe(false);
+  });
+
+  it('sees an ARROW-function action, which Next compiles the same way', () => {
+    // The hole this suite shipped with: it matched only
+    // `export async function`, so an unauthorised arrow action was never
+    // scanned at all — by the check whose whole purpose is to catch it.
+    const src = [
+      'export const forgottenAction = async (slug: string) => {',
+      '  return mutate(slug);',
+      '};',
+      '',
+      'export const guardedAction = async (slug: string) => {',
+      "  await requireTenantAction(slug, 'courts.manage');",
+      '};',
+    ].join('\n');
+
+    expect(exportedActions(src).sort()).toEqual(['forgottenAction', 'guardedAction']);
+    expect(AUTHORISES.test(bodyOf(src, 'forgottenAction'))).toBe(false);
+    expect(AUTHORISES.test(bodyOf(src, 'guardedAction'))).toBe(true);
+  });
+
+  it('sees a typed arrow action too', () => {
+    const src = [
+      'export const typedAction: Action = async (slug) => {',
+      '  return mutate(slug);',
+      '};',
+    ].join('\n');
+    expect(exportedActions(src)).toEqual(['typedAction']);
+    expect(AUTHORISES.test(bodyOf(src, 'typedAction'))).toBe(false);
+  });
+
+  it('does not treat a non-async export as an action', () => {
+    // `export const PAGE_SIZE = 50` is not an endpoint and must not be
+    // demanded to authorise anything.
+    const src = ['export const PAGE_SIZE = 50;', 'export const rows: Row[] = [];'].join('\n');
+    expect(exportedActions(src)).toEqual([]);
   });
 
   it('does not credit one action with another’s authorisation', () => {

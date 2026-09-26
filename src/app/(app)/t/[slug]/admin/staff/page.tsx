@@ -17,13 +17,19 @@ export async function generateMetadata() {
  *
  * ═══ THE OWNER COUNT IS QUERIED, NOT COUNTED FROM THE LIST ═══
  *
- * `listStaff` is capped at 200. A club with more members than that would be
- * answering "is this the last owner?" from a partial view — and answering it
- * wrong in the permissive direction, which is the direction that locks a club
- * out of its own account.
+ * `listStaff` is capped at 200, so a club with more members could miss an
+ * owner outside the page. Counting from that partial view errs in the
+ * RESTRICTIVE direction — a missed owner only makes the count look smaller, so
+ * it would refuse a legitimate demotion rather than permit a lockout.
  *
- * The use case counts it again before acting, because this number is a render
- * away from being stale.
+ * (This comment used to claim the opposite. It is worth being exact: the
+ * permissive direction is the dangerous one, and a truncated list cannot reach
+ * it.)
+ *
+ * The reasons to query are that it is cheap and exact. The reason it is SAFE
+ * is different: the use case counts again inside the transaction before
+ * acting, because the number this page rendered is a request away from being
+ * stale. That second count is what actually prevents the lockout.
  */
 export default async function StaffPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

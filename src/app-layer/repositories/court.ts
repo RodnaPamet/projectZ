@@ -44,7 +44,8 @@ export const COURT_LIST_SELECT = {
 export type CourtListItem = Prisma.ResourceGetPayload<{ select: typeof COURT_LIST_SELECT }>;
 
 /**
- * Every court at this club, newest venue grouping first.
+ * Every court at this club, grouped by venue in creation order (oldest site
+ * first), then by name.
  *
  * ═══ BOUNDED, AND WHY THE BOUND IS WHERE IT IS ═══
  *

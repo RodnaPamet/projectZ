@@ -24,7 +24,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
  *
  * A PENDING booking holds the slot until `expiresAt`. Hiding it would tell
  * staff a court is free while somebody is mid-checkout; drawing it identically
- * would tell them it is sold. It gets a hatched, muted block and its expiry.
+ * would tell them it is sold. It gets a dashed, muted outline rather than a
+ * filled block, plus its expiry time.
  */
 
 export interface DayBooking {
@@ -45,6 +46,8 @@ export interface DayBooking {
 export interface GridCourt {
   id: string;
   name: string;
+  /** Set only when the club has more than one site; null otherwise. */
+  venueName: string | null;
 }
 
 const ROW_HEIGHT = 56;
@@ -134,6 +137,11 @@ export function DayGrid({
                 className="border-border-subtle border-b px-2 pb-2 text-sm font-medium"
               >
                 {c.name}
+                {c.venueName && (
+                  <span className="text-content-muted block text-xs font-normal">
+                    {c.venueName}
+                  </span>
+                )}
               </div>
             ))}
 

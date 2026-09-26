@@ -54,7 +54,10 @@ export async function adjustCreditAction(
   const sign = form.get('direction') === 'debit' ? -1 : 1;
   const note = String(form.get('note') ?? '').trim();
 
-  if (!Number.isFinite(amount) || amount <= 0) {
+  // `>= 1 cent`, not `> 0`: a sub-cent amount rounds to a zero delta, and
+  // `appendEntry` refuses that with a thrown Error rather than a result — so
+  // 0.004 produced an error boundary instead of the message this form renders.
+  if (!Number.isFinite(amount) || Math.round(amount * 100) < 1) {
     return { ok: false, error: 'AMOUNT_INVALID' };
   }
   if (note.length < 8) {
@@ -93,6 +96,21 @@ export async function adjustCreditAction(
     const message = err instanceof Error ? err.message : '';
     if (/insufficient credit/i.test(message)) return { ok: false, error: 'INSUFFICIENT_CREDIT' };
     if (/capped at/i.test(message)) return { ok: false, error: 'TOO_LARGE' };
+    // ═══ 40001 IS EXPECTED HERE, NOT EXCEPTIONAL ═══
+    //
+    // The ledger runs SERIALIZABLE precisely so concurrent appends abort
+    // rather than both writing the same balance. Two managers adjusting one
+    // player — or one adjusting while that player checks out — is an ordinary
+    // collision, and rethrowing gave the admin an error boundary and no idea
+    // whether the money had moved.
+    //
+    // Surfaced rather than retried: a retry would re-read the balance, and the
+    // person typed an amount against the balance they were shown. Asking them
+    // to look again is the honest answer.
+    const code = (err as { code?: string })?.code;
+    if (code === 'P2034' || /40001|could not serialize/i.test(message)) {
+      return { ok: false, error: 'CONFLICT' };
+    }
     throw err;
   }
 
