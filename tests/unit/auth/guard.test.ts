@@ -134,6 +134,49 @@ describe('public routes', () => {
   });
 });
 
+describe('the v1 public reads', () => {
+  /**
+   * These were public only because `checkTenantAccess` finds no slug in them
+   * and falls through to `allow` — the fail-open default this file tightens
+   * everywhere else and warns about by name for `/login`.
+   *
+   * `tests/guardrails/public-routes-match-the-spec.test.ts` holds the SET in
+   * agreement with `security: []` in the OpenAPI document. What is here is the
+   * prefix arithmetic, which the spec cannot express.
+   */
+  it.each([
+    '/api/v1/venues',
+    '/api/v1/venues/near',
+    '/api/v1/venues/cvenue123',
+    '/api/v1/venues/cvenue123/availability',
+    '/api/v1/realtime/subscribe',
+  ])('%s is public, not merely reachable', (path) => {
+    expect(checkPublicRoute(path)).toBe(true);
+    expect(checkTenantAccess(path, null).kind).toBe('public');
+  });
+
+  it('the prefix stops at a path segment', () => {
+    // `/^\/api\/v1\/venues(\/|$)/` must not open `/api/v1/venuesecrets`.
+    // Bare `startsWith` would, and that is the classic way a prefix list grows
+    // a hole nobody sees.
+    expect(checkPublicRoute('/api/v1/venuesecrets')).toBe(false);
+    expect(checkPublicRoute('/api/v1/venues-admin')).toBe(false);
+  });
+
+  it('the realtime pattern opens the callback and nothing else under it', () => {
+    // Anchored with `$` on purpose: `/realtime/token` mints a connection token
+    // for a signed-in user and must NOT be public.
+    expect(checkPublicRoute('/api/v1/realtime/subscribe')).toBe(true);
+    expect(checkPublicRoute('/api/v1/realtime/token')).toBe(false);
+    expect(checkPublicRoute('/api/v1/realtime/subscribe/extra')).toBe(false);
+  });
+
+  it('does not open the tenant tree, which shares no prefix by accident', () => {
+    expect(checkPublicRoute('/api/v1/t/sofia-padel/bookings')).toBe(false);
+    expect(checkTenantAccess('/api/v1/t/sofia-padel/bookings', null).kind).toBe('unauthenticated');
+  });
+});
+
 describe('invite carve-out', () => {
   it('an invite link works for someone who is not yet a member', () => {
     // By definition the invitee has no membership for this tenant. Without
