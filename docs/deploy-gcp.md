@@ -135,12 +135,34 @@ If validate fails, restore the backup before doing anything else.
 
 ### The hostname
 
-`playerz.35-187-80-26.sslip.io`. **playerz.bg is not in DNS** — no A record, no
-NS, no SOA. Caddy cannot obtain a certificate for a name that does not resolve
-here, and listing one makes it retry and log failures forever.
+Serving host today: `playerz.35-187-80-26.sslip.io`. The intended one is
+**`app.playerz.bg`**.
 
-When the domain is registered and points at `35.187.80.26`, add it to the first
-line of the site block and reload. Caddy provisions the certificate itself.
+`playerz.bg` is registered and delegated at the registry to
+`ns1/ns2.jumphosting01.com` — but those nameservers answer **REFUSED** for the
+zone, which means the delegation exists and the zone behind it does not. Until
+somebody creates the zone at that provider and adds
+
+```
+app   A   35.187.80.26
+```
+
+nothing resolves, and Caddy cannot obtain a certificate for a name that does not
+resolve here. Listing one anyway makes it retry forever _and_ burns Let's
+Encrypt's five-failures-per-hostname-per-hour budget, locking out the real
+attempt for an hour after DNS is finally right.
+
+When it does resolve, `deploy/add-domain.sh` does the whole switch, and refuses
+if it does not:
+
+```bash
+sudo bash /opt/playerz/add-domain.sh app.playerz.bg
+```
+
+It adds the name beside the sslip.io one (which stays, as a way in if DNS goes
+wrong), validates, reloads, moves `NEXTAUTH_URL`, and recreates the app. Names
+given after the first get a `redir` block rather than joining the site block —
+two hostnames serving the same app means two cookie jars.
 
 ## Verifying
 
@@ -159,9 +181,17 @@ actually configured.
 ## Not done yet
 
 - **No backups.** The Postgres volume is a Docker volume on one VM. See #218.
-- **No OAuth credentials.** `/api/ready` reports `google: disabled,
-microsoft: disabled`, and the web login page offers nothing else — so nobody
-  can sign in until `GOOGLE_CLIENT_ID/SECRET` and `MICROSOFT_CLIENT_ID/SECRET/
-TENANT_ID` are set and the redirect URI
-  `https://<host>/api/auth/callback/<provider>` is registered.
+- **No OAuth credentials.** `/api/ready` reports `google: disabled, microsoft:
+disabled`, and the web login page offers nothing else — so nobody can sign in
+  until `GOOGLE_CLIENT_ID/SECRET` and `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` are
+  set. The redirect URIs to register, once the host is `app.playerz.bg`:
+
+  | Provider        | Callback                                            |
+  | --------------- | --------------------------------------------------- |
+  | Google          | `https://app.playerz.bg/api/auth/callback/google`   |
+  | Microsoft Entra | `https://app.playerz.bg/api/auth/callback/azure-ad` |
+
+  `azure-ad`, not `microsoft-entra-id` — this is next-auth **v4**, and the
+  provider id is what the callback path is built from.
+
 - **No data.** The database has the schema and nothing else.
