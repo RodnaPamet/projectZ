@@ -95,6 +95,14 @@ const ALLOWED: Record<string, string> = {
     'theirs — the userId comes from a verified session and never from the request, so it can ' +
     "only ever resolve the caller's own standing, and it cannot enumerate. One club by slug, " +
     'one membership by (userId, tenantId).',
+  'src/app-layer/usecases/my-bookings.ts':
+    "a person's own bookings span every club, and `booking` carries a tenant-scoped RLS " +
+    'policy naming only app.tenant_id — so `asUser` returns ZERO ROWS, which reads as "you ' +
+    'have no bookings" rather than as a wrong binding. Scoped to bookedByUserId, taken from ' +
+    'a verified session and never from the request, on an indexed column. The alternative — ' +
+    'one bound query per membership — is N transactions per page AND would be driven by the ' +
+    "token's TRUNCATED membership list, so a player with many clubs would silently lose the " +
+    'tail of their own bookings.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {

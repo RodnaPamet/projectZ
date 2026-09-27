@@ -535,5 +535,22 @@
       "title": "That invitation is no longer valid",
       "description": "It may have expired, been revoked, or already been used. Ask the club for another."
     }
+  },
+  "myBookings": {
+    "metaTitle": "My bookings — playerz.bg",
+    "title": "My bookings",
+    "empty": {
+      "title": "You have no bookings",
+      "description": "Pick a court and reserve a time."
+    },
+    "browse": "Browse venues",
+    "price": "{price}",
+    "status": {
+      "PENDING": "Awaiting payment",
+      "CONFIRMED": "Confirmed",
+      "CANCELLED": "Cancelled",
+      "COMPLETED": "Completed",
+      "NO_SHOW": "No show"
+    }
   }
 }
