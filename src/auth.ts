@@ -1,4 +1,3 @@
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import AzureADProvider from 'next-auth/providers/azure-ad';
@@ -8,7 +7,6 @@ import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-clai
 import { createUserSession, newSessionSecret, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
-import { prisma } from '@/lib/db/prisma';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import { logger } from '@/lib/observability/logger';
@@ -20,12 +18,12 @@ import { logger } from '@/lib/observability/logger';
  * there is no `app.tenant_id` to bind, and an RLS-scoped query for the User
  * would return zero rows and look exactly like "wrong password".
  */
-// Defined in lib/auth/sessions so that reading it does not pull authOptions
-// (and PrismaAdapter) into a bundle. Re-exported because callers expect it here.
+// Defined in lib/auth/sessions so that reading it does not pull the whole of
+// authOptions — providers, callbacks, Graph sync — into a bundle. Re-exported
+// because callers expect it here.
 export { SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
   /**
    * 7 days, not next-auth's 30-day default.
    *
@@ -183,6 +181,107 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
+    /**
+     * ═══ WHY THERE IS NO ADAPTER, AND WHY THIS EXISTS INSTEAD ═══
+     *
+     * `adapter: PrismaAdapter(prisma)` used to sit at the top of this object,
+     * uncommented — the one line in this file with nothing said about it. It
+     * had never run: the credentials provider does not touch an adapter, and
+     * no OAuth provider was configured until the first real deploy. The moment
+     * one was, every Google sign-in died in the callback:
+     *
+     *   [next-auth][error][adapter_error_getUserByAccount]
+     *   TypeError: Cannot read properties of undefined (reading 'findUnique')
+     *
+     * `prisma.account` is undefined because THE SCHEMA HAS NO `Account` MODEL.
+     * No `Session`, no `VerificationToken` either — the adapter's entire
+     * contract is absent. The user was bounced back to /login with no message,
+     * which from the outside is "I logged in and came back to the same screen".
+     *
+     * Adding those three tables was the other option. It is the wrong one:
+     *
+     *   • This app already owns identity. `app_user.email` is UNIQUE and
+     *     `passwordHash` is nullable — one row per person, however they
+     *     authenticate. `Account` would be a second source of truth for a fact
+     *     we already store.
+     *   • Sessions are JWTs. Revocation is `user_session` + `sessionVersion`,
+     *     minted by the jwt callback below. next-auth's `Session` table would
+     *     be dead weight that still has to be migrated, RLS'd and granted.
+     *   • Every table needs an RLS policy and a grant for `playerz_app`, and
+     *     the adapter uses the plain `prisma` client — NOT `runAsSuperuser`.
+     *     An identity table read before any user context exists, queried under
+     *     RLS with nothing bound, is a new hole to reason about for no gain.
+     *
+     * So: no adapter, and this callback maps a provider identity onto an
+     * `app_user` row.
+     *
+     * Verified against the installed next-auth 4.24.15 rather than assumed:
+     * with no adapter `callbackHandler` returns `{ user: profile }` unchanged
+     * (core/lib/callback-handler.js:27), and core/routes/callback.js hands the
+     * SAME object to `signIn` and then to `jwt`. So rewriting `user.id` here is
+     * what the rest of the chain sees — which it must be, because the jwt
+     * callback looks up memberships by `user.id` and writes
+     * `user_session.userId`, a foreign key to `app_user`.
+     */
+    async signIn({ user, account, profile }) {
+      // Credentials sign-in already resolved a real app_user in authorize().
+      if (account?.type !== 'oauth') return true;
+
+      const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+      if (!email) {
+        logger.warn('oauth sign-in refused: the provider returned no email', {
+          component: 'auth',
+          provider: account.provider,
+        });
+        return false;
+      }
+
+      // ═══ AN UNVERIFIED EMAIL IS AN ACCOUNT TAKEOVER ═══
+      //
+      // Identities are linked BY EMAIL, so a provider willing to assert an
+      // address its owner has not proved is a route into any existing account
+      // holding that address. Google sends `email_verified`, and it is false
+      // for Workspace accounts on domains the admin never verified — so this
+      // is a real state, not a hypothetical one.
+      //
+      // Required to be exactly `true`. Absent is not the same as verified, and
+      // failing closed costs one sign-in while failing open costs the account.
+      const verified = (profile as { email_verified?: boolean } | undefined)?.email_verified;
+      if (account.provider === 'google' && verified !== true) {
+        logger.warn('google sign-in refused: email_verified was not true', {
+          component: 'auth',
+        });
+        return false;
+      }
+
+      // Upsert, not find-then-create: two tabs racing a first sign-in would
+      // otherwise both miss and one would die on the unique constraint.
+      //
+      // `update: {}` is deliberate. Re-running this on every sign-in would let
+      // the provider overwrite a name or avatar the person has since changed in
+      // the app, silently, on each login.
+      const row = await runAsSuperuser((db) =>
+        db.user.upsert({
+          where: { email },
+          create: {
+            email,
+            name: typeof user.name === 'string' ? user.name : null,
+            avatarUrl: typeof user.image === 'string' ? user.image : null,
+            // The provider asserted it, and for Google we just checked it.
+            emailVerified: new Date(),
+          },
+          update: {},
+          select: { id: true },
+        }),
+      );
+
+      // The rest of the chain reads this object: `token.sub`, the membership
+      // lookup, and the user_session foreign key all come from it.
+      user.id = row.id;
+      user.email = email;
+      return true;
+    },
+
     async jwt({ token, user, account, profile }) {
       if (user?.id) {
         const rows = await runAsSuperuser((db) =>
