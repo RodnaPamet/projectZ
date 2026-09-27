@@ -218,6 +218,50 @@ export async function requireTenantAction(
  * account WITHOUT an existing membership — accepting is how the membership
  * comes to exist.
  */
+/**
+ * Who is signed in, for chrome that renders on every page.
+ *
+ * ═══ WHY THIS READS THE TOKEN AND NOT THE DATABASE ═══
+ *
+ * A site header renders on every request, so a database read here is a query
+ * per page view for a name. The token already carries `name` and `email` —
+ * next-auth sets them on the default token at sign-in — and a display name
+ * that is a few days stale is the correct thing to be cheap about.
+ *
+ * The SESSION check is not skipped, though. `checkSession` is what makes
+ * "sign out everywhere" and a password change actually evict a token, and a
+ * header that greets a revoked session by name is the most convincing possible
+ * lie about being signed in.
+ *
+ * Authorisation must NOT be built on this. It returns what the token claims
+ * about its own holder — never a role, never a permission, both of which
+ * `resolveTenantPageContext` deliberately re-derives from the database for
+ * reasons this file spends forty lines on.
+ */
+export interface SignedInIdentity {
+  userId: string;
+  name: string | null;
+  email: string | null;
+}
+
+export async function signedInIdentity(): Promise<SignedInIdentity | null> {
+  const token = (await tokenFromHeaders()) as (PlayerzJWT & Partial<SignedInIdentity>) | null;
+  if (!token?.sub) return null;
+
+  const session = await checkSession({
+    userSessionId: token.userSessionId ?? null,
+    sessionVersion: token.sessionVersion ?? -1,
+    sessionSecret: token.sessionSecret ?? null,
+  });
+  if (!session.usable) return null;
+
+  return {
+    userId: token.sub,
+    name: typeof token.name === 'string' ? token.name : null,
+    email: typeof token.email === 'string' ? token.email : null,
+  };
+}
+
 export async function requireSignedIn(): Promise<string | null> {
   const token = await tokenFromHeaders();
   if (!token?.sub) return null;
