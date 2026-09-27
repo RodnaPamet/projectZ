@@ -1,0 +1,48 @@
+name: Deploy
+
+# Only after CI has passed on main. A deploy that races its own test run is a
+# deploy that can ship a red commit.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Fly
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # `workflow_run` fires on failure too; without this, a red CI run deploys.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Deploy the commit CI actually tested, not whatever main points at
+          # now — they differ whenever something merges while CI is running.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        # Migrations run via release_command in fly.toml and abort the deploy
+        # if they fail.
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Report what the deployed app says it has
+        run: |
+          sleep 10
+          echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
+          curl -fsS https://playerz-bg.fly.dev/api/ready \
+            | jq '.features' >> "$GITHUB_STEP_SUMMARY" || \
+            echo "readiness probe did not answer" >> "$GITHUB_STEP_SUMMARY"
