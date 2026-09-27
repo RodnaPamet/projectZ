@@ -115,6 +115,6 @@ fi
 # most confusing place for it to fail.
 cp -a "$ENVF" "$ENVF.bak.$(date +%s)"
 sed -i -E "s#^NEXTAUTH_URL=.*#NEXTAUTH_URL=https://$CANON#" "$ENVF"
-cd /opt/playerz && docker compose -f docker-compose.prod.yml up -d --force-recreate app
+cd /opt/playerz && docker compose -f docker-compose.prod.yml up -d --force-recreate playerz-app
 
 echo "done — https://$CANON"
