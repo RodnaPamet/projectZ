@@ -1,0 +1,61 @@
+# playerz.bg on Fly.io
+#
+# ═══ WHY fra ═══
+#
+# I first wrote `otp` here, reasoning that Bucharest is ~300km from Sofia
+# against Frankfurt's ~1300. Bucharest is NOT a Fly region — `flyctl platform
+# regions` lists 29, and the European ones are Frankfurt, Amsterdam, London,
+# Paris and Stockholm. That config would have failed to deploy.
+#
+# Frankfurt is the closest available and the best connected to south-east
+# Europe. Co-locate the Postgres cluster with it: the app-to-database round
+# trip happens several times per request, the user-to-app one happens once.
+
+app = "playerz-bg"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# ═══ MIGRATIONS RUN BEFORE THE NEW VERSION GOES LIVE ═══
+#
+# `release_command` runs in a one-off machine against the new image and ABORTS
+# the deploy if it fails, so a bad migration never reaches a serving instance.
+# The Dockerfile deliberately has no migration step — doing it at container
+# start would race every replica against every other one.
+#
+# `migrate deploy` applies pending migrations and never generates or resets;
+# it is the only Prisma command safe to point at production.
+[deploy]
+  release_command = "npx prisma migrate deploy"
+  strategy = "rolling"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # One machine always up. Scale-to-zero adds a cold start to the first
+  # request, which on a booking page is the request that matters most.
+  min_machines_running = 1
+
+  # ═══ READINESS, NOT LIVENESS ═══
+  #
+  # /api/ready checks dependencies and returns 503 when they are down, so a
+  # machine with a broken database is taken OUT of rotation instead of serving
+  # errors. /api/health deliberately touches nothing — it answers 200 while
+  # Postgres is on fire, which is right for liveness and wrong here.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "4s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

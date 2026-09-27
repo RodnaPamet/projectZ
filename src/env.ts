@@ -186,6 +186,37 @@ export const env = createEnv({
     // about to validate. Two-stage so the field-level error message
     // points at DATA_ENCRYPTION_KEY rather than a top-level object
     // refinement that prints the whole env shape.
+    // ═══ NEXTAUTH_SECRET WAS READ SIX TIMES AND DECLARED NOWHERE ═══
+    //
+    // `getToken` in src/middleware.ts, the v1 request context, the native token
+    // route, the logout route and page-context all pass
+    // `process.env.NEXTAUTH_SECRET` to next-auth. Without it next-auth cannot
+    // sign or verify a JWT, so EVERY authenticated request fails.
+    //
+    // Nothing said so. The app boots, serves public pages, and then rejects
+    // every sign-in — which is the worst shape of failure to discover after a
+    // deploy, because "it started successfully" is true.
+    //
+    // Required in production for the same reason DATA_ENCRYPTION_KEY is, and
+    // by the same two-stage pattern: NODE_ENV is read from process.env because
+    // the parsed `env.NODE_ENV` does not exist yet at refine time.
+    NEXTAUTH_SECRET: z
+      .string()
+      .min(32, 'NEXTAUTH_SECRET must be at least 32 characters')
+      .optional()
+      .superRefine((val, ctx) => {
+        if (process.env.NODE_ENV !== 'production') return;
+        if (!val) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              'NEXTAUTH_SECRET is REQUIRED in production — without it next-auth ' +
+              'cannot verify any session and every signed-in request fails. ' +
+              'Generate with: openssl rand -base64 48',
+          });
+        }
+      }),
+
     DATA_ENCRYPTION_KEY: z
       .string()
       .min(32, 'DATA_ENCRYPTION_KEY must be at least 32 characters')
@@ -445,6 +476,7 @@ export const env = createEnv({
     PIPELOCK_PUBLIC_KEY: process.env.PIPELOCK_PUBLIC_KEY,
     PIPELOCK_STRICT_MODE: process.env.PIPELOCK_STRICT_MODE,
 
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     DATA_ENCRYPTION_KEY: process.env.DATA_ENCRYPTION_KEY,
     DATA_ENCRYPTION_KEY_PREVIOUS: process.env.DATA_ENCRYPTION_KEY_PREVIOUS,
 
