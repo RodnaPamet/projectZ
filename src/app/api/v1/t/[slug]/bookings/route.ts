@@ -8,6 +8,7 @@ import {
 } from '@/app-layer/repositories/booking';
 import { quoteBooking } from '@/app-layer/usecases/availability';
 import { createBooking } from '@/app-layer/usecases/booking';
+import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import { minutesFromTimeColumn } from '@/app-layer/repositories/availability';
 import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -73,8 +74,20 @@ async function listHandler(req: NextRequest, { params }: { params: Promise<{ slu
   const limit = clampBookingLimit(Number(req.nextUrl.searchParams.get('limit')) || undefined);
   const cursor = req.nextUrl.searchParams.get('cursor');
 
-  const { items, nextCursor } = await inTenant(ctx, (db) =>
-    listOwnBookings(db, ctx.tenantId!, { userId: ctx.userId!, cursor, limit }),
+  // Resolved against the DATABASE, not the token. `contextFromRequest` returns
+  // no tenant when the slug is missing from the JWT's membership list, and its
+  // own comment says absence from a TRUNCATED list proves nothing — so reading
+  // `ctx.tenantId!` here meant a player with many clubs could not see their own
+  // bookings at the 51st. `createIfAbsent: false`: listing must never join.
+  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: false });
+
+  // No standing, no bookings. An empty page rather than a 403: whether you are
+  // a member of a club is not something this endpoint should confirm, and the
+  // answer you get is the same one a member with no bookings gets.
+  if (!standing) return page([], null);
+
+  const { items, nextCursor } = await inTenant({ ...ctx, tenantId: standing.tenantId }, (db) =>
+    listOwnBookings(db, standing.tenantId, { userId: ctx.userId!, cursor, limit }),
   );
 
   // Own bookings only, enforced in the WHERE clause rather than filtered after
@@ -111,8 +124,27 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
   const endTs = requireInstant(body.endTs, 'endTs');
   const notes = typeof body.notes === 'string' ? body.notes : null;
 
-  const created = await inTenant(ctx, async (db) => {
-    const resource = await getResourceForBooking(db, ctx.tenantId!, resourceId);
+  // ═══ A SIGNED-IN PLAYER MAY BOOK AT ANY ACTIVE CLUB ═══
+  //
+  // Owner's decision. Until now the only writer of TenantMembership was
+  // `acceptInvite`, so booking required the club to have invited you by email
+  // — while `/venues` listed every club publicly. The API refused what the
+  // catalogue advertised.
+  //
+  // The membership is created rather than bypassed. Binding a tenant the
+  // caller has no membership for would put a hole in the one mechanism that
+  // stops a stale membership becoming authority at the wrong club.
+  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: true });
+
+  // Same 404 as an unknown court, and for the same reason: distinguishing
+  // "no such club" from "suspended" or "you are banned here" turns this into a
+  // probe.
+  if (!standing) throw new NotFoundError('Resource not found');
+
+  const tenantId = standing.tenantId;
+
+  const created = await inTenant({ ...ctx, tenantId }, async (db) => {
+    const resource = await getResourceForBooking(db, tenantId, resourceId);
 
     // 404 covers "no such court" and "a court at another club" alike. RLS has
     // already made the second indistinguishable from the first, and saying
@@ -147,7 +179,7 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
       })),
     });
 
-    const result = await createBooking(db, ctx.tenantId!, {
+    const result = await createBooking(db, tenantId, {
       resourceId,
       startTs,
       endTs,
@@ -157,7 +189,7 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
       notes,
     });
 
-    const row = await getOwnBooking(db, ctx.tenantId!, {
+    const row = await getOwnBooking(db, tenantId, {
       bookingId: result.bookingId,
       userId: ctx.userId!,
     });
