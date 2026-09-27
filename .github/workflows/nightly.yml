@@ -96,6 +96,22 @@ jobs:
     name: Visual Regression
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # ═══ THE SAME LEAST-PRIVILEGE SPLIT AS e2e-full ═══
+    #
+    # This job's webServer runs `next start`, so NODE_ENV is `production`, so
+    # `assertLeastPrivilegeConnection` runs for real. Inheriting the workflow's
+    # top-level DATABASE_URL pointed it at `postgres` — rolsuper, rolbypassrls —
+    # and the app refused to boot:
+    #
+    #   OwnerConnectionInProductionError: DATABASE_URL connects as "postgres"
+    #   Error: Timed out waiting 180000ms from config.webServer.
+    #
+    # The guard was right. The job was wrong. e2e-full has carried this override
+    # since #172 and this job was simply never given it — the same omission,
+    # twice over, as the missing `services:` block above.
+    env:
+      DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
+      DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
     # This job declared no services, so it could never have passed: the
     # Playwright globalSetup runs `prisma migrate deploy` + the seed before
     # any spec, and its webServer boots the real app. Without a database
@@ -133,6 +149,20 @@ jobs:
         uses: ./.github/actions/setup-node-prisma
       - if: steps.gate.outputs.go == 'true'
         run: npx playwright install --with-deps chromium
+      # globalSetup runs `prisma migrate deploy` itself — but it runs INSIDE
+      # `playwright test`, which is far too late: the role has to exist and have
+      # a password before the webServer connects. So migrate here as well
+      # (deploy is idempotent; the second call is a no-op) and then set it.
+      - if: steps.gate.outputs.go == 'true'
+        run: npx prisma migrate deploy
+      - name: Give playerz_app a password for this run
+        if: steps.gate.outputs.go == 'true'
+        # P24 creates the role with LOGIN and no password, so it cannot
+        # authenticate as shipped. Must run AFTER migrate deploy, which is what
+        # creates it.
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d playerz_test -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE playerz_app PASSWORD 'ci-least-privilege';"
       - if: steps.gate.outputs.go == 'true'
         # --project=chromium is load-bearing. The committed baselines are
         # `*-chromium-linux.png`; Playwright names snapshots per project, so
