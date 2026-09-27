@@ -187,13 +187,34 @@ and the two buttons appear on `/login`.
 
 ## If a callback fails
 
-| Symptom                                           | Cause                                                                                                     |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `redirect_uri_mismatch` (Google)                  | the registered URI differs by a character — trailing slash, `http`, apex instead of `app.`                |
-| Back at `/login?error=azure-ad` with nothing else | provider registered but the exchange failed; check the secret **value** was copied, not the id            |
-| _"Need admin approval"_                           | `GroupMember.Read.All` has no admin consent                                                               |
-| Signed in, but no role                            | the `groups` claim is not configured, or the user is in no mapped group — check Token configuration first |
-| Personal Microsoft account rejected               | expected; the Graph scope is work/school only                                                             |
+| Symptom                                                                                | Cause                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `redirect_uri_mismatch` (Google)                                                       | the registered URI differs by a character — trailing slash, `http`, apex instead of `app.`                                                                                        |
+| Back at `/login?error=<provider>` after opening `/api/auth/signin/<provider>` directly | **Normal.** next-auth v4 does not allow GET sign-in for OAuth providers — it needs the CSRF-protected POST the button sends. Not a misconfiguration; use the recipe below instead |
+| Back at `/login?error=azure-ad` after clicking the button                              | the exchange failed; check the secret **value** was copied, not the id                                                                                                            |
+| _"Need admin approval"_                                                                | `GroupMember.Read.All` has no admin consent                                                                                                                                       |
+| Signed in, but no role                                                                 | the `groups` claim is not configured, or the user is in no mapped group — check Token configuration first                                                                         |
+| Personal Microsoft account rejected                                                    | expected; the Graph scope is work/school only                                                                                                                                     |
 
 The callback host comes from `NEXTAUTH_URL` in `/opt/playerz/.env`, currently
 `https://app.playerz.bg`. If that ever moves, both registrations move with it.
+
+## Proving a provider works without a browser
+
+`/api/ready` says whether the credentials are _present_. This says whether the
+handshake is actually built:
+
+```bash
+J=$(mktemp)
+CSRF=$(curl -s -c "$J" https://app.playerz.bg/api/auth/csrf | jq -r .csrfToken)
+curl -s -b "$J" -X POST -d "csrfToken=$CSRF&json=true" \
+  https://app.playerz.bg/api/auth/signin/google | jq -r .url
+rm -f "$J"
+```
+
+A correct setup answers with the provider's authorize URL. The two fields worth
+reading are `redirect_uri` — which must equal what you registered, exactly — and
+`code_challenge_method=S256`.
+
+`curl https://app.playerz.bg/api/auth/providers` is the cheaper check: a provider
+with no credentials is absent from that list entirely.
