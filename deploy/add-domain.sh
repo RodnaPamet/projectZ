@@ -49,19 +49,56 @@ fi
 
 BAK="$CADDY.bak.$(date +%Y%m%d-%H%M%S)"
 cp -a "$CADDY" "$BAK"; echo "backup: $BAK"
-restore () { echo "!! restoring $BAK"; cp -a "$BAK" "$CADDY"; }
+# `cat >` rather than `cp`: same reason as edit_in_place — keep the inode.
+restore () { echo "!! restoring $BAK"; cat "$BAK" > "$CADDY"; }
+
+# ═══ NEVER `sed -i` THE CADDYFILE ═══
+#
+# /opt/agrent/Caddyfile is a SINGLE-FILE bind mount into agrent-caddy, and a
+# single-file bind mount follows the INODE, not the path. `sed -i` writes a new
+# file and renames it over the old one, so the host path gets a new inode while
+# the container keeps holding the old one. The edit becomes invisible:
+#
+#   host      inode=407964  (has the new site block)
+#   container inode=405656  (does not)
+#   caddy reload            -> "config is unchanged"
+#
+# And it cannot be repaired from inside: the mount is read-only. The only way
+# back is restarting the container, which is downtime for agrent — caused by an
+# edit that reported success.
+#
+# `cat tmp > file` TRUNCATES AND REWRITES the same inode. The mount survives.
+#
+# `>>` is fine for the same reason, which is why the original append worked.
+edit_in_place () {
+  local f="$1"; shift
+  local tmp; tmp=$(mktemp)
+  sed -E "$@" "$f" > "$tmp"
+  cat "$tmp" > "$f"
+  rm -f "$tmp"
+}
 
 for f in "$CADDY" "$SITE"; do
   # Matches the hostname followed by a space, NOT the opening brace: `{` starts
   # an interval expression in ERE, and BSD sed rejects the pattern outright
   # ("RE error: braces not balanced"). GNU sed on the box accepts it, which is
   # exactly how that kind of bug reaches production unnoticed.
-  sed -i -E "s#^playerz\.35-187-80-26\.sslip\.io #$CANON, playerz.35-187-80-26.sslip.io #" "$f"
+  edit_in_place "$f" "s#^playerz\.35-187-80-26\.sslip\.io #$CANON, playerz.35-187-80-26.sslip.io #"
 done
 
 for name in "${REDIRS[@]+"${REDIRS[@]}"}"; do
   printf '\n%s {\n\tredir https://%s{uri} permanent\n}\n' "$name" "$CANON" | tee -a "$SITE" >> "$CADDY"
 done
+
+# Prove the container is looking at the bytes we just wrote. `caddy validate`
+# passing is NOT that proof — it passed on the stale file too, and so did
+# `caddy reload`, which cheerfully reported "config is unchanged".
+if ! docker exec agrent-caddy grep -qF "$CANON" /etc/caddy/Caddyfile; then
+  restore
+  echo "MOUNT IS STALE: the container cannot see the edit. Its bind mount is"
+  echo "pointing at an inode this file no longer is. Restart agrent-caddy."
+  exit 1
+fi
 
 if ! docker exec agrent-caddy caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile; then
   restore; echo "VALIDATE FAILED"; exit 1
