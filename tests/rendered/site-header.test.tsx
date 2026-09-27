@@ -26,11 +26,18 @@ jest.mock('@/lib/auth/page-context', () => ({
 
 jest.mock('next-intl/server', () => ({
   getTranslations: async (ns: string) => {
-    const messages = (await import('../../messages/bg.json')).default as Record<
+    // `as unknown as` and not a direct cast: the catalogue is NESTED —
+    // `common.error.title` is an object, not a string — so the obvious
+    // Record<string, Record<string, string>> does not describe it and tsc
+    // rejects the conversion. Values are narrowed at the point of use instead.
+    const messages = (await import('../../messages/bg.json')).default as unknown as Record<
       string,
-      Record<string, string>
+      Record<string, unknown>
     >;
-    return (key: string) => messages[ns]?.[key] ?? `${ns}.${key}`;
+    return (key: string) => {
+      const value = messages[ns]?.[key];
+      return typeof value === 'string' ? value : `${ns}.${key}`;
+    };
   },
 }));
 
