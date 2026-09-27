@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync, verify } from 'node:crypto';
 
 import {
   mintProviderToken,
@@ -22,7 +22,7 @@ import {
 
 // A real EC P-256 key, generated per run. The signature format matters (see
 // below) and a fake string would not exercise it.
-const { privateKey } = generateKeyPairSync('ec', {
+const { privateKey, publicKey } = generateKeyPairSync('ec', {
   namedCurve: 'P-256',
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   publicKeyEncoding: { type: 'spki', format: 'pem' },
@@ -139,10 +139,31 @@ describe('provider token', () => {
     // rejects it as a malformed token — an auth failure that reads like a
     // wrong key. A P-256 ieee-p1363 signature is exactly 64 bytes; a DER one
     // is ~70 and starts with 0x30.
-    const sig = Buffer.from(mintProviderToken()!.split('.')[2]!, 'base64url');
+    //
+    // ═══ WHY NOT `expect(sig[0]).not.toBe(0x30)` ═══
+    //
+    // That is what this asserted, and it FAILED CI on an unrelated PR. In a
+    // raw r‖s signature `sig[0]` is the high byte of r, which is uniformly
+    // random — so it is 0x30 once every 256 runs, for a completely correct
+    // signature. A 0.4% flake on a shared gate is worse than no assertion:
+    // it trains people to re-run the build.
+    //
+    // Verifying with `ieee-p1363` proves the encoding DETERMINISTICALLY —
+    // a DER signature fails this outright — and proves the signature is
+    // actually valid over the signing input, which the byte check never did.
+    const jwt = mintProviderToken()!;
+    const [header, claims, signature] = jwt.split('.');
+    const sig = Buffer.from(signature!, 'base64url');
 
     expect(sig).toHaveLength(64);
-    expect(sig[0]).not.toBe(0x30);
+    expect(
+      verify(
+        'sha256',
+        Buffer.from(`${header}.${claims}`),
+        { key: publicKey, dsaEncoding: 'ieee-p1363' },
+        sig,
+      ),
+    ).toBe(true);
   });
 
   it('is CACHED — Apple rejects providers that mint too often', () => {
