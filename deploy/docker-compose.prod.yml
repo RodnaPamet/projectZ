@@ -1,0 +1,167 @@
+# playerz.bg — production stack, co-tenanted on the `agrent` VM.
+#
+# ═══ A SEPARATE COMPOSE PROJECT, DELIBERATELY ═══
+#
+# `name: playerz` keeps this a distinct project from `agrent`, which is running
+# live on the same machine. Its containers, volumes and network are its own, so
+# `docker compose down` here cannot touch agrent, and a mistake in this file
+# cannot stop a production app that was working.
+#
+# The ONE thing shared is Caddy, because only one process can bind 80/443. That
+# is why `app` also joins `agrent_internal`: Caddy reverse-proxies to it by
+# container name, exactly as it does for agrent's own app.
+#
+# ═══ EVERY HOSTNAME IN .env IS A CONTAINER NAME, NOT A SERVICE NAME ═══
+#
+# MEASURED on the box. agrent's compose uses the service names `db`,
+# `pgbouncer` and `redis` — the same three this file does. Because `app` joins
+# agrent_internal, those names resolve THERE:
+#
+#   db        -> 172.18.0.5   (agrent-db)
+#   redis     -> 172.18.0.2   (agrent-redis)
+#   pgbouncer -> 172.18.0.3   (agrent-pgbouncer)
+#
+# The first boot dialled agrent's Postgres and agrent's Redis. Both refused it
+# — `SASL authentication failed`, `NOAUTH Authentication required` — and that
+# refusal is the ONLY reason this was a near miss rather than an incident. Had
+# agrent's Redis been open, playerz would have been writing its sessions and
+# rate-limit counters into a live production cache belonging to another app.
+#
+# `container_name` is globally unique on a host, so `playerz-db`,
+# `playerz-pgbouncer` and `playerz-redis` cannot collide. Use those.
+
+name: playerz
+
+services:
+  # ── Postgres ──
+  #
+  # PostGIS, not plain Postgres: /venues/near needs it, and the booking
+  # exclusion constraint needs btree_gist. Pinned to 16-3.4 to match the dev
+  # compose — a production major version ahead of development is a difference
+  # that only shows up under load.
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: playerz-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-playerz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-playerz_production}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: '256m'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-playerz} -d ${POSTGRES_DB:-playerz_production}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  # ── PgBouncer ──
+  #
+  # TRANSACTION mode, which is not an arbitrary choice. The RLS design binds a
+  # tenant with `SET LOCAL ROLE` / `set_config(..., true)` inside an explicit
+  # transaction, and `SET LOCAL` is scoped to that transaction — so a
+  # transaction-mode pooler is safe. Session mode would hold a connection per
+  # client and exhaust the pool; statement mode would break the transactions
+  # outright.
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: playerz-pgbouncer
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # `db` is safe HERE, and only here: pgbouncer is on `internal` alone, so
+      # the name cannot resolve into agrent's network the way it does from
+      # `app`. See the collision note at the top of this file.
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_USER: ${POSTGRES_USER:-playerz}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-playerz_production}
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: '20'
+      MAX_CLIENT_CONN: '200'
+      MAX_DB_CONNECTIONS: '40'
+      AUTH_TYPE: scram-sha-256
+      ADMIN_USERS: ${POSTGRES_USER:-playerz}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER:-playerz}']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [internal]
+
+  # ── Redis ──
+  #
+  # Not optional: `src/env.ts` refuses to boot in production without REDIS_URL,
+  # because the rate limiter falls back to an in-memory Map that is per-process
+  # — so `login:<ip>` would mean one budget per container rather than one
+  # budget.
+  redis:
+    image: redis:7-alpine
+    container_name: playerz-redis
+    restart: always
+    # AUTHENTICATED, because `src/env.ts` refuses to boot in production on a
+    # bare `redis://HOST:6379` — and it is right to. Sessions, the rate-limit
+    # counters and the job queue all live here, and this box is shared.
+    #
+    # Passed through the environment and expanded by the container's own shell
+    # (`$$` survives compose interpolation), so the value is not written into
+    # the compose project's stored command line.
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      # `redis-cli ping` without -a answers NOAUTH, which is a RESPONSE — the
+      # container would report healthy while every real command failed.
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [internal]
+
+  # ── The app ──
+  app:
+    image: ${PLAYERZ_IMAGE:-playerz:local}
+    container_name: playerz-app
+    restart: always
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # /api/health is liveness and touches nothing. Readiness (/api/ready)
+      # would 503 while the database is briefly unavailable and make Docker
+      # restart a container that is fine.
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal
+      # Caddy lives here. This is the only thing shared with agrent.
+      - agrent_internal
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  internal:
+  agrent_internal:
+    external: true
