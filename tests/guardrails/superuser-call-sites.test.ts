@@ -86,6 +86,15 @@ const ALLOWED: Record<string, string> = {
   'src/app-layer/usecases/notifications.ts': 'writes a user-bound row after the tenant tx commits',
   'src/app/api/v1/realtime/subscribe/route.ts': 'resolves channel membership before binding',
   'src/app/api/v1/t/[slug]/me/route.ts': 'resolves the membership that the binding needs',
+  'src/app-layer/usecases/club-membership.ts':
+    "resolves — and on a booking, creates — the caller's PLAYER membership at a slug, which " +
+    'is the value the binding would need, so there is no app.tenant_id yet. The same ' +
+    'chicken-and-egg as page-context and /t/[slug]/me, and tenant_membership carries FORCE ' +
+    'RLS, so an unbound read returns zero rows and every caller would read that as "not a ' +
+    'member". NOT asPlatformAdmin: there is no human reaching into a club that is not ' +
+    'theirs — the userId comes from a verified session and never from the request, so it can ' +
+    "only ever resolve the caller's own standing, and it cannot enumerate. One club by slug, " +
+    'one membership by (userId, tenantId).',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {
