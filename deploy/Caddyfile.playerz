@@ -3,17 +3,30 @@
 # Kept here, in the repo, because a site block that exists only on a box is a
 # configuration nobody can review and nobody can restore.
 #
-# ═══ WHY sslip.io AND NOT playerz.bg ═══
+# ═══ DNS AND TLS — BOTH LIVE AS OF 2026-09-27 ═══
 #
-# playerz.bg does not exist in DNS — no A record, no NS, no SOA. Caddy cannot
-# obtain a certificate for a name that does not resolve to this host, and
-# listing one it cannot validate makes it retry and log failures indefinitely.
+# The domain resolves and the certificate is issued. MEASURED, not assumed:
 #
-# When the domain is registered and its A record points at 35.187.80.26, add it
-# to the first line and reload. Caddy will provision the certificate itself; no
-# other change is needed.
+#   playerz.bg        A  35.187.80.26
+#   app.playerz.bg    A  35.187.80.26
+#   www.playerz.bg    CNAME playerz.bg -> 35.187.80.26
+#   zone              ns1/ns2.jumphosting01.com (jump.bg), SOA serial 2026092704
+#
+#   cert  CN = app.playerz.bg, Let's Encrypt, 2026-09-27 15:35 -> 2026-12-26
+#         `curl` verifies the chain (ssl_verify_result=0)
+#
+# This header previously said "playerz.bg does not exist in DNS — no A record, no
+# NS, no SOA", and explained the sslip.io name as a consequence. That was true
+# when written and stopped being true the afternoon the zone was created; the
+# domain was added to the site block below exactly as the old note instructed,
+# and the note itself was left behind. A comment that survives the condition it
+# describes is worse than no comment, because it reads as current.
+#
+# The sslip.io name is KEPT deliberately, not as a leftover: it resolves without
+# the registrar, so it still works if the zone is mis-edited or the domain
+# lapses, and it is the only way in if DNS is the thing that broke.
 
-playerz.35-187-80-26.sslip.io {
+app.playerz.bg, playerz.35-187-80-26.sslip.io {
 	encode gzip zstd
 
 	# Matches agrent's. The booking API posts small JSON; the ceiling is here to
@@ -38,4 +51,12 @@ playerz.35-187-80-26.sslip.io {
 		header_up X-Forwarded-For   {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 	}
+}
+
+playerz.bg {
+	redir https://app.playerz.bg{uri} permanent
+}
+
+www.playerz.bg {
+	redir https://app.playerz.bg{uri} permanent
 }

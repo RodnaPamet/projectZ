@@ -1,0 +1,134 @@
+import type { PrismaClient } from '@prisma/client';
+
+import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { logger } from '@/lib/observability/logger';
+
+/**
+ * Which club a signed-in player is acting at, resolved authoritatively.
+ *
+ * ═══ WHY THE TOKEN IS NOT ENOUGH ═══
+ *
+ * `contextFromRequest` reads memberships from the JWT and returns
+ * `tenantId: null` when the slug is absent from that list. Its own comment
+ * says why that is not a denial:
+ *
+ *   "Absent from a TRUNCATED list proves nothing — the caller may hold a
+ *    membership we could not fit in the token. […] the route resolves
+ *    membership authoritatively against the database."
+ *
+ * No route did. `bookings/route.ts` wrote `ctx.tenantId!` — a non-null
+ * assertion on a value that is genuinely null — and `inTenant` then threw
+ * `MissingTenantError`. So a player whose membership did not fit in the token
+ * could not book at their own club, and the error said the route had made a
+ * mistake upstream, which it had.
+ *
+ * This is that authoritative resolution.
+ *
+ * ═══ WHY IT RUNS AS SUPERUSER ═══
+ *
+ * The same reason sign-in does: there is no tenant bound yet, and this query
+ * is what decides which one to bind. A tenant-scoped read here would return
+ * zero rows and be indistinguishable from "not a member".
+ *
+ * The read is narrow — one membership for one user at one slug — and it can
+ * only ever tell the caller about themselves, because `userId` comes from a
+ * verified session and never from the request.
+ */
+export interface PlayerTenant {
+  tenantId: string;
+  /** True when this call created the membership rather than finding it. */
+  joined: boolean;
+}
+
+export class ClubNotBookableError extends Error {
+  constructor(slug: string) {
+    super(`No bookable club at "${slug}"`);
+    this.name = 'ClubNotBookableError';
+  }
+}
+
+/**
+ * Resolve — and optionally create — the caller's PLAYER standing at a club.
+ *
+ * ═══ WHY BOOKING CREATES A MEMBERSHIP ═══
+ *
+ * Owner's decision: any signed-in player may book at any active club, without
+ * an invitation. Before this, the only writer of `TenantMembership` was
+ * `acceptInvite`, so booking required a club to have invited you by email
+ * first — and `/venues` lists every club publicly, which promised something
+ * the API refused.
+ *
+ * The alternative was to let a route bind a tenant the caller has no
+ * membership for. That is a worse trade: `contextFromRequest` derives
+ * permissions from the matched membership precisely so a stale or absent one
+ * cannot become authority at the wrong club, and punching through it for
+ * convenience would put a hole in the mechanism that exists to prevent exactly
+ * that.
+ *
+ * So the membership becomes real. It is honest — you booked a court at this
+ * club, you are a player at this club — and it keeps every downstream
+ * assumption intact: RLS binds normally, `listOwnBookings` works, and the club
+ * sees the player in its members list rather than a booking from a stranger.
+ *
+ * ROLE IS ALWAYS `PLAYER`, never inherited and never elevated. An existing
+ * membership is returned untouched, so a club's own OWNER booking a court does
+ * not get demoted by having done so.
+ */
+export async function resolvePlayerTenant(
+  userId: string,
+  slug: string,
+  opts: { createIfAbsent: boolean },
+): Promise<PlayerTenant | null> {
+  return runAsSuperuser(async (db: PrismaClient) => {
+    const club = await db.venueOrg.findUnique({
+      where: { slug },
+      select: { id: true, status: true },
+    });
+
+    // A suspended or closed club is not bookable, and must not be joinable
+    // either — a membership created here would outlive the suspension.
+    if (!club || club.status !== 'ACTIVE') return null;
+
+    const existing = await db.tenantMembership.findUnique({
+      where: { userId_tenantId: { userId, tenantId: club.id } },
+      select: { status: true },
+    });
+
+    if (existing) {
+      // SUSPENDED is the club's deliberate act. Silently reactivating it by
+      // booking a court would undo a moderation decision, so it reads as "no
+      // standing here" rather than being upgraded.
+      if (existing.status !== 'ACTIVE') return null;
+      return { tenantId: club.id, joined: false };
+    }
+
+    if (!opts.createIfAbsent) return null;
+
+    // `create`, not `upsert`: the findUnique above already handled the found
+    // case, and a race between two first bookings is resolved by the
+    // @@unique([userId, tenantId]) constraint — caught below rather than
+    // papered over, so the second request still gets a usable tenant.
+    try {
+      await db.tenantMembership.create({
+        data: {
+          userId,
+          tenantId: club.id,
+          role: 'PLAYER',
+          status: 'ACTIVE',
+          // Joining by booking IS the acceptance. Leaving this null would make
+          // the membership look like an invitation nobody answered.
+          acceptedAt: new Date(),
+        },
+      });
+      logger.info('player joined a club by booking', {
+        component: 'membership',
+        tenantId: club.id,
+      });
+    } catch {
+      // The unique constraint fired, so a concurrent request created it. That
+      // is the correct outcome, not a failure.
+    }
+
+    return { tenantId: club.id, joined: true };
+  });
+}

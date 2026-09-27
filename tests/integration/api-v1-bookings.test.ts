@@ -346,4 +346,170 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       expect(again.res.status).toBe(201);
     });
   });
+
+  /**
+   * ═══ A SIGNED-IN PLAYER MAY BOOK AT ANY ACTIVE CLUB ═══
+   *
+   * Owner's decision. Until this, the only writer of TenantMembership was
+   * `acceptInvite` — so booking required the club to have invited you by email,
+   * while `/venues` listed every club publicly. The API refused what the
+   * catalogue advertised.
+   *
+   * These run against a real database because the thing being asserted is a
+   * ROW: that the membership exists afterwards, with the right role and status,
+   * and that it is NOT created on paths that must not create it.
+   */
+  describe('joining by booking', () => {
+    /** A real user with a session and no membership anywhere. */
+    const strangerWithNoMembership = async (): Promise<TestIdentity> => {
+      const userId = await asAppSuperuser(db, async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email: `stranger-${Math.random().toString(36).slice(2, 10)}@playerz.test`,
+            name: 'Stranger',
+            passwordHash: null,
+          },
+          select: { id: true },
+        });
+        return u.id;
+      });
+      // memberships: [] — exactly what a first-time OAuth user's token carries.
+      return signInAs(db, { userId, memberships: [] });
+    };
+
+    const membershipOf = (userId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.tenantMembership.findUnique({
+          where: { userId_tenantId: { userId, tenantId: tenant.tenantId } },
+          select: { role: true, status: true, acceptedAt: true },
+        }),
+      );
+
+    it('lets a stranger book, and makes them an ACTIVE PLAYER', async () => {
+      const stranger = await strangerWithNoMembership();
+      expect(await membershipOf(stranger.userId)).toBeNull();
+
+      const { res } = await create(stranger, {
+        resourceId,
+        startTs: NINE_AM,
+        endTs: TEN_AM,
+      });
+
+      expect(res.status).toBe(201);
+      expect(await membershipOf(stranger.userId)).toMatchObject({
+        role: 'PLAYER',
+        status: 'ACTIVE',
+      });
+    });
+
+    it('marks the membership accepted, not invited', async () => {
+      // A null acceptedAt would make this look like an invitation nobody
+      // answered, and the club's members list would show a pending row for
+      // somebody who has already paid for a court.
+      const stranger = await strangerWithNoMembership();
+      await create(stranger, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+
+      const m = await membershipOf(stranger.userId);
+      expect(m?.acceptedAt).toBeInstanceOf(Date);
+    });
+
+    it('does NOT demote an owner who books a court at their own club', async () => {
+      // The role is always PLAYER for a NEW membership. An existing one is
+      // returned untouched — otherwise a club owner booking a court would
+      // downgrade themselves out of their own admin pages.
+      const { res } = await create(owner, {
+        resourceId,
+        startTs: '2026-07-15T08:00:00Z',
+        endTs: '2026-07-15T09:00:00Z',
+      });
+
+      expect(res.status).toBe(201);
+      expect(await membershipOf(owner.userId)).toMatchObject({ role: 'OWNER' });
+    });
+
+    it('refuses a SUSPENDED member, and does not reactivate them', async () => {
+      // SUSPENDED is the club's deliberate act. Booking a court must not undo a
+      // moderation decision.
+      const suspended = await strangerWithNoMembership();
+      await asAppSuperuser(db, (tx) =>
+        tx.tenantMembership.create({
+          data: {
+            userId: suspended.userId,
+            tenantId: tenant.tenantId,
+            role: 'PLAYER',
+            status: 'SUSPENDED',
+          },
+        }),
+      );
+
+      const { res } = await create(suspended, {
+        resourceId,
+        startTs: NINE_AM,
+        endTs: TEN_AM,
+      });
+
+      expect(res.status).toBe(404);
+      expect(await membershipOf(suspended.userId)).toMatchObject({ status: 'SUSPENDED' });
+    });
+
+    it('refuses a club that is not ACTIVE, and does not enrol anyone in it', async () => {
+      // A membership created at a suspended club would outlive the suspension,
+      // so the club must be unjoinable and not merely unbookable.
+      const stranger = await strangerWithNoMembership();
+      await asAppSuperuser(db, (tx) =>
+        tx.venueOrg.update({
+          where: { id: tenant.tenantId },
+          data: { status: 'SUSPENDED' },
+        }),
+      );
+
+      const { res } = await create(stranger, {
+        resourceId,
+        startTs: NINE_AM,
+        endTs: TEN_AM,
+      });
+
+      expect(res.status).toBe(404);
+      expect(await membershipOf(stranger.userId)).toBeNull();
+    });
+
+    it('LISTING does not join a club', async () => {
+      // Reading must never have that side effect. Otherwise opening a club's
+      // page would enrol you in it.
+      const stranger = await strangerWithNoMembership();
+
+      const res = await listRoute(
+        new NextRequest(`http://t/api/v1/t/${tenant.tenantSlug}/bookings`, {
+          headers: { authorization: `Bearer ${stranger.bearer}` },
+        }),
+        { params: Promise.resolve({ slug: tenant.tenantSlug }) },
+      );
+
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as { data: { items: unknown[] } }).data.items).toEqual([]);
+      expect(await membershipOf(stranger.userId)).toBeNull();
+    });
+
+    it('resolves a membership the TOKEN does not carry', async () => {
+      // contextFromRequest says absence from a truncated membership list proves
+      // nothing and that "the route resolves membership authoritatively against
+      // the database". No route did — `ctx.tenantId!` was a non-null assertion
+      // on a genuine null, so a player with more clubs than fit in their token
+      // could not book at the 51st.
+      //
+      // Same database state as a real member; token deliberately empty.
+      const playerId = await seedPlayer(db, tenant.tenantId);
+      const tokenSaysNothing = await signInAs(db, { userId: playerId, memberships: [] });
+
+      const { res } = await create(tokenSaysNothing, {
+        resourceId,
+        startTs: NINE_AM,
+        endTs: TEN_AM,
+      });
+
+      expect(res.status).toBe(201);
+      // Still PLAYER, and still the row seedPlayer made — not a second one.
+      expect(await membershipOf(playerId)).toMatchObject({ role: 'PLAYER', status: 'ACTIVE' });
+    });
+  });
 });

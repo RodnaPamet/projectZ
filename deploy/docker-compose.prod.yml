@@ -133,7 +133,26 @@ services:
     networks: [internal]
 
   # ── The app ──
-  app:
+  #
+  # Named playerz-app, NOT app. Compose adds the SERVICE name as a network alias
+  # on every network the service joins, and this one joins agrent_internal —
+  # where agrent's own service is also called `app`. Docker DNS then answered
+  # `app` with TWO addresses, and agrent's Caddy (`reverse_proxy app:3000`) sent
+  # roughly half of app.agrent.bg to THIS application. Measured: five of eight
+  # fresh lookups reached playerz.
+  #
+  # It surfaced as an auth outage on the OTHER product, which is the part worth
+  # remembering: this app has no /api/auth/* routes, so its NextAuth catch-all
+  # answered 400 where agri-saas returns 401 `invalid_grant`. Their iOS client
+  # clears tokens only on 401 — deliberately — so a dead session was kept
+  # forever and every screen failed with a message blaming satellite data.
+  # Found 2026-09-27; RodnaPamet/agri-saas#1144.
+  #
+  # The header above already records this collision in the OTHER direction (`db`,
+  # `redis`, `pgbouncer` resolving to agrent's containers on first boot, saved
+  # only by their auth refusing us). It is SYMMETRIC, and only one side had been
+  # closed. `container_name` was already unique; the service name was not.
+  playerz-app:
     image: ${PLAYERZ_IMAGE:-playerz:local}
     container_name: playerz-app
     restart: always

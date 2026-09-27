@@ -108,7 +108,7 @@ sudo docker build --target builder -t playerz-migrator:local .
 sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
   playerz-migrator:local npx prisma migrate deploy
 
-cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml up -d --force-recreate app
+cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml up -d --force-recreate playerz-app
 ```
 
 `SKIP_ENV_VALIDATION=1` is for the **build** only. Next imports every route
