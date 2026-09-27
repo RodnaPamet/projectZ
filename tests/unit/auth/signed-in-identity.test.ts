@@ -21,7 +21,11 @@ jest.mock('next/headers', () => ({
   headers: async () => ({}),
 }));
 jest.mock('next-auth/jwt', () => ({ getToken: () => getToken() }));
-jest.mock('@/lib/auth/sessions', () => ({ checkSession: () => checkSession() }));
+// Forwards its arguments. `() => checkSession()` swallowed them, so any
+// assertion about WHAT was passed silently saw a call with none.
+jest.mock('@/lib/auth/sessions', () => ({
+  checkSession: (...args: unknown[]) => checkSession(...args),
+}));
 jest.mock('@/lib/db/rls-middleware', () => ({ runAsSuperuser: jest.fn() }));
 
 import { signedInIdentity } from '@/lib/auth/page-context';
@@ -73,6 +77,24 @@ describe('signedInIdentity', () => {
     getToken.mockResolvedValue({ ...LIVE, sub: undefined });
 
     await expect(signedInIdentity()).resolves.toBeNull();
+  });
+
+  it('presents a PRE-P25 token to checkSession as no session at all', async () => {
+    // `userSessionId` is null on a token minted before P25, and such a token
+    // has no row to revoke. The fallbacks matter: passing `undefined` through
+    // would let checkSession decide on missing input, whereas -1 can never
+    // equal a real sessionVersion and null can never match a stored hash — so
+    // an old token fails closed by construction rather than by agreement
+    // between two files.
+    getToken.mockResolvedValue({ sub: 'user-1', name: 'Ivo', email: 'ivo@example.bg' });
+
+    await signedInIdentity();
+
+    expect(checkSession).toHaveBeenCalledWith({
+      userSessionId: null,
+      sessionVersion: -1,
+      sessionSecret: null,
+    });
   });
 
   it('nulls a non-string name rather than rendering it', async () => {

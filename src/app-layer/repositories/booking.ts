@@ -154,3 +154,57 @@ export async function listOwnBookings(
     nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
   };
 }
+
+/**
+ * Every booking this person holds, at EVERY club.
+ *
+ * ═══ WHY THIS IS CROSS-TENANT, AND WHY THAT IS SAFE ═══
+ *
+ * "My bookings" spans clubs by definition. A player books a padel court at one
+ * club and a tennis court at another, and a list that showed only one of them
+ * would be wrong in a way they could not see — the missing booking looks like
+ * a booking that failed.
+ *
+ * The scope is `bookedByUserId`, which comes from a VERIFIED SESSION and never
+ * from the request. So this cannot be pointed at anybody else: there is no
+ * parameter to tamper with. It is the same argument the schema makes for
+ * notifications and push subscriptions — "yours at every club you belong to,
+ * not yours-at-this-club" — with the difference that `booking` carries a
+ * tenant-scoped RLS policy and those tables do not, which is why the caller has
+ * to bind superuser rather than `asUser`.
+ *
+ * The alternative was one bound query per membership. Rejected twice over: it
+ * is N transactions for one page, and it would be driven by the token's
+ * membership list, which is TRUNCATED at a cap — so a player with many clubs
+ * would silently lose the tail of their own bookings.
+ *
+ * `bookedByUserId` is indexed (`@@index([bookedByUserId])`), so this does not
+ * become a cross-tenant sequential scan as the table grows.
+ */
+export async function listBookingsForUserAcrossClubs(
+  db: PrismaClient,
+  input: { userId: string; cursor?: string | null; limit?: number },
+): Promise<{
+  items: Array<Awaited<ReturnType<typeof getOwnBooking>> & { tenantId: string }>;
+  nextCursor: string | null;
+}> {
+  const take = clampBookingLimit(input.limit);
+
+  // guardrail-allow: cross-tenant — a person's own bookings span every club,
+  // and the filter is their session-derived id, not a request parameter.
+  const rows = await db.booking.findMany({
+    where: { bookedByUserId: input.userId },
+    select: { ...BOOKING_FIELDS, tenantId: true },
+    orderBy: [{ startTs: 'desc' }, { id: 'desc' }],
+    take: take + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+  });
+
+  const hasMore = rows.length > take;
+  const items = hasMore ? rows.slice(0, take) : rows;
+
+  return {
+    items: items as Array<Awaited<ReturnType<typeof getOwnBooking>> & { tenantId: string }>,
+    nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
+  };
+}

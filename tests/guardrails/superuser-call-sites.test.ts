@@ -86,6 +86,14 @@ const ALLOWED: Record<string, string> = {
   'src/app-layer/usecases/notifications.ts': 'writes a user-bound row after the tenant tx commits',
   'src/app/api/v1/realtime/subscribe/route.ts': 'resolves channel membership before binding',
   'src/app/api/v1/t/[slug]/me/route.ts': 'resolves the membership that the binding needs',
+  'src/app-layer/usecases/my-bookings.ts':
+    "a person's own bookings span every club, and `booking` carries a tenant-scoped RLS " +
+    'policy naming only app.tenant_id — so `asUser` returns ZERO ROWS, which reads as "you ' +
+    'have no bookings" rather than as a wrong binding. Scoped to bookedByUserId, taken from ' +
+    'a verified session and never from the request, on an indexed column. The alternative — ' +
+    'one bound query per membership — is N transactions per page AND would be driven by the ' +
+    "token's TRUNCATED membership list, so a player with many clubs would silently lose the " +
+    'tail of their own bookings.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {
