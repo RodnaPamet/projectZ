@@ -31,7 +31,8 @@
     "worker": "tsx scripts/worker.ts",
     "postinstall": "prisma generate",
     "prepare": "husky",
-    "grant:platform-admin": "tsx scripts/grant-platform-admin.ts"
+    "grant:platform-admin": "tsx scripts/grant-platform-admin.ts",
+    "create:venue-org": "tsx scripts/create-venue-org.ts"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
