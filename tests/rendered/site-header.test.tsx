@@ -52,6 +52,12 @@ describe('SiteHeader', () => {
 
     expect(screen.getByText('Ivo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Изход' })).toBeInTheDocument();
+    // The only thing in the app that points at /me/bookings. Without it the
+    // page is unreachable, which is the failure #224 exists to describe.
+    expect(screen.getByRole('link', { name: 'Моите резервации' })).toHaveAttribute(
+      'href',
+      '/me/bookings',
+    );
     // No sign-in link while signed in — offering one implies it did not work.
     expect(screen.queryByRole('link', { name: 'Вход' })).not.toBeInTheDocument();
   });
@@ -71,5 +77,7 @@ describe('SiteHeader', () => {
 
     expect(screen.getByRole('link', { name: 'Вход' })).toHaveAttribute('href', '/login');
     expect(screen.queryByRole('button', { name: 'Изход' })).not.toBeInTheDocument();
+    // "My bookings" to a stranger is a link to a redirect.
+    expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
   });
 });

@@ -25,7 +25,10 @@ import { signedInIdentity } from '@/lib/auth/page-context';
  */
 export async function SiteHeader() {
   const [t, me] = await Promise.all([getTranslations('common'), signedInIdentity()]);
-  const tLogin = await getTranslations('login');
+  const [tLogin, tMine] = await Promise.all([
+    getTranslations('login'),
+    getTranslations('myBookings'),
+  ]);
 
   return (
     <header className="border-border-subtle flex items-center justify-between gap-4 border-b px-4 py-3">
@@ -54,6 +57,15 @@ export async function SiteHeader() {
           <>
             {/* email as the fallback, never a blank space: an OAuth profile
                 with no name is ordinary, and an empty greeting looks broken. */}
+            {/*
+              The link that makes /me/bookings reachable. Without it the page
+              exists and nothing points at it — which is the exact failure
+              #224 is about: /login worked perfectly for weeks and the only
+              reference to it anywhere in src/ was the invite page.
+            */}
+            <Link href="/me/bookings" className="text-sm underline-offset-4 hover:underline">
+              {tMine('title')}
+            </Link>
             <span className="text-content-muted max-w-[12rem] truncate text-sm">
               {me.name ?? me.email}
             </span>
