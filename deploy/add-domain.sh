@@ -1,28 +1,40 @@
 #!/bin/bash
 #
-# Put a real domain in front of playerz.bg, once its DNS actually points here.
+# Put a real hostname in front of playerz.bg.
 #
-# Run ON the VM, as root:  sudo bash add-domain.sh playerz.bg
+#   sudo bash add-domain.sh app.playerz.bg
+#   sudo bash add-domain.sh app.playerz.bg www.playerz.bg   # second one redirects
+#
+# The FIRST name is canonical: it joins the site block and becomes NEXTAUTH_URL.
+# Every later name gets its own block that redirects to the canonical one, and
+# does NOT serve the app — two hostnames serving the same app means two cookie
+# jars, and a session started on one is invisible to the other.
+#
+# The sslip.io name stays in the site block alongside, so nothing breaks
+# mid-transition and there is always a way in if DNS goes wrong.
 #
 # ═══ WHY THE DNS CHECK IS NOT OPTIONAL ═══
 #
 # Caddy asks Let's Encrypt for a certificate for every name in a site block. A
 # name that does not resolve to this host fails the HTTP-01 challenge, and Caddy
 # then retries — with backoff, forever, logging each failure. Worse, repeated
-# failures count against the Let's Encrypt rate limit for that domain (5 per
-# hostname per hour), so a premature attempt can lock out the real one for an
-# hour after DNS is finally correct.
+# failures count against the Let's Encrypt rate limit for that hostname (5 per
+# hour), so a premature attempt can lock out the real one for an hour after DNS
+# is finally correct.
 #
 # So: resolve first, edit second.
 set -euo pipefail
 
-DOMAIN="${1:?usage: add-domain.sh <domain>}"
+[ $# -ge 1 ] || { echo "usage: add-domain.sh <canonical-host> [redirect-host ...]"; exit 2; }
+CANON="$1"; shift
+REDIRS=("$@")
+
 IP=35.187.80.26
 CADDY=/opt/agrent/Caddyfile
 SITE=/opt/playerz/Caddyfile.playerz
 ENVF=/opt/playerz/.env
 
-for name in "$DOMAIN" "www.$DOMAIN"; do
+for name in "$CANON" "${REDIRS[@]+"${REDIRS[@]}"}"; do
   got=$(getent ahostsv4 "$name" | awk '{print $1}' | sort -u | tr '\n' ' ')
   echo "$name -> ${got:-(nothing)}"
   case " $got " in
@@ -31,23 +43,62 @@ for name in "$DOMAIN" "www.$DOMAIN"; do
   esac
 done
 
-if grep -q "^$DOMAIN\b\|[ ,]$DOMAIN[ ,{]" "$CADDY"; then
-  echo "$DOMAIN already in the Caddyfile — nothing to do"; exit 0
+if grep -qF "$CANON" "$CADDY"; then
+  echo "$CANON already in the Caddyfile — nothing to do"; exit 0
 fi
 
 BAK="$CADDY.bak.$(date +%Y%m%d-%H%M%S)"
 cp -a "$CADDY" "$BAK"; echo "backup: $BAK"
-restore () { echo "!! restoring $BAK"; cp -a "$BAK" "$CADDY"; }
+# `cat >` rather than `cp`: same reason as edit_in_place — keep the inode.
+restore () { echo "!! restoring $BAK"; cat "$BAK" > "$CADDY"; }
 
-# The apex joins the site block; the sslip.io name stays alongside it so
-# nothing breaks mid-transition. `www` gets its own block and REDIRECTS rather
-# than serving: two hostnames serving the same app means two cookie jars, and a
-# session started on one is invisible to the other.
+# ═══ NEVER `sed -i` THE CADDYFILE ═══
+#
+# /opt/agrent/Caddyfile is a SINGLE-FILE bind mount into agrent-caddy, and a
+# single-file bind mount follows the INODE, not the path. `sed -i` writes a new
+# file and renames it over the old one, so the host path gets a new inode while
+# the container keeps holding the old one. The edit becomes invisible:
+#
+#   host      inode=407964  (has the new site block)
+#   container inode=405656  (does not)
+#   caddy reload            -> "config is unchanged"
+#
+# And it cannot be repaired from inside: the mount is read-only. The only way
+# back is restarting the container, which is downtime for agrent — caused by an
+# edit that reported success.
+#
+# `cat tmp > file` TRUNCATES AND REWRITES the same inode. The mount survives.
+#
+# `>>` is fine for the same reason, which is why the original append worked.
+edit_in_place () {
+  local f="$1"; shift
+  local tmp; tmp=$(mktemp)
+  sed -E "$@" "$f" > "$tmp"
+  cat "$tmp" > "$f"
+  rm -f "$tmp"
+}
+
 for f in "$CADDY" "$SITE"; do
-  sed -i -E "s#^playerz\.35-187-80-26\.sslip\.io \{#$DOMAIN, playerz.35-187-80-26.sslip.io {#" "$f"
+  # Matches the hostname followed by a space, NOT the opening brace: `{` starts
+  # an interval expression in ERE, and BSD sed rejects the pattern outright
+  # ("RE error: braces not balanced"). GNU sed on the box accepts it, which is
+  # exactly how that kind of bug reaches production unnoticed.
+  edit_in_place "$f" "s#^playerz\.35-187-80-26\.sslip\.io #$CANON, playerz.35-187-80-26.sslip.io #"
 done
 
-printf '\nwww.%s {\n\tredir https://%s{uri} permanent\n}\n' "$DOMAIN" "$DOMAIN" | tee -a "$SITE" >> "$CADDY"
+for name in "${REDIRS[@]+"${REDIRS[@]}"}"; do
+  printf '\n%s {\n\tredir https://%s{uri} permanent\n}\n' "$name" "$CANON" | tee -a "$SITE" >> "$CADDY"
+done
+
+# Prove the container is looking at the bytes we just wrote. `caddy validate`
+# passing is NOT that proof — it passed on the stale file too, and so did
+# `caddy reload`, which cheerfully reported "config is unchanged".
+if ! docker exec agrent-caddy grep -qF "$CANON" /etc/caddy/Caddyfile; then
+  restore
+  echo "MOUNT IS STALE: the container cannot see the edit. Its bind mount is"
+  echo "pointing at an inode this file no longer is. Restart agrent-caddy."
+  exit 1
+fi
 
 if ! docker exec agrent-caddy caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile; then
   restore; echo "VALIDATE FAILED"; exit 1
@@ -58,10 +109,12 @@ if ! docker exec agrent-caddy caddy reload --adapter caddyfile --config /etc/cad
   echo "RELOAD FAILED"; exit 1
 fi
 
-# NEXTAUTH_URL is what next-auth builds every callback and redirect from. Leave
-# it on sslip.io and the OAuth round trip comes back to the wrong host.
+# NEXTAUTH_URL is what next-auth builds every callback and redirect from. Left
+# on sslip.io, the OAuth round trip comes back to the wrong host and sign-in
+# fails at the last step — after the user has already consented, which is the
+# most confusing place for it to fail.
 cp -a "$ENVF" "$ENVF.bak.$(date +%s)"
-sed -i -E "s#^NEXTAUTH_URL=.*#NEXTAUTH_URL=https://$DOMAIN#" "$ENVF"
+sed -i -E "s#^NEXTAUTH_URL=.*#NEXTAUTH_URL=https://$CANON#" "$ENVF"
 cd /opt/playerz && docker compose -f docker-compose.prod.yml up -d --force-recreate app
 
-echo "done — https://$DOMAIN"
+echo "done — https://$CANON"
