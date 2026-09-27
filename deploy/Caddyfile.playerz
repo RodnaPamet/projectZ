@@ -1,0 +1,41 @@
+# playerz.bg — appended to /opt/agrent/Caddyfile on the shared VM.
+#
+# Kept here, in the repo, because a site block that exists only on a box is a
+# configuration nobody can review and nobody can restore.
+#
+# ═══ WHY sslip.io AND NOT playerz.bg ═══
+#
+# playerz.bg does not exist in DNS — no A record, no NS, no SOA. Caddy cannot
+# obtain a certificate for a name that does not resolve to this host, and
+# listing one it cannot validate makes it retry and log failures indefinitely.
+#
+# When the domain is registered and its A record points at 35.187.80.26, add it
+# to the first line and reload. Caddy will provision the certificate itself; no
+# other change is needed.
+
+playerz.35-187-80-26.sslip.io {
+	encode gzip zstd
+
+	# Matches agrent's. The booking API posts small JSON; the ceiling is here to
+	# stop a large body reaching the app, not because anything needs it.
+	request_body {
+		max_size 10MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		X-Frame-Options           "DENY"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# By container name on agrent_internal — the one network this app shares
+	# with agrent's stack, because only one process can bind 80/443.
+	reverse_proxy playerz-app:3000 {
+		header_up Host              {host}
+		header_up X-Real-IP         {remote_host}
+		header_up X-Forwarded-For   {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
