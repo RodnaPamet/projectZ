@@ -99,6 +99,10 @@ logs `runtime database role verified as least-privileged`.
 There is no registry. The image is built on the box from a clone.
 
 ```bash
+# Keep the running image as the way back. Migrations here have been additive, so
+# the previous image runs against the new schema; re-tag and recreate to roll back.
+sudo docker tag playerz:local playerz:rollback-$(date +%s)
+
 cd /opt/playerz/repo && sudo git fetch --all && sudo git reset --hard origin/main
 sudo nice -n 10 docker build --build-arg SKIP_ENV_VALIDATION=1 -t playerz:local .
 
@@ -135,25 +139,21 @@ If validate fails, restore the backup before doing anything else.
 
 ### The hostname
 
-Serving host today: `playerz.35-187-80-26.sslip.io`. The intended one is
-**`app.playerz.bg`**.
+Serving host: **`app.playerz.bg`** (`A 35.187.80.26`). As of 2026-09-29 it
+serves `/api/ready` over HTTPS with a valid certificate — `curl` without `-k`
+succeeds. `playerz.35-187-80-26.sslip.io` stays in the site block as a way in if
+DNS ever goes wrong.
 
-`playerz.bg` is registered and delegated at the registry to
-`ns1/ns2.jumphosting01.com` — but those nameservers answer **REFUSED** for the
-zone, which means the delegation exists and the zone behind it does not. Until
-somebody creates the zone at that provider and adds
+Any NEW name must resolve here BEFORE Caddy is told about it. Caddy cannot obtain
+a certificate for a name that does not resolve to this box; listing one anyway
+makes it retry forever _and_ burns Let's Encrypt's
+five-failures-per-hostname-per-hour budget, locking out the real attempt for an
+hour after DNS is finally right. (This is what held `app.playerz.bg` up at
+first: the `playerz.bg` delegation to `ns1/ns2.jumphosting01.com` existed before
+the zone behind it did, and those nameservers answered REFUSED.)
 
-```
-app   A   35.187.80.26
-```
-
-nothing resolves, and Caddy cannot obtain a certificate for a name that does not
-resolve here. Listing one anyway makes it retry forever _and_ burns Let's
-Encrypt's five-failures-per-hostname-per-hour budget, locking out the real
-attempt for an hour after DNS is finally right.
-
-When it does resolve, `deploy/add-domain.sh` does the whole switch, and refuses
-if it does not:
+`deploy/add-domain.sh` does the whole switch for a name, and refuses if it does
+not resolve:
 
 ```bash
 sudo bash /opt/playerz/add-domain.sh app.playerz.bg
@@ -186,16 +186,33 @@ cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml -f sweep.compo
 
 Until #247 the overlay was not a valid compose project against this file —
 it named a service `app` that #230 had renamed `playerz-app` — so none of the
-three can have been running from it.
+three ran before 2026-09-29.
+
+**Running since 2026-09-29 17:45 UTC** (#249): `playerz-booking-sweep`,
+`playerz-booking-complete` and `playerz-grant-expiry-warn`. They are silent when
+there is nothing to do, so silence alone proves nothing. Prove it from inside a
+sweep container, with its own secret (expanded in the container, never on your
+command line), and with a negative control:
+
+```bash
+sudo docker exec playerz-booking-complete sh -c \
+  'wget -q -O- --post-data="" --header="x-cron-secret: $CRON_SECRET" http://playerz-app:3000/api/cron/complete-ended-bookings'
+# → {"scanned":0,"completed":0,"truncated":false}
+sudo docker exec playerz-booking-complete sh -c \
+  'wget -S -q -O- --post-data="" http://playerz-app:3000/api/cron/complete-ended-bookings 2>&1 | grep HTTP/'
+# → HTTP/1.1 401 Unauthorized
+```
 
 ## Verifying
 
 ```bash
-curl -s https://playerz.35-187-80-26.sslip.io/api/ready
-curl -s -o /dev/null -w '%{http_code}\n' https://35-187-80-26.sslip.io/   # agrent, still 200
+curl -s https://app.playerz.bg/api/ready
+curl -s -o /dev/null -w '%{http_code}\n' https://35-187-80-26.sslip.io/   # agrent: must not change
 ```
 
-Check agrent every time. It is the whole risk of sharing a box.
+Check agrent every time. It is the whole risk of sharing a box. Record its
+status code BEFORE you start and compare after — do not compare against a fixed
+number: on 2026-09-29 it answered `307`, not the `200` this section used to say.
 
 `/api/health` is liveness and touches nothing — that is why the container
 healthcheck uses it. `/api/ready` checks Postgres and Redis and 503s when
@@ -205,20 +222,26 @@ actually configured.
 ## Not done yet
 
 - **No backups.** The Postgres volume is a Docker volume on one VM. See #218.
-- **Scheduled jobs not known to be running.** See _Scheduled jobs_ above:
-  whether `CRON_SECRET` is set here and the overlay is up has not been
-  verified from this repo. See #249.
-- **No OAuth credentials.** `/api/ready` reports `google: disabled, microsoft:
-disabled`, and the web login page offers nothing else — so nobody can sign in
-  until `GOOGLE_CLIENT_ID/SECRET` and `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` are
-  set. The redirect URIs to register, once the host is `app.playerz.bg`:
+- **Microsoft sign-in not configured.** `/api/ready` reports
+  `google: configured, microsoft: disabled` (2026-09-29). To enable it, set
+  `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` and register the callback:
 
   | Provider        | Callback                                            |
   | --------------- | --------------------------------------------------- |
-  | Google          | `https://app.playerz.bg/api/auth/callback/google`   |
+  | Google (live)   | `https://app.playerz.bg/api/auth/callback/google`   |
   | Microsoft Entra | `https://app.playerz.bg/api/auth/callback/azure-ad` |
 
   `azure-ad`, not `microsoft-entra-id` — this is next-auth **v4**, and the
   provider id is what the callback path is built from.
 
-- **No data.** The database has the schema and nothing else.
+- **Almost no data.** As of 2026-09-29: one club (`demo-sofia`), two accounts,
+  zero bookings.
+
+## Shared with agrent
+
+- **`ANTHROPIC_API_KEY`** in `/opt/playerz/.env` was copied server-side from
+  `/opt/agrent/.env` on 2026-09-29 (review moderation, #257). The two products
+  share one key: rotating it means updating **both** files and recreating both
+  apps.
+- The VM, Caddy (reload, never restart) and the `agrent_internal` network — see
+  above.
