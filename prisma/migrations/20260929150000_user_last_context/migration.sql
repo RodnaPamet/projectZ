@@ -1,0 +1,26 @@
+-- #227: where somebody who holds several roles lands after signing in.
+--
+-- ═══ WHAT THIS STORES ═══
+--
+-- The context the person last CHOSE in the role switcher: `player`, or
+-- `club:<tenantId>`. It is written only by that switcher, after the chosen key
+-- has been checked against the memberships the person holds at that moment, so
+-- nothing else can put a value here.
+--
+-- It is ADVISORY. `decideLanding` re-checks it against live memberships on
+-- every read and ignores a value that no longer names a context the person
+-- holds — a club they left, or one that was suspended since. So there is no
+-- foreign key and no CHECK: a stale value is harmless by construction, and a
+-- constraint would make the global identity table depend on the tenant table
+-- for a hint.
+--
+-- ═══ WHY HAND-WRITTEN ═══
+--
+-- `prisma migrate diff` against the live database proposes dropping
+-- `venue.geog` and `venue_geog_idx`, which Prisma cannot model (see the
+-- migration-safety guardrail). This is the one statement the change needs.
+--
+-- Nullable with no default: adding it rewrites nothing and takes no more than
+-- a brief ACCESS EXCLUSIVE lock on `app_user`. NULL means "never chosen", which
+-- is what every existing user is.
+ALTER TABLE "app_user" ADD COLUMN "lastContext" TEXT;

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
-import { adminNav, AppNav, playerNav } from '@/components/layout/AppNav';
+import { AppNav } from '@/components/layout/AppNav';
+import { adminNav, playerNav } from '@/components/layout/nav-items';
 
 /**
  * The nav takes a slug now: bare `/admin/*` is unguarded at the edge, so the

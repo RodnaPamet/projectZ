@@ -1,3 +1,4 @@
+import { postSignInPath } from '@/lib/auth/landing';
 import { signInMethods } from '@/lib/auth/sign-in-methods';
 
 import { LoginForm } from './login-form';
@@ -21,20 +22,40 @@ export const metadata = { title: 'Вход — playerz.bg' };
  * button would take the user to a next-auth error page for an unknown
  * provider. That decision needs `process.env`, which a client component cannot
  * read — so it is made in this server component and passed down.
+ *
+ * ═══ WHERE A SIGN-IN ENDS (#227) ═══
+ *
+ * A deep link wins: `?next=` is what the middleware, the club layout, the
+ * invite page and `/me/bookings` all write when they send somebody here, and
+ * `?callbackUrl=` is what next-auth writes on a retry. With neither — or with
+ * one that is not a path on this site — sign-in ends at `/start`, which lands
+ * the person by role. `postSignInPath` is where "safe" is decided.
+ *
+ * This page used to read `callbackUrl` only, with `/` as the default. Every
+ * `?next=` in the app was dropped on the floor, so every deep link through
+ * sign-in ended on the home page.
  */
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+  // `string[]` is real: a repeated parameter arrives as an array, and an
+  // ambiguous destination is treated as none.
+  searchParams: Promise<{
+    error?: string | string[];
+    callbackUrl?: string | string[];
+    next?: string | string[];
+  }>;
 }) {
-  const { error, callbackUrl } = await searchParams;
+  const { error, callbackUrl, next } = await searchParams;
   const methods = signInMethods();
 
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4">
       <LoginForm
-        error={error ?? null}
-        callbackUrl={callbackUrl ?? '/'}
+        error={typeof error === 'string' ? error : null}
+        // NEXTAUTH_URL is the origin next-auth builds its absolute callback
+        // URLs from, so it is the only origin one of them may carry.
+        callbackUrl={postSignInPath({ next, callbackUrl }, process.env.NEXTAUTH_URL)}
         google={methods.google === 'configured'}
         microsoft={methods.microsoft === 'configured'}
       />

@@ -99,6 +99,15 @@ const ALLOWED: Record<string, string> = {
     'theirs — the userId comes from a verified session and never from the request, so it can ' +
     "only ever resolve the caller's own standing, and it cannot enumerate. One club by slug, " +
     'one membership by (userId, tenantId).',
+  'src/app-layer/usecases/landing.ts':
+    "role landing (#227) reads a person's OWN club roles at every club — which club UI to " +
+    'land on, which clubs to offer in the switcher — and `tenant_membership` carries FORCE ' +
+    'RLS keyed on app.tenant_id alone, so an unbound read returns ZERO ROWS and an owner ' +
+    'would silently land on the player UI as though they held no club. The same read ' +
+    'auth.ts makes at sign-in. Scoped to userId from a verified session, never the ' +
+    "request; the one write is that person's own app_user.lastContext, by primary key, " +
+    'after the key has been checked against the contexts they hold. NOT asPlatformAdmin: ' +
+    'nobody is reaching into a club that is not theirs.',
   'src/app-layer/usecases/my-bookings.ts':
     "a person's own bookings span every club, and `booking` carries a tenant-scoped RLS " +
     'policy naming only app.tenant_id — so `asUser` returns ZERO ROWS, which reads as "you ' +
