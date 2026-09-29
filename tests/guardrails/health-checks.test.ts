@@ -350,32 +350,44 @@ describe('the rules fire on the code they forbid', () => {
 describe('the cron sweep endpoint', () => {
   const CRON = 'src/app/api/cron/release-expired-bookings/route.ts';
 
+  /**
+   * EVERY route under /api/cron, not just the first one.
+   *
+   * This suite named the expiry sweep alone, so the grant-expiry warning and the
+   * completion sweep — the same shape, behind the same secret, uncovered by the
+   * same three layers — were held to nothing. A second cron route written by
+   * copying the first is exactly where a "temporary" `===` gets introduced.
+   */
+  const ALL_CRON = globSync('src/app/api/cron/*/route.ts').map((f) => f.toString());
+
   it('exists', () => {
     // Renaming the file must fail here rather than silently skip every rule
     // below it.
     expect(existsSync(CRON)).toBe(true);
+    expect(ALL_CRON).toContain(CRON);
+    expect(ALL_CRON.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('it requires a secret', () => {
-    const src = code(readFileSync(CRON, 'utf8'));
+  it.each(ALL_CRON)('%s requires a secret', (file) => {
+    const src = code(readFileSync(file, 'utf8'));
 
     expect(src).toMatch(/CRON_SECRET/);
   });
 
-  it('it compares the secret in CONSTANT TIME', () => {
+  it.each(ALL_CRON)('%s compares the secret in CONSTANT TIME', (file) => {
     // `a === b` returns early on the first differing byte and leaks the secret
     // a character at a time. The suite covering this route could not catch its
     // removal: the "wrong secret" fixture was a different LENGTH from the real
     // one, so the comparison was never reached.
-    const src = code(readFileSync(CRON, 'utf8'));
+    const src = code(readFileSync(file, 'utf8'));
 
     expect(src).toMatch(/timingSafeEqual/);
   });
 
-  it('a MISSING secret closes the endpoint rather than opening it', () => {
+  it.each(ALL_CRON)('%s closes on a MISSING secret rather than opening', (file) => {
     // The failure mode of a forgotten environment variable must never be "no
-    // security" — least of all on a route that cancels bookings platform-wide.
-    const src = code(readFileSync(CRON, 'utf8'));
+    // security" — least of all on a route that writes bookings platform-wide.
+    const src = code(readFileSync(file, 'utf8'));
 
     expect(src).toMatch(/if \(!expected\)\s*\{[\s\S]{0,160}?return/);
   });

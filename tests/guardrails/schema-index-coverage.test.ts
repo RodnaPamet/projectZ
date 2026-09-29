@@ -191,6 +191,13 @@ describe('schema index coverage', () => {
       why: 'availability lookup — the hottest read in the product',
     },
     {
+      model: 'Booking',
+      index: ['status', 'endTs'],
+      why:
+        'the completion sweep, every minute, across every club — without it each run reads ' +
+        'the whole forward book through the exclusion index (P35 measured 16 ms vs 2 ms)',
+    },
+    {
       model: 'ResourceAvailability',
       index: ['resourceId', 'dayOfWeek'],
       why: 'opening-hours lookup while computing slots',

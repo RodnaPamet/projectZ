@@ -81,6 +81,10 @@ const ALLOWED: Record<string, string> = {
   // ── Machine work with no human actor ────────────────────────────────
   'src/app/api/webhooks/stripe/route.ts': 'Stripe posts with no session and no tenant slug',
   'src/app-layer/usecases/release-expired-bookings.ts': 'the sweeper spans every club',
+  'src/app/api/cron/complete-ended-bookings/route.ts':
+    'the completion sweep marks every club’s ended CONFIRMED bookings COMPLETED. A timer, ' +
+    'not a person, so there is no grant for asPlatformAdmin to audit against; every row it ' +
+    'changes gets its own SYSTEM audit entry instead. Behind CRON_SECRET, like the expiry sweep.',
   'src/app/api/cron/warn-expiring-platform-grants/route.ts':
     'reads grant expiry dates; platform_admin_grant denies app_user, and a cron job is not a person',
   'src/app-layer/usecases/notifications.ts': 'writes a user-bound row after the tenant tx commits',

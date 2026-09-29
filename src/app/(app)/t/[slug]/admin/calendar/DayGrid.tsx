@@ -1,9 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { StatusBadge } from '@/components/ui/status-badge';
+
+import { markNoShowAction } from './actions';
 
 /**
  * One day, every court, side by side — the front-desk view.
@@ -26,6 +30,14 @@ import { StatusBadge } from '@/components/ui/status-badge';
  * staff a court is free while somebody is mid-checkout; drawing it identically
  * would tell them it is sold. It gets a dashed, muted outline rather than a
  * filled block, plus its expiry time.
+ *
+ * ═══ A BOOKING THAT HAS STARTED CAN BE MARKED A NO-SHOW ═══
+ *
+ * The block itself is the control — a court standing empty is noticed while
+ * looking at the diary, and a separate list would be one more place to look.
+ * Whether it qualifies is decided on the server (`canMarkNoShow`) and decided
+ * AGAIN by the use case, because the sweep or the player may have moved the
+ * booking since this page rendered; a refusal comes back as a message.
  */
 
 export interface DayBooking {
@@ -41,6 +53,8 @@ export interface DayBooking {
   who: string;
   priceLabel: string;
   expiresLabel: string | null;
+  /** Started, and CONFIRMED or COMPLETED. The use case re-checks it. */
+  canMarkNoShow: boolean;
 }
 
 export interface GridCourt {
@@ -76,6 +90,9 @@ export function DayGrid({
   lastHour: number;
 }) {
   const t = useTranslations('admin.calendar');
+  const [noShowTarget, setNoShowTarget] = useState<DayBooking | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i);
   const byCourt = new Map<string, DayBooking[]>();
@@ -118,6 +135,14 @@ export function DayGrid({
           {t('legend.pending')}
         </span>
       </div>
+
+      <p className="text-content-muted mt-2 text-sm">{t('noShow.hint')}</p>
+
+      {refusal && (
+        <p role="alert" className="text-content-error mt-2 text-sm">
+          {t(`noShow.error.${refusal}` as never)}
+        </p>
+      )}
 
       {courts.length === 0 ? (
         <p className="text-content-muted mt-6 text-sm">{t('noCourts')}</p>
@@ -173,22 +198,20 @@ export function DayGrid({
 
                 {(byCourt.get(court.id) ?? []).map((b) => {
                   const pending = b.status === 'PENDING';
-                  return (
-                    <div
-                      key={b.id}
-                      className={[
-                        'absolute inset-x-1 overflow-hidden rounded-md px-2 py-1 text-xs',
-                        pending
-                          ? 'border-border-strong text-content-muted border border-dashed'
-                          : 'bg-bg-success text-content-success',
-                      ].join(' ')}
-                      style={{
-                        top: (b.startOffsetMinutes / 60) * ROW_HEIGHT,
-                        // A one-line minimum, so a 15-minute booking is still
-                        // readable rather than a sliver with clipped text.
-                        height: Math.max((b.durationMinutes / 60) * ROW_HEIGHT - 2, 22),
-                      }}
-                    >
+                  const className = [
+                    'absolute inset-x-1 overflow-hidden rounded-md px-2 py-1 text-xs',
+                    pending
+                      ? 'border-border-strong text-content-muted border border-dashed'
+                      : 'bg-bg-success text-content-success',
+                  ].join(' ');
+                  const style = {
+                    top: (b.startOffsetMinutes / 60) * ROW_HEIGHT,
+                    // A one-line minimum, so a 15-minute booking is still
+                    // readable rather than a sliver with clipped text.
+                    height: Math.max((b.durationMinutes / 60) * ROW_HEIGHT - 2, 22),
+                  };
+                  const content = (
+                    <>
                       <span className="font-medium">{b.who}</span>
                       <span className="ml-1 tabular-nums">
                         {b.startLabel}–{b.endLabel}
@@ -197,7 +220,36 @@ export function DayGrid({
                       {pending && b.expiresLabel && (
                         <span className="ml-1">{t('expiresAt', { time: b.expiresLabel })}</span>
                       )}
-                    </div>
+                    </>
+                  );
+
+                  if (!b.canMarkNoShow) {
+                    return (
+                      <div key={b.id} className={className} style={style}>
+                        {content}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      className={`${className} focus-visible:ring-focus-ring cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none`}
+                      style={style}
+                      aria-label={t('noShow.open', {
+                        who: b.who,
+                        start: b.startLabel,
+                        end: b.endLabel,
+                      })}
+                      onClick={() => {
+                        setRefusal(null);
+                        setNoShowTarget(b);
+                        setConfirmOpen(true);
+                      }}
+                    >
+                      {content}
+                    </button>
                   );
                 })}
               </div>
@@ -213,6 +265,27 @@ export function DayGrid({
       <p className="text-content-muted mt-6 text-sm">
         <StatusBadge variant="neutral">{t('tz.badge')}</StatusBadge> {t('tz.note')}
       </p>
+
+      {noShowTarget && (
+        <ConfirmDialog
+          showModal={confirmOpen}
+          setShowModal={setConfirmOpen}
+          tone="warning"
+          title={t('noShow.confirmTitle')}
+          description={t('noShow.confirmBody', {
+            who: noShowTarget.who,
+            start: noShowTarget.startLabel,
+            end: noShowTarget.endLabel,
+          })}
+          confirmLabel={t('noShow.confirm')}
+          onConfirm={async () => {
+            const result = await markNoShowAction(slug, noShowTarget.id);
+            // A refusal closes the dialog and is shown above the grid, where it
+            // stays readable; the grid itself refreshes on success.
+            if (!result.ok) setRefusal(result.error);
+          }}
+        />
+      )}
     </>
   );
 }

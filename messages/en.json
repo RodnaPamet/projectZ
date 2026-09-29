@@ -514,6 +514,20 @@
       "tz": {
         "badge": "Timezone",
         "note": "All times are the club's local time, not yours."
+      },
+      "noShow": {
+        "hint": "Once a booking has started, select it to mark the player as a no-show.",
+        "open": "{who}, {start}–{end}: mark as a no-show",
+        "confirmTitle": "Mark as a no-show?",
+        "confirmBody": "{who}, {start}–{end}. The booking will no longer count as played, the player cannot review it, and it is added to their no-show count at this club. This cannot be undone here.",
+        "confirm": "Mark no-show",
+        "error": {
+          "NOT_FOUND": "That booking no longer exists.",
+          "NOT_STARTED": "That booking has not started yet.",
+          "NOT_ATTENDABLE": "Only a confirmed or completed booking can be marked as a no-show.",
+          "ALREADY_NO_SHOW": "That booking is already marked as a no-show.",
+          "REVIEWED": "The player has already reviewed this visit, so it can no longer be marked as a no-show. A disputed review goes to moderation."
+        }
       }
     }
   },

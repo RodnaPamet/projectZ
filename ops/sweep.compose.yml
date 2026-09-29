@@ -16,11 +16,30 @@
 #
 # ═══ HOW TO USE IT ═══
 #
-#   docker compose -f docker-compose.prod.yml -f ops/sweep.compose.yml up -d
+#   docker compose -f deploy/docker-compose.prod.yml -f ops/sweep.compose.yml up -d
 #
-# This repo carries no production compose file — deployment lives elsewhere —
-# so this is an OVERLAY, not a stack. It expects a service reachable as `app`
-# on port 3000; override SWEEP_URL if yours is named differently.
+# An OVERLAY on deploy/docker-compose.prod.yml, not a stack of its own. Copy it
+# beside that file on the host, as that file is, and name both.
+#
+# ═══ IT TARGETS `playerz-app` ON `internal`, AND BOTH ARE LOAD-BEARING ═══
+#
+# This file used to say `depends_on: app` and `http://app:3000`, written when
+# the repo had no production compose file. #221 added one and #230 named the
+# service `playerz-app`, and from then on the overlay was not a valid compose
+# project at all — measured:
+#
+#   docker compose -f deploy/docker-compose.prod.yml -f ops/sweep.compose.yml config
+#   service "grant-expiry-warn" depends on undefined service "app"
+#
+# So nothing here could have been running against production, and neither sweep
+# nor the grant warning ran anywhere.
+#
+# `networks: [internal]` is the other half. The prod services all name their
+# networks, so an overlay service left on the implicit `default` network cannot
+# resolve `playerz-app` at all. And it must be `internal` and NEVER
+# `agrent_internal`: on that network `app` is ANOTHER product's container
+# (see the header of deploy/docker-compose.prod.yml), and a sweep that resolved
+# it would POST our CRON_SECRET to someone else's application every minute.
 #
 # ═══ WHY A LOOP AND NOT A CRON IMAGE ═══
 #
@@ -34,12 +53,13 @@ services:
     container_name: playerz-booking-sweep
     restart: unless-stopped
     depends_on:
-      - app
+      - playerz-app
+    networks: [internal]
     environment:
       # No default. A sweep running without the secret gets a 401 for ever and
       # looks exactly like a sweep with nothing to do.
       CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the expiry sweep}
-      SWEEP_URL: ${SWEEP_URL:-http://app:3000/api/cron/release-expired-bookings}
+      SWEEP_URL: ${SWEEP_URL:-http://playerz-app:3000/api/cron/release-expired-bookings}
       SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-60}
     # `--post-data=""` is how BUSYBOX wget sends a POST. It has no `--method`
     # flag at all — that is GNU wget, and using it here fails every request
@@ -74,6 +94,45 @@ services:
         done
 
   # ═══════════════════════════════════════════════════════════════════
+  #  The completion sweep: CONFIRMED -> COMPLETED once a booking ends.
+  #
+  #  A review needs a COMPLETED booking as its proof of visit, and this is
+  #  the only thing that ever sets that status. Unscheduled, nobody can
+  #  review anything — silently, since the review form simply never
+  #  appears. Same shape as booking-sweep and the same one-minute cadence:
+  #  a player who has just walked off the court should not wait long to
+  #  rate it, and a run with nothing to do reads one index and returns.
+  # ═══════════════════════════════════════════════════════════════════
+  booking-complete:
+    image: alpine:3
+    container_name: playerz-booking-complete
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the completion sweep}
+      COMPLETE_URL: ${COMPLETE_URL:-http://playerz-app:3000/api/cron/complete-ended-bookings}
+      COMPLETE_INTERVAL_SECONDS: ${COMPLETE_INTERVAL_SECONDS:-60}
+    # busybox wget, `--post-data=""`, `$$` escaping — see booking-sweep above.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "complete: every $${COMPLETE_INTERVAL_SECONDS}s -> $${COMPLETE_URL}"
+        while true; do
+          sleep "$${COMPLETE_INTERVAL_SECONDS}"
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${COMPLETE_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"completed":0'*'"truncated":false'*) : ;;   # nothing ended — stay quiet
+                 *) echo "complete: $$body" ;;
+               esac \
+            || echo "complete: request FAILED -> $$body"
+        done
+
+  # ═══════════════════════════════════════════════════════════════════
   #  The platform-grant expiry warning.
   #
   #  Same shape, same reason, and the reason is that this file exists at
@@ -98,10 +157,11 @@ services:
     container_name: playerz-grant-expiry-warn
     restart: unless-stopped
     depends_on:
-      - app
+      - playerz-app
+    networks: [internal]
     environment:
       CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the grant-expiry warning}
-      WARN_URL: ${WARN_URL:-http://app:3000/api/cron/warn-expiring-platform-grants}
+      WARN_URL: ${WARN_URL:-http://playerz-app:3000/api/cron/warn-expiring-platform-grants}
       WARN_INTERVAL_SECONDS: ${WARN_INTERVAL_SECONDS:-86400}
     # busybox wget, `--post-data=""`, `$$` escaping — all for the reasons
     # spelled out on booking-sweep above. Do not switch to `--method=POST`:
