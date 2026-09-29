@@ -324,3 +324,47 @@ export function toBooking(b: BookingRow): BookingDto {
     venue: b.resource.venue,
   };
 }
+
+export interface ReviewDto {
+  id: string;
+  bookingId: string;
+  venueId: string;
+  rating: number;
+  /** The text as stored — sanitised on the way in. Null for a star-only review. */
+  body: string | null;
+  /**
+   * `PUBLISHED`, `PENDING_REVIEW` or `REJECTED`, as an OPEN string for the
+   * same reason as `BookingDto.status`: a shipped binary must not fail to
+   * decode a value added later.
+   */
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * The author's own view of what they just submitted.
+ *
+ * No author id and no moderation scores. The author knows who they are, and
+ * the classifier's numbers are for the moderator judging the machine — handed
+ * to the author they are a gauge for tuning text until it slips under the
+ * threshold.
+ */
+export function toReview(r: {
+  id: string;
+  bookingId: string;
+  venueId: string;
+  rating: number;
+  body: string | null;
+  status: string;
+  createdAt: Date;
+}): ReviewDto {
+  return {
+    id: r.id,
+    bookingId: r.bookingId,
+    venueId: r.venueId,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: rfc3339(r.createdAt),
+  };
+}

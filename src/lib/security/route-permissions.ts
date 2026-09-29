@@ -95,6 +95,17 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     permission: 'bookings.cancel',
   },
   {
+    // Reviewing your OWN completed booking. `bookings.create` is the weakest
+    // permission every member holds, and membership is all this can establish:
+    // ownership, completion and "not already reviewed" are row-level facts the
+    // use case checks under a lock. Named explicitly rather than left to the
+    // `/bookings` rule below, which would match it by prefix and say the same
+    // thing without saying it was decided.
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings\/[^/]+\/review/,
+    methods: ['POST'],
+    permission: 'bookings.create',
+  },
+  {
     pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/bookings/,
     methods: ['POST'],
     permission: 'bookings.create',

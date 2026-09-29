@@ -113,6 +113,75 @@ describe('listMyBookings', () => {
     expect(nextCursor).toBeNull();
   });
 
+  it('names each booking’s club, so a review can be addressed to it', async () => {
+    await bookingAt(clubA.tenantId, 'Club A', '2026-07-15T06:00:00Z', playerId);
+    await bookingAt(clubB.tenantId, 'Club B', '2026-07-16T06:00:00Z', playerId);
+
+    const { items } = await listMyBookings({ userId: playerId });
+
+    expect(new Map(items.map((b) => [b.resource.venue.name, b.clubSlug]))).toEqual(
+      new Map([
+        ['Club A', clubA.tenantSlug],
+        ['Club B', clubB.tenantSlug],
+      ]),
+    );
+  });
+
+  it("carries the player's OWN review of each venue — and nobody else's", async () => {
+    const mine = await bookingAt(clubA.tenantId, 'Reviewed', '2026-07-15T06:00:00Z', playerId);
+    const theirs = await bookingAt(
+      clubA.tenantId,
+      'Reviewed too',
+      '2026-07-15T08:00:00Z',
+      strangerId,
+    );
+    await bookingAt(clubB.tenantId, 'Not reviewed', '2026-07-16T06:00:00Z', playerId);
+
+    // The stranger reviews the venue THEY booked; the player reviews theirs.
+    const venueOf = (bookingId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.booking
+          .findUniqueOrThrow({ where: { id: bookingId }, select: { resource: true } })
+          .then((b) => b.resource.venueId),
+      );
+    const myVenue = await venueOf(mine.id);
+    const theirVenue = await venueOf(theirs.id);
+    await asAppSuperuser(db, async (tx) => {
+      await tx.review.create({
+        data: {
+          tenantId: clubA.tenantId,
+          venueId: myVenue,
+          authorUserId: playerId,
+          bookingId: mine.id,
+          rating: 4,
+          status: 'PENDING_REVIEW',
+        },
+      });
+      await tx.review.create({
+        data: {
+          tenantId: clubA.tenantId,
+          venueId: theirVenue,
+          authorUserId: strangerId,
+          bookingId: theirs.id,
+          rating: 1,
+          status: 'PUBLISHED',
+        },
+      });
+    });
+
+    const { items } = await listMyBookings({ userId: playerId });
+    const byVenue = new Map(items.map((b) => [b.resource.venue.name, b.venueReview]));
+
+    expect(byVenue.get('Reviewed')).toMatchObject({
+      bookingId: mine.id,
+      rating: 4,
+      status: 'PENDING_REVIEW',
+    });
+    expect(byVenue.get('Not reviewed')).toBeNull();
+    // The stranger's review exists and must not leak into the player's list.
+    expect([...byVenue.values()].some((r) => r?.rating === 1)).toBe(false);
+  });
+
   it('paginates by keyset, and the cursor does not repeat a row', async () => {
     await bookingAt(clubA.tenantId, 'One', '2026-07-15T06:00:00Z', playerId);
     await bookingAt(clubB.tenantId, 'Two', '2026-07-16T06:00:00Z', playerId);

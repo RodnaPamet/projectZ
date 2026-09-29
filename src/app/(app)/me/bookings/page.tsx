@@ -2,9 +2,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
-import { listMyBookings } from '@/app-layer/usecases/my-bookings';
+import { canReview, listMyBookings } from '@/app-layer/usecases/my-bookings';
+import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
 import { EmptyState } from '@/components/ui/empty-state';
 import { requireSignedIn } from '@/lib/auth/page-context';
+
+import { ReviewForm } from './ReviewForm';
 
 export async function generateMetadata() {
   const t = await getTranslations('myBookings');
@@ -32,6 +35,14 @@ export async function generateMetadata() {
  * 17:00 and turn up two hours late. `Venue.timezone` is stored per venue for
  * exactly this, and `startTs` is `timestamptz`, so the conversion is the only
  * step that can be got wrong.
+ *
+ * ═══ A PLAYED BOOKING IS WHERE A REVIEW STARTS ═══
+ *
+ * A COMPLETED booking — the proof of visit — offers "rate this venue" until the
+ * player has reviewed that venue; after that it shows the review they left and
+ * whether a moderator has passed it. One review per venue, so a second visit to
+ * the same club shows the first review rather than a form that could only be
+ * refused.
  */
 export default async function MyBookingsPage() {
   const userId = await requireSignedIn();
@@ -104,6 +115,19 @@ export default async function MyBookingsPage() {
                   {when} – {until}
                 </p>
                 <p className="text-content-muted mt-1 text-sm">{price}</p>
+
+                {b.venueReview?.bookingId === b.id ? (
+                  <p className="text-content-default mt-3 text-sm">
+                    {t('review.yours', { rating: b.venueReview.rating })}{' '}
+                    <span className="text-content-muted">
+                      · {t(`review.status.${b.venueReview.status}` as never)}
+                    </span>
+                  </p>
+                ) : b.venueReview && b.status === 'COMPLETED' ? (
+                  <p className="text-content-muted mt-3 text-sm">{t('review.alreadyThisVenue')}</p>
+                ) : canReview(b) && b.clubSlug ? (
+                  <ReviewForm slug={b.clubSlug} bookingId={b.id} maxLength={REVIEW_MAX_LENGTH} />
+                ) : null}
               </li>
             );
           })}

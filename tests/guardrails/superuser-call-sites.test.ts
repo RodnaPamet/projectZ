@@ -106,7 +106,9 @@ const ALLOWED: Record<string, string> = {
     'a verified session and never from the request, on an indexed column. The alternative — ' +
     'one bound query per membership — is N transactions per page AND would be driven by the ' +
     "token's TRUNCATED membership list, so a player with many clubs would silently lose the " +
-    'tail of their own bookings.',
+    'tail of their own bookings. In the same transaction, bounded by that page: the slugs of ' +
+    'those bookings’ clubs, and the reviews the caller AUTHORED at those venues — again by ' +
+    'the session-derived id, so it can only ever return their own.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {

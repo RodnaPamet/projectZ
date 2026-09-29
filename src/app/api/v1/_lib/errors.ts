@@ -84,6 +84,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   GuestContactRequiredError: { status: 400, code: 'GUEST_CONTACT_REQUIRED' },
   PasswordBreachedError: { status: 400, code: 'PASSWORD_BREACHED' },
   WebhookSignatureError: { status: 400, code: 'WEBHOOK_SIGNATURE_INVALID' },
+  // A rating that is not a whole number from 1 to 5. The review route passes
+  // the client's number straight to the use case, which owns the range.
+  InvalidRatingError: { status: 400, code: 'INVALID_RATING' },
 
   // ── 402: the rule is about money, and the client can fix it ───────
   //
@@ -166,6 +169,10 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // state between our read and our write. Refetch and the client will see why.
   BookingNotCancellableError: { status: 409, code: 'BOOKING_NOT_CANCELLABLE' },
   DuplicateGroupMappingError: { status: 409, code: 'DUPLICATE_GROUP_MAPPING' },
+  // One review per venue per person. Not "try again" like its neighbours —
+  // retrying cannot succeed — but a conflict with a row that exists, which is
+  // what 409 says. The client shows the review they already left.
+  AlreadyReviewedError: { status: 409, code: 'ALREADY_REVIEWED' },
   PayoutsNotEnabledError: { status: 409, code: 'PAYOUTS_NOT_ENABLED' },
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
 
