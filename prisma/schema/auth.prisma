@@ -5,8 +5,15 @@
 // club would need a second account and their rating would fork.
 //
 // A STAFF relationship is per-tenant. TenantMembership carries the
-// tenantId, so the same human can be a COACH at one venue and a PLAYER at
-// another.
+// tenantId.
+//
+// ── One account, one kind (#263) ────────────────────────────────────
+//
+// This used to say "so the same human can be a COACH at one venue and a
+// PLAYER at another". The owner decided otherwise: an account is a PLAYER, a
+// CLUB account (one club) or a COACH, and doing two of those takes two
+// accounts. `User.accountKind` says which, and a trigger on tenant_membership
+// holds every ACTIVE membership to it — see the p37 migration.
 //
 // Consequence: `User` and `PlayerProfile` have NO RLS — they are global by
 // design. Every OTHER table with a tenantId gets a policy. The
@@ -97,20 +104,25 @@ model User {
   /// logout). A JWT carrying a stale version is rejected.
   sessionVersion Int @default(0)
 
-  /// The context this person last CHOSE in the role switcher (#227): `player`,
-  /// or `club:<tenantId>`. Read after sign-in to decide where somebody who
-  /// holds more than one context lands.
+  /// What this account IS (#263): PLAYER, CLUB or COACH. See `enum AccountKind`.
   ///
-  /// On the user rather than in a cookie because sign-in is exactly when a
-  /// cookie is least likely to exist — a new device, another browser, a
-  /// session that expired — and because the iOS client needs the same answer.
+  /// PLAYER by default, because every way an account comes into being today is
+  /// a sign-in with no memberships — and that is a player. It becomes CLUB when
+  /// it is made a club's owner (`create-venue-org`) or accepts a staff invite
+  /// while still empty; nothing makes it COACH yet.
   ///
-  /// ADVISORY, NEVER AUTHORITY. `decideLanding` honours it only while it still
-  /// names a context the person holds, so a club they have since left is
-  /// ignored rather than obeyed. That is also why there is no foreign key: a
-  /// stale value is harmless by construction, and the global identity table
-  /// should not depend on the tenant table to stay consistent.
-  lastContext String?
+  /// NULL means UNDECIDED, and only the p37 migration writes it: an account
+  /// that held club roles at two or more clubs, or a COACH role, when the kinds
+  /// arrived. Nothing is inferred for those — `scripts/report-undecided-accounts.ts`
+  /// lists them for a person to settle — and every path that grants something
+  /// refuses them until then.
+  ///
+  /// ENFORCED BY THE DATABASE, not only here: `account_kind_membership_trg`
+  /// refuses an ACTIVE membership whose role the kind does not allow, and a
+  /// second club for a CLUB account. The `lastContext` column that stood here
+  /// (#227's role switcher) is gone with the switcher: one kind has nothing to
+  /// switch between.
+  accountKind AccountKind? @default(PLAYER)
 
   /// NOT encrypted, and nothing writes it. MFA is unimplemented: the string
   /// "mfaSecret" appeared in exactly one other place in src/, a manifest that
@@ -166,6 +178,21 @@ model PlayerProfile {
   @@map("player_profile")
 }
 
+/// One person's standing at one club.
+///
+/// ─── The role must fit the account (#263) ───────────────────────────
+///
+/// An ACTIVE row is held to its user's `accountKind` by a trigger the p37
+/// migration installs (`account_kind_membership_trg`), not by the application:
+///
+///   PLAYER account   PLAYER rows only
+///   CLUB account     OWNER / MANAGER / STAFF rows only, at ONE club
+///   COACH account    COACH rows only
+///
+/// Prisma cannot model a trigger, so it lives in SQL and `migration-safety`
+/// refuses a migration that drops it. Rows that are not ACTIVE are history and
+/// are not held to anything — the migration keeps a club account's old PLAYER
+/// rows, EXPIRED, so its bookings still have a membership behind them.
 model TenantMembership {
   id       String @id @default(cuid())
   userId   String

@@ -3,6 +3,9 @@ import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { CourtSurface, PrismaClient, SportType } from '@prisma/client';
 
+import { readAccountStanding } from '@/app-layer/repositories/account';
+import { decideOwnerAssignment } from '@/lib/auth/account-kind';
+
 /**
  * Create a real club, its venue and its courts. THE ONLY WRITER.
  *
@@ -47,6 +50,13 @@ import { CourtSurface, PrismaClient, SportType } from '@prisma/client';
  *
  * The owner does not have to exist yet. They are matched by email, so the row
  * is waiting for them the first time they sign in with that address.
+ *
+ * ═══ THE OWNER IS A CLUB ACCOUNT, OF THIS CLUB ONLY (#263) ═══
+ *
+ * One account, one kind. The address must be new, belong to an account that
+ * holds nothing yet, or already be this club's club account (re-running). A
+ * player who plays anywhere, a coach, or another club's account is refused by
+ * name — see the check below — and nothing is created.
  *
  * ═══ USAGE ═══
  *
@@ -210,13 +220,54 @@ async function main(): Promise<void> {
     });
 
     const ownerEmail = values['owner-email']!.trim().toLowerCase();
+
+    // ═══ THE OWNER MUST BE A CLUB ACCOUNT WITH NO OTHER CLUB (#263) ═══
+    //
+    // One account, one kind, and a club account belongs to one club. An
+    // address that already belongs to somebody who plays, or who runs another
+    // club, is refused rather than quietly converted: making a player an owner
+    // would end their player memberships, and the operator typing this command
+    // is not the person who should decide that. Refused BEFORE anything is
+    // written — the transaction rolls back, so the club is not created either.
+    //
+    // A brand-new address, or an account that holds nothing yet, becomes a
+    // CLUB account here.
+    const existing = await tx.user.findUnique({
+      where: { email: ownerEmail },
+      select: { id: true },
+    });
+    const standing = existing
+      ? await readAccountStanding(tx as unknown as PrismaClient, existing.id)
+      : null;
+    const assignment = standing
+      ? decideOwnerAssignment(standing, org.id)
+      : { ok: true as const, becomes: 'CLUB' as const };
+
+    if (!assignment.ok) {
+      throw new Error(
+        {
+          PLAYER_ACCOUNT:
+            `${ownerEmail} is a PLAYER account that already plays at a club. One account is one ` +
+            'kind (#263): the club needs a separate account for its owner — use another address.',
+          COACH_ACCOUNT: `${ownerEmail} is a COACH account. A club's owner needs a club account of its own — use another address.`,
+          CLUB_ACCOUNT_TAKEN:
+            `${ownerEmail} is the club account of another club, and a club account belongs to one ` +
+            'club. Use another address for this one.',
+          UNDECIDED:
+            `${ownerEmail} is an account the #263 migration could not decide — it held roles at ` +
+            'more than one club, or a coach role. Settle it first: npm run report:undecided-accounts',
+        }[assignment.refusal],
+      );
+    }
+
     const owner = await tx.user.upsert({
       where: { email: ownerEmail },
-      update: {},
+      update: assignment.becomes ? { accountKind: assignment.becomes } : {},
       create: {
         email: ownerEmail,
         name: values['owner-name'] ?? null,
         // No passwordHash, on purpose — see the header.
+        accountKind: 'CLUB',
       },
       select: { id: true },
     });

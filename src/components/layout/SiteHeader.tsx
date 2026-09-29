@@ -1,9 +1,7 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-import { switchContextAction } from '@/app/(app)/start/actions';
-import { listLandingContexts } from '@/app-layer/usecases/landing';
-import { ContextSwitcher } from '@/components/layout/ContextSwitcher';
+import { resolveLanding } from '@/app-layer/usecases/landing';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import { signedInIdentity } from '@/lib/auth/page-context';
 
@@ -24,22 +22,25 @@ import { signedInIdentity } from '@/lib/auth/page-context';
  * It renders the person's NAME, not a generic "Account". Which account you are
  * in is the thing people actually need from a header, and it is the difference
  * between "am I signed in?" and "am I signed in AS THE RIGHT ONE?" — which
- * matters here, where one identity can hold several clubs.
+ * matters more since #263, when one person may well hold a player account and
+ * a club account, and sign into the wrong one.
  *
- * ═══ AND IT CARRIES THE ROLE SWITCHER (#227) ═══
+ * ═══ AND THE WAY BACK TO YOUR CLUB (#263) ═══
  *
- * For anyone holding more than one context — player, plus each club they
- * run — because this is the one piece of chrome on every signed-in surface:
- * the home page, venue discovery, the player UI and the club UI. Contexts are
- * read from the database, not the token: the token has neither club names nor
- * club status, and a club suspended since sign-in must not be offered.
+ * It used to carry #227's role switcher, for somebody holding several
+ * contexts: player, plus each club they ran. One account is one kind now, so
+ * there is nothing to switch — but a club account browsing the venues still
+ * needs a way back to its club without signing in again. So the link that
+ * says "My bookings" to a player names the club to a club account, and points
+ * where `/start` would land it. Read from the database, not the token: the
+ * token has neither club names nor club status.
  */
 export async function SiteHeader() {
   const [t, me] = await Promise.all([getTranslations('common'), signedInIdentity()]);
-  const [tLogin, tMine, contexts] = await Promise.all([
+  const [tLogin, tMine, landing] = await Promise.all([
     getTranslations('login'),
     getTranslations('myBookings'),
-    me ? listLandingContexts(me.userId) : Promise.resolve([]),
+    me ? resolveLanding(me.userId) : Promise.resolve(null),
   ]);
 
   return (
@@ -77,25 +78,34 @@ export async function SiteHeader() {
       <nav className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         {me ? (
           <>
-            {contexts.length > 1 ? (
-              <ContextSwitcher contexts={contexts} switchAction={switchContextAction} />
-            ) : null}
+            {landing?.club ? (
+              // A club account's way back to its club: the club's name, to
+              // where `/start` lands it. `max-w` + truncate, because club
+              // names are long and this row must not scroll sideways.
+              <Link
+                href={landing.href}
+                className="max-w-[14rem] truncate text-sm underline-offset-4 hover:underline"
+              >
+                {landing.club.tenantName}
+              </Link>
+            ) : landing?.reason === 'club-unavailable' ? null : (
+              /*
+                The link that makes /me/bookings reachable. Without it the page
+                exists and nothing points at it — which is the exact failure
+                #224 is about: /login worked perfectly for weeks and the only
+                reference to it anywhere in src/ was the invite page.
+              */
+              <Link
+                href="/me/bookings"
+                // One line: squeezed, it broke into two mid-label before the
+                // row gave up and wrapped.
+                className="text-sm whitespace-nowrap underline-offset-4 hover:underline"
+              >
+                {tMine('title')}
+              </Link>
+            )}
             {/* email as the fallback, never a blank space: an OAuth profile
                 with no name is ordinary, and an empty greeting looks broken. */}
-            {/*
-              The link that makes /me/bookings reachable. Without it the page
-              exists and nothing points at it — which is the exact failure
-              #224 is about: /login worked perfectly for weeks and the only
-              reference to it anywhere in src/ was the invite page.
-            */}
-            <Link
-              href="/me/bookings"
-              // One line: squeezed, it broke into two mid-label before the
-              // row gave up and wrapped.
-              className="text-sm whitespace-nowrap underline-offset-4 hover:underline"
-            >
-              {tMine('title')}
-            </Link>
             <span className="text-content-muted max-w-[12rem] truncate text-sm">
               {me.name ?? me.email}
             </span>

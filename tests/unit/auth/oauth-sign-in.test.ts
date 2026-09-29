@@ -88,6 +88,20 @@ describe('oauth sign-in without an adapter', () => {
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ update: {} }));
   });
 
+  it('creates a first sign-in as a PLAYER account, and never re-kinds an existing one (#263)', async () => {
+    // An account that holds nothing is a player. It becomes a CLUB account
+    // only by being made an owner or accepting a staff invite while empty —
+    // never by signing in, which is why the kind is in `create` and not in
+    // `update`.
+    await signIn(google());
+
+    const [args] = upsert.mock.calls[0] as [
+      { create: Record<string, unknown>; update: Record<string, unknown> },
+    ];
+    expect(args.create.accountKind).toBe('PLAYER');
+    expect(args.update).toEqual({});
+  });
+
   it('refuses a Google sign-in whose email is not verified', async () => {
     // Identities are linked BY EMAIL, so a provider that will assert an
     // unproved address is a way into any existing account with that address.

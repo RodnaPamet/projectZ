@@ -1,6 +1,7 @@
 import type { PrismaClient, Role } from '@prisma/client';
 
 import { parseEntraConfig, readGroupGateFlag } from '@/app-layer/schemas/entra-provider';
+import { roleChangeKeepsKind } from '@/lib/auth/account-kind';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { recordEntraRoleSync } from '@/lib/observability/metrics';
 
@@ -169,6 +170,20 @@ export async function syncEntraMembershipRole(
   if (membership.role === mappedRole) {
     recordEntraRoleSync({ outcome: 'unchanged' });
     return { effectiveRole: mappedRole, changed: false, gateDenied: false };
+  }
+
+  // ═══ A MAPPING NEVER MOVES A MEMBERSHIP TO ANOTHER KIND OF ACCOUNT (#263) ═══
+  //
+  // One account, one kind. A directory group mapped to STAFF, matched by
+  // somebody who is a PLAYER here, would make a player account staff — the mix
+  // the owner ruled out, arriving by somebody editing a group this application
+  // does not control. The database would refuse the write anyway
+  // (`account_kind_membership_trg`) and the sign-in's catch would swallow it;
+  // skipping it here says what happened instead. Within a kind — STAFF to
+  // MANAGER — the mapping applies as before.
+  if (!roleChangeKeepsKind(membership.role, mappedRole)) {
+    recordEntraRoleSync({ outcome: 'kind_mismatch' });
+    return { effectiveRole: membership.role, changed: false, gateDenied: false };
   }
 
   // The update and its audit row share one transaction. A role change with no

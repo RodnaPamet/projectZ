@@ -269,6 +269,12 @@ export const authOptions: NextAuthOptions = {
             avatarUrl: typeof user.image === 'string' ? user.image : null,
             // The provider asserted it, and for Google we just checked it.
             emailVerified: new Date(),
+            // A first sign-in holds nothing, and an account that holds nothing
+            // is a player (#263). Stated rather than left to the column
+            // default, because it is a decision: this account becomes a CLUB
+            // account only by being made an owner or accepting a staff invite
+            // while still empty, and never by anything a sign-in does.
+            accountKind: 'PLAYER',
           },
           update: {},
           select: { id: true },

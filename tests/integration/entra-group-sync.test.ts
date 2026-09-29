@@ -22,7 +22,7 @@ describe('syncEntraMembershipRole', () => {
   const GROUP_COACHES = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
   let tenant: SeededTenant;
-  let playerId: string;
+  let staffId: string;
 
   const complete = (groups: string[]): EntraGroupClaims => ({
     groups,
@@ -43,12 +43,19 @@ describe('syncEntraMembershipRole', () => {
   beforeEach(async () => {
     tenant = await seedTenant({});
 
-    playerId = await asAppSuperuser(db, async (tx) => {
+    // On the club's STAFF, with a CLUB account (#263). A mapping moves a role
+    // within one kind of account and never across — the test below that says
+    // so uses a PLAYER of its own.
+    staffId = await asAppSuperuser(db, async (tx) => {
       const u = await tx.user.create({
-        data: { email: `p-${Math.random().toString(36).slice(2)}@t.test`, name: 'P' },
+        data: {
+          email: `p-${Math.random().toString(36).slice(2)}@t.test`,
+          name: 'P',
+          accountKind: 'CLUB',
+        },
       });
       await tx.tenantMembership.create({
-        data: { tenantId: tenant.tenantId, userId: u.id, role: 'PLAYER', status: 'ACTIVE' },
+        data: { tenantId: tenant.tenantId, userId: u.id, role: 'STAFF', status: 'ACTIVE' },
       });
       return u.id;
     });
@@ -101,10 +108,10 @@ describe('syncEntraMembershipRole', () => {
     await enableEntra();
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
 
-    const r = await sync(playerId, complete([GROUP_MANAGERS]));
+    const r = await sync(staffId, complete([GROUP_MANAGERS]));
 
     expect(r).toMatchObject({ effectiveRole: 'MANAGER', changed: true, gateDenied: false });
-    expect(await roleOf(playerId)).toBe('MANAGER');
+    expect(await roleOf(staffId)).toBe('MANAGER');
 
     const [entry] = await audits();
     expect(entry).toMatchObject({
@@ -113,7 +120,7 @@ describe('syncEntraMembershipRole', () => {
       actorUserId: null,
     });
     expect(entry!.detailsJson).toMatchObject({
-      before: { role: 'PLAYER' },
+      before: { role: 'STAFF' },
       after: { role: 'MANAGER' },
       source: 'entra_group_sync',
     });
@@ -146,18 +153,18 @@ describe('syncEntraMembershipRole', () => {
     // Removing access is done by removing the membership or enabling the gate,
     // both deliberate. Silent demotion from an unrelated directory edit is how
     // a club loses its manager on tournament morning.
-    await mapGroup(GROUP_MANAGERS, 'MANAGER');
+    await mapGroup(GROUP_MANAGERS, 'STAFF');
     await asAppSuperuser(db, (tx) =>
       tx.tenantMembership.updateMany({
-        where: { userId: playerId, tenantId: tenant.tenantId },
-        data: { role: 'COACH' },
+        where: { userId: staffId, tenantId: tenant.tenantId },
+        data: { role: 'MANAGER' },
       }),
     );
 
-    const r = await sync(playerId, complete(['unmapped-group']));
+    const r = await sync(staffId, complete(['unmapped-group']));
 
     expect(r.changed).toBe(false);
-    expect(await roleOf(playerId)).toBe('COACH');
+    expect(await roleOf(staffId)).toBe('MANAGER');
   });
 
   it('will not act on a group list it could not establish', async () => {
@@ -167,10 +174,10 @@ describe('syncEntraMembershipRole', () => {
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
     await gate(true);
 
-    const r = await sync(playerId, incomplete([]));
+    const r = await sync(staffId, incomplete([]));
 
-    expect(r).toMatchObject({ changed: false, gateDenied: false, effectiveRole: 'PLAYER' });
-    expect(await roleOf(playerId)).toBe('PLAYER');
+    expect(r).toMatchObject({ changed: false, gateDenied: false, effectiveRole: 'STAFF' });
+    expect(await roleOf(staffId)).toBe('STAFF');
     expect(await audits()).toHaveLength(0);
   });
 
@@ -178,7 +185,7 @@ describe('syncEntraMembershipRole', () => {
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
     await gate(true);
 
-    const r = await sync(playerId, complete(['unmapped']));
+    const r = await sync(staffId, complete(['unmapped']));
 
     expect(r.gateDenied).toBe(true);
   });
@@ -187,7 +194,7 @@ describe('syncEntraMembershipRole', () => {
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
     await gate(false);
 
-    expect((await sync(playerId, complete(['unmapped']))).gateDenied).toBe(false);
+    expect((await sync(staffId, complete(['unmapped']))).gateDenied).toBe(false);
   });
 
   it('does not deny when the club has no provider row at all', async () => {
@@ -195,12 +202,12 @@ describe('syncEntraMembershipRole', () => {
     // at every club that enabled Entra before finishing directory setup.
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
 
-    expect((await sync(playerId, complete(['unmapped']))).gateDenied).toBe(false);
+    expect((await sync(staffId, complete(['unmapped']))).gateDenied).toBe(false);
   });
 
   it('is a no-op for a club with no mappings', async () => {
     await enableEntra();
-    const r = await sync(playerId, complete([GROUP_MANAGERS]));
+    const r = await sync(staffId, complete([GROUP_MANAGERS]));
 
     expect(r).toMatchObject({ changed: false, gateDenied: false });
     expect(await audits()).toHaveLength(0);
@@ -209,9 +216,9 @@ describe('syncEntraMembershipRole', () => {
   it('writes nothing when the role already matches', async () => {
     await enableEntra();
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
-    await sync(playerId, complete([GROUP_MANAGERS]));
+    await sync(staffId, complete([GROUP_MANAGERS]));
 
-    const r = await sync(playerId, complete([GROUP_MANAGERS]));
+    const r = await sync(staffId, complete([GROUP_MANAGERS]));
 
     expect(r.changed).toBe(false);
     // One audit row from the first sync, not two — an unchanged sync that
@@ -220,14 +227,52 @@ describe('syncEntraMembershipRole', () => {
   });
 
   it('applies the highest-priority mapping when several match', async () => {
+    // Priority, not the rank of the role: the higher-priority group maps to the
+    // LOWER role, and wins.
     await enableEntra();
     await mapGroup(GROUP_MANAGERS, 'MANAGER', 10);
-    await mapGroup(GROUP_COACHES, 'COACH', 90);
+    await mapGroup(GROUP_COACHES, 'STAFF', 90);
+    await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.updateMany({
+        where: { userId: staffId, tenantId: tenant.tenantId },
+        data: { role: 'MANAGER' },
+      }),
+    );
 
-    await sync(playerId, complete([GROUP_MANAGERS, GROUP_COACHES]));
+    await sync(staffId, complete([GROUP_MANAGERS, GROUP_COACHES]));
 
-    expect(await roleOf(playerId)).toBe('COACH');
+    expect(await roleOf(staffId)).toBe('STAFF');
   });
+
+  it.each([
+    ['a PLAYER to MANAGER', 'PLAYER', 'PLAYER', 'MANAGER'],
+    ['a PLAYER to COACH', 'PLAYER', 'PLAYER', 'COACH'],
+    ['a club account from STAFF to COACH', 'CLUB', 'STAFF', 'COACH'],
+  ] as const)(
+    'NEVER moves a membership to another kind of account — %s (#263)',
+    async (_label, accountKind, role, mapped) => {
+      // One account, one kind. A directory group edited outside this app must
+      // not turn a player's account into staff. Skipped by name, not left to
+      // the database to refuse inside a sign-in that would swallow the error.
+      await enableEntra();
+      await mapGroup(GROUP_MANAGERS, mapped);
+      const memberId = await asAppSuperuser(db, async (tx) => {
+        const u = await tx.user.create({
+          data: { email: `k-${Math.random().toString(36).slice(2)}@t.test`, accountKind },
+        });
+        await tx.tenantMembership.create({
+          data: { tenantId: tenant.tenantId, userId: u.id, role, status: 'ACTIVE' },
+        });
+        return u.id;
+      });
+
+      const r = await sync(memberId, complete([GROUP_MANAGERS]));
+
+      expect(r).toMatchObject({ changed: false, gateDenied: false, effectiveRole: role });
+      expect(await roleOf(memberId)).toBe(role);
+      expect(await audits()).toHaveLength(0);
+    },
+  );
 
   it('DOES apply a mapping that lowers a role — matching is not the same as silence', async () => {
     // Pinned after review caught the file's own header claiming "only ever
@@ -241,15 +286,15 @@ describe('syncEntraMembershipRole', () => {
     await mapGroup(GROUP_COACHES, 'STAFF');
     await asAppSuperuser(db, (tx) =>
       tx.tenantMembership.updateMany({
-        where: { userId: playerId, tenantId: tenant.tenantId },
+        where: { userId: staffId, tenantId: tenant.tenantId },
         data: { role: 'MANAGER' },
       }),
     );
 
-    const r = await sync(playerId, complete([GROUP_COACHES]));
+    const r = await sync(staffId, complete([GROUP_COACHES]));
 
     expect(r.changed).toBe(true);
-    expect(await roleOf(playerId)).toBe('STAFF');
+    expect(await roleOf(staffId)).toBe('STAFF');
   });
 
   it('does nothing at all when Entra federation is disabled', async () => {
@@ -264,10 +309,10 @@ describe('syncEntraMembershipRole', () => {
     );
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
 
-    const r = await sync(playerId, complete([GROUP_MANAGERS]));
+    const r = await sync(staffId, complete([GROUP_MANAGERS]));
 
     expect(r.changed).toBe(false);
-    expect(await roleOf(playerId)).toBe('PLAYER');
+    expect(await roleOf(staffId)).toBe('STAFF');
   });
 
   it('a disabled federation does not deny either', async () => {
@@ -279,7 +324,7 @@ describe('syncEntraMembershipRole', () => {
       }),
     );
 
-    expect((await sync(playerId, complete([]))).gateDenied).toBe(false);
+    expect((await sync(staffId, complete([]))).gateDenied).toBe(false);
   });
 
   it('still enforces the gate when the club has NO mappings', async () => {
@@ -288,7 +333,7 @@ describe('syncEntraMembershipRole', () => {
     // "You must be in a mapped group" with no mapped groups admits nobody.
     await enableEntra(true);
 
-    expect((await sync(playerId, complete(['anything']))).gateDenied).toBe(true);
+    expect((await sync(staffId, complete(['anything']))).gateDenied).toBe(true);
   });
 
   it('the OWNER can still get in to fix a club gated with no mappings', async () => {
@@ -313,7 +358,7 @@ describe('syncEntraMembershipRole', () => {
     );
     await mapGroup(GROUP_MANAGERS, 'MANAGER');
 
-    expect((await sync(playerId, complete(['unmapped']))).gateDenied).toBe(true);
+    expect((await sync(staffId, complete(['unmapped']))).gateDenied).toBe(true);
   });
 
   it('ignores group ids issued by a DIFFERENT Entra directory', async () => {
@@ -329,10 +374,10 @@ describe('syncEntraMembershipRole', () => {
       directoryTenantId: '99999999-9999-4999-8999-999999999999',
     };
 
-    const r = await sync(playerId, foreign);
+    const r = await sync(staffId, foreign);
 
     expect(r.changed).toBe(false);
-    expect(await roleOf(playerId)).toBe('PLAYER');
+    expect(await roleOf(staffId)).toBe('STAFF');
   });
 
   it('does not DENY on a foreign directory — that would lock out a multi-club member', async () => {
@@ -341,6 +386,6 @@ describe('syncEntraMembershipRole', () => {
 
     const foreign = { ...complete([]), directoryTenantId: '99999999-9999-4999-8999-999999999999' };
 
-    expect((await sync(playerId, foreign)).gateDenied).toBe(false);
+    expect((await sync(staffId, foreign)).gateDenied).toBe(false);
   });
 });

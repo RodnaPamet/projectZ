@@ -1,58 +1,35 @@
-import type { MembershipStatus, Role, TenantStatus } from '@prisma/client';
+import type { AccountKind, MembershipStatus, Role, TenantStatus } from '@prisma/client';
 
 /**
- * Where a person lands after signing in, and which contexts they can switch
- * between (#227).
+ * Where a person lands after signing in (#227, by account kind since #263).
  *
- * ═══ ONE SIGN-IN, THREE UIs ═══
+ * ═══ ONE ACCOUNT, ONE KIND ═══
  *
- * Owner's decision: one identity, role-based landing. A coach at one club
- * plays at another; an owner books courts for themselves. So the question is
- * never "which account is this" but "which of this person's contexts do they
- * want right now" — and after sign-in, with nothing else to go on, this module
- * answers it:
+ * #227 started from "one identity, several contexts": an owner who also plays,
+ * a coach at one club who plays at another. It landed people by the MIX of
+ * roles they held and gave the header a switcher between them. The owner has
+ * since decided the opposite (#263): an account is a PLAYER, a CLUB account
+ * (one club) or a COACH, and doing two of those takes two accounts. So there
+ * is nothing to switch between and nothing to remember — the kind decides:
  *
- *   roles held                    lands on
- *   ───────────────────────────   ──────────────────────────────────────
- *   none                          player UI
- *   PLAYER at one or more clubs   player UI
- *   OWNER / MANAGER / STAFF       club UI for that club
- *   COACH                         coach UI — the player UI until one exists
- *   several                       last used; with none, see DEFAULT below
+ *   kind        lands on
+ *   ─────────   ─────────────────────────────────────────────────────────
+ *   PLAYER      the player UI
+ *   CLUB        its one club's diary; the home page if that club is gone
+ *   COACH       the coach UI — the player UI until one exists (COACH_HOME)
+ *   undecided   #227's old default, for the accounts #263 would not decide
+ *
+ * A deep link still wins over all of this: `/login` honours `?next=` first,
+ * and only a sign-in with no destination of its own comes to `/start`. See
+ * `postSignInPath` at the end of this file, which is unchanged.
  *
  * ═══ PURE, AND DELIBERATELY SO ═══
  *
  * No database, no request, no Node-only import — the only import is a TYPE,
- * which compiles away. Three callers need the same answer and must not each
- * grow their own copy of it:
- *
- *   - `/start`, the web's post-sign-in redirect;
- *   - the role switcher in the site header, which is a client component;
- *   - the iOS client, which will need the same decision over the API.
- *
- * The reads that feed it live in `@/app-layer/usecases/landing`.
- *
- * ═══ EVERYONE HOLDS THE PLAYER CONTEXT ═══
- *
- * Every signed-in person is a player: `PlayerProfile` is global and a
- * booking at any active club makes you a member of it (#229). So "player"
- * is not a membership to find, it is always there — which is why the rows
- * "none" and "PLAYER somewhere" land in the same place, and why anyone with
- * a club role holds at least two contexts. PLAYER memberships add nothing:
- * the player UI spans every club.
- *
- * ═══ DEFAULT, FOR SEVERAL CONTEXTS AND NOTHING REMEMBERED ═══
- *
- * A CHOICE THE OWNER MAY WANT TO REVISIT: the club UI wins over the player
- * UI, and within clubs the highest role (OWNER, then MANAGER, then STAFF)
- * wins, oldest membership first on a tie.
- *
- * Why the club UI and not the player UI: every club role holder also holds
- * the player context, so a player-first default would mean an owner NEVER
- * lands on their club until they have used the switcher once — the third row
- * of the table would never fire. Worse, since booking anywhere creates a
- * PLAYER membership, an owner's landing would flip the day they booked a
- * court at somebody else's club. Club-first is stable against that.
+ * which compiles away. `/start` asks it after a sign-in, the site header asks
+ * it for the link back to your club, and the iOS client will need the same
+ * decision over the API (#252). The reads that feed it live in
+ * `@/app-layer/usecases/landing`.
  */
 
 /**
@@ -67,18 +44,24 @@ export const PLAYER_HOME = '/me/bookings';
 export const START_PATH = '/start';
 
 /**
+ * Where a CLUB account lands when its club is not there to land on — suspended,
+ * closed, or its own membership ended. Not the player UI: a club account is
+ * not a player, and landing it on "your bookings" would be a page about
+ * somebody it is not.
+ */
+export const HOME = '/';
+
+/**
  * ═══ THE ONE LINE TO CHANGE WHEN THE COACH UI EXISTS ═══
  *
  * There is no coach UI: `usecases/coach.ts` has no route and `Coach.bio` says
- * so. Until there is, a coach lands on the player UI, and a COACH membership
- * contributes no entry to the switcher — an entry leading to the same page as
- * "player" would be two buttons that do one thing.
+ * so. Until there is, a coach lands on the player UI.
  *
  * When the coach UI ships, set this to its per-club home, e.g.
  *
  *   export const COACH_HOME: CoachHome = (slug) => `/t/${slug}/coach`;
  *
- * and coach landing, the switcher entry and the `/t/[slug]` index all follow.
+ * and coach landing and the `/t/[slug]` index both follow.
  *
  * Asserted through `as` rather than annotated: with a plain annotation,
  * TypeScript narrows a `const … = null` to `null` at every use and the code
@@ -91,8 +74,8 @@ export const COACH_HOME = null as CoachHome;
 export type ClubRole = Extract<Role, 'OWNER' | 'MANAGER' | 'STAFF'>;
 
 /**
- * Highest authority first. Used only to choose a DEFAULT among clubs; it
- * decides nothing about what anyone may do.
+ * Highest authority first. Used only to choose among clubs for an account the
+ * migration left undecided; it decides nothing about what anyone may do.
  */
 const CLUB_ROLE_RANK: Readonly<Record<ClubRole, number>> = { OWNER: 0, MANAGER: 1, STAFF: 2 };
 
@@ -121,47 +104,9 @@ export interface LandingMembership {
   role: Role;
   status: MembershipStatus;
   tenantStatus: TenantStatus;
-  /** When the membership began. Breaks ties in the default. */
+  /** When the membership began. Breaks ties among clubs. */
   createdAt: Date;
 }
-
-/**
- * A place a person can be. `key` is what "last used" stores and what the
- * switcher sends back: `player`, `club:<tenantId>` or `coach:<tenantId>`.
- *
- * Keyed on the tenant ID, not the slug, so that renaming a club does not
- * silently orphan everybody's last-used entry for it.
- */
-export type LandingContext =
-  | { kind: 'player'; key: 'player'; href: string }
-  | {
-      kind: 'club';
-      key: `club:${string}`;
-      href: string;
-      tenantId: string;
-      tenantSlug: string;
-      tenantName: string;
-      role: ClubRole;
-    }
-  | {
-      kind: 'coach';
-      key: `coach:${string}`;
-      href: string;
-      tenantId: string;
-      tenantSlug: string;
-      tenantName: string;
-    };
-
-/**
- * Frozen because it is ONE object shared by every result: a caller that
- * edited the `href` on the one it was handed would otherwise re-route every
- * later decision in the process.
- */
-export const PLAYER_CONTEXT: LandingContext = Object.freeze({
-  kind: 'player' as const,
-  key: 'player' as const,
-  href: PLAYER_HOME,
-});
 
 export interface LandingOptions {
   /** Overrides COACH_HOME. Tests use it to show what the one-line change does. */
@@ -185,128 +130,103 @@ function isLive(m: LandingMembership): boolean {
   return m.status === 'ACTIVE' && m.tenantStatus === 'ACTIVE';
 }
 
-function byName(a: { tenantName: string }, b: { tenantName: string }): number {
-  return a.tenantName.localeCompare(b.tenantName);
+/** Oldest membership first; the tenant id settles two made in the same millisecond. */
+function byAge(a: LandingMembership, b: LandingMembership): number {
+  return (
+    a.createdAt.getTime() - b.createdAt.getTime() ||
+    (a.tenantId < b.tenantId ? -1 : a.tenantId > b.tenantId ? 1 : 0)
+  );
 }
 
-/**
- * Every context this person holds, in the order the switcher shows them:
- * player first, then clubs by name, then coach contexts by name.
- */
-export function landingContexts(
-  memberships: readonly LandingMembership[],
-  opts: LandingOptions = {},
-): LandingContext[] {
-  const coachHome = opts.coachHome === undefined ? COACH_HOME : opts.coachHome;
+/** The club to land on: highest role, then oldest. A CLUB account has one. */
+function firstClub(live: readonly LandingMembership[]): LandingMembership | undefined {
+  return live
+    .filter((m) => isClubRole(m.role))
+    .sort(
+      (a, b) =>
+        CLUB_ROLE_RANK[a.role as ClubRole] - CLUB_ROLE_RANK[b.role as ClubRole] || byAge(a, b),
+    )[0];
+}
 
-  const clubs: Extract<LandingContext, { kind: 'club' }>[] = [];
-  const coaches: Extract<LandingContext, { kind: 'coach' }>[] = [];
-  const seen = new Set<string>();
-
-  for (const m of memberships) {
-    if (!isLive(m)) continue;
-
-    // `@@unique([userId, tenantId])` makes a second row per club impossible
-    // from the database. A caller building this list by hand has no such
-    // guarantee, and one club listed twice is two switcher entries to one place.
-    if (seen.has(m.tenantId)) continue;
-    seen.add(m.tenantId);
-
-    const club = { tenantId: m.tenantId, tenantSlug: m.tenantSlug, tenantName: m.tenantName };
-
-    if (isClubRole(m.role)) {
-      clubs.push({
-        kind: 'club',
-        key: `club:${m.tenantId}`,
-        href: clubHome(m.tenantSlug),
-        ...club,
-        role: m.role,
-      });
-    } else if (m.role === 'COACH' && coachHome) {
-      coaches.push({
-        kind: 'coach',
-        key: `coach:${m.tenantId}`,
-        href: coachHome(m.tenantSlug),
-        ...club,
-      });
-    }
-    // PLAYER, and any role this file has never heard of, adds nothing. For an
-    // unknown role that is the safe direction: it earns no admin landing.
-  }
-
-  return [PLAYER_CONTEXT, ...clubs.sort(byName), ...coaches.sort(byName)];
+function firstCoaching(live: readonly LandingMembership[]): LandingMembership | undefined {
+  return live.filter((m) => m.role === 'COACH').sort(byAge)[0];
 }
 
 export type LandingReason =
-  /** The player context is all they hold — the first two rows of the table. */
-  | 'only-context'
-  /** Several contexts, and the one they last chose is still theirs. */
-  | 'last-used'
-  /** Several contexts, nothing usable remembered: see DEFAULT above. */
-  | 'default';
+  | 'player'
+  | 'club'
+  /** A CLUB account whose one club is not live: suspended, closed, or its membership ended. */
+  | 'club-unavailable'
+  | 'coach'
+  /** `accountKind` is NULL: #227's default, until a person decides the account. */
+  | 'undecided';
 
 export interface LandingDecision {
-  context: LandingContext;
-  /** Every context held, for the switcher. Always starts with the player context. */
-  contexts: LandingContext[];
+  href: string;
   reason: LandingReason;
+  /** The club being landed on, when there is one — the header links back to it. */
+  club: { tenantId: string; tenantSlug: string; tenantName: string } | null;
+}
+
+function landOn(m: LandingMembership, href: string, reason: LandingReason): LandingDecision {
+  return {
+    href,
+    reason,
+    club: { tenantId: m.tenantId, tenantSlug: m.tenantSlug, tenantName: m.tenantName },
+  };
 }
 
 /**
- * THE DECISION. Memberships plus last-used in, a place to land out.
+ * THE DECISION. An account's kind and its non-player memberships in, a place
+ * to land out.
  *
- * `lastUsed` is ADVISORY. It is honoured only when it names a context the
- * person holds right now, so a club they have left, been suspended from, or
- * that has itself been suspended since is ignored rather than obeyed — the
- * stored value is never authority, and cannot become a way into a club.
+ * `memberships` need not include PLAYER rows: they decide nothing here, and
+ * the read that feeds this skips them.
  */
 export function decideLanding(
-  input: { memberships: readonly LandingMembership[]; lastUsed?: string | null },
+  input: { kind: AccountKind | null; memberships: readonly LandingMembership[] },
   opts: LandingOptions = {},
 ): LandingDecision {
-  const contexts = landingContexts(input.memberships, opts);
+  const coachHome = opts.coachHome === undefined ? COACH_HOME : opts.coachHome;
+  const live = input.memberships.filter(isLive);
 
-  if (contexts.length === 1) {
-    return { context: contexts[0]!, contexts, reason: 'only-context' };
+  switch (input.kind) {
+    case 'PLAYER':
+      return { href: PLAYER_HOME, reason: 'player', club: null };
+
+    case 'CLUB': {
+      const club = firstClub(live);
+      return club
+        ? landOn(club, clubHome(club.tenantSlug), 'club')
+        : { href: HOME, reason: 'club-unavailable', club: null };
+    }
+
+    case 'COACH': {
+      const coaching = coachHome ? firstCoaching(live) : undefined;
+      return coaching && coachHome
+        ? landOn(coaching, coachHome(coaching.tenantSlug), 'coach')
+        : { href: PLAYER_HOME, reason: 'coach', club: null };
+    }
+
+    case null: {
+      // ═══ UNDECIDED: #227'S DEFAULT, KEPT FOR THEM ALONE ═══
+      //
+      // These accounts held club roles at two or more clubs, or a coach role,
+      // when #263 arrived, and the owner said not to decide them by rule. Until
+      // a person does, they land where #227 landed them: the club UI over the
+      // coach UI over the player UI, and among clubs the highest role, then the
+      // oldest membership. Nothing about them changes by signing in.
+      const club = firstClub(live);
+      if (club) return landOn(club, clubHome(club.tenantSlug), 'undecided');
+
+      const coaching = coachHome ? firstCoaching(live) : undefined;
+      if (coaching && coachHome) {
+        return landOn(coaching, coachHome(coaching.tenantSlug), 'undecided');
+      }
+
+      return { href: PLAYER_HOME, reason: 'undecided', club: null };
+    }
   }
-
-  const remembered = input.lastUsed ? contexts.find((c) => c.key === input.lastUsed) : undefined;
-  if (remembered) return { context: remembered, contexts, reason: 'last-used' };
-
-  return { context: defaultContext(input.memberships, contexts), contexts, reason: 'default' };
-}
-
-/**
- * Several contexts, nothing remembered. Club over coach over player; among
- * clubs, highest role, then the oldest membership, then the tenant ID so that
- * two memberships created in the same millisecond still order the same way
- * every time.
- */
-function defaultContext(
-  memberships: readonly LandingMembership[],
-  contexts: readonly LandingContext[],
-): LandingContext {
-  const held = new Map(contexts.map((c) => [c.key, c]));
-
-  const ranked = memberships
-    .filter(isLive)
-    .map((m) => {
-      const club = held.get(`club:${m.tenantId}`);
-      const coach = held.get(`coach:${m.tenantId}`);
-      const context = club ?? coach;
-      if (!context) return null;
-      const rank = club && isClubRole(m.role) ? CLUB_ROLE_RANK[m.role] : 10;
-      return { context, rank, createdAt: m.createdAt.getTime(), tenantId: m.tenantId };
-    })
-    .filter((r) => r !== null)
-    .sort(
-      (a, b) =>
-        a.rank - b.rank ||
-        a.createdAt - b.createdAt ||
-        (a.tenantId < b.tenantId ? -1 : a.tenantId > b.tenantId ? 1 : 0),
-    );
-
-  return ranked[0]?.context ?? PLAYER_CONTEXT;
 }
 
 /**
@@ -326,34 +246,10 @@ export function clubIndexTarget(role: Role, slug: string, opts: LandingOptions =
   return PLAYER_HOME;
 }
 
-function isWithin(pathname: string, prefix: string): boolean {
-  return pathname === prefix || pathname.startsWith(`${prefix}/`);
-}
-
-/**
- * Which context the page at `pathname` belongs to — what the switcher marks
- * as current.
- *
- * A club's context covers its whole admin area, not just the page it lands
- * on: someone on `/t/x/admin/courts` is in club x. Everything that is not a
- * club or coach area is the player's — the home page and venue discovery are
- * where a player starts, and there is nowhere else to be.
- */
-export function contextForPath(
-  contexts: readonly LandingContext[],
-  pathname: string,
-): LandingContext {
-  for (const c of contexts) {
-    if (c.kind === 'club' && isWithin(pathname, `/t/${c.tenantSlug}/admin`)) return c;
-    if (c.kind === 'coach' && isWithin(pathname, c.href)) return c;
-  }
-  return contexts.find((c) => c.kind === 'player') ?? PLAYER_CONTEXT;
-}
-
 /**
  * Where to send someone after sign-in, when they asked to go somewhere.
  *
- * A deep link wins over role landing — somebody who clicked through from an
+ * A deep link wins over landing by kind — somebody who clicked through from an
  * email to `/t/x/admin/staff` wants that page, not their default. But this
  * value arrives in a query string anyone can write, so it is accepted only as
  * a path on THIS origin, and anything else is dropped rather than repaired:
@@ -372,7 +268,7 @@ export function contextForPath(
  *     deep link on the retry.
  *
  * Returns null for "no destination of their own", which is also what the bare
- * home page (`/`) means: it was this page's own default until role landing
+ * home page (`/`) means: it was this page's own default until landing
  * existed, it is where next-auth falls back to, and treating it as a request
  * would send every owner to the home page after signing in. `/login` would
  * loop, and nobody navigates a browser to `/api/`.

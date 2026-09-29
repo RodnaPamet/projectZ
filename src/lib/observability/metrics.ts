@@ -702,6 +702,9 @@ function getEntraRoleSync() {
  *                       misconfigured mapping can never demote / lock out an owner.
  *   - `no_match`      — mappings exist but none matched the user's groups (gate off).
  *   - `no_mappings`   — the tenant has no group mappings configured.
+ *   - `kind_mismatch` — a mapping matched a role of another account kind
+ *                       (#263): a PLAYER mapped to STAFF, say. Not applied —
+ *                       player, club and coach are separate accounts.
  *
  * A `gate_denied` spike means a tenant's gate is denying logins (often a
  * misconfigured mapping). No tenantId/userId label — fleet-health signal;
@@ -720,7 +723,10 @@ export function recordEntraRoleSync(attrs: {
     // unreachable, or truncated). Distinct from 'no_match', which means we
     // looked and the user is in none of them. Conflating the two is how a
     // Microsoft outage becomes a club-wide lockout.
-    | 'unresolved';
+    | 'unresolved'
+    // #263: the mapped role belongs to another kind of account than the one
+    // holding the membership, so it is not applied.
+    | 'kind_mismatch';
 }): void {
   getEntraRoleSync().add(1, { outcome: attrs.outcome });
 }

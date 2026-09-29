@@ -8,6 +8,24 @@ enum Role {
   PLAYER
 }
 
+/// What an ACCOUNT is (#263). Exactly one, and doing two of these takes two
+/// accounts — web sign-in is Google or Microsoft, so two identities.
+///
+///   PLAYER  PLAYER memberships at any number of clubs, created by booking.
+///   CLUB    at most one ACTIVE membership, OWNER / MANAGER / STAFF, at one club.
+///   COACH   COACH memberships at the clubs it is affiliated with. Nothing sets
+///           it yet: it belongs to the coach flow, which is a later issue.
+///
+/// A NULL `User.accountKind` is not a fourth kind. It marks an account the
+/// "club side wins" migration could not decide — club roles at two or more
+/// clubs, or a COACH role — and left for a person to settle. See
+/// `scripts/report-undecided-accounts.ts`.
+enum AccountKind {
+  PLAYER
+  CLUB
+  COACH
+}
+
 enum MembershipStatus {
   INVITED
   ACTIVE

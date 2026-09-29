@@ -65,11 +65,17 @@ let gated: SeededTenant;
 let staff: { id: string; email: string };
 let ipCounter = 0;
 
-async function newUser(label: string): Promise<{ id: string; email: string }> {
+async function newUser(
+  label: string,
+  accountKind: 'PLAYER' | 'CLUB' = 'PLAYER',
+): Promise<{ id: string; email: string }> {
   const email = `${label}-${Math.random().toString(36).slice(2, 10)}@playerz.test`;
   const passwordHash = await hashPassword(PASSWORD);
   const u = await asAppSuperuser(db, (tx) =>
-    tx.user.create({ data: { email, name: label, passwordHash }, select: { id: true } }),
+    tx.user.create({
+      data: { email, name: label, passwordHash, accountKind },
+      select: { id: true },
+    }),
   );
   return { id: u.id, email };
 }
@@ -103,7 +109,8 @@ beforeEach(async () => {
     }),
   );
 
-  staff = await newUser('staff');
+  // Staff are a CLUB account (#263); the database refuses STAFF on any other kind.
+  staff = await newUser('staff', 'CLUB');
   await asAppSuperuser(db, (tx) =>
     tx.tenantMembership.create({
       data: { userId: staff.id, tenantId: gated.tenantId, role: 'STAFF', status: 'ACTIVE' },

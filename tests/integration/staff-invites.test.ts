@@ -9,7 +9,7 @@ import {
   RoleNotInvitableError,
 } from '@/app-layer/usecases/invites';
 import { membershipContext } from '@/lib/auth/page-context';
-import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 
 import { prismaTestClient, resetDatabase, seedTenant } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
@@ -33,20 +33,32 @@ describe('staff invites', () => {
   const db = prismaTestClient();
   let seq = 0;
 
-  async function outsider(tag: string) {
+  async function outsider(tag: string, accountKind: 'PLAYER' | 'CLUB' = 'PLAYER') {
     seq += 1;
     return asAppSuperuser(db, (tx) =>
       tx.user.create({
-        data: { email: `${tag}-${seq}@test.invalid`, name: `Person ${tag}` },
+        data: { email: `${tag}-${seq}@test.invalid`, name: `Person ${tag}`, accountKind },
         select: { id: true, email: true },
       }),
     );
   }
 
-  const invite = (t: { tenantId: string; userId: string }, email: string, role = 'COACH') =>
+  // STAFF by default: the invite a club sends most, and the one a brand-new
+  // account can accept — it becomes a CLUB account (#263). A COACH invite
+  // needs a COACH account, which nothing creates yet.
+  const invite = (t: { tenantId: string; userId: string }, email: string, role = 'STAFF') =>
     runInTenantContext(t.tenantId, (c) =>
       createInvite(c, t.tenantId, t.userId, { email, role: role as never }),
     );
+
+  /**
+   * Accept as the action does: BYPASSRLS. The token is how the club is
+   * discovered, and since #263 the account's standing is read across every
+   * club — bound to one tenant, a player's memberships elsewhere would be
+   * invisible and the account would look brand new.
+   */
+  const accept = (token: string, userId: string) =>
+    runAsSuperuser((c) => acceptInvite(c, token, userId));
 
   beforeEach(async () => {
     await resetDatabase(db);
@@ -60,19 +72,26 @@ describe('staff invites', () => {
     const { token } = await invite(t, joiner.email);
 
     const preview = await runInTenantContext(t.tenantId, (c) => previewInvite(c, token));
-    expect(preview).toMatchObject({ tenantSlug: t.tenantSlug, role: 'COACH' });
+    expect(preview).toMatchObject({ tenantSlug: t.tenantSlug, role: 'STAFF' });
 
     // Before: not a member.
     expect((await membershipContext(joiner.id, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
       'not-a-member',
     );
 
-    const result = await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, joiner.id));
-    expect(result).toMatchObject({ tenantSlug: t.tenantSlug, role: 'COACH' });
+    const result = await accept(token, joiner.id);
+    expect(result).toMatchObject({ tenantSlug: t.tenantSlug, role: 'STAFF' });
 
     // After: a member, at the invited role, resolvable by the real resolver.
     const ctx = await membershipContext(joiner.id, t.tenantSlug, NO_GATE_CLEARED);
-    expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('COACH');
+    expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('STAFF');
+
+    // …and a brand-new account that accepts a staff invite IS a club account
+    // now (#263): it runs this club, and plays nowhere.
+    const kind = await asAppSuperuser(db, (tx) =>
+      tx.user.findUniqueOrThrow({ where: { id: joiner.id }, select: { accountKind: true } }),
+    );
+    expect(kind.accountKind).toBe('CLUB');
   });
 
   it('the plaintext token is never stored', async () => {
@@ -96,12 +115,10 @@ describe('staff invites', () => {
     const b = await outsider('b');
     const { token } = await invite(t, a.email);
 
-    await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, a.id));
+    await accept(token, a.id);
 
     // Same link, forwarded to somebody else.
-    await expect(
-      runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, b.id)),
-    ).rejects.toThrow(InviteNotUsableError);
+    await expect(accept(token, b.id)).rejects.toThrow(InviteNotUsableError);
 
     expect((await membershipContext(b.id, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
       'not-a-member',
@@ -133,9 +150,7 @@ describe('staff invites', () => {
     );
 
     expect(await runInTenantContext(t.tenantId, (c) => previewInvite(c, token))).toBeNull();
-    await expect(
-      runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, j.id)),
-    ).rejects.toThrow(InviteNotUsableError);
+    await expect(accept(token, j.id)).rejects.toThrow(InviteNotUsableError);
   });
 
   it('a revoked invite is not usable', async () => {
@@ -146,9 +161,7 @@ describe('staff invites', () => {
     await runInTenantContext(t.tenantId, (c) => revokeInvite(c, t.tenantId, t.userId, inviteId));
 
     expect(await runInTenantContext(t.tenantId, (c) => previewInvite(c, token))).toBeNull();
-    await expect(
-      runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, j.id)),
-    ).rejects.toThrow(InviteNotUsableError);
+    await expect(accept(token, j.id)).rejects.toThrow(InviteNotUsableError);
   });
 
   it('a wrong or malformed token is refused, and reveals nothing', async () => {
@@ -176,7 +189,7 @@ describe('staff invites', () => {
     const t = await seedTenant({}, db);
     const j = await outsider('j');
     const first = await invite(t, j.email);
-    await runInTenantContext(t.tenantId, (c) => acceptInvite(c, first.token, j.id));
+    await accept(first.token, j.id);
 
     const second = await invite(t, j.email, 'MANAGER');
     expect(second.token).not.toBe(first.token);
@@ -185,16 +198,18 @@ describe('staff invites', () => {
   it('accepting NEVER demotes an existing member', async () => {
     // An invite is an offer to join. Using one to quietly reduce somebody's
     // access would be a privilege change decided by whoever forwarded a link.
+    // (A PLAYER invite to a manager is refused outright since #263 — another
+    // kind of account — so the demotion tried here is within club roles.)
     const t = await seedTenant({}, db);
-    const m = await outsider('m');
+    const m = await outsider('m', 'CLUB');
     await asAppSuperuser(db, (tx) =>
       tx.tenantMembership.create({
         data: { tenantId: t.tenantId, userId: m.id, role: 'MANAGER', status: 'ACTIVE' },
       }),
     );
 
-    const { token } = await invite(t, m.email, 'PLAYER');
-    await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, m.id));
+    const { token } = await invite(t, m.email, 'STAFF');
+    await accept(token, m.id);
 
     const ctx = await membershipContext(m.id, t.tenantSlug, NO_GATE_CLEARED);
     expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('MANAGER');
@@ -202,15 +217,15 @@ describe('staff invites', () => {
 
   it('reactivates a suspended member rather than creating a second row', async () => {
     const t = await seedTenant({}, db);
-    const m = await outsider('m');
+    const m = await outsider('m', 'CLUB');
     await asAppSuperuser(db, (tx) =>
       tx.tenantMembership.create({
-        data: { tenantId: t.tenantId, userId: m.id, role: 'COACH', status: 'SUSPENDED' },
+        data: { tenantId: t.tenantId, userId: m.id, role: 'STAFF', status: 'SUSPENDED' },
       }),
     );
 
-    const { token } = await invite(t, m.email, 'COACH');
-    await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, m.id));
+    const { token } = await invite(t, m.email, 'STAFF');
+    await accept(token, m.id);
 
     const rows = await asAppSuperuser(db, (tx) =>
       tx.tenantMembership.findMany({ where: { tenantId: t.tenantId, userId: m.id } }),
@@ -223,7 +238,7 @@ describe('staff invites', () => {
     const t = await seedTenant({}, db);
     const j = await outsider('j');
     const { token } = await invite(t, j.email);
-    await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, j.id));
+    await accept(token, j.id);
 
     const audit = await asAppSuperuser(db, (tx) =>
       tx.auditEntry.findMany({

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { roleChangeKeepsKind } from '@/lib/auth/account-kind';
+import { isRole } from '@/lib/permissions';
 
 import {
   changeRoleAction,
@@ -164,13 +166,19 @@ function RoleForm({
           defaultValue={member.role}
           className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
         >
-          {ROLES.map((r) => (
-            // Granting ownership needs admin.owner_management. Disabled rather
-            // than hidden, so a manager can see the ceiling exists.
-            <option key={r} value={r} disabled={r === 'OWNER' && !canManageOwners}>
-              {t(`role.${r}`)}
-            </option>
-          ))}
+          {ROLES.map((r) => {
+            // A role from another kind of account (#263): player, club and
+            // coach are separate accounts, so a player is invited to become
+            // staff rather than promoted, and the server refuses it anyway.
+            const otherKind = isRole(member.role) && !roleChangeKeepsKind(member.role, r);
+            return (
+              // Granting ownership needs admin.owner_management. Disabled rather
+              // than hidden, so a manager can see the ceiling exists.
+              <option key={r} value={r} disabled={otherKind || (r === 'OWNER' && !canManageOwners)}>
+                {otherKind ? `${t(`role.${r}`)} (${t('separateAccount')})` : t(`role.${r}`)}
+              </option>
+            );
+          })}
         </select>
       </div>
 

@@ -111,8 +111,10 @@ export async function seedTenant(
       },
     });
 
+    // A CLUB account (#263): an owner owns one club and plays nowhere, and the
+    // database refuses an ACTIVE OWNER membership on any other kind.
     const user = await tx.user.create({
-      data: { email: ownerEmail, name: 'Test Owner', passwordHash: null },
+      data: { email: ownerEmail, name: 'Test Owner', passwordHash: null, accountKind: 'CLUB' },
     });
 
     await tx.tenantMembership.create({

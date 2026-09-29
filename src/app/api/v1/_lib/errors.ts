@@ -102,6 +102,11 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // You cannot review a venue you never visited. A precondition on the actor,
   // not on the payload — hence 403 rather than 400.
   NoProofOfVisitError: { status: 403, code: 'NO_PROOF_OF_VISIT' },
+  // Booking a court needs a PLAYER account (#263): a club or coach account
+  // books with a separate one. About the caller's account, never the club, so
+  // the same answer at every slug. No clientMessage: the use case already wrote
+  // it in the caller's own language, and it is the sentence they need.
+  PlayerAccountRequiredError: { status: 403, code: 'PLAYER_ACCOUNT_REQUIRED' },
 
   // ── 400: a malformed platform request ─────────────────────────────
   //
