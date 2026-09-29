@@ -17,6 +17,9 @@ name: UI drift
 # ═══════════════════════════════════════════════════════════════════
 
 on:
+  # PROBE ONLY (throwaway branch, never merged): run once on push.
+  push:
+    branches: [port/t09-probe]
   schedule:
     - cron: '0 5 * * 1'
   workflow_dispatch:
@@ -92,16 +95,19 @@ jobs:
           NUMBER=${EXISTING%% *}
           STATE=${EXISTING#* }
 
+          # PROBE ONLY: every write is echoed, nothing is filed.
+          echo "PROBE: EXISTING='$EXISTING' ACTIONABLE=$ACTIONABLE TITLE='$TITLE'"
+          cat "$BODY"
           if [ "$ACTIONABLE" -gt 0 ]; then
             if [ -z "$EXISTING" ]; then
-              gh issue create --title "$TITLE" --body-file "$BODY"
+              echo gh issue create --title "$TITLE" --body-file "$BODY"
             else
-              gh issue edit "$NUMBER" --title "$TITLE" --body-file "$BODY"
-              if [ "$STATE" = "CLOSED" ]; then gh issue reopen "$NUMBER"; fi
+              echo gh issue edit "$NUMBER" --title "$TITLE" --body-file "$BODY"
+              if [ "$STATE" = "CLOSED" ]; then echo gh issue reopen "$NUMBER"; fi
             fi
           elif [ -n "$EXISTING" ] && [ "$STATE" = "OPEN" ]; then
-            gh issue edit "$NUMBER" --title "$TITLE" --body-file "$BODY"
-            gh issue close "$NUMBER" --comment "No TAKE, MERGE or GONE rows left against inflect $SHORT."
+            echo gh issue edit "$NUMBER" --title "$TITLE" --body-file "$BODY"
+            echo gh issue close "$NUMBER" --comment "No TAKE, MERGE or GONE rows left against inflect $SHORT."
           else
             echo "No actionable drift against inflect $SHORT, and no open drift issue."
           fi

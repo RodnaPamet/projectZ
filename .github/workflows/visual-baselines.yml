@@ -32,6 +32,9 @@ name: Visual baselines
 # ═══════════════════════════════════════════════════════════════════
 
 on:
+  # PROBE ONLY (throwaway branch, never merged): run once on push.
+  push:
+    branches: [port/t09-probe]
   workflow_dispatch:
     inputs:
       ref:
