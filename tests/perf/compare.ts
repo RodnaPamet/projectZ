@@ -91,8 +91,16 @@ function merge(paths: string[], out: string) {
     schema: BASELINE_SCHEMA,
     createdAt: new Date().toISOString(),
     git: runs[0]!.git,
+    // Each run keeps the headline STATS it contributes to the variance; the
+    // individual values, and every metric, live once, in `pooled`.
     runs: runs.map((r) => {
-      const copy = { ...r } as RunDoc;
+      const keep = ['tReady', 'tFeedback', 'requests', 'bytes', 'payloadDecoded'] as const;
+      const rows = r.rows.map((row) => ({
+        ...row,
+        values: {},
+        stats: Object.fromEntries(keep.filter((m) => row.stats[m]).map((m) => [m, row.stats[m]])),
+      }));
+      const copy = { ...r, rows } as RunDoc;
       delete copy.samples;
       return copy;
     }),

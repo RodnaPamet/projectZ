@@ -353,16 +353,27 @@ export function isBaseline(doc: RunDoc | BaselineDoc): doc is BaselineDoc {
 }
 
 /**
- * JSON with arrays of numbers kept on one line. Otherwise a baseline turns
- * into forty thousand lines of single numbers that nobody can read in a diff.
- * docs/perf/*.json is in .prettierignore for the same reason.
+ * JSON where anything flat (an array of numbers, a stats object) sits on one
+ * line. `JSON.stringify(doc, null, 2)` wrote the first baseline as 1 MB and
+ * forty thousand lines, most of them a single number. docs/perf/*.json is in
+ * .prettierignore for the same reason.
  */
 export function stringify(doc: unknown): string {
-  const json = JSON.stringify(doc, null, 2);
-  return json.replace(
-    /\[\s+((?:-?[\d.e+-]+|null)(?:,\s+(?:-?[\d.e+-]+|null))*)\s+\]/g,
-    (_, inner: string) => `[${inner.replace(/\s+/g, ' ')}]`,
-  );
+  const flat = (v: unknown) => v === null || typeof v !== 'object';
+  const fmt = (v: unknown, indent: string): string => {
+    if (flat(v)) return JSON.stringify(v);
+    const inner = `${indent}  `;
+    if (Array.isArray(v)) {
+      if (v.every(flat)) return `[${v.map((x) => JSON.stringify(x)).join(', ')}]`;
+      return `[\n${v.map((x) => inner + fmt(x, inner)).join(',\n')}\n${indent}]`;
+    }
+    const entries = Object.entries(v as Record<string, unknown>).filter(([, x]) => x !== undefined);
+    if (entries.every(([, x]) => flat(x))) {
+      return `{ ${entries.map(([k, x]) => `${JSON.stringify(k)}: ${JSON.stringify(x)}`).join(', ')} }`;
+    }
+    return `{\n${entries.map(([k, x]) => `${inner}${JSON.stringify(k)}: ${fmt(x, inner)}`).join(',\n')}\n${indent}}`;
+  };
+  return `${fmt(doc, '')}\n`;
 }
 
 // ─── Tables ────────────────────────────────────────────────────────────────
