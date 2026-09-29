@@ -119,4 +119,14 @@ describe('workflow jobs that call gh', () => {
     // The fix itself, pinned: this is the line whose absence broke it.
     expect(reporter.body).toMatch(/GH_REPO:\s*\$\{\{\s*github\.repository\s*\}\}/);
   });
+
+  it('the weekly UI-drift reporter names its repository too', () => {
+    // It checks out TWO repositories, playerz and inflect-compliance, so the git
+    // remote gh would fall back to depends on the directory a step runs in. It
+    // edits an issue on playerz; GH_REPO says so whatever the working directory.
+    const drift = jobs(readFileSync('.github/workflows/ui-drift.yml', 'utf8'));
+    const reporter = drift.find((j) => j.name === 'drift')!;
+    expect(CALLS_GH.test(reporter.body)).toBe(true);
+    expect(reporter.body).toMatch(/GH_REPO:\s*\$\{\{\s*github\.repository\s*\}\}/);
+  });
 });

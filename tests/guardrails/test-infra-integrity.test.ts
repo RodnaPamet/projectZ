@@ -354,7 +354,14 @@ describe('the host timezone is pinned by the runner, never from inside a test', 
  * which no amount of string matching resolves.
  */
 describe('the nightly workflow can actually run', () => {
-  const workflows = ['.github/workflows/ci.yml', '.github/workflows/nightly.yml'] as const;
+  // visual-baselines.yml runs the same Playwright stack on demand, so it has to
+  // satisfy the same three-way agreement: a PostGIS database, the browser it
+  // launches, and the one project that has baselines.
+  const workflows = [
+    '.github/workflows/ci.yml',
+    '.github/workflows/nightly.yml',
+    '.github/workflows/visual-baselines.yml',
+  ] as const;
 
   /** Every job in every workflow, tagged with where it came from. */
   const jobs = workflows.flatMap((file) => {
@@ -515,15 +522,95 @@ describe('the nightly workflow can actually run', () => {
   it('pins the visual compare to the one browser that has baselines', () => {
     // The baselines are committed as `*-chromium-linux.png`. Playwright names
     // a snapshot after the project that took it, so an unpinned @visual run
-    // fails as a MISSING snapshot — which reads like a real regression.
-    const visual = jobs.find(({ job }) => /--grep @visual/.test(shellOf(job)));
-    expect(visual).toBeDefined();
-    expect(shellOf(visual!.job)).toMatch(/--project=chromium[^\n]*--grep @visual/);
+    // fails as a MISSING snapshot — which reads like a real regression. An
+    // unpinned REGENERATION is worse: it writes baselines for a project nothing
+    // compares against. So every job that greps @visual is pinned, not the first.
+    const visual = jobs.filter(({ job }) => /--grep @visual/.test(shellOf(job)));
+    expect(visual.map(({ file, name }) => `${file} → ${name}`)).toEqual([
+      '.github/workflows/nightly.yml → visual-regression',
+      '.github/workflows/visual-baselines.yml → regenerate',
+    ]);
+    for (const { job } of visual) {
+      expect(shellOf(job)).toMatch(/--project=chromium[^\n]*--grep @visual/);
+    }
 
     const baselines = globSync('tests/e2e/**/*-snapshots/*.png', { cwd: root });
     expect(baselines.length).toBeGreaterThan(0);
     // If firefox baselines are ever added on purpose, the pin above is what
     // should change — this catches the half-done version of that.
     expect(baselines.filter((b) => !b.includes('-chromium-'))).toEqual([]);
+  });
+});
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ *  THE BASELINE WORKFLOW HANDS PNGS BACK; IT NEVER COMMITS THEM
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * visual-baselines.yml regenerates the Linux @visual PNGs for a branch that
+ * moves pixels on purpose, because the Macs this repo is written on can only
+ * produce `-darwin` ones. Its shape is its contract:
+ *
+ *   - dispatch only, for a named ref: GitHub runs only default-branch
+ *     workflows on dispatch, and a push trigger would re-bless every push;
+ *   - no write token and no commit: a push made with GITHUB_TOKEN starts no
+ *     workflow run, so a commit from the job would leave its PR without CI,
+ *     and the images would become the reference before anyone looked at them;
+ *   - only `-chromium-linux.png` in the artifact, so nothing else can become
+ *     a baseline;
+ *   - the E2E job's least-privilege database split, without which the app
+ *     refuses to boot under `next start` (the nightly learned that the hard way).
+ *
+ * PostGIS, the chromium install and the chromium pin are checked above, with
+ * the other Playwright workflows.
+ */
+describe('the visual-baseline workflow hands PNGs back and commits nothing', () => {
+  const file = '.github/workflows/visual-baselines.yml';
+  const doc = parseYaml(read(file)) as {
+    on: Record<string, { inputs?: Record<string, { required?: boolean }> }>;
+    permissions?: Record<string, string>;
+    jobs: Record<
+      string,
+      {
+        permissions?: Record<string, string>;
+        env?: Record<string, string>;
+        steps: { uses?: string; run?: string; with?: Record<string, unknown> }[];
+      }
+    >;
+  };
+  const steps = Object.values(doc.jobs).flatMap((j) => j.steps);
+  const shell = steps.map((s) => s.run ?? '').join('\n');
+
+  it('runs only when dispatched, for a ref somebody names', () => {
+    expect(Object.keys(doc.on)).toEqual(['workflow_dispatch']);
+    expect(doc.on.workflow_dispatch.inputs?.ref?.required).toBe(true);
+  });
+
+  it('holds no write permission and never commits, pushes or opens a PR', () => {
+    expect(doc.permissions).toEqual({ contents: 'read' });
+    for (const job of Object.values(doc.jobs)) {
+      expect(Object.values(job.permissions ?? {}).filter((p) => p !== 'read')).toEqual([]);
+    }
+    expect(shell).not.toMatch(/\bgit\s+(?:add|commit|push)\b|\bgh\s+(?:pr|api)\b/);
+    const checkout = steps.find((s) => s.uses?.startsWith('actions/checkout'));
+    expect(checkout?.with?.['persist-credentials']).toBe(false);
+  });
+
+  it('regenerates, then uploads only the Linux PNGs that changed', () => {
+    expect(shell).toMatch(/playwright test --project=chromium --grep @visual --update-snapshots/);
+    expect(shell).toMatch(/-chromium-linux\.png/);
+    const upload = steps.find(
+      (s) =>
+        s.uses?.startsWith('actions/upload-artifact') &&
+        /visual-baselines-/.test(String(s.with?.name)),
+    );
+    expect(upload?.with?.name).toMatch(/^visual-baselines-\$\{\{ steps\.head\.outputs\.sha \}\}$/);
+  });
+
+  it('boots the app under least privilege, like the E2E job', () => {
+    const job = Object.values(doc.jobs)[0]!;
+    expect(job.env?.DATABASE_URL).toContain('playerz_app');
+    expect(job.env?.DIRECT_DATABASE_URL).not.toContain('playerz_app');
+    expect(shell).toMatch(/ALTER ROLE playerz_app PASSWORD/);
   });
 });

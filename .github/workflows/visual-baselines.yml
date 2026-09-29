@@ -1,0 +1,194 @@
+name: Visual baselines
+
+# ═══════════════════════════════════════════════════════════════════
+#  Regenerate the @visual baselines on Linux, and hand them back.
+#
+#  The committed baselines are `*-chromium-linux.png`, because CI compares
+#  on ubuntu (test-infra-integrity pins that). Every machine this repo is
+#  developed on is a Mac, where the same run writes `-darwin` twins that
+#  nothing compares against and that .gitignore keeps out. So a PR that
+#  moves a pixel on purpose had no way to produce the PNG it needs.
+#
+#  This workflow is that way. It checks out `ref`, runs the @visual specs
+#  with --update-snapshots on the same stack as ci.yml's E2E job, and
+#  uploads ONLY the Linux PNGs that changed, with their repo paths, as the
+#  artifact `visual-baselines-<sha>`.
+#
+#  It commits nothing and holds no write token, on purpose:
+#    - GitHub starts no workflow run for a push made with GITHUB_TOKEN, so
+#      a commit from here would leave the PR it lands on without CI;
+#    - the author reviews the images before they become the reference.
+#
+#  The author then commits them from their own checkout, and that push runs
+#  CI as usual:
+#
+#    gh workflow run visual-baselines.yml -f ref=<branch>
+#    gh run watch
+#    gh run download <run-id> -n visual-baselines-<sha> -D .
+#
+#  (docs/ui-sync/README.md has the whole procedure.) GitHub dispatches only
+#  workflows that exist on the default branch, so this file runs from main
+#  whatever `ref` names.
+# ═══════════════════════════════════════════════════════════════════
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit to regenerate the @visual baselines for'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-baselines-${{ inputs.ref }}
+  cancel-in-progress: true
+
+# ci.yml's workflow-level env, so the app boots exactly as it does in E2E.
+env:
+  NODE_VERSION: '24'
+  DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
+  REDIS_URL: 'redis://localhost:6379'
+  SKIP_ENV_VALIDATION: '1'
+  # Throwaway value so NextAuth can boot in CI. Authenticates nothing.
+  NEXTAUTH_SECRET: 'ci-test-secret-not-a-real-key' # pragma: allowlist secret
+  NEXTAUTH_URL: 'http://localhost:3000'
+  MEILISEARCH_HOST: 'http://localhost:7700'
+  MEILISEARCH_MASTER_KEY: 'test-master-key' # pragma: allowlist secret
+  CENTRIFUGO_API_URL: 'http://localhost:8000/api'
+  CENTRIFUGO_API_KEY: 'test-api-key' # pragma: allowlist secret
+  CENTRIFUGO_TOKEN_SECRET: 'test-token-secret' # pragma: allowlist secret
+  STRIPE_PRICE_ID_PRO: 'price_test_pro'
+  STRIPE_PRICE_ID_CLUB: 'price_test_club'
+
+jobs:
+  regenerate:
+    name: Regenerate @visual baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # The same least-privilege split as ci.yml's E2E job: the webServer runs
+    # `next start` as playerz_app (the app refuses to boot as the owner in
+    # production mode), while migrations and the seed run as the owner.
+    env:
+      DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
+      DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
+    services:
+      # postgis/postgis, not postgres: `prisma migrate deploy` creates the
+      # postgis extension, which the stock image does not have.
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: playerz_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports: ['1025:1025', '8025:8025']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Resolve the commit
+        id: head
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-node-prisma
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Apply migrations + seed
+        # As the owner: DIRECT_DATABASE_URL (prisma.config.ts, scripts/seed.ts).
+        run: |
+          npx prisma migrate deploy
+          npx tsx scripts/seed.ts
+
+      - name: Give playerz_app a password for this run
+        # The role ships with LOGIN and no password; migrate deploy creates it.
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d playerz_test -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE playerz_app PASSWORD 'ci-least-privilege';"
+
+      - name: Regenerate the @visual baselines
+        # --project=chromium is load-bearing: Playwright names a snapshot after
+        # the project that took it, and the committed baselines are chromium's.
+        # --update-snapshots defaults to `changed`: a PNG is rewritten only when
+        # it fails the spec's own comparison, so anti-aliasing noise inside the
+        # tolerance never reaches the artifact. The webServer builds the app
+        # (`npm run build && npm run start`), as it does in the E2E job.
+        run: npx playwright test --project=chromium --grep @visual --update-snapshots
+
+      - name: Collect the Linux PNGs that changed
+        id: changed
+        env:
+          REF: ${{ inputs.ref }}
+          SHA: ${{ steps.head.outputs.sha }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/visual-baselines"
+          mkdir -p "$OUT"
+          # Rewritten tracked baselines, plus new ones for new @visual tests.
+          # Only -chromium-linux.png: nothing else may become a baseline.
+          git ls-files --modified --others --exclude-standard -- \
+            ':(glob)tests/**/*-chromium-linux.png' > "$RUNNER_TEMP/changed.txt"
+          count=0
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            mkdir -p "$OUT/$(dirname "$f")"
+            cp "$f" "$OUT/$f"
+            count=$((count + 1))
+          done < "$RUNNER_TEMP/changed.txt"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          {
+            echo "## @visual baselines for \`$REF\` (\`${SHA:0:9}\`)"
+            echo
+            if [ "$count" -eq 0 ]; then
+              echo "No PNG changed: the committed baselines already match Linux chromium. Nothing was uploaded."
+            else
+              echo "$count PNG(s) changed:"
+              echo
+              sed "s/^/- \`/; s/\$/\`/" "$RUNNER_TEMP/changed.txt"
+              echo
+              echo "Review them, then from your checkout of \`$REF\`:"
+              echo
+              echo '```'
+              echo "gh run download $GITHUB_RUN_ID -n visual-baselines-$SHA -D ."
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the changed baselines
+        if: steps.changed.outputs.count != '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines-${{ steps.head.outputs.sha }}
+          # A directory, so the artifact keeps each PNG's repo path and
+          # `gh run download … -D .` drops it where it belongs.
+          path: ${{ runner.temp }}/visual-baselines
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-visual-baselines
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
