@@ -53,19 +53,22 @@ export async function SiteHeader() {
     <header className="border-border-subtle flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3">
       {/*
         NOT `text-brand-600`. That is a FILL colour — `--brand-emphasis`, whose
-        own comment measures it "5.1:1 on white" — and the page background is
-        #f4f2ed, not white, where it is 4.48:1. At 36px on the homepage that
-        passes, because large text only needs 3:1. At 16px in a header it needs
-        4.5:1 and misses, which axe caught as a serious violation.
+        comment used to measure it "5.1:1 on white" — and the page background
+        is #f4f2ed, not white, where it is 4.48:1. At 36px that passes, because
+        large text only needs 3:1. At 16px in a header it needs 4.5:1 and
+        misses, which axe caught as a serious violation (#233).
 
         No fixed brand shade would fix it: brand-600 fails BOTH themes as body
         text (4.48 light, 3.79 dark), brand-500 passes only dark and brand-700
-        only light. A `dark:` variant would not help either — Tailwind defaults
+        only light, and tests/guardrails/no-raw-brand-text.test.ts now bans them
+        as text. A `dark:` variant would not help either — Tailwind defaults
         to the `media` strategy here, so it keys off the OS preference while
         this app switches themes with [data-theme].
 
         `content-emphasis` is the headings token and is theme-aware by
         construction: 15.56:1 light, 17.06:1 dark — measured with src/lib/design/contrast.ts.
+        If the wordmark should be green, `text-content-brand` is the token for
+        green text: 6.37:1 light, 5.77:1 dark.
       */}
       <Link href="/" className="text-content-emphasis font-semibold">
         {t('appName')}
