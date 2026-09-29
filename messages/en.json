@@ -483,7 +483,9 @@
         "BAD_ROLE": "Unknown role.",
         "BAD_EMAIL": "Enter a valid email address.",
         "ALREADY_INVITED": "There is already an open invite for that address. Revoke it first.",
-        "MAIL_FAILED": "The invite could not be sent. Revoke it and try again."
+        "MAIL_FAILED": "The invite could not be sent. Revoke it and try again.",
+        "ACCOUNT_KIND": "Player, club and coach roles need separate accounts. To give this person a club role, invite them — they accept with a club account.",
+        "ACCOUNT_IN_ANOTHER_CLUB": "That account now belongs to another club. A club account belongs to one club."
       },
       "membersHeading": "Members",
       "inviteHeading": "Invites",
@@ -491,7 +493,8 @@
       "invite": {
         "expires": "expires {date}",
         "revokeConfirm": "Revoke the invite for {email}?"
-      }
+      },
+      "separateAccount": "separate account"
     },
     "calendar": {
       "metaTitle": "Calendar",
@@ -548,7 +551,30 @@
     "invalid": {
       "title": "That invitation is no longer valid",
       "description": "It may have expired, been revoked, or already been used. Ask the club for another."
-    }
+    },
+    "refusal": {
+      "SEPARATE_ACCOUNT_REQUIRED": {
+        "title": "Accept this with a separate account",
+        "description": "You are signed in with a player or coach account, and running a club takes an account of its own. Sign out, sign in with a different Google or Microsoft account, and open this link again."
+      },
+      "CLUB_ACCOUNT_TAKEN": {
+        "title": "Your club account already belongs to a club",
+        "description": "A club account belongs to one club. To help run this one as well, accept with a separate account: sign out, sign in with a different Google or Microsoft account, and open this link again."
+      },
+      "PLAYER_ACCOUNT_REQUIRED": {
+        "title": "Accept this with your player account",
+        "description": "This invitation is for a player, and you are signed in with a club or coach account. Sign out, sign in with your player account, and open this link again."
+      },
+      "COACH_ACCOUNT_REQUIRED": {
+        "title": "This invitation needs a coach account",
+        "description": "Coach accounts are not open yet, so it cannot be accepted with this account. Ask the club to contact playerz.bg."
+      },
+      "ACCOUNT_KIND_UNDECIDED": {
+        "title": "Your account is waiting for a decision",
+        "description": "It held roles at more than one club, or a coach role, before every account had a single kind. playerz.bg will settle which account it is; until then it cannot accept invitations."
+      }
+    },
+    "signOutToSwitch": "Sign out and use another account"
   },
   "myBookings": {
     "metaTitle": "My bookings — playerz.bg",
@@ -589,18 +615,6 @@
         "NOT_ALLOWED": "You can no longer review bookings at this club."
       }
     }
-  },
-  "contextSwitcher": {
-    "trigger": "Switch role — current: {current}",
-    "menu": "Switch to",
-    "player": "Player",
-    "role": {
-      "OWNER": "Owner",
-      "MANAGER": "Manager",
-      "STAFF": "Staff",
-      "COACH": "Coach"
-    },
-    "unavailable": "That role is no longer available. The list has been refreshed."
   },
   "platform": {
     "moderation": {
@@ -665,6 +679,11 @@
         "NETWORK": "Could not reach the server.",
         "UNKNOWN": "Something went wrong. Nothing was changed."
       }
+    }
+  },
+  "accountKind": {
+    "booking": {
+      "playerAccountRequired": "Booking a court needs a player account. You are signed in with a club or coach account — sign in with your player account to book."
     }
   }
 }

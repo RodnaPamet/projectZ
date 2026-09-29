@@ -111,11 +111,18 @@ const withoutRequestId = (body: unknown) => {
   return { error: rest };
 };
 
-async function newUser(label: string, password?: string): Promise<{ id: string; email: string }> {
+async function newUser(
+  label: string,
+  password?: string,
+  accountKind: 'PLAYER' | 'CLUB' = 'PLAYER',
+): Promise<{ id: string; email: string }> {
   const email = `${label}-${Math.random().toString(36).slice(2, 10)}@playerz.test`;
   const passwordHash = password ? await hashPassword(password) : null;
   const user = await asAppSuperuser(db, (tx) =>
-    tx.user.create({ data: { email, name: label, passwordHash }, select: { id: true } }),
+    tx.user.create({
+      data: { email, name: label, passwordHash, accountKind },
+      select: { id: true },
+    }),
   );
   return { id: user.id, email };
 }
@@ -343,9 +350,9 @@ describe('a NATIVE token at a club it does not belong to', () => {
   it('is refused everything else there, by the route, and joins nothing', async () => {
     const native = await nativeSignIn(player.email);
 
-    // A booking at B that is not theirs — the owner's.
-    const owners = await webSignIn(clubB.userId, []);
-    const theirs = await book(owners, clubB, courtB, 9);
+    // A booking at B that is not theirs — another player's, who joined by it.
+    const other = await newUser('other-player', PASSWORD);
+    const theirs = await book(await nativeSignIn(other.email), clubB, courtB, 9);
     expect(theirs.status).toBe(201);
 
     const cancelled = await send(
@@ -435,7 +442,7 @@ describe('a WEB session at a club joined after sign-in', () => {
     const web = await webSignIn(player.id, [
       { tenantId: clubA.tenantId, tenantSlug: clubA.tenantSlug, role: 'PLAYER' },
     ]);
-    await join(player.id, clubB.tenantId, 'STAFF'); // after the cookie was minted
+    await join(player.id, clubB.tenantId, 'PLAYER'); // after the cookie was minted
 
     const who = await send(
       me as Handler,
@@ -449,7 +456,7 @@ describe('a WEB session at a club joined after sign-in', () => {
     expect(
       (who.body as { data: { membership: { role: string }; tokenStale: boolean } }).data,
     ).toMatchObject({
-      membership: { role: 'STAFF' },
+      membership: { role: 'PLAYER' },
       // The cookie does not LIST club B, so there is no claim for it to be
       // stale about: the edge deferred B to the database.
       tokenStale: false,
@@ -675,7 +682,7 @@ describe('a mutation that needs a permission the caller lacks', () => {
 
   it('is let through for a caller whose database role holds it', async () => {
     // The control for the three above: the same stub, an owner, a native token.
-    const owner = await newUser('owner', PASSWORD);
+    const owner = await newUser('owner', PASSWORD, 'CLUB');
     await join(owner.id, clubB.tenantId, 'OWNER');
     const native = await nativeSignIn(owner.email);
 

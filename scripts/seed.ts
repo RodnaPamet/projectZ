@@ -100,20 +100,23 @@ async function main() {
         },
       });
 
+      // A CLUB account (#263): one club, and it does not play. The player
+      // profile these owners used to carry belongs to the demo PLAYER below —
+      // one account, one kind, and the seed is the first place a developer
+      // copies the shape of the data from.
+      //
+      // `update` sets the kind too, so re-seeding a database seeded before the
+      // kinds existed leaves it conforming rather than depending on the
+      // migration having run first.
       const owner = await tx.user.upsert({
         where: { email: v.owner.email },
-        update: {},
+        update: { accountKind: 'CLUB' },
         create: {
           email: v.owner.email,
           name: v.owner.name,
           passwordHash,
           emailVerified: new Date(),
-          profile: {
-            create: {
-              displayName: v.owner.name,
-              sports: v.slug.includes('padel') ? ['PADEL'] : ['TENNIS'],
-            },
-          },
+          accountKind: 'CLUB',
         },
       });
 
@@ -194,8 +197,26 @@ async function main() {
       );
     }
 
+    // A player (#263): the account that books. No membership yet — booking a
+    // court is how a player joins a club (#229) — and the player profile the
+    // owners used to carry, because a rating belongs to somebody who plays.
+    await tx.user.upsert({
+      where: { email: 'player@playerz.bg' },
+      update: {},
+      create: {
+        email: 'player@playerz.bg',
+        name: 'Georgi Ivanov',
+        passwordHash,
+        emailVerified: new Date(),
+        accountKind: 'PLAYER',
+        profile: { create: { displayName: 'Georgi Ivanov', sports: ['PADEL', 'TENNIS'] } },
+      },
+    });
+    console.log('  ✓ player@playerz.bg (player)');
+
     // Platform admin. Global identity, no membership — access comes from
-    // appPermissions, not from belonging to a tenant.
+    // appPermissions, not from belonging to a tenant. A PLAYER account by kind,
+    // because it holds nothing: platform authority is a grant, not a kind.
     await tx.user.upsert({
       where: { email: 'admin@playerz.bg' },
       update: {},
@@ -204,6 +225,7 @@ async function main() {
         name: 'Platform Admin',
         passwordHash,
         emailVerified: new Date(),
+        accountKind: 'PLAYER',
       },
     });
     console.log('  ✓ admin@playerz.bg (platform)');

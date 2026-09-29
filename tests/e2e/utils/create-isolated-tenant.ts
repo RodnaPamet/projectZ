@@ -49,7 +49,11 @@ export async function createIsolatedTenant(): Promise<IsolatedTenant> {
         tenantTestRun: testRun,
       },
     });
-    const user = await tx.user.create({ data: { email, name: 'E2E Owner' } });
+    // A CLUB account (#263): the database refuses an ACTIVE OWNER membership
+    // on any other kind of account.
+    const user = await tx.user.create({
+      data: { email, name: 'E2E Owner', accountKind: 'CLUB' },
+    });
     await tx.tenantMembership.create({
       data: { tenantId: tenant.id, userId: user.id, role: 'OWNER', status: 'ACTIVE' },
     });

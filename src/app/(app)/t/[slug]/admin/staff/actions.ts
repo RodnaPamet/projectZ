@@ -36,6 +36,20 @@ function mapError(err: unknown): ActionResult {
       return { ok: false, error: 'OWNER_MANAGEMENT_REQUIRED' };
     case 'StaffMemberNotFoundError':
       return { ok: false, error: 'NOT_FOUND' };
+    // One account, one kind (#263): a player is not made staff, and back.
+    case 'RoleChangesAccountKindError':
+      return { ok: false, error: 'ACCOUNT_KIND' };
+    // The database's refusal, which is the only layer that can see the
+    // person's OTHER clubs: most often a club account reinstated here after it
+    // joined another club.
+    case 'MembershipAccountKindError':
+      return {
+        ok: false,
+        error:
+          (err as { rule?: string }).rule === 'one_club'
+            ? 'ACCOUNT_IN_ANOTHER_CLUB'
+            : 'ACCOUNT_KIND',
+      };
     default:
       throw err;
   }

@@ -2,6 +2,12 @@ import { randomBytes } from 'node:crypto';
 
 import type { PrismaClient, Role } from '@prisma/client';
 
+import { readAccountStanding } from '@/app-layer/repositories/account';
+import {
+  decideInviteAcceptance,
+  type AccountKindRefusal,
+  type InviteAcceptance,
+} from '@/lib/auth/account-kind';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { hashForLookup } from '@/lib/security/encryption';
 
@@ -68,6 +74,26 @@ export class AlreadyInvitedError extends Error {
   constructor() {
     super('There is already an open invite for that address. Revoke it before sending another.');
     this.name = 'AlreadyInvitedError';
+  }
+}
+
+/**
+ * The signed-in account is the wrong KIND for this invitation (#263).
+ *
+ * Distinct from `InviteNotUsableError` on purpose. That one must not say which
+ * of its four causes applies, because telling them apart lets somebody probe
+ * for live tokens. This one says exactly what to do — "accept this with a
+ * separate account" — because it is about the account of the person holding a
+ * token that WORKS, and by then there is nothing left to probe.
+ */
+export class InviteNeedsAnotherAccountError extends Error {
+  constructor(public readonly refusal: AccountKindRefusal) {
+    super(
+      `This invitation cannot be accepted with the account that is signed in (${refusal}). ` +
+        'An account is a player, a club account for one club, or a coach — never two of them — ' +
+        'so it has to be accepted with a separate one.',
+    );
+    this.name = 'InviteNeedsAnotherAccountError';
   }
 }
 
@@ -227,6 +253,29 @@ export async function previewInvite(
 }
 
 /**
+ * May `userId` accept the invitation `preview` describes? (#263)
+ *
+ * Exported for the invite page, which asks before it offers the button — a
+ * refusal seen after clicking "Accept" is a worse way to learn you are signed
+ * in with the wrong account. `acceptInvite` asks again, in its own transaction,
+ * because a page can be stale.
+ *
+ * Needs a handle that sees every club (see `readAccountStanding`); both callers
+ * already hold one, because the token is how the club is discovered.
+ */
+export async function inviteAcceptanceFor(
+  db: PrismaClient,
+  preview: Pick<InvitePreview, 'role' | 'tenantId'>,
+  userId: string,
+): Promise<InviteAcceptance> {
+  const standing = await readAccountStanding(db, userId);
+  // A session whose user row is gone is refused like an undecided account:
+  // there is nothing here to add a membership to.
+  if (!standing) return { ok: false, refusal: 'ACCOUNT_KIND_UNDECIDED' };
+  return decideInviteAcceptance(standing, preview);
+}
+
+/**
  * Consume an invite for a signed-in user.
  *
  * ═══ THE EMAIL IS NOT CHECKED AGAINST THE ACCOUNT ═══
@@ -240,6 +289,21 @@ export async function previewInvite(
  * hash, single-use, expiring. Whoever holds the link was given it by somebody
  * who could already read that mailbox. The audit row records which account
  * actually consumed it, which is the fact worth having later.
+ *
+ * ═══ THE ACCOUNT MUST FIT THE INVITATION (#263) ═══
+ *
+ * One account, one kind. A staff invite is accepted only by a CLUB account
+ * with no club yet — or this one — or by a brand-new account, which becomes a
+ * CLUB account here. A PLAYER account that has played anywhere is refused and
+ * told to use a separate account: turning it into a club account would end its
+ * player memberships, which one click on an invite is not the place to decide.
+ * The rules are `decideInviteAcceptance`; the page asks them first, so the
+ * refusal is normally seen before the button, and this is the enforcement.
+ *
+ * The kind changes BEFORE the membership is written, in this transaction: the
+ * database refuses an ACTIVE club role on a PLAYER account
+ * (`account_kind_membership_trg`), and the same trigger is what stops two
+ * invites accepted at once from giving one club account two clubs.
  */
 export async function acceptInvite(
   db: PrismaClient,
@@ -248,6 +312,16 @@ export async function acceptInvite(
 ): Promise<{ tenantId: string; tenantSlug: string; role: Role }> {
   const preview = await previewInvite(db, token);
   if (!preview) throw new InviteNotUsableError();
+
+  const fit = await inviteAcceptanceFor(db, preview, userId);
+  if (!fit.ok) throw new InviteNeedsAnotherAccountError(fit.refusal);
+  if (fit.becomes) {
+    await db.user.update({
+      where: { id: userId },
+      data: { accountKind: fit.becomes },
+      select: { id: true },
+    });
+  }
 
   const existing = await db.tenantMembership.findFirst({
     where: { tenantId: preview.tenantId, userId },

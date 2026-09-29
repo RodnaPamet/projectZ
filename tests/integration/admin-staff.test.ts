@@ -1,12 +1,17 @@
+import type { Role } from '@prisma/client';
+
 import { countActiveOwners, listStaff } from '@/app-layer/repositories/staff';
 import {
   CannotChangeOwnRoleError,
   changeMemberRole,
   LastOwnerError,
+  MembershipAccountKindError,
   OwnerManagementRequiredError,
+  RoleChangesAccountKindError,
   setMemberSuspended,
   StaffMemberNotFoundError,
 } from '@/app-layer/usecases/staff';
+import { kindForRole } from '@/lib/auth/account-kind';
 import { membershipContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -35,11 +40,18 @@ const NO_GATE_CLEARED = { groupGateCleared: [] as string[] };
 describe('admin staff', () => {
   const db = prismaTestClient();
 
-  /** A second person at the club, with a role. */
-  async function member(tenantId: string, tag: string, role: string) {
+  /**
+   * A second person at the club, with a role — and the KIND of account that
+   * role belongs to (#263), which the database insists on.
+   */
+  async function member(tenantId: string, tag: string, role: Role) {
     const user = await asAppSuperuser(db, (tx) =>
       tx.user.create({
-        data: { email: `${tag}-${tenantId.slice(-6)}@test.invalid`, name: `Person ${tag}` },
+        data: {
+          email: `${tag}-${tenantId.slice(-6)}@test.invalid`,
+          name: `Person ${tag}`,
+          accountKind: kindForRole(role),
+        },
         select: { id: true },
       }),
     );
@@ -157,9 +169,11 @@ describe('admin staff', () => {
     // on the Entra mapping table only.
     const t = await seedTenant({}, db);
     const mgr = await member(t.tenantId, 'mgr', 'MANAGER');
+    // A STAFF member to promote: a role change stays within one kind of
+    // account (#263), so ownership is granted to somebody already on the staff.
     const subject =
       target === 'OWNER'
-        ? await member(t.tenantId, 'coach', 'COACH')
+        ? await member(t.tenantId, 'staff', 'STAFF')
         : await member(t.tenantId, 'owner2', 'OWNER');
 
     await expect(
@@ -174,12 +188,77 @@ describe('admin staff', () => {
     // with a manager cannot run itself.
     const t = await seedTenant({}, db);
     const mgr = await member(t.tenantId, 'mgr', 'MANAGER');
-    const player = await member(t.tenantId, 'player', 'PLAYER');
+    const staff = await member(t.tenantId, 'staff', 'STAFF');
 
     const after = await runInTenantContext(t.tenantId, (c) =>
-      changeMemberRole(c, t.tenantId, manager(mgr.userId), player.membershipId, 'COACH'),
+      changeMemberRole(c, t.tenantId, manager(mgr.userId), staff.membershipId, 'MANAGER'),
     );
-    expect(after.role).toBe('COACH');
+    expect(after.role).toBe('MANAGER');
+  });
+
+  it.each([
+    ['a PLAYER made STAFF', 'PLAYER', 'STAFF'],
+    ['STAFF made a PLAYER', 'STAFF', 'PLAYER'],
+    ['a COACH made a MANAGER', 'COACH', 'MANAGER'],
+    ['a PLAYER made a COACH', 'PLAYER', 'COACH'],
+  ] as const)('REFUSES %s — another kind of account (#263)', async (_label, from, to) => {
+    // One account, one kind: this is never a role change, it is a second
+    // account, which the club gets by inviting the person. Refused before the
+    // write, with nothing changed and nothing audited.
+    const t = await seedTenant({}, db);
+    const subject = await member(t.tenantId, 'subject', from);
+
+    await expect(
+      runInTenantContext(t.tenantId, (c) =>
+        changeMemberRole(c, t.tenantId, owner(t.userId), subject.membershipId, to),
+      ),
+    ).rejects.toThrow(RoleChangesAccountKindError);
+
+    const row = await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.findUniqueOrThrow({
+        where: { id: subject.membershipId },
+        select: { role: true },
+      }),
+    );
+    expect(row.role).toBe(from);
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        tx.auditEntry.count({ where: { tenantId: t.tenantId, action: 'MEMBER_ROLE_CHANGED' } }),
+      ),
+    ).toBe(0);
+  });
+
+  it('REFUSES reinstating a club account that has joined another club since (#263)', async () => {
+    // The one refusal only the DATABASE can make here: the other club's rows
+    // are behind row security in this club's transaction. The trigger sees
+    // them, and the use case says what happened.
+    const t = await seedTenant({}, db);
+    const other = await seedTenant({}, db);
+    const staff = await member(t.tenantId, 'staff', 'STAFF');
+
+    await runInTenantContext(t.tenantId, (c) =>
+      setMemberSuspended(c, t.tenantId, owner(t.userId), staff.membershipId, true),
+    );
+    // Meanwhile, the same club account goes to work somewhere else.
+    await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.create({
+        data: { tenantId: other.tenantId, userId: staff.userId, role: 'STAFF', status: 'ACTIVE' },
+      }),
+    );
+
+    const refusal = runInTenantContext(t.tenantId, (c) =>
+      setMemberSuspended(c, t.tenantId, owner(t.userId), staff.membershipId, false),
+    );
+    await expect(refusal).rejects.toThrow(MembershipAccountKindError);
+    await expect(refusal).rejects.toMatchObject({ rule: 'one_club' });
+
+    const row = await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.findUniqueOrThrow({
+        where: { id: staff.membershipId },
+        select: { status: true },
+      }),
+    );
+    expect(row.status).toBe('SUSPENDED');
   });
 
   it('suspension takes effect on the next request, and is reversible', async () => {
@@ -218,10 +297,10 @@ describe('admin staff', () => {
 
   it('records every change, with the role it was before', async () => {
     const t = await seedTenant({}, db);
-    const coach = await member(t.tenantId, 'coach', 'COACH');
+    const staff = await member(t.tenantId, 'staff', 'STAFF');
 
     await runInTenantContext(t.tenantId, (c) =>
-      changeMemberRole(c, t.tenantId, owner(t.userId), coach.membershipId, 'MANAGER'),
+      changeMemberRole(c, t.tenantId, owner(t.userId), staff.membershipId, 'MANAGER'),
     );
 
     const audit = await asAppSuperuser(db, (tx) =>
@@ -232,7 +311,7 @@ describe('admin staff', () => {
     );
     expect(audit?.actorUserId).toBe(t.userId);
     const d = audit!.detailsJson as { before?: { role?: string }; after?: { role?: string } };
-    expect(d.before?.role).toBe('COACH');
+    expect(d.before?.role).toBe('STAFF');
     expect(d.after?.role).toBe('MANAGER');
   });
 });

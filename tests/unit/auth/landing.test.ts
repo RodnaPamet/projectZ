@@ -1,14 +1,12 @@
-import type { MembershipStatus, Role, TenantStatus } from '@prisma/client';
+import type { AccountKind, MembershipStatus, Role, TenantStatus } from '@prisma/client';
 
 import {
   clubHome,
   clubIndexTarget,
   COACH_HOME,
-  contextForPath,
   decideLanding,
+  HOME,
   isClubRole,
-  landingContexts,
-  PLAYER_CONTEXT,
   PLAYER_HOME,
   postSignInPath,
   safeCallbackPath,
@@ -18,12 +16,17 @@ import {
 import { getPermissionsForRole } from '@/lib/permissions';
 
 /**
- * WHERE A PERSON LANDS AFTER SIGNING IN (#227).
+ * WHERE A PERSON LANDS AFTER SIGNING IN — BY ACCOUNT KIND (#263).
  *
- * The rule is a table in the issue, and every row of it is pinned here, along
- * with the ways a membership can EXIST without COUNTING. Those are the cases
- * that fail quietly: an admin landing for a suspended member is not an error
- * anybody sees, it is a wrong page that renders.
+ * #227 landed people by the MIX of roles they held, and remembered which of
+ * several contexts they last chose. The owner has since decided that an
+ * account is one kind — PLAYER, CLUB (one club), COACH — so the kind decides
+ * and there is nothing to remember. Every row of that table is pinned here,
+ * and so are the ways a membership can EXIST without COUNTING: those fail
+ * quietly, as a wrong page that renders.
+ *
+ * The accounts #263's migration left UNDECIDED (kind NULL) keep #227's old
+ * default, and its tie-breaks are pinned for them.
  */
 
 let seq = 0;
@@ -41,282 +44,141 @@ function membership(over: Partial<LandingMembership> & { role: Role }): LandingM
   };
 }
 
-const land = (memberships: LandingMembership[], lastUsed: string | null = null) =>
-  decideLanding({ memberships, lastUsed });
+const land = (kind: AccountKind | null, memberships: LandingMembership[] = []) =>
+  decideLanding({ kind, memberships });
 
-describe('decideLanding — the table in #227, row by row', () => {
-  it('none → the player UI', () => {
-    const d = land([]);
-
-    expect(d.context).toBe(PLAYER_CONTEXT);
-    expect(d.context.href).toBe(PLAYER_HOME);
-    expect(d.reason).toBe('only-context');
-    expect(d.contexts).toEqual([PLAYER_CONTEXT]);
+describe('decideLanding — by the kind of account', () => {
+  it('a PLAYER account lands on the player UI', () => {
+    expect(land('PLAYER')).toEqual({ href: PLAYER_HOME, reason: 'player', club: null });
   });
 
-  it('PLAYER at one club → the player UI', () => {
-    const d = land([membership({ role: 'PLAYER' })]);
-
-    expect(d.context.href).toBe(PLAYER_HOME);
-    expect(d.reason).toBe('only-context');
+  it('…however many clubs it plays at — PLAYER rows decide nothing', () => {
+    const d = land('PLAYER', [membership({ role: 'PLAYER' }), membership({ role: 'PLAYER' })]);
+    expect(d.href).toBe(PLAYER_HOME);
   });
 
-  it('PLAYER at several clubs → the player UI, and still ONE context', () => {
-    // The player UI spans clubs. Three PLAYER memberships are not three
-    // things to switch between — offering them would be a switcher with three
-    // entries leading to the same page.
-    const d = land([
-      membership({ role: 'PLAYER' }),
-      membership({ role: 'PLAYER' }),
-      membership({ role: 'PLAYER' }),
-    ]);
+  it('a CLUB account lands on its one club’s diary, and names the club', () => {
+    const club = membership({ role: 'MANAGER', tenantSlug: 'sofia', tenantName: 'Sofia Padel' });
 
-    expect(d.context.href).toBe(PLAYER_HOME);
-    expect(d.contexts).toHaveLength(1);
-  });
-
-  it.each(['OWNER', 'MANAGER', 'STAFF'] as const)('%s → the club UI for THAT club', (role) => {
-    const m = membership({ role, tenantSlug: 'sofia-padel' });
-    const d = land([m]);
-
-    expect(d.context).toMatchObject({ kind: 'club', tenantId: m.tenantId, role });
-    expect(d.context.href).toBe('/t/sofia-padel/admin/calendar');
-    expect(d.reason).toBe('default');
-  });
-
-  it('COACH → the player UI, because there is no coach UI yet', () => {
-    const d = land([membership({ role: 'COACH' })]);
-
-    expect(COACH_HOME).toBeNull();
-    expect(d.context.href).toBe(PLAYER_HOME);
-    // And no switcher entry that leads to the same page as "player" does.
-    expect(d.contexts).toEqual([PLAYER_CONTEXT]);
-  });
-
-  it('several → the one last used, when it is still theirs', () => {
-    const a = membership({ role: 'OWNER', tenantSlug: 'a' });
-    const b = membership({ role: 'STAFF', tenantSlug: 'b' });
-
-    expect(land([a, b], `club:${b.tenantId}`)).toMatchObject({
-      reason: 'last-used',
-      context: { kind: 'club', tenantId: b.tenantId },
+    expect(land('CLUB', [club])).toEqual({
+      href: '/t/sofia/admin/calendar',
+      reason: 'club',
+      club: { tenantId: club.tenantId, tenantSlug: 'sofia', tenantName: 'Sofia Padel' },
     });
-    expect(land([a, b], 'player')).toMatchObject({ reason: 'last-used', context: PLAYER_CONTEXT });
   });
 
-  it('several, nothing remembered → the club UI, not the player UI', () => {
-    // THE DEFAULT, and a choice the owner may revisit. Every club role holder
-    // also holds the player context, so a player-first default would mean the
-    // OWNER row above never fired.
-    const staff = membership({ role: 'STAFF', tenantSlug: 'front-desk' });
-    const player = membership({ role: 'PLAYER' });
-
-    const d = land([player, staff]);
-
-    expect(d.reason).toBe('default');
-    expect(d.context).toMatchObject({ kind: 'club', tenantSlug: 'front-desk' });
-    expect(d.contexts.map((c) => c.kind)).toEqual(['player', 'club']);
+  it.each(['OWNER', 'MANAGER', 'STAFF'] as const)('…whether it is %s there', (role) => {
+    expect(land('CLUB', [membership({ role, tenantSlug: 'x' })]).href).toBe('/t/x/admin/calendar');
   });
 
-  it('an owner who books a court at somebody else’s club still lands on their own', () => {
-    // Booking anywhere creates a PLAYER membership (#229). A default that
-    // counted it would flip an owner's landing the day they played elsewhere.
-    const own = membership({ role: 'OWNER', tenantSlug: 'mine' });
+  it('a CLUB account whose club is gone lands on the home page — never the player UI', () => {
+    // A club account is not a player, so "your bookings" is a page about
+    // somebody it is not. `club-unavailable` says why, for the header.
+    expect(land('CLUB')).toEqual({ href: HOME, reason: 'club-unavailable', club: null });
+  });
 
-    const before = land([own]);
-    const after = land([own, membership({ role: 'PLAYER', tenantSlug: 'theirs' })]);
-
-    expect(after.context.href).toBe(before.context.href);
-    expect(after.context.href).toBe('/t/mine/admin/calendar');
+  it('a COACH account lands on the player UI for now', () => {
+    // There is no coach UI: COACH_HOME is the one line that changes that.
+    expect(COACH_HOME).toBeNull();
+    expect(land('COACH', [membership({ role: 'COACH' })])).toEqual({
+      href: PLAYER_HOME,
+      reason: 'coach',
+      club: null,
+    });
   });
 });
 
 describe('decideLanding — a membership that exists is not a role that is held', () => {
   it.each(['INVITED', 'SUSPENDED', 'EXPIRED'] as const)(
-    'a %s club membership earns no club landing and no switcher entry',
+    'a %s club membership does not land a club account on the club',
     (status) => {
-      const d = land([membership({ role: 'OWNER', status })]);
-
-      expect(d.context).toBe(PLAYER_CONTEXT);
-      expect(d.contexts).toEqual([PLAYER_CONTEXT]);
+      expect(land('CLUB', [membership({ role: 'OWNER', status })]).reason).toBe('club-unavailable');
     },
   );
 
-  it.each(['SUSPENDED', 'CLOSED'] as const)(
-    'a club that is itself %s is not landed on, even by its OWNER',
-    (tenantStatus) => {
-      const d = land([membership({ role: 'OWNER', tenantStatus })]);
-
-      expect(d.context).toBe(PLAYER_CONTEXT);
-      expect(d.contexts).toEqual([PLAYER_CONTEXT]);
-    },
-  );
-
-  it('the live club is chosen over a deactivated one, whatever the order', () => {
-    const closed = membership({ role: 'OWNER', tenantStatus: 'CLOSED', tenantSlug: 'closed' });
-    const suspended = membership({ role: 'OWNER', status: 'SUSPENDED', tenantSlug: 'gone' });
-    const live = membership({ role: 'STAFF', tenantSlug: 'live' });
-
-    const d = land([closed, suspended, live]);
-
-    expect(d.context).toMatchObject({ kind: 'club', tenantSlug: 'live' });
-    expect(d.contexts.map((c) => c.key)).toEqual(['player', `club:${live.tenantId}`]);
+  it.each(['SUSPENDED', 'CLOSED'] as const)('nor does a club that is %s', (tenantStatus) => {
+    expect(land('CLUB', [membership({ role: 'OWNER', tenantStatus })]).href).toBe(HOME);
   });
 
-  it('a status the enums do not have yet counts as NOT live', () => {
-    // Equality with ACTIVE, not exclusion of the known bad values: a status
-    // added to either enum later must not start granting landings by default.
-    const d = land([
-      membership({ role: 'OWNER', status: 'PAUSED' as MembershipStatus }),
-      membership({ role: 'OWNER', tenantStatus: 'ARCHIVED' as TenantStatus }),
-    ]);
-
-    expect(d.contexts).toEqual([PLAYER_CONTEXT]);
+  it('a status nobody has decided about yet counts as NOT live', () => {
+    // Equality with ACTIVE, not exclusion of the known bad values.
+    const d = land('CLUB', [membership({ role: 'OWNER', status: 'PENDING' as MembershipStatus })]);
+    expect(d.reason).toBe('club-unavailable');
   });
 
-  it('a role this code has never heard of earns nothing', () => {
-    const d = land([membership({ role: 'SUPERADMIN' as Role })]);
-
-    expect(d.contexts).toEqual([PLAYER_CONTEXT]);
+  it('a role this file has never heard of earns no club landing', () => {
+    const d = land(null, [membership({ role: 'ARCHDUKE' as Role })]);
+    expect(d).toEqual({ href: PLAYER_HOME, reason: 'undecided', club: null });
   });
 });
 
-describe('decideLanding — a stale last-used is ignored, never obeyed', () => {
-  it('points at a club they no longer belong to → the default', () => {
-    const own = membership({ role: 'MANAGER', tenantSlug: 'current' });
+describe('decideLanding — an UNDECIDED account keeps #227’s default', () => {
+  // Club roles at two or more clubs, or a coach role, when #263 arrived. The
+  // owner said not to decide these by rule; until a person does, signing in
+  // lands them exactly where it used to.
 
-    const d = land([own], 'club:cformerclub0000000000000');
-
-    expect(d.reason).toBe('default');
-    expect(d.context).toMatchObject({ kind: 'club', tenantSlug: 'current' });
-  });
-
-  it('points at a club where they were SUSPENDED since → the default', () => {
-    const was = membership({ role: 'OWNER', status: 'SUSPENDED', tenantSlug: 'was' });
-    const is = membership({ role: 'STAFF', tenantSlug: 'is' });
-
-    const d = land([was, is], `club:${was.tenantId}`);
-
-    expect(d.reason).toBe('default');
-    expect(d.context).toMatchObject({ tenantSlug: 'is' });
-  });
-
-  it('points at a club that was suspended since → the default', () => {
-    const shut = membership({ role: 'OWNER', tenantStatus: 'SUSPENDED', tenantSlug: 'shut' });
-    const open = membership({ role: 'OWNER', tenantSlug: 'open' });
-
-    expect(land([shut, open], `club:${shut.tenantId}`).context).toMatchObject({
-      tenantSlug: 'open',
-    });
-  });
-
-  it('points at a club where they are now only a PLAYER → the default', () => {
-    // Demoted. The club is still theirs to play at, but not to run.
-    const demoted = membership({ role: 'PLAYER', tenantSlug: 'demoted' });
-    const other = membership({ role: 'STAFF', tenantSlug: 'other' });
-
-    const d = land([demoted, other], `club:${demoted.tenantId}`);
-
-    expect(d.context).toMatchObject({ tenantSlug: 'other' });
-  });
-
-  it('a stale value leaves a player-only person on the player UI', () => {
-    const d = land([membership({ role: 'PLAYER' })], 'club:cformerclub0000000000000');
-
-    expect(d.context).toBe(PLAYER_CONTEXT);
-    expect(d.reason).toBe('only-context');
-  });
-
-  it.each(['', 'club:', 'CLUB:x', 'player ', 'coach:whatever', '{"kind":"club"}'])(
-    'garbage (%j) is the same as nothing',
-    (garbage) => {
-      const own = membership({ role: 'OWNER', tenantSlug: 'own' });
-      expect(land([own], garbage)).toMatchObject({
-        reason: 'default',
-        context: { tenantSlug: 'own' },
-      });
-    },
-  );
-});
-
-describe('decideLanding — several clubs', () => {
-  it('the default is the highest role, not the first club joined', () => {
-    const staffFirst = membership({ role: 'STAFF', createdAt: new Date('2024-01-01') });
-    const managerNext = membership({ role: 'MANAGER', createdAt: new Date('2025-01-01') });
-    const ownerLast = membership({ role: 'OWNER', createdAt: new Date('2026-01-01') });
-
-    expect(land([staffFirst, managerNext, ownerLast]).context).toMatchObject({
-      tenantId: ownerLast.tenantId,
-    });
-    expect(land([staffFirst, managerNext]).context).toMatchObject({
-      tenantId: managerNext.tenantId,
-    });
-  });
-
-  it('two clubs at the same role → the one joined first, whatever the input order', () => {
-    const older = membership({ role: 'OWNER', createdAt: new Date('2025-03-01') });
-    const newer = membership({ role: 'OWNER', createdAt: new Date('2026-03-01') });
-
-    expect(land([newer, older]).context).toMatchObject({ tenantId: older.tenantId });
-    expect(land([older, newer]).context).toMatchObject({ tenantId: older.tenantId });
-  });
-
-  it('an exact tie is still broken the same way every time', () => {
-    const when = new Date('2026-05-05T10:00:00Z');
-    const a = membership({ role: 'OWNER', createdAt: when, tenantId: 'caaaaaaaaaaaaaaaaaaaaaaaa' });
-    const b = membership({ role: 'OWNER', createdAt: when, tenantId: 'cbbbbbbbbbbbbbbbbbbbbbbbb' });
-
-    expect(land([b, a]).context).toMatchObject({ tenantId: a.tenantId });
-    expect(land([a, b]).context).toMatchObject({ tenantId: a.tenantId });
-  });
-
-  it('lists every club they run, by name, after the player context', () => {
-    const d = land([
-      membership({ role: 'STAFF', tenantName: 'Varna Tennis' }),
-      membership({ role: 'PLAYER', tenantName: 'Burgas Beach' }),
-      membership({ role: 'OWNER', tenantName: 'Ask Padel' }),
-      membership({ role: 'MANAGER', tenantName: 'Plovdiv Squash' }),
+  it('the club UI over the player UI', () => {
+    const d = land(null, [
+      membership({ role: 'PLAYER' }),
+      membership({ role: 'STAFF', tenantSlug: 'desk' }),
     ]);
-
-    expect(
-      d.contexts.map((c) => (c.kind === 'club' ? `${c.tenantName}/${c.role}` : c.kind)),
-    ).toEqual(['player', 'Ask Padel/OWNER', 'Plovdiv Squash/MANAGER', 'Varna Tennis/STAFF']);
+    expect(d).toMatchObject({ href: '/t/desk/admin/calendar', reason: 'undecided' });
   });
 
-  it('a club listed twice by a careless caller is offered once', () => {
-    const m = membership({ role: 'OWNER' });
-
-    expect(land([m, { ...m }]).contexts).toHaveLength(2);
+  it('the highest club role first', () => {
+    const d = land(null, [
+      membership({ role: 'STAFF', tenantSlug: 'staffed', createdAt: new Date('2020-01-01') }),
+      membership({ role: 'OWNER', tenantSlug: 'owned', createdAt: new Date('2026-01-01') }),
+      membership({ role: 'MANAGER', tenantSlug: 'managed', createdAt: new Date('2019-01-01') }),
+    ]);
+    expect(d.club?.tenantSlug).toBe('owned');
   });
 
-  it('keys contexts by tenant ID, so renaming a club does not orphan last-used', () => {
-    const m = membership({ role: 'OWNER', tenantSlug: 'old-name' });
-    const key = `club:${m.tenantId}`;
+  it('then the oldest membership', () => {
+    const d = land(null, [
+      membership({ role: 'OWNER', tenantSlug: 'newer', createdAt: new Date('2026-01-01') }),
+      membership({ role: 'OWNER', tenantSlug: 'older', createdAt: new Date('2020-01-01') }),
+    ]);
+    expect(d.club?.tenantSlug).toBe('older');
+  });
 
-    const renamed = { ...m, tenantSlug: 'new-name', tenantName: 'New Name' };
-    const d = land([renamed], key);
+  it('then the tenant id, so two made in the same millisecond order the same way every time', () => {
+    const at = new Date('2026-01-01');
+    const a = membership({ role: 'OWNER', tenantId: 'ctenant-b', tenantSlug: 'b', createdAt: at });
+    const b = membership({ role: 'OWNER', tenantId: 'ctenant-a', tenantSlug: 'a', createdAt: at });
 
-    expect(d.reason).toBe('last-used');
-    expect(d.context.href).toBe('/t/new-name/admin/calendar');
+    expect(land(null, [a, b]).club?.tenantSlug).toBe('a');
+    expect(land(null, [b, a]).club?.tenantSlug).toBe('a');
+  });
+
+  it('with no live club role, the player UI', () => {
+    expect(land(null, [membership({ role: 'OWNER', status: 'SUSPENDED' })]).href).toBe(PLAYER_HOME);
   });
 });
 
 describe('the coach UI is a one-line change', () => {
   const coachHome = (slug: string) => `/t/${slug}/coach`;
 
-  it('with a coach home set, a COACH lands on it', () => {
+  it('with a coach home set, a COACH account lands on its oldest affiliation', () => {
     const d = decideLanding(
-      { memberships: [membership({ role: 'COACH', tenantSlug: 'academy' })] },
+      {
+        kind: 'COACH',
+        memberships: [
+          membership({ role: 'COACH', tenantSlug: 'newer', createdAt: new Date('2026-01-01') }),
+          membership({ role: 'COACH', tenantSlug: 'academy', createdAt: new Date('2020-01-01') }),
+        ],
+      },
       { coachHome },
     );
 
-    expect(d.context).toMatchObject({ kind: 'coach', href: '/t/academy/coach' });
-    expect(d.contexts.map((c) => c.kind)).toEqual(['player', 'coach']);
+    expect(d).toMatchObject({ href: '/t/academy/coach', reason: 'coach' });
+    expect(d.club?.tenantSlug).toBe('academy');
   });
 
-  it('…and a club role still wins the default over coaching', () => {
+  it('…an undecided account with a club role still goes to the club first', () => {
     const d = decideLanding(
       {
+        kind: null,
         memberships: [
           membership({ role: 'COACH', createdAt: new Date('2020-01-01') }),
           membership({ role: 'STAFF', tenantSlug: 'desk', createdAt: new Date('2026-01-01') }),
@@ -325,25 +187,30 @@ describe('the coach UI is a one-line change', () => {
       { coachHome },
     );
 
-    expect(d.context).toMatchObject({ kind: 'club', tenantSlug: 'desk' });
+    expect(d.href).toBe('/t/desk/admin/calendar');
   });
 
-  it('…and a remembered coach context is honoured', () => {
-    const coach = membership({ role: 'COACH', tenantSlug: 'academy' });
+  it('…and an undecided coach with no club role goes to the coach UI', () => {
     const d = decideLanding(
-      {
-        memberships: [coach, membership({ role: 'OWNER' })],
-        lastUsed: `coach:${coach.tenantId}`,
-      },
+      { kind: null, memberships: [membership({ role: 'COACH', tenantSlug: 'academy' })] },
       { coachHome },
     );
 
-    expect(d).toMatchObject({ reason: 'last-used', context: { href: '/t/academy/coach' } });
+    expect(d).toMatchObject({ href: '/t/academy/coach', reason: 'undecided' });
   });
 
   it('…and the club index sends a coach there too', () => {
     expect(clubIndexTarget('COACH', 'academy', { coachHome })).toBe('/t/academy/coach');
     expect(clubIndexTarget('COACH', 'academy')).toBe(PLAYER_HOME);
+  });
+});
+
+describe('decideLanding — what a deep link still wins over', () => {
+  it('the default a sign-in with no destination falls back to is /start', () => {
+    // `/login` honours `?next=` first; landing by kind is only ever the
+    // answer for a sign-in that asked for nothing. See postSignInPath below.
+    expect(postSignInPath({})).toBe(START_PATH);
+    expect(postSignInPath({ next: '/t/x/admin/staff' })).toBe('/t/x/admin/staff');
   });
 });
 
@@ -376,36 +243,6 @@ describe('clubIndexTarget — /t/[slug], by the role held there', () => {
     ['PLAYER', PLAYER_HOME],
   ] as const)('%s → %s', (role, target) => {
     expect(clubIndexTarget(role, 'x')).toBe(target);
-  });
-});
-
-describe('contextForPath — what the switcher marks as current', () => {
-  const sofia = membership({ role: 'OWNER', tenantSlug: 'sofia' });
-  const sofiaPadel = membership({ role: 'STAFF', tenantSlug: 'sofia-padel' });
-  const contexts = landingContexts([sofia, sofiaPadel]);
-
-  it.each([
-    ['/t/sofia/admin/calendar', 'sofia'],
-    ['/t/sofia/admin/courts', 'sofia'],
-    ['/t/sofia/admin', 'sofia'],
-    ['/t/sofia-padel/admin/players', 'sofia-padel'],
-  ])('%s is club %s', (path, slug) => {
-    expect(contextForPath(contexts, path)).toMatchObject({ kind: 'club', tenantSlug: slug });
-  });
-
-  it.each([
-    '/',
-    '/venues',
-    '/me/bookings',
-    '/t/sofia',
-    '/t/sofia/open-play',
-    '/t/sofia/administer',
-  ])('%s is the player context', (path) => {
-    expect(contextForPath(contexts, path)).toBe(PLAYER_CONTEXT);
-  });
-
-  it('a club they do not run is not current just because the URL names it', () => {
-    expect(contextForPath(contexts, '/t/elsewhere/admin/calendar')).toBe(PLAYER_CONTEXT);
   });
 });
 
@@ -536,17 +373,5 @@ describe('postSignInPath — what /login hands to next-auth', () => {
         'http://localhost:3000',
       ),
     ).toBe('/t/x/admin/staff');
-  });
-});
-
-describe('the shared player context', () => {
-  it('cannot be edited by a caller that was handed it', () => {
-    // One object backs every decision. A caller that rewrote `href` on the
-    // copy it was given would re-route every later sign-in in the process.
-    const d = land([]);
-    expect(() => {
-      (d.context as { href: string }).href = '/somewhere-else';
-    }).toThrow(TypeError);
-    expect(land([]).context.href).toBe(PLAYER_HOME);
   });
 });

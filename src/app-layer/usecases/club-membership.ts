@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import { groupGateAdmits } from '@/lib/auth/group-gate';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { translateFor } from '@/lib/i18n/server-messages';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -53,6 +54,21 @@ export class ClubNotBookableError extends Error {
 }
 
 /**
+ * Booking a court needs a PLAYER account (#263).
+ *
+ * The message is already in the caller's own language — their stored
+ * `User.locale`, as notifications do — because it is the one thing a player
+ * needs to read to fix it: "sign in with your player account". The code,
+ * `PLAYER_ACCOUNT_REQUIRED`, is what a client switches on.
+ */
+export class PlayerAccountRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PlayerAccountRequiredError';
+  }
+}
+
+/**
  * Resolve — and optionally create — the caller's PLAYER standing at a club.
  *
  * ═══ WHY BOOKING CREATES A MEMBERSHIP ═══
@@ -76,8 +92,25 @@ export class ClubNotBookableError extends Error {
  * sees the player in its members list rather than a booking from a stranger.
  *
  * ROLE IS ALWAYS `PLAYER`, never inherited and never elevated. An existing
- * membership is returned untouched, so a club's own OWNER booking a court does
- * not get demoted by having done so.
+ * membership is returned untouched.
+ *
+ * ═══ ONLY A PLAYER ACCOUNT BOOKS (#263) ═══
+ *
+ * "It's either or — player or club owner/manager/staff." `createIfAbsent` is
+ * the booking route, and booking a court is playing, so it needs a PLAYER
+ * account — a stranger to the club, or already a player there. A CLUB account
+ * is refused even at its own club, where it would not have to join: an owner
+ * who wants to play books with their player account, which is the whole point
+ * of there being two. COACH accounts get their own booking system later, and
+ * an account the migration could not decide is refused until a person does.
+ *
+ * Checked BEFORE the club is looked up, so the refusal is the same for every
+ * slug — it is about the caller's account, and must not become a way to learn
+ * which clubs exist. The database refuses the join as well
+ * (`account_kind_membership_trg`), without the message.
+ *
+ * Reading, reviewing and cancelling are not refused: those are about bookings
+ * an account already has, and the migration kept a club account's old ones.
  *
  * ═══ THE ENTRA GROUP GATE APPLIES HERE TOO (#250) ═══
  *
@@ -100,6 +133,18 @@ export async function resolvePlayerTenant(
   },
 ): Promise<PlayerTenant | null> {
   return runAsSuperuser(async (db: PrismaClient) => {
+    if (opts.createIfAbsent) {
+      const account = await db.user.findUnique({
+        where: { id: userId },
+        select: { accountKind: true, locale: true },
+      });
+      if (account?.accountKind !== 'PLAYER') {
+        throw new PlayerAccountRequiredError(
+          await translateFor(account?.locale, 'accountKind.booking.playerAccountRequired'),
+        );
+      }
+    }
+
     const club = await db.venueOrg.findUnique({
       where: { slug },
       select: { id: true, status: true },

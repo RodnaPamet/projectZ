@@ -79,3 +79,50 @@ export function isCheckViolation(err: unknown): boolean {
 export function isSerializationFailure(err: unknown): boolean {
   return pgErrorCode(err) === PG_SERIALIZATION_FAILURE;
 }
+
+/**
+ * Which account-kind rule refused a write, if one did (#263).
+ *
+ * The p37 trigger (`account_kind_membership_trg`) raises `check_violation` with
+ * the rule's name at the head of the message. Its CONSTRAINT name does not
+ * survive Prisma 7's adapter — measured: the error arrives as `P2039` with
+ * `meta.driverAdapterError.cause = { originalCode: '23514', originalMessage:
+ * 'account_kind_player_roles: …' }` and no constraint field — so the message
+ * prefix is what is matched, and the trigger writes it there on purpose.
+ *
+ * Returns null for anything else, including every other CHECK in the schema,
+ * so a caller can map this one refusal to a message and rethrow the rest.
+ */
+export type AccountKindRule = 'player_roles' | 'coach_roles' | 'club_roles' | 'one_club';
+
+const ACCOUNT_KIND_RULE = /\baccount_kind_(player_roles|coach_roles|club_roles|one_club)\b/;
+
+export function accountKindViolation(err: unknown): AccountKindRule | null {
+  if (!isCheckViolation(err)) return null;
+
+  const seen = new Set<unknown>();
+  const stack: unknown[] = [err];
+
+  while (stack.length) {
+    const cur = stack.pop();
+    if (!cur || typeof cur !== 'object' || seen.has(cur)) continue;
+    seen.add(cur);
+
+    // Error.message is not enumerable, and neither is Error.cause everywhere.
+    if (cur instanceof Error) {
+      const m = ACCOUNT_KIND_RULE.exec(cur.message);
+      if (m) return m[1] as AccountKindRule;
+      if (cur.cause) stack.push(cur.cause);
+    }
+
+    for (const [key, value] of Object.entries(cur as Record<string, unknown>)) {
+      if ((key === 'originalMessage' || key === 'message') && typeof value === 'string') {
+        const m = ACCOUNT_KIND_RULE.exec(value);
+        if (m) return m[1] as AccountKindRule;
+      }
+      if (value && typeof value === 'object') stack.push(value);
+    }
+  }
+
+  return null;
+}

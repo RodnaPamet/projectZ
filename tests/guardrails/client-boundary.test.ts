@@ -188,7 +188,7 @@ describe('the client boundary', () => {
             '  AppNav,',
             '  playerNav as nav,',
             "} from '@/components/layout/AppNav';",
-            "import { ContextSwitcher, SOMETHING } from '@/components/layout/ContextSwitcher';",
+            "import { SignOutButton, SOMETHING } from '@/components/layout/SignOutButton';",
           ].join('\n'),
         ),
       ).toEqual(['playerNav', 'SOMETHING']);

@@ -101,6 +101,7 @@ There is no registry. The image is built on the box from a clone.
 ```bash
 # Keep the running image as the way back. Migrations here have been additive, so
 # the previous image runs against the new schema; re-tag and recreate to roll back.
+# One exception, p37: see "Rolling back past p37" below.
 sudo docker tag playerz:local playerz:rollback-$(date +%s)
 
 cd /opt/playerz/repo && sudo git fetch --all && sudo git reset --hard origin/main
@@ -114,6 +115,32 @@ sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w 
 
 cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml up -d --force-recreate playerz-app
 ```
+
+### Rolling back past p37
+
+`20260929190000_p37_account_kinds` (#263) is the first migration that is not
+additive. It drops `app_user.lastContext`, which
+`20260929150000_user_last_context` added. Every image built between the two
+still maps that column, including 4efe8c1, the one deployed on 2026-09-29:
+
+- password sign-in reads a user row with no `select`
+  (`src/lib/auth/verify-credentials.ts`), and Prisma names every column it
+  maps, so the read fails with `P2022`;
+- `/start` reads the column by name.
+
+Put the column back **before** starting the rollback image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  -c 'ALTER TABLE "app_user" ADD COLUMN IF NOT EXISTS "lastContext" TEXT;'
+```
+
+The column only remembered which context the old switcher last chose, so
+nothing that matters is lost. Leave the rest of p37 in place.
+
+- The `accountKind` column is simply unmapped in the old image.
+- The kinds triggers keep refusing mixed accounts. The old image cannot say why
+  and fails those writes as errors, but they are the writes the owner ruled out.
 
 `SKIP_ENV_VALIDATION=1` is for the **build** only. Next imports every route
 module to collect metadata, and `src/env.ts` would refuse at import time for

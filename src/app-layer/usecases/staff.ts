@@ -1,7 +1,9 @@
 import type { PrismaClient, Role } from '@prisma/client';
 
 import { countActiveOwners } from '@/app-layer/repositories/staff';
+import { roleChangeKeepsKind } from '@/lib/auth/account-kind';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
+import { accountKindViolation, type AccountKindRule } from '@/lib/db/pg-errors';
 
 /**
  * Changing who runs a club.
@@ -26,6 +28,15 @@ import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
  * Note what does NOT protect this: the `role <> 'OWNER'` CHECK from P27 is on
  * `tenant_entra_group_mapping` only. Nothing at the database level stops a
  * membership becoming OWNER, so this is the whole control.
+ *
+ * ═══ AND ONE ABOUT THE ACCOUNT (#263) ═══
+ *
+ * **Another kind of account.** A player is not promoted to staff, and staff are
+ * not demoted to players: one account is one kind, so either would be a second
+ * account, which the club gets by inviting the person. That one IS enforced by
+ * the database as well — `account_kind_membership_trg` — and it is the only
+ * layer that can see what an account holds at OTHER clubs, which is why a
+ * reinstatement can be refused by it with no check here first.
  */
 
 export class StaffMemberNotFoundError extends Error {
@@ -65,6 +76,46 @@ export class OwnerManagementRequiredError extends Error {
   }
 }
 
+/**
+ * A role from another KIND of account (#263): a PLAYER made STAFF, a STAFF
+ * made a PLAYER, anything to or from COACH.
+ *
+ * One account is one kind, so this is never a role change — it is a second
+ * account. The club invites that person instead, and they accept with a club
+ * account. Checked here, before the write, so the staff screen can say so; the
+ * database refuses it anyway (`account_kind_membership_trg`).
+ */
+export class RoleChangesAccountKindError extends Error {
+  constructor(from: Role, to: Role) {
+    super(
+      `${from} → ${to} would move this membership to another kind of account. Player, club and ` +
+        'coach are separate accounts (#263): invite the person, and they accept with the right one.',
+    );
+    this.name = 'RoleChangesAccountKindError';
+  }
+}
+
+/**
+ * The database refused the write because of the account behind the membership
+ * (#263) — typically reinstating somebody whose club account has since joined
+ * another club (`one_club`), or whose account was never a club account at all.
+ * The application cannot see either from inside one club's transaction: the
+ * other club's rows are behind row security. The trigger can.
+ */
+export class MembershipAccountKindError extends Error {
+  constructor(public readonly rule: AccountKindRule) {
+    super(`The account behind this membership does not allow it (${rule}, #263).`);
+    this.name = 'MembershipAccountKindError';
+  }
+}
+
+/** Translate the account-kind trigger's refusal; rethrow everything else unchanged. */
+function refusedByAccountKind(err: unknown): never {
+  const rule = accountKindViolation(err);
+  if (rule) throw new MembershipAccountKindError(rule);
+  throw err;
+}
+
 async function membership(db: PrismaClient, tenantId: string, membershipId: string) {
   const m = await db.tenantMembership.findFirst({
     where: { id: membershipId, tenantId },
@@ -85,6 +136,10 @@ export async function changeMemberRole(
 
   if (before.userId === actor.userId) throw new CannotChangeOwnRoleError();
 
+  if (!roleChangeKeepsKind(before.role, role)) {
+    throw new RoleChangesAccountKindError(before.role, role);
+  }
+
   // Either direction. Removing an owner is as consequential as adding one.
   if ((before.role === 'OWNER' || role === 'OWNER') && !actor.canManageOwners) {
     throw new OwnerManagementRequiredError();
@@ -97,11 +152,13 @@ export async function changeMemberRole(
 
   if (before.role === role) return before;
 
-  const after = await db.tenantMembership.update({
-    where: { id: membershipId },
-    data: { role },
-    select: { id: true, userId: true, role: true, status: true },
-  });
+  const after = await db.tenantMembership
+    .update({
+      where: { id: membershipId },
+      data: { role },
+      select: { id: true, userId: true, role: true, status: true },
+    })
+    .catch(refusedByAccountKind);
 
   await appendAuditEntry(db, {
     tenantId,
@@ -146,11 +203,17 @@ export async function setMemberSuspended(
   }
 
   const status = suspended ? 'SUSPENDED' : 'ACTIVE';
-  const after = await db.tenantMembership.update({
-    where: { id: membershipId },
-    data: { status, deactivatedAt: suspended ? new Date() : null },
-    select: { id: true, userId: true, role: true, status: true },
-  });
+  // Reinstating is the one direction that can break an account's kind: the
+  // person may have joined another club since, with the same club account.
+  // Only the database can see that from inside this club's transaction, and it
+  // refuses — see `MembershipAccountKindError`.
+  const after = await db.tenantMembership
+    .update({
+      where: { id: membershipId },
+      data: { status, deactivatedAt: suspended ? new Date() : null },
+      select: { id: true, userId: true, role: true, status: true },
+    })
+    .catch(refusedByAccountKind);
 
   await appendAuditEntry(db, {
     tenantId,

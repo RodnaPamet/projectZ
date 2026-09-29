@@ -64,10 +64,14 @@ const ALLOWED: Record<string, string> = {
     'resolves which club a token belongs to, so there is no app.tenant_id to bind yet — the ' +
     'same chicken-and-egg as page-context. The lookup is by hashForLookup(token), a keyed ' +
     'hash of a secret the visitor supplied; it cannot enumerate, and it is filtered to ' +
-    'invites that are unaccepted, unrevoked and unexpired.',
+    'invites that are unaccepted, unrevoked and unexpired. Since #263 it also asks whether ' +
+    "the signed-in account's KIND fits the invitation — what that account holds at every " +
+    'club, by its own session userId — so a player is told to use a separate account before ' +
+    'the button, not after it.',
   'src/app/(public)/invite/[token]/actions.ts':
     'consumes that token and creates the membership. Same reason: the membership being ' +
-    'created is what would have supplied the binding.',
+    'created is what would have supplied the binding, and the account-kind check (#263) ' +
+    "needs the invitee's memberships at every club.",
 
   // ── Public discovery, which spans every club by design ──────────────
   'src/app/(public)/venues/page.tsx': 'the public venue index spans every club',
@@ -100,14 +104,13 @@ const ALLOWED: Record<string, string> = {
     "only ever resolve the caller's own standing, and it cannot enumerate. One club by slug, " +
     'one membership by (userId, tenantId).',
   'src/app-layer/usecases/landing.ts':
-    "role landing (#227) reads a person's OWN club roles at every club — which club UI to " +
-    'land on, which clubs to offer in the switcher — and `tenant_membership` carries FORCE ' +
-    'RLS keyed on app.tenant_id alone, so an unbound read returns ZERO ROWS and an owner ' +
-    'would silently land on the player UI as though they held no club. The same read ' +
-    'auth.ts makes at sign-in. Scoped to userId from a verified session, never the ' +
-    "request; the one write is that person's own app_user.lastContext, by primary key, " +
-    'after the key has been checked against the contexts they hold. NOT asPlatformAdmin: ' +
-    'nobody is reaching into a club that is not theirs.',
+    "landing (#227, by account kind since #263) reads a person's OWN kind and club roles — " +
+    'which club UI to land on, and which club the header links back to — and ' +
+    '`tenant_membership` carries FORCE RLS keyed on app.tenant_id alone, so an unbound read ' +
+    'returns ZERO ROWS and an owner would silently land on the home page as though they ' +
+    'held no club. The same read auth.ts makes at sign-in. Scoped to userId from a verified ' +
+    'session, never the request, and it writes nothing: the switcher and its lastContext ' +
+    'column are gone. NOT asPlatformAdmin: nobody is reaching into a club that is not theirs.',
   'src/app-layer/usecases/my-bookings.ts':
     "a person's own bookings span every club, and `booking` carries a tenant-scoped RLS " +
     'policy naming only app.tenant_id — so `asUser` returns ZERO ROWS, which reads as "you ' +

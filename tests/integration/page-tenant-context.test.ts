@@ -66,11 +66,15 @@ describe('membershipContext', () => {
     const a = await seedTenant({ name: 'Club A' }, db);
     const b = await seedTenant({ name: 'Club B' }, db);
 
-    await asAppSuperuser(db, (tx) =>
-      tx.tenantMembership.create({
+    await asAppSuperuser(db, async (tx) => {
+      // Since #263 only an account the migration left UNDECIDED can still hold
+      // this mix; the database refuses it for every decided kind. Those accounts
+      // exist, which is why the role must still come from the club asked about.
+      await tx.user.update({ where: { id: a.userId }, data: { accountKind: null } });
+      await tx.tenantMembership.create({
         data: { userId: a.userId, tenantId: b.tenantId, role: 'PLAYER', status: 'ACTIVE' },
-      }),
-    );
+      });
+    });
 
     const atA = await membershipContext(a.userId, a.tenantSlug, NO_GATE_CLEARED);
     const atB = await membershipContext(a.userId, b.tenantSlug, NO_GATE_CLEARED);

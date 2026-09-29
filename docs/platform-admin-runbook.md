@@ -304,3 +304,29 @@ A read with no live grant is `403 PLATFORM_AUTHORITY_REQUIRED`; a live grant
 missing the capability is `403 PLATFORM_CAPABILITY_REQUIRED`. Neither says what
 is missing — check your own grant with
 `npm run grant:platform-admin -- --list`.
+
+## Accounts the kinds migration left undecided (#263)
+
+Every account is one kind: a player, a club account (exactly one club), or a
+coach. The p37 migration decided almost every account from what it held — one
+club role made it a club account and ended its player memberships — and left
+two shapes alone on the owner's instruction: **club roles at two or more
+clubs**, and **a coach role** (beside a club role, or on its own, since only
+the coach flow may create a coach account). Those have `accountKind` NULL.
+
+```bash
+npm run report:undecided-accounts
+npm run report:undecided-accounts -- --json
+```
+
+Read-only: the script opens a `READ ONLY` transaction. It derives the list from
+memberships, not from the NULL, so it answers the same before the migration
+(what would be undecided) and after (what is — every row should then say
+`kind=NULL`).
+
+An undecided account keeps the access it had and gains nothing: it cannot book,
+accept an invitation or be made an owner until someone decides which account it
+is. Settle one with the owner connection: expire or suspend the memberships that
+should not stay, then set the kind. The database refuses a kind the remaining
+ACTIVE memberships do not fit (`account_kind_membership_trg`), so a mistake is
+an error rather than a mixed account.

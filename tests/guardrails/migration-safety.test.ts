@@ -141,6 +141,18 @@ const PROTECTED: Protected[] = [
     why: 'without it expiresAt is advisory — anyone reaching the table can push it forward or widen capabilities',
   },
   {
+    name: 'account_kind_membership_trg (one account, one kind — #263)',
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?account_kind_membership_trg/i,
+    recreate: /CREATE TRIGGER\s+"?account_kind_membership_trg/i,
+    why: 'without it a player account can be made staff and a club account can run two clubs — by any writer the application does not know about',
+  },
+  {
+    name: 'account_kind_user_trg (one account, one kind — #263)',
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?account_kind_user_trg/i,
+    recreate: /CREATE TRIGGER\s+"?account_kind_user_trg/i,
+    why: 'without it a club account can be relabelled a player while it still runs its club',
+  },
+  {
     name: 'platform_admin_grant_one_live_idx (PARTIAL unique index)',
     drop: /DROP INDEX\s+(?:IF EXISTS\s+)?"?platform_admin_grant_one_live_idx/i,
     recreate: /CREATE UNIQUE INDEX\s+(?:IF NOT EXISTS\s+)?"?platform_admin_grant_one_live_idx/i,

@@ -113,6 +113,10 @@ describe('GET /api/v1/t/{slug}/me', () => {
         where: { userId: a.userId, tenantId: a.tenantId },
         data: { role: 'OWNER' },
       });
+      // Since #263 only an account the migration left UNDECIDED can still hold
+      // this mix — the database refuses it for every decided kind. Those
+      // accounts exist, which is why deriving the role per club still matters.
+      await tx.user.update({ where: { id: a.userId }, data: { accountKind: null } });
       // Same person, PLAYER at the second club.
       await tx.tenantMembership.create({
         data: { userId: a.userId, tenantId: b.tenantId, role: 'PLAYER', status: 'ACTIVE' },
@@ -138,14 +142,21 @@ describe('GET /api/v1/t/{slug}/me', () => {
     // and nothing re-mints the claims in between. Answering from the token
     // would tell a player who just joined a club that they are not a member —
     // from the one endpoint they would ask.
-    const t = await seedTenant({}, db);
     const later = await seedTenant({}, db);
+    // A player (#263) — a club account has one club, and joins no other.
+    const playerId = await asAppSuperuser(db, async (tx) => {
+      const u = await tx.user.create({
+        data: { email: `joiner-${Date.now()}@playerz.test`, accountKind: 'PLAYER' },
+        select: { id: true },
+      });
+      return u.id;
+    });
 
-    const bearer = await bearerFor(t.userId); // minted BEFORE the join below
+    const bearer = await bearerFor(playerId); // minted BEFORE the join below
 
     const laterSlug = await asAppSuperuser(db, async (tx) => {
       await tx.tenantMembership.create({
-        data: { userId: t.userId, tenantId: later.tenantId, role: 'STAFF', status: 'ACTIVE' },
+        data: { userId: playerId, tenantId: later.tenantId, role: 'PLAYER', status: 'ACTIVE' },
       });
       const org = await tx.venueOrg.findUniqueOrThrow({
         where: { id: later.tenantId },
@@ -161,7 +172,7 @@ describe('GET /api/v1/t/{slug}/me', () => {
       data: { membership: { role: string }; tokenStale: boolean };
     };
 
-    expect(data.membership.role).toBe('STAFF');
+    expect(data.membership.role).toBe('PLAYER');
     // NOT stale, since #250. This token lists no clubs at all — every native
     // token is like it — so there is no claim for the edge to act on: it
     // defers this club to the database, which is what answered above. It used

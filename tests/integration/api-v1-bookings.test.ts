@@ -21,6 +21,12 @@ describe('POST /api/v1/t/:slug/bookings', () => {
   let tenant: SeededTenant;
   let owner: TestIdentity;
   let player: TestIdentity;
+  /**
+   * Another player at the same club: the "somebody else" whose booking is not
+   * the caller's. This used to be the owner — but a club account does not play
+   * (#263), and the booking route now refuses it.
+   */
+  let rival: TestIdentity;
   let venueId: string;
   let resourceId: string;
 
@@ -86,6 +92,12 @@ describe('POST /api/v1/t/:slug/bookings', () => {
     const playerId = await seedPlayer(db, tenant.tenantId);
     player = await signInAs(db, {
       userId: playerId,
+      memberships: [{ tenantId: tenant.tenantId, tenantSlug: tenant.tenantSlug, role: 'PLAYER' }],
+    });
+
+    const rivalId = await seedPlayer(db, tenant.tenantId, 'rival');
+    rival = await signInAs(db, {
+      userId: rivalId,
       memberships: [{ tenantId: tenant.tenantId, tenantSlug: tenant.tenantSlug, role: 'PLAYER' }],
     });
   });
@@ -208,7 +220,7 @@ describe('POST /api/v1/t/:slug/bookings', () => {
   it('409s when the slot was taken, via the EXCLUDE constraint', async () => {
     await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
 
-    const { res, body } = await create(owner, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+    const { res, body } = await create(rival, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
 
     expect(res.status).toBe(409);
     expect((body as ApiError).error.code).toBe('SLOT_TAKEN');
@@ -289,7 +301,7 @@ describe('POST /api/v1/t/:slug/bookings', () => {
 
     it('lists only the caller’s own bookings', async () => {
       const mine = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
-      const theirs = await create(owner, {
+      const theirs = await create(rival, {
         resourceId,
         startTs: '2026-07-15T08:00:00Z',
         endTs: '2026-07-15T09:00:00Z',
@@ -319,7 +331,7 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       // Ownership is a row-level question and only this route can answer it.
       // 403 would confirm the booking exists, which enumerates the club's
       // reservations one id at a time.
-      const { body } = await create(owner, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+      const { body } = await create(rival, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
       const someoneElses = (body as Created).data.id;
 
       const { res } = await cancel(player, someoneElses);
@@ -341,7 +353,7 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       const { body } = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
       await cancel(player, (body as Created).data.id);
 
-      const again = await create(owner, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+      const again = await create(rival, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
 
       expect(again.res.status).toBe(201);
     });
@@ -413,18 +425,20 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       expect(m?.acceptedAt).toBeInstanceOf(Date);
     });
 
-    it('does NOT demote an owner who books a court at their own club', async () => {
-      // The role is always PLAYER for a NEW membership. An existing one is
-      // returned untouched — otherwise a club owner booking a court would
-      // downgrade themselves out of their own admin pages.
-      const { res } = await create(owner, {
+    it('refuses the club’s own OWNER — a club account books with a player account (#263)', async () => {
+      // This used to book, and pinned only that the owner was not demoted by
+      // it. One account is one kind now: booking is playing, and an owner who
+      // plays does so with their player account. Refused at their OWN club
+      // too, where they would not even have had to join — and left untouched.
+      const { res, body } = await create(owner, {
         resourceId,
         startTs: '2026-07-15T08:00:00Z',
         endTs: '2026-07-15T09:00:00Z',
       });
 
-      expect(res.status).toBe(201);
-      expect(await membershipOf(owner.userId)).toMatchObject({ role: 'OWNER' });
+      expect(res.status).toBe(403);
+      expect((body as ApiError).error.code).toBe('PLAYER_ACCOUNT_REQUIRED');
+      expect(await membershipOf(owner.userId)).toMatchObject({ role: 'OWNER', status: 'ACTIVE' });
     });
 
     it('refuses a SUSPENDED member, and does not reactivate them', async () => {

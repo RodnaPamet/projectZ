@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
-import { landingContexts, PLAYER_CONTEXT } from '@/lib/auth/landing';
+import { HOME, PLAYER_HOME, type LandingDecision } from '@/lib/auth/landing';
 
 import { withIntl } from '../helpers/intl';
 
@@ -25,13 +25,13 @@ jest.mock('@/lib/auth/page-context', () => ({
   signedInIdentity: () => signedInIdentity(),
 }));
 
-// The switcher's two server-side dependencies. Both reach Prisma, which has
-// no business loading under jsdom; what they return is the input here.
-const listLandingContexts = jest.fn();
+// Where `/start` would land the person — the header links back to it. It
+// reaches Prisma, which has no business loading under jsdom; what it returns is
+// the input here.
+const resolveLanding = jest.fn();
 jest.mock('@/app-layer/usecases/landing', () => ({
-  listLandingContexts: (...args: unknown[]) => listLandingContexts(...args),
+  resolveLanding: (...args: unknown[]) => resolveLanding(...args),
 }));
-jest.mock('@/app/(app)/start/actions', () => ({ switchContextAction: jest.fn() }));
 
 jest.mock('next-intl/server', () => ({
   getTranslations: async (ns: string) => {
@@ -52,25 +52,19 @@ jest.mock('next-intl/server', () => ({
 
 const renderHeader = async () => render(withIntl(await SiteHeader()));
 
-const OWNER_AND_PLAYER = landingContexts([
-  {
-    tenantId: 'csofia',
-    tenantSlug: 'sofia-padel',
-    tenantName: 'Sofia Padel',
-    role: 'OWNER',
-    status: 'ACTIVE',
-    tenantStatus: 'ACTIVE',
-    createdAt: new Date('2026-01-01'),
-  },
-]);
+const PLAYER: LandingDecision = { href: PLAYER_HOME, reason: 'player', club: null };
 
-const switcher = () => screen.queryByRole('button', { name: /Смяна на ролята/ });
+const CLUB: LandingDecision = {
+  href: '/t/sofia-padel/admin/calendar',
+  reason: 'club',
+  club: { tenantId: 'csofia', tenantSlug: 'sofia-padel', tenantName: 'Sofia Padel' },
+};
 
 beforeEach(() => {
   signedInIdentity.mockReset();
-  listLandingContexts.mockReset();
-  // A player and nothing else, unless a test says otherwise.
-  listLandingContexts.mockResolvedValue([PLAYER_CONTEXT]);
+  resolveLanding.mockReset();
+  // A player, unless a test says otherwise.
+  resolveLanding.mockResolvedValue(PLAYER);
 });
 
 describe('SiteHeader', () => {
@@ -107,29 +101,53 @@ describe('SiteHeader', () => {
     expect(screen.queryByRole('button', { name: 'Изход' })).not.toBeInTheDocument();
     // "My bookings" to a stranger is a link to a redirect.
     expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
-    // …and a stranger has no roles to read, so nothing asks.
-    expect(listLandingContexts).not.toHaveBeenCalled();
-    expect(switcher()).not.toBeInTheDocument();
+    // …and a stranger has no account to read, so nothing asks.
+    expect(resolveLanding).not.toHaveBeenCalled();
+  });
+
+  it('has no role switcher any more — one account is one kind (#263)', async () => {
+    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
+    resolveLanding.mockResolvedValue(CLUB);
+    await renderHeader();
+
+    expect(screen.queryByRole('button', { name: /Смяна на ролята/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 });
 
-describe('SiteHeader — the role switcher (#227)', () => {
-  it('offers it to somebody who runs a club as well as playing', async () => {
+describe('SiteHeader — the way back to your club (#263)', () => {
+  it('names a club account’s club, and links where /start would land it', async () => {
+    // The switcher used to be how a club account got back to its club from the
+    // public pages. With one kind per account the header just says which club.
     signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
-    listLandingContexts.mockResolvedValue(OWNER_AND_PLAYER);
+    resolveLanding.mockResolvedValue(CLUB);
     await renderHeader();
 
-    expect(switcher()).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sofia Padel' })).toHaveAttribute(
+      'href',
+      '/t/sofia-padel/admin/calendar',
+    );
+    // A club account is not a player: no "My bookings" for it.
+    expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
     // Asked about the person signed in, and nobody else.
-    expect(listLandingContexts).toHaveBeenCalledWith('u1');
+    expect(resolveLanding).toHaveBeenCalledWith('u1');
   });
 
-  it('does not offer it to somebody who only plays — there is nothing to switch to', async () => {
+  it('offers a player "My bookings", and no club', async () => {
     signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
     await renderHeader();
 
-    expect(switcher()).not.toBeInTheDocument();
-    // The rest of the header is unchanged for them.
     expect(screen.getByRole('link', { name: 'Моите резервации' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Sofia Padel' })).not.toBeInTheDocument();
+  });
+
+  it('offers neither to a club account whose club is gone', async () => {
+    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
+    resolveLanding.mockResolvedValue({ href: HOME, reason: 'club-unavailable', club: null });
+    await renderHeader();
+
+    expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
+    // Still somebody signed in, with a way out.
+    expect(screen.getByRole('button', { name: 'Изход' })).toBeInTheDocument();
   });
 });
