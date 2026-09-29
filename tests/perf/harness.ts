@@ -470,7 +470,7 @@ export class PerfSession {
    *
    * ═══ WHY NOT locator.tap() ═══
    *
-   * On a phone the club shell is WIDER than the screen. The admin nav
+   * On a phone the club shell is WIDER than the screen (#255). The admin nav
    * measures 934 px on a 393 px Pixel 5, so the layout viewport grows to
    * 934 px and the visual viewport shows its left edge. Playwright's tap
    * then aims at the wrong point: it reported "<a …/coaches> intercepts
