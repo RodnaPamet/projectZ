@@ -1361,6 +1361,171 @@
         }
       }
     },
+    "/t/{slug}/bookings/{id}/review": {
+      "post": {
+        "operationId": "reviewBooking",
+        "summary": "Review the venue a completed booking was at",
+        "description": "Leaves a star rating, with optional text, for the venue whose court this booking was on. The venue is DERIVED from the booking; there is no `venueId` to send, so a booking at one venue cannot be used to review another.\n\n**Proof of visit.** The booking must be the caller's own, at this club, and `COMPLETED`. A CONFIRMED booking becomes COMPLETED shortly after its end time; staff can instead mark it `NO_SHOW`, which can never be reviewed. Every failure of that rule is the same `NO_PROOF_OF_VISIT`, so the endpoint cannot be used to learn which bookings exist.\n\n**One review per venue per person.** A second completed booking at a venue the caller has already reviewed is refused with `409 ALREADY_REVIEWED`. It does not create a second review and it does not edit the first.\n\n**Moderation is synchronous.** Text is classified before anything is stored, so a request carrying text can take up to about ten seconds. The response says what happened, and none of it is an error: `PUBLISHED` (visible now, and counted in the venue's rating), `PENDING_REVIEW` (a moderator will decide; not visible and not counted until then), or `REJECTED`. A star-only review has nothing to classify and is `PUBLISHED` at once. If the classifier is unavailable the review is held for a moderator, never published unchecked.",
+        "tags": ["Bookings"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The booking's club. The caller must hold an ACTIVE membership there, which booking a court there already created.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The booking id. Must be the caller's own COMPLETED booking at this club.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Received. `data.status` says whether it is live (`PUBLISHED`), waiting for a moderator (`PENDING_REVIEW`), or `REJECTED`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — the body is not JSON, `rating` is not a number, or `body` is not a string or is longer than 2000 characters (refused, not truncated). `INVALID_RATING` — `rating` is not a whole number from 1 to 5.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — not a member of `{slug}`, or a member lacking `bookings.create` (then `details.requiredPermission = \"bookings.create\"`). `NO_PROOF_OF_VISIT` — the booking is not the caller's, is not at this club, or is not COMPLETED (including one marked NO_SHOW). Those cases are deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no active club at `{slug}`, or the caller holds no active membership there (a suspended member included).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`ALREADY_REVIEWED` — the caller has already reviewed this venue, from this booking or another. Show them the review they left rather than offering the form again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Code `INTERNAL`, generic message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/t/{slug}/me": {
       "get": {
         "operationId": "getTenantMe",
@@ -3270,6 +3435,72 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/CheckoutSession"
+          }
+        }
+      },
+      "CreateReviewRequest": {
+        "type": "object",
+        "title": "CreateReviewRequest",
+        "required": ["rating"],
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Whole stars, 1 to 5. A string such as \"5\" is refused, not coerced."
+          },
+          "body": {
+            "type": ["string", "null"],
+            "maxLength": 2000,
+            "description": "Optional text. Sanitised to plain text on the way in. Omitted, null or whitespace-only means a star-only review, which skips moderation."
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "title": "Review",
+        "description": "The author's own view of the review they just left. It carries no author id and no moderation scores: the scores are for the moderator judging the classifier, and handed to an author they are a gauge for tuning text until it slips through.",
+        "required": ["id", "bookingId", "venueId", "rating", "body", "status", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "The booking that proved the visit."
+          },
+          "venueId": {
+            "type": "string",
+            "description": "Derived from the booking."
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "body": {
+            "type": ["string", "null"],
+            "description": "The text as stored, after sanitising. Null for a star-only review."
+          },
+          "status": {
+            "type": "string",
+            "description": "Known values: `PUBLISHED`, `PENDING_REVIEW`, `REJECTED`. An open string rather than a closed enum, for the same reason as `Booking.status`: a shipped binary must not fail to decode a value added later. Only `PUBLISHED` counts toward the venue's `avgRating` and `reviewCount`."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 UTC, no fractional seconds."
+          }
+        }
+      },
+      "ReviewEnvelope": {
+        "type": "object",
+        "title": "ReviewEnvelope",
+        "description": "The success envelope: `{\"data\": Review}`.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Review"
           }
         }
       },

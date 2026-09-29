@@ -565,6 +565,29 @@
       "CANCELLED": "Cancelled",
       "COMPLETED": "Completed",
       "NO_SHOW": "No show"
+    },
+    "review": {
+      "rate": "Rate this venue",
+      "ratingLabel": "Your rating",
+      "stars": "{count, plural, one {# star} other {# stars}}",
+      "bodyLabel": "Your review (optional)",
+      "bodyHint": "Other players see it once it has been checked. Up to {max} characters.",
+      "submit": "Submit review",
+      "cancel": "Cancel",
+      "yours": "Your review: {rating} of 5",
+      "status": {
+        "PUBLISHED": "published",
+        "PENDING_REVIEW": "waiting for a moderator",
+        "REJECTED": "not published"
+      },
+      "alreadyThisVenue": "You have already reviewed this venue.",
+      "error": {
+        "RATING_REQUIRED": "Choose a rating from 1 to 5 stars.",
+        "TOO_LONG": "That review is too long.",
+        "NO_PROOF_OF_VISIT": "Only a completed booking can be reviewed. This one may have been marked as a no-show.",
+        "ALREADY_REVIEWED": "You have already reviewed this venue.",
+        "NOT_ALLOWED": "You can no longer review bookings at this club."
+      }
     }
   }
 }

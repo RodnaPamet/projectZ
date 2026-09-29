@@ -81,6 +81,7 @@ describe('route permissions', () => {
     ['/api/v1/t/sofia/admin/courts', 'PATCH', 'courts.manage'],
     ['/api/v1/t/sofia/bookings', 'POST', 'bookings.create'],
     ['/api/v1/t/sofia/bookings/bk_1/cancel', 'POST', 'bookings.cancel'],
+    ['/api/v1/t/sofia/bookings/bk_1/review', 'POST', 'bookings.create'],
     ['/api/v1/t/sofia/bookings/bk_1/refund', 'POST', 'payments.refund'],
     ['/api/v1/t/sofia/players/p1/credit', 'POST', 'players.credit_adjust'],
     ['/api/v1/t/sofia/sessions', 'POST', 'openplay.host'],
@@ -129,9 +130,14 @@ describe('route permissions', () => {
     const paths = ROUTE_PERMISSIONS.map((r) => r.pattern.source);
     const refund = paths.findIndex((p) => p.includes('refund'));
     const cancel = paths.findIndex((p) => p.includes('cancel'));
+    const review = paths.findIndex((p) => p.includes('review'));
     const generic = paths.findIndex((p) => p.endsWith('bookings'));
 
     expect(refund).toBeLessThan(generic);
     expect(cancel).toBeLessThan(generic);
+    // Present at all, and ahead of the generic rule — `findIndex` answering -1
+    // would otherwise pass `toBeLessThan` for a rule that had been deleted.
+    expect(review).toBeGreaterThanOrEqual(0);
+    expect(review).toBeLessThan(generic);
   });
 });

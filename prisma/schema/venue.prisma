@@ -205,8 +205,8 @@ model Review {
 
   authorUserId String
   rating       Int
-  /// NOT encrypted. Sanitised by the reviews use case, which no route calls
-  /// yet. Free text a stranger will read.
+  /// NOT encrypted. Sanitised by `createReview` on the way in. Free text a
+  /// stranger will read.
   body         String?
 
   /// PROOF OF VISIT. A review must point at a booking the author actually

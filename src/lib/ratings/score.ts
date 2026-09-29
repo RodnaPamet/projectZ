@@ -130,6 +130,20 @@ export function wilsonLowerBound(ratings: readonly number[]): number {
 }
 
 /**
+ * A rating that is not a whole number from 1 to 5.
+ *
+ * A named class rather than a bare `Error` so the v1 boundary can map it to a
+ * 400: the review route reaches it with whatever the client sent, and a bare
+ * Error there is a 500 telling the player the server broke.
+ */
+export class InvalidRatingError extends Error {
+  constructor(rating: number) {
+    super(`A rating must be a whole number from ${MIN_RATING} to ${MAX_RATING}; got ${rating}.`);
+    this.name = 'InvalidRatingError';
+  }
+}
+
+/**
  * A rating must be an integer from 1 to 5.
  *
  * Rejected, not clamped. A 7-star rating is not a 5-star rating with
@@ -138,8 +152,6 @@ export function wilsonLowerBound(ratings: readonly number[]): number {
  */
 export function assertValidRating(rating: number): void {
   if (!Number.isInteger(rating) || rating < MIN_RATING || rating > MAX_RATING) {
-    throw new Error(
-      `A rating must be a whole number from ${MIN_RATING} to ${MAX_RATING}; got ${rating}.`,
-    );
+    throw new InvalidRatingError(rating);
   }
 }

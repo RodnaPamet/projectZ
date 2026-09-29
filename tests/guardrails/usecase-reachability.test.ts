@@ -77,7 +77,6 @@ const NOT_WIRED_YET: Record<string, string> = {
   gamification: 'XP and achievements have no surface yet',
   messaging: 'DM routes unbuilt; the Centrifugo transport and RLS shape are done and tested',
   ratings: 'openskill scoring is done; match results have no route to arrive through',
-  reviews: 'review routes unbuilt; the proof-of-visit rule is done and tested',
   session: 'open-play sessions have no routes yet',
   tournaments: 'bracket generation is done; no routes',
   wearables: 'the Strava importer runs from a script, never from a request',

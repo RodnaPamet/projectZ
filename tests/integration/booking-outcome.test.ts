@@ -443,9 +443,8 @@ describe('marking a no-show', () => {
 
   it('refuses once the player has reviewed the visit, so NO_SHOW cannot take a review down', async () => {
     const b = await seedBooking({ status: 'COMPLETED', startH: -3, endH: -2 });
-    await createReview(db, {
+    await createReview((fn) => asAppUser(db, tenant.tenantId, fn), {
       tenantId: tenant.tenantId,
-      venueId,
       authorUserId: playerId,
       bookingId: b.id,
       rating: 1,
@@ -479,9 +478,8 @@ describe('a no-show and the review it blocks', () => {
     );
 
     await expect(
-      createReview(db, {
+      createReview((fn) => asAppUser(db, tenant.tenantId, fn), {
         tenantId: tenant.tenantId,
-        venueId,
         authorUserId: playerId,
         bookingId: b.id,
         rating: 5,
@@ -494,9 +492,8 @@ describe('a no-show and the review it blocks', () => {
     const b = await seedBooking({ status: 'CONFIRMED', startH: -2, endH: -1 });
 
     await sweep();
-    const r = await createReview(db, {
+    const r = await createReview((fn) => asAppUser(db, tenant.tenantId, fn), {
       tenantId: tenant.tenantId,
-      venueId,
       authorUserId: playerId,
       bookingId: b.id,
       rating: 4,
