@@ -62,6 +62,12 @@ model Booking {
   @@index([bookedByUserId])
   @@index([resourceId])
   @@index([expiresAt])
+  /// The completion sweep: CONFIRMED bookings whose end has passed, across
+  /// every club. `status` LEADS because the sweep is cross-tenant and binds no
+  /// tenant, so `[tenantId, status]` above cannot serve it — Postgres 16 has no
+  /// skip scan, and without this every run is a sequential scan of every
+  /// booking ever made. Same reasoning as `expiresAt` for the expiry sweep.
+  @@index([status, endTs])
   @@map("booking")
 }
 

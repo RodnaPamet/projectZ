@@ -1,0 +1,32 @@
+-- P35: the index behind the booking-completion sweep.
+--
+-- ═══ WHAT READS IT ═══
+--
+-- `completeEndedBookings` runs every minute and asks, across EVERY club:
+--
+--   SELECT id, "tenantId" FROM booking
+--    WHERE status = 'CONFIRMED' AND "endTs" < now()
+--    ORDER BY "endTs" LIMIT 500;
+--
+-- It binds no tenant, so `booking_tenantId_status_idx` cannot seek on it —
+-- `tenantId` leads, and Postgres 16 has no skip scan. `status` leads here for
+-- the same reason `expiresAt` stands alone for the expiry sweep.
+--
+-- ═══ WHAT WAS MEASURED ═══
+--
+-- 200 000 bookings across 400 courts, the shape a year of history leaves:
+-- 12 400 active (PENDING/CONFIRMED), the rest finished. EXPLAIN (ANALYZE),
+-- three warm runs each:
+--
+--                                  without              with this index
+--   backlog  (4 000 to complete)   22.0-22.9 ms         4.8-5.2 ms
+--   steady   (nothing to do)       16.2-18.2 ms         2.1-2.2 ms
+--
+-- Without it the planner is not naive: it borrows `booking_no_overlap`, the
+-- exclusion constraint's GiST index, whose partial predicate happens to match
+-- CONFIRMED. But that index covers every ACTIVE booking, so each run reads the
+-- whole forward book — every future booking on the platform — to find the few
+-- that just ended. The steady state is the one that matters, because it is
+-- what runs 1 440 times a day, and that is the case this fixes: it now reads
+-- only the rows it is about to change.
+CREATE INDEX "booking_status_endTs_idx" ON "booking"("status", "endTs");

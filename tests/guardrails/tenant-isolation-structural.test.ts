@@ -73,6 +73,10 @@ const SCOPED_CALLS = [
   'findFirst',
   'findFirstOrThrow',
   'updateMany',
+  // The returning form of the same write. `updateMany\s*\(` does not match
+  // `updateManyAndReturn(`, so without its own entry the first one in the tree
+  // (the completion sweep, P35) was invisible to this scan.
+  'updateManyAndReturn',
   'deleteMany',
   'count',
   'aggregate',

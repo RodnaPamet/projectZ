@@ -59,6 +59,11 @@ export default async function CalendarPage({
 
   const [t, locale] = await Promise.all([getTranslations('admin.calendar'), getLocale()]);
 
+  // One instant for "has this booking started?", taken once. It only decides
+  // whether to OFFER the no-show control; the use case decides again against
+  // its own clock, under a row lock, when staff actually press it.
+  const now = new Date();
+
   const { timezone, courts, bookings, names, isoDay, todayAtClub } = await runInTenantContext(
     ctx.tenantId,
     async (db) => {
@@ -169,6 +174,11 @@ export default async function CalendarPage({
         : (b.guestName ?? t('guest')),
       priceLabel: money.format(b.totalCents / 100),
       expiresLabel: b.expiresAt ? hhmm(b.expiresAt) : null,
+      // Mirrors markNoShow's own rules, minus the review check, which needs a
+      // read per booking and is answered by the refusal message instead.
+      canMarkNoShow:
+        (b.status === 'CONFIRMED' || b.status === 'COMPLETED') &&
+        b.startTs.getTime() <= now.getTime(),
     };
   });
 

@@ -53,6 +53,12 @@ export const AUDIT_ACTIONS = {
   /// A PENDING booking whose checkout window elapsed. Nobody decided it.
   BOOKING_EXPIRED: 'BOOKING_EXPIRED',
   BOOKING_CONFIRMED: 'BOOKING_CONFIRMED',
+  /// A CONFIRMED booking whose end time passed. A timer decided it, on the
+  /// presumption that a paid booking was played — which is what makes it
+  /// reviewable, and why staff can overturn it with BOOKING_NO_SHOW.
+  BOOKING_COMPLETED: 'BOOKING_COMPLETED',
+  /// Staff recorded that the player did not turn up. Always a person.
+  BOOKING_NO_SHOW: 'BOOKING_NO_SHOW',
   /// Money arrived that could not be applied to its booking. Always needs a human.
   PAYMENT_UNAPPLIED: 'PAYMENT_UNAPPLIED',
   SESSIONS_REVOKED: 'SESSIONS_REVOKED',
@@ -110,21 +116,39 @@ export interface AuditInput {
 }
 
 export async function appendAuditEntry(db: PrismaClient, input: AuditInput): Promise<void> {
+  await db.auditEntry.create({ data: toRow(input) });
+}
+
+/**
+ * The same rows, many at once — for a sweep that changes a batch.
+ *
+ * One INSERT rather than one round trip per row, inside the caller's
+ * transaction exactly as above: the batch and its record commit together. A
+ * sweep that looped `appendAuditEntry` would hold its transaction open for
+ * five hundred sequential inserts, which is the part of the run that scales.
+ */
+export async function appendAuditEntries(
+  db: PrismaClient,
+  inputs: readonly AuditInput[],
+): Promise<void> {
+  if (inputs.length === 0) return;
+  await db.auditEntry.createMany({ data: inputs.map(toRow) });
+}
+
+function toRow(input: AuditInput): Prisma.AuditEntryCreateManyInput {
   const resolvedRequestId = input.requestId ?? getRequestId();
 
-  await db.auditEntry.create({
-    data: {
-      tenantId: input.tenantId,
-      actorUserId: input.actorUserId ?? null,
-      actorType: input.actorType ?? 'USER',
-      entity: input.entity,
-      entityId: input.entityId,
-      action: input.action,
-      details: input.details ?? null,
-      detailsJson: input.detailsJson ?? {},
-      requestId: resolvedRequestId === 'unknown' ? null : resolvedRequestId,
-      ipAddress: input.ipAddress ?? null,
-      userAgent: input.userAgent ?? null,
-    },
-  });
+  return {
+    tenantId: input.tenantId,
+    actorUserId: input.actorUserId ?? null,
+    actorType: input.actorType ?? 'USER',
+    entity: input.entity,
+    entityId: input.entityId,
+    action: input.action,
+    details: input.details ?? null,
+    detailsJson: input.detailsJson ?? {},
+    requestId: resolvedRequestId === 'unknown' ? null : resolvedRequestId,
+    ipAddress: input.ipAddress ?? null,
+    userAgent: input.userAgent ?? null,
+  };
 }
