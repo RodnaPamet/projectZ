@@ -589,5 +589,17 @@
         "NOT_ALLOWED": "You can no longer review bookings at this club."
       }
     }
+  },
+  "contextSwitcher": {
+    "trigger": "Switch role — current: {current}",
+    "menu": "Switch to",
+    "player": "Player",
+    "role": {
+      "OWNER": "Owner",
+      "MANAGER": "Manager",
+      "STAFF": "Staff",
+      "COACH": "Coach"
+    },
+    "unavailable": "That role is no longer available. The list has been refreshed."
   }
 }

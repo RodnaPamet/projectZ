@@ -43,6 +43,13 @@ const ALLOWED_WITHOUT_PERMISSION: Record<string, string> = {
     'for. The authorisation is the token: 32 random bytes, stored only as a keyed hash, ' +
     'single-use, expiring, and sent to an address a member of that club chose. The action ' +
     'still requires a signed-in user, because a membership must belong to an account.',
+  'src/app/(app)/start/actions.ts':
+    'the role switcher (#227) is not an action AT a club: it writes one column on the ' +
+    "caller's own app_user row, and one of the values it accepts, `player`, names no club " +
+    'at all. It demands a signed-in user with a live session, and a key naming a context ' +
+    'the caller holds RIGHT NOW — re-derived from the database, not the request — so a ' +
+    'forged club key is refused rather than stored. It grants nothing either way: it only ' +
+    'chooses which of your own pages you are sent to.',
 };
 
 const ACTION_FILES = globSync('src/app/**/*.ts')

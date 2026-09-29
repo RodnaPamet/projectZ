@@ -1,6 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
 
-import { AppNav, adminNav, playerNav } from '@/components/layout/AppNav';
+import { AppNav } from '@/components/layout/AppNav';
+// NOT from AppNav: that module is 'use client', so a server component may
+// render what it exports but never call it. Calling these from there was a 500
+// on every club page — see nav-items.ts.
+import { adminNav, playerNav } from '@/components/layout/nav-items';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 
 /**
@@ -35,6 +40,13 @@ import { resolveTenantPageContext } from '@/lib/auth/page-context';
  * frozen to the club the user joined FIRST. Deriving authority from it is the
  * documented cross-tenant escalation. One indexed query buys the correct
  * answer and a truncated membership list stops mattering.
+ *
+ * ═══ THE SITE HEADER IS HERE TOO (#227) ═══
+ *
+ * Sign-in lands an owner or a manager on this layout, and it had no way out:
+ * no sign-out, no link to the player side, no hint of which account was in.
+ * The header carries all three, and the role switcher — which is useless if
+ * it is absent from the one screen a club user lands on.
  */
 export default async function TenantLayout({
   children,
@@ -63,6 +75,7 @@ export default async function TenantLayout({
 
   return (
     <div className="bg-bg-page text-content-default safe-area-top safe-area-x min-h-screen">
+      <SiteHeader />
       <AppNav
         items={[...playerNav(ctx.tenantSlug), ...adminNav(ctx.tenantSlug)]}
         permissions={ctx.permissions}

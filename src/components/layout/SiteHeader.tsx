@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
+import { switchContextAction } from '@/app/(app)/start/actions';
+import { listLandingContexts } from '@/app-layer/usecases/landing';
+import { ContextSwitcher } from '@/components/layout/ContextSwitcher';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import { signedInIdentity } from '@/lib/auth/page-context';
 
@@ -22,16 +25,32 @@ import { signedInIdentity } from '@/lib/auth/page-context';
  * in is the thing people actually need from a header, and it is the difference
  * between "am I signed in?" and "am I signed in AS THE RIGHT ONE?" — which
  * matters here, where one identity can hold several clubs.
+ *
+ * ═══ AND IT CARRIES THE ROLE SWITCHER (#227) ═══
+ *
+ * For anyone holding more than one context — player, plus each club they
+ * run — because this is the one piece of chrome on every signed-in surface:
+ * the home page, venue discovery, the player UI and the club UI. Contexts are
+ * read from the database, not the token: the token has neither club names nor
+ * club status, and a club suspended since sign-in must not be offered.
  */
 export async function SiteHeader() {
   const [t, me] = await Promise.all([getTranslations('common'), signedInIdentity()]);
-  const [tLogin, tMine] = await Promise.all([
+  const [tLogin, tMine, contexts] = await Promise.all([
     getTranslations('login'),
     getTranslations('myBookings'),
+    me ? listLandingContexts(me.userId) : Promise.resolve([]),
   ]);
 
   return (
-    <header className="border-border-subtle flex items-center justify-between gap-4 border-b px-4 py-3">
+    // ═══ IT WRAPS ON A PHONE, RATHER THAN RUNNING OFF THE SIDE ═══
+    //
+    // One row that cannot shrink is a page that scrolls sideways. Measured in
+    // Chromium before this wrapped: 42px of sideways scroll on a 375px phone
+    // for a signed-in player, and 75–157px once the role switcher joined the
+    // row — with sign-out the thing pushed off the edge. Wrapping costs a
+    // second row on a phone and nothing on anything wider.
+    <header className="border-border-subtle flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3">
       {/*
         NOT `text-brand-600`. That is a FILL colour — `--brand-emphasis`, whose
         own comment measures it "5.1:1 on white" — and the page background is
@@ -52,9 +71,12 @@ export async function SiteHeader() {
         {t('appName')}
       </Link>
 
-      <nav className="flex items-center gap-4">
+      <nav className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         {me ? (
           <>
+            {contexts.length > 1 ? (
+              <ContextSwitcher contexts={contexts} switchAction={switchContextAction} />
+            ) : null}
             {/* email as the fallback, never a blank space: an OAuth profile
                 with no name is ordinary, and an empty greeting looks broken. */}
             {/*
@@ -63,7 +85,12 @@ export async function SiteHeader() {
               #224 is about: /login worked perfectly for weeks and the only
               reference to it anywhere in src/ was the invite page.
             */}
-            <Link href="/me/bookings" className="text-sm underline-offset-4 hover:underline">
+            <Link
+              href="/me/bookings"
+              // One line: squeezed, it broke into two mid-label before the
+              // row gave up and wrapped.
+              className="text-sm whitespace-nowrap underline-offset-4 hover:underline"
+            >
               {tMine('title')}
             </Link>
             <span className="text-content-muted max-w-[12rem] truncate text-sm">

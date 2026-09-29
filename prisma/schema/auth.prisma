@@ -97,6 +97,21 @@ model User {
   /// logout). A JWT carrying a stale version is rejected.
   sessionVersion Int @default(0)
 
+  /// The context this person last CHOSE in the role switcher (#227): `player`,
+  /// or `club:<tenantId>`. Read after sign-in to decide where somebody who
+  /// holds more than one context lands.
+  ///
+  /// On the user rather than in a cookie because sign-in is exactly when a
+  /// cookie is least likely to exist — a new device, another browser, a
+  /// session that expired — and because the iOS client needs the same answer.
+  ///
+  /// ADVISORY, NEVER AUTHORITY. `decideLanding` honours it only while it still
+  /// names a context the person holds, so a club they have since left is
+  /// ignored rather than obeyed. That is also why there is no foreign key: a
+  /// stale value is harmless by construction, and the global identity table
+  /// should not depend on the tenant table to stay consistent.
+  lastContext String?
+
   /// NOT encrypted, and nothing writes it. MFA is unimplemented: the string
   /// "mfaSecret" appeared in exactly one other place in src/, a manifest that
   /// was never wired to anything and has been removed. Whoever implements MFA

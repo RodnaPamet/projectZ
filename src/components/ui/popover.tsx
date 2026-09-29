@@ -22,6 +22,9 @@ import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import {
   ButtonHTMLAttributes,
   HTMLAttributes,
+  // Aliased: the bare name is the DOM event, which `onEscapeKeyDown` above
+  // already means and Radix hands it.
+  KeyboardEvent as ReactKeyboardEvent,
   PropsWithChildren,
   ReactNode,
   WheelEventHandler,
@@ -205,16 +208,63 @@ function PopoverRoot({
 
 // ─── Menu / Item slots ─────────────────────────────────────────────
 
+/** Anything a menu can hold that takes focus. */
+const MENU_ITEM = '[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]';
+
+/**
+ * Arrow keys, Home and End move focus between items, wrapping at the ends.
+ *
+ * `role="menu"` is a promise to assistive technology: a screen reader
+ * announces a menu and its user reaches for the arrow keys, because that is
+ * the ARIA menu pattern. Tab alone — all this container used to offer — moves
+ * through the items and then straight out of the popover, which closes it.
+ *
+ * Disabled items are skipped: focus that lands on one goes nowhere.
+ */
+function moveMenuFocus(event: ReactKeyboardEvent<HTMLDivElement>) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+
+  const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(MENU_ITEM)).filter(
+    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-disabled') !== 'true',
+  );
+  if (items.length === 0) return;
+
+  // Only now: a menu with nothing focusable should not swallow the page's keys.
+  event.preventDefault();
+
+  const at = items.indexOf(event.currentTarget.ownerDocument.activeElement as HTMLElement);
+  const last = items.length - 1;
+  const next =
+    event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? last
+        : event.key === 'ArrowDown'
+          ? at === -1 || at === last
+            ? 0
+            : at + 1
+          : at <= 0
+            ? last
+            : at - 1;
+
+  items[next]!.focus();
+}
+
 /**
  * Standard menu container. Drop inside a Popover's `content` prop to
  * keep every action menu aligned on padding, width, and keyboard feel.
  */
-function Menu({ className, children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+function Menu({ className, children, onKeyDown, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       role="menu"
       data-popover-menu
       className={cn('flex min-w-[180px] flex-col gap-0.5 p-1 text-sm', className)}
+      onKeyDown={(event) => {
+        // A caller's handler runs first and may claim the key.
+        onKeyDown?.(event);
+        if (!event.defaultPrevented) moveMenuFocus(event);
+      }}
       {...rest}
     >
       {children}

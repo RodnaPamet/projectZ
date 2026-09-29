@@ -129,3 +129,30 @@ describe('middleware permission check', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('middleware sign-in redirect', () => {
+  const get = (path: string) => middleware(new NextRequest(`https://playerz.bg${path}`));
+
+  it('carries the WHOLE deep link to /login, query string included (#227)', async () => {
+    // `/login` now honours `next` over role landing. A diary link for a given
+    // day that lost its `?day=` would still land on the diary — on today.
+    mockedGetToken.mockResolvedValue(null);
+
+    const res = await get('/t/sofia-padel/admin/calendar?day=2026-10-01');
+
+    expect(res.status).toBe(307);
+    const location = new URL(res.headers.get('location')!);
+    expect(location.pathname).toBe('/login');
+    expect(location.searchParams.get('next')).toBe('/t/sofia-padel/admin/calendar?day=2026-10-01');
+  });
+
+  it('sends just the path when there is no query string', async () => {
+    mockedGetToken.mockResolvedValue(null);
+
+    const res = await get('/t/sofia-padel/admin/staff');
+
+    expect(new URL(res.headers.get('location')!).searchParams.get('next')).toBe(
+      '/t/sofia-padel/admin/staff',
+    );
+  });
+});

@@ -98,7 +98,11 @@ export async function middleware(req: NextRequest) {
         return apiError(401, 'UNAUTHORIZED', 'Authentication required');
       }
       const login = new URL('/login', req.url);
-      login.searchParams.set('next', pathname);
+      // The query string too: `/t/x/admin/calendar?day=2026-10-01` is a deep
+      // link to that day, and dropping `?day=` lands on today. `/login` treats
+      // this as a destination that wins over role landing (#227), and decides
+      // there whether it is a safe one.
+      login.searchParams.set('next', `${pathname}${req.nextUrl.search}`);
       return NextResponse.redirect(login);
     }
 
