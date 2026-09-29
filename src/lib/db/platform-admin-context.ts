@@ -4,7 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import { getTenantContext } from '@/lib/db/tenant-context';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
-import { isWriteCapability, type PlatformCapability } from '@/lib/platform/capabilities';
+import { isRefusedWrite, type PlatformCapability } from '@/lib/platform/capabilities';
 
 /**
  * The only sanctioned way to read across clubs.
@@ -66,8 +66,8 @@ export class AmbientPlatformEscalationError extends Error {
 export class PlatformWriteNotEnabledError extends Error {
   constructor(capability: PlatformCapability) {
     super(
-      `${capability} is a WRITE capability and cross-club writes are not enabled. ` +
-        'Stepping up to one should require a second factor, and there is none: ' +
+      `${capability} is a WRITE capability and is not one of ENABLED_PLATFORM_WRITES. ` +
+        'Stepping up to a cross-club write should require a second factor, and there is none: ' +
         'User.mfaSecret is unencrypted and nothing writes it. The capability is declared ' +
         'so the shape is settled, and refused here so the power does not ship before the ' +
         'defence does.',
@@ -134,7 +134,8 @@ export async function runAsPlatformAdmin<T>(
   // Guards BEFORE the transaction opens: a refused action should not have cost
   // a connection, and should leave no audit row claiming it was attempted.
   if (getTenantContext()) throw new AmbientPlatformEscalationError();
-  if (isWriteCapability(act.capability)) throw new PlatformWriteNotEnabledError(act.capability);
+  // Every write is refused unless enabled by name — see ENABLED_PLATFORM_WRITES.
+  if (isRefusedWrite(act.capability)) throw new PlatformWriteNotEnabledError(act.capability);
   if (act.reason.trim().length < MIN_REASON_LENGTH) throw new PlatformReasonRequiredError();
 
   return runAsSuperuser(async (db) => {

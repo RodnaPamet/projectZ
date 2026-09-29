@@ -153,6 +153,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
 
   // ── 404: it is not there, or not there for you ────────────────────
   UnknownPlayerRatingError: { status: 404, code: 'UNKNOWN_PLAYER_RATING' },
+  // Only reachable from the platform moderation route, whose caller holds
+  // REVIEW_MODERATE — so saying "no such case" discloses nothing to a stranger.
+  ModerationCaseNotFoundError: { status: 404, code: 'CASE_NOT_FOUND' },
   MappingNotFoundError: { status: 404, code: 'MAPPING_NOT_FOUND' },
   WearableNotConnectedError: { status: 404, code: 'WEARABLE_NOT_CONNECTED' },
 
@@ -173,6 +176,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // retrying cannot succeed — but a conflict with a row that exists, which is
   // what 409 says. The client shows the review they already left.
   AlreadyReviewedError: { status: 409, code: 'ALREADY_REVIEWED' },
+  // Another moderator decided the case first. Refetch the queue; it is gone.
+  CaseAlreadyResolvedError: { status: 409, code: 'CASE_ALREADY_RESOLVED' },
   PayoutsNotEnabledError: { status: 409, code: 'PAYOUTS_NOT_ENABLED' },
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
 

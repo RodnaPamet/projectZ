@@ -26,6 +26,7 @@ export const PLATFORM_CAPABILITIES = [
   PlatformCapability.AUDIT_READ,
   PlatformCapability.USER_READ,
   PlatformCapability.TENANT_SUSPEND,
+  PlatformCapability.REVIEW_MODERATE,
 ] as const;
 
 /**
@@ -39,14 +40,57 @@ export const PLATFORM_CAPABILITIES = [
  *
  * This set is what makes that refusal data rather than a special case — adding
  * a second write capability later inherits the refusal automatically instead of
- * needing someone to remember.
+ * needing someone to remember. `REVIEW_MODERATE` is in it because it IS a
+ * write; that it is also enabled is said separately, below, by name.
  */
 export const PLATFORM_WRITE_CAPABILITIES: ReadonlySet<PlatformCapability> = new Set([
   PlatformCapability.TENANT_SUSPEND,
+  PlatformCapability.REVIEW_MODERATE,
+]);
+
+/**
+ * The cross-club writes that ARE enabled — named one at a time.
+ *
+ * ═══ AN ALLOWLIST, SO REFUSAL STAYS THE DEFAULT ═══
+ *
+ * Moving a write OUT of the set above would have been one line, and it would
+ * have made "is this a write?" answer no for something that plainly is one —
+ * the refusal would then be a property of how a capability was labelled rather
+ * than of what it does. Instead every write stays a write, and the binding
+ * refuses every write that is not also listed here. A write capability added
+ * tomorrow is refused until somebody adds it to this set, with its reasons.
+ *
+ * ═══ WHY REVIEW_MODERATE, WITHOUT THE SECOND FACTOR ═══
+ *
+ * The owner's decision on #228: a club must not moderate reviews of itself, so
+ * the queue is worked by platform moderators — and a queue nobody may act on
+ * holds every text review forever, because without a classifier key every one
+ * of them lands there. It is admitted on these terms, which are what separate
+ * it from TENANT_SUSPEND:
+ *
+ *   reach     one review's visibility, the case that tracks it, and the venue
+ *             rating recomputed from them. No money, no access, no club state.
+ *   deletes   nothing. A rejected review keeps its text; the case keeps who
+ *             decided and why.
+ *   record    every decision writes a platform audit row first, with the
+ *             moderator's own note as its reason, in the same transaction.
+ *
+ * What a stolen moderator session could do is publish held reviews or hide
+ * published ones until the grant is revoked — visible, attributable, and
+ * bounded by the grant's expiry. Taking a club offline is not in that class,
+ * which is why TENANT_SUSPEND is not here.
+ */
+export const ENABLED_PLATFORM_WRITES: ReadonlySet<PlatformCapability> = new Set([
+  PlatformCapability.REVIEW_MODERATE,
 ]);
 
 export function isWriteCapability(capability: PlatformCapability): boolean {
   return PLATFORM_WRITE_CAPABILITIES.has(capability);
+}
+
+/** A write the binding refuses: every write, unless it is enabled by name above. */
+export function isRefusedWrite(capability: PlatformCapability): boolean {
+  return isWriteCapability(capability) && !ENABLED_PLATFORM_WRITES.has(capability);
 }
 
 /**

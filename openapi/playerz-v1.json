@@ -2657,6 +2657,215 @@
           }
         }
       }
+    },
+    "/platform/moderation/cases": {
+      "get": {
+        "operationId": "listPlatformModerationCases",
+        "summary": "The open review moderation cases, across every club",
+        "tags": ["Platform"],
+        "description": "The review moderation queue: every OPEN case about a review, oldest first, with the review text, its stars, the venue and club it is about, why it is here, and the classifier's scores. Worked by a person with authority over no club in particular, because a club moderating reviews of itself is what moderation exists to prevent.\n\n**Needs `REVIEW_MODERATE`.** The capability that permits the decision also permits the reading: the queue shows review text across every club and is only useful to someone who can act on it.\n\n`reason` is why a case is queued: a classifier category (`harassment`, `hate`, `violence`, …) scored above the review threshold, `classifier_unavailable` (the classifier could not be reached, so a human decides), or `user_report`. `scores` are the classifier's, per category, 0–1; empty when none ran.\n\nEvery page writes a `PLATFORM_MODERATION_QUEUE_READ` audit row with the stated reason. 50 per page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque. Pass back `nextCursor` verbatim; never parse it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of open cases, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformModerationCasePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`INVALID_CURSOR` — `cursor` is malformed, or names no row (it may be from another endpoint, or the row may be gone). An unknown cursor is refused rather than answered with an empty page, which would read as a completed walk.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters. It lands in an append-only row that cannot be pruned; put the detail in the ticket and the ticket number here.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/moderation/cases/{id}/resolve": {
+      "post": {
+        "operationId": "resolvePlatformModerationCase",
+        "summary": "Approve or reject a review moderation case",
+        "tags": ["Platform"],
+        "description": "`APPROVE` publishes the review; `REJECT` hides it. Either way the case closes with the moderator's note, and the venue's `avgRating` and `reviewCount` are recomputed in the same transaction, so the decision reaches the venue list at once.\n\n**Needs `REVIEW_MODERATE` — the one cross-club WRITE the platform enables.** Every other write capability is refused at the binding; see `PlatformCapability`.\n\n**The note is the audit reason.** It becomes the case's resolution note (the answer to \"why was my review taken down?\") and the `reason` on the `PLATFORM_REVIEW_APPROVED` / `PLATFORM_REVIEW_REJECTED` audit row, written before the decision takes effect. A refused request — already resolved, or no such case — leaves no row.\n\nNothing is deleted. A rejected review is kept with its text, and the case keeps who decided and why.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The case id, `caseId` in the queue.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveModerationCaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decided. The body says where the review and the venue now stand.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformModerationResolutionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — `decision` is not `APPROVE` or `REJECT`. `REASON_REQUIRED` — `note` was absent or shorter than 12 characters. `REASON_TOO_LONG` — `note` exceeded 500 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CASE_NOT_FOUND` — no case with that id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CASE_ALREADY_RESOLVED` — the case is not OPEN; another moderator decided it first. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3957,8 +4166,8 @@
       },
       "PlatformCapability": {
         "type": "string",
-        "enum": ["TENANT_READ", "AUDIT_READ", "USER_READ", "TENANT_SUSPEND"],
-        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: stepping up to a cross-club write should require a second factor and there is none yet."
+        "enum": ["TENANT_READ", "AUDIT_READ", "USER_READ", "TENANT_SUSPEND", "REVIEW_MODERATE"],
+        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: stepping up to a cross-club write should require a second factor and there is none yet. `REVIEW_MODERATE` is the one write that IS enabled, by owner decision: reading the review moderation queue and approving or rejecting its cases. Its reach is a review's visibility and the venue rating computed from it, nothing is deleted, and every decision is audited with the moderator's note."
       },
       "PlatformAuditEntry": {
         "type": "object",
@@ -4065,6 +4274,181 @@
                 "description": "Null on the last page."
               }
             }
+          }
+        }
+      },
+      "PlatformModerationCase": {
+        "type": "object",
+        "title": "PlatformModerationCase",
+        "description": "One open case about a review. No author: whether a review is abuse does not depend on who wrote it, and showing a name invites the idea that it should.",
+        "required": ["caseId", "reason", "openedAt", "scores", "review", "venue", "club"],
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "description": "Pass to `/resolve`. Also the cursor value."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why it is queued: a classifier category, `classifier_unavailable`, or `user_report`. An open string."
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "description": "Classifier score per category, 0–1. Empty when no classifier ran."
+          },
+          "review": {
+            "type": "object",
+            "required": ["id", "rating", "body", "status", "createdAt"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "body": {
+                "type": ["string", "null"],
+                "description": "As stored, after sanitising."
+              },
+              "status": {
+                "type": "string",
+                "description": "`PENDING_REVIEW` for a held review, `PUBLISHED` for a reported live one, `REJECTED` for an automatic rejection awaiting a human. An open string."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "club": {
+            "type": "object",
+            "required": ["id", "slug", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PlatformModerationCasePage": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items", "nextCursor"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformModerationCase"
+                }
+              },
+              "nextCursor": {
+                "type": ["string", "null"],
+                "description": "Null on the last page."
+              }
+            }
+          }
+        }
+      },
+      "ResolveModerationCaseRequest": {
+        "type": "object",
+        "title": "ResolveModerationCaseRequest",
+        "required": ["decision", "note"],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": ["APPROVE", "REJECT"]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 500,
+            "description": "Why. Stored as the case's resolution note and written verbatim to the platform audit row as its reason. No default."
+          }
+        }
+      },
+      "PlatformModerationResolution": {
+        "type": "object",
+        "title": "PlatformModerationResolution",
+        "required": ["caseId", "status", "review", "venue"],
+        "properties": {
+          "caseId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "`APPROVED` or `REJECTED`. An open string."
+          },
+          "review": {
+            "type": ["object", "null"],
+            "description": "Null only if the reviewed row no longer exists.",
+            "required": ["id", "status"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "description": "`PUBLISHED` or `REJECTED`."
+              }
+            }
+          },
+          "venue": {
+            "type": ["object", "null"],
+            "description": "The venue's rating after the decision. Null with `review`.",
+            "required": ["id", "avgRating", "reviewCount"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "avgRating": {
+                "type": "number",
+                "description": "0 when there are no reviews."
+              },
+              "reviewCount": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "PlatformModerationResolutionEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PlatformModerationResolution"
           }
         }
       }

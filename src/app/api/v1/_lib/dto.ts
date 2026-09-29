@@ -368,3 +368,61 @@ export function toReview(r: {
     createdAt: rfc3339(r.createdAt),
   };
 }
+
+export interface ModerationCaseItemDto {
+  caseId: string;
+  reason: string;
+  openedAt: string;
+  scores: Record<string, number>;
+  review: { id: string; rating: number; body: string | null; status: string; createdAt: string };
+  venue: { id: string; name: string };
+  club: { id: string; slug: string; name: string };
+}
+
+/**
+ * One case in the platform moderation queue.
+ *
+ * No author, deliberately — see `listReviewCases`. Whether a review is abuse
+ * does not depend on who wrote it.
+ */
+export function toModerationCaseItem(c: {
+  caseId: string;
+  reason: string;
+  openedAt: Date;
+  scores: Record<string, number>;
+  review: { id: string; rating: number; body: string | null; status: string; createdAt: Date };
+  venue: { id: string; name: string };
+  club: { id: string; slug: string; name: string };
+}): ModerationCaseItemDto {
+  return {
+    caseId: c.caseId,
+    reason: c.reason,
+    openedAt: rfc3339(c.openedAt),
+    scores: c.scores,
+    review: {
+      id: c.review.id,
+      rating: c.review.rating,
+      body: c.review.body,
+      status: c.review.status,
+      createdAt: rfc3339(c.review.createdAt),
+    },
+    venue: c.venue,
+    club: c.club,
+  };
+}
+
+export interface ModerationResolutionDto {
+  caseId: string;
+  status: string;
+  review: { id: string; status: string } | null;
+  venue: { id: string; avgRating: number; reviewCount: number } | null;
+}
+
+export function toModerationResolution(r: {
+  caseId: string;
+  status: string;
+  review: { id: string; status: string } | null;
+  venue: { id: string; avgRating: number; reviewCount: number } | null;
+}): ModerationResolutionDto {
+  return { caseId: r.caseId, status: r.status, review: r.review, venue: r.venue };
+}

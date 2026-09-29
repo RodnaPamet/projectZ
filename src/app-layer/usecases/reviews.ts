@@ -1,4 +1,4 @@
-import type { PrismaClient, ReviewStatus } from '@prisma/client';
+import type { ModerationCaseStatus, PrismaClient, ReviewStatus } from '@prisma/client';
 
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { moderateOrQueue, type ModerationResult } from '@/lib/moderation/classify';
@@ -310,7 +310,53 @@ export async function recomputeVenueRating(
   return { avgRating, reviewCount: count };
 }
 
-/** A human resolves a case. */
+export class ModerationCaseNotFoundError extends Error {
+  readonly code = 'case_not_found';
+  constructor() {
+    super('No moderation case with that id.');
+    this.name = 'ModerationCaseNotFoundError';
+  }
+}
+
+/**
+ * The case is not OPEN: somebody decided it first.
+ *
+ * Refused rather than applied again. Two moderators on one case is the
+ * ordinary way to reach this, and "last click wins" would silently overturn
+ * the first decision — publishing what one person had just rejected, with the
+ * first note left describing a decision that no longer stands.
+ */
+export class CaseAlreadyResolvedError extends Error {
+  readonly code = 'case_already_resolved';
+  constructor() {
+    super('That case has already been decided.');
+    this.name = 'CaseAlreadyResolvedError';
+  }
+}
+
+export interface CaseResolution {
+  caseId: string;
+  status: ModerationCaseStatus;
+  /** Null when the case is not about a review, or the review no longer exists. */
+  review: { id: string; status: ReviewStatus } | null;
+  /** The venue's rating after the decision; null with `review`. */
+  venue: { id: string; avgRating: number; reviewCount: number } | null;
+}
+
+/**
+ * A human resolves a case.
+ *
+ * Closing the case, changing the review and recomputing the venue's score are
+ * ONE transaction — a decision that closed the case but did not move the score
+ * would have no effect on the thing reviews exist to produce, and a crash
+ * between the two would leave it that way with nothing to say so. Called inside
+ * the platform binding, this nests as a savepoint in its transaction, so the
+ * audit row, the decision and the score commit together.
+ *
+ * The case is closed by an UPDATE that only matches an OPEN case, so two
+ * moderators deciding at once cannot both win: the second matches nothing and
+ * is told so, rather than overturning the first.
+ */
 export async function resolveCase(
   db: PrismaClient,
   input: {
@@ -319,38 +365,56 @@ export async function resolveCase(
     approve: boolean;
     note?: string;
   },
-): Promise<void> {
-  const c = await db.moderationCase.findUniqueOrThrow({ where: { id: input.caseId } });
-
-  await db.$transaction(async (tx) => {
-    await tx.moderationCase.update({
-      where: { id: c.id },
+): Promise<CaseResolution> {
+  return db.$transaction(async (tx) => {
+    // guardrail-allow: cross-tenant — a case is decided in whichever club it
+    // belongs to. Outside tests the only caller is the platform moderation
+    // route, through asPlatformAdmin with REVIEW_MODERATE.
+    const [closed] = await tx.moderationCase.updateManyAndReturn({
+      where: { id: input.caseId, status: 'OPEN' },
       data: {
         status: input.approve ? 'APPROVED' : 'REJECTED',
         resolvedByUserId: input.moderatorUserId,
         resolvedAt: new Date(),
         resolutionNote: input.note ?? null,
       },
+      select: { id: true, tenantId: true, subjectType: true, subjectId: true, status: true },
     });
 
-    if (c.subjectType === 'REVIEW') {
-      await tx.review.update({
-        where: { id: c.subjectId },
-        data: { status: input.approve ? 'PUBLISHED' : 'REJECTED' },
-      });
+    if (!closed) {
+      // guardrail-allow: cross-tenant — only to say WHICH refusal it is.
+      const exists = await tx.moderationCase.count({ where: { id: input.caseId } });
+      throw exists > 0 ? new CaseAlreadyResolvedError() : new ModerationCaseNotFoundError();
     }
+
+    const none = { caseId: closed.id, status: closed.status, review: null, venue: null };
+    if (closed.subjectType !== 'REVIEW' || !closed.tenantId) return none;
+
+    const [review] = await tx.review.updateManyAndReturn({
+      where: { id: closed.subjectId, tenantId: closed.tenantId },
+      data: { status: input.approve ? 'PUBLISHED' : 'REJECTED' },
+      select: { id: true, venueId: true, status: true },
+    });
+    // The venue was deleted and took the review with it. The case is still
+    // closed — there is nothing left to decide — and there is no score to move.
+    if (!review) return none;
+
+    // The score has to move when a moderator publishes or hides a review —
+    // otherwise moderation has no effect on the thing reviews exist to produce.
+    // A transaction client is a PrismaClient minus the lifecycle methods; the
+    // same cast every binding in rls-middleware makes.
+    const score = await recomputeVenueRating(tx as unknown as PrismaClient, {
+      tenantId: closed.tenantId,
+      venueId: review.venueId,
+    });
+
+    return {
+      caseId: closed.id,
+      status: closed.status,
+      review: { id: review.id, status: review.status },
+      venue: { id: review.venueId, ...score },
+    };
   });
-
-  // The score has to move when a moderator publishes or hides a review —
-  // otherwise moderation has no effect on the thing reviews exist to produce.
-  if (c.subjectType === 'REVIEW' && c.tenantId) {
-    const review = await db.review.findFirst({
-      where: { id: c.subjectId, tenantId: c.tenantId },
-    });
-    if (review) {
-      await recomputeVenueRating(db, { tenantId: c.tenantId, venueId: review.venueId });
-    }
-  }
 }
 
 /**

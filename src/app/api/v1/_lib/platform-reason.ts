@@ -50,7 +50,19 @@ const MAX_REASON_LENGTH = 500;
 export type ReasonResult = { ok: true; reason: string } | { ok: false; response: NextResponse };
 
 export function readPlatformReason(params: URLSearchParams): ReasonResult {
-  const reason = params.get('reason')?.trim() ?? '';
+  return checkPlatformReason(params.get('reason'), '?reason=');
+}
+
+/**
+ * The same rules for a reason that arrives some other way — a decision's
+ * `note` in a JSON body, which is ALSO the audit reason.
+ *
+ * `field` is only for the message, so a caller is told the name they actually
+ * sent: "send ?reason=" in reply to a JSON body would send them to fix the
+ * wrong thing.
+ */
+export function checkPlatformReason(raw: string | null | undefined, field: string): ReasonResult {
+  const reason = raw?.trim() ?? '';
 
   // ═══ A BYTE POSTGRES CANNOT STORE ═══
   //
@@ -108,7 +120,7 @@ export function readPlatformReason(params: URLSearchParams): ReasonResult {
             requestId: getRequestId(),
             message:
               `This endpoint records why it was called, in an append-only row nobody can ` +
-              `edit afterwards. Send ?reason= with at least ${MIN_REASON_LENGTH} characters ` +
+              `edit afterwards. Send ${field} with at least ${MIN_REASON_LENGTH} characters ` +
               `describing what you are looking into.`,
           },
         },

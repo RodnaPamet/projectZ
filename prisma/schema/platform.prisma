@@ -50,6 +50,10 @@ enum PlatformCapability {
   USER_READ
   /// Suspend a club. DECLARED, NOT ENABLED.
   TENANT_SUSPEND
+  /// Work the review moderation queue: read open cases across clubs, and
+  /// approve or reject them. A WRITE, and the one write that is ENABLED — by
+  /// owner decision (#228); see ENABLED_PLATFORM_WRITES for the terms.
+  REVIEW_MODERATE
 }
 
 /// One person's platform authority, for a bounded window.
