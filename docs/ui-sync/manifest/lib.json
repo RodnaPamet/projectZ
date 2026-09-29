@@ -1,0 +1,37 @@
+{
+  "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
+  "rows": [
+    {
+      "path": "src/lib/cn.ts",
+      "inflectPath": "src/lib/cn.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "798b063c97c4c0698808002e15418edc0ae82687e7e64b50549bae67d7f7cd18"
+    },
+    {
+      "path": "src/lib/hooks/keyboard-shortcut-internals.ts",
+      "inflectPath": "src/lib/hooks/keyboard-shortcut-internals.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "171b9892c5841c8a1528363745a18a403c636b0cd95d78e2fc506ba83c95e16b"
+    },
+    {
+      "path": "src/lib/hooks/use-keyboard-shortcut.tsx",
+      "inflectPath": "src/lib/hooks/use-keyboard-shortcut.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "5be31d424af029dad432b672a69efa278828156d83986f56a23bd6ad974f904a"
+    },
+    {
+      "path": "src/lib/theme-constants.ts",
+      "inflectPath": "src/lib/theme-constants.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "abc376d78ccdcdadaa39d04f123bacbff0cd49291debf83aee492cbd0182f5b2"
+    }
+  ]
+}

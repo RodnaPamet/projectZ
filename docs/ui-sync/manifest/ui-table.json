@@ -1,0 +1,165 @@
+{
+  "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
+  "rows": [
+    {
+      "path": "src/components/ui/table/column-visibility-utils.ts",
+      "inflectPath": "src/components/ui/table/column-visibility-utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "72298457caa23640fdccb1f7bb561de43bc48475123c19fe2cfdafd20cc543cd"
+    },
+    {
+      "path": "src/components/ui/table/columns-dropdown.tsx",
+      "inflectPath": "src/components/ui/table/columns-dropdown.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dcbc762d8af8486c27c0e9316e062e3d6fe133e32deb7e49a2dc438fb4285f3e"
+    },
+    {
+      "path": "src/components/ui/table/data-table-cards.tsx",
+      "inflectPath": "src/components/ui/table/data-table-cards.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "b877e00bc6390466ff341c5ca35a9b89a1857b3141565c675fc63ccaee8942c2"
+    },
+    {
+      "path": "src/components/ui/table/data-table.tsx",
+      "inflectPath": "src/components/ui/table/data-table.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "f10027e2a34415ab277d0d628ba96d68fc30ed16e43ed7b2a6bd81cdc670c34c"
+    },
+    {
+      "path": "src/components/ui/table/edit-columns-button.tsx",
+      "inflectPath": "src/components/ui/table/edit-columns-button.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7306fec268b669b81288da663d99fd64eef0a2e44f19b234e06ab3c4d5fcbbd1"
+    },
+    {
+      "path": "src/components/ui/table/index.ts",
+      "inflectPath": "src/components/ui/table/index.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "21623bc20961a57b5fe0c2062ac7a1e8ec8b402867a7b1c4a04382e6e52ba4b2"
+    },
+    {
+      "path": "src/components/ui/table/infinite-scroll-sentinel.tsx",
+      "inflectPath": "src/components/ui/table/infinite-scroll-sentinel.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "9c7cca173dce638df0659d2cc8d07e9ca374bd7cbe72a26e8f171fb8b9f46f22"
+    },
+    {
+      "path": "src/components/ui/table/pagination-controls.tsx",
+      "inflectPath": "src/components/ui/table/pagination-controls.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "f27b9e7703a329fa86734510514bc723bf0ee6d5525a814202fe6312b9526e29"
+    },
+    {
+      "path": "src/components/ui/table/pagination-utils.ts",
+      "inflectPath": "src/components/ui/table/pagination-utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dc793737993ee6480de2dcd15ebdd1cda291a7a985c8579985c91721509c23b2"
+    },
+    {
+      "path": "src/components/ui/table/selection-toolbar.tsx",
+      "inflectPath": "src/components/ui/table/selection-toolbar.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "a7aaed2b4ed1dd4f85d234d1a785a10e17947e17b0ea8972e36b9a8b8cdd4a4f"
+    },
+    {
+      "path": "src/components/ui/table/sort-rows.ts",
+      "inflectPath": "src/components/ui/table/sort-rows.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "4ada9da11603d261db3a4998450d9bf02fcc9a1960d165b5ff1485e68f873fe0"
+    },
+    {
+      "path": "src/components/ui/table/table-empty-state.tsx",
+      "inflectPath": "src/components/ui/table/table-empty-state.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "437c1a98eb1c10d61eed0333bb862757d5d296a0c8da16cf16042fe7de170674"
+    },
+    {
+      "path": "src/components/ui/table/table-utils.ts",
+      "inflectPath": "src/components/ui/table/table-utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "09024b1a4b915df903ec4bd4303da2d15978b6a490e531ff933a6fb76950287e"
+    },
+    {
+      "path": "src/components/ui/table/table.tsx",
+      "inflectPath": "src/components/ui/table/table.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "f83c47e549f7e1c4307ef86db3127f46dac14d6f3ccd13c09218f0f80dd7cfc9"
+    },
+    {
+      "path": "src/components/ui/table/types.ts",
+      "inflectPath": "src/components/ui/table/types.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "224d93761b85adcebd540f2c9625a33640e7f482d49b6e1dde54505a0346275c"
+    },
+    {
+      "path": "src/components/ui/table/use-columns-dropdown.tsx",
+      "inflectPath": "src/components/ui/table/use-columns-dropdown.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "d55e6b9cc9ff0bd4cea7180ccb60c19667204d047fe0ba4e3150309811180a3a"
+    },
+    {
+      "path": "src/components/ui/table/use-is-below-md.ts",
+      "inflectPath": "src/components/ui/table/use-is-below-md.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7c5ab5a5038bab59715f67ced62981b236bc429b7efdc1bead8b40bf8100fd52"
+    },
+    {
+      "path": "src/components/ui/table/use-list-pagination.ts",
+      "inflectPath": "src/components/ui/table/use-list-pagination.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "4c7422aadeb38fd203ad825588ebc8401996dc5cb7cb983e159e4e1790ebc201"
+    },
+    {
+      "path": "src/components/ui/table/use-table-pagination.tsx",
+      "inflectPath": "src/components/ui/table/use-table-pagination.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "411dbec8cbc8e124de45ec2287ce9ab45e9c7655a96f701e078b5f3d1a1bdd5d"
+    },
+    {
+      "path": "src/components/ui/table/virtual-table-body.tsx",
+      "inflectPath": "src/components/ui/table/virtual-table-body.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "00cf31cd7885f7defb0a9bfb5fa1050d7cdc5d5a4a07b11369accc1500a23117"
+    }
+  ]
+}
