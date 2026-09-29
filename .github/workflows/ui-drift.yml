@@ -1,0 +1,107 @@
+name: UI drift
+
+# ═══════════════════════════════════════════════════════════════════
+#  How far has the vendored UI drifted from inflect-compliance?
+#
+#  Every week, scripts/ui-sync/status.mjs compares each row of
+#  docs/ui-sync/manifest with inflect's main branch, both sides normalised
+#  by this repo's prettier, and sorts the rows into IDENTICAL, TAKE (only
+#  inflect changed), KEEP (only playerz changed) and MERGE (both did).
+#
+#  The result lives in ONE issue, "UI drift vs inflect <sha>", edited in
+#  place (title included) rather than filed afresh each week: a weekly
+#  issue that nobody closes is how an alert becomes noise. When no TAKE,
+#  MERGE or GONE row is left, the issue is closed; drift reopens it.
+#
+#  Drift is not a failure, so this job goes red only when it cannot run.
+# ═══════════════════════════════════════════════════════════════════
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: UI drift vs inflect
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # inflect is public. Full history, because each row is diffed against
+      # the inflect commit it was last synced from (its baseSha).
+      - name: Check out inflect-compliance
+        uses: actions/checkout@v7
+        with:
+          repository: RodnaPamet/inflect-compliance
+          path: .inflect
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      # prettier and its Tailwind plugin are all status.mjs needs; no Prisma
+      # client, no husky.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Compare the manifest with inflect main
+        env:
+          INFLECT_DIR: .inflect
+        run: |
+          node scripts/ui-sync/status.mjs --ref "$(git -C .inflect rev-parse HEAD)" \
+            --json "$RUNNER_TEMP/drift.json" --markdown "$RUNNER_TEMP/drift.md"
+
+      - name: Open, update or close the drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # gh reads the repository from GH_REPO when it is set, rather than
+          # from whichever of the two checkouts it happens to run in.
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          SHORT=$(jq -r '.inflect.short' "$RUNNER_TEMP/drift.json")
+          ACTIONABLE=$(jq '.counts.TAKE + .counts.MERGE + .counts.GONE + .counts.MISSING' "$RUNNER_TEMP/drift.json")
+          TITLE="UI drift vs inflect $SHORT"
+          BODY="$RUNNER_TEMP/body.md"
+          { cat "$RUNNER_TEMP/drift.md"; echo; echo "_Updated by [UI drift]($RUN_URL)._"; } > "$BODY"
+
+          # --search rather than a label: the label may not exist, and an empty
+          # list would open a duplicate every week. --state all, so the one
+          # issue is reopened rather than replaced once drift returns.
+          EXISTING=$(gh issue list --state all --search "\"UI drift vs inflect\" in:title sort:updated-desc" \
+                       --json number,title,state \
+                       --jq '[.[] | select(.title | startswith("UI drift vs inflect "))] | (first // empty) | "\(.number) \(.state)"')
+          NUMBER=${EXISTING%% *}
+          STATE=${EXISTING#* }
+
+          if [ "$ACTIONABLE" -gt 0 ]; then
+            if [ -z "$EXISTING" ]; then
+              gh issue create --title "$TITLE" --body-file "$BODY"
+            else
+              gh issue edit "$NUMBER" --title "$TITLE" --body-file "$BODY"
+              if [ "$STATE" = "CLOSED" ]; then gh issue reopen "$NUMBER"; fi
+            fi
+          elif [ -n "$EXISTING" ] && [ "$STATE" = "OPEN" ]; then
+            gh issue edit "$NUMBER" --title "$TITLE" --body-file "$BODY"
+            gh issue close "$NUMBER" --comment "No TAKE, MERGE or GONE rows left against inflect $SHORT."
+          else
+            echo "No actionable drift against inflect $SHORT, and no open drift issue."
+          fi

@@ -1,0 +1,189 @@
+{
+  "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
+  "rows": [
+    {
+      "path": "src/components/ui/hooks/__tests__/use-threshold-load-more.test.tsx",
+      "inflectPath": "src/components/ui/hooks/__tests__/use-threshold-load-more.test.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "2c744fafb6600966ad85ff34d0294e9e021900b3f968095a8d22b895664556f0"
+    },
+    {
+      "path": "src/components/ui/hooks/__tests__/use-toast-with-undo.test.ts",
+      "inflectPath": "src/components/ui/hooks/__tests__/use-toast-with-undo.test.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "cc800eeffdae12dbe3e6deadd1bd9df52d28ee1c6e629c63903340ebc0b76be4"
+    },
+    {
+      "path": "src/components/ui/hooks/index.ts",
+      "inflectPath": "src/components/ui/hooks/index.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "ddbb3d7d9db6dd9867e368f43d9cc26a30627e39ca09e1337016e8d1a95df99b"
+    },
+    {
+      "path": "src/components/ui/hooks/use-column-visibility.ts",
+      "inflectPath": "src/components/ui/hooks/use-column-visibility.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "3e7cf88c989c6916708acdddab24d00d5cef9de2b99ab97195ad0866e0869d3b"
+    },
+    {
+      "path": "src/components/ui/hooks/use-copy-to-clipboard.tsx",
+      "inflectPath": "src/components/ui/hooks/use-copy-to-clipboard.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6a2a578b763284a5aee93b4eef3cad575c40cfe7d6b13c1f887a9ffc6488ac95"
+    },
+    {
+      "path": "src/components/ui/hooks/use-cursor-pagination.ts",
+      "inflectPath": "src/components/ui/hooks/use-cursor-pagination.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6dacb62f0f557a58cf9e4d51b32859a5ca040dabbe1b54d6098dc50f2d3f9863"
+    },
+    {
+      "path": "src/components/ui/hooks/use-enter-submit.ts",
+      "inflectPath": "src/components/ui/hooks/use-enter-submit.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "4706bce5f87021bd30fc45277e39870ddbdf882ada2dd1c14d0a5939f5ee9985"
+    },
+    {
+      "path": "src/components/ui/hooks/use-in-viewport.tsx",
+      "inflectPath": "src/components/ui/hooks/use-in-viewport.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "d429d6c072f54e20b8a87cc033e218361441a3332b7ac2738d74c66cde32a481"
+    },
+    {
+      "path": "src/components/ui/hooks/use-input-focused.ts",
+      "inflectPath": "src/components/ui/hooks/use-input-focused.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "fcd8fe899e5426820861a6c35ed07f993daf55e81383990803175bd7fcc645c1"
+    },
+    {
+      "path": "src/components/ui/hooks/use-intersection-observer.ts",
+      "inflectPath": "src/components/ui/hooks/use-intersection-observer.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "9f582f3c1269286d344dd4649af69f8353dc439645e888bf5ba0325d619c736e"
+    },
+    {
+      "path": "src/components/ui/hooks/use-is-below-md.ts",
+      "inflectPath": "src/components/ui/hooks/use-is-below-md.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "29219595ad5a30b70af938fb99b9f710cc0a28652afd450882b9f743ab6438df"
+    },
+    {
+      "path": "src/components/ui/hooks/use-keyboard-shortcut.tsx",
+      "inflectPath": "src/components/ui/hooks/use-keyboard-shortcut.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "fec06e46be551728bcb607a753b94c969ca045bda74c0a99bcdd53e6c3d8af4d"
+    },
+    {
+      "path": "src/components/ui/hooks/use-local-storage.ts",
+      "inflectPath": "src/components/ui/hooks/use-local-storage.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "53620e66a64389570ae4a3ff0dc1bfe37b4252f3aa77e39052e1ea60dc5ee6d0"
+    },
+    {
+      "path": "src/components/ui/hooks/use-media-query.ts",
+      "inflectPath": "src/components/ui/hooks/use-media-query.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "f2d2a36174cb7773c21ce72469f4f2a8d05cf2279a703e53436c49f625e81ebc"
+    },
+    {
+      "path": "src/components/ui/hooks/use-optimistic-update.ts",
+      "inflectPath": "src/components/ui/hooks/use-optimistic-update.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "fa6406390d972a06af9cd865944ad106d356c7baedf210a821d1ce54670592c8"
+    },
+    {
+      "path": "src/components/ui/hooks/use-resize-observer.ts",
+      "inflectPath": "src/components/ui/hooks/use-resize-observer.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "33241c1ed570d005a74d1554397c0f76926743c87258372518cdfa22f6cfe382"
+    },
+    {
+      "path": "src/components/ui/hooks/use-responsive-presentation.ts",
+      "inflectPath": "src/components/ui/hooks/use-responsive-presentation.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "50c812289b190cbe57f3d2df4150cf65858e0e4b70babfd2388c45a066f3f58b"
+    },
+    {
+      "path": "src/components/ui/hooks/use-scroll-progress.ts",
+      "inflectPath": "src/components/ui/hooks/use-scroll-progress.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "4ec3b274bf4dbe76cf9232d8dc15d7b229caf4144661fee49ff8ab28f4430286"
+    },
+    {
+      "path": "src/components/ui/hooks/use-scroll.ts",
+      "inflectPath": "src/components/ui/hooks/use-scroll.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "ac4b2cdb28f908ad4b7849266d622bf62989c6e008e5c04d412360a28bda3fb0"
+    },
+    {
+      "path": "src/components/ui/hooks/use-threshold-load-more.ts",
+      "inflectPath": "src/components/ui/hooks/use-threshold-load-more.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "92dd2494a7692cc40aab9d72df46d4a3def7d5a04ccae02573499e56f1fd530d"
+    },
+    {
+      "path": "src/components/ui/hooks/use-toast-with-undo.ts",
+      "inflectPath": "src/components/ui/hooks/use-toast-with-undo.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dd52ffbe3733f210fc5efe5a1d178c0b98314f614ee852cae9a6bf7d36aebd0a"
+    },
+    {
+      "path": "src/components/ui/hooks/use-toast.ts",
+      "inflectPath": "src/components/ui/hooks/use-toast.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "94cbc71976f32cba1d478c031039588c129902ce46410abf7d5edcc8342df1cb"
+    },
+    {
+      "path": "src/components/ui/hooks/use-view-mode.ts",
+      "inflectPath": "src/components/ui/hooks/use-view-mode.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "e48d990f7f02056693b6bb6670092a502e33e9f7ed7d292f3b57548110a827ca"
+    }
+  ]
+}

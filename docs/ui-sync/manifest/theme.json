@@ -1,0 +1,21 @@
+{
+  "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
+  "rows": [
+    {
+      "path": "src/components/theme/ThemeProvider.tsx",
+      "inflectPath": "src/components/theme/ThemeProvider.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "67d5b03bcd24dbe6e8abb0502f6685eeee9fa9ab4bea0b5d6e0d048e0701e7a6"
+    },
+    {
+      "path": "src/components/theme/ThemeToggle.tsx",
+      "inflectPath": "src/components/theme/ThemeToggle.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "0f46d000daac533074b5d4195970eda5d4e5873400fbe01c329d794e8cc7f038"
+    }
+  ]
+}

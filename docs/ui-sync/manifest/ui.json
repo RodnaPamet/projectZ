@@ -1,0 +1,709 @@
+{
+  "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
+  "rows": [
+    {
+      "path": "src/components/ui/animated-size-container.tsx",
+      "inflectPath": "src/components/ui/animated-size-container.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dfbaa197fa95d933d648772d05c82e9c0bfcf41320960914a57e496220d75cf5"
+    },
+    {
+      "path": "src/components/ui/async-combobox.tsx",
+      "inflectPath": "src/components/ui/async-combobox.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dbb2b47f3c860b401d12b86bf83910ca1a826b4877fbe7cee46da6ec5cc97e8e"
+    },
+    {
+      "path": "src/components/ui/breadcrumbs.tsx",
+      "inflectPath": "src/components/ui/breadcrumbs.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "b5dc8c0a9cd5698c01c3fe983a929ffec11256cb4a2fecce43aa7367ea25e548"
+    },
+    {
+      "path": "src/components/ui/button-variants.ts",
+      "inflectPath": "src/components/ui/button-variants.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "64d1bcb9023a86bba00cb440cc056acc65447c11de453542512912f54163a8ad"
+    },
+    {
+      "path": "src/components/ui/button.tsx",
+      "inflectPath": "src/components/ui/button.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "a541834979e7bf562ce34166db7faa5ba2d2faee90df2f8c810591b267a5bd51"
+    },
+    {
+      "path": "src/components/ui/card-variants.ts",
+      "inflectPath": "src/components/ui/card-variants.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "cfabd8da6409b2aac260a512821dc7c342c26ffe885926a9eca4b92621755eae"
+    },
+    {
+      "path": "src/components/ui/card.tsx",
+      "inflectPath": "src/components/ui/card.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6b2f985801756096134e9aacf481a2a4a86695996dc97830b099a0086310bc2a"
+    },
+    {
+      "path": "src/components/ui/charts/areas.tsx",
+      "inflectPath": "src/components/ui/charts/areas.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "8dee0abd7a18add29b90d217a8433a99634121360ad418a86f8142a642bb4e27"
+    },
+    {
+      "path": "src/components/ui/charts/bars.tsx",
+      "inflectPath": "src/components/ui/charts/bars.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "ebe4fd001f90f41a3877e416a48bed4ce79afec76c64388fc27e0a855370bce7"
+    },
+    {
+      "path": "src/components/ui/charts/chart-context.ts",
+      "inflectPath": "src/components/ui/charts/chart-context.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "d3dba253d37e32d0a511b77a5772d8d1ee47f660afbf91bfd505c30cc78d2efe"
+    },
+    {
+      "path": "src/components/ui/charts/chart-frame.tsx",
+      "inflectPath": "src/components/ui/charts/chart-frame.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7f76bcca8bb71ae4f339858500c9b2c3c707f396c299746140761c48621f5f51"
+    },
+    {
+      "path": "src/components/ui/charts/chart-gloss.tsx",
+      "inflectPath": "src/components/ui/charts/chart-gloss.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "3b708e0b0991e7dcf72201e4d42a3d043b4f78e5855dc1fe0832d7f699aa4c0c"
+    },
+    {
+      "path": "src/components/ui/charts/chart-gradient.tsx",
+      "inflectPath": "src/components/ui/charts/chart-gradient.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "f7d213cb58267d4bddad9ed26f19c06612a25fc988c66948191012b8db00df31"
+    },
+    {
+      "path": "src/components/ui/charts/chart-legend.tsx",
+      "inflectPath": "src/components/ui/charts/chart-legend.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "ed91b773bf45877e0a8ab7f8e00c649351aee14d3cf0f73c42cf9112eaeaa927"
+    },
+    {
+      "path": "src/components/ui/charts/chart-motion.tsx",
+      "inflectPath": "src/components/ui/charts/chart-motion.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "4c402e3826248c67f8c2b946ae8db428522adb116da598f54175f1872cb573da"
+    },
+    {
+      "path": "src/components/ui/charts/examples.ts",
+      "inflectPath": "src/components/ui/charts/examples.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "e14a7c0fcf06241784fc0dc853971d40fe91b8dd80a718513aeaff0036329e5c"
+    },
+    {
+      "path": "src/components/ui/charts/funnel-chart.tsx",
+      "inflectPath": "src/components/ui/charts/funnel-chart.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "592aa45541dbee504b554de3c5f8be6b431780638b9e927597cb6559b98dc29a"
+    },
+    {
+      "path": "src/components/ui/charts/index.ts",
+      "inflectPath": "src/components/ui/charts/index.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "df6f231040f0c78a06b84c533c1bfabcf313624dbfd05d1c1054079c2696ece8"
+    },
+    {
+      "path": "src/components/ui/charts/interaction.tsx",
+      "inflectPath": "src/components/ui/charts/interaction.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "501a93779aff79c4fbbd9bf83f68bba7261f40f9296d2bcb42212ca7e51d4c5a"
+    },
+    {
+      "path": "src/components/ui/charts/layout.ts",
+      "inflectPath": "src/components/ui/charts/layout.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6a5a1ff666faa3fd2e668fc7fce01b109e773a6d0753632f607c2aafe0440a3a"
+    },
+    {
+      "path": "src/components/ui/charts/line-chart.tsx",
+      "inflectPath": "src/components/ui/charts/line-chart.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "427c32c7aeaf9a8ab57de2f144b024b3f4f9d981e6568da4ef9c55672a0132d9"
+    },
+    {
+      "path": "src/components/ui/charts/radar-chart.tsx",
+      "inflectPath": "src/components/ui/charts/radar-chart.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "cc653bcdd4eb7d3f16c1c96461c1be0ca6f1d42607f30904b43ab7cff0ae13bf"
+    },
+    {
+      "path": "src/components/ui/charts/time-series-chart.tsx",
+      "inflectPath": "src/components/ui/charts/time-series-chart.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "d383c4f0101addec18bbf29b3aea7c88515b1dc23eb3615f62c75da7ebd82852"
+    },
+    {
+      "path": "src/components/ui/charts/tooltip-sync.tsx",
+      "inflectPath": "src/components/ui/charts/tooltip-sync.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "64066be7cd49af4fac26d2a79234cb55df88d987c5956cd28e7900e1a230021f"
+    },
+    {
+      "path": "src/components/ui/charts/types.ts",
+      "inflectPath": "src/components/ui/charts/types.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "b26c6eac74d17c6d978daba72e070b91ad0faf7f86d9f57e7742e97864d270da"
+    },
+    {
+      "path": "src/components/ui/charts/use-heat-scale.ts",
+      "inflectPath": "src/components/ui/charts/use-heat-scale.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "3fbbfe3be606e8973d1bc27ef2812789ca39be43ef719b2a46ba7b40d7b4a141"
+    },
+    {
+      "path": "src/components/ui/charts/use-tooltip.ts",
+      "inflectPath": "src/components/ui/charts/use-tooltip.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dcc0bea7a113e45c28cb780498264ecf69296edb0296d0115244b7141b346c35"
+    },
+    {
+      "path": "src/components/ui/charts/utils.ts",
+      "inflectPath": "src/components/ui/charts/utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "ac53de8e08cc2ded92c7d211c0cf8570bb7a47d270b0f2502c9a5c29fe2cac55"
+    },
+    {
+      "path": "src/components/ui/charts/x-axis.tsx",
+      "inflectPath": "src/components/ui/charts/x-axis.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "43b5708eed16afe8ce3dd4bfe0b807d8651afc0392d57a90349054f09460bd8c"
+    },
+    {
+      "path": "src/components/ui/charts/y-axis.tsx",
+      "inflectPath": "src/components/ui/charts/y-axis.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "bae8bd786e387dfbe02b0d5a16604c33900f623caa9e927ae46124f70bf9724b"
+    },
+    {
+      "path": "src/components/ui/checkbox.tsx",
+      "inflectPath": "src/components/ui/checkbox.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "49ad306dd54c81853767ac510f874d239c15b759cff0e3f633d7cdd8e2875c9e"
+    },
+    {
+      "path": "src/components/ui/checklist-gear-button.tsx",
+      "inflectPath": "src/components/ui/checklist-gear-button.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "149b170c3d5b8b9f55f70a218dc05c00c2af1658980e035ab3f3ca126091d38a"
+    },
+    {
+      "path": "src/components/ui/checklist-order.ts",
+      "inflectPath": "src/components/ui/checklist-order.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "72badc7025889b112e20b85a1b0e71412aded472e75f222e80c6f26e24f49098"
+    },
+    {
+      "path": "src/components/ui/combobox/index.tsx",
+      "inflectPath": "src/components/ui/combobox/index.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "a3bf9ba3666bf2c9e22d229f2c2ea85c6fd37a76f3a0c04dc3ab989e1d532dfb"
+    },
+    {
+      "path": "src/components/ui/combobox/messages.ts",
+      "inflectPath": "src/components/ui/combobox/messages.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7555797a32c46ab3abcdfe5dbe633f9ff4b51457ab3cabdbf38021e3ad6eca8f"
+    },
+    {
+      "path": "src/components/ui/combobox/virtualized-options.tsx",
+      "inflectPath": "src/components/ui/combobox/virtualized-options.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6d09488f57d9ef8c4eb32d0742378f17c036fee9b4847e431ef0fe7a83d0576f"
+    },
+    {
+      "path": "src/components/ui/confirm-dialog.tsx",
+      "inflectPath": "src/components/ui/confirm-dialog.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "dfc5fe67e40b4a415eba659047fb8df54cd2241731f096d608db3b02485dc663"
+    },
+    {
+      "path": "src/components/ui/copy-button.tsx",
+      "inflectPath": "src/components/ui/copy-button.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "cabe7fd05a27b723306a93dd52877aee87a2e4086396f5218189ef838082fac9"
+    },
+    {
+      "path": "src/components/ui/date-picker/calendar.tsx",
+      "inflectPath": "src/components/ui/date-picker/calendar.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "ca188e62fd3b42f3ff665375bfcb07af57c52a1011ec8caf990fa6f545a7225a"
+    },
+    {
+      "path": "src/components/ui/date-picker/date-picker.tsx",
+      "inflectPath": "src/components/ui/date-picker/date-picker.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "74ba65586983f3ac1492964aa1c40e623bc5adef8dfcfb23e3b9402201bb3712"
+    },
+    {
+      "path": "src/components/ui/date-picker/date-range-picker.tsx",
+      "inflectPath": "src/components/ui/date-picker/date-range-picker.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "528ee651ab777a397d90fa0da394153f9b850973f676328232d7786502cc48e7"
+    },
+    {
+      "path": "src/components/ui/date-picker/date-utils.ts",
+      "inflectPath": "src/components/ui/date-picker/date-utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "aa81885c30e58fce2fe42582857221a301e8e7b14d3a1f025197c0a8530d83c1"
+    },
+    {
+      "path": "src/components/ui/date-picker/index.ts",
+      "inflectPath": "src/components/ui/date-picker/index.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "76a0758bc670e49ebf52ff526364a608b8fa653f7741efa59bec883d111959c0"
+    },
+    {
+      "path": "src/components/ui/date-picker/presets-catalogue.ts",
+      "inflectPath": "src/components/ui/date-picker/presets-catalogue.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "625c4d166a2e760f839afa83ce688615df74e524f8a14507e997bb5b472452d5"
+    },
+    {
+      "path": "src/components/ui/date-picker/presets.tsx",
+      "inflectPath": "src/components/ui/date-picker/presets.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "09110d4c179cbd5aa18e5f6f6480aba3174c0fed5b0eed7be475a45c55805de1"
+    },
+    {
+      "path": "src/components/ui/date-picker/shared.ts",
+      "inflectPath": "src/components/ui/date-picker/shared.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "190ff048584d434611d85e4fb45cbb5e4cb218bcf932f26bfd9a36bd96f2756d"
+    },
+    {
+      "path": "src/components/ui/date-picker/trigger.tsx",
+      "inflectPath": "src/components/ui/date-picker/trigger.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "025774277aae04a1cb90253ff94406801530dc33f8ed16e14f7ee43a16d18cac"
+    },
+    {
+      "path": "src/components/ui/date-picker/types.ts",
+      "inflectPath": "src/components/ui/date-picker/types.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "c1e7680e7f5971c7578d15846a0d23a188416be0f003654ff74fcd1a5da04066"
+    },
+    {
+      "path": "src/components/ui/empty-state.tsx",
+      "inflectPath": "src/components/ui/empty-state.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "b03b6a37700628f296795ef683e4904d3f164dde2d8ef642261fdb0ccd35306f"
+    },
+    {
+      "path": "src/components/ui/error-state.tsx",
+      "inflectPath": "src/components/ui/error-state.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "29d018d6fd53b569644f061fc7008533d53ca63edb06029316b65df806504a09"
+    },
+    {
+      "path": "src/components/ui/filter/edit-filters-button.tsx",
+      "inflectPath": "src/components/ui/filter/edit-filters-button.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "a507f791fd0249804287b367a7bc802e0c74d43be4b2ba82ef677d5aa2374b93"
+    },
+    {
+      "path": "src/components/ui/filter/filter-context.tsx",
+      "inflectPath": "src/components/ui/filter/filter-context.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7111d2985b02c9c7ebd5a4e062d8de920b6f9e39b2feb29edc311bc408977c9d"
+    },
+    {
+      "path": "src/components/ui/filter/filter-definitions.ts",
+      "inflectPath": "src/components/ui/filter/filter-definitions.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "c519c172921e12d622019dd1e24e459e40b34e6163f6359353678dc8036b5fdb"
+    },
+    {
+      "path": "src/components/ui/filter/filter-examples.ts",
+      "inflectPath": "src/components/ui/filter/filter-examples.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "9af865ea2b6adb0cb819ed54dd5b85c19d067cb68cc88d5600c8430dfbb0f9e1"
+    },
+    {
+      "path": "src/components/ui/filter/filter-list.tsx",
+      "inflectPath": "src/components/ui/filter/filter-list.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "c3e956ed0a9df6e698160d6a1ab07debdd3c41a0e4df527d35f9386890caea6b"
+    },
+    {
+      "path": "src/components/ui/filter/filter-range-panel.tsx",
+      "inflectPath": "src/components/ui/filter/filter-range-panel.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "9a6115dd2008fd9fc8f2330b6bf617bf1f69c88e87d554b0de954f8e8bee39bc"
+    },
+    {
+      "path": "src/components/ui/filter/filter-range-utils.ts",
+      "inflectPath": "src/components/ui/filter/filter-range-utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "92b6792d20fe0259ec6d046f23e562df1718447d290e6a80417e0446d5f15aa1"
+    },
+    {
+      "path": "src/components/ui/filter/filter-scroll.tsx",
+      "inflectPath": "src/components/ui/filter/filter-scroll.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6f434af5a061ea19239a3f3229990d5742795460371f946670cdeadc554a780a"
+    },
+    {
+      "path": "src/components/ui/filter/filter-select-utils.ts",
+      "inflectPath": "src/components/ui/filter/filter-select-utils.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "07556a8241117f87c5773116dd9491325a9d9286ef7fdf9f16e2d3cc9ef2919b"
+    },
+    {
+      "path": "src/components/ui/filter/filter-select.tsx",
+      "inflectPath": "src/components/ui/filter/filter-select.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "b2db954778eda8321d41e3ce1a1a972481677af59119d85aef3a7bf3218b3caf"
+    },
+    {
+      "path": "src/components/ui/filter/filter-state.ts",
+      "inflectPath": "src/components/ui/filter/filter-state.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "343bb386877f474655fcf570081d5db988e35df8142e6e664af59471a2378b2b"
+    },
+    {
+      "path": "src/components/ui/filter/index.ts",
+      "inflectPath": "src/components/ui/filter/index.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "569d2b92cd4ddeb14253b112fadadeb7cf48454edabf660abc9b722edcaab1b6"
+    },
+    {
+      "path": "src/components/ui/filter/types.ts",
+      "inflectPath": "src/components/ui/filter/types.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "0cd24334db597c646516e17055b0dcdb9e44faf48bf76d28f8a36b7c90e20abf"
+    },
+    {
+      "path": "src/components/ui/filter/use-filter-card-visibility.tsx",
+      "inflectPath": "src/components/ui/filter/use-filter-card-visibility.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "0ab6fc237acdbeb7dfdb5f9f12f1b18efd48df82055c16b5c5982b569ce95c7d"
+    },
+    {
+      "path": "src/components/ui/filter/use-filter-presets.ts",
+      "inflectPath": "src/components/ui/filter/use-filter-presets.ts",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "230fac5a48d0e5806e42dab980026f68b432a6c971469edaf6b7cedc902bc258"
+    },
+    {
+      "path": "src/components/ui/form-description.tsx",
+      "inflectPath": "src/components/ui/form-description.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7b833793977df5d833e1516a5eccbddd798eabf788847b96eee9af8ce6a65ffd"
+    },
+    {
+      "path": "src/components/ui/form-error.tsx",
+      "inflectPath": "src/components/ui/form-error.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "d63c4f42d9ce968dc4fc27ce533c5533d5447bd9efc298fd53c5f0250769713b"
+    },
+    {
+      "path": "src/components/ui/form-field.tsx",
+      "inflectPath": "src/components/ui/form-field.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "49570a68c7822dee5c5b9c8cea7aa9373d7843c9a1c5a39c76eb2600689c7859"
+    },
+    {
+      "path": "src/components/ui/form.tsx",
+      "inflectPath": "src/components/ui/form.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "f7058e7f3d8730c088199225480197af84d85555666158acf8b2b783cb7af576"
+    },
+    {
+      "path": "src/components/ui/initials-avatar.tsx",
+      "inflectPath": "src/components/ui/initials-avatar.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7040e30b8800b16f78f89460a42ea273340280aec36bc184223f2e6887f6b84e"
+    },
+    {
+      "path": "src/components/ui/input.tsx",
+      "inflectPath": "src/components/ui/input.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "847f946a51cc4bf9845df69db0737b2ed392e8fa5c11347b3d271fbe95a366bc"
+    },
+    {
+      "path": "src/components/ui/label.tsx",
+      "inflectPath": "src/components/ui/label.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "794b24487cf6c59890c5faf2157338d61c6fef20743478b89d15225b63dd6a0d"
+    },
+    {
+      "path": "src/components/ui/modal.tsx",
+      "inflectPath": "src/components/ui/modal.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "e8ea9fab6ef8a3b15154c4601fc2ee14b08b058a6a1bd9ee538843f398a47eb0"
+    },
+    {
+      "path": "src/components/ui/popover.tsx",
+      "inflectPath": "src/components/ui/popover.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "8d9e69b6af45dbb95fe27e5d5d0fca6120778a69a24a41e304ed4d6890eac1a9"
+    },
+    {
+      "path": "src/components/ui/progressive-blur.tsx",
+      "inflectPath": "src/components/ui/progressive-blur.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "3174819924c48017f468ba7e866b8da6b3167264714ee62cd3ca2694b59a66d2"
+    },
+    {
+      "path": "src/components/ui/radio-group.tsx",
+      "inflectPath": "src/components/ui/radio-group.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "17d33991a2fff28280e0d5b0cccbb0ddea86be9929d287ac38fa8c65707d5b9a"
+    },
+    {
+      "path": "src/components/ui/required-marker.tsx",
+      "inflectPath": "src/components/ui/required-marker.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "65a7280a614102fc77810404e30b830636694cf38fbff135d563df6ac88c6466"
+    },
+    {
+      "path": "src/components/ui/scroll-container.tsx",
+      "inflectPath": "src/components/ui/scroll-container.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "b7780f5adb0b581d5c1d90de17ea05f332051fd7c1234696311532b129b6128f"
+    },
+    {
+      "path": "src/components/ui/sheet.tsx",
+      "inflectPath": "src/components/ui/sheet.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7b301257306d4474ae061e9101e42954f3c410652db287e3f873c5d42ef3d5b4"
+    },
+    {
+      "path": "src/components/ui/skeleton.tsx",
+      "inflectPath": "src/components/ui/skeleton.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "3de26eb1e0119d65aebf3b540d7364137aafe3ef5bd39cb5945737f3bb038245"
+    },
+    {
+      "path": "src/components/ui/status-badge.tsx",
+      "inflectPath": "src/components/ui/status-badge.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "d3d79b7af45fe92c89fc117af6414f0383dc4d5918fd2c17d06aa282a01a4dc3"
+    },
+    {
+      "path": "src/components/ui/switch.tsx",
+      "inflectPath": "src/components/ui/switch.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "96a815008e44d9596780455ca62005503c675d28bd173957bd1d87a189cff7bd"
+    },
+    {
+      "path": "src/components/ui/textarea.tsx",
+      "inflectPath": "src/components/ui/textarea.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "7421b813c81cb468f705b69076ae70145d8aee15624a9589578020a0917f3501"
+    },
+    {
+      "path": "src/components/ui/tooltip.tsx",
+      "inflectPath": "src/components/ui/tooltip.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "4c918135093be0bf1cedb809554834b8a5d3cbd0523ecf49daeb85bdbfe5fe09"
+    },
+    {
+      "path": "src/components/ui/typography.tsx",
+      "inflectPath": "src/components/ui/typography.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "8f2415de6feb1784db7afb089b4975caee5205aa38872e076ea8a913ead52c51"
+    },
+    {
+      "path": "src/components/ui/undo-toast.tsx",
+      "inflectPath": "src/components/ui/undo-toast.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "867f9aa52f413c3702092c30774895b068afa70cefcdec6a43a188e8b3f364d5"
+    },
+    {
+      "path": "src/components/ui/user-combobox.tsx",
+      "inflectPath": "src/components/ui/user-combobox.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "16c3917a68883949e16a53656d5d8c9b3852c841cc2e9c7c2c0c196e131fbda4"
+    },
+    {
+      "path": "src/components/ui/virtualized-list.tsx",
+      "inflectPath": "src/components/ui/virtualized-list.tsx",
+      "baseSha": "1520b8b87",
+      "sha": null,
+      "status": "pending",
+      "sha256": "6fde5fe5a4d53a1a9ccf1e4082b3916cffbbd9be85b809336d47bba1e8636152"
+    }
+  ]
+}
