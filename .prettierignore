@@ -4,3 +4,7 @@ coverage
 playwright-report
 test-results
 package-lock.json
+.perf
+# Machine-written by tests/perf/report.ts, which keeps each array of samples on
+# one line. Prettier would put every number on its own line.
+docs/perf/*.json

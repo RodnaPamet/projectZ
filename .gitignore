@@ -5,6 +5,10 @@ build/
 coverage/
 playwright-report/
 test-results/
+# The perf harness's scratch: build and server logs, saved sessions, and each
+# run's raw JSON. A run is one measurement; only a merged baseline under
+# docs/perf/ is committed.
+.perf/
 # Visual baselines are per-PLATFORM. CI runs linux and those PNGs are tracked;
 # a developer running the suite on a Mac generates -darwin twins that nothing
 # compares against and that nobody should commit.
