@@ -269,11 +269,15 @@ describe('what the route refuses before touching anything', () => {
     expect(status).toBe(401);
   });
 
-  it('404 for a club that does not exist, and for a suspended member', async () => {
+  it('refuses a club that does not exist and a suspended member IDENTICALLY', async () => {
+    // Both have no ACTIVE membership at the slug, so `contextFromRequest`
+    // refuses both before the handler runs — the route needs `bookings.create`,
+    // checked against the database since #250. This was a 404 from the handler
+    // only when the edge was skipped; through the edge on main it was the
+    // edge's 403, which is what it is again, now from the route.
     const booking = await seedBooking();
 
     const unknown = await post(booking.id, { rating: 5 }, { slug: 'no-such-club' });
-    expect(unknown.status).toBe(404);
 
     await asAppSuperuser(db, (tx) =>
       tx.tenantMembership.update({
@@ -282,7 +286,11 @@ describe('what the route refuses before touching anything', () => {
       }),
     );
     const suspended = await post(booking.id, { rating: 5 });
-    expect(suspended.status).toBe(404);
+
+    expect(unknown.status).toBe(403);
+    expect(suspended.status).toBe(403);
+    expect(code(unknown.json)).toBe('FORBIDDEN');
+    expect(code(suspended.json)).toBe('FORBIDDEN');
   });
 
   it.each([

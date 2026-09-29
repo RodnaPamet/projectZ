@@ -74,12 +74,14 @@ async function listHandler(req: NextRequest, { params }: { params: Promise<{ slu
   const limit = clampBookingLimit(Number(req.nextUrl.searchParams.get('limit')) || undefined);
   const cursor = req.nextUrl.searchParams.get('cursor');
 
-  // Resolved against the DATABASE, not the token. `contextFromRequest` returns
-  // no tenant when the slug is missing from the JWT's membership list, and its
-  // own comment says absence from a TRUNCATED list proves nothing — so reading
-  // `ctx.tenantId!` here meant a player with many clubs could not see their own
-  // bookings at the 51st. `createIfAbsent: false`: listing must never join.
-  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: false });
+  // Resolved against the DATABASE, not the token — as `contextFromRequest`
+  // now does too (#250). This resolver is used rather than `ctx.tenantId`
+  // because it also answers "is the club ACTIVE", which the context does not.
+  // `createIfAbsent: false`: listing must never join.
+  const standing = await resolvePlayerTenant(ctx.userId, slug, {
+    createIfAbsent: false,
+    groupGateCleared: ctx.groupGateCleared,
+  });
 
   // No standing, no bookings. An empty page rather than a 403: whether you are
   // a member of a club is not something this endpoint should confirm, and the
@@ -98,7 +100,18 @@ async function listHandler(req: NextRequest, { params }: { params: Promise<{ slu
 
 async function createHandler(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const ctx = await contextFromRequest(req, { slug, requestId: getRequestId() });
+
+  // `joinsAsPlayer`: the one tenant route a NON-member may reach, because
+  // booking is how a player joins a club (#229). A member is still checked
+  // against the permission table from the database; a non-member gets a
+  // context with no tenant and no permissions, and is joined below — after the
+  // request has been validated — or refused with the same 404 as an unknown
+  // club.
+  const ctx = await contextFromRequest(req, {
+    slug,
+    requestId: getRequestId(),
+    joinsAsPlayer: true,
+  });
 
   if (!ctx.userId) throw new UnauthorizedError('Authentication required');
 
@@ -134,11 +147,14 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
   // The membership is created rather than bypassed. Binding a tenant the
   // caller has no membership for would put a hole in the one mechanism that
   // stops a stale membership becoming authority at the wrong club.
-  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: true });
+  const standing = await resolvePlayerTenant(ctx.userId, slug, {
+    createIfAbsent: true,
+    groupGateCleared: ctx.groupGateCleared,
+  });
 
   // Same 404 as an unknown court, and for the same reason: distinguishing
-  // "no such club" from "suspended" or "you are banned here" turns this into a
-  // probe.
+  // "no such club" from "suspended", "you are banned here" or "behind a group
+  // gate you have not cleared" turns this into a probe.
   if (!standing) throw new NotFoundError('Resource not found');
 
   const tenantId = standing.tenantId;

@@ -19,42 +19,74 @@ describe('checkTenantAccess', () => {
     });
   });
 
-  it('DENIES a member of tenant A asking for tenant B', () => {
-    // The whole point of the file.
+  it('does NOT conclude that a member of tenant A is a stranger at tenant B (#250)', () => {
+    // It used to: `forbidden`, the whole point of the file. But a web token
+    // lists only the clubs held at sign-in, and #229 joins a player to a club
+    // by booking — so B may be theirs since this afternoon. The edge cannot
+    // read the database, so it hands the question to the route, which can.
     expect(checkTenantAccess('/t/plovdiv-tennis/dashboard', member('sofia-padel'))).toEqual({
-      kind: 'forbidden',
-      reason: 'not_a_member',
+      kind: 'needs_db_check',
+      tenantSlug: 'plovdiv-tennis',
     });
   });
 
-  it('denies the API route just as hard as the page route', () => {
-    // A guard that only covers /t/** and forgets /api/t/** protects the
-    // page and leaves the data wide open.
+  it('defers the API route exactly as it defers the page route', () => {
+    // Both have a database-backed decider behind them: `contextFromRequest`
+    // for the API, `resolveTenantPageContext` for pages and Server Actions.
     expect(checkTenantAccess('/api/t/plovdiv-tennis/bookings', member('sofia-padel')).kind).toBe(
-      'forbidden',
+      'needs_db_check',
+    );
+    expect(checkTenantAccess('/api/v1/t/plovdiv-tennis/bookings', member('sofia-padel')).kind).toBe(
+      'needs_db_check',
     );
   });
 
   it('does not distinguish "no such tenant" from "not a member"', () => {
-    // Different answers here would be a tenant-enumeration oracle.
+    // Different answers here would be a tenant-enumeration oracle. They are
+    // identical here — both undecided — and the route resolves both from the
+    // same query, as "no membership at this slug".
     const nonexistent = checkTenantAccess('/t/does-not-exist/x', member('sofia-padel'));
     const realButForeign = checkTenantAccess('/t/plovdiv-tennis/x', member('sofia-padel'));
-    expect(nonexistent).toEqual(realButForeign);
+    expect(nonexistent.kind).toBe(realButForeign.kind);
+    expect(nonexistent.kind).toBe('needs_db_check');
   });
 
   it('reports unauthenticated (not forbidden) when there is no token', () => {
     expect(checkTenantAccess('/t/sofia-padel/dashboard', null).kind).toBe('unauthenticated');
   });
 
-  it('a token with NO memberships cannot reach any tenant', () => {
+  it('still refuses a token with no subject, whatever it lists', () => {
+    // The one decision the edge can still make alone: nobody is signed in.
+    expect(
+      checkTenantAccess('/api/v1/t/sofia-padel/bookings', {
+        memberships: [{ tenantSlug: 'sofia-padel', role: 'OWNER' }],
+      }).kind,
+    ).toBe('unauthenticated');
+  });
+
+  it('a NATIVE token — no memberships claim at all — is deferred at its own club (#250)', () => {
+    // `mintAccessToken` writes {sub, userSessionId, sessionVersion}. The edge
+    // used to read the missing claim as "not a member" and 403 every tenant
+    // route of the iOS client. Measured on main:
+    //   {"kind":"forbidden","reason":"not_a_member"}
+    const native = { sub: 'u1', userSessionId: 's1', sessionVersion: 0 } as TokenClaims;
+    expect(checkTenantAccess('/api/v1/t/sofia-padel/bookings', native)).toEqual({
+      kind: 'needs_db_check',
+      tenantSlug: 'sofia-padel',
+    });
+  });
+
+  it('an EMPTY list defers too — it is what a first sign-in carries', () => {
     expect(checkTenantAccess('/t/sofia-padel/x', { sub: 'u1', memberships: [] }).kind).toBe(
-      'forbidden',
+      'needs_db_check',
     );
   });
 
   it('a slug that merely PREFIXES a real one is not a match', () => {
-    // `sofia` must not open `sofia-padel`.
-    expect(checkTenantAccess('/t/sofia-padel/x', member('sofia')).kind).toBe('forbidden');
+    // `sofia` must not open `sofia-padel` on the fast path. It is undecided,
+    // not allowed — and it grants nothing at the edge's permission check.
+    expect(checkTenantAccess('/t/sofia-padel/x', member('sofia')).kind).toBe('needs_db_check');
+    expect(permissionsForPath('/api/t/sofia-padel/admin/venues', member('sofia'))).toEqual([]);
   });
 });
 
@@ -95,9 +127,10 @@ describe('the platform tree', () => {
   });
 
   it('does not require a membership, which a platform admin will not have', () => {
-    // A token with zero memberships is forbidden from every /t/** path and
-    // must still reach the platform tree.
-    expect(checkTenantAccess('/t/sofia-padel/x', signedIn).kind).toBe('forbidden');
+    // A token with zero memberships is undecided at every /t/** path — the
+    // route asks the database — and is simply allowed into the platform tree,
+    // where the grant is read per request.
+    expect(checkTenantAccess('/t/sofia-padel/x', signedIn).kind).toBe('needs_db_check');
     expect(checkTenantAccess('/api/v1/platform/tenants', signedIn).kind).toBe('allow');
   });
 
@@ -106,7 +139,9 @@ describe('the platform tree', () => {
     // the platform tree, and a tenant path that happens to contain the word is
     // still tenant-scoped.
     expect(checkTenantAccess('/api/v1/platformish/x', null).kind).not.toBe('unauthenticated');
-    expect(checkTenantAccess('/t/platform-padel/x', member('sofia-padel')).kind).toBe('forbidden');
+    expect(checkTenantAccess('/t/platform-padel/x', member('sofia-padel')).kind).toBe(
+      'needs_db_check',
+    );
   });
 
   it('is not a public route, and the public check still runs first', () => {
@@ -219,9 +254,14 @@ describe('tenantSlugFromPath', () => {
     // Pinned as an assertion rather than a comment so the failure mode is
     // visible to whoever next adds a URL shape.
     expect(tenantSlugFromPath('/api/v2/t/sofia-padel/admin/venues')).toBe('sofia-padel');
+    // Recognised, so NOT the fail-open `allow`: anonymous is refused and a
+    // signed-in caller is handed to a route that must resolve the membership.
+    expect(checkTenantAccess('/api/v2/t/sofia-padel/admin/venues', null).kind).toBe(
+      'unauthenticated',
+    );
     expect(checkTenantAccess('/api/v2/t/sofia-padel/admin/venues', member('other-club'))).toEqual({
-      kind: 'forbidden',
-      reason: 'not_a_member',
+      kind: 'needs_db_check',
+      tenantSlug: 'sofia-padel',
     });
   });
 
@@ -293,9 +333,9 @@ describe('permissionsForPath', () => {
   });
 
   it('is empty when the list was truncated and the slug is not in the visible part', () => {
-    // Documented cost, pinned so it is a decision rather than a surprise: a
-    // player in more than MAX_JWT_MEMBERSHIPS clubs cannot mutate at club 51
-    // until the edge can resolve membership authoritatively. Fail closed.
+    // What the TOKEN says, which is nothing. The middleware does not ask this
+    // on `needs_db_check` since #250: the route checks the permission against
+    // the database instead, so club 51 is no longer refused its mutations.
     expect(
       permissionsForPath('/api/t/club-51/admin/venues', {
         sub: 'u1',

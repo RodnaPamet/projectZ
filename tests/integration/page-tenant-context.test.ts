@@ -5,6 +5,9 @@ import { membershipContext } from '@/lib/auth/page-context';
 import { prismaTestClient, resetDatabase, seedTenant } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
 
+/** A session that cleared no Entra group gate — every non-Entra sign-in. */
+const NO_GATE_CLEARED = { groupGateCleared: [] as string[] };
+
 /**
  * THE TENANT RESOLVER A PAGE USES, AGAINST A REAL DATABASE.
  *
@@ -39,7 +42,7 @@ describe('membershipContext', () => {
   it('THE POINT: resolves the club and the role held AT THAT CLUB', async () => {
     const t = await seedTenant({ name: 'Sofia Padel' }, db);
 
-    const res = await membershipContext(t.userId, t.tenantSlug);
+    const res = await membershipContext(t.userId, t.tenantSlug, NO_GATE_CLEARED);
 
     expect(res.kind).toBe('ok');
     if (res.kind !== 'ok') throw new Error('unreachable');
@@ -69,8 +72,8 @@ describe('membershipContext', () => {
       }),
     );
 
-    const atA = await membershipContext(a.userId, a.tenantSlug);
-    const atB = await membershipContext(a.userId, b.tenantSlug);
+    const atA = await membershipContext(a.userId, a.tenantSlug, NO_GATE_CLEARED);
+    const atB = await membershipContext(a.userId, b.tenantSlug, NO_GATE_CLEARED);
 
     expect(atA.kind === 'ok' && atA.ctx.role).toBe('OWNER');
     expect(atB.kind === 'ok' && atB.ctx.role).toBe('PLAYER');
@@ -92,7 +95,9 @@ describe('membershipContext', () => {
         }),
       );
 
-      expect((await membershipContext(t.userId, t.tenantSlug)).kind).toBe('not-a-member');
+      expect((await membershipContext(t.userId, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
+        'not-a-member',
+      );
     },
   );
 
@@ -102,8 +107,12 @@ describe('membershipContext', () => {
     const mine = await seedTenant({}, db);
     const theirs = await seedTenant({}, db);
 
-    const foreign = await membershipContext(mine.userId, theirs.tenantSlug);
-    const nonexistent = await membershipContext(mine.userId, 'no-such-club-anywhere');
+    const foreign = await membershipContext(mine.userId, theirs.tenantSlug, NO_GATE_CLEARED);
+    const nonexistent = await membershipContext(
+      mine.userId,
+      'no-such-club-anywhere',
+      NO_GATE_CLEARED,
+    );
 
     expect(foreign).toEqual(nonexistent);
     expect(foreign.kind).toBe('not-a-member');
@@ -113,7 +122,7 @@ describe('membershipContext', () => {
     const t = await seedTenant({}, db);
     const prefix = t.tenantSlug.slice(0, Math.max(3, t.tenantSlug.length - 2));
 
-    expect((await membershipContext(t.userId, prefix)).kind).toBe('not-a-member');
+    expect((await membershipContext(t.userId, prefix, NO_GATE_CLEARED)).kind).toBe('not-a-member');
   });
 
   it('reads tenant_membership despite its FORCE row security', async () => {
@@ -125,7 +134,7 @@ describe('membershipContext', () => {
     // Asserted rather than assumed, because the failure is silent and looks
     // exactly like a legitimate refusal.
     const t = await seedTenant({}, db);
-    expect((await membershipContext(t.userId, t.tenantSlug)).kind).toBe('ok');
+    expect((await membershipContext(t.userId, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe('ok');
 
     const unbound = await db.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL ROLE app_user`);

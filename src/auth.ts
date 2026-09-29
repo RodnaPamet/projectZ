@@ -385,17 +385,37 @@ export const authOptions: NextAuthOptions = {
                 }));
               }
 
-              // The gate denies ACCESS, and access in this system is a
-              // membership claim: dropping it is what `checkTenantAccess`
-              // reads as "not a member". The database row is untouched — the
-              // person is still a member, they simply hold no session for it.
+              // The gate denies ACCESS. The database row is untouched — the
+              // person is still a member, they simply hold no session for it —
+              // so the decision has to travel with the session.
+              //
+              // It used to travel ONLY as an absence: the club dropped from the
+              // claim list, which the edge read as "not a member". Since #250
+              // an absent claim is resolved against the database, which would
+              // say "member". So what this sign-in PROVED is written down as
+              // well, and `groupGateAdmits` refuses a gated club that is not
+              // on it — see `@/lib/auth/group-gate`. Dropping the claim is kept
+              // for the list's other readers: the edge's fast path and the UI.
               if (denied.size > 0) {
                 all = all.filter((m) => !denied.has(m.tenantId));
               }
 
+              token.groupGateCleared = configured
+                .map((c) => c.tenantId)
+                .filter((tenantId) => !denied.has(tenantId));
+
               token.aadGroupsOverage = claims.overage;
             }
           } catch (error) {
+            // "Signing in with existing roles" includes the clubs the gate
+            // would have refused: the filter above never ran, so every club
+            // stays in the list, and before #250 that list WAS the access.
+            // Recorded as cleared so the outage behaves exactly as it did —
+            // a Graph failure is not allowed to become a lockout here, which
+            // is this block's whole stated purpose. Changing that is a
+            // decision about the gate, not a side effect of moving it.
+            token.groupGateCleared = all.map((m) => m.tenantId);
+
             logger.error('Entra group sync failed; signing in with existing roles', {
               userId: user.id,
               error: error instanceof Error ? error.message : String(error),
@@ -418,6 +438,12 @@ export const authOptions: NextAuthOptions = {
           // OWNER is exempt, for the same reason it is exempt in the sync — a
           // configuration mistake must not leave a club with nobody able to
           // get in and correct it.
+          //
+          // Since #250 this filter shapes the claim list only. The refusal
+          // itself is `groupGateAdmits`, on every request: this path writes
+          // no `groupGateCleared`, so every gated club refuses this session
+          // whatever the list says — including a club it joins after signing
+          // in, which this filter never saw.
           try {
             const { readGroupGateFlag } = await import('@/app-layer/schemas/entra-provider');
 
@@ -442,11 +468,14 @@ export const authOptions: NextAuthOptions = {
               all = all.filter((m) => m.role === 'OWNER' || !enforcing.has(m.tenantId));
             }
           } catch (error) {
-            // Contained like the branch above — but note the asymmetry: a
-            // failure here means the gate is NOT applied for this session.
-            // Failing the login instead would let one bad config row lock a
-            // club out entirely, so this is logged loudly and left permissive.
-            logger.error('Entra group gate check failed; gate not applied this session', {
+            // Contained like the branch above. Before #250 a failure here
+            // meant the gate was NOT applied for this session, because this
+            // filter was the gate. It is not any more: the claim list keeps a
+            // gated club, and `groupGateAdmits` still refuses it per request,
+            // reading the flag with `readGroupGateFlag`, which one bad config
+            // row cannot turn off. So this now costs a stale list, not the
+            // gate. Logged all the same.
+            logger.error('Entra group gate check failed; claim list left unfiltered', {
               userId: user.id,
               error: error instanceof Error ? error.message : String(error),
             });

@@ -31,8 +31,21 @@ export interface PlayerzJWT {
    * True when memberships[] was cut short. The client MUST NOT treat the
    * list as exhaustive when this is set — "you are not a member of X" is
    * only sound if the list is complete, and the API is the authority anyway.
+   *
+   * Since #250 nothing treats the list as exhaustive, truncated or not: a club
+   * joined after sign-in is missing from a complete list too.
    */
   membershipsTruncated: boolean;
+  /**
+   * Tenant ids whose Entra group gate this session PASSED at sign-in.
+   *
+   * Only an Entra sign-in can prove directory-group membership, so only that
+   * path writes it; a password, Google or native sign-in carries none, and a
+   * gated club refuses them (OWNER excepted). It is an allow-list on purpose —
+   * see `@/lib/auth/group-gate` for why the deny-list it replaces failed open.
+   * Absent on tokens minted before #250, which reads as "cleared nothing".
+   */
+  groupGateCleared?: string[];
   /**
    * Snapshot of `User.sessionVersion` when this token was minted.
    *

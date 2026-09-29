@@ -763,7 +763,7 @@
       "get": {
         "operationId": "listBookings",
         "summary": "List my bookings at this club",
-        "description": "The caller's OWN bookings at `{slug}`, newest first (ordered by `startTs` descending, then `id` descending).\n\nOwnership is enforced in the SQL `WHERE` clause (`bookedByUserId = ctx.userId`), not filtered after the read. Staff permissions do NOT widen this route — `bookings.view_all` has no effect here; a club admin wanting every booking needs a different route.\n\nPagination is KEYSET, not offset. `nextCursor` is the `id` of the last item on the page; pass it back verbatim as `cursor` and never parse it. `nextCursor` is `null` on the last page.\n\nResponse is WRAPPED twice: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nThis route is NOT rate-limited (the wrapper only limits POST/PUT/PATCH/DELETE), so there is no 429 here.\n\nA caller who holds NO membership at `{slug}` gets **200 with an empty list**, not a 403 — whether you belong to a club is not something this endpoint should confirm, and the answer is identical to that of a member with no bookings. Listing never creates a membership.\n\nMembership is resolved against the DATABASE, not the session token. A token carries a truncated membership list, so a player belonging to more clubs than fit in it still sees their bookings at every one.",
+        "description": "The caller's OWN bookings at `{slug}`, newest first (ordered by `startTs` descending, then `id` descending).\n\nOwnership is enforced in the SQL `WHERE` clause (`bookedByUserId = ctx.userId`), not filtered after the read. Staff permissions do NOT widen this route — `bookings.view_all` has no effect here; a club admin wanting every booking needs a different route.\n\nPagination is KEYSET, not offset. `nextCursor` is the `id` of the last item on the page; pass it back verbatim as `cursor` and never parse it. `nextCursor` is `null` on the last page.\n\nResponse is WRAPPED twice: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nThis route is NOT rate-limited (the wrapper only limits POST/PUT/PATCH/DELETE), so there is no 429 here.\n\nA caller who holds NO membership at `{slug}` gets **200 with an empty list**, not a 403 — whether you belong to a club is not something this endpoint should confirm, and the answer is identical to that of a member with no bookings. Listing never creates a membership.\n\nMembership is resolved against the DATABASE, not the session token. A native token carries no membership list at all, and a web token only the clubs it was signed in with, so a player who joined a club since — by booking there — still sees their bookings at it. A club that is not ACTIVE, or whose Entra group gate this session has not cleared, lists nothing, the same as a club you do not belong to.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -775,7 +775,7 @@
             "name": "slug",
             "in": "path",
             "required": true,
-            "description": "The club's tenant slug, e.g. `sofia-padel`. The caller must hold a membership for it; the edge middleware answers 403 otherwise.",
+            "description": "The club's tenant slug, e.g. `sofia-padel`. A caller with no membership there gets an empty list rather than an error — see the description.",
             "schema": {
               "type": "string"
             }
@@ -837,18 +837,8 @@
               }
             }
           },
-          "403": {
-            "description": "Authenticated, but not a member of `{slug}`. Code `FORBIDDEN`, message `Forbidden` — deliberately indistinguishable from \"no such club\", so this cannot be used to enumerate tenants. Produced by the edge middleware, whose body carries no `requestId`.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "500": {
-            "description": "Code `INTERNAL`. Reachable in one non-obvious case: a caller whose JWT membership list was truncated (more clubs than `MAX_JWT_MEMBERSHIPS`) passes the edge as `needs_db_check`, but the request context then resolves no `tenantId`, and the tenant binding throws `MissingTenantError`, which is deliberately absent from the domain error map.",
+            "description": "Code `INTERNAL`, with a generic message: an unclassified server-side failure. The case this used to name — a truncated token membership list leaving the request with no tenant — no longer exists: the tenant is resolved from the database (#250).",
             "content": {
               "application/json": {
                 "schema": {
@@ -862,7 +852,7 @@
       "post": {
         "operationId": "createBooking",
         "summary": "Create a booking (hold a slot)",
-        "description": "Creates a PENDING booking that HOLDS the slot for 15 minutes (`expiresAt`), then releases it. Pay for it with `POST /t/{slug}/bookings/{id}/checkout` before then, or it lapses.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, a start that is not on a whole minute, or an ambiguous wall-clock time on a DST fall-back day) and which retrying unchanged can never fix.\n\n**Any signed-in player may book at any ACTIVE club — no invitation needed.** If the caller holds no membership at `{slug}`, an ACTIVE `PLAYER` membership is created as part of the booking: you booked a court here, so you are a player here. An EXISTING membership is never modified, so a club OWNER booking their own court is not demoted.\n\nA club that is not ACTIVE, and a caller whose membership is SUSPENDED, both get the same **404** as an unknown court. Distinguishing them would turn this endpoint into a probe for other clubs, and a suspended member must not be able to undo a moderation decision by booking a court.",
+        "description": "Creates a PENDING booking that HOLDS the slot for 15 minutes (`expiresAt`), then releases it. Pay for it with `POST /t/{slug}/bookings/{id}/checkout` before then, or it lapses.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, a start that is not on a whole minute, or an ambiguous wall-clock time on a DST fall-back day) and which retrying unchanged can never fix.\n\n**Any signed-in player may book at any ACTIVE club — no invitation needed.** If the caller holds no membership at `{slug}`, an ACTIVE `PLAYER` membership is created as part of the booking: you booked a court here, so you are a player here. An EXISTING membership is never modified, so a club OWNER booking their own court is not demoted.\n\nA club that is not ACTIVE, a caller whose membership is SUSPENDED, and a club whose Entra group gate this session has not cleared (a gated club is not joinable by booking) all get the same **404** as an unknown court. Distinguishing them would turn this endpoint into a probe for other clubs, and a suspended member must not be able to undo a moderation decision by booking a court.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -874,7 +864,7 @@
             "name": "slug",
             "in": "path",
             "required": true,
-            "description": "The club's tenant slug. The caller must be a member holding `bookings.create` (every PLAYER does).",
+            "description": "The club's tenant slug. A member must hold `bookings.create` (every role does); a signed-in caller with NO membership is admitted to this one route, because booking is how a player joins a club.",
             "schema": {
               "type": "string"
             }
@@ -971,7 +961,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Either not a member of `{slug}`, or a member lacking `bookings.create` — in the latter case the edge middleware adds `details.requiredPermission = \"bookings.create\"`.",
+            "description": "Code `FORBIDDEN`. Only for a MEMBER whose role lacks `bookings.create`, with `details.requiredPermission = \"bookings.create\"` — no role lacks it today. It comes from the edge middleware (no `requestId`) when the token lists the club with that role, and from the route otherwise. A NON-member is never refused here: they are joined, or get the 404.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1037,7 +1027,7 @@
             }
           },
           "500": {
-            "description": "Code `INTERNAL`, with a generic message — the server fails closed on disclosure for anything unclassified. Covers a truncated-membership caller whose tenant could not be resolved (`MissingTenantError`), and any unmapped database or infrastructure failure.",
+            "description": "Code `INTERNAL`, with a generic message — the server fails closed on disclosure for anything unclassified: an unmapped database or infrastructure failure.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1053,7 +1043,7 @@
       "post": {
         "operationId": "cancelBooking",
         "summary": "Cancel a booking and quote its refund",
-        "description": "Cancels a PENDING or CONFIRMED booking and returns the refund QUOTE resolved against the club's cancellation policy at this instant.\n\n**This endpoint does not move money.** It sets the booking to CANCELLED, writes a Cancellation receipt with the resolved percentage frozen onto it, and returns what that receipt says. Issuing the actual Stripe refund is a separate operation. A client must not tell the user \"refunded\" — only \"refund of X due\".\n\n**Ownership is checked here, not by the permission.** `bookings.cancel` is held by every PLAYER, so the middleware only establishes that the caller may cancel SOMETHING at this club. This handler then loads the caller's OWN booking — unless they hold `bookings.view_all`, in which case staff may cancel on a player's behalf (the front desk taking a phone call). Someone else's booking answers 404, never 403: a 403 would confirm the booking exists and let a club's reservations be enumerated one id at a time.\n\n**Cancelling twice is a 409, not a no-op.** Each call writes a fresh Cancellation row and recomputes the refund from the CURRENT hours-until-start, so a second call would produce two receipts for one booking that disagree about the amount.\n\nThe request body is optional; a body-less POST is the common case and is not an error.",
+        "description": "Cancels a PENDING or CONFIRMED booking and returns the refund QUOTE resolved against the club's cancellation policy at this instant.\n\n**This endpoint does not move money.** It sets the booking to CANCELLED, writes a Cancellation receipt with the resolved percentage frozen onto it, and returns what that receipt says. Issuing the actual Stripe refund is a separate operation. A client must not tell the user \"refunded\" — only \"refund of X due\".\n\n**Ownership is checked here, not by the permission.** `bookings.cancel` is held by every PLAYER, so the permission check only establishes that the caller may cancel SOMETHING at this club. This handler then loads the caller's OWN booking — unless they hold `bookings.view_all`, in which case staff may cancel on a player's behalf (the front desk taking a phone call). Someone else's booking answers 404, never 403: a 403 would confirm the booking exists and let a club's reservations be enumerated one id at a time.\n\n**Cancelling twice is a 409, not a no-op.** Each call writes a fresh Cancellation row and recomputes the refund from the CURRENT hours-until-start, so a second call would produce two receipts for one booking that disagree about the amount.\n\nThe request body is optional; a body-less POST is the common case and is not an error.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -1065,7 +1055,7 @@
             "name": "slug",
             "in": "path",
             "required": true,
-            "description": "The club's tenant slug. The caller must be a member holding `bookings.cancel`.",
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.cancel`, checked against the database.",
             "schema": {
               "type": "string"
             }
@@ -1127,7 +1117,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Not a member of `{slug}`, or a member lacking `bookings.cancel` (then `details.requiredPermission = \"bookings.cancel\"`). Note that cancelling SOMEONE ELSE'S booking is a 404 here, not a 403.",
+            "description": "Code `FORBIDDEN`, message `Forbidden`. The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A MEMBER lacking `bookings.cancel` gets the same code with `details.requiredPermission = \"bookings.cancel\"` (from the edge when the token lists the club with that role, with no `requestId`). Cancelling SOMEONE ELSE'S booking is a 404, not a 403.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1193,7 +1183,7 @@
             }
           },
           "500": {
-            "description": "Code `INTERNAL`, generic message. Includes the truncated-membership case where no tenant could be resolved, and any unmapped failure while writing the cancellation.",
+            "description": "Code `INTERNAL`, generic message: any unmapped failure while writing the cancellation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1221,7 +1211,7 @@
             "name": "slug",
             "in": "path",
             "required": true,
-            "description": "The club's tenant slug. The caller must be a member holding `bookings.create` (the permission gating this route — it only establishes that a random member cannot POST it; ownership is enforced in the handler).",
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.create` — the permission gating this route, checked against the database; it only establishes that a random member cannot POST it. Ownership is enforced in the handler.",
             "schema": {
               "type": "string"
             }
@@ -1283,7 +1273,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Not a member of `{slug}`, or a member lacking `bookings.create` (then `details.requiredPermission = \"bookings.create\"`). Paying for someone else's booking is a 404, not a 403.",
+            "description": "Code `FORBIDDEN`, message `Forbidden`. The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A MEMBER lacking `bookings.create` gets `details.requiredPermission = \"bookings.create\"`. Paying for someone else's booking is a 404, not a 403.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1349,7 +1339,7 @@
             }
           },
           "500": {
-            "description": "Code `INTERNAL`, generic message. Covers the truncated-membership case with no resolvable tenant, a Stripe API failure while creating the PaymentIntent, and `LedgerIsolationError` (the credit ledger demanded SERIALIZABLE and did not get it) — all deliberately unmapped, so the client learns nothing about internals. Retry is reasonable; the Stripe idempotency key prevents a double charge.",
+            "description": "Code `INTERNAL`, generic message. Covers a Stripe API failure while creating the PaymentIntent, and `LedgerIsolationError` (the credit ledger demanded SERIALIZABLE and did not get it) — all deliberately unmapped, so the client learns nothing about internals. Retry is reasonable; the Stripe idempotency key prevents a double charge.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1377,7 +1367,7 @@
             "name": "slug",
             "in": "path",
             "required": true,
-            "description": "The booking's club. The caller must hold an ACTIVE membership there, which booking a court there already created.",
+            "description": "The booking's club. The caller must hold an ACTIVE membership there, which booking a court there already created; it is checked against the database.",
             "schema": {
               "type": "string"
             }
@@ -1448,7 +1438,7 @@
             }
           },
           "403": {
-            "description": "`FORBIDDEN` — not a member of `{slug}`, or a member lacking `bookings.create` (then `details.requiredPermission = \"bookings.create\"`). `NO_PROOF_OF_VISIT` — the booking is not the caller's, is not at this club, or is not COMPLETED (including one marked NO_SHOW). Those cases are deliberately indistinguishable.",
+            "description": "`FORBIDDEN`, message `Forbidden` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A suspended member is refused the same way: a SUSPENDED membership is not an ACTIVE one. `NO_PROOF_OF_VISIT` — the booking is not the caller's, is not at this club, or is not COMPLETED (including one marked NO_SHOW). Those cases are deliberately indistinguishable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1458,7 +1448,7 @@
             }
           },
           "404": {
-            "description": "`NOT_FOUND` — no active club at `{slug}`, or the caller holds no active membership there (a suspended member included).",
+            "description": "`NOT_FOUND` — the caller is a member, but the club is no longer ACTIVE (suspended or closed). A caller with no active membership gets the 403 above instead, before the handler runs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1531,7 +1521,7 @@
         "operationId": "getTenantMe",
         "summary": "Who am I at this club",
         "tags": ["Tenant"],
-        "description": "Resolves the caller's identity **and their membership of the club addressed by `{slug}`**, reading the membership authoritatively from the database rather than from the bearer token's claims.\n\nThe token's `memberships` array is a mint-time snapshot: an access token lives 15 minutes and its refresh token 30 days, and nothing re-mints the claims in between. This endpoint therefore re-reads the membership and reports the disagreement via `data.tokenStale`.\n\n**`tokenStale` handling (important for a native client).** `tokenStale` is `true` when the token's tenant id or role for this slug differs from the database — including the case where the token carries no membership for this slug at all. It is **not** an error and the rest of the payload is still correct. The client should refresh its access token (so the edge middleware, which authorises mutations from claims alone and never consults the database, stops working from a stale role) and then continue. Do not surface it to the user, and do not retry this call in a loop expecting it to flip on its own — only a token refresh clears it.\n\n**404, not 403.** When the caller holds no `ACTIVE` membership for this slug the handler answers `404 NOT_FOUND` with the message `Not found.`, deliberately making \"no such club\" and \"you are not a member of it\" indistinguishable so the endpoint cannot be used to enumerate tenants. Note that a `403 FORBIDDEN` is still possible for a non-member, but it comes from the edge middleware *before* this handler runs — see the 403 response.\n\nMemberships whose status is not `ACTIVE` (`INVITED`, `SUSPENDED`, `EXPIRED`) are filtered out by the query and therefore also produce a 404.\n\nRead-only; no rate limit applies (the shared wrapper rate-limits mutating methods only).",
+        "description": "Resolves the caller's identity **and their membership of the club addressed by `{slug}`**, reading the membership authoritatively from the database rather than from the bearer token's claims — as every tenant route does since #250.\n\n**`tokenStale`.** `true` only when the token LISTS this club with a tenant id or role the database disagrees with: a web session signed in before a promotion or a demotion. That is the one disagreement with a consequence — the edge middleware still refuses, from the listed role, a mutation the new role would allow. It is **not** an error, and the rest of the payload is correct. A native access token lists no clubs, so for the native client it is always `false`: the edge defers every club it does not list to the database, and there is nothing to refresh. (Before #250 it was `true` on every native call, and no refresh could clear it.)\n\n**404, not 403.** When the caller holds no `ACTIVE` membership for this slug the handler answers `404 NOT_FOUND` with the message `Not found.`, deliberately making \"no such club\", \"you are not a member of it\" and \"it is behind an Entra group gate this session has not cleared\" indistinguishable, so the endpoint cannot be used to enumerate tenants. The edge middleware no longer answers 403 for a non-member: it cannot tell one from a member whose token does not list the club.\n\nMemberships whose status is not `ACTIVE` (`INVITED`, `SUSPENDED`, `EXPIRED`) are filtered out and therefore also produce a 404.\n\nRead-only; no rate limit applies (the shared wrapper rate-limits mutating methods only).",
         "security": [
           {
             "bearerAuth": []
@@ -1584,18 +1574,8 @@
               }
             }
           },
-          "403": {
-            "description": "Refused by the edge middleware before the handler ran: the token carries a complete membership list that does not include this slug. Code `FORBIDDEN`, message `Forbidden`, no `requestId`, and none of the `X-API-Version`/`x-request-id` headers (the middleware runs on the Edge runtime and does not go through the API wrapper). A non-member whose token list was *truncated* (more clubs than fit in the token) is let through instead and receives the 404 below.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "No `ACTIVE` membership for this user at this slug — which also covers \"no such club\", deliberately indistinguishable. Code `NOT_FOUND`, message `Not found.`; the body carries no `requestId` (the `x-request-id` response header is still set).",
+            "description": "No `ACTIVE` membership for this user at this slug — which also covers \"no such club\" and \"a club behind an Entra group gate this session has not cleared\", deliberately indistinguishable. Code `NOT_FOUND`, message `Not found.`; the body carries no `requestId` (the `x-request-id` response header is still set).",
             "headers": {
               "X-API-Version": {
                 "schema": {
@@ -1646,7 +1626,7 @@
         "operationId": "startConnectOnboarding",
         "summary": "Start or resume Stripe Connect onboarding",
         "tags": ["Payouts"],
-        "description": "Creates the club's Stripe Express connected account if it does not have one, then mints a **fresh, short-lived** Stripe-hosted onboarding link and returns it. Until a club has both a `stripeAccountId` and `payoutsEnabled`, checkout for its bookings fails with `PAYOUTS_NOT_ENABLED`.\n\n**Requires `admin.billing_manage`** — held by `OWNER` and `MANAGER` only. This is enforced twice: by the edge route-permission table (`/api/v1/t/:slug/connect/*` on any mutating verb) and again in the handler from the role held *at this slug*. Neither check reads the token's flat `permissions` claim.\n\n**No request body.** The handler reads nothing from the body; anything sent is ignored. `return_url` and `refresh_url` are built server-side from `NEXTAUTH_URL` on purpose — a caller-supplied return URL would be an open redirect dressed as the last step of our own flow.\n\n**`payoutsEnabled` is NOT set by this call.** It is echoed from the stored venue row and stays `false` until Stripe's `account.updated` webhook says otherwise. Finishing the onboarding form is not the same as Stripe having accepted the club's identity documents. A client that treats a 200 here, or a return to `?onboarding=complete`, as \"payouts are live\" will show a club it can take money it cannot be paid. Poll `payoutsEnabled` from the club's own state, never infer it from this response.\n\n**Idempotency.** Calling this repeatedly is safe: the stored `stripeAccountId` is reused, and account creation carries a tenant-derived idempotency key so two simultaneous first calls resolve to one Stripe account. Every call returns a *new* `onboardingUrl` (Stripe's links expire), so the URL must not be cached. `created` distinguishes the call that created the account from the ones that reused it.\n\nIt is a POST rather than a GET precisely because the first call has an external, non-reversible side effect that must not sit behind a verb a browser, crawler or prefetcher will follow on its own.\n\nRate-limited as a mutation (see the 429 response).",
+        "description": "Creates the club's Stripe Express connected account if it does not have one, then mints a **fresh, short-lived** Stripe-hosted onboarding link and returns it. Until a club has both a `stripeAccountId` and `payoutsEnabled`, checkout for its bookings fails with `PAYOUTS_NOT_ENABLED`.\n\n**Requires `admin.billing_manage`** — held by `OWNER` and `MANAGER` only. The route-permission table (`/api/v1/t/:slug/connect/*` on any mutating verb) is enforced by the request context against the role the DATABASE holds at this slug, and again in the handler — plus at the edge when the token lists the club. None of them reads the token's flat `permissions` claim.\n\n**No request body.** The handler reads nothing from the body; anything sent is ignored. `return_url` and `refresh_url` are built server-side from `NEXTAUTH_URL` on purpose — a caller-supplied return URL would be an open redirect dressed as the last step of our own flow.\n\n**`payoutsEnabled` is NOT set by this call.** It is echoed from the stored venue row and stays `false` until Stripe's `account.updated` webhook says otherwise. Finishing the onboarding form is not the same as Stripe having accepted the club's identity documents. A client that treats a 200 here, or a return to `?onboarding=complete`, as \"payouts are live\" will show a club it can take money it cannot be paid. Poll `payoutsEnabled` from the club's own state, never infer it from this response.\n\n**Idempotency.** Calling this repeatedly is safe: the stored `stripeAccountId` is reused, and account creation carries a tenant-derived idempotency key so two simultaneous first calls resolve to one Stripe account. Every call returns a *new* `onboardingUrl` (Stripe's links expire), so the URL must not be cached. `created` distinguishes the call that created the account from the ones that reused it.\n\nIt is a POST rather than a GET precisely because the first call has an external, non-reversible side effect that must not sit behind a verb a browser, crawler or prefetcher will follow on its own.\n\nRate-limited as a mutation (see the 429 response).",
         "security": [
           {
             "bearerAuth": []
@@ -1698,7 +1678,7 @@
             }
           },
           "403": {
-            "description": "Not allowed to manage payouts at this club. Two distinguishable sources: the edge middleware answers `FORBIDDEN` with `details: {\"requiredPermission\": \"admin.billing_manage\"}` and no `requestId` (this also covers a non-member with a complete token membership list, where the message is a bare `Forbidden`); the handler answers `FORBIDDEN` with `Managing payouts requires billing permission` and a `requestId`. A `STAFF`, `COACH` or `PLAYER` member always lands here, as does any caller whose token carries no membership for this slug.",
+            "description": "Not allowed to manage payouts at this club. Code `FORBIDDEN`, message `Forbidden`. For a MEMBER without `admin.billing_manage` — a `STAFF`, `COACH` or `PLAYER` — `details` is `{\"requiredPermission\": \"admin.billing_manage\"}`; that comes from the edge (no `requestId`) when the token lists the club with that role, and from the route otherwise. For a non-member there are no `details`: The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1708,7 +1688,7 @@
             }
           },
           "404": {
-            "description": "The tenant row named by the caller's membership claim no longer exists, so the venue lookup finds nothing. Code `NOT_FOUND`, message `Resource not found or already deleted`. Reachable when a club is deleted while a token that still lists it is in flight; the client should refresh its token.",
+            "description": "The club row vanished between the membership check and the venue lookup — a deletion racing the request. Code `NOT_FOUND`, message `Resource not found or already deleted`. Genuinely reachable but not client-actionable beyond retrying.",
             "headers": {
               "X-API-Version": {
                 "schema": {
@@ -1805,7 +1785,7 @@
           "name": "slug",
           "in": "path",
           "required": true,
-          "description": "The club's tenant slug, exactly as it appears in the caller's membership. A slug the caller holds no membership for is 403 — never 404, because \"no such club\" and \"not a member of it\" must be indistinguishable or this becomes a tenant-enumeration oracle.",
+          "description": "The club's tenant slug. A slug the caller holds no ACTIVE membership for is 403 — never 404, because \"no such club\" and \"not a member of it\" must be indistinguishable or this becomes a tenant-enumeration oracle.",
           "schema": {
             "type": "string"
           },
@@ -1820,7 +1800,7 @@
         "operationId": "listEntraGroupMappings",
         "summary": "List Entra group → role mappings",
         "tags": ["SSO"],
-        "description": "Every Entra security group mapped to a role at this club, ordered by `priority` DESC then `createdAt` ASC.\n\nRequires `sso.manage`, which only OWNER holds (MANAGER deliberately does not: a MANAGER could otherwise map a directory group they administer to MANAGER and mint peers at will).\n\nENFORCEMENT NOTE: the edge middleware does NOT gate this read — `requiredPermission()` returns null for non-mutating methods — so the permission is checked in the handler (`requireSsoManage`). The list is sensitive not because it holds secrets but because it is reconnaissance: it is a map of which directory groups confer administrative access to this club.\n\nThe response is the `ok()` envelope wrapping a BARE ARRAY (`{\"data\": [ ... ]}`), not the `page()` shape. The underlying query takes at most 200 rows and there is no cursor.\n\nNot rate-limited: the wrapper only rate-limits POST/PUT/PATCH/DELETE.",
+        "description": "Every Entra security group mapped to a role at this club, ordered by `priority` DESC then `createdAt` ASC.\n\nRequires `sso.manage`, which only OWNER holds (MANAGER deliberately does not: a MANAGER could otherwise map a directory group they administer to MANAGER and mint peers at will).\n\nENFORCEMENT NOTE: the permission table does NOT cover this read — `requiredPermission()` returns null for non-mutating methods — so the permission is checked in the handler (`requireSsoManage`), against the role the database holds at this slug. The list is sensitive not because it holds secrets but because it is reconnaissance: it is a map of which directory groups confer administrative access to this club.\n\nThe response is the `ok()` envelope wrapping a BARE ARRAY (`{\"data\": [ ... ]}`), not the `page()` shape. The underlying query takes at most 200 rows and there is no cursor.\n\nNot rate-limited: the wrapper only rate-limits POST/PUT/PATCH/DELETE.",
         "security": [
           {
             "bearerAuth": []
@@ -1856,7 +1836,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Either the caller holds no membership for `slug` (edge middleware; message `Forbidden`, and an unknown club looks identical) or they are a member without `sso.manage` (handler `ForbiddenError`; message `Managing SSO group mappings requires the club owner`).",
+            "description": "Code `FORBIDDEN`, message `Managing SSO group mappings requires the club owner`, from the handler, with a `requestId`. The same answer for a member without `sso.manage` and for a caller with no ACTIVE membership at `slug` — an unknown club, or one behind a group gate this session has not cleared, looks identical.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1881,7 +1861,7 @@
         "operationId": "createEntraGroupMapping",
         "summary": "Map an Entra group to a role",
         "tags": ["SSO"],
-        "description": "Create one mapping: everyone in the named Entra security group is granted `role` at this club from their next sign-in, subject to `priority` when several mapped groups match.\n\nRequires `sso.manage` (OWNER only), enforced twice — at the edge by ROUTE_PERMISSIONS and again in the handler.\n\nThe write and its audit entry share one transaction, so a mapping cannot exist without its audit record.\n\nDuplicate detection is arbitrated by the `@@unique([tenantId, aadGroupId])` index, not by a read-then-write, so two admins adding the same group concurrently produce exactly one row and one 409.\n\nRate-limited: mutating verbs go through the wrapper's default `API_MUTATION_LIMIT`.",
+        "description": "Create one mapping: everyone in the named Entra security group is granted `role` at this club from their next sign-in, subject to `priority` when several mapped groups match.\n\nRequires `sso.manage` (OWNER only). ROUTE_PERMISSIONS is enforced by the request context against the role the database holds (and at the edge too, when the token lists the club), and again in the handler.\n\nThe write and its audit entry share one transaction, so a mapping cannot exist without its audit record.\n\nDuplicate detection is arbitrated by the `@@unique([tenantId, aadGroupId])` index, not by a read-then-write, so two admins adding the same group concurrently produce exactly one row and one 409.\n\nRate-limited: mutating verbs go through the wrapper's default `API_MUTATION_LIMIT`.",
         "security": [
           {
             "bearerAuth": []
@@ -1937,7 +1917,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Not a member of `slug`, or a member without `sso.manage` (OWNER only). When the edge middleware denies it, `details` is `{\"requiredPermission\": \"sso.manage\"}`.",
+            "description": "Code `FORBIDDEN`, message `Forbidden`. A member without `sso.manage` (OWNER only) gets `details: {\"requiredPermission\": \"sso.manage\"}`; a non-member gets no `details` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2009,7 +1989,7 @@
           "name": "slug",
           "in": "path",
           "required": true,
-          "description": "The club's tenant slug. A slug the caller holds no membership for is 403, never 404.",
+          "description": "The club's tenant slug. A slug the caller holds no ACTIVE membership for is 403, never 404.",
           "schema": {
             "type": "string"
           },
@@ -2038,7 +2018,7 @@
         "operationId": "updateEntraGroupMapping",
         "summary": "Update a group mapping",
         "tags": ["SSO"],
-        "description": "Partially update one mapping. Only `aadGroupName`, `role` and `priority` can change; `aadGroupId` is immutable through this API.\n\nRequires `sso.manage` (OWNER only), enforced at the edge and again in the handler.\n\nThe row is read before it is written so the audit entry can record the BEFORE state (role and priority), not just the new value — an entry that records only what it is now answers a question anyone can answer by looking.\n\nThere is no 409 on this operation: since `aadGroupId` cannot be changed, there is no unique-constraint path to collide on.\n\nRate-limited by the wrapper's default mutation limit.",
+        "description": "Partially update one mapping. Only `aadGroupName`, `role` and `priority` can change; `aadGroupId` is immutable through this API.\n\nRequires `sso.manage` (OWNER only), enforced by the request context against the role the database holds (and at the edge when the token lists the club), and again in the handler.\n\nThe row is read before it is written so the audit entry can record the BEFORE state (role and priority), not just the new value — an entry that records only what it is now answers a question anyone can answer by looking.\n\nThere is no 409 on this operation: since `aadGroupId` cannot be changed, there is no unique-constraint path to collide on.\n\nRate-limited by the wrapper's default mutation limit.",
         "security": [
           {
             "bearerAuth": []
@@ -2094,7 +2074,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Not a member of `slug`, or a member without `sso.manage` (OWNER only). From the edge, `details` is `{\"requiredPermission\": \"sso.manage\"}`.",
+            "description": "Code `FORBIDDEN`, message `Forbidden`. A member without `sso.manage` (OWNER only) gets `details: {\"requiredPermission\": \"sso.manage\"}`; a non-member gets no `details` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2163,7 +2143,7 @@
         "operationId": "deleteEntraGroupMapping",
         "summary": "Delete a group mapping",
         "tags": ["SSO"],
-        "description": "Remove one mapping. Everyone whose role came from this group stops being granted it at their next sign-in — a silent mass revocation that tends to present as \"SSO is broken\" rather than as a change somebody made, which is why DELETE is gated exactly as hard as POST and why the audit entry carries the FULL before-state (`aadGroupId`, `aadGroupName`, `role`, `priority`): once the row is gone, that entry is the only remaining evidence the group ever granted anything.\n\nRequires `sso.manage` (OWNER only), enforced at the edge and again in the handler.\n\nNot idempotent in the usual REST sense: a second DELETE of the same id returns 404, not 204.\n\nRate-limited by the wrapper's default mutation limit.",
+        "description": "Remove one mapping. Everyone whose role came from this group stops being granted it at their next sign-in — a silent mass revocation that tends to present as \"SSO is broken\" rather than as a change somebody made, which is why DELETE is gated exactly as hard as POST and why the audit entry carries the FULL before-state (`aadGroupId`, `aadGroupName`, `role`, `priority`): once the row is gone, that entry is the only remaining evidence the group ever granted anything.\n\nRequires `sso.manage` (OWNER only), enforced by the request context against the role the database holds (and at the edge when the token lists the club), and again in the handler.\n\nNot idempotent in the usual REST sense: a second DELETE of the same id returns 404, not 204.\n\nRate-limited by the wrapper's default mutation limit.",
         "security": [
           {
             "bearerAuth": []
@@ -2192,7 +2172,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`. Not a member of `slug`, or a member without `sso.manage` (OWNER only). From the edge, `details` is `{\"requiredPermission\": \"sso.manage\"}`.",
+            "description": "Code `FORBIDDEN`, message `Forbidden`. A member without `sso.manage` (OWNER only) gets `details: {\"requiredPermission\": \"sso.manage\"}`; a non-member gets no `details` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2898,7 +2878,7 @@
           },
           "accessToken": {
             "type": "string",
-            "description": "OPAQUE to the client. It is a next-auth JWE (`alg=dir`, `enc=A256GCM`) — the payload is encrypted, so `exp` and every other claim are unreadable client-side. Never try to parse it; use `expiresAt`/`expiresIn`. Lifetime is 15 minutes (900s), deliberately short because the edge middleware honours only `exp` and never checks revocation."
+            "description": "OPAQUE to the client. It is a next-auth JWE (`alg=dir`, `enc=A256GCM`) — the payload is encrypted, so `exp` and every other claim are unreadable client-side. Never try to parse it; use `expiresAt`/`expiresIn`. Lifetime is 15 minutes (900s), deliberately short because the edge middleware honours only `exp` and never checks revocation. It carries no club memberships: every tenant route resolves membership from the database, so the token does not need refreshing when the player joins a club."
           },
           "expiresAt": {
             "type": "string",
@@ -3738,7 +3718,7 @@
           },
           "tokenStale": {
             "type": "boolean",
-            "description": "True when the bearer token's claims disagree with the database for this club — either the token's tenant id differs from the club's, or the token's role differs from the role actually held (a token carrying no membership for this slug also reports true). Not an error: the rest of this payload is authoritative. The correct client response is to refresh the access token, because the edge middleware authorises mutations from claims alone and will otherwise keep working from the stale role. It cannot clear itself; only a refresh clears it."
+            "description": "True only when the token LISTS this club with a tenant id or role the database disagrees with — a web session signed in before a promotion or demotion. The edge middleware still refuses, from a listed role, a mutation it lacks, so a stale listing can refuse something the database would allow; the remedy is signing in again. Not an error: the rest of this payload is authoritative. Always false for a native access token, which lists no clubs — the edge defers those to the database (#250)."
           }
         }
       },

@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import { getToken } from 'next-auth/jwt';
 
+import { groupGateAdmits, groupGateClearedFrom } from '@/lib/auth/group-gate';
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
 import { checkSession } from '@/lib/auth/sessions';
 import { getPermissionsForRole, type Permission } from '@/lib/permissions';
@@ -33,13 +34,15 @@ import type { Role } from '@prisma/client';
  *
  * ═══ 2. MEMBERSHIP IS RESOLVED FROM THE DATABASE, NOT THE CLAIM LIST ═══
  *
- * `context.ts` matches the slug against `token.memberships` and notes that
- * absence from a TRUNCATED list proves nothing — it returns no tenant and lets
- * the route resolve authoritatively, with RLS as the backstop.
+ * The claim list cannot say who is NOT a member: a native token carries none,
+ * a web token carries the clubs held at sign-in, and #229 creates memberships
+ * after both. So this asks the database directly. That costs one indexed query
+ * and it is the difference between a correct answer and one that locks a
+ * player out of a club they joined this afternoon.
  *
- * A page has no such downstream, so it asks the database directly. That costs
- * one indexed query and it is the difference between a correct answer and one
- * that locks a player out of their 51st club.
+ * `membershipContext` below is ALSO what `contextFromRequest` calls for every
+ * `/api/v1/t/{slug}` request since #250, so a page and the API cannot disagree
+ * about who belongs where — they run the same query.
  *
  * ═══ 3. A VALID SIGNATURE IS NOT A WANTED SESSION ═══
  *
@@ -56,9 +59,10 @@ import type { Role } from '@prisma/client';
  * read that as "not a member".
  *
  * The read is narrow by construction: one row, by `(userId, tenantSlug)`, both
- * supplied by the caller's own session. It cannot enumerate. `src/auth.ts` and
- * `/t/[slug]/me` reach for the same binding for the same reason, and are
- * already pinned in `superuser-call-sites`.
+ * supplied by the caller's own session, and — for a member who is not the
+ * OWNER — that one club's Entra provider flag, for the group gate. It cannot
+ * enumerate. `src/auth.ts` and `/t/[slug]/me` reach for the same binding for
+ * the same reason, and are already pinned in `superuser-call-sites`.
  */
 
 /** What a page needs to know before it may render anything club-specific. */
@@ -130,7 +134,19 @@ async function _resolveTenantPageContext(slug: string): Promise<TenantPageResult
   });
   if (!session.usable) return { kind: 'unauthenticated' };
 
-  return membershipContext(token.sub, slug);
+  return membershipContext(token.sub, slug, { groupGateCleared: groupGateClearedFrom(token) });
+}
+
+/**
+ * What the SESSION brings to the question, beyond who it is.
+ *
+ * Required, not optional, because the one field in it can only ever make the
+ * answer stricter when it is empty: a caller that forgot it would still pass
+ * type-checking with a default, and would open every Entra-gated club.
+ */
+export interface MembershipSession {
+  /** The token's `groupGateCleared`, via `groupGateClearedFrom`. */
+  groupGateCleared: readonly string[];
 }
 
 /**
@@ -139,19 +155,40 @@ async function _resolveTenantPageContext(slug: string): Promise<TenantPageResult
  * `next/headers` throws outside one, so a test of the whole function would have
  * to mock the session reader and would then be testing the mock. This is the
  * part with the interesting failure modes — the ACTIVE filter, the slug join,
- * and permissions coming from the matched membership rather than the token.
+ * the group gate, and permissions coming from the matched membership rather
+ * than the token.
+ *
+ * Shared with `contextFromRequest` (#250): every tenant API request resolves
+ * its membership here too. A change to what counts as a member changes both.
  */
-export async function membershipContext(userId: string, slug: string): Promise<TenantPageResult> {
-  const membership = await runAsSuperuser((db) =>
-    db.tenantMembership.findFirst({
+export async function membershipContext(
+  userId: string,
+  slug: string,
+  session: MembershipSession,
+): Promise<TenantPageResult> {
+  const membership = await runAsSuperuser(async (db) => {
+    const row = await db.tenantMembership.findFirst({
       // `status: ACTIVE` is load-bearing. INVITED means they were asked and
       // have not accepted; SUSPENDED and EXPIRED mean they were a member and
       // are not now. Any of the three rendering an admin screen would be a
       // membership check that only asks whether a row exists.
       where: { userId, status: 'ACTIVE', tenant: { slug } },
       select: { tenantId: true, role: true, tenant: { select: { slug: true } } },
-    }),
-  );
+    });
+    if (!row) return null;
+
+    // ═══ A GATED CLUB THIS SESSION HAS NOT CLEARED IS NOT ITS CLUB ═══
+    //
+    // The row exists and the gate refuses anyway: that is the gate. Reported
+    // as "not a member", the answer a stranger gets, so a page cannot be used
+    // to learn which clubs are gated or that you belong to one.
+    const admitted = await groupGateAdmits(db, {
+      tenantId: row.tenantId,
+      role: row.role,
+      cleared: session.groupGateCleared,
+    });
+    return admitted ? row : null;
+  });
 
   if (!membership) return { kind: 'not-a-member' };
 
@@ -178,10 +215,13 @@ export async function membershipContext(userId: string, slug: string): Promise<T
  * and it does NOT re-run the page that rendered the form. So "the page already
  * checked `courts.manage`" protects the screen, not the mutation behind it.
  *
- * Middleware does gate `/t/[slug]/**` for membership, because the action posts
- * to the page's own path. It does not gate the permission: every rule in
+ * Middleware gates `/t/[slug]/**` for authentication only, because the action
+ * posts to the page's own path — and since #250 it lets through any signed-in
+ * caller whose token does not list the club, since a token cannot prove that
+ * somebody is NOT a member. It never gates the permission: every rule in
  * `route-permissions.ts` is anchored at `^/api/`. A COACH — a member, with
- * `players.view` and nothing else — would pass the edge and reach the action.
+ * `players.view` and nothing else — would pass the edge and reach the action,
+ * and so would somebody who is not a member at all.
  *
  * So every action calls this, first, before reading its arguments.
  *

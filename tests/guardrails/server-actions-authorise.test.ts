@@ -10,11 +10,13 @@ import { globSync, readFileSync } from 'node:fs';
  * can invoke it directly. It does NOT re-run the page, so the page's own
  * permission check protects the screen and not the mutation behind it.
  *
- * Middleware is only half a defence here. An action posts to the page's own
- * `/t/[slug]/…` path, so `checkTenantAccess` does gate MEMBERSHIP. It does not
- * gate the permission: every rule in `route-permissions.ts` is anchored at
- * `^/api/`, and they cover mutating HTTP verbs on API paths only. A COACH is a
- * member of the club and would sail through the edge into a court mutation.
+ * Middleware is no defence here at all. An action posts to the page's own
+ * `/t/[slug]/…` path, and since #250 `checkTenantAccess` lets any signed-in
+ * caller through to a club their token does not list — a token cannot prove
+ * that somebody is NOT a member — so it gates authentication only. It never
+ * gated the permission: every rule in `route-permissions.ts` is anchored at
+ * `^/api/`, and they cover mutating HTTP verbs on API paths only. A COACH, or
+ * a stranger, would sail through the edge into a court mutation.
  *
  * `route-permission-coverage` does not see these either — it globs
  * `src/app/api/**\/route.ts`.

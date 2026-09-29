@@ -14,13 +14,30 @@ import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
  *      not a liveness check, and a rate-limited one will get your pods
  *      killed during an incident, precisely when you least want that.
  *   2. read the token once.
- *   3. tenant access — is this your club at all?
+ *   3. tenant access — are you signed in, and does the token list this club?
  *   4. permission — are you allowed to do THIS to it?
  *
  * Steps 3 and 4 are defence in depth, not the defence. Postgres RLS is the
  * guarantee: even if this file were deleted, a query bound to the wrong
- * tenant returns zero rows. What the middleware buys is a clean 403 instead
- * of a baffling empty page, and a request that never reaches the database.
+ * tenant returns zero rows.
+ *
+ * ═══ WHAT THIS FILE CAN AND CANNOT DECIDE (#250) ═══
+ *
+ * It reads a token and never the database. A token can say "a member here,
+ * with this role"; it cannot say "not a member here" — a native token lists no
+ * clubs at all, and a web token lists only the clubs it was signed in with,
+ * while #229 lets a player join one by booking. So:
+ *
+ *   anonymous on a tenant path       refused here (401, or a sign-in redirect)
+ *   the token lists this club        let through; a mutation is refused here
+ *                                    when the claimed role lacks the permission
+ *   the token does not list it       let through UNDECIDED: the route resolves
+ *                                    the membership from the database and
+ *                                    enforces the same permission table itself
+ *
+ * The last row is not a gap. `contextFromRequest` refuses before any tenant
+ * route's handler runs, and `tenant-routes-resolve-membership` fails the build
+ * if a tenant route stops going through it.
  */
 
 /**
@@ -107,29 +124,31 @@ export async function middleware(req: NextRequest) {
     }
 
     case 'needs_db_check':
-      // The token's membership list was truncated, so we cannot rule the
-      // user out here. Let it through — the route resolves membership
-      // authoritatively, and RLS is the backstop either way. Denying at the
-      // edge would lock a player out of their 51st club.
+      // Signed in, and the token does not list this club: a native token
+      // (which lists none), a club joined after sign-in (#229), or a list cut
+      // at fifty. None of those says "not a member", and this file cannot ask
+      // the database — so the request goes on, and the route asks.
+      //
+      // This used to be a 403 for every case but the last, which refused the
+      // iOS client at its own club and refused #229's join-on-booking at the
+      // club being joined (#250).
       break;
-
-    case 'forbidden':
-      // Deliberately the same opaque message the permission branch uses:
-      // "no such tenant" and "not a member of it" must be indistinguishable,
-      // or this becomes a tenant-enumeration oracle.
-      return pathname.startsWith('/api/')
-        ? apiError(403, 'FORBIDDEN', 'Forbidden')
-        : new NextResponse('Forbidden', { status: 403 });
   }
 
-  // 4. Permission on mutations.
+  // 4. Permission on mutations — when the token has something to say.
   //
   // Derived from the membership matching THIS path, never from
   // `token.permissions` — which auth.ts freezes to memberships[0], the club
   // joined first. Reading that array here let an OWNER at one club perform
   // owner-only mutations at every other club they had merely joined.
+  //
+  // Skipped on `needs_db_check`, where there is no claim to derive it from.
+  // Skipping it does not ALLOW the mutation: `contextFromRequest` looks up the
+  // same `requiredPermission` and checks it against the role the database holds
+  // for this caller at this club, and a caller with no membership there is
+  // refused outright — except on the one route that exists to create it.
   const needed = requiredPermission(pathname, req.method);
-  if (needed) {
+  if (needed && access.kind !== 'needs_db_check') {
     const perms = permissionsForPath(pathname, token);
     if (!perms.includes(needed)) {
       return apiError(403, 'FORBIDDEN', 'Forbidden', { requiredPermission: needed });

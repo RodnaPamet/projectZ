@@ -17,6 +17,8 @@ declare module 'next-auth/jwt' {
     aadGroupsOverage?: boolean;
     memberships?: MembershipClaim[];
     membershipsTruncated?: boolean;
+    /** Clubs whose Entra group gate this sign-in passed. See `@/lib/auth/group-gate`. */
+    groupGateCleared?: string[];
   }
 }
 

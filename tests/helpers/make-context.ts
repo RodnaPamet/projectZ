@@ -20,6 +20,9 @@ export function buildRequestContext(overrides: Partial<RequestContext> = {}): Re
     // test pass while the check did nothing.
     appPermissions: [],
     platformGrantId: null,
+    // No group gate cleared: like the role, a test that needs to be past a
+    // club's Entra gate must say so.
+    groupGateCleared: [],
     requestId: 'test-request',
     locale: 'bg',
     ...overrides,

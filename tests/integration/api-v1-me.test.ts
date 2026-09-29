@@ -162,8 +162,41 @@ describe('GET /api/v1/t/{slug}/me', () => {
     };
 
     expect(data.membership.role).toBe('STAFF');
-    // And it SAYS the token is behind, which is the signal to refresh — the
-    // edge authorises mutations from claims alone and never asks the database.
+    // NOT stale, since #250. This token lists no clubs at all — every native
+    // token is like it — so there is no claim for the edge to act on: it
+    // defers this club to the database, which is what answered above. It used
+    // to say `true` here, on every native call, and refreshing could never
+    // clear it, because refresh mints no claims either.
+    expect(data.tokenStale).toBe(false);
+  });
+
+  it('says the token is stale when it LISTS the club with a role the database has changed', async () => {
+    // The one disagreement with a consequence: the edge still refuses a
+    // mutation the listed role lacks, although the database role allows it.
+    const t = await seedTenant({}, db);
+    const { userSessionId, sessionVersion } = await createUserSession({
+      userId: t.userId,
+      sessionSecret: newSessionSecret(),
+      expiresAt: new Date(Date.now() + 3600_000),
+    });
+    const listed = await encode({
+      secret: process.env.NEXTAUTH_SECRET!,
+      maxAge: 900,
+      token: {
+        sub: t.userId,
+        userSessionId,
+        sessionVersion,
+        // Signed in as STAFF; the database says OWNER (seedTenant).
+        memberships: [{ tenantId: t.tenantId, tenantSlug: t.tenantSlug, role: 'STAFF' }],
+      },
+    });
+
+    const res = await get(t.tenantSlug, listed);
+    const { data } = (await res.json()) as {
+      data: { membership: { role: string }; tokenStale: boolean };
+    };
+
+    expect(data.membership.role).toBe('OWNER');
     expect(data.tokenStale).toBe(true);
   });
 

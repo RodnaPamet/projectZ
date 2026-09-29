@@ -47,6 +47,15 @@ const OWNER_AT_SOFIA_PLAYER_AT_PLOVDIV = {
 const post = (path: string) =>
   middleware(new NextRequest(`https://playerz.bg${path}`, { method: 'POST' }));
 
+const get = (path: string) => middleware(new NextRequest(`https://playerz.bg${path}`));
+
+/**
+ * The edge let the request on to the route. `NextResponse.next()` marks itself
+ * with this header; a status of 200 alone would also be true of a response the
+ * middleware answered itself.
+ */
+const passedThrough = (res: Response) => res.headers.get('x-middleware-next') === '1';
+
 beforeEach(() => {
   mockedGetToken.mockReset();
 });
@@ -101,21 +110,33 @@ describe('middleware permission check', () => {
     expect(res.status).toBe(200);
   });
 
-  it('still denies a non-member before permissions are even considered', async () => {
+  it('hands a club the token does not list to the route, UNDECIDED (#250)', async () => {
+    // This was a 403 here: "not a member". It cannot be concluded from a token
+    // — a player may have joined varna-squash by booking since signing in — so
+    // the request goes on, and `contextFromRequest` refuses it there, from the
+    // database, if the caller has no membership or lacks admin.venue_manage.
     mockedGetToken.mockResolvedValue(OWNER_AT_SOFIA_PLAYER_AT_PLOVDIV);
 
     const res = await post('/api/t/varna-squash/admin/venues');
 
-    expect(res.status).toBe(403);
-    // No `requiredPermission` — this is the tenant branch, which stays opaque
-    // so it cannot be used to enumerate tenants.
-    await expect(res.json()).resolves.toEqual({
-      error: { code: 'FORBIDDEN', message: 'Forbidden' },
-    });
+    expect(passedThrough(res)).toBe(true);
   });
 
-  it('denies the mutation when the membership list was truncated', async () => {
-    // Fail closed: an incomplete list is not permission to skip the check.
+  it('answers "no such club" exactly as it answers "a club you are not in"', async () => {
+    // Both pass through, and both reach a route that resolves them from one
+    // query. Neither the edge nor the route can be used to enumerate clubs.
+    mockedGetToken.mockResolvedValue(OWNER_AT_SOFIA_PLAYER_AT_PLOVDIV);
+
+    const real = await post('/api/v1/t/varna-squash/bookings/b1/cancel');
+    const invented = await post('/api/v1/t/no-such-club-anywhere/bookings/b1/cancel');
+
+    expect(real.status).toBe(invented.status);
+    expect([...real.headers.entries()]).toEqual([...invented.headers.entries()]);
+  });
+
+  it('skips its permission check when the list was truncated — the route checks instead', async () => {
+    // This used to deny, and said why: "the routes do not re-check". They do
+    // now, against the database, so club 51 is no longer refused mutations.
     mockedGetToken.mockResolvedValue({
       sub: 'u1',
       role: 'OWNER',
@@ -126,13 +147,38 @@ describe('middleware permission check', () => {
 
     const res = await post('/api/t/club-51/admin/venues');
 
-    expect(res.status).toBe(403);
+    expect(passedThrough(res)).toBe(true);
+  });
+});
+
+describe('middleware and a NATIVE access token (#250)', () => {
+  // Exactly what `mintAccessToken` writes: identity and session, no clubs.
+  const NATIVE = { sub: 'u1', userSessionId: 's1', sessionVersion: 0 };
+
+  it('lets a native token through to its club — reads and writes alike', async () => {
+    // Measured on main: every one of these was a 403 at the edge, on the
+    // caller's own club, because a missing claim read as "not a member".
+    mockedGetToken.mockResolvedValue(NATIVE);
+
+    expect(passedThrough(await get('/api/v1/t/sofia-padel/me'))).toBe(true);
+    expect(passedThrough(await get('/api/v1/t/sofia-padel/bookings'))).toBe(true);
+    expect(passedThrough(await post('/api/v1/t/sofia-padel/bookings'))).toBe(true);
+    expect(passedThrough(await post('/api/v1/t/sofia-padel/bookings/b1/cancel'))).toBe(true);
+  });
+
+  it('still refuses the same request with no token at all', async () => {
+    mockedGetToken.mockResolvedValue(null);
+
+    const res = await post('/api/v1/t/sofia-padel/bookings');
+
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+    });
   });
 });
 
 describe('middleware sign-in redirect', () => {
-  const get = (path: string) => middleware(new NextRequest(`https://playerz.bg${path}`));
-
   it('carries the WHOLE deep link to /login, query string included (#227)', async () => {
     // `/login` now honours `next` over role landing. A diary link for a given
     // day that lost its `?day=` would still land on the diary — on today.

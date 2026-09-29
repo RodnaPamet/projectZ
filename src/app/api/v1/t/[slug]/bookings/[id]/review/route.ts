@@ -28,11 +28,11 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * ═══ THE TENANT COMES FROM THE DATABASE ═══
  *
- * `resolvePlayerTenant`, as the bookings route does, not `ctx.tenantId`: absence
- * from a TRUNCATED membership list in the token proves nothing, and a player
- * with many clubs must still be able to review the fifty-first. It never joins —
- * a review is left by someone who already booked, and booking made them a
- * member. A suspended member gets the same 404 as an unknown club.
+ * `resolvePlayerTenant`, as the bookings route does. `ctx.tenantId` is resolved
+ * from the database too since #250, but this also refuses a club that is no
+ * longer ACTIVE. It never joins — a review is left by someone who already
+ * booked, and booking made them a member. A suspended member gets the same 404
+ * as an unknown club.
  *
  * ═══ MODERATION HAPPENS HERE, SYNCHRONOUSLY ═══
  *
@@ -80,7 +80,10 @@ async function handler(
     });
   }
 
-  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: false });
+  const standing = await resolvePlayerTenant(ctx.userId, slug, {
+    createIfAbsent: false,
+    groupGateCleared: ctx.groupGateCleared,
+  });
   if (!standing) throw new NotFoundError('Booking not found');
 
   const tenantCtx = { ...ctx, tenantId: standing.tenantId };
