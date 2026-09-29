@@ -601,5 +601,70 @@
       "COACH": "Coach"
     },
     "unavailable": "That role is no longer available. The list has been refreshed."
+  },
+  "platform": {
+    "moderation": {
+      "metaTitle": "Review moderation — playerz.bg",
+      "title": "Review moderation",
+      "subtitle": "Reviews the classifier held back, or that players reported, from every club. Oldest first.",
+      "reason": {
+        "label": "Why are you opening the queue?",
+        "hint": "At least {min} characters. It is written to the platform audit log with every page you load — a ticket or shift reference is ideal."
+      },
+      "open": "Open the queue",
+      "refresh": "Reload",
+      "more": "Load more",
+      "empty": {
+        "title": "Nothing waiting",
+        "description": "Every review that needed a human has been decided."
+      },
+      "resolvedElsewhere": "That case had already been decided by another moderator. Nothing was changed.",
+      "opened": "in the queue since {when}",
+      "rating": "{rating} of 5 stars",
+      "noText": "Stars only — no text.",
+      "flag": {
+        "category": "Flagged: {category}",
+        "classifier_unavailable": "The classifier was unavailable",
+        "user_report": "Reported by a player"
+      },
+      "category": {
+        "harassment": "harassment",
+        "hate": "hate",
+        "sexual": "sexual content",
+        "sexual_minors": "sexual content involving minors",
+        "violence": "violence",
+        "self_harm": "self-harm",
+        "self_harm_instructions": "self-harm instructions",
+        "spam": "spam",
+        "unknown": "unknown"
+      },
+      "reviewStatus": {
+        "PENDING_REVIEW": "held",
+        "PUBLISHED": "live",
+        "REJECTED": "rejected automatically"
+      },
+      "scores": {
+        "title": "What the classifier saw",
+        "none": "No classifier scores for this one."
+      },
+      "note": {
+        "label": "Your decision note",
+        "hint": "At least {min} characters. It is kept with the case, as the answer to \"why\", and written to the audit log."
+      },
+      "approve": "Approve and publish",
+      "reject": "Reject",
+      "error": {
+        "PLATFORM_AUTHORITY_REQUIRED": "You do not hold a live platform grant.",
+        "PLATFORM_CAPABILITY_REQUIRED": "Your platform grant does not include review moderation.",
+        "REASON_REQUIRED": "State a reason of at least 12 characters.",
+        "REASON_TOO_LONG": "That reason is too long — at most 500 characters.",
+        "INVALID_CURSOR": "The queue moved underneath you. Reload it.",
+        "UNAUTHORIZED": "Your session has ended. Sign in again.",
+        "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+        "CASE_NOT_FOUND": "That case no longer exists.",
+        "NETWORK": "Could not reach the server.",
+        "UNKNOWN": "Something went wrong. Nothing was changed."
+      }
+    }
   }
 }

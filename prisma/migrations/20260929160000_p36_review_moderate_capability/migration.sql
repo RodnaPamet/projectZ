@@ -1,0 +1,19 @@
+-- P36: REVIEW_MODERATE, the capability that works the review moderation queue.
+--
+-- ═══ A WRITE, AND ENABLED ═══
+--
+-- Every other write capability is refused at the binding
+-- (`PlatformWriteNotEnabledError`), because stepping up to a cross-club write
+-- should need a second factor and there is none. This one is admitted by name
+-- in `ENABLED_PLATFORM_WRITES`, by the owner's decision on #228: a club must
+-- not moderate reviews of itself, so the queue is worked by platform
+-- moderators, and a queue nobody may act on is not a queue. The terms it is
+-- admitted on are written there, beside the refusal.
+--
+-- ═══ WHY ADD VALUE IS SAFE HERE ═══
+--
+-- `ALTER TYPE … ADD VALUE` runs inside a transaction on Postgres 12+, with one
+-- restriction: the new value cannot be USED in the same transaction. This
+-- migration only declares it. Grants carrying it are issued afterwards, by the
+-- CLI, in transactions of their own.
+ALTER TYPE "PlatformCapability" ADD VALUE 'REVIEW_MODERATE';

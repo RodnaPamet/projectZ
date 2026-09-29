@@ -68,17 +68,55 @@ bootstrap themselves.
 
 ### Capabilities
 
-| Capability       | Status                               |
-| ---------------- | ------------------------------------ |
-| `TENANT_READ`    | read any club's operational data     |
-| `AUDIT_READ`     | read any club's audit log            |
-| `USER_READ`      | read user records across clubs       |
-| `TENANT_SUSPEND` | **declared, refused at the binding** |
+| Capability        | Status                                                       |
+| ----------------- | ------------------------------------------------------------ |
+| `TENANT_READ`     | read any club's operational data                             |
+| `AUDIT_READ`      | read any club's audit log                                    |
+| `USER_READ`       | read user records across clubs                               |
+| `TENANT_SUSPEND`  | **declared, refused at the binding**                         |
+| `REVIEW_MODERATE` | work the review moderation queue — **the one enabled write** |
 
 `TENANT_SUSPEND` is refused because stepping up to a cross-club **write** should
 require a second factor and there is none: `User.mfaSecret` is unencrypted and
 nothing writes it. Granting it today buys nothing. If you need a cross-club write,
 that is a decision to make deliberately, not a flag to flip during an incident.
+
+`REVIEW_MODERATE` is that decision, made once, for one narrow write (#228): a club
+must not moderate reviews of itself, so platform moderators work the queue. It is
+enabled by name in `ENABLED_PLATFORM_WRITES` (`src/lib/platform/capabilities.ts`),
+which states the terms — it changes a review's visibility and the venue rating
+computed from it, deletes nothing, and audits every decision with the moderator's
+own note. Every other write, present or future, is still refused unless it is
+added there too.
+
+### Moderating reviews
+
+Give moderators `REVIEW_MODERATE` alone — it does not need, and should not bring,
+`TENANT_READ`:
+
+```bash
+npm run grant:platform-admin -- \
+  --user moderator@playerz.bg \
+  --granted-by bob@playerz.bg \
+  --capabilities REVIEW_MODERATE \
+  --expires 2026-12-31 \
+  --reason "review moderation rota Q4"
+```
+
+The queue is the page `/platform/moderation`. It asks for a reason once (written
+with every page it loads) and a note for every decision (kept on the case as the
+answer to "why", and written as the audit reason). The same two operations exist
+over HTTP for tooling:
+
+```
+GET  /api/v1/platform/moderation/cases?reason=<why>[&cursor=<opaque>]
+POST /api/v1/platform/moderation/cases/{id}/resolve   {"decision":"APPROVE"|"REJECT","note":"…"}
+```
+
+**Why the queue fills up.** Every review with text is classified by the Claude API
+before it is shown. When `ANTHROPIC_API_KEY` is unset, or the API is down, the
+review is held for a human rather than published unchecked — so without a key,
+every text review lands here. Star-only reviews are never queued.
 
 ---
 

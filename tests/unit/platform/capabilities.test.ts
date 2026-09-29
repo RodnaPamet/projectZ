@@ -1,7 +1,9 @@
 import { PlatformCapability } from '@prisma/client';
 
 import {
+  ENABLED_PLATFORM_WRITES,
   grantAllows,
+  isRefusedWrite,
   isWriteCapability,
   liveCapabilities,
   PLATFORM_CAPABILITIES,
@@ -102,8 +104,11 @@ describe('the capability list', () => {
     expect([...PLATFORM_CAPABILITIES].sort()).toEqual(Object.values(PlatformCapability).sort());
   });
 
-  it('classifies TENANT_SUSPEND as a write and the reads as reads', () => {
+  it('classifies TENANT_SUSPEND and REVIEW_MODERATE as writes and the reads as reads', () => {
     expect(isWriteCapability(PlatformCapability.TENANT_SUSPEND)).toBe(true);
+    // Enabled is not the same as "not a write". Relabelling it a read would
+    // have enabled it too — by making the refusal a matter of naming.
+    expect(isWriteCapability(PlatformCapability.REVIEW_MODERATE)).toBe(true);
 
     for (const read of [
       PlatformCapability.TENANT_READ,
@@ -121,12 +126,50 @@ describe('the capability list', () => {
     //
     // Named explicitly: anything whose name implies mutation must be in the set.
     const mutating = PLATFORM_CAPABILITIES.filter((c) =>
-      /SUSPEND|WRITE|DELETE|CREATE|UPDATE|MANAGE|GRANT/.test(c),
+      /SUSPEND|WRITE|DELETE|CREATE|UPDATE|MANAGE|GRANT|MODERATE/.test(c),
     );
 
-    expect(mutating.length).toBeGreaterThan(0);
+    expect(mutating.length).toBeGreaterThan(1);
     for (const c of mutating) {
       expect(PLATFORM_WRITE_CAPABILITIES.has(c)).toBe(true);
     }
+  });
+});
+
+describe('which writes the binding refuses', () => {
+  it('enables exactly one write, by name — REVIEW_MODERATE', () => {
+    // Pinned so enabling a second cross-club write is an edit to THIS file as
+    // well as to the set, and a reviewer sees both. The terms REVIEW_MODERATE
+    // is enabled on are written beside ENABLED_PLATFORM_WRITES.
+    expect([...ENABLED_PLATFORM_WRITES]).toEqual([PlatformCapability.REVIEW_MODERATE]);
+  });
+
+  it('still refuses TENANT_SUSPEND', () => {
+    expect(isRefusedWrite(PlatformCapability.TENANT_SUSPEND)).toBe(true);
+  });
+
+  it('refuses no read and not the enabled write', () => {
+    expect(isRefusedWrite(PlatformCapability.REVIEW_MODERATE)).toBe(false);
+    for (const read of [
+      PlatformCapability.TENANT_READ,
+      PlatformCapability.AUDIT_READ,
+      PlatformCapability.USER_READ,
+    ]) {
+      expect(isRefusedWrite(read)).toBe(false);
+    }
+  });
+
+  it('can only enable something that is a write', () => {
+    // An entry here that is not in the write set would read as "enabled" while
+    // meaning nothing — the kind of line that survives because it looks safe.
+    for (const c of ENABLED_PLATFORM_WRITES) {
+      expect(PLATFORM_WRITE_CAPABILITIES.has(c)).toBe(true);
+    }
+  });
+
+  it('refuses every write that is not enabled by name — the default stays refusal', () => {
+    const refused = [...PLATFORM_WRITE_CAPABILITIES].filter((c) => !ENABLED_PLATFORM_WRITES.has(c));
+    expect(refused.length).toBeGreaterThan(0);
+    for (const c of refused) expect(isRefusedWrite(c)).toBe(true);
   });
 });

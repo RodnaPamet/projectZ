@@ -133,6 +133,26 @@ describe('runAsPlatformAdmin', () => {
     expect(await auditRows()).toHaveLength(0);
   });
 
+  it('lets through the one ENABLED write, REVIEW_MODERATE — and still audits it', async () => {
+    // Enabled by name in ENABLED_PLATFORM_WRITES (#228). The binding does not
+    // check the grant (asPlatformAdmin does, one layer up), so this proves
+    // only what this layer decides: the write is not refused, and it is not
+    // exempt from the row written before the work.
+    await expect(
+      runAsPlatformAdmin(
+        act({ capability: PlatformCapability.REVIEW_MODERATE, action: 'PLATFORM_REVIEW_APPROVED' }),
+        async () => 'decided',
+      ),
+    ).resolves.toBe('decided');
+
+    const rows = await asAppSuperuser(db, (tx) =>
+      tx.$queryRawUnsafe<{ capability: string; action: string }[]>(
+        `SELECT capability::text AS capability, action FROM platform_audit_entry`,
+      ),
+    );
+    expect(rows).toEqual([{ capability: 'REVIEW_MODERATE', action: 'PLATFORM_REVIEW_APPROVED' }]);
+  });
+
   it('refuses a reason too short to answer anything later', async () => {
     await expect(runAsPlatformAdmin(act({ reason: 'because' }), async () => 'x')).rejects.toThrow(
       PlatformReasonRequiredError,

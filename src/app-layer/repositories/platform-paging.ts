@@ -114,6 +114,35 @@ export async function tenantPageIds(
 }
 
 /**
+ * One page of OPEN review-case ids, oldest first — the order a queue is worked.
+ *
+ * Across every club, like `tenantPageIds`, and for the same reason: the only
+ * binding that reaches it is `asPlatformAdmin`. Seeks on (createdAt, id) under
+ * `status = 'OPEN'`, which `moderation_case_status_createdAt_idx` serves.
+ */
+export async function moderationQueuePageIds(
+  db: PrismaClient,
+  opts: { limit: number; after?: SeekCursor },
+): Promise<string[]> {
+  const { limit, after } = opts;
+
+  const rows = after
+    ? await db.$queryRaw<{ id: string }[]>`
+        SELECT id FROM moderation_case
+         WHERE status = 'OPEN' AND "subjectType" = 'REVIEW'
+           AND ("createdAt", id) > (${after.createdAt}::timestamptz, ${after.id})
+         ORDER BY "createdAt" ASC, id ASC
+         LIMIT ${limit + 1}`
+    : await db.$queryRaw<{ id: string }[]>`
+        SELECT id FROM moderation_case
+         WHERE status = 'OPEN' AND "subjectType" = 'REVIEW'
+         ORDER BY "createdAt" ASC, id ASC
+         LIMIT ${limit + 1}`;
+
+  return rows.map((r) => r.id);
+}
+
+/**
  * Restore the seek's order after a typed `findMany({ id: { in } })`.
  *
  * `IN` does not preserve order and Postgres is free to return those rows any
