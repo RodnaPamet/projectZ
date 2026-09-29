@@ -164,6 +164,30 @@ wrong), validates, reloads, moves `NEXTAUTH_URL`, and recreates the app. Names
 given after the first get a `redir` block rather than joining the site block —
 two hostnames serving the same app means two cookie jars.
 
+## Scheduled jobs
+
+Three routes under `/api/cron` do work nothing else triggers, and each refuses
+to run (503) until `CRON_SECRET` is set:
+
+| Route                           | Cadence | Without it                                                                 |
+| ------------------------------- | ------- | -------------------------------------------------------------------------- |
+| `release-expired-bookings`      | 60 s    | an abandoned checkout holds its court for ever, and keeps the credit spent |
+| `complete-ended-bookings`       | 60 s    | no booking ever becomes COMPLETED, so nobody can ever leave a review       |
+| `warn-expiring-platform-grants` | daily   | a platform grant lapses mid-incident with no warning                       |
+
+`ops/sweep.compose.yml` runs all three as small `alpine` loops. It is an
+overlay on `docker-compose.prod.yml`, so copy it beside that file and name
+both:
+
+```bash
+# once: add CRON_SECRET to /opt/playerz/.env (openssl rand -base64 32)
+cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml -f sweep.compose.yml up -d
+```
+
+Until #247 the overlay was not a valid compose project against this file —
+it named a service `app` that #230 had renamed `playerz-app` — so none of the
+three can have been running from it.
+
 ## Verifying
 
 ```bash
@@ -181,6 +205,9 @@ actually configured.
 ## Not done yet
 
 - **No backups.** The Postgres volume is a Docker volume on one VM. See #218.
+- **Scheduled jobs not known to be running.** See _Scheduled jobs_ above:
+  whether `CRON_SECRET` is set here and the overlay is up has not been
+  verified from this repo. See #249.
 - **No OAuth credentials.** `/api/ready` reports `google: disabled, microsoft:
 disabled`, and the web login page offers nothing else — so nobody can sign in
   until `GOOGLE_CLIENT_ID/SECRET` and `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` are
