@@ -14,6 +14,9 @@ import { runInTenantContext } from '@/lib/db/rls-middleware';
 import { prismaTestClient, resetDatabase, seedTenant } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
 
+/** A session that cleared no Entra group gate — every non-Entra sign-in. */
+const NO_GATE_CLEARED = { groupGateCleared: [] as string[] };
+
 /**
  * THE INVITE FLOW, WHICH DID NOT EXIST.
  *
@@ -60,13 +63,15 @@ describe('staff invites', () => {
     expect(preview).toMatchObject({ tenantSlug: t.tenantSlug, role: 'COACH' });
 
     // Before: not a member.
-    expect((await membershipContext(joiner.id, t.tenantSlug)).kind).toBe('not-a-member');
+    expect((await membershipContext(joiner.id, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
+      'not-a-member',
+    );
 
     const result = await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, joiner.id));
     expect(result).toMatchObject({ tenantSlug: t.tenantSlug, role: 'COACH' });
 
     // After: a member, at the invited role, resolvable by the real resolver.
-    const ctx = await membershipContext(joiner.id, t.tenantSlug);
+    const ctx = await membershipContext(joiner.id, t.tenantSlug, NO_GATE_CLEARED);
     expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('COACH');
   });
 
@@ -98,7 +103,9 @@ describe('staff invites', () => {
       runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, b.id)),
     ).rejects.toThrow(InviteNotUsableError);
 
-    expect((await membershipContext(b.id, t.tenantSlug)).kind).toBe('not-a-member');
+    expect((await membershipContext(b.id, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
+      'not-a-member',
+    );
   });
 
   it('REFUSES to invite an OWNER', async () => {
@@ -189,7 +196,7 @@ describe('staff invites', () => {
     const { token } = await invite(t, m.email, 'PLAYER');
     await runInTenantContext(t.tenantId, (c) => acceptInvite(c, token, m.id));
 
-    const ctx = await membershipContext(m.id, t.tenantSlug);
+    const ctx = await membershipContext(m.id, t.tenantSlug, NO_GATE_CLEARED);
     expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('MANAGER');
   });
 

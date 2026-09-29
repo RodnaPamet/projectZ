@@ -57,12 +57,17 @@ describe('a truncated list must not lock a player out of their 51st club', () =>
     ).toBe('allow');
   });
 
-  it('an UNtruncated list still yields a hard forbidden', () => {
-    // The deferral must not become a blanket "ask the DB", or the edge
-    // guard stops guarding.
+  it('an UNtruncated list defers too, because complete is not the same as current (#250)', () => {
+    // This used to be a hard `forbidden`, on the grounds that deferring
+    // everything would stop the edge guarding. The list is complete only as of
+    // SIGN-IN: #229 joins a player to a club by booking, after which the club
+    // is missing from a list that is not truncated. So the deferral IS blanket
+    // now — and the guarding moved, not vanished: every tenant route resolves
+    // the membership from the database and enforces the permission table there
+    // (`tenant-routes-resolve-membership` pins it).
     const { memberships, membershipsTruncated } = buildMembershipClaims(mk(3));
     expect(
       checkTenantAccess('/t/other-club/x', { sub: 'u1', memberships, membershipsTruncated }).kind,
-    ).toBe('forbidden');
+    ).toBe('needs_db_check');
   });
 });

@@ -1,15 +1,22 @@
 import { getToken } from 'next-auth/jwt';
 
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
+import { membershipContext } from '@/lib/auth/page-context';
 import { checkSession } from '@/lib/auth/sessions';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
 jest.mock('@/lib/auth/sessions', () => ({ checkSession: jest.fn() }));
+// The membership is read from the database since #250. The real resolver
+// reaches Prisma, which does not load under jsdom; context.test.ts covers what
+// the context does with its answer.
+jest.mock('@/lib/auth/page-context', () => ({ membershipContext: jest.fn() }));
 
 const mockToken = getToken as unknown as jest.Mock;
 const mockCheck = checkSession as unknown as jest.Mock;
+const mockMembership = membershipContext as unknown as jest.Mock;
 
-const req = {} as never;
+/** A read at club-a — no permission required, so only the session is in question. */
+const req = { nextUrl: new URL('https://playerz.bg/api/v1/t/club-a/me'), method: 'GET' } as never;
 const BASE = { requestId: 'req_1' };
 
 const signedIn = {
@@ -24,6 +31,17 @@ const signedIn = {
 beforeEach(() => {
   mockToken.mockReset();
   mockCheck.mockReset();
+  mockMembership.mockReset();
+  mockMembership.mockResolvedValue({
+    kind: 'ok',
+    ctx: {
+      userId: 'usr_1',
+      tenantId: 'tnt_a',
+      tenantSlug: 'club-a',
+      role: 'OWNER',
+      permissions: ['admin.venue_manage'],
+    },
+  });
 });
 
 describe('contextFromRequest session enforcement', () => {
@@ -53,8 +71,29 @@ describe('contextFromRequest session enforcement', () => {
       expect(ctx.tenantId).toBeNull();
       expect(ctx.role).toBeNull();
       expect(ctx.permissions).toEqual([]);
+      // Nor is the membership looked up for a session nobody wants any more.
+      expect(mockMembership).not.toHaveBeenCalled();
     },
   );
+
+  it('a dead session on a route that needs a permission is a 401, not an anonymous context', async () => {
+    // The edge answers 401 before this runs. Handing the handler an anonymous
+    // context anyway would leave the refusal to whichever handler remembered
+    // to check — and one route on this tree (the venue-admin stub) had no
+    // check at all, because it trusted the edge.
+    mockToken.mockResolvedValue(signedIn);
+    mockCheck.mockResolvedValue({ usable: false, reason: 'revoked' });
+
+    const mutation = {
+      nextUrl: new URL('https://playerz.bg/api/v1/t/club-a/bookings/b1/cancel'),
+      method: 'POST',
+    } as never;
+
+    await expect(contextFromRequest(mutation, { ...BASE, slug: 'club-a' })).rejects.toMatchObject({
+      status: 401,
+      code: 'UNAUTHORIZED',
+    });
+  });
 
   it('passes the token claims through to the check, not defaults', async () => {
     // Sending sessionVersion 0 instead of the token's value would make every

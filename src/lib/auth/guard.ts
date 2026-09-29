@@ -2,13 +2,41 @@
  * Tenant access control at the edge.
  *
  * The URL says which tenant you are asking about (`/t/sofia-padel/...`).
- * The JWT says which tenants you actually belong to. If those disagree, the
- * request stops here.
+ * The JWT may say that you belong to it. It can NEVER say that you do not.
+ *
+ * ═══ WHY THE EDGE NO LONGER REFUSES A NON-MEMBER (#250) ═══
+ *
+ * This file used to answer 403 whenever the slug was missing from
+ * `token.memberships`. That reading was only sound while the list was a
+ * complete, current record of the caller's clubs, and it is neither:
+ *
+ *   - a NATIVE access token carries no `memberships` claim at all —
+ *     `mintAccessToken` writes `{sub, userSessionId, sessionVersion}` — so every
+ *     `/api/v1/t/{slug}/**` call from the iOS client was a 403 at the edge, on
+ *     the caller's OWN club. Measured on main: `{"kind":"forbidden",
+ *     "reason":"not_a_member"}` for a freshly minted token;
+ *   - a WEB token's list is written once, at sign-in. #229 lets a signed-in
+ *     player join any active club by booking there, so the membership that
+ *     booking creates is absent from every token minted before it — and #229's
+ *     own write, `POST /api/v1/t/{slug}/bookings`, was the first thing refused;
+ *   - a list longer than MAX_JWT_MEMBERSHIPS is truncated by construction.
+ *
+ * The edge cannot read the database, so it cannot answer "is this user a
+ * member of this slug" for a token that does not say. It now stops pretending
+ * to: absence is `needs_db_check`, and the Node side resolves membership from
+ * the database on every tenant request — `contextFromRequest` for the API,
+ * `resolveTenantPageContext` / `requireTenantAction` for pages and Server
+ * Actions. `tenant-routes-resolve-membership` pins that every tenant route goes
+ * through the first.
+ *
+ * What a claim still buys is the fast path: a slug the token DOES list is let
+ * through without a second thought, and a mutation there is refused here if the
+ * claimed role lacks the permission. The route re-checks both against the
+ * database, so a stale claim can make the edge too strict, never too lenient.
  *
  * This is defence in depth, not the defence. Postgres RLS is the guarantee
  * — even if this guard were bypassed entirely, a query bound to the wrong
- * tenant returns zero rows. What this buys is a clean 403 instead of a
- * confusing empty page, and a request that never touches the database.
+ * tenant returns zero rows.
  */
 
 import { getPermissionsForRole, isRole } from '@/lib/permissions';
@@ -18,16 +46,15 @@ export type AccessDecision =
   | { kind: 'public' }
   | { kind: 'unauthenticated' }
   /**
-   * The token's membership list was TRUNCATED, and the requested tenant is
-   * not in the part we can see. We cannot conclude "not a member" from an
-   * incomplete list — so the caller must ask the database.
+   * Signed in, and the token does not list this tenant. That proves nothing —
+   * see the header — so the request goes on and the route asks the database.
    *
-   * Denying here instead would lock a player out of their 51st club: a bug
-   * that only appears for the most engaged users, and looks like a
-   * permissions problem rather than a truncation one.
+   * NOT a softer "allow". Nothing about the caller's standing at this club was
+   * established here, so the middleware must not treat it as a membership: it
+   * skips the claim-based permission check, which has no claim to read, and the
+   * route enforces the same permission table against the database instead.
    */
-  | { kind: 'needs_db_check'; tenantSlug: string }
-  | { kind: 'forbidden'; reason: string };
+  | { kind: 'needs_db_check'; tenantSlug: string };
 
 export interface TokenClaims {
   sub?: string;
@@ -164,24 +191,23 @@ export function tenantSlugFromPath(pathname: string): string | null {
  * `contextFromRequest` does for v1 routes. This is the edge half of that fix.
  * `token.permissions` and `token.role` are not read here, deliberately.
  *
- * ═══ THE TRUNCATED CASE, AND WHY IT DENIES ═══
+ * ═══ ONLY FOR A SLUG THE TOKEN LISTS ═══
  *
- * `buildMembershipClaims` caps the list at MAX_JWT_MEMBERSHIPS for a header
- * budget. A player in more clubs than that carries an incomplete list, so a
- * missing membership does not prove non-membership — which is why
- * `checkTenantAccess` returns `needs_db_check` and lets the request through.
+ * With no matching claim this returns `[]`, which is the right answer to "what
+ * does this TOKEN say you hold here" and the wrong answer to "what do you
+ * hold here". So the middleware asks it only when `checkTenantAccess` said
+ * `allow` — the token lists the slug. On `needs_db_check` there is nothing to
+ * read, and the permission is enforced by the route instead, from the database:
+ * `contextFromRequest` looks up the same `requiredPermission` and refuses before
+ * the handler runs.
  *
- * This cannot do the same. Letting a mutation through with NO permission check
- * would mean the one class of user whose claims we admit are incomplete is
- * also the one class that bypasses authorisation entirely — and the routes do
- * not re-check: the admin stub says outright that it has no permission check
- * "on purpose — the middleware has already enforced admin.venue_manage".
- *
- * So it denies, and the honest cost is recorded: a player in more than
- * MAX_JWT_MEMBERSHIPS clubs cannot perform a mutation at a club outside the
- * first fifty until the edge can resolve membership authoritatively. Denying a
- * rare legitimate user beats admitting every attacker who can join fifty-one
- * clubs.
+ * This used to deny a mutation whenever the claim was missing, and said why:
+ * letting it through would bypass authorisation, because "the routes do not
+ * re-check". That was true, and it is what #250 changed — they re-check now,
+ * against the database, on every request. The honest cost this recorded (a
+ * player in more than MAX_JWT_MEMBERSHIPS clubs could not mutate at the
+ * fifty-first) is gone with it. A mutation is never let through BECAUSE a claim
+ * was absent; it is let through to the one layer that can answer.
  */
 export function permissionsForPath(pathname: string, token: TokenClaims | null): string[] {
   const slug = tenantSlugFromPath(pathname);
@@ -241,18 +267,21 @@ export function checkTenantAccess(pathname: string, token: TokenClaims | null): 
 
   if (!token?.sub) return { kind: 'unauthenticated' };
 
-  const memberships = token.memberships ?? [];
-  const member = memberships.some((m) => m.tenantSlug === slug);
+  // The fast path: the token lists this club. The route still re-reads the
+  // membership, so a claim the database has since withdrawn buys nothing past
+  // this line.
+  if ((token.memberships ?? []).some((m) => m.tenantSlug === slug)) return { kind: 'allow' };
 
-  if (member) return { kind: 'allow' };
-
-  // Absence from a TRUNCATED list proves nothing. Ask the database rather
-  // than locking a player out of their 51st club.
-  if (token.membershipsTruncated) {
-    return { kind: 'needs_db_check', tenantSlug: slug };
-  }
-
-  // Do NOT distinguish "no such tenant" from "not a member of it" — that
-  // difference is a tenant-enumeration oracle.
-  return { kind: 'forbidden', reason: 'not_a_member' };
+  // ═══ ABSENCE PROVES NOTHING, SO THE DATABASE DECIDES ═══
+  //
+  // A native token lists no clubs, a web token lists the clubs it was signed in
+  // with, and a truncated one lists fifty. None of those is "not a member" —
+  // see the header. Every tenant route resolves membership from the database
+  // before it does anything else, and answers a non-member itself.
+  //
+  // "No such tenant" and "not a member of it" still cannot be told apart: both
+  // arrive here with no claim, both get this answer, and the route reads both
+  // as "no membership at this slug" from the same query. The difference would
+  // be a tenant-enumeration oracle, at this layer or the next.
+  return { kind: 'needs_db_check', tenantSlug: slug };
 }

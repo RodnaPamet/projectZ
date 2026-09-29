@@ -45,6 +45,17 @@ export interface RequestContext {
    * not an answer to that.
    */
   platformGrantId: string | null;
+  /**
+   * Clubs whose Entra group gate this SESSION passed at sign-in — the token's
+   * `groupGateCleared`, carried here so a use case that resolves standing at a
+   * club it has not bound yet (`resolvePlayerTenant`, which joins players by
+   * booking) can apply the gate without reading a token.
+   *
+   * Not authority on its own: it can only ever lift the gate at a club where
+   * the database ALSO holds an ACTIVE membership, or where joining is allowed.
+   * Empty for anonymous callers and for every non-Entra sign-in.
+   */
+  groupGateCleared: readonly string[];
   requestId: string;
   locale: 'bg' | 'en';
 }
