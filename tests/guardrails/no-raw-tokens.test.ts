@@ -16,6 +16,12 @@ import { join, relative } from 'node:path';
  * semantic token.
  */
 
+/**
+ * `brand` is absent on purpose. It is this product's own palette, and its shades
+ * are fine as FILLS (`bg-brand-600`). As TEXT they are not: no brand shade is
+ * body text in both themes, so no-raw-brand-text.test.ts bans `text-brand-NNN`
+ * in favour of `text-content-brand` (#233).
+ */
 const RAW_COLOR_SCALES =
   /\b(?:bg|text|border|ring|fill|stroke|from|via|to|divide|outline|shadow|accent|caret|decoration)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|\d{3})\b/g;
 

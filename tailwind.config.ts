@@ -21,6 +21,11 @@ const config: Config = {
     extend: {
       colors: {
         // ── Existing brand palette (unchanged) ──
+        //
+        // The fixed shades are FILLS (`bg-brand-600`). They are banned as TEXT
+        // by tests/guardrails/no-raw-brand-text.test.ts: no single shade is body
+        // text in both themes (brand-600 is 4.48:1 on the light page, 3.79:1 on
+        // the dark one). Green text is `text-content-brand`, below (#233).
         brand: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -81,6 +86,11 @@ const config: Config = {
           error: 'var(--content-error)',
           info: 'var(--content-info)',
           attention: 'var(--content-attention)',
+          // Green TEXT. Theme-aware, which no palette shade can be: brand-700 on
+          // light (6.37:1 on the page), brand-500 on dark (5.77:1). A `dark:`
+          // variant is no substitute — no `darkMode` is set, so Tailwind keys
+          // `dark:` off the OS while the app switches on [data-theme] (#233).
+          brand: 'var(--content-brand)',
         },
 
         // The focus ring. Its own token so that making it visible enough does not

@@ -38,10 +38,10 @@ export default async function NotFound() {
     <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
       <h1 className="text-2xl font-semibold">{t('title')}</h1>
       <p className="text-content-muted max-w-sm text-sm">{t('body')}</p>
-      <Link
-        href="/venues"
-        className="mt-2 text-sm text-[var(--brand-emphasis)] underline underline-offset-4"
-      >
+      {/* text-content-brand, not --brand-emphasis. That token is a FILL, and as
+          14px text on the light page it is 4.48:1, short of AA (#233). This one
+          is 6.37:1 light; in dark it is the same #16a34a as before. */}
+      <Link href="/venues" className="text-content-brand mt-2 text-sm underline underline-offset-4">
         {t('backToVenues')}
       </Link>
     </main>

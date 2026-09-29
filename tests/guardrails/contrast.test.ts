@@ -21,7 +21,25 @@ import { AA_NON_TEXT, AA_NORMAL, ratioOf } from '@/lib/design/contrast';
  * white-on-red at 3.13:1, and even a solid #DC2626 only reaches 4.48:1.
  */
 
-const TOKENS_CSS = readFileSync('src/styles/tokens.css', 'utf8');
+/**
+ * Comments are stripped BEFORE anything is parsed.
+ *
+ * The prose in tokens.css names tokens and selectors, and a scanner that reads a
+ * comment as code takes it at its word. Both of these were measured on the real
+ * file:
+ *
+ *   - A light-block comment quoting "`--bg-default: #FAF7F2`" parsed as a
+ *     declaration whose value ran on to the next `;` — which swallowed the real
+ *     `--nav-row-liquid-tint` below it. That token was simply absent from the
+ *     light map.
+ *   - Naming the theme attribute in bracket form inside the dark block ends the
+ *     dark block there: 12 tokens read instead of 121, most pairings "not
+ *     defined". The `--content-brand` comment (#233) wants to say exactly that.
+ *
+ * Stripping changes no measured pairing — the maps are identical apart from the
+ * token that was being swallowed.
+ */
+const TOKENS_CSS = readFileSync('src/styles/tokens.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
 /**
  * Read a theme's token block.
@@ -58,8 +76,10 @@ function tokensFor(theme: 'dark' | 'light'): Map<string, string> {
   let match: RegExpExecArray | null;
   while ((match = declaration.exec(block)) !== null) {
     const value = match[2]!.replace(/\/\*[\s\S]*?\*\//g, '').trim();
-    // Only the first definition wins within a block, matching the cascade for a
-    // single selector.
+    // The FIRST definition wins here. The cascade is the other way round: in one
+    // rule the LAST declaration wins, and that is what the browser renders. Every
+    // pinned token is declared once per block, except --focus-ring, which this
+    // mismeasures (4.48:1 read, 1.53:1 rendered, light). That is #244.
     if (!map.has(match[1]!)) map.set(match[1]!, value);
   }
 
@@ -81,6 +101,17 @@ interface Pairing {
   /** Text is AA_NORMAL. Icons, borders and focus rings are AA_NON_TEXT. */
   kind?: 'text' | 'non-text';
   why: string;
+  /**
+   * The ratio itself, pinned to two places, per theme.
+   *
+   * Clearing the bar is not the whole claim when a number is written down
+   * somewhere. `--brand-emphasis` carried "5.1:1 on white" for as long as it
+   * cleared this ratchet's bar, because the bar was all anyone checked; the
+   * number described a background the product does not have (#233). A pinned
+   * number is checked, so a hex nudge has to come back here, and to the comment
+   * in tokens.css that says the same thing.
+   */
+  measured?: Record<'dark' | 'light', number>;
 }
 
 const PAIRINGS: Pairing[] = [
@@ -98,6 +129,29 @@ const PAIRINGS: Pairing[] = [
 
   { fg: '--content-subtle', bg: '--bg-page', why: 'hints and tertiary info' },
   { fg: '--content-subtle', bg: '--bg-default', why: 'hints in a card' },
+
+  // ── Brand-coloured text (#233) ────────────────────────────────────
+  //
+  // Green WORDS have their own token, because no fixed brand shade is body text
+  // in both themes: brand-600 is 4.48:1 on the light page and 3.79:1 on the
+  // dark one. `--content-brand` changes shade with the theme instead (brand-700
+  // light, brand-500 dark). tests/guardrails/no-raw-brand-text.test.ts bans the
+  // fixed shades as text, so this token is the only way green text gets
+  // written, and it is measured here.
+  {
+    fg: '--content-brand',
+    bg: '--bg-page',
+    kind: 'text',
+    why: 'green words on the page: the homepage wordmark, the link on the 404',
+    measured: { light: 6.37, dark: 5.77 },
+  },
+  {
+    fg: '--content-brand',
+    bg: '--bg-default',
+    kind: 'text',
+    why: 'green words in a card',
+    measured: { light: 6.61, dark: 5.45 },
+  },
 
   // ── The inverted surface: text on the primary button ──────────────
   {
@@ -163,6 +217,33 @@ const PAIRINGS: Pairing[] = [
     kind: 'non-text',
     why: 'the focus ring on a control inside a card',
   },
+
+  // ── The brand FILL, pinned at the bar a fill needs ────────────────
+  //
+  // `--brand-emphasis` is what #233 tripped on. It fills the primary button, a
+  // checked checkbox or switch, and the selected day, and then it was used as a
+  // 16px header colour. As TEXT on the light page it measures 4.48:1, 0.02 short
+  // of AA, and this ratchet would fail it as it should.
+  //
+  // So it is pinned as what it is: a fill, whose job is to stand out against
+  // the surface around it (WCAG 1.4.11, 3:1). Large text has the same 3:1 bar.
+  // Pinning it as `text` would fail on a use the product does not make. Pinning
+  // it at the non-text bar with no number would bury the 4.48, and a buried
+  // number is how "5.1:1 on white" survived. The number is pinned instead.
+  {
+    fg: '--brand-emphasis',
+    bg: '--bg-page',
+    kind: 'non-text',
+    why: 'a primary-button fill or a checked control on the page — a FILL, not body text',
+    measured: { light: 4.48, dark: 5.77 },
+  },
+  {
+    fg: '--brand-emphasis',
+    bg: '--bg-default',
+    kind: 'non-text',
+    why: 'the same fill on a control inside a card',
+    measured: { light: 4.65, dark: 5.45 },
+  },
 ];
 
 describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
@@ -213,6 +294,22 @@ describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
             `It looks fine on a good monitor in a bright room. It is not fine for the\n` +
             `person it was written for. Darken the background or lighten the text — do\n` +
             `not weaken this threshold.`,
+        );
+      }
+
+      // Checked AFTER the threshold, so a real AA failure reports as one.
+      const pinned = pairing.measured?.[theme];
+      if (pinned !== undefined && ratio.toFixed(2) !== pinned.toFixed(2)) {
+        throw new Error(
+          `PINNED RATIO MOVED (${theme} theme)\n\n` +
+            `  ${pairing.fg} (${fg})\n` +
+            `  on ${pairing.bg} (${bg})\n\n` +
+            `  measured: ${ratio.toFixed(2)}:1\n` +
+            `  pinned:   ${pinned.toFixed(2)}:1\n\n` +
+            `  This pairing is: ${pairing.why}\n\n` +
+            `It still clears its bar. The number moved, and a written number is a claim\n` +
+            `that somebody reads. Update the pin here AND the note beside the token in\n` +
+            `src/styles/tokens.css, which states the same ratio.`,
         );
       }
     },

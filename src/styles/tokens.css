@@ -58,7 +58,21 @@
   --content-default: #eaebe4; /* body text, table cells, default content (14.5:1 on bg-default) */
   --content-muted: #b9bcb2; /* secondary text, placeholders, captions (AA, 9.0:1 on bg-default) */
   --content-subtle: #8c8f86; /* disabled text, hints, tertiary info (AA, 5.3:1 on bg-default) */
-  --content-inverted: #04120a; /* near-black — text on green/inverted surfaces (6.5:1 on brand-emphasis) */
+  --content-inverted: #04120a; /* near-black — text on green/inverted surfaces (5.81:1 on --brand-emphasis) */
+  /*
+   * BRAND-COLOURED TEXT: a green wordmark, a green link. `text-content-brand`,
+   * never a fixed `text-brand-NNN` and never a `--brand-*` FILL token (#233).
+   *
+   * No single brand shade is body text in BOTH themes. brand-600 is 4.48:1 on
+   * the light page and 3.79:1 on this one: it fails AA twice. So this token
+   * swaps shade with the theme, brand-500 here and brand-700 in light. A
+   * `dark:` variant cannot do that swap, because Tailwind keys `dark:` off the
+   * OS preference and this app switches on [data-theme].
+   *
+   * tests/guardrails/no-raw-brand-text.test.ts bans the fixed shades as text;
+   * the contrast ratchet pins both numbers below.
+   */
+  --content-brand: #16a34a; /* brand-500 — 5.77:1 on --bg-page, 5.45:1 on --bg-default */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
   --border-default: #2e332c; /* DECORATIVE dividers and card edges only — see below */
@@ -105,7 +119,7 @@
    * compromise for the sake of a link colour.
    */
   --focus-ring: #22c55e; /* 8.35:1 on --bg-page */
-  --brand-emphasis: #16a34a; /* deeper green — primary buttons, active brand */
+  --brand-emphasis: #16a34a; /* brand-500 — a FILL: primary buttons, checked controls. 5.77:1 on --bg-page */
   --brand-muted: #4ade80; /* lighter green — hover accent */
   --brand-subtle: rgba(34, 197, 94, 0.18); /* green @ 18% — brand tint backgrounds */
 
@@ -672,6 +686,7 @@
   --content-muted: #525252; /* darker warm gray — secondary text, captions (7.2:1 on bg-default) */
   --content-subtle: #6b6b6b; /* warm medium gray — hints, disabled, tertiary (4.9:1 on bg-default) */
   --content-inverted: #faf9f7; /* warm off-white — text on inverted/dark surfaces */
+  --content-brand: #166534; /* brand-700 — 6.37:1 on --bg-page, 6.61:1 on --bg-default. Why it differs by theme: see the dark block */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
   --border-default: #e5e2de; /* DECORATIVE dividers and card edges only */
@@ -699,7 +714,16 @@
    * 2.95:1 on the warm off-white page — it misses 3:1, and the ratchet caught it.
    */
   --focus-ring: #15803d; /* 4.48:1 on --bg-page */
-  --brand-emphasis: #15803d; /* brand-600 — primary buttons, active (5.1:1 on white) */
+  /*
+   * A FILL token: the primary button, a checked checkbox or switch, the selected
+   * day. NOT body text. On --bg-page it is 4.48:1 (4.65:1 on --bg-default),
+   * which clears the 3:1 that a fill, a control boundary or large text needs
+   * and misses the 4.5:1 of body text by 0.02.
+   *
+   * This line used to say "5.1:1 on white". That was true (5.02) and beside the
+   * point: the page is #f4f2ed, never white. Green TEXT is --content-brand.
+   */
+  --brand-emphasis: #15803d; /* brand-600 — FILL. 4.48:1 on --bg-page */
   --brand-muted: #22c55e; /* lighter green — hover accent */
   --brand-subtle: rgba(22, 163, 74, 0.09); /* green @ 9% — brand tint backgrounds */
 

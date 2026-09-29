@@ -23,8 +23,9 @@ export default async function HomePage() {
       {/* min-h-screen would now overflow by the height of the header. */}
       <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6">
         {/* The product name is a brand — the same in both languages, and not a
-            catalogue key. */}
-        <h1 className="text-brand-600 text-4xl font-semibold">playerz.bg</h1>
+            catalogue key. Green via text-content-brand, which changes shade
+            with the theme; a fixed brand-NNN cannot pass as text in both (#233). */}
+        <h1 className="text-content-brand text-4xl font-semibold">playerz.bg</h1>
         <p className="text-sm opacity-70">{t('tagline')}</p>
 
         <Link
