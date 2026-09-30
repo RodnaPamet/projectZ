@@ -56,7 +56,12 @@ const SUFFIXES = [
   '/index.mjs',
 ];
 const ID = '[A-Za-z_$][\\w$]*';
-const TEST_FILE = /(?:^|\/)__tests__\/|\.(?:test|spec)\.[cm]?[jt]sx?$/;
+// Two patterns, not one alternation: `a|b$` anchors only its second branch,
+// which reads as a bug (CodeQL js/regex/missing-regexp-anchor) even when the
+// first branch is meant to match anywhere in the path.
+const TEST_DIR = /(?:^|\/)__tests__\//;
+const TEST_SUFFIX = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+const isTestFile = (f) => TEST_DIR.test(f) || TEST_SUFFIX.test(f);
 
 /** `src/app/**`, `src/*.ts`: `**` spans directories, `*` and `?` do not. */
 export function globToRegExp(glob) {
@@ -305,7 +310,7 @@ export function analyseReachability({
 
   // A colocated test is never reachable from the product and is not a component:
   // it goes when the file it tests goes.
-  const scoped = files.filter((f) => scope.some((p) => f.startsWith(p)) && !TEST_FILE.test(f));
+  const scoped = files.filter((f) => scope.some((p) => f.startsWith(p)) && !isTestFile(f));
   const byDirectory = new Map();
   for (const f of scoped) {
     const dir = posix.dirname(f);

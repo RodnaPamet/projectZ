@@ -138,7 +138,7 @@ them out, and they must never be committed. When a change moves pixels on purpos
 Linux PNGs on GitHub:
 
 ```sh
-gh workflow run visual-baselines.yml -f ref=<your branch>
+gh workflow run visual-baselines.yml --ref <your branch>
 gh run watch                                   # pick the run it started
 gh run download <run-id> -n visual-baselines-<sha> -D .
 git status --short -- tests/e2e                # only *-chromium-linux.png; open each one
@@ -146,7 +146,7 @@ git add -- ':(glob)tests/**/*-chromium-linux.png'
 git commit                                     # your own push runs CI as usual
 ```
 
-The workflow checks out `ref` and runs `npx playwright test --project=chromium --grep @visual
+The workflow checks out the branch you dispatched it on and runs `npx playwright test --project=chromium --grep @visual
 --update-snapshots` on the same PostGIS, Redis and seed stack as the E2E job. It uploads only the
 `-chromium-linux.png` files that changed, with their repo paths, as the artifact
 `visual-baselines-<full sha>`. The run summary prints the exact download command. When no PNG
@@ -154,5 +154,7 @@ changed, it uploads nothing and says so.
 
 It commits nothing and holds no write token, for two reasons. A push made with `GITHUB_TOKEN`
 starts no workflow run, so a commit from the job would leave your PR without CI. And a new
-baseline should be looked at before it becomes the reference. GitHub dispatches only workflows
-that exist on the default branch, so the file always runs from `main`, whatever `ref` names.
+baseline should be looked at before it becomes the reference. The branch is `--ref`, not an
+input: the dispatch then runs that branch's own copy of the workflow, and the npm cache it writes
+stays scoped to that branch instead of `main`'s. The workflow has to exist on `main` before GitHub
+offers it for dispatch at all, and it can name only a branch or tag of this repo.

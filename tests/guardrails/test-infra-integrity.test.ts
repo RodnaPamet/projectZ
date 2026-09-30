@@ -551,8 +551,11 @@ describe('the nightly workflow can actually run', () => {
  * moves pixels on purpose, because the Macs this repo is written on can only
  * produce `-darwin` ones. Its shape is its contract:
  *
- *   - dispatch only, for a named ref: GitHub runs only default-branch
- *     workflows on dispatch, and a push trigger would re-bless every push;
+ *   - dispatch only, with no inputs: the branch is `--ref`, so the run is
+ *     that branch's own copy in that branch's cache scope. A string `ref`
+ *     input checked arbitrary code out under main's copy and cache scope,
+ *     which CodeQL flagged as cache poisoning. A push trigger would
+ *     re-bless every push;
  *   - no write token and no commit: a push made with GITHUB_TOKEN starts no
  *     workflow run, so a commit from the job would leave its PR without CI,
  *     and the images would become the reference before anyone looked at them;
@@ -567,7 +570,7 @@ describe('the nightly workflow can actually run', () => {
 describe('the visual-baseline workflow hands PNGs back and commits nothing', () => {
   const file = '.github/workflows/visual-baselines.yml';
   const doc = parseYaml(read(file)) as {
-    on: Record<string, { inputs?: Record<string, { required?: boolean }> }>;
+    on: Record<string, { inputs?: Record<string, unknown> } | null>;
     permissions?: Record<string, string>;
     jobs: Record<
       string,
@@ -581,9 +584,14 @@ describe('the visual-baseline workflow hands PNGs back and commits nothing', () 
   const steps = Object.values(doc.jobs).flatMap((j) => j.steps);
   const shell = steps.map((s) => s.run ?? '').join('\n');
 
-  it('runs only when dispatched, for a ref somebody names', () => {
+  it('runs only when dispatched, on the branch it was dispatched on', () => {
     expect(Object.keys(doc.on)).toEqual(['workflow_dispatch']);
-    expect(doc.on.workflow_dispatch.inputs?.ref?.required).toBe(true);
+    // No string input may pick the code: that ran main's copy (and main's
+    // cache scope) on whatever the input named.
+    expect(doc.on.workflow_dispatch?.inputs ?? {}).toEqual({});
+    expect(read(file)).not.toMatch(/inputs\.ref|github\.event\.inputs/);
+    const checkout = steps.find((s) => s.uses?.startsWith('actions/checkout'));
+    expect(checkout?.with?.ref).toBeUndefined();
   });
 
   it('holds no write permission and never commits, pushes or opens a PR', () => {

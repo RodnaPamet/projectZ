@@ -9,7 +9,8 @@ name: Visual baselines
 #  nothing compares against and that .gitignore keeps out. So a PR that
 #  moves a pixel on purpose had no way to produce the PNG it needs.
 #
-#  This workflow is that way. It checks out `ref`, runs the @visual specs
+#  This workflow is that way. It checks out the branch it was dispatched
+#  on (`--ref`), runs the @visual specs
 #  with --update-snapshots on the same stack as ci.yml's E2E job, and
 #  uploads ONLY the Linux PNGs that changed, with their repo paths, as the
 #  artifact `visual-baselines-<sha>`.
@@ -22,28 +23,28 @@ name: Visual baselines
 #  The author then commits them from their own checkout, and that push runs
 #  CI as usual:
 #
-#    gh workflow run visual-baselines.yml -f ref=<branch>
+#    gh workflow run visual-baselines.yml --ref <branch>
 #    gh run watch
 #    gh run download <run-id> -n visual-baselines-<sha> -D .
 #
-#  (docs/ui-sync/README.md has the whole procedure.) GitHub dispatches only
-#  workflows that exist on the default branch, so this file runs from main
-#  whatever `ref` names.
+#  (docs/ui-sync/README.md has the whole procedure.) The branch is chosen
+#  with `--ref`, never with a string input. A dispatch runs the copy of this
+#  file on that branch, in that branch's context: checkout takes github.ref
+#  and the npm cache the job writes is scoped to that branch. A string `ref`
+#  input ran main's copy on arbitrary code, so its cache writes landed in
+#  main's scope, which CodeQL flagged as cache poisoning on #276.
+#  A dispatch can name only a branch or tag of this repo, never a fork PR.
 # ═══════════════════════════════════════════════════════════════════
 
 on:
+  # No inputs: the branch is `gh workflow run … --ref <branch>` (see above).
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Branch, tag or commit to regenerate the @visual baselines for'
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: visual-baselines-${{ inputs.ref }}
+  group: visual-baselines-${{ github.ref }}
   cancel-in-progress: true
 
 # ci.yml's workflow-level env, so the app boots exactly as it does in E2E.
@@ -97,9 +98,10 @@ jobs:
         image: mailhog/mailhog:latest
         ports: ['1025:1025', '8025:8025']
     steps:
+      # No `ref:`: github.ref is the dispatched branch, whose own copy of
+      # this file is the one running.
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - name: Resolve the commit
@@ -137,7 +139,7 @@ jobs:
       - name: Collect the Linux PNGs that changed
         id: changed
         env:
-          REF: ${{ inputs.ref }}
+          REF: ${{ github.ref_name }}
           SHA: ${{ steps.head.outputs.sha }}
         run: |
           set -euo pipefail
