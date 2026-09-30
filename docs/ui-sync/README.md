@@ -70,7 +70,8 @@ files (`SiteHeader`, `SignOutButton`, `nav-items`, …) and every route. A playe
 not sit at a path that inflect uses.
 
 When you delete a vendored file, move its row to `docs/ui-sync/available.json` with its
-`inflectPath` and SHAs, so the file can be copied back later.
+`inflectPath` and SHAs, so the file can be copied back later. The first deletion creates that
+file as a JSON array; until then it does not exist.
 
 `docs/ui-sync/inflect-paths.txt` lists every inflect path under the synced directories at one
 recorded inflect commit, plus the vendored `src/lib` modules. CI has no inflect clone, so the
