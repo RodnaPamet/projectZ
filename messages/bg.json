@@ -75,6 +75,7 @@
       "detailSections": "Секции с детайли"
     },
     "ui": {
+      "notifications": "Известия",
       "select": "Изберете…",
       "noResults": "Няма резултати",
       "loading": "Зареждане…",

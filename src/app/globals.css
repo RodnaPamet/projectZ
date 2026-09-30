@@ -1,9 +1,7 @@
-/* The remote Google-Fonts @import MUST be the first statement.
- * `@import "tailwindcss"` is inlined and expands to thousands of
- * generated rules; a remote-URL @import stays an @import rule in the
- * output, and CSS requires @import rules before all other rules.
- * Next 16's strict CSS parser hard-errors otherwise (site-wide 500). */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* No remote font @import (#266). Inter is self-hosted by next/font in
+ * src/app/layout.tsx and arrives as var(--font-inter) on <html>; the old
+ * fonts.googleapis.com chain cost ~250 ms of phone first paint (PR #268).
+ * tests/guardrails/no-third-party-fonts.test.ts keeps it out. */
 @import 'tailwindcss';
 @config "../../tailwind.config.ts";
 
@@ -35,7 +33,7 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
   background: var(--bg-page);
   color: var(--content-emphasis);
 
@@ -69,17 +67,27 @@ body {
   overscroll-behavior-y: contain;
 }
 
-/* List-page-shell document lock.
-   At md+ (≥768px) the document is locked to viewport height with
-   overflow: hidden. Anything that overflows MUST own its own scroll
-   context — this makes the "the page scrolls" failure mode
-   structurally impossible.
+/* List-page-shell document lock — OPT-IN, per page.
+   At md+ (≥768px) a page that renders a [data-scroll-root] element gets
+   html/body locked to viewport height with overflow: hidden, and that
+   element owns the scroll. Anything that overflows inside such a shell
+   MUST own its own scroll context — this makes the "the page scrolls"
+   failure mode structurally impossible THERE.
+
+   It was unconditional, inherited from inflect, where every page sits in
+   an AppShell that owns a scroll container. No playerz page does yet, so
+   at 1280px the whole document was simply unscrollable: /design-system's
+   lower half was unreachable by wheel, keyboard or trackpad, and the one
+   desktop e2e only passed because it scrolled programmatically. Gating
+   on :has() keeps inflect's contract for the shell that opts in (T19)
+   and leaves every other page scrolling like a web page.
+
    Below md the document scrolls naturally so mobile touch behaviour
    stays predictable.
    Print mode releases the lock so the printer sees the full document. */
 @media (min-width: 768px) {
-  html,
-  body {
+  html:has([data-scroll-root]),
+  html:has([data-scroll-root]) body {
     height: 100%;
     overflow: hidden;
   }
