@@ -72,6 +72,13 @@ const config: Config = {
           info: 'var(--bg-info)',
           'info-emphasis': 'var(--bg-info-emphasis)',
           attention: 'var(--bg-attention)',
+          // TRANSITIONAL (#245). Three primary links (the homepage CTA,
+          // /me/bookings' empty state, the invite page) were written as
+          // `bg-bg-brand text-content-on-brand`, and neither utility existed,
+          // so they rendered as plain text with no fill. These aliases make
+          // them paint the brand fill now. T22 and T27 move those links to
+          // buttonVariants, and T28 deletes both aliases once nothing uses them.
+          brand: 'var(--brand-emphasis)',
         },
 
         // ── Semantic content/text tokens ──
@@ -91,6 +98,9 @@ const config: Config = {
           // variant is no substitute — no `darkMode` is set, so Tailwind keys
           // `dark:` off the OS while the app switches on [data-theme] (#233).
           brand: 'var(--content-brand)',
+          // TRANSITIONAL (#245): the label on `bg-bg-brand`, above. 5.81:1 dark,
+          // 4.77:1 light, pinned in tests/guardrails/contrast.test.ts.
+          'on-brand': 'var(--content-inverted)',
         },
 
         // The focus ring. Its own token so that making it visible enough does not
