@@ -60,8 +60,11 @@ describe('the theme never flashes', () => {
     // Literal key names would silently disagree with ThemeProvider the day the
     // keys are renamed, and the flash would return on every load.
     expect(LAYOUT).toMatch(/dangerouslySetInnerHTML=\{\{ __html: THEME_INIT_SCRIPT \}\}/);
-    expect(LAYOUT).toMatch(/JSON\.stringify\(\s*THEME_COOKIE,?\s*\)/);
-    expect(LAYOUT).toMatch(/JSON\.stringify\(THEME_STORAGE_KEY\)/);
+    expect(LAYOUT).toMatch(/jsToken\(\s*THEME_COOKIE,?\s*\)/);
+    expect(LAYOUT).toMatch(/jsToken\(\s*THEME_STORAGE_KEY,?\s*\)/);
+    // Allow-listed, not JSON.stringify'd: CodeQL's js/bad-code-sanitization
+    // (JSON does not escape `</script>`), alerts 88-90 on PR #283.
+    expect(LAYOUT).not.toMatch(/JSON\.stringify\(\s*THEME_/);
     expect(LAYOUT).not.toMatch(/inflect_theme|inflect:theme/);
   });
 
