@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useRefreshWhenStale } from '@/lib/hooks/use-refresh-when-stale';
 
 import { markNoShowAction } from './actions';
 
@@ -77,6 +78,7 @@ export function DayGrid({
   bookings,
   firstHour,
   lastHour,
+  renderedAt,
 }: {
   slug: string;
   isoDay: string;
@@ -88,8 +90,17 @@ export function DayGrid({
   bookings: readonly DayBooking[];
   firstHour: number;
   lastHour: number;
+  /**
+   * When the server rendered this day (`Date.now()` in page.tsx). A diary
+   * revisited from the router cache (staleTimes.dynamic, 30 s) paints at once,
+   * then refreshes itself in the background if it is older than
+   * STALE_AFTER_MS (10 s): bookings arrive from phones all day, and this is
+   * the front desk's live view.
+   */
+  renderedAt: number;
 }) {
   const t = useTranslations('admin.calendar');
+  useRefreshWhenStale(renderedAt);
   const [noShowTarget, setNoShowTarget] = useState<DayBooking | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
