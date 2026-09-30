@@ -20,7 +20,7 @@
  *                                             anchored-menu idioms beside it
  *   native-select    no-native-select         `<select`, also at the end of a line
  *   motion           motion-safety            inline durations, infinite animations
- *   brand-text       no-raw-brand-text        text-brand-NNN, text-[var(--brand-*)]
+ *   brand-text       no-raw-brand-text        text-brand-NNN, text- + arbitrary var(--brand-<name>)
  *
  * Pure apart from `typescript` (already a devDependency), so the unit tests can
  * load it under jest.

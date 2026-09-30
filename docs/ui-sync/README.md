@@ -106,8 +106,8 @@ on the owner's machine, and the default works from a worktree too.
   another checkout. It checks for raw palette classes, English copy (including `?? 'fallback'`
   and default props), compliance vocabulary and the Inflect, PwC, METRO and Dub brands, and
   hand-rolled menus (`fixed inset-0` outside modal, sheet and popover). It also checks for
-  `<select`, inline or infinite animation, and `text-brand-NNN` or `text-[var(--brand-*)]`. It
-  exits 1 on any finding.
+  `<select`, inline or infinite animation, and `text-brand-NNN` or `text-` with an arbitrary
+  `var(--brand-<name>)` value. It exits 1 on any finding.
 - **`reachability.mjs [--roots <glob>] [--scope <prefix>]`** builds a symbol-level, barrel-aware
   import graph rooted at `src/app/**`, `src/*.ts` and `scripts/**`. It prints JSON listing the
   unreachable files under the scope (default `src/components/`), with counts per directory. It
