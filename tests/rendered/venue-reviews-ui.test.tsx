@@ -89,6 +89,7 @@ describe('DayGrid: marking a no-show', () => {
           bookings={bookings}
           firstHour={8}
           lastHour={22}
+          renderedAt={Date.now()}
         />,
       ),
     );

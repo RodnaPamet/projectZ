@@ -236,6 +236,10 @@ export default async function CalendarPage({
         bookings={shifted}
         firstHour={firstHour}
         lastHour={lastHour}
+        // The payload's identity for useRefreshWhenStale: a revisit served
+        // from the router cache (up to staleTimes.dynamic = 30 s old) carries
+        // this same value, and refreshes itself once it is older than 10 s.
+        renderedAt={now.getTime()}
       />
     </section>
   );
