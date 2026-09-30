@@ -222,9 +222,10 @@ Left out on purpose:
 
 - **Links that 404.** These are the venue cards (#267) and the club nav's
   open-play, coaches and my-bookings (#260). A 404 is not a navigation to time.
-- **The role switcher.** The owner's decision (#263) is one account per kind, and
-  the switcher is being removed, so no account here holds both a player and a club
-  role.
+- **The role switcher.** #263 made accounts one kind each (player, club at one
+  club, or coach) and removed the switcher, so no account here holds both a player
+  and a club role. The fixture creates each account with its kind, as the database
+  now requires.
 - **Writes** (a review, a no-show, a price change). They mutate the data every later
   run depends on. Their `revalidatePath` / `router.refresh` cost belongs in its own
   harness.
@@ -245,7 +246,7 @@ All timestamps are taken in the page with `performance.now()`, by the agent that
   `[data-skeleton-table]`, `[data-loading]` and `[data-perf-feedback]`). Those are
   the design system's skeleton and spinner primitives. **A `loading.tsx` built from
   something else must add `data-loading` to be counted.** `aria-busy` on a button
-  is excluded because it is invisible, and the role switcher sets it.
+  is excluded because it is invisible.
 - **t_feedback** is the earlier of t_url and t_loading_ui. For a full load it is the
   first contentful paint.
 - **t_ready** is the moment the destination's ready conditions (below) all hold,

@@ -90,10 +90,10 @@ export interface PerfAgent {
  *                                an explicit opt-in, for UI that fits none of
  *                                the above
  *
- * `aria-busy` on a BUTTON is excluded on purpose. The role switcher sets it on
- * its trigger while its action runs, and nothing on screen changes. A
- * screen-reader hint is not visible feedback, and counting it would report
- * the switcher as instant.
+ * `aria-busy` on a BUTTON is excluded on purpose. A busy button changes
+ * nothing on screen (the role switcher, removed in #263, did exactly that
+ * while its action ran). A screen-reader hint is not visible feedback, and
+ * counting it would report such a control as instant.
  */
 export const FEEDBACK_SELECTOR = [
   '[role="progressbar"]',

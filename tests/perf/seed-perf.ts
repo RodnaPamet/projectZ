@@ -307,15 +307,17 @@ export async function seedPerfFixture(db: PrismaClient, now: Date): Promise<Perf
       }
 
       // ── Staff at Sofia: one account each, at one club each.
+      // One kind per account (#263), which the database enforces with a
+      // trigger: club roles need a CLUB account and a coach a COACH one.
       const staff = [
-        { email: 'manager@sofia.bg', name: 'Надежда Колева', role: 'MANAGER' },
-        { email: 'reception1@sofia.bg', name: 'Симона Илиева', role: 'STAFF' },
-        { email: 'reception2@sofia.bg', name: 'Калоян Тодоров', role: 'STAFF' },
-        { email: 'coach@sofia.bg', name: 'Борислав Атанасов', role: 'COACH' },
+        { email: 'manager@sofia.bg', name: 'Надежда Колева', role: 'MANAGER', kind: 'CLUB' },
+        { email: 'reception1@sofia.bg', name: 'Симона Илиева', role: 'STAFF', kind: 'CLUB' },
+        { email: 'reception2@sofia.bg', name: 'Калоян Тодоров', role: 'STAFF', kind: 'CLUB' },
+        { email: 'coach@sofia.bg', name: 'Борислав Атанасов', role: 'COACH', kind: 'COACH' },
       ] as const;
       for (const s of staff) {
         const u = await tx.user.create({
-          data: { email: s.email, name: s.name, emailVerified: now },
+          data: { email: s.email, name: s.name, emailVerified: now, accountKind: s.kind },
         });
         await tx.tenantMembership.create({
           data: {
@@ -349,6 +351,7 @@ export async function seedPerfFixture(db: PrismaClient, now: Date): Promise<Perf
           name: PERSONAS.player.name,
           passwordHash,
           emailVerified: now,
+          accountKind: 'PLAYER',
           profile: {
             create: {
               displayName: PERSONAS.player.name,
@@ -368,6 +371,7 @@ export async function seedPerfFixture(db: PrismaClient, now: Date): Promise<Perf
             email: `p${i}@perf.playerz.test`,
             name,
             emailVerified: now,
+            accountKind: 'PLAYER',
             profile: { create: { displayName: name, sports: i < 90 ? ['PADEL'] : ['TENNIS'] } },
           },
           select: { id: true },
