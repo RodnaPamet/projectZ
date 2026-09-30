@@ -83,7 +83,8 @@ export const PERF_PASSWORD = 'Passw0rd!'; // pragma: allowlist secret
 /**
  * One account per kind, never one account holding two (owner's decision: an
  * account is a player OR staff at one club OR a coach). The role switcher that
- * joined them is on its way out, so no journey here depends on it.
+ * joined them was removed in #263, and the database now enforces the kinds,
+ * so the fixture creates each account with its kind.
  */
 export const PERSONAS = {
   /** Books at two clubs; lands on /me/bookings. */
