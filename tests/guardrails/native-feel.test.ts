@@ -46,6 +46,50 @@ describe('device chrome', () => {
   });
 });
 
+describe('the theme never flashes', () => {
+  // Before the pre-paint script, <html> shipped with no data-theme, so every
+  // light-theme visitor saw the dark `:root` palette until ThemeProvider's
+  // mount effect ran — and axe once sampled a button mid-transition (#115).
+
+  it('the server renders data-theme from the theme cookie', () => {
+    expect(LAYOUT).toMatch(/cookies\(\)\)\.get\(THEME_COOKIE\)/);
+    expect(LAYOUT).toMatch(/data-theme=\{initialTheme\}/);
+  });
+
+  it('a pre-paint script covers the first visit, built from the constants', () => {
+    // Literal key names would silently disagree with ThemeProvider the day the
+    // keys are renamed, and the flash would return on every load.
+    expect(LAYOUT).toMatch(/dangerouslySetInnerHTML=\{\{ __html: THEME_INIT_SCRIPT \}\}/);
+    expect(LAYOUT).toMatch(/JSON\.stringify\(\s*THEME_COOKIE,?\s*\)/);
+    expect(LAYOUT).toMatch(/JSON\.stringify\(THEME_STORAGE_KEY\)/);
+    expect(LAYOUT).not.toMatch(/inflect_theme|inflect:theme/);
+  });
+
+  it('the script carries no backslash escapes', () => {
+    // It is a template literal emitted into HTML: every escape passes through
+    // two parsers, and getting one level wrong turned `\s` into `s` and `\b`
+    // into a backspace, so the cookie never matched (see layout.tsx).
+    const script = /const THEME_INIT_SCRIPT = `([\s\S]*?)`;/.exec(LAYOUT)?.[1];
+
+    expect(script).toBeTruthy();
+    expect(script).not.toMatch(/\\/);
+  });
+
+  it('the constants come from the server-safe module, not the client ThemeProvider', () => {
+    // A server import of a 'use client' module's constant is a client-reference
+    // proxy, so `cookies().get(THEME_COOKIE)` would always miss.
+    expect(LAYOUT).toMatch(/from '@\/lib\/theme-constants'/);
+    expect(LAYOUT).not.toMatch(/THEME_COOKIE[^;]*from '@\/components\/theme\/ThemeProvider'/);
+  });
+
+  it('the chrome colour follows the CHOSEN theme, not only the OS one', () => {
+    expect(LAYOUT).toMatch(/meta\[name="theme-color"\]/);
+    const providers = readFileSync('src/app/providers.tsx', 'utf8');
+    expect(providers).toMatch(/attributeFilter:\s*\['data-theme'\]/);
+    expect(providers).toMatch(/--bg-page/);
+  });
+});
+
 describe('scroll chaining', () => {
   it('overscroll-behavior-y is contained, or the browser fights pull-to-refresh', () => {
     // Chrome for Android has its OWN pull-to-refresh. Without `contain` it

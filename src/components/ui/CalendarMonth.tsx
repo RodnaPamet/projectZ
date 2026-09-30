@@ -200,7 +200,12 @@ export function CalendarMonth({
               key={ymd}
               className={cn(
                 'relative flex min-h-[80px] flex-col gap-1 p-1.5',
-                cell.inMonth ? 'bg-bg-default' : 'bg-bg-muted/30 opacity-60',
+                // Outside-month days are marked by the wash ALONE. They were
+                // also `opacity-60`, which faded their day-number buttons to
+                // 2.7:1 (light) and 3.82:1 (dark) — below AA for 12px text, and
+                // they are live buttons. axe never saw it while the md+
+                // document lock clipped the calendar below the fold (T11).
+                cell.inMonth ? 'bg-bg-default' : 'bg-bg-muted/30',
                 isToday && 'ring-1 ring-[var(--brand-default)] ring-inset',
                 // B3 — selected-day state. The brand
                 // ring (2px-inset) + brand-subtle wash

@@ -30,9 +30,11 @@ const SECTIONS = [
  *
  * `page.goto` resolves on `load`, but the palette is NOT settled at that point:
  *
- *   • `src/app/layout.tsx` renders `<html>` with no `data-theme` and no
- *     anti-FOUC inline script, so the server always ships the dark `:root`
- *     tokens.
+ *   • Before T11, `src/app/layout.tsx` rendered `<html>` with no `data-theme`
+ *     and no anti-FOUC inline script, so the server always shipped the dark
+ *     `:root` tokens. It now renders the cookie's theme and a pre-paint script
+ *     sets it on a first visit, so there is normally no flip left to wait for —
+ *     the wait below stays as a cheap guard against one coming back.
  *   • `ThemeProvider`'s mount effect then applies the resolved theme — under
  *     Playwright's default `prefers-color-scheme: light`, that is `light`.
  *   • `<Button>` carries `transition-all duration-150` (button-variants.ts), so

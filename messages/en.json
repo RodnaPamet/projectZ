@@ -75,6 +75,7 @@
       "detailSections": "Detail sections"
     },
     "ui": {
+      "notifications": "Notifications",
       "select": "Select…",
       "noResults": "No results",
       "loading": "Loading…",
