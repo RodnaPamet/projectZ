@@ -163,7 +163,10 @@ describe('the scan is not vacuous', () => {
     // If `stringsIn` saw nothing (a wrong ScriptKind, a visitor that stops at the
     // root), the ban would pass by reading an empty tree. So: a className we
     // KNOW is there, found through the same walk the ban uses.
-    const page = stringsIn('src/app/page.tsx', readFileSync('src/app/page.tsx', 'utf8'));
+    const page = stringsIn(
+      'src/app/(home)/page.tsx',
+      readFileSync('src/app/(home)/page.tsx', 'utf8'),
+    );
     expect(page.some((s) => s.raw.includes('text-content-brand'))).toBe(true);
 
     const total = CODE.reduce((n, f) => n + stringsIn(f, readFileSync(f, 'utf8')).length, 0);

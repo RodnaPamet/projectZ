@@ -6,9 +6,9 @@ import { Skeleton } from '@/components/ui/skeleton';
  * The home page's shape: the header, then the wordmark, the tagline and the
  * call to action, centred as page.tsx centres them.
  *
- * Being at the root, this is also the fallback for any route with no
- * loading.tsx of its own. tests/guardrails/route-loading-coverage.test.ts
- * keeps that list to the ones with a stated reason.
+ * In the `(home)` route group, NOT at src/app/loading.tsx. A root loading.tsx
+ * would wrap every layout too, and every redirect and 404 under it would
+ * stream as a 200 (see tests/guardrails/route-loading-coverage.test.ts).
  */
 export default function Loading() {
   return (

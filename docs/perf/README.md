@@ -284,7 +284,7 @@ That changed how content is found, not when it counts as ready.
 
 **A PR that rewrites one of these pages or boards keeps `data-perf-ready` on its
 primary content**, or moves this table with it. The markers live in
-`src/app/page.tsx`, `(public)/venues/page.tsx`, `(app)/me/bookings/page.tsx`,
+`src/app/(home)/page.tsx`, `(public)/venues/page.tsx`, `(app)/me/bookings/page.tsx`,
 and the calendar's `DayGrid` and the courts, pricing, players and staff boards.
 A loading skeleton must never carry one, or `main h1`: it would be timed as the
 content.

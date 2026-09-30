@@ -17,9 +17,21 @@ import path from 'node:path';
  * ═══ THE RULE ═══
  *
  * Every `page.tsx` under src/app has a `loading.tsx` in its OWN segment, or an
- * entry below saying why not. "Its own segment", not an ancestor's: the root
- * loading.tsx is shaped like the home page, and a list page that fell back to
- * it would flash the home page's skeleton.
+ * entry below saying why not. "Its own segment", not an ancestor's: a list
+ * page that fell back to another page's skeleton would flash the wrong shape.
+ *
+ * ═══ NEVER A ROOT loading.tsx ═══
+ *
+ * A `src/app/loading.tsx` wraps EVERY layout and page in a Suspense boundary,
+ * so every response starts streaming (status 200) before any layout or page
+ * has run. A `redirect()` or `notFound()` after that point can no longer set
+ * the status: it becomes a client-side redirect or a soft 404. Measured on
+ * T12's first draft, which had one: `/t/{slug}` (where every club user lands)
+ * stopped being an HTTP 307 and became a 200 that redirected from the
+ * browser, one extra document hop. Its prefetches, started by the page being
+ * left, also never finished in Chrome and stalled the perf harness's staff
+ * journey on desktop for minutes. The home page's skeleton lives in the
+ * `(home)` route group instead, where it wraps nothing but the home page.
  *
  * An entry that no longer matches a page, or whose page has since gained a
  * loading.tsx, fails too — an allow-list that only grows stops meaning
@@ -50,7 +62,7 @@ describe('route loading coverage', () => {
     // A glob that silently matched nothing would pass every test below.
     expect(pages).toEqual(
       expect.arrayContaining([
-        '.',
+        '(home)',
         '(public)/venues',
         '(app)/me/bookings',
         '(app)/t/[slug]/admin/calendar',
@@ -69,6 +81,10 @@ describe('route loading coverage', () => {
   it.each(Object.keys(NO_LOADING))('allow-list entry %s is not stale', (dir) => {
     expect(pages).toContain(dir);
     expect(hasLoading(dir)).toBe(false);
+  });
+
+  it('there is no root loading.tsx (it would stream every redirect and 404)', () => {
+    expect(existsSync(path.join(APP, 'loading.tsx'))).toBe(false);
   });
 
   it('every loading.tsx sits beside a page', () => {
