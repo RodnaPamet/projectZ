@@ -26,6 +26,12 @@ measurement (`docs/perf/README.md`), and pinned by
   `invalidateEntirePrefetchCache`. A write is therefore never followed by a stale screen.
   The price is that the next tap after a write is a cold tap again, and the
   `staff-write` journey measures it.
+- **Other people's writes do not purge it.** The purge above is per browser. A player page
+  revisited within 30 s (a venue's availability, say) can show slots that someone else has
+  booked since. That is accepted: the database rejects an overlapping booking (`booking_no_overlap`), so a stale
+  slot costs a rejected tap, never a double booking. The SWR-backed player surfaces also
+  revalidate after paint. Only the diary, where staff act on what they see, refreshes itself
+  (below).
 
 ### The diary refreshes itself
 
