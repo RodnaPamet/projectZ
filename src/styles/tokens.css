@@ -181,8 +181,9 @@
 
   /* ── Interactive / Focus ───────────────────────────────────────── */
   /*
-   * ONE ring colour, three names. --focus-ring is declared once, above, next to
-   * the brand tokens. This block used to declare it a SECOND time as
+   * Within each theme, ONE ring colour under three names (dark #22c55e here,
+   * light #15803d in its own block). --focus-ring is declared once, above, next
+   * to the brand tokens. This block used to declare it a SECOND time as
    * rgba(34, 197, 94, 0.55), and in one rule the last declaration wins, so that
    * translucent copy was what rendered (#244). --ring-default and --ring (the
    * names shadcn-style `ring-ring` and `ring-[var(--ring)]` callers use) are the
