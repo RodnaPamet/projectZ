@@ -46,7 +46,7 @@ const config: Config = {
           // state, charts) — resolved to NOTHING and rendered
           // colorless (e.g. the radio "fills" with a transparent
           // dot). Mapping them to the same `--brand-*` vars the
-          // arbitrary `[var(--brand-*)]` callers already use makes
+          // arbitrary-value `var(--brand-<name>)` callers already use makes
           // every named usage paint correctly.
           default: 'var(--brand-default)',
           emphasis: 'var(--brand-emphasis)',
