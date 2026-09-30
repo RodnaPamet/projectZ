@@ -19,7 +19,7 @@
  * Fetch inflect first (`git -C <inflect> fetch origin`); --ref is required so
  * the commit a copy came from is always a decision, never a default.
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 import {
@@ -36,6 +36,16 @@ import {
   unresolvedImports,
 } from './lib.mjs';
 import { MANIFEST_NAMES, manifestFor, readManifest, sha256, writeManifest } from './manifest.mjs';
+
+/** The file's text, or null when there is none yet. */
+function readIfExists(path) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (err) {
+    if (err?.code === 'ENOENT') return null;
+    throw err;
+  }
+}
 
 const USAGE = `Usage: node scripts/ui-sync/copy.mjs --ref <inflect-rev> [--root <dir>] <inflect path|dir> ...
 
@@ -92,7 +102,9 @@ async function main() {
   for (const { inflectPath, path, name, existing } of plan) {
     const text = await normalise(blobs.get(`${sha}:${inflectPath}`), path);
     const target = join(root, path);
-    const before = existsSync(target) ? readFileSync(target, 'utf8') : null;
+    // One read that tolerates ENOENT, not existsSync-then-read: the check and
+    // the read can see different files (CodeQL js/file-system-race).
+    const before = readIfExists(target);
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, text);
 
