@@ -6,7 +6,7 @@
  * to utility classes like bg-bg-default, text-content-emphasis, etc.
  *
  * Both themes are live:
- *   - Dark (default, Inflect glassmorphism) under `:root`
+ *   - Dark (default, charcoal-green on near-black) under `:root`
  *   - Light under `[data-theme="light"]` — toggleable via
  *     `ThemeProvider` / the sidebar theme toggle, persisted in
  *     localStorage, and picked up from `prefers-color-scheme` on the
@@ -30,6 +30,13 @@
    preserved across themes.
    ═══════════════════════════════════════════════════════════════════ */
 :root {
+  /*
+   * Tells the UA which theme it is painting: native form controls, scrollbars
+   * and the autofill background follow it. Without it a dark page gets a white
+   * <select> popup and white scrollbar gutters. Light sets its own below.
+   */
+  color-scheme: dark;
+
   /* ── Surfaces ──────────────────────────────────────────────────── */
   --bg-page: #0d110e; /* near-black, faint green — app/page background */
   --bg-default: #141813; /* raised charcoal — cards, panels, tables, modals, popovers */
@@ -42,7 +49,8 @@
   ); /* green @ 8% — selection bg, disabled surfaces, faint tints */
   --bg-elevated: #232922; /* lifted charcoal — tooltips, dropdowns above default */
   --bg-inverted: #22c55e; /* playerz green — inverted surface (primary button bg) */
-  --bg-overlay: rgba(0, 12, 26, 0.7); /* dark navy backdrop behind modals/drawers */
+  /* No hue: it dims the charcoal-green page instead of tinting it navy. */
+  --bg-overlay: rgba(8, 8, 8, 0.7); /* neutral near-black scrim behind modals/drawers */
 
   /* ── Content / Text ────────────────────────────────────────────── */
   /*
@@ -118,7 +126,7 @@
    * cannot see where they are cannot use the app at all — this is not a place to
    * compromise for the sake of a link colour.
    */
-  --focus-ring: #22c55e; /* 8.35:1 on --bg-page */
+  --focus-ring: #22c55e; /* 8.35:1 on --bg-page, 7.88:1 on --bg-default */
   --brand-emphasis: #16a34a; /* brand-500 — a FILL: primary buttons, checked controls. 5.77:1 on --bg-page */
   --brand-muted: #4ade80; /* lighter green — hover accent */
   --brand-subtle: rgba(34, 197, 94, 0.18); /* green @ 18% — brand tint backgrounds */
@@ -129,17 +137,12 @@
    * (and any future chrome that wants a two-tone state vocabulary)
    * can express ACTIVE in a tone distinct from HOVER. On playerz the
    * page surface is itself near-black (#0D110E / #141813), so a charcoal
-   * accent would dissolve into the background. The cool counterpoint
-   * to playerz's warm yellow is therefore a vivid electric blue —
-   * `#3B82F6` (Tailwind blue-500). It clears 4.5:1 against both
-   * `--bg-default` (#141813) and `--bg-page` (#0D110E), so any
-   * primitive that paints a band, ring, or text in this token reads
-   * clearly on every dark surface in the app.
-   *
-   * Hue choice: blue-500 sits 180° opposite playerz yellow on the
-   * colour wheel — true complementary contrast, not "another warm".
-   * The eye reads HOVER (yellow) vs ACTIVE (blue) as deliberate
-   * state vocabulary, not accidental drift between brand tones.
+   * accent would dissolve into the background. The counterpoint to
+   * playerz green is teal (#14B8A6, Tailwind teal-500): close enough in
+   * hue to read as the same family, cool enough that the eye reads
+   * HOVER (green) vs ACTIVE (teal) as deliberate state vocabulary
+   * rather than drift between brand tones. The values are T18's to
+   * revisit with the button surface; only this note was stale.
    */
   --brand-secondary-default: #14b8a6; /* teal — secondary brand, complementary to playerz green */
   --brand-secondary-emphasis: #0d9488; /* deeper teal — primary band stop, active surfaces */
@@ -165,10 +168,11 @@
   --border-error: rgba(239, 68, 68, 0.3); /* red-500 @ 30% */
 
   /* ── Status: Info ──────────────────────────────────────────────── */
-  --bg-info: rgba(20, 184, 166, 0.15); /* blue-500 @ 15% — badge tint */
+  /* Tint and border were teal while --content-info was blue; now all blue. */
+  --bg-info: rgba(59, 130, 246, 0.15); /* blue-500 @ 15% — badge tint */
   --bg-info-emphasis: #2563eb; /* blue-600 — solid actionable surface */
   --content-info: #60a5fa; /* blue-400 */
-  --border-info: rgba(20, 184, 166, 0.3); /* blue-500 @ 30% */
+  --border-info: rgba(59, 130, 246, 0.3); /* blue-500 @ 30% */
 
   /* ── Status: Attention (pending / needs-action) ────────────────── */
   --bg-attention: rgba(251, 191, 36, 0.15); /* amber-400 @ 15% */
@@ -176,17 +180,32 @@
   --border-attention: rgba(251, 191, 36, 0.3); /* amber-400 @ 30% */
 
   /* ── Interactive / Focus ───────────────────────────────────────── */
-  --ring-default: rgba(34, 197, 94, 0.55); /* playerz yellow focus ring */
-  --focus-ring: rgba(34, 197, 94, 0.55); /* alias for components that use a different name */
+  /*
+   * ONE ring colour, three names. --focus-ring is declared once, above, next to
+   * the brand tokens. This block used to declare it a SECOND time as
+   * rgba(34, 197, 94, 0.55), and in one rule the last declaration wins, so that
+   * translucent copy was what rendered (#244). --ring-default and --ring (the
+   * names shadcn-style `ring-ring` and `ring-[var(--ring)]` callers use) are the
+   * same literal rather than var(--focus-ring), so the contrast ratchet can
+   * measure them: it parses literals and fails on an alias.
+   */
+  --ring-default: #22c55e; /* same as --focus-ring */
 
   /* shadcn / Radix compatibility tokens */
-  --ring: rgba(34, 197, 94, 0.55);
+  --ring: #22c55e; /* same as --focus-ring */
   --ring-offset-background: #0d110e;
   --primary: #22c55e;
 
   /* ── Glass ─────────────────────────────────────────────────────── */
-  --glass-bg: rgba(0, 47, 95, 0.82); /* navy glass-card background */
-  --glass-border: rgba(0, 83, 140, 0.5); /* navy glass-card border */
+  /*
+   * The default raised <Card> (`.glass-card`). These were inflect's navy
+   * (rgba(0, 47, 95, 0.82)), the one blue slab left on a charcoal-green page.
+   * Now --bg-default and --border-default at partial alpha, the same recipe
+   * as the light block: the glass card reads as a card, with the blur behind
+   * it, instead of as a different product.
+   */
+  --glass-bg: rgba(20, 24, 19, 0.85); /* --bg-default @ 85% */
+  --glass-border: rgba(46, 51, 44, 0.8); /* --border-default @ 80% — decorative card edge */
   --glass-blur: 12px; /* backdrop blur radius */
 
   /* ── Radius ────────────────────────────────────────────────────── */
@@ -656,7 +675,7 @@
    Designed around:
      - warm off-white / cream backgrounds (not cold blue-slate)
      - charcoal text hierarchy (not blue-tinted)
-     - playerz.bg signature orange as the primary accent
+     - playerz green as the primary accent (darker shades than dark mode)
      - warm neutral borders
      - conservative, document-friendly status colors
 
@@ -664,6 +683,8 @@
    Contrast: all text/surface pairs meet WCAG 2.1 AA (4.5:1+).
    ═══════════════════════════════════════════════════════════════════ */
 [data-theme='light'] {
+  color-scheme: light; /* see the dark block */
+
   /* ── Surfaces ──────────────────────────────────────────────────── */
   --bg-page: #f4f2ed; /* warm off-white — app background */
   --bg-default: #f8f6f3; /* warm off-white — cards, panels, modals */
@@ -707,13 +728,13 @@
   --canvas-shadow: 0 6px 16px -10px rgba(60, 50, 40, 0.28), 0 1px 2px rgba(60, 50, 40, 0.12);
   --canvas-recess: inset 0 11px 20px -16px rgba(60, 50, 40, 0.22);
 
-  /* ── Brand / Primary (playerz.bg-inspired orange) ──────────────────────── */
+  /* ── Brand / Primary (playerz green) ───────────────────────────── */
   --brand-default: #16a34a; /* playerz green (brand-500) — links, accents */
   /*
    * The focus ring is DARKER than the brand green in light mode. #16a34a is only
    * 2.95:1 on the warm off-white page — it misses 3:1, and the ratchet caught it.
    */
-  --focus-ring: #15803d; /* 4.48:1 on --bg-page */
+  --focus-ring: #15803d; /* 4.48:1 on --bg-page, 4.65:1 on --bg-default */
   /*
    * A FILL token: the primary button, a checked checkbox or switch, the selected
    * day. NOT body text. On --bg-page it is 4.48:1 (4.65:1 on --bg-default),
@@ -727,18 +748,12 @@
   --brand-muted: #22c55e; /* lighter green — hover accent */
   --brand-subtle: rgba(22, 163, 74, 0.09); /* green @ 9% — brand tint backgrounds */
 
-  /* ── Brand / Secondary (deep navy — complementary cool counterpoint) ──
+  /* ── Brand / Secondary (deep teal — cool counterpoint) ──
    *
-   * Roadmap-13's two-tone state vocabulary lands on the light theme
-   * as deep navy (#1E3A8A — Tailwind indigo-900-ish). Against the
-   * warm cream `--bg-default` (#F8F6F3) navy reads as the natural
-   * cool counter to playerz.bg orange — same complementary-contrast logic
-   * as playerz's electric-blue secondary, adapted to the palette
-   * temperature.
-   *
-   * Contrast: 12.3:1 on `--bg-default`, well above WCAG AAA. Any
-   * primitive that paints text or a band in this token will be
-   * unmissable without looking aggressive.
+   * Roadmap-13's two-tone state vocabulary in light mode: a deeper teal
+   * than the dark theme's, so it holds on the warm cream `--bg-default`
+   * (#F8F6F3). Unpinned by the contrast ratchet; T18 revisits these
+   * with the button surface.
    */
   --brand-secondary-default: #0f766e; /* deep teal — secondary brand, complementary to playerz green */
   --brand-secondary-emphasis: #115e59; /* deeper teal — primary band stop, active surfaces */
@@ -783,9 +798,13 @@
   --border-attention: rgba(180, 83, 9, 0.2);
 
   /* ── Interactive / Focus ───────────────────────────────────────── */
-  --ring-default: rgba(22, 163, 74, 0.4); /* brand-orange focus ring */
-  --focus-ring: rgba(22, 163, 74, 0.4);
-  --ring: rgba(22, 163, 74, 0.4);
+  /*
+   * One ring colour per theme; see the dark block. The rgba(22, 163, 74, 0.4)
+   * that used to sit here re-declared --focus-ring and won the cascade: 1.53:1
+   * on the page, a ring nobody could see (#244).
+   */
+  --ring-default: #15803d; /* same as --focus-ring */
+  --ring: #15803d; /* same as --focus-ring */
   --ring-offset-background: #f8f6f3;
   --primary: #16a34a;
 

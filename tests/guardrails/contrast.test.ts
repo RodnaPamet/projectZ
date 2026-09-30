@@ -47,13 +47,27 @@ const TOKENS_CSS = readFileSync('src/styles/tokens.css', 'utf8').replace(/\/\*[\
  * Dark lives under `:root`, light under `[data-theme="light"]`. Reading the file
  * as one blob would let a light-theme value satisfy a dark-theme assertion, and
  * the ratchet would pass while the dark theme was unreadable.
+ *
+ * A block runs from its selector to the first `}` at the start of a line, which
+ * is how prettier closes a top-level rule. The light block used to run on to the
+ * end of the file, so the reduced-motion `:root` override below it was read as
+ * light tokens.
+ *
+ * In one rule the LAST declaration wins, and that is what the browser renders,
+ * so the map keeps the last. It used to keep the first, and measured a focus
+ * ring nobody saw: light --focus-ring was #15803d (4.48:1) and then, 70 lines
+ * further down, rgba(22, 163, 74, 0.4), which is what rendered, at 1.53:1 on the
+ * page (#244). Keeping the last is not enough on its own: the first value is the
+ * one a reader finds, with its measured comment beside it. So every second
+ * declaration is reported in `duplicates`, and the suite fails on it.
  */
-function tokensFor(theme: 'dark' | 'light'): Map<string, string> {
-  const startMarker = theme === 'dark' ? ':root {' : "[data-theme='light'] {";
-  const altMarker = theme === 'light' ? '[data-theme="light"] {' : null;
-
-  let start = TOKENS_CSS.indexOf(startMarker);
-  if (start === -1 && altMarker) start = TOKENS_CSS.indexOf(altMarker);
+function tokensFor(
+  theme: 'dark' | 'light',
+  css: string = TOKENS_CSS,
+): { tokens: Map<string, string>; duplicates: string[] } {
+  const markers =
+    theme === 'dark' ? [':root {'] : ["[data-theme='light'] {", '[data-theme="light"] {'];
+  const start = markers.map((marker) => css.indexOf(marker)).find((i) => i !== -1) ?? -1;
 
   if (start === -1) {
     throw new Error(
@@ -62,28 +76,21 @@ function tokensFor(theme: 'dark' | 'light'): Map<string, string> {
     );
   }
 
-  // Take everything from the marker to the end of the file, then stop at the
-  // FIRST token of the other theme by simply reading declarations in order and
-  // letting later ones win — which is exactly what the cascade does.
-  const block =
-    theme === 'dark'
-      ? TOKENS_CSS.slice(start, TOKENS_CSS.indexOf('[data-theme', start) + 1 || undefined)
-      : TOKENS_CSS.slice(start);
+  const close = css.indexOf('\n}', start);
+  const block = css.slice(start, close === -1 ? undefined : close);
 
-  const map = new Map<string, string>();
+  const tokens = new Map<string, string>();
+  const duplicates: string[] = [];
   const declaration = /(--[\w-]+)\s*:\s*([^;]+);/g;
 
   let match: RegExpExecArray | null;
   while ((match = declaration.exec(block)) !== null) {
-    const value = match[2]!.replace(/\/\*[\s\S]*?\*\//g, '').trim();
-    // The FIRST definition wins here. The cascade is the other way round: in one
-    // rule the LAST declaration wins, and that is what the browser renders. Every
-    // pinned token is declared once per block, except --focus-ring, which this
-    // mismeasures (4.48:1 read, 1.53:1 rendered, light). That is #244.
-    if (!map.has(match[1]!)) map.set(match[1]!, value);
+    const name = match[1]!;
+    if (tokens.has(name)) duplicates.push(name);
+    tokens.set(name, match[2]!.trim());
   }
 
-  return map;
+  return { tokens, duplicates };
 }
 
 /**
@@ -205,17 +212,75 @@ const PAIRINGS: Pairing[] = [
     kind: 'non-text',
     why: 'the edge of an input, a checkbox, a radio — an invisible border is an invisible control',
   },
+  //
+  // The ring is pinned because the number was wrong for as long as it was only
+  // checked against a bar: this file read 4.48:1 for the light ring while the
+  // browser painted a second, translucent declaration at 1.53:1 (#244). --ring
+  // is what `ring-ring` and `ring-[var(--ring)]` paint; it is the same literal
+  // per theme and is measured on its own so the two cannot drift apart.
   {
     fg: '--focus-ring',
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the FOCUS RING. A keyboard user who cannot see where they are cannot use the app.',
+    measured: { light: 4.48, dark: 8.35 },
   },
   {
     fg: '--focus-ring',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the focus ring on a control inside a card',
+    measured: { light: 4.65, dark: 7.88 },
+  },
+  {
+    fg: '--ring',
+    bg: '--bg-page',
+    kind: 'non-text',
+    why: 'the shadcn-named ring: the calendar day, the table selection toolbar',
+    measured: { light: 4.48, dark: 8.35 },
+  },
+  {
+    fg: '--ring',
+    bg: '--bg-default',
+    kind: 'non-text',
+    why: 'the shadcn-named ring on a control inside a card',
+    measured: { light: 4.65, dark: 7.88 },
+  },
+
+  // ── The raised Card: text on translucent glass ────────────────────
+  //
+  // `.glass-card` is the default <Card>, so it is behind most text in the app.
+  // Its fill is translucent and has no ratio of its own; it is composited over
+  // the page. Dark was inflect navy until #246 (12.11:1 body, 7.54:1 muted).
+  {
+    fg: '--content-default',
+    bg: '--glass-bg',
+    backdrop: '--bg-page',
+    kind: 'text',
+    why: 'body text in the default raised card',
+    measured: { light: 10.02, dark: 15.11 },
+  },
+  {
+    fg: '--content-muted',
+    bg: '--glass-bg',
+    backdrop: '--bg-page',
+    kind: 'text',
+    why: 'captions in the default raised card',
+    measured: { light: 7.2, dark: 9.41 },
+  },
+
+  // ── The label on the brand fill (#245) ────────────────────────────
+  //
+  // `bg-bg-brand text-content-on-brand` on the primary links (home, the empty
+  // bookings list, the invite page) resolves to --content-inverted on
+  // --brand-emphasis. Before #245 neither utility existed and the links had no
+  // fill at all.
+  {
+    fg: '--content-inverted',
+    bg: '--brand-emphasis',
+    kind: 'text',
+    why: 'the label on a primary link painted with the brand fill',
+    measured: { light: 4.77, dark: 5.81 },
   },
 
   // ── The brand FILL, pinned at the bar a fill needs ────────────────
@@ -247,7 +312,19 @@ const PAIRINGS: Pairing[] = [
 ];
 
 describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
-  const tokens = tokensFor(theme);
+  const { tokens, duplicates } = tokensFor(theme);
+
+  it('declares every custom property once', () => {
+    // The second declaration silently replaces the first, and the first is the
+    // one with the measured comment beside it. That is how #244 shipped.
+    if (duplicates.length > 0) {
+      throw new Error(
+        `DUPLICATE TOKEN (${theme} theme): ${[...new Set(duplicates)].join(', ')}\n\n` +
+          `Declared more than once in the same block. The browser renders the LAST\n` +
+          `declaration, which is rarely the one a reader looks at. Delete one.`,
+      );
+    }
+  });
 
   it('the token block was actually read', () => {
     // A broken parser makes every assertion below vacuous — it would find no
@@ -358,7 +435,35 @@ describe('the contrast calculation is correct', () => {
     expect(ratio).toBeLessThan(4.1);
   });
 
-  // ── Negative control ──────────────────────────────────────────────
+  // ── Negative controls ─────────────────────────────────────────────
+  it('reads the LAST declaration and reports the duplicate (#244)', () => {
+    const css = [
+      ':root {',
+      '  --focus-ring: #22c55e;',
+      '}',
+      "[data-theme='light'] {",
+      '  --focus-ring: #15803d;',
+      '  --ring: #15803d;',
+      '  --focus-ring: rgba(22, 163, 74, 0.4);',
+      '}',
+      '@media (prefers-reduced-motion: reduce) {',
+      '  :root {',
+      '    --ring: #ffffff;',
+      '  }',
+      '}',
+    ].join('\n');
+
+    const light = tokensFor('light', css);
+    expect(light.tokens.get('--focus-ring')).toBe('rgba(22, 163, 74, 0.4)');
+    expect(light.duplicates).toEqual(['--focus-ring']);
+    // The block stops at its own closing brace, not at the end of the file.
+    expect(light.tokens.get('--ring')).toBe('#15803d');
+
+    const dark = tokensFor('dark', css);
+    expect(dark.duplicates).toEqual([]);
+    expect([...dark.tokens.keys()]).toEqual(['--focus-ring']);
+  });
+
   it('actually FAILS a pairing that is too low', () => {
     // The destructive button that really shipped: white on a translucent red.
     const bad = ratioOf('#ffffff', '#ef4444')!;
