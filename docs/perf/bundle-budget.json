@@ -1,0 +1,6 @@
+{
+  "schema": "playerz-first-load-js/budget@1",
+  "source": "next build, Next 16.3.6, 7d7d27d",
+  "unit": "gzip KB",
+  "routes": { "/": 196.4, "/design-system": 290, "/invite/[token]": 239.6, "/login": 235.1, "/me/bookings": 244.8, "/offline": 183.5, "/platform/moderation": 231, "/t/[slug]": 196.2, "/t/[slug]/admin/calendar": 260.6, "/t/[slug]/admin/courts": 243.6, "/t/[slug]/admin/players": 243.2, "/t/[slug]/admin/pricing": 244.8, "/t/[slug]/admin/staff": 242.7, "/venues": 241.3 }
+}
