@@ -108,7 +108,8 @@ describe('every row is valid', () => {
       throw new Error(
         `Manifest rows for files that do not exist:\n\n  ${missing.join('\n  ')}\n\n` +
           `A vendored file you delete takes its row with it: move the row to\n` +
-          `docs/ui-sync/available.json, keeping inflectPath and sha.`,
+          `docs/ui-sync/available.json (create it, a JSON array, if it does not\n` +
+          `exist yet), keeping inflectPath and sha.`,
       );
     }
   });
