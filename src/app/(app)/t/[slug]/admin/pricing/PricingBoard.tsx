@@ -143,11 +143,16 @@ export function PricingBoard({
     r.fixedPriceCents !== null ? money(r.fixedPriceCents) : `×${r.multiplier ?? 1}`;
 
   if (courts.length === 0) {
-    return <EmptyState title={t('noCourts.title')} description={t('noCourts.description')} />;
+    return (
+      <div data-perf-ready>
+        <EmptyState title={t('noCourts.title')} description={t('noCourts.description')} />
+      </div>
+    );
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
+    <div data-perf-ready className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <div>
         <div className="mb-4 grid gap-1.5 sm:max-w-xs">
           <Label htmlFor="courtId">{t('field.court')}</Label>

@@ -87,7 +87,8 @@ export function StaffBoard({
       <InviteSection slug={slug} invites={invites} />
 
       <h2 className="mt-8 mb-2 font-medium">{t('membersHeading')}</h2>
-      <ul className="grid gap-2">
+      {/* data-perf-ready: the perf harness's READY marker (docs/perf/README.md). */}
+      <ul data-perf-ready className="grid gap-2">
         {members.map((m) => {
           const isSelf = m.userId === viewerUserId;
           const isLastOwner = m.role === 'OWNER' && m.status === 'ACTIVE' && activeOwnerCount <= 1;

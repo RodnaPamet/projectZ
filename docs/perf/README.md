@@ -244,9 +244,11 @@ All timestamps are taken in the page with `performance.now()`, by the agent that
   (`[role=progressbar]`; `[aria-busy=true]` on anything but a button; `shimmer`,
   `animate-pulse` and `animate-spin` classes; `.loading-spinner`,
   `[data-skeleton-table]`, `[data-loading]` and `[data-perf-feedback]`). Those are
-  the design system's skeleton and spinner primitives. **A `loading.tsx` built from
-  something else must add `data-loading` to be counted.** `aria-busy` on a button
-  is excluded because it is invisible.
+  the design system's skeleton and spinner primitives. Every `loading.tsx` renders
+  `RouteSkeleton` (src/components/loading/route-skeleton.tsx), whose
+  `role="status" aria-busy="true"` container is what gets counted. **A loading state
+  built from something else must add `data-loading` to be counted.** `aria-busy` on
+  a button is excluded because it is invisible.
 - **t_feedback** is the earlier of t_url and t_loading_ui. For a full load it is the
   first contentful paint.
 - **t_ready** is the moment the destination's ready conditions (below) all hold,
@@ -257,18 +259,35 @@ All timestamps are taken in the page with `performance.now()`, by the agent that
 
 The ready conditions, in `nav-latency.spec.ts` `READY`, are one per destination.
 Each is the page's heading, taken from `messages/bg.json` as the e2e specs do, plus
-the content that heading introduces.
+the page's **READY marker**: the element carrying `data-perf-ready`, with the seeded
+text it must contain where there is one.
 
-| Destination    | Ready when                                                                                      |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| `/`            | `main h1` "playerz.bg" and the venues call to action                                            |
-| `/venues`      | `main h1` "Играй" and a venue card link                                                         |
-| `/login`       | `main h1` "Вход"                                                                                |
-| `/me/bookings` | `main h1` "Моите резервации" and a booking (`main li`)                                          |
-| diary, any day | `main h1` "Календар", that day's own "next day" link (unique per day), and the grid ("Court 1") |
-| courts         | `main h1` "Кортове" and a court card's `h2`                                                     |
-| pricing        | `main h1` "Ценообразуване" and a rule (`main li` "Weekend peak")                                |
-| players, staff | `main h1` "Играчи" / "Персонал" and a row (`main li`)                                           |
+| Destination    | Ready when                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `/`            | `main h1` "playerz.bg" and `[data-perf-ready]` (the venues call to action)                                      |
+| `/venues`      | `main h1` "Играй" and `[data-perf-ready]` (the venue card list)                                                 |
+| `/login`       | `main h1` "Вход"                                                                                                |
+| `/me/bookings` | `main h1` "Моите резервации" and `[data-perf-ready]` (the booking list)                                         |
+| diary, any day | `main h1` "Календар", that day's own "next day" link (unique per day), and `[data-perf-ready]` "Court 1" (grid) |
+| courts         | `main h1` "Кортове" and `[data-perf-ready]` "Court 1" (the court cards)                                         |
+| pricing        | `main h1` "Ценообразуване" and `[data-perf-ready]` "Weekend peak" (the board)                                   |
+| players, staff | `main h1` "Играчи" / "Персонал" and `[data-perf-ready]` (the list)                                              |
+
+#### READY markers: later PRs keep them
+
+Until T12 the table named each page's markup (`main li h2`, a venue card's link).
+The perf programme restyles these pages, and a list that became a table would have
+stopped matching: the step would time out and read as a regression. So each page
+now marks its primary content with `data-perf-ready`, on the element the old
+selector found or its parent list (and on the empty state, where there is one).
+That changed how content is found, not when it counts as ready.
+
+**A PR that rewrites one of these pages or boards keeps `data-perf-ready` on its
+primary content**, or moves this table with it. The markers live in
+`src/app/page.tsx`, `(public)/venues/page.tsx`, `(app)/me/bookings/page.tsx`,
+and the calendar's `DayGrid` and the courts, pricing, players and staff boards.
+A loading skeleton must never carry one, or `main h1`: it would be timed as the
+content.
 
 If a page changes so that its condition never holds, the step fails after 45 s with
 the condition that failed. It does not report a fast wrong number.
@@ -291,7 +310,8 @@ target. For each navigation:
 "Network idle" is **no request waiting for headers, and nothing moving for
 500 ms**. A plain "nothing in flight" never arrives here: Chrome never reports the
 dead links' 404 prefetches as finished (#267), and waiting for them cost 20 s per
-click.
+click. The venue cards no longer link anywhere (T12), but the rule stays: the next
+dead link would bring the hang back.
 
 ### Profiles
 

@@ -1,0 +1,82 @@
+import { existsSync, globSync } from 'node:fs';
+import path from 'node:path';
+
+/**
+ * EVERY NAVIGABLE PAGE HAS A LOADING STATE (T12, #267 follow-up).
+ *
+ * ═══ WHY ═══
+ *
+ * PR #268's navigation baseline found no loading UI in any of 1,280
+ * client-side navigations. A phone tap waited 190-540 ms with the previous
+ * page frozen on screen, because without a `loading.tsx` a default prefetch
+ * fetches only the route tree and the router has nothing to paint until the
+ * whole server render arrives. A new page that forgets its `loading.tsx`
+ * brings that back for its own route, silently: nothing fails, the tap just
+ * feels dead again.
+ *
+ * ═══ THE RULE ═══
+ *
+ * Every `page.tsx` under src/app has a `loading.tsx` in its OWN segment, or an
+ * entry below saying why not. "Its own segment", not an ancestor's: the root
+ * loading.tsx is shaped like the home page, and a list page that fell back to
+ * it would flash the home page's skeleton.
+ *
+ * An entry that no longer matches a page, or whose page has since gained a
+ * loading.tsx, fails too — an allow-list that only grows stops meaning
+ * anything.
+ */
+
+const APP = 'src/app';
+
+/** Segment directory (relative to src/app) → why it has no loading.tsx. */
+const NO_LOADING: Record<string, string> = {
+  offline:
+    'force-static: served from the service worker with no request to wait on, so there is no navigation to cover',
+  '(app)/t/[slug]':
+    'redirect-only index: it sends a club user on to the diary, whose own loading.tsx is what paints',
+  '(design)/design-system':
+    'developer-facing component gallery, not linked from the app; no user navigates to it',
+};
+
+const pages = globSync(`${APP}/**/page.tsx`)
+  .map((f) => path.relative(APP, path.dirname(f.toString())).split(path.sep).join('/'))
+  .map((dir) => (dir === '' ? '.' : dir))
+  .sort();
+
+const hasLoading = (dir: string) => existsSync(path.join(APP, dir, 'loading.tsx'));
+
+describe('route loading coverage', () => {
+  it('finds the pages it is meant to cover', () => {
+    // A glob that silently matched nothing would pass every test below.
+    expect(pages).toEqual(
+      expect.arrayContaining([
+        '.',
+        '(public)/venues',
+        '(app)/me/bookings',
+        '(app)/t/[slug]/admin/calendar',
+      ]),
+    );
+  });
+
+  it.each(pages)('%s has a loading.tsx, or a stated reason not to', (dir) => {
+    if (hasLoading(dir)) return;
+    expect({
+      dir,
+      reason: NO_LOADING[dir] ?? 'MISSING: add loading.tsx or an allow-list entry',
+    }).toEqual({ dir, reason: expect.not.stringMatching(/^MISSING/) });
+  });
+
+  it.each(Object.keys(NO_LOADING))('allow-list entry %s is not stale', (dir) => {
+    expect(pages).toContain(dir);
+    expect(hasLoading(dir)).toBe(false);
+  });
+
+  it('every loading.tsx sits beside a page', () => {
+    // A loading.tsx with no page beside it covers a whole subtree by accident.
+    const orphans = globSync(`${APP}/**/loading.tsx`)
+      .map((f) => path.relative(APP, path.dirname(f.toString())).split(path.sep).join('/'))
+      .map((dir) => (dir === '' ? '.' : dir))
+      .filter((dir) => !pages.includes(dir));
+    expect(orphans).toEqual([]);
+  });
+});

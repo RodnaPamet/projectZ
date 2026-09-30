@@ -75,7 +75,7 @@ export default async function MyBookingsPage() {
         </header>
 
         {items.length === 0 ? (
-          <div className="space-y-4">
+          <div data-perf-ready className="space-y-4">
             <EmptyState title={t('empty.title')} description={t('empty.description')} />
             <Link
               href="/venues"
@@ -85,7 +85,8 @@ export default async function MyBookingsPage() {
             </Link>
           </div>
         ) : (
-          <ul className="space-y-3">
+          // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
+          <ul data-perf-ready className="space-y-3">
             {items.map((b) => {
               if (!b) return null;
               const tz = b.resource.venue.timezone;
