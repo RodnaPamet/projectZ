@@ -46,6 +46,26 @@ const inter = Inter({
 const THEME_CHROME = { dark: '#0d110e', light: '#f4f2ed' } as const satisfies Record<Theme, string>;
 
 /**
+ * A constant, quoted as a JS string literal for the inline script below.
+ *
+ * It was `JSON.stringify(...)`, which CodeQL flags as improper code
+ * sanitization (js/bad-code-sanitization, alerts 88-90 on PR #283): JSON does
+ * not escape `<`, `/` or U+2028, so a value containing `</script>` would break
+ * out of the tag. These values are compile-time constants, but T17 renames the
+ * keys, so instead of trusting them we ALLOW-LIST them: a cookie name, a
+ * storage key or a hex colour needs nothing beyond letters, digits and `_:#-`.
+ * Anything else throws at module load (a build failure, never a quietly broken
+ * or injectable script). The allow-list also keeps the script free of
+ * backslashes (see below).
+ */
+function jsToken(value: string): string {
+  if (!/^[A-Za-z0-9_:#-]+$/.test(value)) {
+    throw new Error(`layout: refusing to inline ${value} into the theme script`);
+  }
+  return `'${value}'`;
+}
+
+/**
  * The pre-paint theme script — the SECOND line of defence behind the cookie.
  *
  * A returning visitor's `<html>` already carries `data-theme` from the cookie
@@ -74,11 +94,9 @@ const THEME_CHROME = { dark: '#0d110e', light: '#f4f2ed' } as const satisfies Re
  * design-system-dark-axe.spec.ts. `document.cookie` always joins with "; ",
  * so the pattern needs no escapes at all; native-feel.test.ts keeps it so.
  */
-const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement;var ck=${JSON.stringify(
-  THEME_COOKIE,
-)};var lk=${JSON.stringify(THEME_STORAGE_KEY)};var c=${JSON.stringify(
-  THEME_CHROME,
-)};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;}}if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}d.setAttribute('data-theme',t);var sec=location.protocol==='https:'?'; secure':'';document.cookie=ck+'='+t+'; path=/; max-age=31536000; samesite=lax'+sec;var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
+const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement;var ck=${jsToken(THEME_COOKIE)};var lk=${jsToken(
+  THEME_STORAGE_KEY,
+)};var c={dark:${jsToken(THEME_CHROME.dark)},light:${jsToken(THEME_CHROME.light)}};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;}}if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}d.setAttribute('data-theme',t);var sec=location.protocol==='https:'?'; secure':'';document.cookie=ck+'='+t+'; path=/; max-age=31536000; samesite=lax'+sec;var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: 'playerz.bg',
