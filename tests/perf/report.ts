@@ -75,6 +75,14 @@ export const METRICS = [
   'fcp',
   'lcp',
   'redirectMs',
+  // Writes only (harness.ts `write`); absent from navigation rows.
+  'writeActions',
+  'writeRsc',
+  'writePrefetches',
+  'writeOther',
+  'writeRscBytes',
+  'writePrefetchBytes',
+  'writeActionMs',
 ] as const;
 export type Metric = (typeof METRICS)[number];
 
@@ -94,6 +102,20 @@ function metricOf(s: Sample, m: Metric): number | null {
       return s.hard?.lcp ?? null;
     case 'redirectMs':
       return s.hard?.redirectMs ?? null;
+    case 'writeActions':
+      return s.write?.actions ?? null;
+    case 'writeRsc':
+      return s.write?.rsc ?? null;
+    case 'writePrefetches':
+      return s.write?.prefetches ?? null;
+    case 'writeOther':
+      return s.write?.other ?? null;
+    case 'writeRscBytes':
+      return s.write?.rscBytes ?? null;
+    case 'writePrefetchBytes':
+      return s.write?.prefetchBytes ?? null;
+    case 'writeActionMs':
+      return s.write?.actionMs ?? null;
     default:
       return s[m];
   }
@@ -386,10 +408,18 @@ function label(r: Pick<Row, 'journey' | 'step' | 'kind'>): string {
   return `${r.journey} · ${r.step}${tag}`;
 }
 
-/** Row labels in first-seen order, across profiles and modes. */
-function labels(rows: Row[]): Array<{ journey: string; step: string; kind: Row['kind'] }> {
+/**
+ * Row labels in first-seen order, across profiles and modes. Navigations by
+ * default; writes have no time to put in a navigation table, and get
+ * writeTable instead.
+ */
+function labels(
+  rows: Row[],
+  which: 'navigation' | 'write' = 'navigation',
+): Array<{ journey: string; step: string; kind: Row['kind'] }> {
   const seen = new Map<string, { journey: string; step: string; kind: Row['kind'] }>();
   for (const r of rows) {
+    if ((r.kind === 'write') !== (which === 'write')) continue;
     const k = `${r.journey}|${r.step}`;
     if (!seen.has(k)) seen.set(k, { journey: r.journey, step: r.step, kind: r.kind });
   }
@@ -450,6 +480,31 @@ export function networkTable(rows: Row[], profile = 'phone', mode = 'cold'): str
     );
   }
   return out.join('\n');
+}
+
+/**
+ * What each write cost: every request from the submit until WRITE_WINDOW_MS
+ * after it committed, as medians. Request counts do not depend on the
+ * machine, so these are exact where the time columns are not.
+ */
+export function writeTable(rows: Row[]): string {
+  const out = [
+    '| Journey · write | Profile · mode | Requests | KB | Actions | RSC (KB) | Prefetches (KB) | Other | Action done (ms) |',
+    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+  ];
+  for (const l of labels(rows, 'write')) {
+    for (const profile of ['phone', 'desktop']) {
+      for (const mode of ['cold', 'warm']) {
+        const r = find(rows, l.journey, l.step, profile, mode);
+        if (!r) continue;
+        const s = r.stats;
+        out.push(
+          `| ${l.journey} · ${l.step} | ${profile} ${mode} | ${fmtMs(s.requests?.median)} | ${fmtKB(s.bytes?.median)} | ${fmtMs(s.writeActions?.median)} | ${fmtMs(s.writeRsc?.median)} (${fmtKB(s.writeRscBytes?.median)}) | ${fmtMs(s.writePrefetches?.median)} (${fmtKB(s.writePrefetchBytes?.median)}) | ${fmtMs(s.writeOther?.median)} | ${fmtMs(s.writeActionMs?.median)} |`,
+        );
+      }
+    }
+  }
+  return out.length > 2 ? out.join('\n') : '';
 }
 
 export function firstLoadTable(fl: FirstLoadJs[]): string {

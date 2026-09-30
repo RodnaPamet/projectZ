@@ -12,7 +12,7 @@ import {
   PROFILES,
   type PersonaId,
 } from './config';
-import { PerfSession } from './harness';
+import { PerfSession, type WriteSpec } from './harness';
 
 /**
  * Navigation latency, measured as a person on a phone experiences it.
@@ -111,7 +111,29 @@ const READY: ReadyTable = {
   ],
 };
 
-type Step = { id: string; to: string } & ({ click: string } | { back: true });
+type Step =
+  | ({ id: string; to: string } & ({ click: string } | { back: true }))
+  | { id: string; write: WriteSpec };
+
+/**
+ * The courts screen's edit form, by its `data-perf-write` markers
+ * (CourtForm.tsx). The first court is renamed, and then renamed back, so the
+ * data every later step reads is the data it started with.
+ */
+const COURT_SUFFIX = ' (perf)';
+const courtWrite = (value: (current: string) => string): WriteSpec => ({
+  // The first court card's first button is its Edit button; the text check
+  // makes a reordered card fail loudly instead of archiving a court.
+  open: {
+    selector: 'main ul[data-perf-ready] > li:first-child button',
+    text: bg.admin.courts.action.edit,
+  },
+  form: '[data-perf-write="form"]',
+  field: '[data-perf-write="name"]',
+  value,
+  submit: '[data-perf-write="submit"]',
+  shown: 'main ul[data-perf-ready] > li:first-child h2',
+});
 
 interface Journey {
   id: string;
@@ -193,6 +215,41 @@ const JOURNEYS: Journey[] = [
       { id: 'next day → today', to: club('calendar'), click: `main a[href="${club('calendar')}"]` },
     ],
   },
+  {
+    // What a write costs (T30). A revalidating Server Action purges the whole
+    // client router cache and re-prefetches the visible links, so the write
+    // step counts its requests, and the navigation after it shows what the
+    // purge costs the next tap. The loop ends where it began.
+    id: 'staff-write',
+    persona: 'staff',
+    entry: `/t/${CLUB_SLUG}`,
+    lands: club('calendar'),
+    steps: [
+      {
+        id: 'calendar → courts',
+        to: club('courts'),
+        click: `${MAIN_NAV} a[href="${club('courts')}"]`,
+      },
+      { id: 'rename a court', write: courtWrite((name) => `${name}${COURT_SUFFIX}`) },
+      {
+        id: 'rename it back',
+        write: courtWrite((name) => {
+          if (!name.endsWith(COURT_SUFFIX)) throw new Error(`"${name}" was not renamed`);
+          return name.slice(0, -COURT_SUFFIX.length);
+        }),
+      },
+      {
+        id: 'courts → pricing (after the writes)',
+        to: club('pricing'),
+        click: `${MAIN_NAV} a[href="${club('pricing')}"]`,
+      },
+      {
+        id: 'pricing → calendar',
+        to: club('calendar'),
+        click: `${MAIN_NAV} a[href="${club('calendar')}"]`,
+      },
+    ],
+  },
 ];
 
 /**
@@ -229,6 +286,15 @@ for (let run = 1; run <= PERF_RUNS; run++) {
         });
         for (let pass = 0; pass <= PERF_WARM_PASSES; pass++) {
           for (const st of j.steps) {
+            if ('write' in st) {
+              await s.write({
+                step: st.id,
+                mode: pass === 0 ? 'cold' : 'warm',
+                pass,
+                spec: st.write,
+              });
+              continue;
+            }
             await s.step({
               step: st.id,
               key: st.to,

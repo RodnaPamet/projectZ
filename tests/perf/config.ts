@@ -183,4 +183,11 @@ export const STEP_TIMEOUT_MS = 45_000;
  * two runs start from the same state; see README "What is settled".
  */
 export const QUIET_MS = 500;
+
+/**
+ * How long after a write commits its requests are still counted as the
+ * write's (harness.ts `write`): the refreshed page and the viewport's
+ * re-prefetches after the router cache is purged.
+ */
+export const WRITE_WINDOW_MS = 3_000;
 export const SETTLE_TIMEOUT_MS = 20_000;
