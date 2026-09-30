@@ -48,45 +48,67 @@ const diaryDay = (isoDay: string) => `${club('calendar')}?day=${isoDay}`;
 /**
  * One stable definition per destination of "its key content is visible". Each
  * uses the page's heading, taken from the catalogue (as the e2e specs do, so
- * rewording a heading is not a failure), plus the content that heading
- * introduces. On a client-side navigation the previous page's content stays
- * on screen until the new one commits, so every condition here is unique to
- * its destination.
+ * rewording a heading is not a failure), plus the page's `[data-perf-ready]`
+ * element — the one its page or board marks as its primary content — and,
+ * where the seed puts known text in it, that text. On a client-side navigation
+ * the previous page's content stays on screen until the new one commits, so
+ * every condition here is unique to its destination.
+ *
+ * ═══ WHY A MARKER AND NOT `main li` ═══
+ *
+ * The table used to name each page's markup: `main li h2`, `main li a[href^=
+ * "/venues/"]`. The perf programme is about to restyle every one of these
+ * pages, and a page whose list became a table would have stopped matching,
+ * so the step would time out and look like a regression. The marker states
+ * what the page means ("my content is here") and survives a restyle. It
+ * changes how the content is FOUND, not when it counts as ready: each marker
+ * sits on the element the old selector found, or on its parent list.
+ *
+ * A loading skeleton never carries `main h1` or `[data-perf-ready]`
+ * (src/components/loading/route-skeleton.tsx), so it cannot be mistaken for
+ * the content.
  *
  * The diary is identified by its own "next day" link, which differs for every
- * day and does not depend on how the date label is formatted.
+ * day and does not depend on how the date label is formatted. Its h1 and grid
+ * are the same on every day, so the link is what tells today from tomorrow.
  */
 const READY: ReadyTable = {
-  '/': [{ selector: 'main h1', text: 'playerz.bg' }, { selector: 'main a[href="/venues"]' }],
+  '/': [{ selector: 'main h1', text: 'playerz.bg' }, { selector: 'main [data-perf-ready]' }],
   '/venues': [
     { selector: 'main h1', text: bg.venues.title },
-    { selector: 'main li a[href^="/venues/"]' },
+    { selector: 'main [data-perf-ready]' },
   ],
   '/login': [{ selector: 'main h1', text: bg.login.title }],
-  '/me/bookings': [{ selector: 'main h1', text: bg.myBookings.title }, { selector: 'main li' }],
+  '/me/bookings': [
+    { selector: 'main h1', text: bg.myBookings.title },
+    { selector: 'main [data-perf-ready]' },
+  ],
   [club('calendar')]: [
     { selector: 'main h1', text: bg.admin.calendar.title },
     { selector: `main a[href="${diaryDay(tomorrow)}"]` },
-    { selector: 'main', text: 'Court 1' },
+    { selector: 'main [data-perf-ready]', text: 'Court 1' },
   ],
   [diaryDay(tomorrow)]: [
     { selector: 'main h1', text: bg.admin.calendar.title },
     { selector: `main a[href="${diaryDay(shiftDay(tomorrow, 1))}"]` },
-    { selector: 'main', text: 'Court 1' },
+    { selector: 'main [data-perf-ready]', text: 'Court 1' },
   ],
   [club('courts')]: [
     { selector: 'main h1', text: bg.admin.courts.title },
-    { selector: 'main li h2', text: 'Court 1' },
+    { selector: 'main [data-perf-ready]', text: 'Court 1' },
   ],
   [club('pricing')]: [
     { selector: 'main h1', text: bg.admin.pricing.title },
-    { selector: 'main li', text: 'Weekend peak' },
+    { selector: 'main [data-perf-ready]', text: 'Weekend peak' },
   ],
   [club('players')]: [
     { selector: 'main h1', text: bg.admin.players.title },
-    { selector: 'main li' },
+    { selector: 'main [data-perf-ready]' },
   ],
-  [club('staff')]: [{ selector: 'main h1', text: bg.admin.staff.title }, { selector: 'main li' }],
+  [club('staff')]: [
+    { selector: 'main h1', text: bg.admin.staff.title },
+    { selector: 'main [data-perf-ready]' },
+  ],
 };
 
 type Step = { id: string; to: string } & ({ click: string } | { back: true });
@@ -102,9 +124,11 @@ interface Journey {
 }
 
 /**
- * Links that 404 today are left out on purpose. `/venues/{slug}` (every venue
- * card) and the club nav's `open-play`, `coaches` and `my-bookings` (#260)
- * point at pages that do not exist. A 404 is not a navigation to time.
+ * Links that 404 today are left out on purpose: the club nav's `open-play`,
+ * `coaches` and `my-bookings` (#260) point at pages that do not exist. A 404
+ * is not a navigation to time. The venue cards linked to `/venues/{slug}`
+ * too, until #267 made them plain text; when the venue page (#224) exists,
+ * `venues → venue` belongs in the public and player journeys.
  */
 const JOURNEYS: Journey[] = [
   {

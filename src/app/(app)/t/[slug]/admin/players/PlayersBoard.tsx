@@ -61,7 +61,11 @@ export function PlayersBoard({
     : players;
 
   if (players.length === 0) {
-    return <EmptyState title={t('empty.title')} description={t('empty.description')} />;
+    return (
+      <div data-perf-ready>
+        <EmptyState title={t('empty.title')} description={t('empty.description')} />
+      </div>
+    );
   }
 
   return (
@@ -79,7 +83,8 @@ export function PlayersBoard({
       {visible.length === 0 ? (
         <EmptyState title={t('noMatch.title')} description={t('noMatch.description')} />
       ) : (
-        <ul className="grid gap-2">
+        // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
+        <ul data-perf-ready className="grid gap-2">
           {visible.map((p) => (
             <li key={p.playerUserId} className="border-border-subtle rounded-lg border p-3">
               <div className="flex flex-wrap items-start justify-between gap-3">

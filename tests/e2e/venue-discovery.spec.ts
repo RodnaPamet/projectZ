@@ -19,13 +19,29 @@ import bg from '../../messages/bg.json';
  * key that disappears, still does.
  */
 test.describe('venue discovery', () => {
-  test('the venues page lists venues and links through to one', async ({ page }) => {
+  test('the venues page lists venues', async ({ page }) => {
     await page.goto('/venues');
 
     await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
 
-    const cards = page.getByRole('link').filter({ hasText: /Sofia|Plovdiv/ });
+    const cards = page
+      .getByRole('main')
+      .getByRole('listitem')
+      .filter({ hasText: /Sofia|Plovdiv/ });
     await expect(cards.first()).toBeVisible();
+  });
+
+  /**
+   * #267. Every card linked to /venues/{slug}, a page that does not exist: a
+   * tap was a 404, and each card's viewport prefetch fetched one in the
+   * background on every visit. The cards are plain text until the venue page
+   * (#224) exists. When it does, this test is the one to turn around.
+   */
+  test('no venue card links to the venue page that does not exist yet', async ({ page }) => {
+    await page.goto('/venues');
+    await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
+
+    await expect(page.locator('main a[href^="/venues/"]')).toHaveCount(0);
   });
 
   test('has no critical or serious accessibility violations', async ({ page }) => {

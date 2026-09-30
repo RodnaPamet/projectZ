@@ -28,8 +28,12 @@ export default async function HomePage() {
         <h1 className="text-content-brand text-4xl font-semibold">playerz.bg</h1>
         <p className="text-sm opacity-70">{t('tagline')}</p>
 
+        {/* data-perf-ready: the harness's "this page's content is on screen"
+            marker (docs/perf/README.md, "READY markers"). Keep it on whatever
+            becomes this page's primary content. */}
         <Link
           href="/venues"
+          data-perf-ready
           className="bg-bg-brand text-content-on-brand inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
         >
           {tVenues('title')}

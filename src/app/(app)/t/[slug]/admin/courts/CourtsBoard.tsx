@@ -60,9 +60,12 @@ export function CourtsBoard({
       </div>
 
       {courts.length === 0 ? (
-        <EmptyState title={t('empty.title')} description={t('empty.description')} />
+        <div data-perf-ready>
+          <EmptyState title={t('empty.title')} description={t('empty.description')} />
+        </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
+        <ul data-perf-ready className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {courts.map((court) => (
             <li key={court.id} className="border-border-subtle bg-bg-surface rounded-lg border p-4">
               {editingId === court.id ? (

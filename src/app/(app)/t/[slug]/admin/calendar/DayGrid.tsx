@@ -145,12 +145,15 @@ export function DayGrid({
       )}
 
       {courts.length === 0 ? (
-        <p className="text-content-muted mt-6 text-sm">{t('noCourts')}</p>
+        <p data-perf-ready className="text-content-muted mt-6 text-sm">
+          {t('noCourts')}
+        </p>
       ) : (
         // Horizontal scroll rather than a reflow: a club with eight courts on
         // a phone wants to swipe across a diary it recognises, not read eight
         // stacked lists.
-        <div className="mt-4 overflow-x-auto">
+        // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
+        <div data-perf-ready className="mt-4 overflow-x-auto">
           <div
             className="grid min-w-max"
             style={{ gridTemplateColumns: `4rem repeat(${courts.length}, minmax(9rem, 1fr))` }}
