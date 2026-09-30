@@ -1,0 +1,81 @@
+# Navigation policy: the router cache and prefetching
+
+What the client router keeps, what it fetches ahead of a tap, and why. Set by T30 from
+measurement (`docs/perf/README.md`), and pinned by
+`tests/guardrails/router-cache-policy.test.ts`.
+
+## The router cache: `staleTimes { dynamic: 30, static: 180 }`
+
+`next.config.mjs`, `experimental.staleTimes` (Next 16.3.6; see
+`node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/staleTimes.md`).
+
+- **`dynamic: 30`** covers every page the router navigated to and did not fully prefetch.
+  That means every page in this app. The default is 0, so the cache kept nothing and every
+  revisit paid a full round trip. On the phone profile that was about 200 ms on every warm
+  step (PR #268's baseline). Since T12's `loading.tsx`, a revisit also paid React's 300 ms
+  Suspense reveal throttle, which put warm steps at about 355 ms (#290). A revisit within
+  30 s now renders from memory: no request, no fallback and no throttle.
+- **`static: 180`** covers `prefetch={true}`, `router.prefetch` and the `loading.tsx`
+  shells that an automatic prefetch fetches. The shells are the skeletons and are the same
+  for every visit, so keeping them 3 minutes costs nothing. The default is 300 s. It is
+  shortened because the one full-prefetch site (below) holds real content.
+- **A write purges all of it.** A Server Action that calls `revalidatePath` or
+  `revalidateTag` makes the router drop its whole cache and re-prefetch the links in the
+  viewport. So does `router.refresh()`. Next 16.3.6 bumps a single global segment-cache
+  version in `invalidateSegmentCacheEntries`, and the Server Action reducer calls
+  `invalidateEntirePrefetchCache`. A write is therefore never followed by a stale screen.
+  The price is that the next tap after a write is a cold tap again, and the
+  `staff-write` journey measures it.
+
+### The diary refreshes itself
+
+The club diary is the front desk's live view. Bookings arrive from phones all day, and a
+diary served from the cache can be up to 30 s old. `useRefreshWhenStale`
+(`src/lib/hooks/use-refresh-when-stale.ts`) takes the server's render time, which
+`calendar/page.tsx` passes to `DayGrid` as `renderedAt`. It calls `router.refresh()` when
+the payload on screen is **older than 10 s** (`STALE_AFTER_MS`). It checks on mount, which
+covers a revisit from the cache, and when the tab becomes visible again, which covers a
+tablet woken after lunch. The cached grid stays on screen until the fresh one replaces it,
+because a refresh is a transition and shows no fallback.
+
+Why 10 s: a refresh purges the whole cache (above). Refreshing on every revisit would also
+throw away every other cached admin screen. Waiting the full 30 s would let the diary lag
+by that much. Age is measured on the client's own clock from the moment this browser first
+showed the payload. Subtracting the server's timestamp from the phone's would refresh
+every visit on a phone whose clock runs ahead, and never on one whose clock runs behind.
+
+## Prefetching
+
+| Where                                          | Prefetch                                       | Why                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Club admin (nav, diary, every board)           | **auto** (the default: omit the prop)          | Fetches each dynamic route down to its `loading.tsx`, so the tap paints the skeleton at once (T12), and the page itself is fetched on the tap. **Never `prefetch={true}`.** A fully prefetched diary lives under `static`, so it could be 180 s old on the tap. Every revalidating admin write would also re-prefetch each such link in the viewport, in full. |
+| Player bottom tab bar (T20, below `md`)        | **`prefetch={true}`**, skipped under Save-Data | The only full-prefetch site. Its pages (`/venues`, `/me`) read through `/api/v1` and SWR and revalidate after paint, so a shell up to 180 s old is corrected on arrival. A thumb on a tab bar switches tabs constantly, so each switch is worth making instant. Under `navigator.connection.saveData` it falls back to auto.                                   |
+| Hover                                          | **none**                                       | No hover-only prefetch. Touch has no hover, and on the desktop the viewport prefetch already covers what hover would. `data-table.tsx`'s `onRowPrefetch` is vendored and unused. A consumer that wires it to `router.prefetch` fails the guardrail.                                                                                                            |
+| Dead links                                     | **none: do not link**                          | A `<Link>` to a page that does not exist prefetches a 404 as it enters the viewport. Chrome never reports those as finished (#267). The club nav's open-play, coaches and my-bookings still do this (#260). Fix the destination or drop the link. Never paper over it with `prefetch={false}`.                                                                 |
+| Query-string links (the diary's `?day=` links) | **auto**                                       | See below.                                                                                                                                                                                                                                                                                                                                                     |
+
+`tests/guardrails/router-cache-policy.test.ts` fails on `prefetch={true}`, a bare
+`prefetch` attribute or `router.prefetch(` anywhere under `src/` except
+`src/components/layout/BottomTabBar.tsx`. That file is allow-listed ahead of T20, and the
+allow-list gives the reason.
+
+### The query-string hang does not reproduce on 16.3.6
+
+inflect-compliance hit a hang on Next 16.3.1 when it prefetched hrefs with a query string.
+The diary's day links are `…/admin/calendar?day=YYYY-MM-DD`, so T30 re-tested them. The
+staff journey's `calendar → next day` and `next day → today` steps ran with the default
+auto prefetch, on both profiles, with the router cache on. That was 2 runs × 10 contexts ×
+2 passes, 80 navigations per step. No settle timed out (the harness records every settle
+that exceeds 20 s as a warning, and there were none). No `?day=` prefetch was left
+pending, and every step committed. The links keep the default prefetch, and no guard rule
+is added. If a later Next brings the hang back, the perf harness will show it first, as a
+settle warning on those two steps.
+
+## What this does not cover
+
+- **A revisit after 30 s** is a cold tap again: a round trip plus, where the page has a
+  `loading.tsx`, the 300 ms reveal throttle (#290). The perf harness clicks as soon as a
+  page settles, so its warm pass revisits within a few seconds. Its warm rows show the
+  cache-hit case, not the case of a person who spent a minute on a screen.
+- **First visits** are unchanged: the cache has nothing to serve yet.
+- **The player surfaces** get their cache from SWR (T20/T21), not from this policy.

@@ -14,10 +14,51 @@ in the page, from the click.
 
 ```sh
 npm run perf:nav          # one run: reset and seed, build, serve, measure (about 12 min)
-npm run perf:compare -- docs/perf/baseline-a56ea4f.json .perf/runs/<your run>.json
+npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a change"
+npx tsx tests/perf/budget.ts .perf/after.json            # the budget (docs/perf/budget.json)
 ```
 
-## The baseline: `a56ea4f`, 29 September 2026
+## The current baseline: `7d7d27d` (T30, the router cache), 30 September 2026
+
+`docs/perf/baseline-7d7d27d.json` holds T30's two branch runs, pooled. Each ran on a
+fresh seed and build, interleaved with two runs of `origin/main` at `0bb8f0d` (T12's
+skeletons, no router cache), between 16:41 and 17:30 Sofia time. `docs/perf/budget.json`
+takes its ceilings from this file. The router-cache and prefetch policy it measures is in
+`navigation-policy.md`.
+
+What `staleTimes { dynamic: 30 }` changed, main → T30 (medians, 20 samples per cell;
+`perf:compare` reports 38 faster and 0 slower beyond noise):
+
+| Rows                                                               | Phone, before → after | Desktop, before → after |
+| ------------------------------------------------------------------ | --------------------: | ----------------------: |
+| Warm revisits (14 of 16 soft rows on the phone, 12 on the desktop) |   335–452 → 39–212 ms |      324–370 → 15–68 ms |
+| Cold steps back to a page already visited (→ home, → calendar)     |    354–356 → 59–64 ms |      323–333 → 22–28 ms |
+| Cold first visits (→ courts, → pricing, → players, → staff, …)     |             unchanged | unchanged (≈330–370 ms) |
+| Full loads                                                         |             unchanged |               unchanged |
+
+- **A revisit inside 30 s renders from the router cache.** It makes no request and shows
+  no skeleton, so React's 300 ms reveal throttle (#290) does not apply. The warm phone
+  steps that T12 had moved from about 200 ms to about 355 ms now take 39–56 ms. Two rows
+  are slower than that because they have more to paint. players takes 95 ms, and staff
+  takes 212 ms because it paints 126 rows.
+- **First visits keep the throttle.** A route the router has not fetched yet still pays a
+  round trip, and on a fast answer also the throttle: on the desktop, 330–370 ms where
+  #268's baseline had 44–85 ms. The same holds for any revisit after 30 s. The harness
+  revisits within seconds, so the warm rows above are the cache-hit case.
+- **A write purges the cache.** In `staff-write`, the step courts → pricing after the two
+  writes takes 352 ms warm on the phone (328 ms on the desktop). The same step without a
+  write before it takes 42 ms (30 ms). Each write costs 16 requests: the action POST
+  (16.5 KB, carrying the re-rendered page), no separate RSC refresh, and 15 prefetches
+  (10–18 KB). Nine of the prefetches are route trees for the links in the viewport,
+  three of them the club nav's dead links (#260). Six are their loading shells.
+- The diary's `?day=` links kept the default prefetch and never hung (0 settle warnings in
+  4 runs). The diary refreshes itself when a cached copy older than 10 s is shown. In a
+  one-off check, a revisit after 12 s painted the cached grid in 50 ms and re-fetched it
+  66 ms after the click. A revisit after 5 s fetched nothing.
+
+The `a56ea4f` baseline below is kept as the programme's starting point.
+
+## The first baseline: `a56ea4f`, 29 September 2026
 
 `docs/perf/baseline-a56ea4f.json` holds two complete runs of the app at `a56ea4f`
 (origin/main, #250), pooled. Each run used a fresh seed and a fresh server, and the
@@ -226,9 +267,21 @@ Left out on purpose:
   club, or coach) and removed the switcher, so no account here holds both a player
   and a club role. The fixture creates each account with its kind, as the database
   now requires.
-- **Writes** (a review, a no-show, a price change). They mutate the data every later
-  run depends on. Their `revalidatePath` / `router.refresh` cost belongs in its own
-  harness.
+- **Writes that change what later steps read** (a review, a no-show, a price change).
+  The one write that is measured restores itself (below).
+
+#### The staff-write journey (T30)
+
+`staff-write` starts as `owner@sofia.bg` on the diary. It goes to courts, **renames the
+first court** (appending " (perf)") and **renames it back**, then goes → pricing →
+calendar. A write step is untimed. It opens the form, fills the field and submits, all
+through CourtForm's `data-perf-write` markers (`form`, `name`, `submit`). It counts every
+request from the submit until **3 s after the action commits**, meaning the form has
+closed and the list shows the typed name. It splits them into the action POST, RSC
+fetches, router prefetches and everything else. A revalidating Server Action purges the
+whole client router cache and re-prefetches the links in the viewport. That trailing
+traffic is the write's hidden cost, and the navigation after the writes shows what the
+purge costs the next tap. **A rewrite of CourtForm keeps its three markers.**
 
 ### When a navigation starts, and when it is done
 
@@ -432,26 +485,70 @@ checked against it.
 
 ## Comparing a change
 
-1. On your branch, run `npm run perf:nav` **twice**.
-2. Merge the two runs:
+This is the perf programme's protocol (T30). A committed baseline is the reference for
+the budget. It is **not** the "before" of a comparison: it was taken on another day,
+under another load and at another hour of the club's day. Measure both sides yourself,
+in one session.
+
+1. **Rebase** the branch on `origin/main`. Make a second worktree at `origin/main`, and
+   run `npm ci` there.
+2. **Four runs, interleaved, in one session, all within 3 hours:** main, branch, main,
+   branch. Only one perf run may use the machine at a time, and other sessions share it.
+   Take the lock before each run, retrying every minute, and **always** release it, even
+   when a run fails:
 
    ```sh
-   npm run perf:compare -- --merge .perf/runs/<a>.json .perf/runs/<b>.json --out .perf/after.json
+   until mkdir /tmp/playerz-perf.lock 2>/dev/null; do sleep 60; done
+   npm run perf:nav; rmdir /tmp/playerz-perf.lock
    ```
 
-3. Compare:
+   Give each session its own database (a local name ending in `_perf`), port and Redis
+   database: `PERF_DATABASE_URL`, `PERF_PORT` and `PERF_REDIS_URL`.
+
+3. **Merge each side's pair:**
 
    ```sh
-   npm run perf:compare -- docs/perf/baseline-a56ea4f.json .perf/after.json
+   npm run perf:compare -- --merge <main a>.json <main b>.json --out .perf/before.json
+   npm run perf:compare -- --merge <branch a>.json <branch b>.json --out .perf/after.json
+   ```
+
+4. **Compare** before with after:
+
+   ```sh
+   npm run perf:compare -- .perf/before.json .perf/after.json
    ```
 
    This prints every row's before and after medians, the difference, and a verdict:
-   within noise, **faster** or **SLOWER** (see _What is a real difference_). Paste
-   the table into the PR.
+   within noise, **faster** or **SLOWER** (see _What is a real difference_). It then
+   summarises the rows per profile and mode, because a cache policy moves warm rows and
+   leaves cold ones alone. Paste both tables into the PR, together with
+   `--tables .perf/after.json` (which includes the write costs).
 
-4. When a perf change merges, commit its merged runs as
-   `docs/perf/baseline-<sha>.json` and update the tables here. The next change is
-   then judged against it.
+5. **Budget:**
+
+   ```sh
+   npx tsx tests/perf/budget.ts .perf/after.json
+   ```
+
+   This exits 1 if any row's median is over its ceiling in `docs/perf/budget.json`, or
+   if a budgeted row was not measured. **A PR that fails its budget stays a draft**
+   until it passes, or until the PR explains the new cost and resets the budget.
+
+6. **A perf change** commits its merged "after" as `docs/perf/baseline-<sha>.json`.
+   `<sha>` is the commit the runs measured. It then resets the budgets from that file:
+
+   ```sh
+   npx tsx tests/perf/budget.ts --write docs/perf/baseline-<sha>.json
+   npm run build && npx tsx tests/perf/bundle-budget.ts --write <sha>
+   ```
+
+   `tests/guardrails/perf-budget.test.ts` fails if `budget.json` does not match the
+   newest baseline row for row.
+
+The ceiling is `max(median × 1.15, median + 50 ms)`; `tests/perf/budget.ts` explains
+why. `npx tsx tests/perf/bundle-budget.ts`, run after `npm run build`, prints First Load
+JS per route against `docs/perf/bundle-budget.json`. It only reports, and T29 makes it a
+gate. It exits 2 if the build's manifests cannot be read.
 
 `npm run perf:compare -- --tables <file>` prints any run or baseline as the markdown
 tables above. The tool prints "Feedback came from" as counts: `url 20/20`,
@@ -514,4 +611,8 @@ Two more cautions:
 | `tests/perf/reporter.ts`          | collects samples, writes the run, prints the tables                                 |
 | `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                  |
 | `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables               |
-| `docs/perf/baseline-a56ea4f.json` | this baseline: two runs, pooled, with run-to-run variance                           |
+| `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                      |
+| `docs/perf/baseline-7d7d27d.json` | T30's merged "after", the current baseline; the budget is set from it               |
+| `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)    |
+| `docs/perf/bundle-budget.json`    | First Load JS per route (`tests/perf/bundle-budget.ts`, report-only until T29)      |
+| `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                       |
