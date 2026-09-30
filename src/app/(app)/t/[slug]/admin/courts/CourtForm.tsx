@@ -82,7 +82,15 @@ export function CourtForm({
   if (state?.ok && onDone) onDone();
 
   return (
-    <form action={formAction} className="border-border-subtle grid gap-4 rounded-lg border p-4">
+    // data-perf-write="…": the perf harness's WRITE markers (docs/perf/README.md,
+    // the staff-write journey). It renames a court here and saves it back, and
+    // counts what the revalidating action costs on the wire. A rewrite of this
+    // form keeps all three, or the journey stops with the marker it missed.
+    <form
+      action={formAction}
+      data-perf-write="form"
+      className="border-border-subtle grid gap-4 rounded-lg border p-4"
+    >
       {!editing && venues && (
         <div className="grid gap-1.5">
           <Label htmlFor="venueId">{t('field.venue')}</Label>
@@ -104,7 +112,14 @@ export function CourtForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="name">{t('field.name')}</Label>
-        <Input id="name" name="name" required maxLength={80} defaultValue={court?.name} />
+        <Input
+          id="name"
+          name="name"
+          required
+          maxLength={80}
+          defaultValue={court?.name}
+          data-perf-write="name"
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -198,7 +213,7 @@ export function CourtForm({
       )}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} data-perf-write="submit">
           {editing ? t('action.save') : t('action.add')}
         </Button>
         {onDone && (

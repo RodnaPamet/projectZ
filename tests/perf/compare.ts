@@ -10,6 +10,7 @@ import {
   readyTable,
   rowKey,
   stringify,
+  writeTable,
   type BaselineDoc,
   type Row,
   type RunDoc,
@@ -165,6 +166,9 @@ function compare(beforePath: string, afterPath: string) {
   ];
   let faster = 0;
   let slower = 0;
+  // Per profile and mode, because a cache policy moves warm rows and leaves
+  // cold ones alone: a pooled verdict would hide exactly what changed (#290).
+  const groups = new Map<string, { deltas: number[]; faster: number; slower: number }>();
   for (const rb of b) {
     const key = rowKey(rb);
     const ra = a.find((x) => rowKey(x) === key);
@@ -176,13 +180,30 @@ function compare(beforePath: string, afterPath: string) {
     const verdict = Math.abs(d) <= t ? 'within noise' : d < 0 ? '**faster**' : '**SLOWER**';
     if (verdict === '**faster**') faster++;
     if (verdict === '**SLOWER**') slower++;
+    const g = `${rb.profile} ${rb.mode}${rb.kind === 'hard' ? ' (full loads)' : ''}`;
+    const acc = groups.get(g) ?? { deltas: [], faster: 0, slower: 0 };
+    acc.deltas.push(d);
+    if (verdict === '**faster**') acc.faster++;
+    if (verdict === '**SLOWER**') acc.slower++;
+    groups.set(g, acc);
     lines.push(
       `| ${rb.profile} ${rb.mode} | ${rb.journey} · ${rb.step} | ${Math.round(mb)} | ${Math.round(ma)} | ${d > 0 ? '+' : ''}${Math.round(d)} | ${d > 0 ? '+' : ''}${Math.round((d / mb) * 100)}% | ${verdict} |`,
     );
   }
   const missing = a.filter((ra) => !b.some((rb) => rowKey(rb) === rowKey(ra)));
   process.stdout.write(`${lines.join('\n')}\n\n`);
-  process.stdout.write(`${faster} faster, ${slower} slower, beyond noise.\n`);
+  process.stdout.write(`${faster} faster, ${slower} slower, beyond noise.\n\n`);
+  const summary = [
+    '| Profile · mode | Rows | Faster | Slower | Median Δ ms | Range Δ ms |',
+    '| --- | ---: | ---: | ---: | ---: | --- |',
+  ];
+  for (const [g, acc] of groups) {
+    const s = [...acc.deltas].sort((x, y) => x - y);
+    summary.push(
+      `| ${g} | ${s.length} | ${acc.faster} | ${acc.slower} | ${Math.round(quantile(s, 0.5))} | ${Math.round(s[0]!)} … ${Math.round(s[s.length - 1]!)} |`,
+    );
+  }
+  process.stdout.write(`${summary.join('\n')}\n`);
   if (missing.length > 0) {
     process.stdout.write(
       `${missing.length} row(s) exist only in the "after" file: ${missing.map(rowKey).join('; ')}\n`,
@@ -194,6 +215,8 @@ function tables(path: string) {
   const d = load(path);
   const rows = rowsOf(d);
   process.stdout.write(`${readyTable(rows)}\n\n${networkTable(rows)}\n\n`);
+  const writes = writeTable(rows);
+  if (writes) process.stdout.write(`${writes}\n\n`);
   const fl = runsOf(d)[0]?.firstLoadJs ?? [];
   if (fl.length) process.stdout.write(`${firstLoadTable(fl)}\n`);
   if (isBaseline(d)) {

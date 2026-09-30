@@ -24,6 +24,7 @@ import {
   readyTable,
   RUN_SCHEMA,
   stringify,
+  writeTable,
   type RunDoc,
 } from './report';
 
@@ -149,6 +150,11 @@ export default class PerfReporter implements Reporter {
     out.write(`${readyTable(doc.rows)}\n\n`);
     out.write('══ What each navigation cost: phone, cold ══\n\n');
     out.write(`${networkTable(doc.rows)}\n\n`);
+    const writes = writeTable(doc.rows);
+    if (writes) {
+      out.write('══ What each write cost: submit to 3 s after commit, medians ══\n\n');
+      out.write(`${writes}\n\n`);
+    }
     if (doc.firstLoadJs.length > 0) {
       out.write('══ First Load JS per route (from the build) ══\n\n');
       out.write(`${firstLoadTable(doc.firstLoadJs)}\n\n`);

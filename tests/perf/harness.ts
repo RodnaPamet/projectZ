@@ -16,6 +16,7 @@ import {
   QUIET_MS,
   SETTLE_TIMEOUT_MS,
   STEP_TIMEOUT_MS,
+  WRITE_WINDOW_MS,
   type PerfProfile,
   type PersonaId,
 } from './config';
@@ -33,6 +34,21 @@ import {
  */
 
 export type Mode = 'cold' | 'warm';
+
+/** A write, in the page's own terms: the `data-perf-write` markers of the form it fills. */
+export interface WriteSpec {
+  /** The control that opens the form, and the text it must carry (so the wrong button fails loudly). */
+  open?: { selector: string; text: string };
+  /** The form, which must be gone once the write has committed. */
+  form: string;
+  /** The field to change. */
+  field: string;
+  /** The field's new value, from its current one. */
+  value: (current: string) => string;
+  submit: string;
+  /** Where the saved value must then be shown, as an element's whole text. */
+  shown: string;
+}
 
 type Kind =
   | 'document'
@@ -275,8 +291,11 @@ export interface Sample {
   mode: Mode;
   run: number;
   pass: number;
-  /** soft = client-side (RSC) navigation; hard = full document load; history = back button. */
-  kind: 'soft' | 'hard' | 'history';
+  /**
+   * soft = client-side (RSC) navigation; hard = full document load; history =
+   * back button; write = a form filled and submitted (untimed: see `write`).
+   */
+  kind: 'soft' | 'hard' | 'history' | 'write';
   trigger: string;
   from: string;
   to: string;
@@ -287,8 +306,8 @@ export interface Sample {
   tUrl: number | null;
   tLoadingUi: number | null;
   loadingUiWhat: string | null;
-  /** The destination's key content is painted. */
-  tReady: number;
+  /** The destination's key content is painted. null for a write, which is not timed. */
+  tReady: number | null;
 
   /**
    * Requests started between t0 and the commit of the destination (the
@@ -313,6 +332,26 @@ export interface Sample {
     /** ms from t0 to its first byte, and to its last. */
     ttfb: number | null;
     end: number | null;
+  };
+
+  /**
+   * Writes only: what the page asked the server for, from the submit until
+   * WRITE_WINDOW_MS after the action committed (the form closed on the saved
+   * value). `requests` and `bytes` above are the same window's totals.
+   */
+  write?: {
+    /** The Server Action POSTs: one per submit, unless something retried. */
+    actions: number;
+    /** Plain RSC fetches: a refresh, or a navigation's payload. */
+    rsc: number;
+    /** Router prefetches: the visible links, re-prefetched after the cache purge. */
+    prefetches: number;
+    /** Everything else (scripts, images, API calls). */
+    other: number;
+    rscBytes: number;
+    prefetchBytes: number;
+    /** ms from the submit until the action's response was complete. Diagnostic, not a budget. */
+    actionMs: number | null;
   };
 
   /** Full loads only. */
@@ -762,6 +801,129 @@ export class PerfSession {
       },
     });
     this.lastMark = ready;
+  }
+
+  /**
+   * One write, as staff make it: open the form, change one field, submit. It
+   * is NOT timed. What it measures is what the write costs on the wire: every
+   * request the page makes from the submit until WRITE_WINDOW_MS after the
+   * action commits.
+   *
+   * ═══ WHY THAT WINDOW ═══
+   *
+   * A Server Action that calls `revalidatePath` answers with the re-rendered
+   * page, and Next then purges the whole client router cache and
+   * re-prefetches every link still in the viewport (Next 16.3.6
+   * server-action-reducer: invalidateEntirePrefetchCache, pingVisibleLinks).
+   * Those prefetches are the write's hidden cost, and they trail the commit.
+   * 3 s holds them all on the phone profile (measured: the last one ends
+   * well inside it); what comes later is counted by the next step as its
+   * "prefetches before".
+   *
+   * "Committed" means the form has closed and the list shows the value that
+   * was typed: CourtForm closes itself only when the action returned ok, so
+   * a refused write never commits, and the step fails with what was on screen.
+   */
+  async write(opts: { step: string; mode: Mode; pass: number; spec: WriteSpec }) {
+    const { spec } = opts;
+    await this.settle('before write');
+    const press = async (selector: string) => {
+      await this.page
+        .locator(selector)
+        .first()
+        .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      if (this.profile.input === 'tap') await this.tap(selector);
+      else await this.page.locator(selector).first().click();
+    };
+
+    if (spec.open) {
+      const label = await this.page.locator(spec.open.selector).first().textContent();
+      if (!label?.includes(spec.open.text)) {
+        throw new Error(
+          `${opts.step}: ${spec.open.selector} is "${label}", not "${spec.open.text}"`,
+        );
+      }
+      await press(spec.open.selector);
+    }
+    const field = this.page.locator(spec.field).first();
+    await field.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+    const next = spec.value(await field.inputValue());
+    await field.fill(next);
+    await this.settle('filled');
+
+    const tSubmit = Date.now();
+    await press(spec.submit);
+    // In-page, so the commit is timestamped where it happened, not after a
+    // CDP round trip and a polling interval.
+    const committedAt = await this.page.evaluate(
+      ({ form, shown, value, timeout }) =>
+        new Promise<number>((resolve, reject) => {
+          const done = () =>
+            !document.querySelector(form) &&
+            Array.from(document.querySelectorAll(shown)).some(
+              (el) => (el.textContent ?? '').trim() === value,
+            );
+          if (done()) return resolve(performance.timeOrigin + performance.now());
+          const obs = new MutationObserver(() => {
+            if (!done()) return;
+            obs.disconnect();
+            resolve(performance.timeOrigin + performance.now());
+          });
+          obs.observe(document, { subtree: true, childList: true, characterData: true });
+          setTimeout(() => {
+            obs.disconnect();
+            const alert = document.querySelector(`${form} [role="alert"]`)?.textContent;
+            reject(new Error(`the write never committed${alert ? `: "${alert}"` : ''}`));
+          }, timeout);
+        }),
+      { form: spec.form, shown: spec.shown, value: next, timeout: STEP_TIMEOUT_MS },
+    );
+    const windowEnd = committedAt + WRITE_WINDOW_MS;
+    await new Promise((r) => setTimeout(r, Math.max(0, windowEnd - Date.now())));
+
+    const all = this.rec.between(tSubmit - 2, windowEnd);
+    const of = (k: Kind) => all.filter((r) => r.kind === k);
+    const action = of('action')[0] ?? null;
+    for (const r of all) {
+      debug(
+        `  write ${r.kind.padEnd(12)} ${String(r.status).padEnd(4)} start+${Math.round(r.start - tSubmit)} ` +
+          `${transferOf(r)}B ${r.url.replace(PERF_BASE_URL, '').slice(0, 90)}`,
+      );
+    }
+    this.push({
+      step: opts.step,
+      mode: opts.mode,
+      pass: opts.pass,
+      kind: 'write',
+      trigger: this.profile.input,
+      from: new URL(this.page.url()).pathname,
+      to: new URL(this.page.url()).pathname,
+      tFeedback: null,
+      feedbackBy: null,
+      tUrl: null,
+      tLoadingUi: null,
+      loadingUiWhat: null,
+      tReady: null,
+      requests: all.length,
+      bytes: sum(all),
+      trailingRequests: 0,
+      trailingBytes: 0,
+      prefetchesBefore: 0,
+      prefetchBytesBefore: 0,
+      jsRequests: of('script').length,
+      jsBytes: sum(of('script')),
+      payload: { kind: null, transfer: null, decoded: null, ttfb: null, end: null },
+      write: {
+        actions: of('action').length,
+        rsc: of('rsc').length,
+        prefetches: of('rsc-prefetch').length,
+        other: all.length - of('action').length - of('rsc').length - of('rsc-prefetch').length,
+        rscBytes: sum(of('rsc')),
+        prefetchBytes: sum(of('rsc-prefetch')),
+        actionMs: action?.end != null ? Math.round(action.end - tSubmit) : null,
+      },
+    });
+    this.lastMark = windowEnd;
   }
 
   private push(s: Omit<Sample, 'journey' | 'profile' | 'run' | 'loadavg1' | 'at'>) {
