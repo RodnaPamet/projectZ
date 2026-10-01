@@ -39,13 +39,46 @@ import { withIntl } from '../helpers/intl';
 const noop = () => {};
 
 describe('Button', () => {
-  it.each(['primary', 'secondary', 'ghost', 'destructive', 'destructive-outline'] as const)(
+  // The vendored Still Surface has exactly these four (T18). The R24 material
+  // also had `destructive-outline`; no product call site used it.
+  it.each(['primary', 'secondary', 'ghost', 'destructive'] as const)(
     'renders the %s variant as a button with its accessible name',
     (variant) => {
       render(<Button variant={variant}>Book a court</Button>);
       expect(screen.getByRole('button', { name: 'Book a court' })).toBeInTheDocument();
     },
   );
+
+  // One rung: every size is the same 28px desktop button, 44px on touch. No
+  // product call site passes `size`; the keys stay so a call site can record
+  // intent, as in inflect.
+  it.each(['xs', 'sm', 'md', 'lg'] as const)('size %s renders the single 28px rung', (size) => {
+    render(<Button size={size}>Book a court</Button>);
+    const button = screen.getByRole('button', { name: 'Book a court' });
+    expect(button).toHaveClass('h-7', 'pointer-coarse:min-h-11');
+  });
+
+  it('keeps the 44px touch floor while loading, and is disabled', () => {
+    // Before inflect T05 the loading branch dropped the floor, so a phone
+    // button shrank from 44 to 28px the moment it was tapped.
+    render(
+      <Button loading onClick={noop}>
+        Pay
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Pay' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveClass('h-7', 'pointer-coarse:min-h-11');
+  });
+
+  it('a disabledTooltip button is focusable and says why it is unavailable', async () => {
+    render(<Button disabledTooltip="Pick a time first">Book</Button>);
+    const button = screen.getByRole('button', { name: 'Book' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription('Pick a time first');
+    await userEvent.tab();
+    expect(button).toHaveFocus();
+  });
 
   it('does not fire onClick while disabled', async () => {
     const onClick = jest.fn();
