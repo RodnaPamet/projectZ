@@ -679,6 +679,7 @@
         "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
         "CASE_NOT_FOUND": "That case no longer exists.",
         "NETWORK": "Could not reach the server.",
+        "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
         "UNKNOWN": "Something went wrong. Nothing was changed."
       }
     }

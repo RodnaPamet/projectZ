@@ -88,6 +88,9 @@ const KNOWN_ERRORS = new Set([
   'RATE_LIMITED',
   'CASE_NOT_FOUND',
   'NETWORK',
+  // The tab was rendered for another account (#263). The app-wide notice says
+  // so too; without a key here the queue said "something went wrong".
+  'VIEWER_CHANGED',
 ]);
 
 const knownCode = (e: unknown) =>
