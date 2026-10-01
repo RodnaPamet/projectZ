@@ -1,6 +1,46 @@
 import type { Config } from 'tailwindcss';
 import plugin from 'tailwindcss/plugin';
 
+/**
+ * THE STILL SURFACE TILE CLASSES, SPELLED OUT (T18).
+ *
+ * The vendored button-variants.ts builds the primary and destructive tiles
+ * with a helper, `stillTile(from, to, lift, base)`, that writes its classes as
+ * template literals: `bg-[${base}]`, `border-[${to}]`, and so on. Tailwind
+ * finds classes by scanning source text, and it never runs that function, so
+ * none of those classes existed in the built CSS. Measured on the first T18
+ * build: the destructive button had no fill at all (white label on white in
+ * the light theme), and primary's rest gradient, its rest edge and both
+ * tiles' hover fills were missing; primary only looked right because
+ * `bg-[var(--brand-emphasis)]` happens to be written literally elsewhere.
+ *
+ * The vendored file cannot change here (ui-sync-manifest), so the expanded
+ * strings live in this playerz-owned file, which Tailwind's source detection
+ * scans like any other. tests/guardrails/button-material.test.ts evaluates
+ * buttonVariants and fails if any class it returns is not written literally
+ * in one of the two files, so a re-sync that changes the recipe cannot
+ * silently drop styles again. Upstream: RodnaPamet/inflect-compliance, filed
+ * with this PR.
+ *
+ * Exported only so the guard can read it; nothing imports it at runtime.
+ */
+export const STILL_TILE_CLASSES = [
+  // primary: stillTile(--brand-default, --brand-emphasis, --brand-muted, --brand-emphasis)
+  'bg-[var(--brand-emphasis)]',
+  'bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-default),var(--brand-emphasis))]',
+  'border-[var(--brand-emphasis)]',
+  'hover:bg-[var(--brand-muted)]',
+  'hover:bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-muted),var(--brand-default))]',
+  'active:bg-[image:linear-gradient(to_bottom,var(--brand-emphasis),var(--brand-emphasis))]',
+  // destructive: stillTile(--btn-still-danger, -deep, -lift, --btn-still-danger)
+  'bg-[var(--btn-still-danger)]',
+  'bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger),var(--btn-still-danger-deep))]',
+  'border-[var(--btn-still-danger-deep)]',
+  'hover:bg-[var(--btn-still-danger-lift)]',
+  'hover:bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger-lift),var(--btn-still-danger))]',
+  'active:bg-[image:linear-gradient(to_bottom,var(--btn-still-danger-deep),var(--btn-still-danger-deep))]',
+] as const;
+
 const config: Config = {
   content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
@@ -371,9 +411,11 @@ const config: Config = {
         // when the animation hands back to the declared
         // value.
         //
-        // Why brand-secondary-default (navy) as the glow
-        // colour? The active row's band is already navy
-        // (R13-PR4 secondary-brand band overrides). The
+        // Why brand-secondary-default as the glow colour?
+        // (In playerz that is the complementary orchid since
+        // T18; it was inflect's navy, then teal. No playerz
+        // element uses this keyframe yet.) The active row's
+        // band is the secondary hue (R13-PR4 band overrides). The
         // starburst is the same hue family — it reads as
         // "the existing band, but momentarily blooming".
         // A different colour would feel like a different

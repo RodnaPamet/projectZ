@@ -167,24 +167,86 @@ const PAIRINGS: Pairing[] = [
     why: 'the label on the PRIMARY BUTTON — the single most-clicked thing in the product',
   },
 
-  // ── The translucent glass button fill ─────────────────────────────
+  // ── The Still Surface secondary tile (T18) ────────────────────────
   //
-  // `<Button variant="secondary">` paints
-  // `bg-[var(--btn-glass-fill-secondary)]` with a `text-content-emphasis`
-  // label (button-variants.ts). The fill is TRANSLUCENT, so it has no ratio of
-  // its own — it depends on the surface behind it, which is why it needs the
-  // backdrop treatment rather than a naive measurement.
+  // `<Button variant="secondary">` (vendored button-variants.ts) paints a
+  // gradient from --bg-default to --bg-muted, with a solid --bg-muted under
+  // it, and a `text-content-emphasis` label. Both stops are measured. On hover
+  // the label turns `text-content-brand`, and the edge takes --brand-default.
   //
-  // This pairing was missing when issue #115 reported the secondary button at
-  // 2.99:1 from an E2E axe run. That reading turned out to be a sample taken
-  // mid-theme-flip, not the settled colour — but nothing here could say so,
-  // because nothing here measured this button. Now it does, on every run,
-  // without a browser.
+  // This used to measure the R24 glass fill, `--btn-glass-fill-secondary`. A
+  // pairing like this was missing when #115 reported the secondary button at
+  // 2.99:1 from an E2E axe run (a sample taken mid-theme-flip, it turned out),
+  // and nothing here could say so. The glass token is gone, so the pairing
+  // moved to the stops that replaced it.
   {
     fg: '--content-emphasis',
-    bg: '--btn-glass-fill-secondary',
-    backdrop: '--bg-page',
-    why: 'the label on the SECONDARY button — the second-most-clicked thing in the product',
+    bg: '--bg-default',
+    kind: 'text',
+    why: 'the SECONDARY button label on its top stop',
+  },
+  {
+    fg: '--content-emphasis',
+    bg: '--bg-muted',
+    kind: 'text',
+    why: 'the SECONDARY button label on its bottom stop and solid base',
+  },
+  {
+    fg: '--content-brand',
+    bg: '--bg-muted',
+    kind: 'text',
+    why: 'the SECONDARY button label on hover, on its darkest stop',
+    measured: { light: 6.1, dark: 5.02 },
+  },
+
+  // ── The Still Surface primary tile (T18) ──────────────────────────
+  //
+  // The primary paints --brand-default → --brand-emphasis at rest and
+  // --brand-muted → --brand-default on hover, under `text-content-inverted`.
+  // The label crosses every stop, so every stop is text and pinned. In light
+  // the old ramp measured 3.13 / 4.77 / 2.17:1 here: the top stop and the whole
+  // hover failed. T18 moved the light ramp one step darker (brand-700 / 800 /
+  // 600) and these are the new numbers. Dark is unchanged.
+  {
+    fg: '--content-inverted',
+    bg: '--brand-default',
+    kind: 'text',
+    why: 'the PRIMARY button label on its top stop, and on the bottom stop of its hover',
+    measured: { light: 6.78, dark: 8.41 },
+  },
+  {
+    fg: '--content-inverted',
+    bg: '--brand-muted',
+    kind: 'text',
+    why: 'the PRIMARY button label on the top stop of its hover',
+    measured: { light: 4.77, dark: 11.0 },
+  },
+
+  // ── The Still Surface destructive tile (T18) ──────────────────────
+  //
+  // White label (`text-white`, a literal, so the pairing names it) on three
+  // red stops: rest top, rest bottom, hover top. In dark, inflect's red-700 /
+  // 800 / 600; in light, its red-800 family.
+  {
+    fg: '#ffffff',
+    bg: '--btn-still-danger',
+    kind: 'text',
+    why: 'the DESTRUCTIVE button label on its top stop, the floor',
+    measured: { light: 8.46, dark: 6.47 },
+  },
+  {
+    fg: '#ffffff',
+    bg: '--btn-still-danger-deep',
+    kind: 'text',
+    why: 'the DESTRUCTIVE button label on its bottom stop',
+    measured: { light: 10.83, dark: 8.31 },
+  },
+  {
+    fg: '#ffffff',
+    bg: '--btn-still-danger-lift',
+    kind: 'text',
+    why: 'the DESTRUCTIVE button label on hover',
+    measured: { light: 6.96, dark: 4.83 },
   },
 
   // ── Status colours, which carry MEANING and must be readable ──────
@@ -246,6 +308,43 @@ const PAIRINGS: Pairing[] = [
     why: 'the shadcn-named ring on a control inside a card',
     measured: { light: 4.65, dark: 7.88 },
   },
+  //
+  // The vendored Button does not use --focus-ring. Its halo is a two-stop
+  // shadow, a --bg-default spacer then --brand-default, so the outer stop is
+  // measured against both surfaces a button sits on. The secondary button's
+  // hover edge is the same token.
+  {
+    fg: '--brand-default',
+    bg: '--bg-page',
+    kind: 'non-text',
+    why: "the BUTTON's focus halo, and the secondary button's hover edge, on the page",
+    measured: { light: 6.37, dark: 8.35 },
+  },
+  {
+    fg: '--brand-default',
+    bg: '--bg-default',
+    kind: 'non-text',
+    why: "the BUTTON's focus halo, and the secondary button's hover edge, in a card",
+    measured: { light: 6.61, dark: 7.88 },
+  },
+  //
+  // The PRIMARY button's hover edge is the complementary hue (T18 proposes
+  // orchid, replacing teal). An edge identifies the control's boundary, so
+  // 1.4.11's 3:1 applies on both surfaces.
+  {
+    fg: '--brand-secondary-default',
+    bg: '--bg-page',
+    kind: 'non-text',
+    why: 'the PRIMARY button hover edge, the complementary hue, on the page',
+    measured: { light: 5.55, dark: 7.82 },
+  },
+  {
+    fg: '--brand-secondary-default',
+    bg: '--bg-default',
+    kind: 'non-text',
+    why: 'the PRIMARY button hover edge in a card',
+    measured: { light: 5.76, dark: 7.37 },
+  },
 
   // ── The raised Card: text on translucent glass ────────────────────
   //
@@ -279,16 +378,18 @@ const PAIRINGS: Pairing[] = [
     fg: '--content-inverted',
     bg: '--brand-emphasis',
     kind: 'text',
-    why: 'the label on a primary link painted with the brand fill',
-    measured: { light: 4.77, dark: 5.81 },
+    why: 'the label on a primary link, and the PRIMARY button label on its bottom stop',
+    // Light was 4.77 on brand-600 until T18 moved the ramp to brand-800.
+    measured: { light: 8.66, dark: 5.81 },
   },
 
   // ── The brand FILL, pinned at the bar a fill needs ────────────────
   //
   // `--brand-emphasis` is what #233 tripped on. It fills the primary button, a
   // checked checkbox or switch, and the selected day, and then it was used as a
-  // 16px header colour. As TEXT on the light page it measures 4.48:1, 0.02 short
-  // of AA, and this ratchet would fail it as it should.
+  // 16px header colour. As TEXT on the light page it measured 4.48:1, 0.02 short
+  // of AA, and this ratchet would have failed it as it should. (T18 later moved
+  // the light ramp, and it is 8.14:1 now; green text is still --content-brand.)
   //
   // So it is pinned as what it is: a fill, whose job is to stand out against
   // the surface around it (WCAG 1.4.11, 3:1). Large text has the same 3:1 bar.
@@ -300,14 +401,17 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: 'a primary-button fill or a checked control on the page — a FILL, not body text',
-    measured: { light: 4.48, dark: 5.77 },
+    // Light was 4.48 (brand-600) until T18 moved the ramp to brand-800, which
+    // now clears body text as well. The pin stays at the fill bar: the token's
+    // job did not change.
+    measured: { light: 8.14, dark: 5.77 },
   },
   {
     fg: '--brand-emphasis',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the same fill on a control inside a card',
-    measured: { light: 4.65, dark: 5.45 },
+    measured: { light: 8.45, dark: 5.45 },
   },
 ];
 
@@ -337,7 +441,8 @@ describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
   it.each(PAIRINGS.map((p) => [`${p.fg} on ${p.bg}`, p] as const))(
     '%s meets WCAG AA',
     (_label, pairing) => {
-      const fg = tokens.get(pairing.fg);
+      // A literal (`#ffffff`, for a `text-white` label) is its own value.
+      const fg = pairing.fg.startsWith('#') ? pairing.fg : tokens.get(pairing.fg);
       const bg = tokens.get(pairing.bg);
 
       // A pairing naming a token that does not exist is a BROKEN RATCHET, not a

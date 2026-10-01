@@ -113,6 +113,161 @@ const BOOKING_COLUMNS = createColumns<DemoBooking>([
   { accessorKey: 'price', header: 'Price' },
 ]);
 
+/**
+ * The Still Surface button, every state side by side (T18).
+ *
+ * The vendored material is motionless: every state switches on the pointer
+ * frame and nothing animates between them, so a state can be shown as a
+ * static swatch. Hover, press and focus cannot be forced on a real element,
+ * so those columns pass the state's own classes (copied from
+ * button-variants.ts) through `className`, which `cn` merges over the rest
+ * classes. Rest, loading and disabled are the real props. The rest buttons
+ * still answer a real pointer, so the copies can be checked against them.
+ */
+type Variant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+
+// `!` because tailwind-merge reads the tile's `shadow-[var(--btn-still-lift),…]`
+// as a shadow COLOUR and this as a shadow SIZE, keeps both, and the lift wins
+// on stylesheet order. The real `focus-visible:` class has a variant and wins.
+const FOCUS = 'shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--brand-default)]!';
+
+const FORCED: Record<Variant, { hover: string; press: string }> = {
+  primary: {
+    hover:
+      'border-[var(--brand-secondary-default)] bg-[var(--brand-muted)] bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-muted),var(--brand-default))]',
+    press:
+      'border-[var(--brand-secondary-default)] bg-[image:linear-gradient(to_bottom,var(--brand-emphasis),var(--brand-emphasis))] shadow-[var(--btn-still-press)]',
+  },
+  secondary: {
+    hover: 'border-[var(--brand-default)] text-content-brand',
+    press:
+      'border-[var(--brand-default)] bg-[image:linear-gradient(to_bottom,var(--bg-muted),var(--bg-muted))] shadow-[var(--btn-still-press)]',
+  },
+  ghost: {
+    hover: 'bg-bg-muted text-content-emphasis',
+    press: 'bg-bg-muted shadow-[var(--btn-still-press)]',
+  },
+  destructive: {
+    hover:
+      'bg-[var(--btn-still-danger-lift)] bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger-lift),var(--btn-still-danger))]',
+    press:
+      'bg-[image:linear-gradient(to_bottom,var(--btn-still-danger-deep),var(--btn-still-danger-deep))] shadow-[var(--btn-still-press)]',
+  },
+};
+
+const STATES = ['rest', 'hover', 'press', 'focus', 'loading', 'disabled'] as const;
+
+function forcedState(variant: Variant, state: (typeof STATES)[number]): string | undefined {
+  if (state === 'hover') return FORCED[variant].hover;
+  if (state === 'press') return FORCED[variant].press;
+  if (state === 'focus') return FOCUS;
+  return undefined;
+}
+
+const noop = () => {};
+
+function ButtonStates() {
+  return (
+    <div className="w-full space-y-4" data-testid="ds-button-states">
+      {(Object.keys(FORCED) as Variant[]).map((variant) => (
+        <div key={variant} className="flex flex-wrap items-end gap-3">
+          <span className="text-content-muted w-24 font-mono text-xs">{variant}</span>
+          {STATES.map((state) => (
+            <div key={state} className="flex flex-col items-start gap-1">
+              <span className="text-content-subtle font-mono text-xs">{state}</span>
+              <Button
+                variant={variant}
+                onClick={noop}
+                loading={state === 'loading'}
+                disabled={state === 'disabled'}
+                className={forcedState(variant, state)}
+              >
+                {variant === 'destructive' ? 'Cancel booking' : 'Book a court'}
+              </Button>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The T18 colour PROPOSALS, flagged for owner approval. Each chip paints the
+ * live token, so it follows the theme toggle. The ratios are the ones
+ * tests/guardrails/contrast.test.ts pins per theme, so a hex that moves
+ * without its number fails the build.
+ */
+const PROPOSALS: ReadonlyArray<{ token: string; role: string; dark: string; light: string }> = [
+  {
+    token: '--brand-secondary-default',
+    role: 'PROPOSED complementary hover edge: orchid, hue 321° dark / 323° light (was teal, 173°)',
+    dark: '#f080c8 · 7.82:1 page · 7.37:1 card · ΔE 119.6 from the rest edge (teal 40.8)',
+    light: '#b0247a · 5.55:1 page · 5.76:1 card · ΔE 96.6 from the rest edge (teal 35.3)',
+  },
+  {
+    token: '--brand-secondary-subtle',
+    role: 'PROPOSED sidebar active wash',
+    dark: 'orchid @ 18% · heading text on it 11.92:1',
+    light: 'orchid @ 9% · heading text on it 14.03:1',
+  },
+  {
+    token: '--brand-default',
+    role: 'Primary top stop and focus halo',
+    dark: '#22c55e · label 8.41:1 · halo 8.35:1 page, 7.88:1 card',
+    light: 'PROPOSED #166534 (was #16a34a) · label 6.78:1 (was 3.13) · halo 6.37 / 6.61:1',
+  },
+  {
+    token: '--brand-emphasis',
+    role: 'Primary bottom stop and rest edge',
+    dark: '#16a34a · label 5.81:1',
+    light: 'PROPOSED #14532d (was #15803d) · label 8.66:1 (was 4.77)',
+  },
+  {
+    token: '--brand-muted',
+    role: 'Primary hover top stop',
+    dark: '#4ade80 · label 11.00:1',
+    light: 'PROPOSED #15803d (was #22c55e) · label 4.77:1 (was 2.17)',
+  },
+  {
+    token: '--btn-still-danger',
+    role: 'Destructive top stop, under a white label',
+    dark: '#b91c1c · 6.47:1 · hover #dc2626 4.83:1',
+    light: '#991616 · 8.46:1 · hover #b01b1b 6.96:1',
+  },
+];
+
+function ProposedSwatches() {
+  return (
+    <div className="w-full" data-testid="ds-button-proposals">
+      <h3 className="text-content-emphasis mb-1 text-sm font-semibold">
+        Proposed for owner approval (T18)
+      </h3>
+      <p className="text-content-muted mb-3 text-xs">
+        Buttons are 28px on a fine pointer and 44px on touch. Ratios are WCAG 2.x, measured from
+        tokens.css and pinned in contrast.test.ts.
+      </p>
+      <ul className="grid w-full gap-3 sm:grid-cols-2">
+        {PROPOSALS.map((p) => (
+          <li key={p.token} className="flex min-w-0 items-start gap-3">
+            <span
+              aria-hidden
+              className="border-border-default size-10 shrink-0 rounded-md border"
+              style={{ background: `var(${p.token})` }}
+            />
+            <span className="min-w-0 text-xs">
+              <span className="text-content-emphasis block font-mono break-words">{p.token}</span>
+              <span className="text-content-default block">{p.role}</span>
+              <span className="text-content-muted block">dark: {p.dark}</span>
+              <span className="text-content-muted block">light: {p.light}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function DesignSystemPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -140,13 +295,8 @@ export default function DesignSystemPage() {
         </header>
 
         <Section title="Button">
-          <Button variant="primary">Book a court</Button>
-          <Button variant="secondary">Secondary</Button>
-          <Button variant="ghost">Ghost</Button>
-          <Button variant="destructive">Cancel booking</Button>
-          <Button variant="primary" disabled>
-            Disabled
-          </Button>
+          <ButtonStates />
+          <ProposedSwatches />
         </Section>
 
         <Section title="Input">

@@ -36,18 +36,18 @@
     {
       "path": "src/components/ui/button-variants.ts",
       "inflectPath": "src/components/ui/button-variants.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "64d1bcb9023a86bba00cb440cc056acc65447c11de453542512912f54163a8ad"
+      "baseSha": "542ef796635dcd362b1c3183266627f1a339010e",
+      "sha": "542ef796635dcd362b1c3183266627f1a339010e",
+      "status": "vendored",
+      "sha256": "744cd9dd1458d35467b1580ef61e20d5e5b15d09d6242bb50315c87ed83b3dd3"
     },
     {
       "path": "src/components/ui/button.tsx",
       "inflectPath": "src/components/ui/button.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "a541834979e7bf562ce34166db7faa5ba2d2faee90df2f8c810591b267a5bd51"
+      "baseSha": "542ef796635dcd362b1c3183266627f1a339010e",
+      "sha": "542ef796635dcd362b1c3183266627f1a339010e",
+      "status": "vendored",
+      "sha256": "161e7c6b8f8faed75c00b5bafb2d8927589aa73124aa71a8162e6479b34050c0"
     },
     {
       "path": "src/components/ui/card-variants.ts",
