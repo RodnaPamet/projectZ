@@ -49,8 +49,13 @@ export default defineConfig({
     screenshot: 'off',
     // Full Chromium in new headless mode, not the stripped headless shell.
     // The shell renders differently, and rendering is part of what is timed.
+    //
+    // PERF_HEADLESS_SHELL=1 swaps in the shell, only for a machine where full
+    // Chromium cannot start: on 1 October 2026 it hung at launch on the perf
+    // Mac, inside CryptoTokenKit's XPC call to `ctkd`, before Playwright's
+    // pipe connected. Compare shell runs only with shell runs.
     browserName: 'chromium',
-    channel: 'chromium',
+    channel: process.env.PERF_HEADLESS_SHELL === '1' ? undefined : 'chromium',
   },
 
   // The device, the throttling and the input method come from

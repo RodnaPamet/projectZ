@@ -20,18 +20,9 @@ if (!PERF_REMOTE) {
   );
 }
 
-/**
- * PERF_HEADLESS_SHELL=1 swaps full Chromium for the headless shell. Only for
- * a machine where full Chromium cannot start: on 1 October 2026 it hung at
- * launch on this Mac, inside CryptoTokenKit's XPC call to `ctkd`, before
- * Playwright's pipe connected. The shell renders differently, so a run that
- * uses it records `chromium` as the shell's version and says so in its notes.
- */
-const shell = process.env.PERF_HEADLESS_SHELL === '1';
-
 export default defineConfig({
   ...base,
-  use: { ...base.use, baseURL: PERF_BASE_URL, ...(shell ? { channel: undefined } : {}) },
+  use: { ...base.use, baseURL: PERF_BASE_URL },
   globalSetup: undefined,
   webServer: undefined,
 });
