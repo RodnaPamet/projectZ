@@ -14,10 +14,12 @@
  *                                             parameter defaults (label = 'Save')
  *   vocabulary       the upstream portability rules: compliance nouns and the
  *                    brands Inflect, PwC, METRO and Dub, in comments, strings,
- *                    JSX text and test names (not identifiers or import paths)
+ *                    JSX text and test names (not identifiers, import paths,
+ *                    aria-controls, or data-* / test-id values)
  *   hand-rolled-menu no-hand-rolled-menus     `fixed inset-0` outside ui/modal,
- *                                             ui/sheet and ui/popover, and the
- *                                             anchored-menu idioms beside it
+ *                                             ui/sheet, ui/popover and test
+ *                                             files, and the anchored-menu
+ *                                             idioms beside it
  *   native-select    no-native-select         `<select`, also at the end of a line
  *   motion           motion-safety            inline durations, infinite animations
  *   brand-text       no-raw-brand-text        text-brand-NNN, text- + arbitrary var(--brand-<name>)
@@ -113,8 +115,56 @@ const VOCAB = new RegExp(
   `(?<![\\p{L}\\p{N}_])(?:${VOCABULARY.join('|')})(?![\\p{L}\\p{N}_])`,
   'giu',
 );
-/** ARIA's own attribute: the word is the platform's, not the product's. */
-const NOT_VOCAB = /aria-controls/gi;
+/**
+ * Technical uses blanked before matching: the word is the platform's or the
+ * test harness's, not the product's. ARIA's own attribute, and a `data-*`
+ * attribute written out inside text (a `[data-testid="pagination-controls"]`
+ * selector, an HTML fixture). #300.
+ */
+const NOT_VOCAB = /aria-controls|(?<![\w-])data-[\w-]+\s*=\s*(["'])(?:(?!\1)[^\n])*\1/gi;
+const blankTechnical = (raw) => raw.replace(NOT_VOCAB, (w) => ' '.repeat(w.length));
+
+/**
+ * A string that is the VALUE of a `data-*` attribute — `data-testid="…"`,
+ * `{ 'data-state': … }` — or the test id a `…ByTestId('…')` query looks up.
+ * Test and automation hooks, never shown to a user, so `pagination-controls`
+ * there is a widget name, not the compliance noun (#300). Only the value
+ * position counts: the same word in a className, a route or JSX text is
+ * still read.
+ */
+function isDataAttrValue(node) {
+  let child = node;
+  let p = node.parent;
+  while (
+    p &&
+    (ts.isJsxExpression(p) ||
+      ts.isParenthesizedExpression(p) ||
+      ts.isTemplateExpression(p) ||
+      ts.isTemplateSpan(p) ||
+      (ts.isConditionalExpression(p) && p.condition !== child))
+  ) {
+    child = p;
+    p = p.parent;
+  }
+  if (!p) return false;
+  if (ts.isJsxAttribute(p)) return /^data-/.test(p.name.getText());
+  if (ts.isPropertyAssignment(p) && p.initializer === child) {
+    const key = p.name;
+    return (ts.isStringLiteral(key) || ts.isIdentifier(key)) && /^data-/.test(key.text);
+  }
+  if (ts.isCallExpression(p) && p.arguments[0] === child) {
+    const callee = ts.isPropertyAccessExpression(p.expression) ? p.expression.name : p.expression;
+    return ts.isIdentifier(callee) && /ByTestId$/.test(callee.text);
+  }
+  return false;
+}
+
+/**
+ * A test file (tests/**, *.test.*). A ratchet that counts bespoke overlays has
+ * to quote `fixed inset-0` to count it, so the click-away rule skips tests
+ * (#300); every other rule still reads them.
+ */
+const isTestFile = (path) => /(?:^|\/)tests\//.test(path) || /\.test\.[^/]+$/.test(path);
 
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -264,10 +314,12 @@ export function checkSource(path, text) {
 
     const prose = [
       ...comments.map((c) => ({ start: c.start, raw: c.text })),
-      ...strings.map((s) => ({ start: s.getStart(sf), raw: s.getText(sf) })),
+      ...strings
+        .filter((s) => !isDataAttrValue(s))
+        .map((s) => ({ start: s.getStart(sf), raw: s.getText(sf) })),
     ];
     for (const { start, raw } of prose) {
-      for (const m of raw.replace(NOT_VOCAB, (w) => ' '.repeat(w.length)).matchAll(VOCAB)) {
+      for (const m of blankTechnical(raw).matchAll(VOCAB)) {
         add('vocabulary', lineOf(text, start + m.index), m[0]);
       }
     }
@@ -278,7 +330,8 @@ export function checkSource(path, text) {
     const codeText = code.join('\n');
     if (!OVERLAY_PRIMITIVES.has(path)) {
       code.forEach((line, i) => {
-        if (CLICK_AWAY.test(line)) add('hand-rolled-menu', i + 1, 'fixed inset-0 click-away layer');
+        if (CLICK_AWAY.test(line) && !isTestFile(path))
+          add('hand-rolled-menu', i + 1, 'fixed inset-0 click-away layer');
         if (FLOATING_MENU.test(line))
           add('hand-rolled-menu', i + 1, 'absolute top-full/bottom-full menu');
       });
@@ -299,7 +352,7 @@ export function checkSource(path, text) {
     const body = isCss ? text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')) : text;
     if (isCss)
       for (const m of body.matchAll(BRAND_TEXT)) add('brand-text', lineOf(text, m.index), m[0]);
-    for (const m of text.replace(NOT_VOCAB, (w) => ' '.repeat(w.length)).matchAll(VOCAB)) {
+    for (const m of blankTechnical(text).matchAll(VOCAB)) {
       add('vocabulary', lineOf(text, m.index), m[0]);
     }
   }
