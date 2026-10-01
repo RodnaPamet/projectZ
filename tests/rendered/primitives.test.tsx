@@ -225,7 +225,7 @@ describe('Modal', () => {
 // <Dialog.Trigger>), and the old primitive preventDefault-ed both of Radix's
 // auto-focus events. Focus therefore never entered the dialog, and on close
 // it fell to <body>: a keyboard user who dismissed DayGrid's confirm was
-// dropped at the top of the document. The vendored Modal (inflect T03)
+// dropped at the top of the document. The vendored Modal (upstream overlay fix)
 // records `document.activeElement` on open and puts it back on close.
 describe('Modal focus (#299)', () => {
   function Harness() {
@@ -271,6 +271,11 @@ describe('Modal focus (#299)', () => {
     expect(opener).toHaveFocus();
   });
 
+  // The drawer half only proves focus is not dropped to <body> on close. It
+  // cannot prove the round trip: vaul 1.1.2's Root defaults `autoFocus` to
+  // false and preventDefaults Radix's open auto-focus, so focus never enters
+  // the drawer at all (measured: activeElement stays on the opener). The
+  // vendored Modal does not pass `autoFocus`; tracked as #308.
   it('on a phone (drawer), leaves focus on the opening button after close', async () => {
     render(<Harness />);
     const opener = screen.getByRole('button', { name: 'Cancel booking' });
