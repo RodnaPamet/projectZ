@@ -10,6 +10,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CopyButton } from '@/components/ui/copy-button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
+import { FieldGroup } from '@/components/ui/field-group';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/modal';
@@ -19,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
@@ -39,7 +42,10 @@ const SECTIONS = [
   'Checkbox',
   'RadioGroup',
   'Switch',
+  'ToggleGroup',
+  'FieldGroup',
   'StatusBadge',
+  'InlineNotice',
   'Skeleton',
   'EmptyState',
   'ErrorState',
@@ -110,6 +116,9 @@ const BOOKING_COLUMNS = createColumns<DemoBooking>([
 export default function DesignSystemPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [leftSheetOpen, setLeftSheetOpen] = useState(false);
+  const [range, setRange] = useState('day');
+  const [noticeShown, setNoticeShown] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [checked, setChecked] = useState(false);
   const [switched, setSwitched] = useState(false);
@@ -183,12 +192,66 @@ export default function DesignSystemPage() {
           </div>
         </Section>
 
+        <Section title="ToggleGroup">
+          <ToggleGroup
+            ariaLabel="Calendar range"
+            selected={range}
+            selectAction={setRange}
+            options={[
+              { value: 'day', label: 'Day' },
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month', disabled: true },
+            ]}
+          />
+        </Section>
+
+        <Section title="FieldGroup">
+          <FieldGroup
+            title="Contact"
+            description="How the club reaches you about a booking."
+            columns={2}
+            className="max-w-xl"
+          >
+            <div>
+              <Label htmlFor="ds-fg-name">Name</Label>
+              <Input id="ds-fg-name" placeholder="Ivan Petrov" />
+            </div>
+            <div>
+              <Label htmlFor="ds-fg-phone">Phone</Label>
+              <Input id="ds-fg-phone" type="tel" placeholder="+359 88 123 4567" />
+            </div>
+          </FieldGroup>
+        </Section>
+
         <Section title="StatusBadge">
           <StatusBadge variant="success">Confirmed</StatusBadge>
           <StatusBadge variant="warning">Pending</StatusBadge>
           <StatusBadge variant="error">Cancelled</StatusBadge>
           <StatusBadge variant="neutral">Draft</StatusBadge>
           <StatusBadge variant="info">Open play</StatusBadge>
+        </Section>
+
+        <Section title="InlineNotice">
+          <div className="flex w-full max-w-xl flex-col gap-3">
+            <InlineNotice variant="info">
+              Court 2 is closed for resurfacing until Friday.
+            </InlineNotice>
+            <InlineNotice variant="success" title="Booked">
+              Court 3 · Saturday 18:00–19:00.
+            </InlineNotice>
+            <InlineNotice variant="warning">
+              Less than 24h out: cancelling is not refunded.
+            </InlineNotice>
+            {noticeShown ? (
+              <InlineNotice
+                variant="error"
+                onDismiss={() => setNoticeShown(false)}
+                dismissLabel="Hide this notice"
+              >
+                That slot was taken while you were choosing.
+              </InlineNotice>
+            ) : null}
+          </div>
         </Section>
 
         <Section title="Skeleton">
@@ -233,6 +296,16 @@ export default function DesignSystemPage() {
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen} title="Filters">
             <Sheet.Body>
               <p className="text-content-muted text-sm">Sport, surface, indoor/outdoor.</p>
+            </Sheet.Body>
+          </Sheet>
+          {/* `direction="left"` (inflect T03): a navigation drawer slides in from
+              the edge the nav lives on, at every width. */}
+          <Button variant="secondary" onClick={() => setLeftSheetOpen(true)}>
+            Open left sheet
+          </Button>
+          <Sheet open={leftSheetOpen} onOpenChange={setLeftSheetOpen} title="Menu" direction="left">
+            <Sheet.Body>
+              <p className="text-content-muted text-sm">Venues, my bookings, settings.</p>
             </Sheet.Body>
           </Sheet>
         </Section>
