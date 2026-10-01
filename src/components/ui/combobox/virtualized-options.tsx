@@ -58,7 +58,7 @@ import type { ComboboxOption } from './index';
 export const COMBOBOX_VIRTUALIZE_THRESHOLD = 50;
 
 /**
- * Approximate row height used by react-window's FixedSizeList. Must
+ * Approximate row height used by the windowed list. Must
  * match the rendered option's actual height — option rows render with
  * `py-2 px-3 text-sm` which is ~36px under the platform tokens. Bump
  * when consumers pass a description (which wraps the row to two
@@ -271,7 +271,8 @@ export function VirtualizedComboboxOptions<TMeta>({
 
   // Per-row height — the label wraps to its FULL text (never truncated), so
   // height grows with the wrapped line count measured against the panel
-  // width. Deterministic per index → safe for react-window's VariableSizeList.
+  // width. Deterministic per index → safe for react-window's function-form
+  // `rowHeight`.
   const availTextWidth = contentWidth - ROW_CHROME_PX;
   const getItemSize = React.useCallback(
     (index: number) => {
@@ -329,11 +330,12 @@ export function VirtualizedComboboxOptions<TMeta>({
         height={viewportHeight}
         width="100%"
         overscanCount={5}
-        // react-window 2 puts `role="list"` on its scroller. Between the
-        // `role="listbox"` above and the `role="option"` rows below, that
-        // is invalid ARIA — the options stop being this listbox's children,
-        // so screen readers lose the option count and arrow-key semantics.
-        // v1 set no role, so nothing here had to say this before.
+        // react-window 2 puts `role="list"` on its scroller. Between
+        // the `role="listbox"` above and the `role="option"` rows
+        // below, that is invalid ARIA — the options stop being this
+        // listbox's children, so screen readers lose the option count
+        // and arrow-key semantics. v1 set no role, so nothing here had
+        // to say this before.
         role="presentation"
         renderItem={({ index, style }) => {
           const option = options[index]!;

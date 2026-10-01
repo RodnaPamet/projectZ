@@ -276,10 +276,10 @@
     {
       "path": "src/components/ui/icons/loading-circle.tsx",
       "inflectPath": "src/components/ui/icons/loading-circle.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "1498ffee8f36077ff1049329d8c36e1c213a8612eb9a58470ef992ed10f20d7d"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "50058108be92d5b82a287840f1f2c80e8eda201f7b9ce2acb38393fdc1d421f9"
     },
     {
       "path": "src/components/ui/icons/loading-dots.tsx",
@@ -292,10 +292,10 @@
     {
       "path": "src/components/ui/icons/loading-spinner.tsx",
       "inflectPath": "src/components/ui/icons/loading-spinner.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "05b6c11757edf20ab12acae3721475556749ec4e53ee75f37fa02fcb66ffa0a2"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "dad584824272a90211d780d150de0c338ac1a4113f5333b6ab60f727bd4aae5b"
     },
     {
       "path": "src/components/ui/icons/lock-small.tsx",

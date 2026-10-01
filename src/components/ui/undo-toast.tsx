@@ -30,6 +30,7 @@
  */
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { toast as sonnerToast } from 'sonner';
 import { cn } from '@/lib/cn';
@@ -39,7 +40,7 @@ export interface UndoToastProps {
   toastId: string | number;
   /** Hook-internal id used to look up the pending commit. */
   pendingId: string;
-  /** Primary message (e.g. "Risk deleted"). */
+  /** Primary message (e.g. "Item deleted"). */
   message: string;
   /** Undo button label (e.g. "Undo"). */
   undoMessage: string;
@@ -62,6 +63,7 @@ export function UndoToast({
   delayMs,
   onUndo,
 }: UndoToastProps) {
+  const t = useTranslations('common.ui');
   // The bar starts at 100% width and animates to 0% over `delayMs`.
   // Initial render writes 100%; an effect on the next frame writes 0%
   // so the CSS transition kicks in. Without the two-step the browser
@@ -134,11 +136,11 @@ export function UndoToast({
       </div>
       <div
         role="progressbar"
-        aria-label={`${undoMessage} window`}
+        aria-label={t('undoWindow', { label: undoMessage })}
         aria-valuenow={remainingSec}
         aria-valuemin={0}
         aria-valuemax={Math.ceil(delayMs / 1000)}
-        aria-valuetext={`${remainingSec}s remaining`}
+        aria-valuetext={t('secondsRemaining', { seconds: remainingSec })}
         className="bg-bg-subtle h-1 w-full overflow-hidden rounded-full"
       >
         <div

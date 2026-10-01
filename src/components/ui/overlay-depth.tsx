@@ -19,17 +19,17 @@ import { createContext, useContext, type PropsWithChildren } from 'react';
  *   • an escape key that closes both, or neither, depending on focus order.
  *
  * The existing fix is `forceDropdown` — a prop each call site passes to say "I
- * am inside a sheet, present as a popover instead". There are 11 of them in this
- * codebase, and agri-saas has 38.
+ * am inside a sheet, present as a popover instead". There are 95 of them in
+ * this codebase.
  *
  * THAT IS THE WRONG SHAPE FOR A FIX. It is an opt-out that every future call
- * site must remember, in a situation the call site often cannot even see: whether
- * a Combobox is inside a Modal depends on where the component was *used*, not on
- * how it was *written*. A shared form component has no idea.
+ * site must remember, in a situation the call site often cannot even see:
+ * whether a Combobox is inside a Modal depends on where the component was
+ * *used*, not on how it was *written*. A shared form component has no idea.
  *
  * So the component asks the tree instead. Any overlay that mounts as a drawer
  * declares it; a Popover nested inside one sees that and presents as a popover
- * automatically. `forceDropdown` remains as an explicit override, and the 11
+ * automatically. `forceDropdown` remains as an explicit override, and the 95
  * existing sites simply become redundant.
  *
  * The failure mode flips from "you forgot a flag and it is broken" to "it is
@@ -42,8 +42,8 @@ const OverlayDepthContext = createContext(0);
  * Wrap the CONTENT of any overlay that mounts as a drawer.
  *
  * Not the trigger — the content. The depth must only apply to what is rendered
- * INSIDE the sheet; a Popover elsewhere on the page is not nested and must still
- * get its bottom sheet.
+ * INSIDE the sheet; a Popover elsewhere on the page is not nested and must
+ * still get its bottom sheet.
  */
 export function OverlayDepthProvider({ children }: PropsWithChildren) {
   const depth = useContext(OverlayDepthContext);

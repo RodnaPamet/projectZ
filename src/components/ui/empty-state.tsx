@@ -15,7 +15,7 @@
  *   - `no-results` — the user's search/filter matched nothing. Default
  *     icon: SearchX. Pair with a "Clear filters" secondary action.
  *   - `missing-prereqs` — view requires setup the user hasn't done
- *     (e.g., "Connect a framework before installing controls").
+ *     (e.g., "Pick a plan before you can add members").
  *     Default icon: AlertCircle. Pair with a primary action that
  *     navigates to the prerequisite flow.
  *
@@ -32,11 +32,11 @@
 
 import { cn } from '@/lib/cn';
 import { AlertCircle, Inbox, SearchX } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { type PropsWithChildren, type ReactNode } from 'react';
 import { Button } from './button';
 import { buttonVariants } from './button-variants';
 import { TextLink } from './typography';
-import { useTranslations } from 'next-intl';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ export interface EmptyStateProps extends PropsWithChildren {
   icon?: React.ElementType;
   title: string;
   description?: ReactNode;
-  /** Optional "{t('learnMore')} ↗" external link appended to description. */
+  /** Optional "Learn more ↗" external link appended to description. */
   learnMore?: string;
   /**
    * Variant drives the default icon and influences default copy
@@ -111,7 +111,6 @@ export function EmptyState({
   'data-testid': dataTestId,
 }: EmptyStateProps) {
   const t = useTranslations('common.ui');
-
   const Icon = icon ?? variantIcon[variant];
 
   return (

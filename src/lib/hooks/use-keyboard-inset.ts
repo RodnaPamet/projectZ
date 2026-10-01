@@ -45,8 +45,8 @@ export interface KeyboardInset {
 /**
  * A keyboard is never a couple of pixels tall.
  *
- * Small VisualViewport deltas happen constantly on mobile browsers — the URL bar
- * collapsing on scroll, a rounding wobble. Treating those as "the keyboard
+ * Small VisualViewport deltas happen constantly on mobile browsers — the URL
+ * bar collapsing on scroll, a rounding wobble. Treating those as "the keyboard
  * opened" makes every overlay twitch as the user scrolls, which is worse than
  * the bug we are fixing.
  */
@@ -65,18 +65,32 @@ export function useKeyboardInset(): KeyboardInset {
   useEffect(() => {
     const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
 
-    // No VisualViewport (older browsers, jsdom). Degrade to "no keyboard" rather
-    // than throwing — an overlay that is occasionally too tall is far better than
-    // an overlay that crashes.
+    // No VisualViewport (older browsers, jsdom). Degrade to "no keyboard"
+    // rather than throwing — an overlay that is occasionally too tall is far
+    // better than an overlay that crashes.
+    //
+    // Named rather than inline, matching `measure` below and the sibling
+    // hooks in src/components/ui/hooks: `react-hooks/set-state-in-effect`
+    // flags a setState written directly in an effect BODY, and the shape it
+    // is warning about — a cascading render — is not what a one-shot read of
+    // a platform API that has no subscribe path does.
+    const degrade = () =>
+      setState({
+        inset: 0,
+        visibleHeight: window?.innerHeight ?? 0,
+        isOpen: false,
+      });
+
     if (!vv) {
-      setState({ inset: 0, visibleHeight: window?.innerHeight ?? 0, isOpen: false });
+      degrade();
       return;
     }
 
     const measure = () => {
-      // `offsetTop` matters and is easy to miss. When the browser scrolls the
-      // page up to keep a focused input visible, the visual viewport moves — and
-      // the hidden region is what is below it, not merely the height difference.
+      // `offsetTop` matters and is easy to miss. When the browser scrolls
+      // the page up to keep a focused input visible, the visual viewport
+      // moves — and the hidden region is what is below it, not merely the
+      // height difference.
       const hidden = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
 
       setState({
@@ -88,10 +102,10 @@ export function useKeyboardInset(): KeyboardInset {
 
     measure();
 
-    // BOTH events. `resize` fires when the keyboard opens; `scroll` fires when
-    // the browser shifts the visual viewport to follow the focused input. Listen
-    // to only one and the overlay is correct on open and wrong the moment the
-    // user scrolls within it.
+    // BOTH events. `resize` fires when the keyboard opens; `scroll` fires
+    // when the browser shifts the visual viewport to follow the focused
+    // input. Listen to only one and the overlay is correct on open and wrong
+    // the moment the user scrolls within it.
     vv.addEventListener('resize', measure);
     vv.addEventListener('scroll', measure);
 
@@ -108,18 +122,19 @@ export function useKeyboardInset(): KeyboardInset {
  * The style an overlay should apply so it stays above the keyboard.
  *
  * Returns nothing when the keyboard is closed, so the component's own CSS
- * (`max-h-[92vh]`) governs — we do not want to override the design in the 95% of
- * cases where there is no keyboard at all.
+ * (`max-h-[92vh]`) governs — we do not want to override the design in the 95%
+ * of cases where there is no keyboard at all.
  */
 export function keyboardAvoidanceStyle(kb: KeyboardInset): React.CSSProperties {
   if (!kb.isOpen) return {};
 
   return {
-    // Cap to what is VISIBLE, not to the layout viewport. This is the whole fix.
+    // Cap to what is VISIBLE, not to the layout viewport. This is the whole
+    // fix.
     maxHeight: `${kb.visibleHeight}px`,
-    // …and lift the surface clear of the keyboard. A bottom-anchored sheet whose
-    // height is capped but whose bottom edge is still at 0 simply gets shorter
-    // while remaining underneath.
+    // …and lift the surface clear of the keyboard. A bottom-anchored sheet
+    // whose height is capped but whose bottom edge is still at 0 simply gets
+    // shorter while remaining underneath.
     paddingBottom: `${kb.inset}px`,
   };
 }

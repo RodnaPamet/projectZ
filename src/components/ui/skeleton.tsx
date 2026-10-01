@@ -1,7 +1,7 @@
+import { useTranslations } from 'next-intl';
 import { Card } from '@/components/ui/card';
 import { cardVariants } from '@/components/ui/card-variants';
 import { cn } from '@/lib/cn';
-import { useTranslations } from 'next-intl';
 /**
  * Reusable skeleton loading primitives for the dark-themed UI.
  *
@@ -337,8 +337,10 @@ export function SkeletonKpiGrid({ count = 4 }: { count?: number }) {
 // ─── Dashboard skeleton ───
 
 export function SkeletonDashboard() {
+  // No 'use client' here, and none needed: these skeletons render from
+  // server `loading.tsx` files, and next-intl's useTranslations works in a
+  // non-async Server Component as well as on the client.
   const t = useTranslations('common.skeleton');
-
   return (
     <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label={t('dashboard')}>
       {/* Header */}
@@ -352,7 +354,7 @@ export function SkeletonDashboard() {
       {/* 6-card stat grid */}
       <SkeletonKpiGrid count={6} />
 
-      {/* Clause progress + Alerts */}
+      {/* Progress panel + alerts */}
       <div className="gap-default grid grid-cols-1 lg:grid-cols-2">
         <Card className="space-y-compact">
           <Skeleton className="h-4 w-32" />
@@ -405,7 +407,6 @@ export function SkeletonDashboard() {
 
 export function SkeletonDetailTabs({ tabCount = 4 }: { tabCount?: number }) {
   const t = useTranslations('common.skeleton');
-
   return (
     <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label={t('details')}>
       {/* Back link + heading */}
@@ -437,7 +438,6 @@ export function SkeletonDetailTabs({ tabCount = 4 }: { tabCount?: number }) {
 
 export function SkeletonSettings() {
   const t = useTranslations('common.skeleton');
-
   return (
     <div className="space-y-section animate-fadeIn" aria-busy="true" aria-label={t('settings')}>
       <SkeletonHeading className="w-36" />

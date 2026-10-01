@@ -35,9 +35,10 @@
 
 import { cn } from '@/lib/cn';
 import { AlertTriangle, type LucideIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { type PropsWithChildren, type ReactNode } from 'react';
 import { Button } from './button';
-import { useTranslations } from 'next-intl';
+import { buttonVariants } from './button-variants';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ export interface ErrorStateProps extends PropsWithChildren {
    * icon component (or any React.ElementType with a `className` prop).
    */
   icon?: React.ElementType;
-  /** Defaults to "Something went wrong". */
+  /** Defaults to `common.error.title` ("Something went wrong"). */
   title?: string;
   /**
    * User-facing failure reason. Never echo back raw error JSON or
@@ -70,7 +71,10 @@ export interface ErrorStateProps extends PropsWithChildren {
    * customisable via `retryLabel`) wired to this handler.
    */
   onRetry?: () => void;
-  /** Defaults to "Try again". Ignored when `onRetry` is undefined. */
+  /**
+   * Defaults to `common.error.tryAgain` ("Try again"). Ignored when
+   * `onRetry` is undefined.
+   */
   retryLabel?: string;
   /** Disable the retry button (e.g. while a retry is in flight). */
   retryDisabled?: boolean;
@@ -88,22 +92,22 @@ export interface ErrorStateProps extends PropsWithChildren {
 
 export function ErrorState({
   icon: IconOverride,
-  title: titleProp,
+  title: callerTitle,
   description,
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel: callerRetryLabel,
   retryDisabled = false,
   secondaryAction,
   children,
   className,
   'data-testid': dataTestId,
 }: ErrorStateProps) {
+  // The defaults moved out of the parameter list: a hook cannot run in a
+  // default, and a literal there renders English in every locale. The en
+  // values are the sentences this file used to hard-code.
   const t = useTranslations('common.error');
-  // The default moved out of the parameter list — a literal default cannot
-  // be translated, because a hook cannot run there. `common.error.title` is
-  // the same sentence this file had hardcoded, and it already existed in
-  // the catalogue unused.
-  const title = titleProp ?? t('title');
+  const title = callerTitle ?? t('title');
+  const retryLabel = callerRetryLabel ?? t('tryAgain');
   const Icon: React.ElementType = IconOverride ?? (AlertTriangle as LucideIcon);
   return (
     <div
@@ -137,20 +141,57 @@ export function ErrorState({
               {retryLabel}
             </Button>
           )}
-          {secondaryAction && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={secondaryAction.onClick}
-              disabled={secondaryAction.disabled}
-              data-testid={secondaryAction['data-testid']}
-            >
-              {secondaryAction.label}
-            </Button>
-          )}
+          {secondaryAction && renderSecondary(secondaryAction)}
           {children}
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Secondary-action renderer ────────────────────────────────────────
+
+/**
+ * `href` was DECLARED on `ErrorStateAction` and then ignored — this
+ * branch always rendered a `<Button>`, which drops `href` on the floor.
+ * So the documented "Go back to dashboard" shape produced a button that
+ * looked live and navigated nowhere; the only reason it was not louder
+ * is that every call site so far passed `onClick`.
+ *
+ * The shape is `<EmptyState>`'s `renderAction`, deliberately — the two
+ * primitives are mirrors of each other and their action contracts
+ * should not diverge. A link gets a real `<a href>` (middle-click, open
+ * in new tab, the status bar showing a destination) wearing the button
+ * material via `buttonVariants`, and a disabled link is inert via
+ * `pointer-events-none` + `aria-disabled` rather than a `disabled`
+ * attribute an anchor does not have.
+ */
+function renderSecondary(action: ErrorStateAction) {
+  if (action.href) {
+    return (
+      <a
+        href={action.href}
+        className={cn(
+          buttonVariants({ variant: 'secondary', size: 'sm' }),
+          action.disabled && 'pointer-events-none opacity-50',
+        )}
+        data-testid={action['data-testid']}
+        aria-disabled={action.disabled || undefined}
+      >
+        {action.label}
+      </a>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      onClick={action.onClick}
+      disabled={action.disabled}
+      data-testid={action['data-testid']}
+    >
+      {action.label}
+    </Button>
   );
 }
