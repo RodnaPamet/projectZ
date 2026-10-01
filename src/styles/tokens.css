@@ -276,12 +276,11 @@
   --ctrl-edge-hover: rgba(255, 255, 255, 0.28);
   /* R20-PR-D — enriched focus halo. The 3px brand ring (originally
    * just the focus indicator) now also carries a 2-stop ambient
-   * drop so a focused control reads "warm AND raised" the way a
-   * focused button does. Same shape as the button's
-   * `--btn-ambient-focus`, minus the 4px outer brand ring (which
-   * --ctrl-edge-focus already provides at 3px). Gives form controls
-   * the same tactile-lift presence on focus that the button family
-   * wears. */
+   * drop so a focused control reads "warm AND raised". It was
+   * shaped after the retired R20 button token
+   * `--btn-ambient-focus` (removed when T18 vendored inflect's
+   * Still Surface buttons), minus that token's 4px outer brand
+   * ring; it now stands on its own. */
   --ctrl-edge-focus:
     0 0 0 3px rgba(34, 197, 94, 0.2), 0 1px 2px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.16);
 
