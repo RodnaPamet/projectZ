@@ -36,8 +36,8 @@ async function handler(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
 
-  const result = await asSuperuser(ctx, (db) =>
-    listVenues(
+  const { result, clubSlugs } = await asSuperuser(ctx, async (db) => {
+    const result = await listVenues(
       db,
       {
         q: sp.get('q') ?? undefined,
@@ -52,10 +52,42 @@ async function handler(req: NextRequest) {
         // unauthenticated GET asking for a million rows.
         limit: clampLimit(sp.has('limit') ? Number(sp.get('limit')) : undefined),
       },
-    ),
-  );
+    );
 
-  return page(result.items.map(toVenueSummary), result.nextCursor);
+    // ═══ THE CLUB SLUG, ONE QUERY PER PAGE ═══
+    //
+    // `Venue` carries a `tenantId` column and no relation to `VenueOrg`, so
+    // the slug cannot ride along in the `include`. One lookup over the page's
+    // distinct clubs — at most `clampLimit`'s 50 ids, usually far fewer — in
+    // the same BYPASSRLS transaction, because `venue_org` is no more readable
+    // unbound than `venue` is. It returns only `id` and `slug`: the slug is in
+    // every public `/t/{slug}` URL already, and nothing else is selected.
+    const tenantIds = [...new Set(result.items.map((v) => v.tenantId))];
+    const clubs = tenantIds.length
+      ? await db.venueOrg.findMany({
+          where: { id: { in: tenantIds } },
+          select: { id: true, slug: true },
+          take: tenantIds.length,
+        })
+      : [];
+
+    return { result, clubSlugs: new Map(clubs.map((c) => [c.id, c.slug])) };
+  });
+
+  // ═══ A VENUE WITH NO CLUB IS LEFT OUT, NOT GIVEN AN EMPTY SLUG ═══
+  //
+  // `venue.tenantId` is NOT a foreign key (the p05 migration indexes it and
+  // constrains nothing), so a venue can outlive its club row. Such a venue
+  // cannot be booked — every booking route needs the club's slug — and an
+  // empty `clubSlug` would send a client to `/t//bookings`. Dropping it can
+  // make a page one shorter than `limit`; `nextCursor` is still the last
+  // venue READ, so paging neither repeats nor skips.
+  const items = result.items.flatMap((v) => {
+    const clubSlug = clubSlugs.get(v.tenantId);
+    return clubSlug ? [toVenueSummary(v, clubSlug)] : [];
+  });
+
+  return page(items, result.nextCursor);
 }
 
 export const GET = defineV1Route(handler);

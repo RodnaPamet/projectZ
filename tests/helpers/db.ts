@@ -147,6 +147,72 @@ export async function withTenant<T>(
   });
 }
 
+/**
+ * A bare account of a given kind (#263), with no memberships. `null` is an
+ * UNDECIDED account — one the migration would not decide by rule.
+ */
+export async function seedAccount(
+  accountKind: 'PLAYER' | 'CLUB' | 'COACH' | null,
+  prisma: PrismaClient = prismaTestClient(),
+): Promise<string> {
+  const suffix = Math.random().toString(36).slice(2, 10);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    const user = await tx.user.create({
+      data: {
+        email: `${(accountKind ?? 'undecided').toLowerCase()}-${suffix}@playerz.test`,
+        name: `Test ${accountKind ?? 'Undecided'}`,
+        passwordHash: null,
+        accountKind,
+      },
+      select: { id: true },
+    });
+    return user.id;
+  });
+}
+
+/**
+ * An ACTIVE venue with one ACTIVE court, at `tenantId`. The venue's slug is
+ * deliberately NOT the club's — the two being confused is what `clubSlug` on
+ * the venue DTOs exists to stop.
+ */
+export async function seedVenue(
+  tenantId: string,
+  opts: { name?: string } = {},
+  prisma: PrismaClient = prismaTestClient(),
+): Promise<{ venueId: string; venueSlug: string; resourceId: string }> {
+  const suffix = Math.random().toString(36).slice(2, 10);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    const venue = await tx.venue.create({
+      data: {
+        tenantId,
+        slug: `venue-${suffix}`,
+        name: opts.name ?? `Venue ${suffix}`,
+        addressLine: '1 Court St',
+        city: 'Sofia',
+        email: 'internal@club.test',
+        lat: 42.6977,
+        lng: 23.3219,
+        timezone: 'Europe/Sofia',
+      },
+    });
+    const resource = await tx.resource.create({
+      data: {
+        tenantId,
+        venueId: venue.id,
+        name: 'Court 1',
+        sport: 'PADEL',
+        surface: 'HARD',
+        basePriceCents: 2400,
+      },
+    });
+    return { venueId: venue.id, venueSlug: venue.slug, resourceId: resource.id };
+  });
+}
+
 function slugify(s: string): string {
   return s
     .toLowerCase()
