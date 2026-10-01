@@ -12,6 +12,7 @@ import {
   sha256,
   strayManifestFiles,
 } from '../../scripts/ui-sync/manifest.mjs';
+import { checkRows } from '../../scripts/ui-sync/portable-rules.mjs';
 
 /**
  * A VENDORED FILE CHANGES UPSTREAM FIRST, THEN COMES BACK THROUGH copy.mjs.
@@ -37,7 +38,12 @@ import {
  *     read here because CI has no inflect clone) has a row, so a file copied
  *     by hand cannot pass as playerz's own;
  *   - a 'local-diff' row, the only escape hatch, says why and links the
- *     upstream PR or issue that will remove it.
+ *     upstream PR or issue that will remove it;
+ *   - every 'vendored' file passes check-portable's rules (portable-rules.mjs),
+ *     the WHOLE manifest and not only the files a PR copies (#307). A
+ *     'pending' row is not checked: those are the 2026-07 port, inflect is
+ *     cleaning them up (#3047/#3048), and `check-portable.mjs --manifest
+ *     pending` lists what is still upstream-blocked.
  *
  * The drift itself (TAKE, KEEP, MERGE) is not a failure. scripts/ui-sync/status.mjs
  * reports it, and .github/workflows/ui-drift.yml keeps one issue current.
@@ -150,6 +156,42 @@ describe('vendored files are byte-identical to what copy.mjs wrote', () => {
   });
 });
 
+interface Finding {
+  path: string;
+  line: number;
+  rule: string;
+  text: string;
+  status: string;
+}
+
+/** check-portable findings in the vendored rows, one `path:line rule text` each. */
+function unportable(rows: Row[], read: (path: string) => Buffer | null): string[] {
+  const vendored = rows.filter((r) => r.status === 'vendored');
+  return (checkRows(vendored, (r: Row) => read(r.path)?.toString('utf8') ?? null) as Finding[]).map(
+    (f) => `${f.path}:${f.line}  ${f.rule}  ${f.text}`,
+  );
+}
+
+describe('every vendored file is portable', () => {
+  it('has no check-portable finding in any vendored file', () => {
+    // T17 ran check-portable over only the files it copied, so an earlier copy
+    // that still said "evidence upload" sat in the tree unflagged (#307).
+    expect(ROWS.filter((r) => r.status === 'vendored').length).toBeGreaterThan(0);
+    const findings = unportable(ROWS, readBytes);
+    if (findings.length > 0) {
+      throw new Error(
+        `${findings.length} check-portable finding(s) in vendored files:\n\n  ` +
+          `${findings.join('\n  ')}\n\n` +
+          `These are byte-identical copies of inflect, so the fix is upstream: change the\n` +
+          `file in RodnaPamet/inflect-compliance, merge it, then\n\n` +
+          `  node scripts/ui-sync/copy.mjs --ref <merged sha> <paths>\n\n` +
+          `Do not edit the copy. Reproduce with node scripts/ui-sync/check-portable.mjs\n` +
+          `--manifest vendored.`,
+      );
+    }
+  });
+});
+
 describe('every playerz file at an inflect path has a row', () => {
   it('leaves no copy unrecorded', () => {
     const missing = unrowed(INFLECT.paths, ROWS, isFile);
@@ -197,6 +239,15 @@ describe('the checks fire on the defects they exist for', () => {
     expect(
       unrowed(inflectPaths, [row(), row({ path: 'src/components/ui/card.tsx' })], has),
     ).toEqual([]);
+  });
+
+  it('a compliance word in a vendored file is caught; in a pending one it is not', () => {
+    const prose = () =>
+      Buffer.from('/** Uploads the evidence for a control. */\nexport const a = 1;\n');
+    const vendored = row({ status: 'vendored', sha: 'a'.repeat(40) });
+    expect(unportable([vendored], prose).join('\n')).toMatch(/button\.tsx:1 {2}vocabulary/);
+    expect(unportable([row()], prose)).toEqual([]);
+    expect(unportable([vendored], () => Buffer.from('export const a = 1;\n'))).toEqual([]);
   });
 
   it('a local-diff row without a reason or an upstream link is refused', () => {

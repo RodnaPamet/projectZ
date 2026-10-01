@@ -359,3 +359,22 @@ export function checkSource(path, text) {
 
   return findings.sort((a, b) => a.line - b.line || a.rule.localeCompare(b.rule));
 }
+
+/**
+ * Every finding in a set of manifest rows. `read(row)` returns the file's text,
+ * or null to skip the row (a file that is not there). Findings carry the row's
+ * playerz path and its status.
+ *
+ * The guardrail runs this over every 'vendored' row, so a copy that escaped
+ * the per-PR check (T17 copied only its own files; session-expired-notice.tsx,
+ * vendored earlier, still said "evidence upload") fails CI wherever it sits.
+ * 'pending' rows are inflect's to clean up (#3047/#3048); check-portable.mjs
+ * --manifest pending lists them without failing.
+ */
+export function checkRows(rows, read) {
+  return rows.flatMap((row) => {
+    const text = read(row);
+    if (text === null) return [];
+    return checkSource(row.path, text).map((f) => ({ ...f, status: row.status }));
+  });
+}
