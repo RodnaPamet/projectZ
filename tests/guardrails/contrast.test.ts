@@ -249,6 +249,30 @@ const PAIRINGS: Pairing[] = [
     measured: { light: 6.96, dark: 4.83 },
   },
 
+  // ── The inert button: disabled, loading, disabledTooltip (T18) ────
+  //
+  // The vendored Button's cn-only branches paint `text-content-subtle` on
+  // `bg-bg-subtle`, a translucent fill. A disabled control is exempt from
+  // 1.4.3, but a disabledTooltip button is focusable and announces its reason,
+  // and axe measures both. On the light page it measured 4.44:1 and failed CI,
+  // so light --content-subtle moved from #6b6b6b to #686868.
+  {
+    fg: '--content-subtle',
+    bg: '--bg-subtle',
+    backdrop: '--bg-page',
+    kind: 'text',
+    why: 'the label on a disabled or disabledTooltip button, on the page',
+    measured: { light: 4.64, dark: 5.12 },
+  },
+  {
+    fg: '--content-subtle',
+    bg: '--bg-subtle',
+    backdrop: '--bg-default',
+    kind: 'text',
+    why: 'the label on a disabled or disabledTooltip button, in a card',
+    measured: { light: 4.81, dark: 4.75 },
+  },
+
   // ── Status colours, which carry MEANING and must be readable ──────
   { fg: '--content-success', bg: '--bg-default', why: 'a confirmed booking' },
   { fg: '--content-warning', bg: '--bg-default', why: 'a pending payment' },

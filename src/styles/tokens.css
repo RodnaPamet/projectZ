@@ -506,7 +506,13 @@
   --content-emphasis: #1a1a1a; /* deep charcoal — headings, selected, bold labels */
   --content-default: #3d3d3d; /* dark charcoal — body text, table cells (11.4:1) */
   --content-muted: #525252; /* darker warm gray — secondary text, captions (7.2:1 on bg-default) */
-  --content-subtle: #6b6b6b; /* warm medium gray — hints, disabled, tertiary (4.9:1 on bg-default) */
+  /*
+   * #686868 since T18 (was #6b6b6b). The vendored Button paints a disabled or
+   * disabledTooltip button as text-content-subtle on bg-bg-subtle, and on the
+   * page that measured 4.44:1, which axe failed in CI. #686868 is 4.64:1 there
+   * (4.81:1 over a card), and 5.17:1 on --bg-default.
+   */
+  --content-subtle: #686868; /* warm medium gray — hints, disabled, tertiary (5.17:1 on bg-default) */
   --content-inverted: #faf9f7; /* warm off-white — text on inverted/dark surfaces */
   --content-brand: #166534; /* brand-700 — 6.37:1 on --bg-page, 6.61:1 on --bg-default. Why it differs by theme: see the dark block */
 
