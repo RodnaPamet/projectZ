@@ -41,7 +41,15 @@ import { logger } from '@/lib/observability/logger';
  */
 export const MAX_LANDING_MEMBERSHIPS = 100;
 
-async function readMemberships(db: PrismaClient, userId: string): Promise<LandingMembership[]> {
+/**
+ * Exported for `usecases/me`, which answers `GET /api/v1/me` from the same
+ * rows in the same transaction as the account it describes — so the kind and
+ * the landing it reports cannot come from two different reads.
+ */
+export async function readMemberships(
+  db: PrismaClient,
+  userId: string,
+): Promise<LandingMembership[]> {
   const rows = await db.tenantMembership.findMany({
     // The status filters narrow the read; `decideLanding` applies the same
     // rules again, because it is the contract and other callers reach it

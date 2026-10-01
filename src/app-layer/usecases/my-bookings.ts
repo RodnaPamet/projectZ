@@ -80,11 +80,18 @@ export async function listMyBookings(input: {
     );
 
     return {
-      items: bookings.map((b) => ({
-        ...b,
-        clubSlug: slugByTenant.get(b.tenantId) ?? null,
-        venueReview: reviewByVenue.get(b.resource.venue.id) ?? null,
-      })),
+      items: bookings.map((b) => {
+        const venueReview = reviewByVenue.get(b.resource.venue.id) ?? null;
+        return {
+          ...b,
+          clubSlug: slugByTenant.get(b.tenantId) ?? null,
+          venueReview,
+          // Decided HERE, by the rule below, so `GET /api/v1/me/bookings` and
+          // the page cannot disagree about which bookings offer a review: the
+          // v1 mapper copies this rather than restating the rule.
+          canReview: canReview({ status: b.status, venueReview }),
+        };
+      }),
       nextCursor: page.nextCursor,
     };
   });
