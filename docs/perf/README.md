@@ -96,6 +96,22 @@ Cold first visits, medians of 20 (p95 in brackets):
 - The club screens were not measured: they need a signed-in session. Their localhost
   server time (37–55 ms) plus this round trip still lands well inside 300 ms.
 
+**What followed.** The owner chose to prefetch the public links fully
+(`PublicPrefetchLink`, `navigation-policy.md`). The change was measured on localhost
+against main, interleaved, 2 runs per side, all journeys and the headless shell.
+`perf:compare` found 6 faster and 0 slower beyond noise. Every faster row is a cold first
+visit to `/venues` or `/login` from the home page, which now renders from the router
+cache with no request and no skeleton:
+
+| Cold first visit       | Phone, main → after | Desktop, main → after |
+| ---------------------- | ------------------: | --------------------: |
+| public · home → venues |         400 → 90 ms |           343 → 46 ms |
+| public · home → login  |         359 → 44 ms |           327 → 22 ms |
+| player · home → venues |         348 → 53 ms |           335 → 28 ms |
+
+Every club admin row stayed within noise. The admin keeps its ~330–370 ms first visits,
+which the owner accepted.
+
 ## The first baseline: `a56ea4f`, 29 September 2026
 
 `docs/perf/baseline-a56ea4f.json` holds two complete runs of the app at `a56ea4f`
