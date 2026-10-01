@@ -48,6 +48,14 @@
       "sha": null,
       "status": "pending",
       "sha256": "a30af046979dcef25be13ecf5bb3f151dfced4c527743751734e6118185ea6ee"
+    },
+    {
+      "path": "src/components/layout/session-expired-notice.tsx",
+      "inflectPath": "src/components/layout/session-expired-notice.tsx",
+      "baseSha": "af4ec016d33970310ead78601aa088f73c069a34",
+      "sha": "af4ec016d33970310ead78601aa088f73c069a34",
+      "status": "vendored",
+      "sha256": "50e757e10c28d31c0d1945318c4653be004c7791436c0480887ab59e0d5e783a"
     }
   ]
 }
