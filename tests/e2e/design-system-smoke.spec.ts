@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import bg from '../../messages/bg.json';
+
 /**
  * P02 — the design-system gallery must render every primitive family,
  * flip themes, and carry zero critical/serious accessibility violations.
@@ -13,7 +15,10 @@ const SECTIONS = [
   'Checkbox',
   'RadioGroup',
   'Switch',
+  'ToggleGroup',
+  'FieldGroup',
   'StatusBadge',
+  'InlineNotice',
   'Skeleton',
   'EmptyState',
   'ErrorState',
@@ -99,7 +104,15 @@ test.describe('design system', () => {
     const html = page.locator('html');
     const before = await html.getAttribute('data-theme');
 
-    await page.getByRole('button', { name: /theme/i }).click();
+    // By role AND its Bulgarian name. The vendored ThemeToggle (T17) reads
+    // its label from `common.ui.switchTo{Light,Dark}Theme`; before that it was
+    // hard-coded English, and `/theme/i` matched it only because of that. The
+    // name is read from the catalogue, so a reworded string is not a failure
+    // but an untranslated (English) one is.
+    const { switchToLightTheme, switchToDarkTheme } = bg.common.ui;
+    await page
+      .getByRole('button', { name: new RegExp(`^(${switchToLightTheme}|${switchToDarkTheme})$`) })
+      .click();
 
     await expect
       .poll(async () => html.getAttribute('data-theme'), {

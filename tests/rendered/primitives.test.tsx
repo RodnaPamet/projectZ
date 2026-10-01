@@ -8,8 +8,9 @@
  * the regression these are here to catch.
  */
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 
-import { render, screen, within } from '../helpers/render';
+import { render, screen, waitFor, within } from '../helpers/render';
 
 import { Button } from '@/components/ui/button';
 import { CalendarMonth } from '@/components/ui/CalendarMonth';
@@ -19,6 +20,8 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { Table, useTable } from '@/components/ui/table/table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
+import { FieldGroup } from '@/components/ui/field-group';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/modal';
@@ -28,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Tooltip } from '@/components/ui/tooltip';
 
 import { withIntl } from '../helpers/intl';
@@ -217,6 +221,68 @@ describe('Modal', () => {
   });
 });
 
+// #299. Every playerz dialog is CONTROLLED (`showModal` state, no
+// <Dialog.Trigger>), and the old primitive preventDefault-ed both of Radix's
+// auto-focus events. Focus therefore never entered the dialog, and on close
+// it fell to <body>: a keyboard user who dismissed DayGrid's confirm was
+// dropped at the top of the document. The vendored Modal (inflect T03)
+// records `document.activeElement` on open and puts it back on close.
+describe('Modal focus (#299)', () => {
+  function Harness() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <Button variant="secondary" onClick={() => setOpen(true)}>
+          Cancel booking
+        </Button>
+        <Modal showModal={open} setShowModal={setOpen}>
+          <p>Court 3 · Saturday 18:00</p>
+        </Modal>
+      </>
+    );
+  }
+
+  const realMatchMedia = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+  });
+
+  // rtl-setup's matchMedia stub answers `false` to everything, which
+  // useMediaQuery reads as a phone: the Modal renders as a vaul drawer.
+  // The desktop Dialog is the surface the T03 fix is in, so say "desktop".
+  function asDesktop() {
+    window.matchMedia = ((query: string) => ({
+      ...realMatchMedia(query),
+      matches: query.includes('min-width'),
+    })) as typeof window.matchMedia;
+  }
+
+  it('on desktop, moves focus into the dialog and back to the opening button on close', async () => {
+    asDesktop();
+    render(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Cancel booking' });
+
+    await userEvent.click(opener);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(opener).toHaveFocus();
+  });
+
+  it('on a phone (drawer), leaves focus on the opening button after close', async () => {
+    render(<Harness />);
+    const opener = screen.getByRole('button', { name: 'Cancel booking' });
+
+    await userEvent.click(opener);
+    await screen.findByRole('dialog');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(opener).toHaveFocus();
+  });
+});
+
 describe('Sheet', () => {
   it('renders its title and body when open', () => {
     render(
@@ -227,6 +293,107 @@ describe('Sheet', () => {
       </Sheet>,
     );
     expect(screen.getByText('Sport, surface, indoor.')).toBeInTheDocument();
+  });
+});
+
+describe('Sheet (left)', () => {
+  it('renders a left navigation drawer as a dialog with its title', () => {
+    render(
+      <Sheet open onOpenChange={noop} title="Menu" direction="left">
+        <Sheet.Body>
+          <p>Venues, bookings.</p>
+        </Sheet.Body>
+      </Sheet>,
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Venues, bookings.')).toBeInTheDocument();
+  });
+});
+
+describe('ToggleGroup', () => {
+  const options = [
+    { value: 'day', label: 'Day' },
+    { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month', disabled: true },
+  ];
+
+  it('is a labelled radiogroup with the selected option checked', () => {
+    render(<ToggleGroup options={options} selected="day" ariaLabel="Calendar range" />);
+    const group = screen.getByRole('radiogroup', { name: 'Calendar range' });
+    expect(within(group).getAllByRole('radio')).toHaveLength(3);
+    expect(within(group).getByRole('radio', { name: 'Day' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(within(group).getByRole('radio', { name: 'Week' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+  });
+
+  it('selects on click and moves with the arrow keys, skipping disabled options', async () => {
+    const selectAction = jest.fn();
+    render(
+      <ToggleGroup
+        options={options}
+        selected="day"
+        selectAction={selectAction}
+        ariaLabel="Range"
+      />,
+    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Week' }));
+    expect(selectAction).toHaveBeenLastCalledWith('week');
+
+    screen.getByRole('radio', { name: 'Day' }).focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    // Month is disabled, so wrapping left from Day lands on Week.
+    expect(selectAction).toHaveBeenLastCalledWith('week');
+    expect(screen.getByRole('radio', { name: 'Week' })).toHaveFocus();
+  });
+});
+
+describe('InlineNotice', () => {
+  it('announces an error as an alert and other variants as a status', () => {
+    const { rerender } = render(<InlineNotice variant="error">Payment failed</InlineNotice>);
+    expect(screen.getByRole('alert')).toHaveTextContent('Payment failed');
+    rerender(<InlineNotice variant="success">Booking confirmed</InlineNotice>);
+    expect(screen.getByRole('status')).toHaveTextContent('Booking confirmed');
+  });
+
+  it('renders a dismiss button only when onDismiss is given', async () => {
+    const onDismiss = jest.fn();
+    const { rerender } = render(<InlineNotice variant="info">Court 2 is closed</InlineNotice>);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    rerender(
+      <InlineNotice variant="info" onDismiss={onDismiss} dismissLabel="Hide notice">
+        Court 2 is closed
+      </InlineNotice>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Hide notice' }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FieldGroup', () => {
+  it('is a group named by its title when it has one', () => {
+    render(
+      <FieldGroup title="Contact" description="How the club reaches you.">
+        <Label htmlFor="fg-phone">Phone</Label>
+        <Input id="fg-phone" />
+      </FieldGroup>,
+    );
+    const group = screen.getByRole('group', { name: 'Contact' });
+    expect(within(group).getByLabelText('Phone')).toBeInTheDocument();
+    expect(within(group).getByText('How the club reaches you.')).toBeInTheDocument();
+  });
+
+  it('is not a group without a title', () => {
+    render(
+      <FieldGroup columns={2}>
+        <Input aria-label="First name" />
+      </FieldGroup>,
+    );
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
   });
 });
 
