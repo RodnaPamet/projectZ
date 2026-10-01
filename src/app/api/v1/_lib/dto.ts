@@ -31,6 +31,18 @@ type VenueWithResources = Prisma.VenueGetPayload<{ include: { resources: true } 
 export interface VenueSummary {
   id: string;
   slug: string;
+  /**
+   * The slug of the CLUB that owns the venue — what every `/t/{slug}/**` route
+   * takes, and NOT the venue's own `slug` above.
+   *
+   * The two look alike and are not interchangeable: a venue slug is unique
+   * only within its club (`@@unique([tenantId, slug])`), a club slug is unique
+   * everywhere. Until this field existed no public DTO carried a club slug at
+   * all, so the iOS client sent the VENUE slug to `POST /t/{slug}/bookings`
+   * (VenueDetailModel.swift) — which works only while a club happens to name
+   * its venue after itself, and fails as "not a member" the day it does not.
+   */
+  clubSlug: string;
   name: string;
   city: string;
   country: string;
@@ -41,12 +53,18 @@ export interface VenueSummary {
   coverPhotoUrl: string | null;
 }
 
-export function toVenueSummary(v: VenueWithResources): VenueSummary {
+/**
+ * `clubSlug` is an argument rather than read off `v` because `Venue` has no
+ * relation to `VenueOrg` in the schema — only a `tenantId` column — so the
+ * caller looks the slugs up once per page (see the v1 venue routes).
+ */
+export function toVenueSummary(v: VenueWithResources, clubSlug: string): VenueSummary {
   const active = v.resources.filter((r) => r.status === 'ACTIVE');
 
   return {
     id: v.id,
     slug: v.slug,
+    clubSlug,
     name: v.name,
     city: v.city,
     country: v.country,
@@ -82,11 +100,11 @@ type VenueFull = Prisma.VenueGetPayload<{
   include: { resources: true; photos: true; amenities: true };
 }>;
 
-export function toVenueDetail(v: VenueFull): VenueDetail {
+export function toVenueDetail(v: VenueFull, clubSlug: string): VenueDetail {
   const active = v.resources.filter((r) => r.status === 'ACTIVE');
 
   return {
-    ...toVenueSummary(v),
+    ...toVenueSummary(v, clubSlug),
 
     // `description` is documented in the schema as "Encrypted at rest +
     // HTML-sanitised on write". It is NEITHER today: encryptField/decryptField
@@ -122,6 +140,8 @@ export function toVenueDetail(v: VenueFull): VenueDetail {
  * `tenantId`, `cancellationPolicyJson`, `amenityIds`, `geog`, `createdAt`,
  * `updatedAt`. `email` is the club's internal contact, not a public field;
  * `tenantId` would hand a client the tenancy model it is not supposed to know.
+ * `clubSlug` is NOT that: it is the public address of a club, already in every
+ * `/t/{slug}` URL, and a client cannot book without it.
  */
 
 /**
@@ -322,6 +342,71 @@ export function toBooking(b: BookingRow): BookingDto {
     createdAt: rfc3339(b.createdAt),
     resource: { id: b.resource.id, name: b.resource.name, sport: b.resource.sport },
     venue: b.resource.venue,
+  };
+}
+
+/**
+ * One of the caller's own bookings, at any club: `GET /api/v1/me/bookings`.
+ *
+ * `BookingDto` plus what a cross-club list needs and a per-club one does not:
+ * which club each row belongs to, and where the caller stands on reviewing
+ * the venue. The resource and venue blocks are `BookingDto`'s, unchanged.
+ *
+ * ═══ ONE MAPPER, FOR THE ROUTE AND FOR THE PAGE'S SERVER SEED ═══
+ *
+ * The web `/me` page will render its first paint from the server and then
+ * revalidate through this endpoint (the client data layer). If the seed and
+ * the endpoint were shaped by two functions, the first revalidation would
+ * swap one shape for another under the person's thumb. So both call this.
+ */
+export interface MyBookingDto extends BookingDto {
+  /**
+   * The club's slug — what `POST /t/{slug}/bookings/{id}/cancel` and `/review`
+   * take. Null only if the club row is gone (`booking.tenantId` is not a
+   * foreign key); such a booking can be shown and not acted on.
+   */
+  clubSlug: string | null;
+  /**
+   * The caller's review of this booking's VENUE, if they wrote one — at most
+   * one per venue, so it may have been left against a different booking
+   * there (`venueReview.bookingId !== id`).
+   */
+  venueReview: {
+    id: string;
+    bookingId: string | null;
+    rating: number;
+    /** Open string, as `ReviewDto.status`. */
+    status: string;
+  } | null;
+  /**
+   * Whether a review can be submitted from this booking now: it is COMPLETED
+   * and the venue has no review from the caller yet. Decided by the server
+   * (`canReview` in `usecases/my-bookings`) so no client restates the rule.
+   */
+  canReview: boolean;
+}
+
+export function toMyBookingDto(
+  b: BookingRow & {
+    clubSlug: string | null;
+    venueReview: { id: string; bookingId: string | null; rating: number; status: string } | null;
+    canReview: boolean;
+  },
+): MyBookingDto {
+  return {
+    ...toBooking(b),
+    clubSlug: b.clubSlug,
+    // Rebuilt field by field rather than passed through, for the reason at the
+    // top of this file: a spread publishes whatever the use case adds next.
+    venueReview: b.venueReview
+      ? {
+          id: b.venueReview.id,
+          bookingId: b.venueReview.bookingId,
+          rating: b.venueReview.rating,
+          status: b.venueReview.status,
+        }
+      : null,
+    canReview: b.canReview,
   };
 }
 

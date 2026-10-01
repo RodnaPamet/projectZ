@@ -37,13 +37,29 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   // BYPASSRLS, for the same reason as the index: a public read has no tenant to
   // bind to, and `venue` has FORCE RLS. `status: ACTIVE` and the hand-written
   // DTO are what make that safe, not the tenant policy.
-  const venue = await asSuperuser(ctx, (db) => getVenueById(db, id));
+  //
+  // The club's slug comes from a second read in the same transaction: `Venue`
+  // has a `tenantId` column and no relation to `VenueOrg`, so it cannot be
+  // included. It is the value `POST /t/{slug}/bookings` takes — see
+  // `VenueSummary.clubSlug` for why the venue's own slug is not.
+  const found = await asSuperuser(ctx, async (db) => {
+    const venue = await getVenueById(db, id);
+    if (!venue) return null;
+    const club = await db.venueOrg.findUnique({
+      where: { id: venue.tenantId },
+      select: { slug: true },
+    });
+    // `venue.tenantId` is not a foreign key, so a venue can outlive its club
+    // row. It cannot be booked without the club's slug: 404, like the list,
+    // which leaves it out.
+    return club ? { venue, clubSlug: club.slug } : null;
+  });
 
   // 404 rather than a null payload. A client that has to branch on
   // `data === null` will forget to, and render an empty venue page.
-  if (!venue) throw new NotFoundError('Venue not found');
+  if (!found) throw new NotFoundError('Venue not found');
 
-  return ok(toVenueDetail(venue));
+  return ok(toVenueDetail(found.venue, found.clubSlug));
 }
 
 export const GET = defineV1Route(handler);
