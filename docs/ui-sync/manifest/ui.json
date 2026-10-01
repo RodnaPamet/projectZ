@@ -4,9 +4,9 @@
     {
       "path": "src/components/ui/animated-size-container.tsx",
       "inflectPath": "src/components/ui/animated-size-container.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "dfbaa197fa95d933d648772d05c82e9c0bfcf41320960914a57e496220d75cf5"
     },
     {
@@ -24,6 +24,14 @@
       "sha": null,
       "status": "pending",
       "sha256": "b5dc8c0a9cd5698c01c3fe983a929ffec11256cb4a2fecce43aa7367ea25e548"
+    },
+    {
+      "path": "src/components/ui/button-like-keys.ts",
+      "inflectPath": "src/components/ui/button-like-keys.ts",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "4d80d7b7a66aa48d767f82c8350c6bd823264841314a7c09110bf0372594b1ef"
     },
     {
       "path": "src/components/ui/button-variants.ts",
@@ -44,18 +52,18 @@
     {
       "path": "src/components/ui/card-variants.ts",
       "inflectPath": "src/components/ui/card-variants.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "cfabd8da6409b2aac260a512821dc7c342c26ffe885926a9eca4b92621755eae"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "643a847ffa75bf8dec7749e782f3468e639d4d0364a20074fea5862f9da5123f"
     },
     {
       "path": "src/components/ui/card.tsx",
       "inflectPath": "src/components/ui/card.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "6b2f985801756096134e9aacf481a2a4a86695996dc97830b099a0086310bc2a"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "a564dd52af597e80970d4860265748c9dbdf0f567de9309e66c2738e7cc45016"
     },
     {
       "path": "src/components/ui/charts/areas.tsx",
@@ -244,10 +252,10 @@
     {
       "path": "src/components/ui/checkbox.tsx",
       "inflectPath": "src/components/ui/checkbox.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "49ad306dd54c81853767ac510f874d239c15b759cff0e3f633d7cdd8e2875c9e"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "7cc192457f22435b6d6e7a196366b17dc57879905567fcaeadbfa9d5f3798361"
     },
     {
       "path": "src/components/ui/checklist-gear-button.tsx",
@@ -268,33 +276,33 @@
     {
       "path": "src/components/ui/combobox/index.tsx",
       "inflectPath": "src/components/ui/combobox/index.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "a3bf9ba3666bf2c9e22d229f2c2ea85c6fd37a76f3a0c04dc3ab989e1d532dfb"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "9a6a493f864b4c410a82f6a772e101eb9b13825d67dfbbac002e1aeef447ddfa"
     },
     {
       "path": "src/components/ui/combobox/messages.ts",
       "inflectPath": "src/components/ui/combobox/messages.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "7555797a32c46ab3abcdfe5dbe633f9ff4b51457ab3cabdbf38021e3ad6eca8f"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "348db552cfb234c051815cef8ca1db8a557c45296312f7d123c80444f72df43b"
     },
     {
       "path": "src/components/ui/combobox/virtualized-options.tsx",
       "inflectPath": "src/components/ui/combobox/virtualized-options.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "6d09488f57d9ef8c4eb32d0742378f17c036fee9b4847e431ef0fe7a83d0576f"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "b7b29fab93e5fdd0d5483320234fd9a388705336a32c8ad8adba165e81d12c6b"
     },
     {
       "path": "src/components/ui/confirm-dialog.tsx",
       "inflectPath": "src/components/ui/confirm-dialog.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "dfc5fe67e40b4a415eba659047fb8df54cd2241731f096d608db3b02485dc663"
     },
     {
@@ -388,18 +396,26 @@
     {
       "path": "src/components/ui/empty-state.tsx",
       "inflectPath": "src/components/ui/empty-state.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "b03b6a37700628f296795ef683e4904d3f164dde2d8ef642261fdb0ccd35306f"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "f63abbfd8f4b321db6b0910d0917bd1b44476a9a6155e02fce436b4d3293e4bf"
     },
     {
       "path": "src/components/ui/error-state.tsx",
       "inflectPath": "src/components/ui/error-state.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "29d018d6fd53b569644f061fc7008533d53ca63edb06029316b65df806504a09"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "3835bf9721b3f1feefff2b708a4fcb470477a6bee4917f1616f9eef951c27a78"
+    },
+    {
+      "path": "src/components/ui/field-group.tsx",
+      "inflectPath": "src/components/ui/field-group.tsx",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "6e662bba99ba59f61636e1c24f70534d12fc26f1b2fd4f6f15cbd49934762841"
     },
     {
       "path": "src/components/ui/filter/edit-filters-button.tsx",
@@ -524,26 +540,26 @@
     {
       "path": "src/components/ui/form-description.tsx",
       "inflectPath": "src/components/ui/form-description.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "7b833793977df5d833e1516a5eccbddd798eabf788847b96eee9af8ce6a65ffd"
     },
     {
       "path": "src/components/ui/form-error.tsx",
       "inflectPath": "src/components/ui/form-error.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "d63c4f42d9ce968dc4fc27ce533c5533d5447bd9efc298fd53c5f0250769713b"
     },
     {
       "path": "src/components/ui/form-field.tsx",
       "inflectPath": "src/components/ui/form-field.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "49570a68c7822dee5c5b9c8cea7aa9373d7843c9a1c5a39c76eb2600689c7859"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "f3027103b64b5744a88f635138117f21928516b3c8207f7dd7decf407b09d24c"
     },
     {
       "path": "src/components/ui/form.tsx",
@@ -554,140 +570,172 @@
       "sha256": "f7058e7f3d8730c088199225480197af84d85555666158acf8b2b783cb7af576"
     },
     {
+      "path": "src/components/ui/hit-area.ts",
+      "inflectPath": "src/components/ui/hit-area.ts",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "0453d085abb5e55d43de81b1de665c6fe12798412c85859d5de03d415bfe765b"
+    },
+    {
       "path": "src/components/ui/initials-avatar.tsx",
       "inflectPath": "src/components/ui/initials-avatar.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "7040e30b8800b16f78f89460a42ea273340280aec36bc184223f2e6887f6b84e"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "751363d8c768e41afb69bb3dc2e4b3f600c9cefab3c00901f5b42c401b97fc3c"
+    },
+    {
+      "path": "src/components/ui/inline-notice.tsx",
+      "inflectPath": "src/components/ui/inline-notice.tsx",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "7a7b5bd6ee8d81ca33bf0fa3fd2a6f970b1a76e888902700129eba94737a5a94"
     },
     {
       "path": "src/components/ui/input.tsx",
       "inflectPath": "src/components/ui/input.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "847f946a51cc4bf9845df69db0737b2ed392e8fa5c11347b3d271fbe95a366bc"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "31568808c52023ce109c068aca5851d680cfe0b0117a2890fdfec4bd976d47ed"
     },
     {
       "path": "src/components/ui/label.tsx",
       "inflectPath": "src/components/ui/label.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "794b24487cf6c59890c5faf2157338d61c6fef20743478b89d15225b63dd6a0d"
     },
     {
       "path": "src/components/ui/modal.tsx",
       "inflectPath": "src/components/ui/modal.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "e8ea9fab6ef8a3b15154c4601fc2ee14b08b058a6a1bd9ee538843f398a47eb0"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "ffc04222757d7facc4a720b1f846da5aa057c505d5bfe32e1ee463fd282bb4cc"
+    },
+    {
+      "path": "src/components/ui/overlay-depth.tsx",
+      "inflectPath": "src/components/ui/overlay-depth.tsx",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "ddf351970e4d6839c5cc92f47683ed3b7ffb603c35dceedcf46199a5ed322f1e"
     },
     {
       "path": "src/components/ui/popover.tsx",
       "inflectPath": "src/components/ui/popover.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "8d9e69b6af45dbb95fe27e5d5d0fca6120778a69a24a41e304ed4d6890eac1a9"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "00a2e0c0701ddb0b93be1693e4cda6a59375b19ecc9a3cc8c58cc30d07b4ef10"
     },
     {
       "path": "src/components/ui/progressive-blur.tsx",
       "inflectPath": "src/components/ui/progressive-blur.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "3174819924c48017f468ba7e866b8da6b3167264714ee62cd3ca2694b59a66d2"
     },
     {
       "path": "src/components/ui/radio-group.tsx",
       "inflectPath": "src/components/ui/radio-group.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "17d33991a2fff28280e0d5b0cccbb0ddea86be9929d287ac38fa8c65707d5b9a"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "55179680aec49261a802b90f1139f9440a194406adfac06168803f675fd0cd23"
     },
     {
       "path": "src/components/ui/required-marker.tsx",
       "inflectPath": "src/components/ui/required-marker.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "65a7280a614102fc77810404e30b830636694cf38fbff135d563df6ac88c6466"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "2f6121d45d3d5d6ec960009e00e88d978eb81553a0176412a93f117916c8d0ea"
     },
     {
       "path": "src/components/ui/scroll-container.tsx",
       "inflectPath": "src/components/ui/scroll-container.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "b7780f5adb0b581d5c1d90de17ea05f332051fd7c1234696311532b129b6128f"
     },
     {
       "path": "src/components/ui/sheet.tsx",
       "inflectPath": "src/components/ui/sheet.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "7b301257306d4474ae061e9101e42954f3c410652db287e3f873c5d42ef3d5b4"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "e3887372da9290c9320c4a71748883a756a37db5080ff6f64d6435d6ce66a0b4"
     },
     {
       "path": "src/components/ui/skeleton.tsx",
       "inflectPath": "src/components/ui/skeleton.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "3de26eb1e0119d65aebf3b540d7364137aafe3ef5bd39cb5945737f3bb038245"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "dfd8610ffb80d778673ecd6213de8060b3dac97e59beb22721b4b2ff054b3cc9"
     },
     {
       "path": "src/components/ui/status-badge.tsx",
       "inflectPath": "src/components/ui/status-badge.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "d3d79b7af45fe92c89fc117af6414f0383dc4d5918fd2c17d06aa282a01a4dc3"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "a5943fd72b71839ac7b300c1ae28caba8a16e493146e7d70bc70bf5c98a9f1c9"
     },
     {
       "path": "src/components/ui/switch.tsx",
       "inflectPath": "src/components/ui/switch.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "96a815008e44d9596780455ca62005503c675d28bd173957bd1d87a189cff7bd"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "59d58977e5903f33aee27234b3295fc476089fe74ecc601aa396769a9eb4913e"
     },
     {
       "path": "src/components/ui/textarea.tsx",
       "inflectPath": "src/components/ui/textarea.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
       "sha256": "7421b813c81cb468f705b69076ae70145d8aee15624a9589578020a0917f3501"
+    },
+    {
+      "path": "src/components/ui/toggle-group.tsx",
+      "inflectPath": "src/components/ui/toggle-group.tsx",
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "28597b4e3e24483c0b4f319388f0adc359b5a42ce4be273ef6f82d481c58cc80"
     },
     {
       "path": "src/components/ui/tooltip.tsx",
       "inflectPath": "src/components/ui/tooltip.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "4c918135093be0bf1cedb809554834b8a5d3cbd0523ecf49daeb85bdbfe5fe09"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "e1b14e4357f2364934a8c0ec9ac1bbc944cc0d78da375833502e408bedad6fac"
     },
     {
       "path": "src/components/ui/typography.tsx",
       "inflectPath": "src/components/ui/typography.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "8f2415de6feb1784db7afb089b4975caee5205aa38872e076ea8a913ead52c51"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "e40fc0217c7bed1818964ce043de2ba4fbd71f4d798d3429cc94377991f0ac08"
     },
     {
       "path": "src/components/ui/undo-toast.tsx",
       "inflectPath": "src/components/ui/undo-toast.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "867f9aa52f413c3702092c30774895b068afa70cefcdec6a43a188e8b3f364d5"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "da7f626ea3e643d28a571820b0f9bf19d68df02e613a3aa8f6199dfcb9b5f366"
     },
     {
       "path": "src/components/ui/user-combobox.tsx",
@@ -700,10 +748,10 @@
     {
       "path": "src/components/ui/virtualized-list.tsx",
       "inflectPath": "src/components/ui/virtualized-list.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "6fde5fe5a4d53a1a9ccf1e4082b3916cffbbd9be85b809336d47bba1e8636152"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "f1431d13bdaf8d004252fccfc52d3aaf821db2796e923299ebd1908459bebd34"
     }
   ]
 }

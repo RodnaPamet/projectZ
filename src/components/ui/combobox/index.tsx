@@ -45,6 +45,7 @@
 import { cn } from '@/lib/cn';
 import { Command, useCommandState } from 'cmdk';
 import { ChevronDown } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import {
   cloneElement,
@@ -72,7 +73,7 @@ import {
 import { Popover, PopoverProps } from '../popover';
 import { ScrollContainer } from '../scroll-container';
 import { Tooltip } from '../tooltip';
-import { COMBOBOX_DEFAULT_MESSAGES } from './messages';
+import { getComboboxMessages } from './messages';
 import { COMBOBOX_VIRTUALIZE_THRESHOLD, VirtualizedComboboxOptions } from './virtualized-options';
 
 export { COMBOBOX_VIRTUALIZE_THRESHOLD } from './virtualized-options';
@@ -182,8 +183,8 @@ export function Combobox<TMultiple extends boolean | undefined = undefined, TMet
   loading = false,
   trigger,
   icon: IconProp,
-  placeholder = COMBOBOX_DEFAULT_MESSAGES.placeholder,
-  searchPlaceholder = COMBOBOX_DEFAULT_MESSAGES.searchPlaceholder,
+  placeholder: placeholderProp,
+  searchPlaceholder: searchPlaceholderProp,
   emptyState,
   createLabel,
   createIcon: CreateIcon = Plus,
@@ -218,6 +219,18 @@ export function Combobox<TMultiple extends boolean | undefined = undefined, TMet
   'aria-required': ariaRequired,
   children,
 }: ComboboxProps<TMultiple, TMeta>) {
+  // Copy the caller did not pass comes from the `ui.combobox` catalogue
+  // namespace, so an unconfigured Combobox renders in the viewer's locale.
+  // It used to fall back to COMBOBOX_DEFAULT_MESSAGES — English in every
+  // locale. `getComboboxMessages` keeps that constant as its fallback for a
+  // translator that throws or returns nothing. `undefined` checks (not `??`)
+  // on the two ex-parameter defaults keep an explicit `null` placeholder
+  // meaning "render nothing", exactly as a default parameter did.
+  const t = useTranslations('ui.combobox');
+  const defaultMessages = getComboboxMessages(t);
+  const placeholder = placeholderProp === undefined ? defaultMessages.placeholder : placeholderProp;
+  const searchPlaceholder =
+    searchPlaceholderProp === undefined ? defaultMessages.searchPlaceholder : searchPlaceholderProp;
   const isMultiple = isMultipleSelection(multiple, setSelected);
 
   // Coerce selectedProp into an array so our internal bookkeeping
@@ -292,10 +305,34 @@ export function Combobox<TMultiple extends boolean | undefined = undefined, TMet
     }
   }, [shouldSortOptions, options, sortOptions, search]);
 
+  // Re-sync the snapshot when the option list changes in a way that
+  // changes what renders.
+  //
+  // The key used to be the VALUES alone. That reads as "the option set
+  // changed", but `sortedOptions` is a copy of the option OBJECTS, not
+  // just their order — so a caller that flipped `disabledTooltip` on an
+  // existing option (the usual shape of "this choice is unavailable
+  // now") never re-synced: the prop changed, the snapshot did not, and
+  // the dropdown kept rendering the previous state indefinitely. The
+  // caller has no way to tell, because the options it passed are right.
+  //
+  // The whole option cannot go in the key — `label`, `icon` and
+  // `disabledTooltip` are ReactNodes, and a React element holds a
+  // circular `_owner`, so `JSON.stringify` on one throws. So the key
+  // carries `value` plus the flags that decide how an option renders,
+  // which is what a re-sync has to notice. Options with none of them set
+  // contribute a constant, so every existing caller keys exactly as
+  // before.
+  const optionsSyncKey = options
+    ?.map(
+      (o) =>
+        `${o.value}\u0000${o.disabledTooltip ? 1 : 0}${o.first ? 1 : 0}${o.separatorAfter ? 1 : 0}`,
+    )
+    .join('\u0001');
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShouldSortOptions(true);
-  }, [JSON.stringify(options?.map((o) => o.value))]);
+  }, [optionsSyncKey]);
 
   // Reset search + re-sort on close.
   useEffect(() => {
@@ -333,7 +370,7 @@ export function Combobox<TMultiple extends boolean | undefined = undefined, TMet
         <CreateIcon className="size-4 shrink-0" />
       )}
       <div className="grow break-words">
-        {createLabel?.(search) ?? COMBOBOX_DEFAULT_MESSAGES.createLabel(search)}
+        {createLabel?.(search) ?? defaultMessages.createLabel(search)}
       </div>
     </Command.Item>
   );
@@ -361,7 +398,7 @@ export function Combobox<TMultiple extends boolean | undefined = undefined, TMet
     .join(', ');
   const triggerAriaLabel =
     (buttonProps as { 'aria-label'?: string } | undefined)?.['aria-label'] ??
-    (selectedTriggerText || (typeof placeholder === 'string' ? placeholder : 'Select'));
+    (selectedTriggerText || (typeof placeholder === 'string' ? placeholder : t('triggerLabel')));
 
   const triggerA11yProps = {
     id,
@@ -566,14 +603,14 @@ export function Combobox<TMultiple extends boolean | undefined = undefined, TMet
                       {onCreate && multiple && search.length > 0 && createOptionItem}
                       {shouldFilter ? (
                         <Empty className="text-content-subtle flex min-h-12 items-center justify-center text-sm">
-                          {emptyState ?? COMBOBOX_DEFAULT_MESSAGES.emptyState}
+                          {emptyState ?? defaultMessages.emptyState}
                         </Empty>
                       ) : sortedOptions!.length === 0 ? (
                         <div
                           className="text-content-subtle flex min-h-12 items-center justify-center text-sm"
                           data-combobox-empty
                         >
-                          {emptyState ?? COMBOBOX_DEFAULT_MESSAGES.emptyState}
+                          {emptyState ?? defaultMessages.emptyState}
                         </div>
                       ) : null}
                     </>

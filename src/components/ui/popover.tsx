@@ -19,10 +19,11 @@
 import { cn } from '@/lib/cn';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
+import { useTranslations } from 'next-intl';
 import {
   ButtonHTMLAttributes,
   HTMLAttributes,
-  // Aliased: the bare name is the DOM event, which `onEscapeKeyDown` above
+  // Aliased: the bare name is the DOM event, which `onEscapeKeyDown` below
   // already means and Radix hands it.
   KeyboardEvent as ReactKeyboardEvent,
   PropsWithChildren,
@@ -33,10 +34,9 @@ import {
 import { createPortal } from 'react-dom';
 import { Drawer } from 'vaul';
 import { useMediaQuery } from './hooks';
+import { OverlayDepthProvider, useIsNestedInOverlay } from './overlay-depth';
 import { Tooltip } from './tooltip';
 import { keyboardAvoidanceStyle, useKeyboardInset } from '@/lib/hooks/use-keyboard-inset';
-import { OverlayDepthProvider, useIsNestedInOverlay } from './overlay-depth';
-import { useTranslations } from 'next-intl';
 
 export type PopoverProps = PropsWithChildren<{
   content: ReactNode | string;
@@ -93,11 +93,11 @@ function PopoverRoot({
   const keyboard = useKeyboardInset();
 
   // Am I already inside a bottom sheet? If so, presenting as a SECOND sheet
-  // stacks two drawers — overlapping scroll locks, a drag gesture that dismisses
-  // the wrong one, and an escape key that closes both or neither.
+  // stacks two drawers — overlapping scroll locks, a drag gesture that
+  // dismisses the wrong one, and an escape key that closes both or neither.
   //
-  // This is what `forceDropdown` was for. It is an opt-out every call site had to
-  // remember, in a situation the call site frequently cannot see: whether a
+  // This is what `forceDropdown` was for. It is an opt-out every call site had
+  // to remember, in a situation the call site frequently cannot see: whether a
   // Combobox is inside a Modal depends on where it was USED, not how it was
   // written. A shared form component has no idea.
   //
@@ -123,8 +123,15 @@ function PopoverRoot({
           </Drawer.Trigger>,
         )}
         <Drawer.Portal>
-          <Drawer.Overlay className="bg-bg-subtle bg-opacity-10 fixed inset-0 z-50 backdrop-blur" />
+          {/* ONE overlay. A second `<Drawer.Overlay />` used to be rendered
+              after `Drawer.Content` below, which stacked two backdrops: the
+              blur applied twice and the second element sat ABOVE the content in
+              paint order. */}
+          <Drawer.Overlay className="bg-bg-subtle/10 fixed inset-0 z-50 backdrop-blur" />
           <Drawer.Content
+            data-popover-drawer
+            // KEYBOARD AVOIDANCE. This sheet is bottom-anchored, so the soft
+            // keyboard opens directly over it. See use-keyboard-inset.ts.
             style={keyboardAvoidanceStyle(keyboard)}
             className="surface-popup-texture fixed right-0 bottom-0 left-0 z-50 mt-24 rounded-t-[10px]"
             onEscapeKeyDown={onEscapeKeyDown}
@@ -149,13 +156,12 @@ function PopoverRoot({
               <div className="bg-border-default my-3 h-1 w-12 rounded-full" />
             </div>
             <div className="bg-bg-default flex w-full items-center justify-center overflow-hidden pb-4 align-middle shadow-xl">
-              {/* This popover IS a bottom sheet. Anything inside it is nested, so
-                  a Combobox in here must present as a dropdown, not a second
+              {/* This popover IS a bottom sheet. Anything inside it is nested,
+                  so a Combobox in here must present as a dropdown, not a second
                   sheet. */}
               <OverlayDepthProvider>{content}</OverlayDepthProvider>
             </div>
           </Drawer.Content>
-          <Drawer.Overlay />
         </Drawer.Portal>
       </Drawer.Root>
     );
@@ -177,8 +183,8 @@ function PopoverRoot({
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           // A forceDropdown popover (a searchable Combobox inside a modal) is
-          // ALSO affected: the list hangs below the input and the keyboard covers
-          // it. Cap it to the visible viewport too.
+          // ALSO affected: the list hangs below the input and the keyboard
+          // covers it. Cap it to the visible viewport too.
           style={keyboardAvoidanceStyle(keyboard)}
           sideOffset={sideOffset}
           align={align}
@@ -208,8 +214,16 @@ function PopoverRoot({
 
 // ─── Menu / Item slots ─────────────────────────────────────────────
 
-/** Anything a menu can hold that takes focus. */
-const MENU_ITEM = '[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]';
+/**
+ * Anything a menu can hold that takes focus.
+ *
+ * Written with UNQUOTED attribute values — valid CSS, and deliberately not the
+ * same text as the `role="menuitem"` attribute on `Item` below. With the quoted
+ * spelling this constant was a second textual home for that attribute, so a
+ * guard asserting "Item renders role=menuitem" would have stayed green with the
+ * attribute deleted and only the selector left.
+ */
+const MENU_ITEM = '[role=menuitem],[role=menuitemradio],[role=menuitemcheckbox]';
 
 /**
  * Arrow keys, Home and End move focus between items, wrapping at the ends.

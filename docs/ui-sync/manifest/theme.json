@@ -4,18 +4,18 @@
     {
       "path": "src/components/theme/ThemeProvider.tsx",
       "inflectPath": "src/components/theme/ThemeProvider.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "67d5b03bcd24dbe6e8abb0502f6685eeee9fa9ab4bea0b5d6e0d048e0701e7a6"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "7cbb5a0f89f19163b0caeea9b8626d363b55776c1e43f9e8415eaa2d35d30826"
     },
     {
       "path": "src/components/theme/ThemeToggle.tsx",
       "inflectPath": "src/components/theme/ThemeToggle.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "0f46d000daac533074b5d4195970eda5d4e5873400fbe01c329d794e8cc7f038"
+      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "status": "vendored",
+      "sha256": "ef6c46b5bbf9f60e413d0fb0bc73e05f09a950c7f5748edaccf6078b3e8074a2"
     }
   ]
 }

@@ -29,7 +29,8 @@
       "title": "Нещо се обърка",
       "body": "Тази страница срещна грешка. Опитайте отново или се върнете назад.",
       "errorId": "ИД на грешка: {id}",
-      "goToDashboard": "Към таблото"
+      "goToDashboard": "Към таблото",
+      "tryAgain": "Опитай отново"
     },
     "filterGroups": {
       "attributes": "Атрибути",
@@ -120,7 +121,15 @@
       "mainNav": "Основна навигация",
       "is": "е",
       "isNot": "не е",
-      "popoverContentDesc": "Съдържание на изскачащ прозорец"
+      "popoverContentDesc": "Съдържание на изскачащ прозорец",
+      "dismiss": "Затвори",
+      "hidePassword": "Скрий паролата",
+      "showPassword": "Покажи паролата",
+      "options": "Опции",
+      "secondsRemaining": "Оставащо време: {seconds} сек.",
+      "undoWindow": "{label}: оставащо време",
+      "switchToDarkTheme": "Превключи към тъмна тема",
+      "switchToLightTheme": "Превключи към светла тема"
     },
     "calendar": {
       "prevYear": "Към предходната година",
@@ -697,6 +706,16 @@
     "viewerChanged": {
       "body": "В друг раздел сте влезли с друг профил. Показаното тук е за предишния.",
       "action": "Презареди"
+    }
+  },
+  "ui": {
+    "combobox": {
+      "searchPlaceholder": "Търсене…",
+      "placeholder": "Изберете…",
+      "emptyState": "Няма съвпадения",
+      "createLabel": "Създай \"{search}\"",
+      "createLabelEmpty": "Създай нова опция…",
+      "triggerLabel": "Изберете"
     }
   }
 }

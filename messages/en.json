@@ -29,7 +29,8 @@
       "title": "Something went wrong",
       "body": "This page ran into an error. Try again, or go back.",
       "errorId": "Error ID: {id}",
-      "goToDashboard": "Go to Dashboard"
+      "goToDashboard": "Go to Dashboard",
+      "tryAgain": "Try again"
     },
     "filterGroups": {
       "attributes": "Attributes",
@@ -120,7 +121,15 @@
       "mainNav": "Main",
       "is": "is",
       "isNot": "is not",
-      "popoverContentDesc": "Popover content"
+      "popoverContentDesc": "Popover content",
+      "dismiss": "Dismiss",
+      "hidePassword": "Hide password",
+      "showPassword": "Show password",
+      "options": "Options",
+      "secondsRemaining": "{seconds}s remaining",
+      "undoWindow": "{label} window",
+      "switchToDarkTheme": "Switch to dark theme",
+      "switchToLightTheme": "Switch to light theme"
     },
     "calendar": {
       "prevYear": "Go to previous year",
@@ -697,6 +706,16 @@
     "viewerChanged": {
       "body": "You signed in with another account in a different tab. This page is still for the previous one.",
       "action": "Reload"
+    }
+  },
+  "ui": {
+    "combobox": {
+      "searchPlaceholder": "Search…",
+      "placeholder": "Select…",
+      "emptyState": "No matches",
+      "createLabel": "Create \"{search}\"",
+      "createLabelEmpty": "Create new option…",
+      "triggerLabel": "Select"
     }
   }
 }

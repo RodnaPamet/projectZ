@@ -8,8 +8,8 @@
  * consumers (DataTable bodies, Combobox dropdowns, CardList grids,
  * future surfaces) never import react-window directly. If we replace
  * react-window with a different windowing engine later, the swap
- * happens in one file — and this migration is the proof that the
- * indirection earns its keep: react-window 2.x deleted every symbol
+ * happens in one file — and the v1 → v2 migration is the proof that
+ * the indirection earns its keep: react-window 2 deleted every symbol
  * the old implementation imported, and only this file changed shape.
  *
  * Contract — only THREE props are required:
@@ -64,8 +64,8 @@ export interface VirtualizedListProps {
   itemCount: number;
   /**
    * Pixel height of each row. Pass a number for uniform rows or a
-   * function `(index) => number` for rows whose height varies by index
-   * but is deterministic. For dynamically-MEASURED rows use
+   * function `(index) => number` for rows whose height varies by
+   * index but is deterministic. For dynamically-MEASURED rows use
    * react-window's `useDynamicRowHeight` directly.
    */
   itemSize: number | ((index: number) => number);
@@ -84,9 +84,10 @@ export interface VirtualizedListProps {
    */
   width?: number | string;
   /**
-   * Extra rows rendered above/below the visible window. Default 2;
-   * bump to ~5 for surfaces with fast keyboard navigation (combobox)
-   * so options pre-render before the user scrolls them into view.
+   * Extra rows rendered above/below the visible window. Default
+   * matches react-window's default of 2; bump to ~5 for surfaces
+   * with fast keyboard navigation (combobox) so options pre-render
+   * before the user scrolls them into view.
    */
   overscanCount?: number;
   /**
@@ -100,20 +101,20 @@ export interface VirtualizedListProps {
   className?: string;
   /** Class on the inner scroll viewport (the react-window div). */
   innerClassName?: string;
-  /** Accessible label, forwarded to the inner scroll viewport. */
+  /** Accessible label, forwarded to the outer wrapper. */
   'aria-label'?: string;
   /**
    * ARIA role for the inner scroll viewport.
    *
-   * react-window 2 puts `role="list"` on its scroller; v1 set no role at
-   * all. That default is wrong inside a surface with its own semantics —
-   * the combobox wraps this in `role="listbox"`, and a `list` between a
-   * `listbox` and its `option`s is invalid ARIA that breaks the option
-   * count screen readers announce.
+   * react-window 2 puts `role="list"` on its scroller; v1 set no role
+   * at all. That default is wrong inside a surface with its own
+   * semantics — the combobox wraps this in `role="listbox"`, and a
+   * `list` between a `listbox` and its `option`s is invalid ARIA that
+   * breaks the option count screen readers announce.
    *
-   * Consumers that own their semantics pass `"presentation"` to erase it.
-   * Left undefined, react-window's `list` stands, which is right for a
-   * plain scrolling list.
+   * Consumers that own their semantics pass `"presentation"` to erase
+   * it. Left undefined, react-window's `list` stands, which is right
+   * for a plain scrolling list.
    */
   role?: React.AriaRole;
   /** Optional `data-testid` for the outer wrapper. */
@@ -159,17 +160,17 @@ export interface VirtualizedListHandle {
   /**
    * Discard cached row-size measurements.
    *
-   * v1 had `VariableSizeList.resetAfterIndex(index)`, which dropped the
-   * cache from `index` onward. v2 has no imperative equivalent: it
-   * re-derives sizes when `rowProps` identity changes. So this bumps an
-   * epoch counter that flows through `rowProps`, which invalidates the
-   * whole cache.
+   * v1 had `VariableSizeList.resetAfterIndex(index)`, which dropped
+   * the cache from `index` onward. v2 has no imperative equivalent:
+   * it re-derives sizes when `rowProps` identity changes. So this
+   * bumps an epoch counter that flows through `rowProps`, which
+   * invalidates the whole cache.
    *
    * The `index` argument is therefore accepted and IGNORED — every
    * reset is a full reset. That is a strictly wider invalidation than
-   * v1's, so no caller can be under-invalidated by the change; the cost
-   * is recomputing sizes below `index`, which is a pure function call
-   * per row.
+   * v1's, so no caller can be under-invalidated by the change; the
+   * cost is recomputing sizes below `index`, which is a pure function
+   * call per row.
    */
   resetAfterIndex: (index: number) => void;
 }
@@ -200,9 +201,10 @@ export const VirtualizedList = React.forwardRef<VirtualizedListHandle, Virtualiz
       () => ({
         scrollToItem: (index, align) => {
           // v2 throws a RangeError rather than clamping. A combobox
-          // scrolling to its active index while the option list is being
-          // filtered underneath it hits this routinely, and an exception
-          // from a scroll effect would take the whole panel down.
+          // scrolling to its active index while the option list is
+          // being filtered underneath it hits this routinely, and an
+          // exception from a scroll effect would take the whole panel
+          // down.
           if (index < 0 || index >= itemCount) return;
           listRef.current?.scrollToRow({ index, align });
         },
@@ -257,15 +259,16 @@ export const VirtualizedList = React.forwardRef<VirtualizedListHandle, Virtualiz
           rowProps={rowProps}
           rowKey={rowKey}
           overscanCount={overscanCount}
-          // CONDITIONAL spread, not `role={role}`. react-window builds its
-          // root as `{ role: 'list', ...rest }`, so a `role` key present with
-          // an undefined value wins the spread and erases the default — the
-          // list would silently lose its role for every consumer that never
-          // asked to change it.
+          // CONDITIONAL spread, not `role={role}`. react-window builds
+          // its root as `{ role: 'list', ...rest }`, so a `role` key
+          // present with an undefined value wins the spread and erases
+          // the default — the list would silently lose its role for
+          // every consumer that never asked to change it.
           {...(role ? { role } : {})}
           // A numeric height here is read verbatim and suppresses the
-          // ResizeObserver path — the difference between a deterministic
-          // list and one that renders nothing under jsdom.
+          // ResizeObserver path — the difference between a
+          // deterministic list and one that renders nothing under
+          // jsdom.
           style={typeof height === 'number' ? { height } : undefined}
         />
       </div>

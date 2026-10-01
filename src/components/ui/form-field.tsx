@@ -12,7 +12,7 @@
  *
  *     <FormField
  *         label="Name"
- *         description="Shown on audit reports."
+ *         description="Shown on printed reports."
  *         error={errors.name}
  *         required
  *     >
@@ -36,6 +36,7 @@
  */
 
 import { cn } from '@/lib/cn';
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { Label } from './label';
 import { FormDescription } from './form-description';
@@ -50,16 +51,16 @@ export interface FormFieldProps {
   description?: React.ReactNode;
   /**
    * Contextual help surfaced via an inline info icon next to the
-   * label. Use this for non-obvious semantics (security policies,
+   * label. Use this for non-obvious semantics (security settings,
    * retention rules, scoring scales) that would clutter the form if
    * rendered as always-visible `description` text. A short sentence
    * is ideal; ReactNode is supported for richer content.
    *
    * Pick `hint` over `description` when the information is
    * *optional*: most users won't need it, but those who do need it
-   * really do — e.g. "fail-closed", "SCIM NameID format", MFA policy
-   * impact. Pick `description` when every user should read the copy
-   * every time.
+   * really do — the exact format a field expects, or what a setting
+   * does when it is left off. Pick `description` when every user
+   * should read the copy every time.
    */
   hint?: React.ReactNode;
   /** Error message. Renders `role="alert"` hint + invalid styling. */
@@ -87,6 +88,7 @@ const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
     { label, description, hint, error, required, className, orientation = 'vertical', children },
     ref,
   ) => {
+    const t = useTranslations('common.ui');
     const autoId = React.useId();
 
     // Preserve a caller-provided id on the child; otherwise derive
@@ -140,7 +142,9 @@ const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
               <InfoTooltip
                 content={hint}
                 aria-label={
-                  typeof label === 'string' ? `More info about ${label}` : 'More information'
+                  typeof label === 'string'
+                    ? t('moreInfoAbout', { title: label })
+                    : t('moreInformation')
                 }
                 iconClassName="h-3.5 w-3.5"
               />
