@@ -17,6 +17,7 @@
     "all": "All",
     "close": "Close",
     "submit": "Submit",
+    "retry": "Retry",
     "approve": "Approve",
     "reject": "Reject",
     "export": "Export",
@@ -26,7 +27,7 @@
     "language": "Language",
     "error": {
       "title": "Something went wrong",
-      "body": "This page encountered an error. You can try again or navigate to another section using the sidebar.",
+      "body": "This page ran into an error. Try again, or go back.",
       "errorId": "Error ID: {id}",
       "goToDashboard": "Go to Dashboard"
     },
@@ -685,6 +686,16 @@
   "accountKind": {
     "booking": {
       "playerAccountRequired": "Booking a court needs a player account. You are signed in with a club or coach account — sign in with your player account to book."
+    }
+  },
+  "panels": {
+    "sessionExpired": {
+      "body": "Your session has expired. Anything on screen may be out of date.",
+      "action": "Sign in again"
+    },
+    "viewerChanged": {
+      "body": "You signed in with another account in a different tab. This page is still for the previous one.",
+      "action": "Reload"
     }
   }
 }

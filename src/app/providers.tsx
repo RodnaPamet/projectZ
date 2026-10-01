@@ -18,9 +18,17 @@
  *     KeyboardShortcutProvider, so Escape-to-clear on a table selection and the
  *     date-range picker's shortcuts did nothing.
  *
+ *   - SWR — nothing read `/api/v1` through a shared cache. DataProvider
+ *     (src/lib/data/provider.tsx) is the one SWRConfig: its middleware stops
+ *     every revalidation once the session expires or the signed-in account
+ *     changes, and it never persists anything.
+ *
  * ═══ ORDER, OUTERMOST FIRST ═══
  *
- * ThemeProvider → KeyboardShortcutProvider → TooltipProvider → MotionConfig.
+ * DataProvider → ThemeProvider → KeyboardShortcutProvider → TooltipProvider →
+ * MotionConfig. DataProvider is outermost because it renders nothing and any
+ * provider's subtree may read data; it is a plain context, so its position
+ * costs nothing.
  * The Toaster sits INSIDE ThemeProvider so it can follow the theme, and after
  * the children so it paints above page content (it portals nothing — sonner
  * renders a fixed <section> in place).
@@ -35,9 +43,12 @@ import { useTranslations } from 'next-intl';
 import { useEffect, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 
+import { SessionExpiredNotice } from '@/components/layout/session-expired-notice';
 import { ThemeProvider, useTheme } from '@/components/theme/ThemeProvider';
 import { useIsBelowMd } from '@/components/ui/hooks/use-is-below-md';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { DataProvider } from '@/lib/data/provider';
+import { ViewerChangedNotice } from '@/lib/data/viewer-changed-notice';
 import { KeyboardShortcutProvider } from '@/lib/hooks/use-keyboard-shortcut';
 
 /**
@@ -107,25 +118,48 @@ function ThemeColorMetaSync() {
   return null;
 }
 
+/**
+ * The two "stop, this page is out of date" notices, mounted once.
+ *
+ * inflect's SessionExpiredNotice is vendored as shipped, and it is fixed at
+ * `top-0` with 12 px of padding — under the notch on an installed iPhone PWA.
+ * Its class list cannot change here (it is hash-locked to inflect), so the
+ * notch is added from outside: `display: contents` keeps this wrapper out of
+ * layout, and the child selector — an id beats a utility class — tops up the
+ * notice's own padding with the safe-area inset. The viewer notice is playerz's
+ * own and pads itself the same way.
+ */
+function StaleNotices() {
+  return (
+    <div className="contents [&>#session-expired-notice]:pt-[calc(0.75rem+env(safe-area-inset-top))]">
+      <SessionExpiredNotice />
+      <ViewerChangedNotice />
+    </div>
+  );
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider>
-      <ThemeColorMetaSync />
-      <KeyboardShortcutProvider>
-        <TooltipProvider>
-          {/*
-           * reducedMotion="user": every motion/react animation (the table, the
-           * charts, AnimatedSizeContainer) drops its transform/layout animation
-           * when the OS asks for reduced motion. globals.css flattens CSS
-           * durations, but it cannot reach a JS-driven spring — this is the JS
-           * half of the same promise (tests/guardrails/motion-safety.test.ts).
-           */}
-          <MotionConfig reducedMotion="user">
-            {children}
-            <AppToaster />
-          </MotionConfig>
-        </TooltipProvider>
-      </KeyboardShortcutProvider>
-    </ThemeProvider>
+    <DataProvider>
+      <ThemeProvider>
+        <ThemeColorMetaSync />
+        <KeyboardShortcutProvider>
+          <TooltipProvider>
+            {/*
+             * reducedMotion="user": every motion/react animation (the table, the
+             * charts, AnimatedSizeContainer) drops its transform/layout animation
+             * when the OS asks for reduced motion. globals.css flattens CSS
+             * durations, but it cannot reach a JS-driven spring — this is the JS
+             * half of the same promise (tests/guardrails/motion-safety.test.ts).
+             */}
+            <MotionConfig reducedMotion="user">
+              <StaleNotices />
+              {children}
+              <AppToaster />
+            </MotionConfig>
+          </TooltipProvider>
+        </KeyboardShortcutProvider>
+      </ThemeProvider>
+    </DataProvider>
   );
 }
