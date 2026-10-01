@@ -38,6 +38,10 @@
       "description": "Called by infrastructure, not by a person. EXCLUDED from the generated client — see openapi/README.md."
     },
     {
+      "name": "Me",
+      "description": "The signed-in person, across every club: their account kind and landing reason, and their own bookings everywhere. Addresses no club, so no slug and no permission — only a session."
+    },
+    {
       "name": "Payments",
       "description": "Stripe Checkout for a booking. Money is always integer cents."
     },
@@ -2846,6 +2850,167 @@
           }
         }
       }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Who am I, and what kind of account is this",
+        "description": "The signed-in account and where it lands, read from the DATABASE on every call — never from token claims, so an account decided or a club suspended since sign-in is reflected at once.\n\nThe club-free twin of `GET /t/{slug}/me`: that one answers \"what am I at THIS club\", this one what a client needs before it has a club to ask about. Call it after sign-in to choose the first screen: map `landing.reason` to a screen of your own. The server's web path for that landing is deliberately not sent — it is the web's routing, not a contract.\n\nNot public, and no permission applies: it addresses no club.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded (a password change, \"sign out everywhere\"). The edge lets this path through, because it names no club, and the handler refuses it. Refresh, and sign in again if the refresh also fails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's (another account signed in from another tab). Nothing was read. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings": {
+      "get": {
+        "operationId": "listMyBookings",
+        "summary": "My bookings at every club",
+        "description": "The caller's OWN bookings across every club — the list the web `/me/bookings` page renders, through the same use case. `GET /t/{slug}/bookings` lists one club's; this needs no slug and no list of clubs, which a native token does not carry.\n\nScoped to the session's user in the SQL `WHERE` (`bookedByUserId`); nothing in the request can point it at anybody else. Each item carries its `clubSlug`, which is what the per-club booking actions take.\n\nKEYSET pagination, newest `startTs` first. `nextCursor` is opaque; pass it back verbatim as `cursor`. Not rate-limited (GETs never are), so there is no 429.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size. Clamped server-side: anything absent, non-numeric, or less than 1 becomes 20; anything above 100 becomes 100. An out-of-range value is silently clamped, never rejected.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque keyset cursor — the `nextCursor` from the previous page, passed back verbatim. Omit for the first page. A cursor that no longer resolves to a row yields an empty page rather than an error.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of the caller's bookings.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyBookingPageEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded (a password change, \"sign out everywhere\"). The edge lets this path through, because it names no club, and the handler refuses it. Refresh, and sign in again if the refresh also fails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's (another account signed in from another tab). Nothing was read. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2986,6 +3151,7 @@
         "required": [
           "id",
           "slug",
+          "clubSlug",
           "name",
           "city",
           "country",
@@ -3003,6 +3169,11 @@
           "slug": {
             "type": "string",
             "description": "Unique only WITHIN a tenant (`@@unique([tenantId, slug])`), so two clubs may share one. Not addressable on the public API."
+          },
+          "clubSlug": {
+            "type": "string",
+            "description": "The slug of the CLUB that owns this venue — the `{slug}` every `/t/{slug}/…` route takes, e.g. `POST /t/{slug}/bookings`. NOT the venue's own `slug`: a venue slug is unique only within its club, a club slug everywhere, and the two coincide only when a club happens to name its venue after itself. A venue whose club row is gone is never returned (`venue.tenantId` is not a foreign key), so this is never empty.",
+            "examples": ["slot-club-sofia"]
           },
           "name": {
             "type": "string"
@@ -3070,6 +3241,7 @@
         "required": [
           "id",
           "slug",
+          "clubSlug",
           "name",
           "city",
           "country",
@@ -3094,6 +3266,11 @@
           "slug": {
             "type": "string",
             "description": "Unique only within a tenant; not a public identifier."
+          },
+          "clubSlug": {
+            "type": "string",
+            "description": "The slug of the CLUB that owns this venue — the `{slug}` every `/t/{slug}/…` route takes, e.g. `POST /t/{slug}/bookings`. NOT the venue's own `slug`: a venue slug is unique only within its club, a club slug everywhere, and the two coincide only when a club happens to name its venue after itself. A venue whose club row is gone is never returned (`venue.tenantId` is not a foreign key), so this is never empty.",
+            "examples": ["slot-club-sofia"]
           },
           "name": {
             "type": "string"
@@ -4429,6 +4606,263 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/PlatformModerationResolution"
+          }
+        }
+      },
+      "AccountKind": {
+        "type": ["string", "null"],
+        "title": "AccountKind",
+        "description": "What the account IS (#263): `PLAYER`, `CLUB` (it runs exactly one club) or `COACH`. One account, one kind — doing two of these takes two accounts, and nothing switches between them. `null` is UNDECIDED: an account that held club roles at several clubs, or a coach role, when kinds arrived, and that the migration would not decide by rule. Typed as an open string for the same reason as `Booking.status`: treat an unrecognised value as undecided rather than failing the decode.",
+        "examples": ["PLAYER"]
+      },
+      "LandingReason": {
+        "type": "string",
+        "title": "LandingReason",
+        "description": "Why the account lands where it does, for the client to map to a screen of its own. The server's web path is deliberately NOT sent.\n\n- `player` — a PLAYER account: the player UI.\n- `club` — a CLUB account whose club is live: that club's admin UI. `landing.club` names it.\n- `club-unavailable` — a CLUB account whose one club is suspended or closed, or whose membership there ended. `landing.club` is null. Not the player UI: a club account is not a player.\n- `coach` — a COACH account. There is no coach UI yet, on the web or anywhere, so today the web lands it on the player UI and `landing.club` is null.\n- `undecided` — `accountKind` is null. Lands on its highest-ranked live club (OWNER over MANAGER over STAFF, then the oldest), named in `landing.club`; with none, the player UI and `landing.club` null.\n\nAn open string: treat an unrecognised value as `player`.",
+        "examples": ["club"]
+      },
+      "MeLandingClub": {
+        "type": "object",
+        "title": "MeLandingClub",
+        "description": "The club the account lands on, and the role it holds there.",
+        "required": ["slug", "name", "role"],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "The club's slug, for `/t/{slug}/…`."
+          },
+          "name": {
+            "type": "string",
+            "description": "The club's display name."
+          },
+          "role": {
+            "type": "string",
+            "description": "The role held at that club: `OWNER`, `MANAGER` or `STAFF` (or `COACH`, once a coach home exists). An open string."
+          }
+        }
+      },
+      "Me": {
+        "type": "object",
+        "title": "Me",
+        "description": "The signed-in account, from the database — never from token claims.",
+        "required": ["id", "name", "email", "locale", "accountKind", "landing"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User id."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Display name. Null when the account never gave one."
+          },
+          "email": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string",
+            "description": "`bg` or `en`. An open string."
+          },
+          "accountKind": {
+            "$ref": "#/components/schemas/AccountKind"
+          },
+          "landing": {
+            "type": "object",
+            "required": ["reason", "club"],
+            "properties": {
+              "reason": {
+                "$ref": "#/components/schemas/LandingReason"
+              },
+              "club": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/MeLandingClub"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when `reason` is `club`, or `undecided` with a live club; null otherwise."
+              }
+            }
+          }
+        }
+      },
+      "MeEnvelope": {
+        "type": "object",
+        "title": "MeEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Me"
+          }
+        }
+      },
+      "MyBooking": {
+        "type": "object",
+        "title": "MyBooking",
+        "description": "One of the caller's own bookings, at any club: every field of `Booking`, plus the club it belongs to and where the caller stands on reviewing its venue. Produced by `toMyBookingDto` in `src/app/api/v1/_lib/dto.ts` — the same mapper the web page's server render is to use, so the two cannot drift. Flat rather than `allOf: [Booking, …]`, for the reason NOTES.md gives for `VenueDetail`.",
+        "required": [
+          "id",
+          "status",
+          "startTs",
+          "endTs",
+          "totalCents",
+          "currency",
+          "expiresAt",
+          "cancelledAt",
+          "createdAt",
+          "resource",
+          "venue",
+          "clubSlug",
+          "venueReview",
+          "canReview"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Booking id. Also the value used as a pagination cursor."
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle state. Known values: `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `NO_SHOW`. Deliberately typed as an open string rather than a closed enum — a shipped iOS binary decoding a closed enum would fail outright on a status added later, and this codebase cannot hotfix a binary for a week. Treat an unrecognised value as \"unknown\" rather than failing the decode."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start instant, RFC 3339 in UTC with NO fractional seconds (e.g. `2026-09-24T09:00:00Z`). Swift's default `.iso8601` strategy REJECTS fractional seconds, which is why the server strips them."
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End instant, RFC 3339 UTC with no fractional seconds."
+          },
+          "totalCents": {
+            "type": "integer",
+            "description": "The full booking price in integer CENTS of `currency`. Never a float, never a string. Computed server-side at creation and written down; it does not change afterwards."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code for `totalCents`, e.g. `EUR` (the column default). Upper-case."
+          },
+          "expiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When a PENDING booking stops holding its slot — 15 minutes after creation. `null` once the booking is no longer merely held (confirmed, cancelled). A client should count down against this and stop offering payment when it passes."
+          },
+          "cancelledAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the booking was cancelled, or `null` if it was not."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the booking was created. RFC 3339 UTC, no fractional seconds."
+          },
+          "resource": {
+            "type": "object",
+            "description": "The court/pitch/table booked. Trimmed deliberately: no price, no status, no tenant id.",
+            "required": ["id", "name", "sport"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Resource id — the same value passed as `resourceId` when creating a booking."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name, e.g. `Court 1`."
+              },
+              "sport": {
+                "type": "string",
+                "description": "Sport code for the resource."
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "description": "The club/venue, lifted out of the resource so the wire shape survives a schema change that moves the relation.",
+            "required": ["id", "name", "timezone"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Venue id."
+              },
+              "name": {
+                "type": "string",
+                "description": "Venue display name."
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone, e.g. `Europe/Sofia`. The client needs it to render `startTs` as local wall-clock time rather than doing UTC arithmetic."
+              }
+            }
+          },
+          "clubSlug": {
+            "type": ["string", "null"],
+            "description": "The club's slug — what `POST /t/{slug}/bookings/{id}/cancel`, `/checkout` and `/review` take for this booking. Null only if the club row is gone; such a booking can be shown and not acted on."
+          },
+          "venueReview": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["id", "bookingId", "rating", "status"],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "bookingId": {
+                    "type": ["string", "null"],
+                    "description": "The booking it was left against — at most one review per venue, so it may be ANOTHER of the caller's bookings there."
+                  },
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "`PUBLISHED`, `PENDING_REVIEW` or `REJECTED`. An open string."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caller's own review of this booking's VENUE, or null if they have not written one."
+          },
+          "canReview": {
+            "type": "boolean",
+            "description": "Whether `POST /t/{clubSlug}/bookings/{id}/review` would be accepted now: the booking is COMPLETED and the venue has no review from the caller yet. Decided by the server so no client restates the rule."
+          }
+        }
+      },
+      "MyBookingPage": {
+        "type": "object",
+        "title": "MyBookingPage",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "The caller's bookings at every club, newest `startTs` first. May be empty.",
+            "items": {
+              "$ref": "#/components/schemas/MyBooking"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "OPAQUE. Pass back verbatim as the `cursor` query parameter to fetch the next page; never parse it. `null` means this is the last page. (It is currently the last item's `id`, but that is an implementation detail a client must not rely on.)"
+          }
+        }
+      },
+      "MyBookingPageEnvelope": {
+        "type": "object",
+        "title": "MyBookingPageEnvelope",
+        "description": "`{\"data\":{\"items\":[...],\"nextCursor\":...}}` — doubly nested, like every v1 page.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MyBookingPage"
           }
         }
       }

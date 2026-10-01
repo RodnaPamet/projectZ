@@ -111,6 +111,14 @@ const ALLOWED: Record<string, string> = {
     'held no club. The same read auth.ts makes at sign-in. Scoped to userId from a verified ' +
     'session, never the request, and it writes nothing: the switcher and its lastContext ' +
     'column are gone. NOT asPlatformAdmin: nobody is reaching into a club that is not theirs.',
+  'src/app-layer/usecases/me.ts':
+    '`GET /api/v1/me` reports the account kind and the landing reason (#252, #263) from ' +
+    'the same rows landing.ts reads — the account and its club-role memberships — in ONE ' +
+    'transaction, so the kind and the reason cannot come from two snapshots. Superuser for ' +
+    "landing.ts's reason: `tenant_membership` is FORCE RLS keyed on app.tenant_id alone, and " +
+    'an unbound read returns ZERO ROWS, which would report an owner as having no club. ' +
+    'Scoped to userId from a verified session, never the request; it writes nothing. NOT ' +
+    'asPlatformAdmin: nobody is reaching into a club that is not theirs.',
   'src/app-layer/usecases/my-bookings.ts':
     "a person's own bookings span every club, and `booking` carries a tenant-scoped RLS " +
     'policy naming only app.tenant_id — so `asUser` returns ZERO ROWS, which reads as "you ' +
@@ -120,7 +128,9 @@ const ALLOWED: Record<string, string> = {
     "token's TRUNCATED membership list, so a player with many clubs would silently lose the " +
     'tail of their own bookings. In the same transaction, bounded by that page: the slugs of ' +
     'those bookings’ clubs, and the reviews the caller AUTHORED at those venues — again by ' +
-    'the session-derived id, so it can only ever return their own.',
+    'the session-derived id, so it can only ever return their own. Reached from the page and, ' +
+    'since T16, from `GET /api/v1/me/bookings`: the same read, the same session-derived id, ' +
+    'with only a cursor and a clamped limit taken from the request.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {

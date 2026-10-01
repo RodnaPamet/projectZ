@@ -43,6 +43,7 @@ filter:
     - Auth
     - Bookings
     - Devices
+    - Me
     - Payments
     - Payouts
     - Realtime

@@ -51,6 +51,7 @@ a reader would reasonably assume.
 - The existing `openapi/playerz-v1.json` is a bare skeleton: `{openapi, info, paths:{}}` with no `components` at all. `#/components/schemas/Error` and the `bearerAuth` security scheme do not exist yet — whoever assembles the document must add them, or every `$ref` here dangles. `tests/guardrails/openapi-coverage.test.ts` checks route coverage plus the presence of `responses` and `security`; it does not resolve `$ref`s, so a dangling one would pass the guardrail and fail codegen.
 - Slots overlap by design: a resource with `slotStepMinutes: 30` and `minBookingMinutes: 60` emits 09:00-10:00, 09:30-10:30, ... These are candidate start times, not a partition of the day. A client rendering them as a non-overlapping grid will double-count.
 - An abandoned checkout holds its slot indefinitely: PENDING bookings block, `expiresAt` exists but nothing sweeps it, and the route deliberately does not filter expired PENDINGs out. So `available: false` / `blockedReason: "booked"` can mean "someone abandoned this an hour ago", and there is no field distinguishing that from a confirmed booking.
+- `clubSlug` (T16) is on `VenueSummary` and `VenueDetail`, and it is the value `POST /t/{slug}/bookings` takes — NOT `slug`, which is the VENUE's slug and unique only within its club. Before it existed no public DTO carried a club slug, and the iOS client sent the venue slug to the booking route (VenueDetailModel.swift, `book`), which works only while a club names its venue after itself. `GET /venues/near` (`NearVenue`) still has no `clubSlug`: open the venue with `GET /venues/{id}` before booking. `venue.tenantId` is not a foreign key, so a venue can outlive its club row; such a venue is left out of `GET /venues` (a page may then hold one fewer than `limit`; the cursor is unaffected) and is a 404 on `GET /venues/{id}`.
 
 ## bookings
 
@@ -92,6 +93,16 @@ a reader would reasonably assume.
 - Rule 4 (money as integer cents) is not exercised by either of these two operations — neither returns a monetary value.
 - Neither operation is versioned in its path segment here; the spec path is /t/{slug}/... while the real route is /api/v1/t/{slug}/..., so the document's servers entry must carry the /api/v1 prefix for the generated client to hit the right URL.
 - GET /me carries no 429: resolveRateLimitScope returns null for any non-mutating method before it reads the options, so reads are not rate-limited by this wrapper at all.
+
+## me
+
+- `GET /me` and `GET /me/bookings` (T16) address NO club: no slug, no permission, only a session. The edge passes them (no slug in the path) and the handler answers 401 itself, with `requestId`, through the error envelope — unlike `GET /t/{slug}/me`, whose 401 is hand-built.
+- `GET /me` sends `landing.reason` and NOT the web path the server lands on. Map the reason to a screen of your own; the web's paths (`/t/{slug}/admin/calendar`, `/me/bookings`, `/`) are its routing and will move. The decision is the one `/start` and the site header use (`decideLanding`), read in one transaction with the account, so `accountKind` and `landing.reason` always agree: PLAYER→`player`, CLUB→`club` or `club-unavailable`, COACH→`coach`, null→`undecided`.
+- `accountKind: null` is UNDECIDED, not "unknown": an account that held club roles at several clubs, or a coach role, when kinds arrived (#263). Its `landing.club` is its highest-ranked live club (OWNER over MANAGER over STAFF, then oldest), or null.
+- `reason: "coach"` has `landing.club: null` today because there is no coach UI anywhere; the web lands a coach on the player UI. When a coach home exists the club it lands on will appear here with `role: "COACH"`.
+- `GET /me/bookings` is `listMyBookings`, the use case behind the web `/me/bookings` page, mapped by `toMyBookingDto` — the mapper the page's server render is to share. Each item is a `Booking` plus `clubSlug` (what cancel, checkout and review take for that booking), `venueReview` (the caller's one review of that VENUE, possibly left against another booking there) and `canReview` (COMPLETED and no review of the venue yet — decided server-side).
+- Paging: newest `startTs` first, keyset by booking id. `limit` is clamped to 1..100, default 20; `limit=abc` and `limit=0` are the default, not a 400. A cursor that no longer names a booking yields an empty page.
+- `409 VIEWER_CHANGED` is declared on both because both are read by the web's client data layer with `x-playerz-viewer`; a native client never sends that header and never gets it.
 
 ## sso
 

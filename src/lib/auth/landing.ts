@@ -27,9 +27,9 @@ import type { AccountKind, MembershipStatus, Role, TenantStatus } from '@prisma/
  *
  * No database, no request, no Node-only import — the only import is a TYPE,
  * which compiles away. `/start` asks it after a sign-in, the site header asks
- * it for the link back to your club, and the iOS client will need the same
- * decision over the API (#252). The reads that feed it live in
- * `@/app-layer/usecases/landing`.
+ * it for the link back to your club, and `GET /api/v1/me` gives the iOS client
+ * its reason, without the href (#252, `@/app-layer/usecases/me`). The reads
+ * that feed it live in `@/app-layer/usecases/landing`.
  */
 
 /**
