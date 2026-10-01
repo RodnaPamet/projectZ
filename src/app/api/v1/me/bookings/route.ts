@@ -42,7 +42,7 @@ async function handler(req: NextRequest) {
   });
 
   return page(
-    items.flatMap((b) => (b ? [toMyBookingDto(b)] : [])),
+    items.map((b) => toMyBookingDto(b)),
     nextCursor,
   );
 }
