@@ -120,6 +120,45 @@ describe('vocabulary (the upstream portability rules)', () => {
     ).toEqual([]);
   });
 
+  // #300: a test or automation hook is a widget name, not the compliance noun.
+  it('does not flag data-* attribute values or test-id lookups', () => {
+    expect(check(`<nav data-testid="pagination-controls" />`)).toEqual([]);
+    expect(check(`<nav data-testid={\`row-\${id}-controls\`} data-section={'risks'} />`)).toEqual(
+      [],
+    );
+    expect(check(`const p = { 'data-testid': 'pagination-controls' };`)).toEqual([]);
+    expect(
+      check(
+        `expect(screen.getByTestId('pagination-controls')).toBeVisible();`,
+        'tests/rendered/pagination.test.tsx',
+      ),
+    ).toEqual([]);
+    expect(
+      check(
+        `await page.locator('[data-testid="pagination-controls"]').click();`,
+        'tests/e2e/pagination.spec.ts',
+      ),
+    ).toEqual([]);
+    expect(check('<div data-testid="pagination-controls"></div>', 'docs/fixture.html')).toEqual([]);
+  });
+
+  it('still flags the compliance nouns everywhere else (#300 negative controls)', () => {
+    expect(check(`// lists the controls for this framework\nconst a = 1;`)).toEqual([
+      'vocabulary:1:controls',
+    ]);
+    expect(check(`router.push('/controls');`)).toEqual(['vocabulary:1:controls']);
+    expect(check(`const t = useTranslations('controls.list');`)).toEqual(['vocabulary:1:controls']);
+    expect(rules(`export const H = () => <h2>Risks</h2>;`)).toContain('vocabulary');
+    expect(check(`<h2>{t('risks.title')}</h2>`)).toEqual(['vocabulary:1:risks']);
+    expect(check('## Risks\n\nOpen risks by owner.', 'docs/x.md')).toEqual([
+      'vocabulary:1:Risks',
+      'vocabulary:3:risks',
+    ]);
+    // the exemption is the attribute VALUE, not any string near one
+    expect(check(`<a data-testid="nav" href="/controls">x</a>`)).toEqual(['vocabulary:1:controls']);
+    expect(check(`<div className="pagination-controls" />`)).toEqual(['vocabulary:1:controls']);
+  });
+
   it('is not fooled by // inside JSX text or a URL', () => {
     expect(check(`<a href="https://example.com/evidence">docs</a>`)).toEqual([
       'vocabulary:1:evidence',
@@ -148,6 +187,28 @@ describe('hand-rolled-menu (no-hand-rolled-menus)', () => {
     }
     expect(check(`<div className="before:absolute before:bottom-full" />`)).toEqual([]);
     expect(check(`// never write fixed inset-0 by hand\nconst a = 1;`)).toEqual([]);
+  });
+
+  // #300: a ratchet that counts bespoke overlays has to quote the literal it counts.
+  it('lets a test file quote fixed inset-0, and only that rule', () => {
+    const ratchet = `const BESPOKE = /fixed inset-0 bg-black/g;\nexpect(count('fixed inset-0 bg-black')).toBe(0);`;
+    expect(check(ratchet, 'tests/unit/modal-primitive.test.ts')).toEqual([]);
+    expect(check(ratchet, 'src/components/ui/modal-primitive.test.ts')).toEqual([]);
+    expect(
+      rules(`<div className="absolute top-full">menu</div>`, 'tests/unit/x.test.tsx'),
+    ).toContain('hand-rolled-menu');
+  });
+
+  it('still flags fixed inset-0 in a non-primitive src component', () => {
+    expect(
+      check(
+        `<div className="fixed inset-0" onClick={close} />`,
+        'src/components/venues/filters.tsx',
+      ),
+    ).toEqual(['hand-rolled-menu:1:fixed inset-0 click-away layer']);
+    expect(
+      check(`<div className="fixed inset-0" />`, 'src/components/ui/tests-banner.tsx'),
+    ).toEqual(['hand-rolled-menu:1:fixed inset-0 click-away layer']);
   });
 });
 
