@@ -52,10 +52,10 @@
     {
       "path": "src/components/layout/session-expired-notice.tsx",
       "inflectPath": "src/components/layout/session-expired-notice.tsx",
-      "baseSha": "af4ec016d33970310ead78601aa088f73c069a34",
-      "sha": "af4ec016d33970310ead78601aa088f73c069a34",
+      "baseSha": "0060a2f6f85692b6deb189ea5a028e911d40dd9a",
+      "sha": "0060a2f6f85692b6deb189ea5a028e911d40dd9a",
       "status": "vendored",
-      "sha256": "50e757e10c28d31c0d1945318c4653be004c7791436c0480887ab59e0d5e783a"
+      "sha256": "87e880a42e31b2824e3906e541b0a6d4e873a4bb0e90181491840cb40c0c4d45"
     }
   ]
 }
