@@ -10,6 +10,8 @@ import { checkSession } from '@/lib/auth/sessions';
 import { AppError, ForbiddenError, UnauthorizedError } from '@/lib/errors/types';
 import { requiredPermission } from '@/lib/security/route-permissions';
 
+import { assertOwnOriginForCookieWrites, assertViewer } from './request-guard';
+
 /**
  * Build the one object the app layer is allowed to trust.
  *
@@ -125,6 +127,11 @@ export async function contextFromRequest(
   req: NextRequest,
   input: ContextInput,
 ): Promise<RequestContext> {
+  // Before the token is even read: a cookie-authenticated write from another
+  // origin is refused on the headers alone, so a forged request costs no
+  // decrypt and no database read. See request-guard.ts.
+  assertOwnOriginForCookieWrites(req);
+
   // Accepts a session cookie OR `Authorization: Bearer <jwe>` — next-auth's
   // getToken falls back to the header when no cookie is present, which is what
   // lets a native client reuse this pipeline unchanged.
@@ -242,6 +249,13 @@ export async function contextFromRequest(
     if (needed) throw new UnauthorizedError('Authentication required');
     return anonymous;
   }
+
+  // The page that sent this was rendered for one account; the cookie may now be
+  // another's (#263). Checked once the session is known to be live, and before
+  // the membership read, so a stale tab costs no further query. A revoked or
+  // absent session returned `anonymous` above — that is the route's 401, not a
+  // viewer change. See request-guard.ts.
+  assertViewer(req, raw.sub);
 
   // Which Entra-gated clubs this sign-in proved it may reach. Read once, and
   // carried on every signed-in branch: it only ever lifts the gate where the

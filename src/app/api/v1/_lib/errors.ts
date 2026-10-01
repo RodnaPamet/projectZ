@@ -102,6 +102,15 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // You cannot review a venue you never visited. A precondition on the actor,
   // not on the payload — hence 403 rather than 400.
   NoProofOfVisitError: { status: 403, code: 'NO_PROOF_OF_VISIT' },
+  // A write that carried the session cookie from another origin — CSRF, or a
+  // sibling subdomain SameSite=Lax lets through. Not retryable from there; the
+  // native client is unaffected because it sends a Bearer token and no cookie.
+  // See request-guard.ts. clientMessage: the internal one names the header.
+  CrossSiteRequestError: {
+    status: 403,
+    code: 'CROSS_SITE_REQUEST',
+    clientMessage: 'Cross-site requests with a session cookie are refused.',
+  },
   // Booking a court needs a PLAYER account (#263): a club or coach account
   // books with a separate one. About the caller's account, never the club, so
   // the same answer at every slug. No clientMessage: the use case already wrote
@@ -183,6 +192,10 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   AlreadyReviewedError: { status: 409, code: 'ALREADY_REVIEWED' },
   // Another moderator decided the case first. Refetch the queue; it is gone.
   CaseAlreadyResolvedError: { status: 409, code: 'CASE_ALREADY_RESOLVED' },
+  // The page was rendered for another account than the one signed in now
+  // (#263: a player and a club account in one browser). The request was fine;
+  // the cure is a reload. Sent only to a client that set `x-playerz-viewer`.
+  ViewerChangedError: { status: 409, code: 'VIEWER_CHANGED' },
   PayoutsNotEnabledError: { status: 409, code: 'PAYOUTS_NOT_ENABLED' },
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
 

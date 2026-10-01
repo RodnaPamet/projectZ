@@ -16,7 +16,13 @@ const mockCheck = checkSession as unknown as jest.Mock;
 const mockMembership = membershipContext as unknown as jest.Mock;
 
 /** A read at club-a — no permission required, so only the session is in question. */
-const req = { nextUrl: new URL('https://playerz.bg/api/v1/t/club-a/me'), method: 'GET' } as never;
+const req = {
+  nextUrl: new URL('https://playerz.bg/api/v1/t/club-a/me'),
+  method: 'GET',
+  // A native caller: no Sec-Fetch-Site, no viewer header, no cookie jar entries.
+  headers: { get: () => null },
+  cookies: { getAll: () => [] },
+} as never;
 const BASE = { requestId: 'req_1' };
 
 const signedIn = {
@@ -87,6 +93,8 @@ describe('contextFromRequest session enforcement', () => {
     const mutation = {
       nextUrl: new URL('https://playerz.bg/api/v1/t/club-a/bookings/b1/cancel'),
       method: 'POST',
+      headers: { get: () => null },
+      cookies: { getAll: () => [] },
     } as never;
 
     await expect(contextFromRequest(mutation, { ...BASE, slug: 'club-a' })).rejects.toMatchObject({
