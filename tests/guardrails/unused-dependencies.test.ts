@@ -84,7 +84,6 @@ const CONFIG = [
  * the way a plain allowlist does.
  */
 const KNOWN_UNUSED: Record<string, string> = {
-  '@tanstack/react-query': 'no data-fetching layer written yet',
   bullmq: 'the job queue the notification and sweep docs describe; nothing enqueues',
   'canvas-confetti': 'gamification UI, unbuilt',
   'driver.js': 'onboarding tour, unbuilt',
@@ -92,7 +91,6 @@ const KNOWN_UNUSED: Record<string, string> = {
   'p-retry': 'no retry wrapper written',
   'react-map-gl': 'the React wrapper for the venue map, also unbuilt',
   resend: 'the mailer for split payment links and booking email; no sender exists',
-  superjson: 'no RPC boundary that needs it',
 };
 
 /**
@@ -230,8 +228,11 @@ describe('the KNOWN_UNUSED ratchet only shrinks', () => {
 
   it('the list has not grown', () => {
     // A number, deliberately. A new unimported dependency has to come past a
-    // human editing this line downward-only.
-    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(9);
+    // human editing this line downward-only. 9 → 7 when the client data layer
+    // (src/lib/data) chose SWR, which inflect already uses: @tanstack/react-query
+    // was the layer nobody wrote, and superjson the RPC boundary v1's JSON
+    // envelope made unnecessary. Both were removed, not explained.
+    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(7);
   });
 });
 

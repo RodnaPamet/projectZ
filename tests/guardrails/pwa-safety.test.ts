@@ -189,6 +189,72 @@ describe('a push payload carries no private content', () => {
   });
 });
 
+/**
+ * Rule 1, for the client data cache.
+ *
+ * SWR's cache is an in-memory Map that dies with the tab. Its `provider` option
+ * can swap that for anything — and the documented recipe is a Map seeded from
+ * localStorage and written back on `beforeunload`. That is the service-worker
+ * mistake again, one layer up: the cache is per DEVICE, so the next person to
+ * sign in on a shared phone or the club's front-desk laptop is shown the
+ * previous account's bookings, from disk, before a single request is made.
+ *
+ * src/lib/data/provider.tsx sets no provider. These keep it that way.
+ */
+describe('the client data cache is never persisted', () => {
+  const PERSISTENCE_PACKAGES = [
+    '@tanstack/react-query-persist-client',
+    '@tanstack/query-sync-storage-persister',
+    '@tanstack/query-async-storage-persister',
+    'swr-persist',
+    'swr-sync-storage',
+    'redux-persist',
+    'localforage',
+    'idb-keyval',
+    'idb',
+    'dexie',
+  ];
+
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+
+  const swrFiles = SOURCE_FILES.filter((f) =>
+    /from\s+['"]swr(?:\/[^'"]*)?['"]/.test(readFileSync(f, 'utf8')),
+  );
+
+  it('found the code that configures SWR', () => {
+    expect(swrFiles).toContain('src/lib/data/provider.tsx');
+  });
+
+  it('no module that uses SWR touches browser storage', () => {
+    const offenders = swrFiles.filter((f) =>
+      /\b(?:localStorage|sessionStorage|indexedDB)\b/.test(code(readFileSync(f, 'utf8'))),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('no SWR configuration sets a cache provider', () => {
+    // Tests give each case `provider: () => new Map()` — in memory, and
+    // outside src/. In src/ there is no reason to set one at all.
+    const offenders = swrFiles.filter((f) => /\bprovider\s*:/.test(code(readFileSync(f, 'utf8'))));
+    expect(offenders).toEqual([]);
+  });
+
+  it('no persistence package is installed', () => {
+    const installed = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
+    expect(installed.filter((p) => PERSISTENCE_PACKAGES.includes(p))).toEqual([]);
+  });
+
+  it('the storage rule can fail', () => {
+    expect(/\b(?:localStorage|sessionStorage|indexedDB)\b/.test('localStorage.getItem(k)')).toBe(
+      true,
+    );
+    expect(code('// localStorage would be wrong here')).not.toContain('localStorage');
+  });
+});
+
 describe('a dead push subscription is DELETED, not retried forever', () => {
   it('404 and 410 are treated as permanent', () => {
     const push = code(readFileSync('src/lib/push/send.ts', 'utf8'));
