@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import { resolveLanding } from '@/app-layer/usecases/landing';
+import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import { signedInIdentity } from '@/lib/auth/page-context';
 
@@ -112,12 +113,14 @@ export async function SiteHeader() {
             <SignOutButton />
           </>
         ) : (
-          <Link
+          // Fully prefetched (#290): anonymous only, the same 1.4 KB for
+          // everyone, and the first visit then skips the reveal throttle.
+          <PublicPrefetchLink
             href="/login"
             className="border-border-default inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium"
           >
             {tLogin('title')}
-          </Link>
+          </PublicPrefetchLink>
         )}
       </nav>
     </header>
