@@ -36,7 +36,8 @@ quotes, Tailwind class order), byte for byte. To change one:
 3. **Commit the files together with their manifest rows.** `copy.mjs` names any import the copied
    files need that playerz does not have yet: copy those too, or add the package.
 
-`tests/guardrails/ui-sync-manifest.test.ts` fails on any other edit to a vendored file.
+`tests/guardrails/ui-sync-manifest.test.ts` fails on any other edit to a vendored file. It also
+fails when any vendored file has a `check-portable` finding.
 
 **The escape hatch** is a `local-diff` row. It is for a fix that cannot wait for inflect, and it
 must carry a `reason` and an `upstream` link to the inflect PR or issue that will remove it. Every
@@ -108,6 +109,15 @@ on the owner's machine, and the default works from a worktree too.
   hand-rolled menus (`fixed inset-0` outside modal, sheet and popover). It also checks for
   `<select`, inline or infinite animation, and `text-brand-NNN` or `text-` with an arbitrary
   `var(--brand-<name>)` value. It exits 1 on any finding.
+
+  It also runs over the whole manifest. `--manifest vendored` checks every `vendored` row's file
+  and exits 1 on any finding. The guardrail runs the same scan, so a finding in any vendored
+  file fails CI, not only in the files a PR copies. `--manifest pending [--ref <inflect rev>]`
+  lists the findings in `pending` rows and always exits 0. Those files are inflect's to fix
+  (#3047/#3048), so check this list before a batch copies them. Without `--ref` it reads the
+  playerz copies. With `--ref` it reads each `inflectPath` at that inflect commit, which is what
+  a copy would bring in.
+
 - **`reachability.mjs [--roots <glob>] [--scope <prefix>]`** builds a symbol-level, barrel-aware
   import graph rooted at `src/app/**`, `src/*.ts` and `scripts/**`. It prints JSON listing the
   unreachable files under the scope (default `src/components/`), with counts per directory. It
