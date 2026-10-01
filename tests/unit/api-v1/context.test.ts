@@ -26,7 +26,14 @@ const BASE = { requestId: 'req_1' };
 
 /** A request as a route handler receives it: the path and verb are what the table keys on. */
 const request = (path: string, method = 'GET') =>
-  ({ nextUrl: new URL(`https://playerz.bg${path}`), method }) as never;
+  ({
+    nextUrl: new URL(`https://playerz.bg${path}`),
+    method,
+    // A native caller: no Sec-Fetch-Site, no viewer header, no session cookie.
+    // context-guards.test.ts covers what a browser sends.
+    headers: { get: () => null },
+    cookies: { getAll: () => [] },
+  }) as never;
 
 /** OWNER at club A (joined first), PLAYER at club B — according to the TOKEN. */
 const twoClubs = {
