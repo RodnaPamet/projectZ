@@ -230,6 +230,145 @@ sudo docker exec playerz-booking-complete sh -c \
 # → HTTP/1.1 401 Unauthorized
 ```
 
+## Backups
+
+Two layers, and they answer different questions:
+
+| Layer                     | What                                                      | When                       | Kept    | Restores                                         |
+| ------------------------- | --------------------------------------------------------- | -------------------------- | ------- | ------------------------------------------------ |
+| Disk snapshot             | `agrent-daily-snapshot` on the VM's whole disk            | 02:00 UTC                  | 14 days | the whole VM, agrent included, as of that moment |
+| Logical dump (#218, this) | `pg_dump -Fc` of `playerz_production` only, ~270 KB today | 03:15 Europe/Sofia nightly | 30 days | playerz's database, into any Postgres 16+PostGIS |
+
+The snapshot is crash-consistent — a restored Postgres recovers as if from a
+power cut — and getting one table back means standing up a disk beside agrent
+and fishing in it. The dump is a clean, transaction-consistent copy of playerz
+alone that `pg_restore` reads directly, and it outlives the snapshots by 16
+days. Keep both: the snapshot also covers `/opt/playerz/.env`, Caddy and
+everything else that is not in the database.
+
+### Where it goes
+
+`gs://playerz-db-backups-hazel/playerz/YYYY/MM/DD/playerz-<UTC timestamp>.dump`
+— project `hazel-design-419410`, `europe-west1`, uniform bucket-level access,
+public access prevention enforced, lifecycle **delete at 30 days** (plus GCS's
+default 7-day soft delete behind that).
+
+### Credentials
+
+The VM's default service account has the `devstorage.read_only` **access
+scope**, and a scope caps the token whatever IAM says, so it cannot write to
+any bucket. Widening the scope needs the VM stopped, which takes agrent down.
+
+So uploads use a dedicated account,
+`playerz-db-backup@hazel-design-419410.iam.gserviceaccount.com`, with
+`roles/storage.objectCreator` and `roles/storage.objectViewer` on **this
+bucket only** and no project roles. Its key is
+`/etc/playerz-db-backup/sa-key.json` (root, `0600`, directory `0700`), and the
+scripts hand it to gcloud per-process via
+`CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE`, so root's own gcloud identity on the
+box is untouched. objectCreator cannot delete or overwrite: a compromised box
+can add objects but cannot erase the history.
+
+To rotate: `gcloud iam service-accounts keys create` a new key, stream it into
+that path over `gcloud compute ssh ... 'sudo sh -c "umask 077; cat > ..."'`
+(never via a file on someone's laptop that outlives the command), run the job
+once, then delete the old key.
+
+### What runs, and how it is installed
+
+`ops/backup/` in this repo — a systemd timer on the host, not a compose
+overlay: it needs a wall-clock time in a named zone, `docker exec` into
+`playerz-db` (a container would need the Docker socket, which is root over
+agrent too), and gcloud, which the host already has. The script's header says
+more.
+
+```bash
+# from a checkout, on your machine
+tar -C ops/backup -cf - . | gcloud compute ssh agrent --zone europe-west1-b \
+  --project hazel-design-419410 --command 'set -e; d=$(mktemp -d); tar -C $d -xf -; cd $d
+  sudo install -m 0755 playerz-db-backup.sh     /usr/local/sbin/playerz-db-backup
+  sudo install -m 0755 playerz-restore-drill.sh /usr/local/sbin/playerz-restore-drill
+  sudo install -m 0644 playerz-db-backup.service playerz-db-backup.timer /etc/systemd/system/
+  sudo systemctl daemon-reload && sudo systemctl enable --now playerz-db-backup.timer'
+```
+
+Each run dumps inside `playerz-db`, checks the dump with `pg_restore --list`,
+uploads it, then **downloads it back**, `cmp`s it and `pg_restore --list`s the
+downloaded copy — so a green run means the object in the bucket is readable,
+not merely that something was sent. The local copy is deleted on exit.
+
+**Installed 2026-10-01.** First object:
+`playerz/2026/10/01/playerz-20261001T112619Z.dump`, 276,641 bytes, 718 TOC
+entries. The database is ~113 MB on disk but nearly all of that is PostGIS's
+own tables and indexes; pg_dump emits only their configuration rows.
+
+### Did last night's run happen?
+
+```bash
+systemctl list-timers playerz-db-backup.timer         # LAST should be ~03:15 Sofia today
+systemctl show playerz-db-backup -p Result            # Result=success
+journalctl -u playerz-db-backup --since yesterday -o cat | grep playerz-db-backup:
+# → playerz-db-backup: OK gs://.../playerz-<ts>.dump size=...B toc_entries=718 (local 718) db=playerz_production
+gcloud storage ls -l "gs://playerz-db-backups-hazel/playerz/$(date -u +%Y/%m/%d)/"
+```
+
+A failure logs `playerz-db-backup: FAILED during: <step>` and leaves the unit
+`failed`, so it also shows in `systemctl --failed`. Run one now with
+`sudo systemctl start playerz-db-backup` — it is oneshot, so the command
+returns when the run is done.
+
+### Restoring
+
+**Drill first, always.** `playerz-restore-drill` restores a dump (the newest,
+or the `gs://` path you give it) into a scratch database
+`playerz_restore_drill` inside `playerz-db`, compares exact `count(*)` for
+every table against production, and drops the scratch database on exit. It
+refuses if the scratch name is ever production's.
+
+```bash
+sudo systemctl start playerz-db-backup     # a fresh dump, so the counts are comparable
+sudo /usr/local/sbin/playerz-restore-drill
+# → playerz-restore-drill: OK 100 tables, 17461 rows, every count matches production
+```
+
+Run on 2026-10-01 against the first dump: **100 tables, 17,461 rows, every
+count matched** (`_prisma_migrations` 34, `app_user` 2, `venue` 1,
+`venue_org` 1, `user_session` 3, `spatial_ref_sys` 8,500, the rest PostGIS
+tiger lookups or empty). The counts are compared against production _now_, so
+a table that took writes since the dump will show as a MISMATCH by exactly
+those writes — read the diff before concluding anything.
+
+**For real** — production lost or corrupted — restore into a new database,
+check it, then swap the app over. Never `pg_restore --clean` over
+`playerz_production` in place: if the dump turns out to be the wrong one,
+there is then nothing left to go back to.
+
+```bash
+sudo docker compose -f /opt/playerz/docker-compose.prod.yml stop playerz-app  # and the sweeps
+OBJ=gs://playerz-db-backups-hazel/playerz/YYYY/MM/DD/playerz-....dump
+sudo env CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/etc/playerz-db-backup/sa-key.json \
+  CLOUDSDK_CONFIG=/var/lib/playerz-db-backup/gcloud gcloud storage cp "$OBJ" /root/restore.dump
+sudo docker exec playerz-db psql -U playerz -d postgres -c \
+  'CREATE DATABASE playerz_restored TEMPLATE template0;'
+sudo docker exec -i playerz-db pg_restore -U playerz -d playerz_restored \
+  --exit-on-error --single-transaction < /root/restore.dump
+# check it, then swap names (nothing may be connected to either):
+sudo docker exec playerz-db psql -U playerz -d postgres \
+  -c 'ALTER DATABASE playerz_production RENAME TO playerz_broken_YYYYMMDD;' \
+  -c 'ALTER DATABASE playerz_restored  RENAME TO playerz_production;'
+# the one database-level setting production has, which pg_dump (without
+# --create) does not carry — the PostGIS image's initdb put it there:
+sudo docker exec playerz-db psql -U playerz -d postgres -c \
+  "ALTER DATABASE playerz_production SET search_path = \"\$user\", public, topology, tiger;"
+sudo docker compose -f /opt/playerz/docker-compose.prod.yml -f /opt/playerz/sweep.compose.yml up -d
+sudo shred -u /root/restore.dump
+```
+
+Roles are cluster-wide, so `playerz_app` and its password survive this
+untouched; the dump only carries its GRANTs. If the whole `playerz-db` volume
+is gone, bring up an empty `playerz-db` first, then set `playerz_app`'s
+password as in "The database roles" after the restore.
+
 ## Verifying
 
 ```bash
@@ -248,7 +387,6 @@ actually configured.
 
 ## Not done yet
 
-- **No backups.** The Postgres volume is a Docker volume on one VM. See #218.
 - **Microsoft sign-in not configured.** `/api/ready` reports
   `google: configured, microsoft: disabled` (2026-09-29). To enable it, set
   `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` and register the callback:
