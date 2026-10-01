@@ -1,14 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 
+import { CardListSkeleton } from '@/components/loading/shapes';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Textarea } from '@/components/ui/textarea';
+import { isApiClientError } from '@/lib/data/errors';
+import { KEYS, V1, type V1Page } from '@/lib/data/keys';
+import { useV1Mutation } from '@/lib/data/use-v1-mutation';
+import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
 
 /**
  * The review moderation queue.
@@ -29,6 +34,22 @@ import { Textarea } from '@/components/ui/textarea';
  * this session of work, and it goes with every page they load. Each decision
  * carries its own note, which is both the audit reason and the answer to
  * "why was my review taken down?".
+ *
+ * ═══ EVERY READ HERE IS A RECORD, SO NOTHING READS ON ITS OWN ═══
+ *
+ * It is the client data layer's first consumer (src/lib/data), as an AUDITED
+ * cursor list: the key stays null until a reason is submitted, and focus,
+ * reconnect, stale remounts, retries and the first-page re-check on load-more
+ * are all off — each would be a PLATFORM_MODERATION_QUEUE_READ row the
+ * moderator did not ask for. Reads happen on "Open", "Show more" (exactly one
+ * page) and "Refresh" (back to page one, one read).
+ *
+ * A decision removes its card optimistically and does NOT re-read the queue.
+ * CASE_ALREADY_RESOLVED keeps it removed with the "resolved elsewhere" notice —
+ * it has left the queue either way. Any other failure puts the card back and
+ * says why on the card. Notes and per-card errors live HERE, not in the card:
+ * the card unmounts the moment it is removed, and a rolled-back card is a new
+ * instance that would otherwise come back with the moderator's note erased.
  */
 
 /** The platform's own minimum; the API refuses anything shorter. */
@@ -54,9 +75,7 @@ interface CaseItem {
   club: { id: string; slug: string; name: string };
 }
 
-interface PageBody {
-  data: { items: CaseItem[]; nextCursor: string | null };
-}
+type Decision = 'APPROVE' | 'REJECT';
 
 /** Error codes the UI has words for. Anything else reads as UNKNOWN. */
 const KNOWN_ERRORS = new Set([
@@ -71,12 +90,11 @@ const KNOWN_ERRORS = new Set([
   'NETWORK',
 ]);
 
-async function errorCode(res: Response | null): Promise<string> {
-  if (!res) return 'NETWORK';
-  const body = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
-  const code = body?.error?.code ?? 'UNKNOWN';
-  return KNOWN_ERRORS.has(code) ? code : 'UNKNOWN';
-}
+const knownCode = (e: unknown) =>
+  isApiClientError(e) && KNOWN_ERRORS.has(e.code) ? e.code : 'UNKNOWN';
+
+const resolvedElsewhere = (e: unknown) =>
+  isApiClientError(e) && e.status === 409 && e.code === 'CASE_ALREADY_RESOLVED';
 
 /** `sexual/minors` → `sexual_minors`: a message key cannot carry the slash. */
 const categoryKey = (c: string) => c.replace(/[/-]/g, '_');
@@ -84,38 +102,69 @@ const categoryKey = (c: string) => c.replace(/[/-]/g, '_');
 export function ModerationQueue() {
   const t = useTranslations('platform.moderation');
   const [reason, setReason] = useState('');
-  const [items, setItems] = useState<CaseItem[] | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The reason the list was opened with. Null until then — and so is the key.
+  const [submitted, setSubmitted] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
 
-  async function load(cursor: string | null) {
-    setLoading(true);
-    setError(null);
-    const qs = new URLSearchParams({ reason: reason.trim() });
-    if (cursor) qs.set('cursor', cursor);
+  const getKey = useMemo(
+    () => (submitted ? KEYS.moderationCases({ reason: submitted }) : null),
+    [submitted],
+  );
+  const list = useV1SWRInfinite<CaseItem>(getKey, { audited: true });
+  const { data, error, isValidating, setSize, mutate } = list;
 
-    const res = await fetch(`/api/v1/platform/moderation/cases?${qs.toString()}`, {
-      cache: 'no-store',
-    }).catch(() => null);
-    setLoading(false);
+  const resolve = useV1Mutation<
+    { caseId: string; decision: Decision; note: string },
+    unknown,
+    V1Page<CaseItem>[]
+  >({
+    url: ({ caseId }) => V1.resolveCase(caseId),
+    body: ({ decision, note }) => ({ decision, note }),
+    target: getKey ? { infinite: mutate, getKey } : undefined,
+    update: (pages, { caseId }) =>
+      pages.map((p) => ({ ...p, items: p.items.filter((i) => i.caseId !== caseId) })),
+    fallback: [],
+    // The queue is not re-read after a decision: that read is an audit row.
+    revalidate: false,
+    keepOnError: resolvedElsewhere,
+  });
 
-    if (!res?.ok) {
-      setError(await errorCode(res));
+  const items = data ? data.flatMap((p) => p.items) : null;
+  const nextCursor = data && data.length > 0 ? data[data.length - 1]!.nextCursor : null;
+  const reasonReady = reason.trim().length >= MIN_REASON;
+
+  async function open() {
+    const r = reason.trim();
+    setNotice(null);
+    if (r !== submitted) {
+      setSubmitted(r);
       return;
     }
-    const body = (await res.json()) as PageBody;
-    setItems((prev) => (cursor && prev ? [...prev, ...body.data.items] : body.data.items));
-    setNextCursor(body.data.nextCursor);
+    // The same reason again is "Refresh": back to page one, read once.
+    await setSize(1);
+    await mutate();
   }
 
-  function resolved(caseId: string, elsewhere: boolean) {
-    setItems((prev) => (prev ?? []).filter((i) => i.caseId !== caseId));
-    setNotice(elsewhere ? t('resolvedElsewhere') : null);
+  async function decide(caseId: string, decision: Decision) {
+    const note = (notes[caseId] ?? '').trim();
+    setNotice(null);
+    setCardErrors(({ [caseId]: _cleared, ...rest }) => rest);
+    try {
+      await resolve.trigger({ caseId, decision, note });
+      setNotes(({ [caseId]: _done, ...rest }) => rest);
+    } catch (e) {
+      // 409: another moderator decided it first. It has left the queue either
+      // way, and saying so beats a card whose buttons can only fail.
+      if (resolvedElsewhere(e)) {
+        setNotice(t('resolvedElsewhere'));
+        setNotes(({ [caseId]: _gone, ...rest }) => rest);
+        return;
+      }
+      setCardErrors((prev) => ({ ...prev, [caseId]: knownCode(e) }));
+    }
   }
-
-  const reasonReady = reason.trim().length >= MIN_REASON;
 
   return (
     <div className="grid gap-6">
@@ -123,7 +172,7 @@ export function ModerationQueue() {
         className="grid gap-1.5 sm:max-w-xl"
         onSubmit={(e) => {
           e.preventDefault();
-          if (reasonReady) void load(null);
+          if (reasonReady) void open();
         }}
       >
         <Label htmlFor="moderation-reason">{t('reason.label')}</Label>
@@ -137,7 +186,7 @@ export function ModerationQueue() {
         />
         <p className="text-content-muted text-sm">{t('reason.hint', { min: MIN_REASON })}</p>
         <div>
-          <Button type="submit" disabled={!reasonReady || loading}>
+          <Button type="submit" disabled={!reasonReady || isValidating}>
             {items === null ? t('open') : t('refresh')}
           </Button>
         </div>
@@ -145,7 +194,7 @@ export function ModerationQueue() {
 
       {error && (
         <p role="alert" className="text-content-error text-sm">
-          {t(`error.${error}` as never)}
+          {t(`error.${knownCode(error)}` as never)}
         </p>
       )}
       {notice && (
@@ -154,13 +203,24 @@ export function ModerationQueue() {
         </p>
       )}
 
+      {submitted && needsSkeleton(list) && (
+        <CardListSkeleton rows={3} lines={3} className="gap-4" />
+      )}
+
       {items !== null &&
         (items.length === 0 ? (
           <EmptyState title={t('empty.title')} description={t('empty.description')} />
         ) : (
           <ul className="grid gap-4">
             {items.map((item) => (
-              <CaseCard key={item.caseId} item={item} onResolved={resolved} />
+              <CaseCard
+                key={item.caseId}
+                item={item}
+                note={notes[item.caseId] ?? ''}
+                onNote={(v) => setNotes((prev) => ({ ...prev, [item.caseId]: v }))}
+                error={cardErrors[item.caseId] ?? null}
+                onDecide={(decision) => void decide(item.caseId, decision)}
+              />
             ))}
           </ul>
         ))}
@@ -170,8 +230,8 @@ export function ModerationQueue() {
           <Button
             type="button"
             variant="secondary"
-            disabled={loading}
-            onClick={() => load(nextCursor)}
+            disabled={isValidating}
+            onClick={() => void setSize((n) => n + 1)}
           >
             {t('more')}
           </Button>
@@ -183,41 +243,22 @@ export function ModerationQueue() {
 
 function CaseCard({
   item,
-  onResolved,
+  note,
+  onNote,
+  error,
+  onDecide,
 }: {
   item: CaseItem;
-  onResolved: (caseId: string, elsewhere: boolean) => void;
+  note: string;
+  onNote: (note: string) => void;
+  error: string | null;
+  onDecide: (decision: Decision) => void;
 }) {
   const t = useTranslations('platform.moderation');
   const format = useFormatter();
-  const [note, setNote] = useState('');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const noteReady = note.trim().length >= MIN_REASON;
   const noteId = `note-${item.caseId}`;
-
-  async function decide(decision: 'APPROVE' | 'REJECT') {
-    setPending(true);
-    setError(null);
-    const res = await fetch(
-      `/api/v1/platform/moderation/cases/${encodeURIComponent(item.caseId)}/resolve`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ decision, note: note.trim() }),
-      },
-    ).catch(() => null);
-    setPending(false);
-
-    // 409: another moderator decided it first. Either way it has left the
-    // queue, and saying so beats leaving a card whose buttons can only fail.
-    if (res?.ok || res?.status === 409) {
-      onResolved(item.caseId, res.status === 409);
-      return;
-    }
-    setError(await errorCode(res));
-  }
 
   const scores = Object.entries(item.scores).sort(([, a], [, b]) => b - a);
   const flagged = item.reason.startsWith('classifier_') || item.reason === 'user_report';
@@ -287,19 +328,21 @@ function CaseCard({
           id={noteId}
           rows={2}
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={(e) => onNote(e.target.value)}
           maxLength={500}
         />
         <p className="text-content-muted text-sm">{t('note.hint', { min: MIN_REASON })}</p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={!noteReady || pending} onClick={() => decide('APPROVE')}>
+          {/* No pending state: a decided card leaves the list at once, and only
+              comes back — enabled — if the decision failed. */}
+          <Button type="button" disabled={!noteReady} onClick={() => onDecide('APPROVE')}>
             {t('approve')}
           </Button>
           <Button
             type="button"
             variant="destructive"
-            disabled={!noteReady || pending}
-            onClick={() => decide('REJECT')}
+            disabled={!noteReady}
+            onClick={() => onDecide('REJECT')}
           >
             {t('reject')}
           </Button>
