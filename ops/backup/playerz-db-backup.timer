@@ -1,0 +1,21 @@
+# Nightly at 03:15 Sofia time (#218).
+#
+# Why 03:15: the quietest hour for a Bulgarian booking site, and it finishes
+# well before the VM's disk snapshot (`agrent-daily-snapshot`, 02:00 UTC =
+# 04:00/05:00 Sofia), so the two never compete for the same disk.
+#
+# The zone is named, not implied: the VM runs in UTC, and "03:15" alone would
+# mean 05:15/06:15 in Sofia, when people are starting to book. systemd applies
+# Europe/Sofia's DST rules itself.
+[Unit]
+Description=playerz: nightly pg_dump to Cloud Storage
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Sofia
+# If the VM was off at 03:15, run once at the next boot instead of waiting a
+# day. The point of a nightly backup is that no night is missing.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

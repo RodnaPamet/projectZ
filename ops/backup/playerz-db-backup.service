@@ -1,0 +1,30 @@
+# One run of the nightly pg_dump (#218). Started by playerz-db-backup.timer;
+# start it by hand with `systemctl start playerz-db-backup` — it is oneshot,
+# so that command returns only when the run has finished, with its exit status.
+#
+# Installed on the agrent VM as /etc/systemd/system/playerz-db-backup.service.
+# See "Backups" in docs/deploy-gcp.md.
+[Unit]
+Description=playerz: pg_dump playerz-db to gs://playerz-db-backups-hazel
+# Docker must be up for `docker exec`. Wants=, not Requires=: if docker is
+# down the run should FAIL and say so, not be silently skipped.
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/playerz-db-backup
+# /var/lib/playerz-db-backup, 0700, root. Holds the in-flight dump and
+# gcloud's private config; the script deletes each run's dump on exit.
+StateDirectory=playerz-db-backup
+StateDirectoryMode=0700
+UMask=0077
+# agrent shares this box. A 113 MB dump is seconds of work, but it should
+# never be the thing that slows agrent's requests down.
+Nice=10
+IOSchedulingClass=idle
+# Generous: today's run takes seconds. A run still going after an hour is
+# wedged, and killing it turns that into a logged failure.
+TimeoutStartSec=1h
+NoNewPrivileges=yes
+PrivateTmp=yes
