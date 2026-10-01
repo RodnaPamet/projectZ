@@ -19,8 +19,9 @@ import plugin from 'tailwindcss/plugin';
  * scans like any other. tests/guardrails/button-material.test.ts evaluates
  * buttonVariants and fails if any class it returns is not written literally
  * in one of the two files, so a re-sync that changes the recipe cannot
- * silently drop styles again. Upstream: RodnaPamet/inflect-compliance, filed
- * with this PR.
+ * silently drop styles again. Upstream:
+ * https://github.com/RodnaPamet/inflect-compliance/issues/3084. Delete this
+ * list once inflect writes the strings literally.
  *
  * Exported only so the guard can read it; nothing imports it at runtime.
  */
