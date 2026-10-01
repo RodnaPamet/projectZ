@@ -58,6 +58,44 @@ What `staleTimes { dynamic: 30 }` changed, main → T30 (medians, 20 samples per
 
 The `a56ea4f` baseline below is kept as the programme's starting point.
 
+## Production: `6d8c525` on app.playerz.bg, 1 October 2026 (#290)
+
+```sh
+npm run perf:nav:prod     # PERF_BASE_URL defaults to https://app.playerz.bg
+```
+
+`PERF_BASE_URL` points the harness at a server it did not start
+(`playwright.perf.prod.config.ts`). Nothing is built, served, seeded or signed in, and
+the spec registers only the anonymous `public` journey, so a run is read-only by
+construction. The phone keeps Pixel 5, taps and CPU ×4 but drops the emulated network:
+the round trip is real. Each browser context is followed by a 3 s pause
+(`PERF_PAUSE_MS`). `docs/perf/prod-6d8c525.json` pools two runs of 10 contexts per
+profile, taken from a Mac in Sofia (ICMP RTT to the server 48–78 ms, 57 ms on average).
+Full Chromium hung at launch on that machine, inside a CryptoTokenKit call to `ctkd`, so
+these runs used the headless shell (`PERF_HEADLESS_SHELL=1`).
+
+Cold first visits, medians of 20 (p95 in brackets):
+
+| Step                   | Profile | Feedback | Skeleton | RSC first byte | RSC last byte | Content ready | Ready − (skeleton + 300) |
+| ---------------------- | ------- | -------: | -------: | -------------: | ------------: | ------------: | -----------------------: |
+| public · home → venues | phone   |    42 ms |    60 ms |         101 ms |        112 ms |  362 (369) ms |                    +3 ms |
+| public · home → login  | phone   |    28 ms |    40 ms |          83 ms |         84 ms |  338 (350) ms |                    −1 ms |
+| public · home → venues | desktop |    18 ms |    40 ms |          70 ms |         82 ms |  331 (337) ms |                    −7 ms |
+| public · home → login  | desktop |    10 ms |    22 ms |          70 ms |         73 ms |  322 (327) ms |                    −2 ms |
+
+- **Every cold first visit is held by the reveal throttle, not by the network.** The
+  RSC answer is complete 73–112 ms after the tap, which is one round trip plus about
+  15 ms of server. Content appears 245–250 ms after that, exactly when the throttle
+  releases: the skeleton's time plus 300 ms, to within 7 ms. That held in 80 of 80
+  samples.
+- Warm steps, and the cold `venues → home` and back-button steps, render from the
+  router cache: 12–60 ms, no request, no skeleton.
+- The throttle stops costing anything only when the answer takes longer than the
+  skeleton time plus 300 ms, about 340 ms on the phone. That needs a round trip of
+  roughly 300 ms; a 4G round trip of 100–150 ms does not reach it.
+- The club screens were not measured: they need a signed-in session. Their localhost
+  server time (37–55 ms) plus this round trip still lands well inside 300 ms.
+
 ## The first baseline: `a56ea4f`, 29 September 2026
 
 `docs/perf/baseline-a56ea4f.json` holds two complete runs of the app at `a56ea4f`

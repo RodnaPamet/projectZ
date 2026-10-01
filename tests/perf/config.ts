@@ -14,7 +14,31 @@ import { devices } from '@playwright/test';
 
 /** Not 3000: `next dev` and the e2e webServer both want that port. */
 export const PERF_PORT = Number(process.env.PERF_PORT ?? 3301);
-export const PERF_BASE_URL = `http://localhost:${PERF_PORT}`;
+
+/**
+ * `PERF_BASE_URL` points the harness at a server it did not start, such as
+ * production (`npm run perf:nav:prod`, playwright.perf.prod.config.ts). Unset,
+ * the harness builds and serves the app itself on PERF_PORT.
+ *
+ * ═══ A REMOTE TARGET MEASURES THE REAL NETWORK ═══
+ *
+ * The phone's emulated 150 ms exists because localhost has no round trip.
+ * Against a remote server the round trip is real (TLS, HTTP/2, the path from
+ * this machine), and emulation would add 150 ms on top of it. So a remote run
+ * keeps the phone's device, input and CPU ×4, and drops its network
+ * emulation. The run's JSON records both, under `config.profiles`.
+ */
+export const PERF_REMOTE = Boolean(process.env.PERF_BASE_URL);
+export const PERF_BASE_URL = (process.env.PERF_BASE_URL ?? `http://localhost:${PERF_PORT}`).replace(
+  /\/+$/,
+  '',
+);
+
+/**
+ * Remote runs only: a pause after each browser context, so a run against a
+ * live server stays a trickle of anonymous page views.
+ */
+export const PERF_PAUSE_MS = Number(process.env.PERF_PAUSE_MS ?? (PERF_REMOTE ? 3_000 : 0));
 
 /**
  * The OWNER connection, used for migrations, the reset and the seed — the same
@@ -155,13 +179,15 @@ export const PROFILES: Record<PerfProfile['id'], PerfProfile> = {
     id: 'phone',
     device: devices['Pixel 5'],
     cpuThrottlingRate: 4,
-    network: {
-      offline: false,
-      latency: 150,
-      downloadThroughput: 9 * MBPS,
-      uploadThroughput: 1.5 * MBPS,
-      connectionType: 'cellular4g',
-    },
+    network: PERF_REMOTE
+      ? null
+      : {
+          offline: false,
+          latency: 150,
+          downloadThroughput: 9 * MBPS,
+          uploadThroughput: 1.5 * MBPS,
+          connectionType: 'cellular4g',
+        },
     input: 'tap',
   },
   /** Unthrottled: the floor. What a front desk on the club's own network sees. */

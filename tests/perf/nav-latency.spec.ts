@@ -7,6 +7,8 @@ import type { ReadyTable } from './agent';
 import {
   CLUB_SLUG,
   CLUB_TIMEZONE,
+  PERF_PAUSE_MS,
+  PERF_REMOTE,
   PERF_RUNS,
   PERF_WARM_PASSES,
   PROFILES,
@@ -264,8 +266,23 @@ const LANDINGS: Array<{ id: string; persona: PersonaId; lands: string }> = [
   { id: 'landing-staff', persona: 'staff', lands: club('calendar') },
 ];
 
+/**
+ * Against a server the harness did not start (PERF_BASE_URL, e.g. production),
+ * only the anonymous, read-only journeys exist. The signed-in ones need the
+ * perf seed's accounts, and staff-write renames a court: neither belongs on a
+ * live server, so they are never registered there.
+ */
+const journeys = PERF_REMOTE ? JOURNEYS.filter((j) => j.persona === null) : JOURNEYS;
+const landings = PERF_REMOTE ? [] : LANDINGS;
+
+if (PERF_PAUSE_MS > 0) {
+  test.afterEach(async () => {
+    await new Promise((r) => setTimeout(r, PERF_PAUSE_MS));
+  });
+}
+
 for (let run = 1; run <= PERF_RUNS; run++) {
-  for (const j of JOURNEYS) {
+  for (const j of journeys) {
     test(`${j.id} · run ${run}`, async ({ browser }, testInfo) => {
       const profile = PROFILES[testInfo.project.metadata.profile as keyof typeof PROFILES];
       const s = await PerfSession.open({
@@ -318,7 +335,7 @@ for (let run = 1; run <= PERF_RUNS; run++) {
     });
   }
 
-  for (const l of LANDINGS) {
+  for (const l of landings) {
     test(`${l.id} · run ${run}`, async ({ browser }, testInfo) => {
       const profile = PROFILES[testInfo.project.metadata.profile as keyof typeof PROFILES];
       const s = await PerfSession.open({
