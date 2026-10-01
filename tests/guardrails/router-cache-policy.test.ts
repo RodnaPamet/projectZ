@@ -21,6 +21,8 @@ import { STALE_AFTER_MS } from '@/lib/hooks/use-refresh-when-stale';
  *     write purges the cache and re-prefetches each such link in the
  *     viewport, in full. The player tab bar (T20) is the one place full
  *     prefetch is worth it: its pages revalidate through SWR after paint.
+ *     The anonymous home page's /venues and /login links are the other
+ *     (#290), through PublicPrefetchLink, pinned to exactly those two.
  *
  * So both are pinned here, and the diary's self-refresh with them: a cached
  * diary younger than the cache window must refresh itself, or the front desk
@@ -33,7 +35,30 @@ const config = readFileSync('next.config.mjs', 'utf8');
 const FULL_PREFETCH_ALLOWED: Record<string, string> = {
   'src/components/layout/BottomTabBar.tsx':
     "T20's player tab bar, allow-listed ahead of it: its pages (/venues, /me) read through SWR and revalidate after paint, so a 180 s old shell is refreshed on arrival. It skips full prefetch under Save-Data.",
+  'src/components/layout/PublicPrefetchLink.tsx':
+    "The anonymous home page's links to /venues and /login (#290): 1.4-2.4 KB, the same for every visitor, and a first visit then renders from the router cache instead of waiting out the 300 ms reveal throttle. It skips full prefetch under Save-Data. Where it may be used is pinned below.",
 };
+
+/**
+ * Exactly where PublicPrefetchLink may appear, and to which page. A new use,
+ * above all one in the club admin, fails here and has to argue its case in
+ * docs/perf/navigation-policy.md first.
+ */
+const PUBLIC_PREFETCH_SITES: Record<string, string[]> = {
+  'src/app/(home)/page.tsx': ['/venues'],
+  'src/components/layout/SiteHeader.tsx': ['/login'],
+};
+
+/**
+ * prefetch={true}, any computed value (prefetch={x ? null : true}), and the
+ * bare JSX attribute `prefetch`, which means true. Only the literals false and
+ * null, and the string "auto", are the default or less.
+ */
+const FULL_PREFETCH = [
+  /\bprefetch\s*=\s*\{(?!\s*(?:false|null|'auto'|"auto")\s*\})[^}]*\}/g,
+  /<\w[^>]*\sprefetch(?=[\s/>])/g,
+  /\brouter\.prefetch\s*\(/g,
+];
 
 /** Code only: comments may mention the patterns they explain. */
 function code(src: string): string {
@@ -66,13 +91,25 @@ describe('router cache policy', () => {
   it.each(sources)('%s: no prefetch={true} or router.prefetch outside the allow-list', (f) => {
     if (f in FULL_PREFETCH_ALLOWED) return;
     const src = code(readFileSync(f, 'utf8'));
-    const hits = [
-      // prefetch={true}, and the bare JSX attribute `prefetch`, which means true.
-      ...src.matchAll(/\bprefetch\s*=\s*\{\s*true\s*\}/g),
-      ...src.matchAll(/<\w[^>]*\sprefetch(?=[\s/>])/g),
-      ...src.matchAll(/\brouter\.prefetch\s*\(/g),
-    ].map((m) => m[0]);
+    const hits = FULL_PREFETCH.flatMap((re) => [...src.matchAll(re)].map((m) => m[0]));
     expect({ file: f, hits }).toEqual({ file: f, hits: [] });
+  });
+
+  it.each(sources)('%s: PublicPrefetchLink only where pinned', (f) => {
+    const src = code(readFileSync(f, 'utf8'));
+    const uses = src.match(/<PublicPrefetchLink\b/g)?.length ?? 0;
+    const hrefs = [...src.matchAll(/<PublicPrefetchLink\b[^>]*?\shref="([^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect({ file: f, uses, hrefs }).toEqual({
+      file: f,
+      uses: PUBLIC_PREFETCH_SITES[f]?.length ?? 0,
+      hrefs: PUBLIC_PREFETCH_SITES[f] ?? [],
+    });
+  });
+
+  it('every pinned PublicPrefetchLink site exists', () => {
+    for (const f of Object.keys(PUBLIC_PREFETCH_SITES)) expect(existsSync(f)).toBe(true);
   });
 
   it.each(Object.keys(FULL_PREFETCH_ALLOWED))(
@@ -85,11 +122,12 @@ describe('router cache policy', () => {
   );
 
   it('the ban would catch what it bans', () => {
-    const scan = (s: string) =>
-      /\bprefetch\s*=\s*\{\s*true\s*\}/.test(code(s)) ||
-      /<\w[^>]*\sprefetch(?=[\s/>])/.test(code(s)) ||
-      /\brouter\.prefetch\s*\(/.test(code(s));
+    const scan = (s: string) => FULL_PREFETCH.some((re) => [...code(s).matchAll(re)].length > 0);
     expect(scan('<Link href="/t/x/admin/courts" prefetch={true}>')).toBe(true);
+    expect(scan('<Link href="/x" prefetch={saveData ? null : true}>')).toBe(true);
+    expect(scan('<Link href="/x" prefetch={full}>')).toBe(true);
+    expect(scan('<Link href="/x" prefetch={null}>')).toBe(false);
+    expect(scan('<Link href="/x" prefetch="auto">')).toBe(false);
     expect(scan('<Link href="/x" prefetch>')).toBe(true);
     expect(scan('router.prefetch(href)')).toBe(true);
     expect(scan('<Link href="/x" prefetch={false}>')).toBe(false);

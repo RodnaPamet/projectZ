@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
+import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 
 export default async function HomePage() {
@@ -30,14 +30,16 @@ export default async function HomePage() {
 
         {/* data-perf-ready: the harness's "this page's content is on screen"
             marker (docs/perf/README.md, "READY markers"). Keep it on whatever
-            becomes this page's primary content. */}
-        <Link
+            becomes this page's primary content.
+            Fully prefetched (#290): the first visit renders from the router
+            cache instead of waiting out the 300 ms reveal throttle. */}
+        <PublicPrefetchLink
           href="/venues"
           data-perf-ready
           className="bg-bg-brand text-content-on-brand inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
         >
           {tVenues('title')}
-        </Link>
+        </PublicPrefetchLink>
       </main>
     </>
   );
