@@ -298,7 +298,7 @@ export default function DesignSystemPage() {
               <p className="text-content-muted text-sm">Sport, surface, indoor/outdoor.</p>
             </Sheet.Body>
           </Sheet>
-          {/* `direction="left"` (inflect T03): a navigation drawer slides in from
+          {/* `direction="left"`: a navigation drawer slides in from
               the edge the nav lives on, at every width. */}
           <Button variant="secondary" onClick={() => setLeftSheetOpen(true)}>
             Open left sheet
