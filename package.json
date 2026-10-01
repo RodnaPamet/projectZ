@@ -127,7 +127,7 @@
     "axe-core": "^4.10.2",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.3.6",
     "husky": "^9.1.7",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
