@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { requireSignedIn } from '@/lib/auth/page-context';
+import { ViewerScope } from '@/lib/data/provider';
 
 import { ModerationQueue } from './ModerationQueue';
 
@@ -25,6 +26,11 @@ export async function generateMetadata() {
  * only under the platform tree (`platform-route-discipline` asserts nothing
  * outside it asks), and a page that consulted the grant would be a second,
  * unaudited place deciding who is a moderator.
+ *
+ * It does pass the queue WHO it was rendered for (ViewerScope): every queue
+ * read and decision then carries `x-playerz-viewer`, and the API refuses with
+ * 409 VIEWER_CHANGED if the browser has since signed in as somebody else —
+ * so a moderator's tab never shows, or decides as, another account (#263).
  */
 export default async function ModerationPage() {
   const userId = await requireSignedIn();
@@ -39,7 +45,9 @@ export default async function ModerationPage() {
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
 
-      <ModerationQueue />
+      <ViewerScope viewerId={userId}>
+        <ModerationQueue />
+      </ViewerScope>
     </main>
   );
 }
