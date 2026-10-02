@@ -1,20 +1,33 @@
 'use client';
 
-import { useActionState, useMemo, useState } from 'react';
+import { startTransition, useActionState, useId, useMemo, useOptimistic, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import { computeSpanPrice, type PricingRuleRow } from '@/app-layer/usecases/pricing';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { EmptyState } from '@/components/ui/empty-state';
+import { FieldGroup } from '@/components/ui/field-group';
+import { FormField } from '@/components/ui/form-field';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Heading } from '@/components/ui/typography';
 
-import {
-  createPricingRuleAction,
-  deletePricingRuleAction,
-  updatePricingRuleAction,
-} from './actions';
+import { deletePricingRuleAction } from './actions';
+import { comboProps, useRequiredChoice, WEEK } from './choices';
+
+/**
+ * The rule form and the delete confirm load when first opened, not with the
+ * route — the same trade the courts board made (T23): most visits read the
+ * rules and the preview and never open either.
+ */
+const RuleForm = dynamic(() => import('./RuleForm'));
+const ConfirmDialog = dynamic(() =>
+  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+);
 
 /**
  * The pricing screen: the rules for a court, and what they do.
@@ -30,6 +43,10 @@ import {
  * them, and then it would confidently show the wrong price — which is worse
  * than no preview, because a club would trust it.
  *
+ * The preview is never optimistic about money: it prices the rules the server
+ * sent. A rule being deleted drops out of the list at once (below), but the
+ * price only moves when the server's revalidated rules arrive.
+ *
  * ═══ WHY IT SHOWS THE RULES THAT DID NOT WIN ═══
  *
  * `computePrice` returns a trace of every rule it considered. "Why is Thursday
@@ -40,6 +57,13 @@ import {
  * are NOT rendered — a Bulgarian club would get English prose. The conditions
  * are shown instead, translated, next to each rule: the reader can see that a
  * rule wanted Saturday and it is Thursday.
+ *
+ * ═══ ON THE PRIMITIVES (T24) ═══
+ *
+ * The court and the preview's day were native `<select>`s painted with
+ * `bg-bg-surface`, a class no stylesheet defines; they are the vendored
+ * Combobox now. Delete asks through a ConfirmDialog instead of
+ * `window.confirm`, whose box ignores the theme and the locale's button labels.
  */
 
 export interface PricingRuleView {
@@ -65,8 +89,6 @@ export interface CourtOption {
   minBookingMinutes: number;
 }
 
-const DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
-
 /**
  * A stable reference for "this court has no rules".
  *
@@ -75,6 +97,7 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
  * it would re-run `computePrice` on every keystroke in an unrelated field.
  */
 const NO_RULES: readonly PricingRuleView[] = [];
+const NONE_DELETING: ReadonlySet<string> = new Set();
 
 export function PricingBoard({
   slug,
@@ -88,24 +111,71 @@ export function PricingBoard({
   const t = useTranslations('admin.pricing');
   const tDay = useTranslations('common.calendar.weekdayShort');
   const format = useFormatter();
+  const ids = useId();
 
-  const [courtId, setCourtId] = useState(courts[0]?.id ?? '');
+  const courtOptions: ComboboxOption[] = courts.map((c) => ({ value: c.id, label: c.name }));
+  const courtChoice = useRequiredChoice(courtOptions, courts[0]?.id ?? '');
+  const courtId = courtChoice.value;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // The rule being asked about outlives the dialog's open flag, so the closing
+  // dialog still names it while it plays its exit.
+  const [asking, setAsking] = useState<PricingRuleView | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   // Thursday 19:00, an hour — a time when a peak rule would plausibly apply,
   // so the preview says something on first render instead of showing the base
   // price and looking broken.
-  const [day, setDay] = useState(4);
+  const dayOptions: ComboboxOption[] = WEEK.map((d) => ({
+    value: String(d),
+    label: tDay(String(d)),
+  }));
+  const dayChoice = useRequiredChoice(dayOptions, '4');
+  const day = Number(dayChoice.value);
   const [from, setFrom] = useState('19:00');
   const [duration, setDuration] = useState(60);
 
   const court = courts.find((c) => c.id === courtId);
   const rules = rulesByCourt[courtId] ?? NO_RULES;
 
+  /**
+   * ═══ DELETE IS OPTIMISTIC, AND HONEST ABOUT FAILING ═══
+   *
+   * The rule leaves the list the moment the owner confirms (`useOptimistic`),
+   * instead of after the action's round trip AND the revalidated page payload
+   * it carries back. That payload is the truth and lands in the same
+   * transition, so the optimistic list is replaced by the real one without a
+   * flicker.
+   *
+   * If the action refuses or throws, the transition ends with the props
+   * unchanged, the deleting set falls back to empty by itself (that IS the
+   * rollback), the rule reappears, and a notice names it. A rule that silently
+   * came back would read as a click that missed.
+   */
+  const [deleting, markDeleting] = useOptimistic(NONE_DELETING, (s, id: string) =>
+    new Set(s).add(id),
+  );
+  const [failedName, deleteRule, deletePending] = useActionState(
+    async (_prev: string | null, rule: PricingRuleView): Promise<string | null> => {
+      markDeleting(rule.id);
+      try {
+        const result = await deletePricingRuleAction(slug, rule.id);
+        return result.ok ? null : rule.name;
+      } catch {
+        return rule.name;
+      }
+    },
+    null,
+  );
+  const visible = useMemo(
+    () => (deleting.size === 0 ? rules : rules.filter((r) => !deleting.has(r.id))),
+    [rules, deleting],
+  );
+
   const money = (cents: number) =>
     format.number(cents / 100, { style: 'currency', currency: 'EUR' });
 
+  // Prices the SERVER's rules, not `visible`: money is never optimistic.
   const preview = useMemo(() => {
     if (!court) return null;
     const [h, m] = from.split(':').map((n) => Number.parseInt(n, 10));
@@ -152,42 +222,51 @@ export function PricingBoard({
 
   return (
     // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-    <div data-perf-ready className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <div>
-        <div className="mb-4 grid gap-1.5 sm:max-w-xs">
-          <Label htmlFor="courtId">{t('field.court')}</Label>
-          <select
-            id="courtId"
-            className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-            value={courtId}
-            onChange={(e) => {
-              setCourtId(e.target.value);
-              setEditingId(null);
-              setAdding(false);
-            }}
-          >
-            {courts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+    // Its pricing row waits for this element to contain the first court's
+    // first rule name, so the rule list stays inside it.
+    <div data-perf-ready className="gap-section grid lg:grid-cols-[2fr_1fr]">
+      <div className="gap-default grid content-start">
+        <div className="gap-tight grid sm:max-w-xs">
+          <FormField label={t('field.court')}>
+            <Combobox
+              id={`${ids}-court`}
+              options={courtOptions}
+              selected={courtChoice.selected}
+              setSelected={(o) => {
+                courtChoice.setSelected(o);
+                setEditingId(null);
+                setAdding(false);
+              }}
+              {...comboProps(t('field.court'), courtChoice.selected)}
+            />
+          </FormField>
           <p className="text-content-muted text-sm">
             {t('basePrice', { price: money(court?.basePriceCents ?? 0) })}
           </p>
         </div>
 
-        {rules.length === 0 && !adding ? (
+        {failedName !== null && !deletePending && (
+          <InlineNotice variant="error">{t('delete.failed', { name: failedName })}</InlineNotice>
+        )}
+
+        {visible.length === 0 && !adding ? (
           <EmptyState title={t('empty.title')} description={t('empty.description')} />
         ) : (
-          <ul className="grid gap-2">
-            {rules.map((r) => {
+          <ul className="gap-tight grid">
+            {visible.map((r) => {
               // Applied to ANY block, not to the span. A rule covering
               // 18:00–22:00 wins the second hour of a 17:00 two-hour booking
               // and loses the first, so "did it apply?" has no single answer.
               const traced = preview ? { matched: preview.appliedRuleIds.includes(r.id) } : null;
               return (
-                <li key={r.id} className="border-border-subtle rounded-lg border p-3">
+                <Card
+                  as="li"
+                  key={r.id}
+                  elevation="flat"
+                  density="compact"
+                  className="bg-bg-default"
+                  data-rule-id={r.id}
+                >
                   {editingId === r.id ? (
                     <RuleForm
                       slug={slug}
@@ -197,8 +276,8 @@ export function PricingBoard({
                     />
                   ) : (
                     <>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
+                      <div className="gap-compact flex items-start justify-between">
+                        <div className="min-w-0">
                           <span className="text-content-muted mr-2 text-sm tabular-nums">
                             {r.priority}
                           </span>
@@ -207,7 +286,7 @@ export function PricingBoard({
                             {conditionSummary(r.conditions)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="gap-tight flex shrink-0 items-center">
                           <span className="tabular-nums">{effect(r)}</span>
                           {traced && (
                             <StatusBadge variant={traced.matched ? 'success' : 'neutral'}>
@@ -216,17 +295,16 @@ export function PricingBoard({
                           )}
                         </div>
                       </div>
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-compact gap-tight flex">
                         <Button type="button" variant="ghost" onClick={() => setEditingId(r.id)}>
                           {t('action.edit')}
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={async () => {
-                            if (window.confirm(t('delete.confirm', { name: r.name }))) {
-                              await deletePricingRuleAction(slug, r.id);
-                            }
+                          onClick={() => {
+                            setAsking(r);
+                            setConfirming(true);
                           }}
                         >
                           {t('action.delete')}
@@ -234,15 +312,17 @@ export function PricingBoard({
                       </div>
                     </>
                   )}
-                </li>
+                </Card>
               );
             })}
           </ul>
         )}
 
-        <div className="mt-4">
+        <div>
           {adding ? (
-            <RuleForm slug={slug} courtId={courtId} onDone={() => setAdding(false)} />
+            <Card density="compact" elevation="flat" className="bg-bg-default">
+              <RuleForm slug={slug} courtId={courtId} onDone={() => setAdding(false)} />
+            </Card>
           ) : (
             <Button type="button" onClick={() => setAdding(true)}>
               {t('action.add')}
@@ -251,40 +331,34 @@ export function PricingBoard({
         </div>
       </div>
 
-      <aside className="border-border-subtle bg-bg-surface h-fit rounded-lg border p-4">
-        <h2 className="mb-3 font-medium">{t('preview.title')}</h2>
+      <Card as="aside" density="compact" className="h-fit">
+        <Heading level={2} className="mb-compact text-base font-medium">
+          {t('preview.title')}
+        </Heading>
 
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="pv-day">{t('preview.day')}</Label>
-            <select
-              id="pv-day"
-              className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-              value={day}
-              onChange={(e) => setDay(Number(e.target.value))}
-            >
-              {DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {tDay(String(d))}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="gap-compact grid">
+          <FormField label={t('preview.day')}>
+            <Combobox
+              id={`${ids}-pv-day`}
+              options={dayOptions}
+              selected={dayChoice.selected}
+              setSelected={dayChoice.setSelected}
+              {...comboProps(t('preview.day'), dayChoice.selected)}
+            />
+          </FormField>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="pv-from">{t('preview.from')}</Label>
+          <FieldGroup columns={2}>
+            <FormField label={t('preview.from')}>
               <Input
-                id="pv-from"
+                id={`${ids}-pv-from`}
                 type="time"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
               />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="pv-dur">{t('preview.duration')}</Label>
+            </FormField>
+            <FormField label={t('preview.duration')}>
               <Input
-                id="pv-dur"
+                id={`${ids}-pv-dur`}
                 type="number"
                 // The booking route refuses a duration that is not a whole
                 // number of blocks, so the form must not offer one.
@@ -293,12 +367,12 @@ export function PricingBoard({
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
               />
-            </div>
-          </div>
+            </FormField>
+          </FieldGroup>
         </div>
 
         {preview && (
-          <div className="border-border-subtle mt-4 border-t pt-4">
+          <div className="border-border-subtle mt-default pt-default border-t">
             <p className="text-2xl font-semibold tabular-nums">{money(preview.finalPriceCents)}</p>
             <p className="text-content-muted text-sm">
               {t('preview.units', {
@@ -319,144 +393,27 @@ export function PricingBoard({
             </p>
           </div>
         )}
-      </aside>
-    </div>
-  );
-}
+      </Card>
 
-/** Create or edit — one form, because the fields and the rules are identical. */
-function RuleForm({
-  slug,
-  courtId,
-  rule,
-  onDone,
-}: {
-  slug: string;
-  courtId: string;
-  rule?: PricingRuleView;
-  onDone: () => void;
-}) {
-  const t = useTranslations('admin.pricing');
-  const tDay = useTranslations('common.calendar.weekdayShort');
-  const editing = Boolean(rule);
-
-  const [state, formAction, pending] = useActionState(
-    editing
-      ? updatePricingRuleAction.bind(null, slug, rule!.id)
-      : createPricingRuleAction.bind(null, slug),
-    null,
-  );
-
-  const [mode, setMode] = useState<'multiplier' | 'fixed'>(
-    rule?.fixedPriceCents !== null && rule?.fixedPriceCents !== undefined ? 'fixed' : 'multiplier',
-  );
-
-  if (state?.ok) onDone();
-
-  return (
-    <form action={formAction} className="grid gap-3">
-      <input type="hidden" name="resourceId" value={courtId} />
-
-      <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
-        <div className="grid gap-1.5">
-          <Label htmlFor="name">{t('field.name')}</Label>
-          <Input id="name" name="name" required maxLength={80} defaultValue={rule?.name} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="priority">{t('field.priority')}</Label>
-          <Input
-            id="priority"
-            name="priority"
-            type="number"
-            min={0}
-            max={1000}
-            required
-            defaultValue={rule?.priority ?? 100}
-          />
-        </div>
-      </div>
-
-      <fieldset>
-        <legend className="text-content-muted mb-1.5 text-sm">{t('field.days')}</legend>
-        <div className="flex flex-wrap gap-3">
-          {DAYS.map((d) => (
-            <label key={d} className="flex items-center gap-1.5 text-sm">
-              <input
-                type="checkbox"
-                name="dayOfWeek"
-                value={d}
-                defaultChecked={rule?.conditions.dayOfWeek?.includes(d)}
-              />
-              {tDay(String(d))}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="from">{t('field.from')}</Label>
-          <Input
-            id="from"
-            name="from"
-            type="time"
-            defaultValue={rule?.conditions.timeRange?.from}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="to">{t('field.to')}</Label>
-          <Input id="to" name="to" type="time" defaultValue={rule?.conditions.timeRange?.to} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="mode">{t('field.effect')}</Label>
-          <select
-            id="mode"
-            name="mode"
-            className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-            value={mode}
-            onChange={(e) => setMode(e.target.value as 'multiplier' | 'fixed')}
-          >
-            <option value="multiplier">{t('effect.multiplier')}</option>
-            <option value="fixed">{t('effect.fixed')}</option>
-          </select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="amount">
-            {mode === 'fixed' ? t('field.fixedPrice') : t('field.multiplier')}
-          </Label>
-          <Input
-            id="amount"
-            name="amount"
-            type="number"
-            step={mode === 'fixed' ? '0.01' : '0.05'}
-            min={0}
-            required
-            defaultValue={
-              mode === 'fixed'
-                ? ((rule?.fixedPriceCents ?? 0) / 100).toFixed(2)
-                : (rule?.multiplier ?? 1.25)
-            }
-          />
-        </div>
-      </div>
-
-      {state && !state.ok && (
-        <p role="alert" className="text-content-error text-sm">
-          {state.error}
-        </p>
+      {/* Mounted from the first ask on, never before: a dynamic component
+          rendered at all is fetched at once. Kept mounted after, so closing
+          plays the dialog's exit rather than vanishing. */}
+      {asking && (
+        <ConfirmDialog
+          showModal={confirming}
+          setShowModal={setConfirming}
+          tone="danger"
+          title={t('delete.title')}
+          description={t('delete.confirm', { name: asking.name })}
+          confirmLabel={t('action.delete')}
+          cancelLabel={t('action.cancel')}
+          // Returns nothing, so the dialog closes at once and the rule leaves
+          // the list under it — awaiting the action here would hold the dialog
+          // open for the round trip and spend the optimistic update on a
+          // spinner.
+          onConfirm={() => startTransition(() => deleteRule(asking))}
+        />
       )}
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {editing ? t('action.save') : t('action.add')}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          {t('action.cancel')}
-        </Button>
-      </div>
-    </form>
+    </div>
   );
 }
