@@ -86,6 +86,13 @@ export const KEYS = {
   /** The caller's own bookings at a club, newest first, by cursor. */
   myBookings: (slug: string, params: { limit?: number } = {}) =>
     paged(`${BASE}/t/${seg(slug)}/bookings`, params),
+  /**
+   * The caller's own bookings at EVERY club, newest first, by cursor:
+   * `GET /me/bookings` (T16), the list /me/bookings renders (T22). The
+   * per-club `myBookings(slug)` above cannot be it — a person's list spans
+   * clubs, and a native token does not carry the list of them.
+   */
+  meBookings: (params: { limit?: number } = {}) => paged(`${BASE}/me/bookings`, params),
   /** The public venue index, by cursor. */
   venues: (params: VenueSearchParams = {}) => paged(`${BASE}/venues`, { ...params }),
   /**

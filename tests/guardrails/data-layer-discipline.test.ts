@@ -99,9 +99,20 @@ function fetchInEffects(sf: ts.SourceFile): Finding[] {
   return out;
 }
 
+/**
+ * A module path is not a URL. `import { toMyBookingDto } from
+ * '@/app/api/v1/_lib/dto'` names the API's own mapper so a server page can seed
+ * SWR with exactly the shape the endpoint returns (T22) — it builds no request
+ * and is no cache identity, which is what rule 3 is about.
+ */
+const isModuleSpecifier = (n: ts.Node) =>
+  (ts.isImportDeclaration(n.parent) || ts.isExportDeclaration(n.parent)) &&
+  n.parent.moduleSpecifier === n;
+
 function v1Strings(sf: ts.SourceFile): Finding[] {
   const out: Finding[] = [];
   walk(sf, (n) => {
+    if (n.parent && isModuleSpecifier(n)) return;
     let text: string | null = null;
     if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) text = n.text;
     else if (ts.isTemplateExpression(n)) {
@@ -222,6 +233,14 @@ describe('the detectors fire on the code they forbid', () => {
     expect(v1Strings(sf('const u = `/api/v1/t/${slug}/me`;'))).toHaveLength(1);
     expect(v1Strings(sf(`const u = '/api/v1/venues';`))).toHaveLength(1);
     expect(v1Strings(sf(`// see /api/v1/venues`))).toHaveLength(0);
+    // A module path into src/app/api/v1 is an import, not a URL.
+    expect(v1Strings(sf(`import { toMyBookingDto } from '@/app/api/v1/_lib/dto';`))).toHaveLength(
+      0,
+    );
+    expect(
+      v1Strings(sf(`import type { MyBookingDto } from '@/app/api/v1/_lib/dto';`)),
+    ).toHaveLength(0);
+    expect(v1Strings(sf(`import x from 'y'; const u = '/api/v1/me/bookings';`))).toHaveLength(1);
   });
 
   it('rule 4 sees redirect: false, and lets the default through', () => {
