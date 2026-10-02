@@ -65,7 +65,7 @@
     "@visx/text": "^4.0.0",
     "@visx/tooltip": "^4.0.0",
     "bcryptjs": "^3.0.3",
-    "bullmq": "^5.79.3",
+    "bullmq": "^6.3.10",
     "canvas-confetti": "^1.9.4",
     "chess.js": "^1.4.0",
     "class-variance-authority": "^0.7.1",
