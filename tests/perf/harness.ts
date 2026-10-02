@@ -518,6 +518,27 @@ export class PerfSession {
    * visual viewport, and hit-tested before anything is sent. If something
    * else covers the link, the step fails and says so.
    */
+  /**
+   * Until nothing on the page is still moving. Network quiet does not cover a
+   * CSS transition, and T19's phone drawer slides in and out on one (vaul).
+   * Measured without this: a link scrolled into view while its panel was
+   * still sliding in was left at x=500 on a 393 px screen, and the diary's
+   * "next day" link was still covered by the closing drawer when tapped.
+   * Finite animations only: the nav rows' ambient shimmer loops for ever.
+   * Untimed, and a no-op on a page with nothing in flight.
+   */
+  private async still() {
+    await this.page.waitForFunction(
+      () =>
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .every((a) => a.playState !== 'running'),
+      null,
+      { timeout: STEP_TIMEOUT_MS, polling: 50 },
+    );
+  }
+
   /** Until React has attached its props to the element: a click before that is a full page load. */
   private async waitHydrated(selector: string) {
     await this.page.waitForFunction(
@@ -543,7 +564,7 @@ export class PerfSession {
         y: (cy - v.offsetTop) * v.scale,
         covered:
           !hit || !(hit === el || el.contains(hit))
-            ? (hit?.outerHTML ?? 'nothing').slice(0, 160)
+            ? `${(hit?.outerHTML ?? 'nothing').slice(0, 160)} (centre ${Math.round(cx)},${Math.round(cy)} in a ${window.innerWidth}x${window.innerHeight} viewport, scrollY ${Math.round(window.scrollY)})`
             : null,
       };
     }, selector);
@@ -685,12 +706,16 @@ export class PerfSession {
     const t = Date.now();
     await this.settle('before');
 
+    await this.still();
     for (const sel of opts.before ?? []) {
       await this.page.locator(sel).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      // The phone's top bar scrolls away with the page; a thumb scrolls back.
+      await this.page.locator(sel).scrollIntoViewIfNeeded();
       await this.waitHydrated(sel);
       if (this.profile.input === 'tap') await this.tap(sel);
       else await this.page.locator(sel).click();
       await this.settle(`after ${sel}`);
+      await this.still();
       debug(`${opts.step}: before-input ${sel} done after ${Date.now() - t}ms`);
     }
 
@@ -848,11 +873,16 @@ export class PerfSession {
   async write(opts: { step: string; mode: Mode; pass: number; spec: WriteSpec }) {
     const { spec } = opts;
     await this.settle('before write');
+    await this.still();
     const press = async (selector: string) => {
       await this.page
         .locator(selector)
         .first()
         .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      // A thumb scrolls a control into view before tapping it. Under T19's
+      // admin shell the opened court form's submit sat at y=900 on a 727 px
+      // phone viewport, below the fold, and the tap missed.
+      await this.page.locator(selector).first().scrollIntoViewIfNeeded();
       if (this.profile.input === 'tap') await this.tap(selector);
       else await this.page.locator(selector).first().click();
     };
