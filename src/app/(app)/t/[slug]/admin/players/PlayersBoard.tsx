@@ -1,15 +1,25 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { startTransition, useActionState, useId, useMemo, useOptimistic, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { FormField } from '@/components/ui/form-field';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { createColumns, DataTable } from '@/components/ui/table';
 
-import { adjustCreditAction, setPlayerTagsAction } from './actions';
+import { setPlayerTagsAction } from './actions';
+
+/**
+ * The management sheet loads on the first row opened, not with the route — the
+ * same trade the courts and pricing boards made (T23, T24): most visits search
+ * and read the list, and the sheet carries vaul, the ToggleGroup's motion and
+ * both forms.
+ */
+const PlayerSheet = dynamic(() => import('./PlayerSheet'));
 
 /**
  * The club's players.
@@ -22,6 +32,23 @@ import { adjustCreditAction, setPlayerTagsAction } from './actions';
  * everywhere, including at clubs that person has never visited.
  *
  * What belongs to the club is the STANDING: tags, and credit.
+ *
+ * ═══ ON THE PRIMITIVES (T25) ═══
+ *
+ * The list was a hand-rolled `<ul>` with a Manage toggle that unfolded both
+ * forms inside the row. It is the vendored DataTable now: a table from `md`,
+ * and below it the table's own cards, one per player, so the page never
+ * scrolls sideways at 393 px. The player's name is a button in both, and opens
+ * them in a Sheet holding the two forms.
+ *
+ * ═══ TAGS ARE OPTIMISTIC, MONEY IS NOT ═══
+ *
+ * A tag save closes the sheet and the row shows the new tags at once
+ * (`useOptimistic`); the revalidated page the action carries back replaces
+ * them in the same transition, so a refusal or a throw rolls the row back by
+ * itself and a notice names the player. A credit adjustment waits for the
+ * ledger: a balance shown before SERIALIZABLE has agreed to it would be a
+ * number the club might act on and the ledger might refuse.
  */
 
 export interface PlayerRow {
@@ -33,6 +60,27 @@ export interface PlayerRow {
   lastPlayedAt: string | null;
   membershipLevel: string | null;
   creditCents: number;
+}
+
+/**
+ * ═══ OPENING A ROW ═══
+ *
+ * The name is a real button, and the row has no `onRowClick`. A clickable
+ * DataTable renders its phone cards as `role="button"` inside the cards'
+ * `role="list"`, which axe refuses as critical (aria-required-children; measured
+ * at 393 px on this page) — and from md a clickable `<tr>` has no keyboard path
+ * at all. A button in the name cell is reachable by Tab and Enter in both
+ * renderings, and leaves each card a plain list item. 44 px on a coarse pointer.
+ */
+const NAME_BUTTON =
+  'text-content-emphasis focus-visible:ring-ring rounded-sm text-left font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none pointer-coarse:min-h-11';
+
+const NO_TAG_OVERRIDES: Readonly<Record<string, readonly string[]>> = {};
+
+/** The same cleaning `setPlayerTags` applies, so the optimistic row matches what lands. */
+function cleanTags(raw: FormDataEntryValue | null): string[] {
+  const tags = typeof raw === 'string' ? raw.split(',') : [];
+  return [...new Set(tags.map((t) => t.trim()).filter(Boolean))].sort();
 }
 
 export function PlayersBoard({
@@ -47,18 +95,115 @@ export function PlayersBoard({
 }) {
   const t = useTranslations('admin.players');
   const format = useFormatter();
+  const ids = useId();
   const [search, setSearch] = useState('');
+  // The open player outlives the sheet's open flag, so the closing sheet still
+  // shows them while it plays its exit. Mounted from the first open on.
   const [openId, setOpenId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const [tagOverrides, setOptimisticTags] = useOptimistic(
+    NO_TAG_OVERRIDES,
+    (s, next: { id: string; tags: readonly string[] }) => ({ ...s, [next.id]: next.tags }),
+  );
+  const [tagsFailedFor, saveTags, tagsPending] = useActionState(
+    async (_prev: string | null, input: { player: PlayerRow; form: FormData }) => {
+      const { player, form } = input;
+      setOptimisticTags({ id: player.playerUserId, tags: cleanTags(form.get('tags')) });
+      try {
+        const result = await setPlayerTagsAction(slug, player.playerUserId, null, form);
+        return result.ok ? null : (player.name ?? player.email);
+      } catch {
+        return player.name ?? player.email;
+      }
+    },
+    null,
+  );
+
+  const rows = useMemo(
+    () =>
+      players.map((p) =>
+        tagOverrides[p.playerUserId] ? { ...p, tags: [...tagOverrides[p.playerUserId]!] } : p,
+      ),
+    [players, tagOverrides],
+  );
+
+  const q = search.trim().toLowerCase();
+  const visible = useMemo(
+    () =>
+      q
+        ? rows.filter(
+            (p) => p.email.toLowerCase().includes(q) || (p.name ?? '').toLowerCase().includes(q),
+          )
+        : rows,
+    [rows, q],
+  );
 
   const money = (cents: number) =>
     format.number(cents / 100, { style: 'currency', currency: 'EUR' });
 
-  const q = search.trim().toLowerCase();
-  const visible = q
-    ? players.filter(
-        (p) => p.email.toLowerCase().includes(q) || (p.name ?? '').toLowerCase().includes(q),
-      )
-    : players;
+  const open = (id: string) => {
+    setOpenId(id);
+    setSheetOpen(true);
+  };
+
+  const columns = createColumns<PlayerRow>([
+    {
+      id: 'name',
+      header: t('field.name'),
+      cell: ({ row }) => {
+        // The name IS the row's control, in the table and in the cards: see
+        // OPENING A ROW below.
+        return (
+          <button
+            type="button"
+            className={NAME_BUTTON}
+            onClick={() => open(row.original.playerUserId)}
+          >
+            {row.original.name ?? row.original.email}
+          </button>
+        );
+      },
+    },
+    {
+      id: 'email',
+      header: t('field.email'),
+      cell: ({ row }) => <span className="text-content-muted">{row.original.email}</span>,
+    },
+    {
+      id: 'tags',
+      header: t('field.tags'),
+      cell: ({ row }) => (
+        <span className="inline-flex flex-wrap justify-end gap-1 md:justify-start">
+          {row.original.membershipLevel && (
+            <StatusBadge variant="info">{row.original.membershipLevel}</StatusBadge>
+          )}
+          {row.original.tags.map((tag) => (
+            <StatusBadge key={tag} variant="neutral">
+              {tag}
+            </StatusBadge>
+          ))}
+        </span>
+      ),
+    },
+    {
+      id: 'credit',
+      header: t('field.credit'),
+      cell: ({ row }) => <span className="tabular-nums">{money(row.original.creditCents)}</span>,
+    },
+    {
+      id: 'noShows',
+      header: t('field.noShows'),
+      cell: ({ row }) =>
+        row.original.noShowCount > 0 ? (
+          <StatusBadge variant="warning">
+            {t('noShows', { count: row.original.noShowCount })}
+          </StatusBadge>
+        ) : (
+          <span className="text-content-muted tabular-nums">0</span>
+        ),
+    },
+  ]);
 
   if (players.length === 0) {
     return (
@@ -68,178 +213,58 @@ export function PlayersBoard({
     );
   }
 
+  const current = openId ? rows.find((p) => p.playerUserId === openId) : undefined;
+
   return (
-    <>
-      <div className="mb-4 grid gap-1.5 sm:max-w-xs">
-        <Label htmlFor="player-search">{t('search')}</Label>
-        <Input
-          id="player-search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          autoComplete="off"
+    <div className="gap-default grid">
+      <div className="sm:max-w-xs">
+        <FormField label={t('search')}>
+          <Input
+            id={`${ids}-search`}
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
+          />
+        </FormField>
+      </div>
+
+      {tagsFailedFor !== null && !tagsPending && (
+        <InlineNotice variant="error">{t('tagsFailed', { name: tagsFailedFor })}</InlineNotice>
+      )}
+
+      {/* data-perf-ready: the perf harness's READY marker (docs/perf/README.md),
+          on the DataTable's wrapper so it is there in both the table and the
+          card rendering. */}
+      <div data-perf-ready className="min-w-0">
+        {visible.length === 0 ? (
+          <EmptyState title={t('noMatch.title')} description={t('noMatch.description')} />
+        ) : (
+          <DataTable<PlayerRow>
+            data={visible}
+            columns={columns}
+            getRowId={(p) => p.playerUserId}
+            // Cards below md, explicitly: a five-column table does not fit 393 px.
+            mobileFallback="card"
+            selectionEnabled={false}
+            data-testid="players-table"
+          />
+        )}
+      </div>
+
+      {openId !== null && current && (
+        <PlayerSheet
+          slug={slug}
+          player={current}
+          canAdjustCredit={canAdjustCredit}
+          open={sheetOpen}
+          setOpen={setSheetOpen}
+          onSaveTags={(form) => {
+            setSheetOpen(false);
+            startTransition(() => saveTags({ player: current, form }));
+          }}
         />
-      </div>
-
-      {visible.length === 0 ? (
-        <EmptyState title={t('noMatch.title')} description={t('noMatch.description')} />
-      ) : (
-        // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-        <ul data-perf-ready className="grid gap-2">
-          {visible.map((p) => (
-            <li key={p.playerUserId} className="border-border-subtle rounded-lg border p-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <span className="font-medium">{p.name ?? p.email}</span>
-                  {p.name && <p className="text-content-muted text-sm">{p.email}</p>}
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {p.membershipLevel && (
-                      <StatusBadge variant="info">{p.membershipLevel}</StatusBadge>
-                    )}
-                    {p.tags.map((tag) => (
-                      <StatusBadge key={tag} variant="neutral">
-                        {tag}
-                      </StatusBadge>
-                    ))}
-                    {p.noShowCount > 0 && (
-                      <StatusBadge variant="warning">
-                        {t('noShows', { count: p.noShowCount })}
-                      </StatusBadge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="tabular-nums">{money(p.creditCents)}</p>
-                  <p className="text-content-muted text-sm">{t('credit')}</p>
-                </div>
-              </div>
-
-              <div className="mt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setOpenId(openId === p.playerUserId ? null : p.playerUserId)}
-                >
-                  {openId === p.playerUserId ? t('action.close') : t('action.manage')}
-                </Button>
-              </div>
-
-              {openId === p.playerUserId && (
-                <div className="border-border-subtle mt-3 grid gap-4 border-t pt-3 sm:grid-cols-2">
-                  <TagsForm slug={slug} player={p} />
-                  {canAdjustCredit && <CreditForm slug={slug} player={p} />}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
       )}
-    </>
-  );
-}
-
-function TagsForm({ slug, player }: { slug: string; player: PlayerRow }) {
-  const t = useTranslations('admin.players');
-  const [state, formAction, pending] = useActionState(
-    setPlayerTagsAction.bind(null, slug, player.playerUserId),
-    null,
-  );
-
-  return (
-    <form action={formAction} className="grid gap-1.5">
-      <Label htmlFor={`tags-${player.playerUserId}`}>{t('field.tags')}</Label>
-      <Input
-        id={`tags-${player.playerUserId}`}
-        name="tags"
-        defaultValue={player.tags.join(', ')}
-        placeholder={t('field.tagsPlaceholder')}
-      />
-      {/* Tags are matched by PricingConditions.playerTags, so a club can price
-          by them — worth saying, or "vip" looks decorative. */}
-      <p className="text-content-muted text-sm">{t('field.tagsHint')}</p>
-      <div>
-        <Button type="submit" disabled={pending}>
-          {t('action.saveTags')}
-        </Button>
-      </div>
-      {state && !state.ok && (
-        <p role="alert" className="text-content-error text-sm">
-          {t(`error.${state.error}`)}
-        </p>
-      )}
-    </form>
-  );
-}
-
-function CreditForm({ slug, player }: { slug: string; player: PlayerRow }) {
-  const t = useTranslations('admin.players');
-  const format = useFormatter();
-  const [state, formAction, pending] = useActionState(
-    adjustCreditAction.bind(null, slug, player.playerUserId),
-    null,
-  );
-  const [direction, setDirection] = useState<'credit' | 'debit'>('credit');
-
-  // The ledger refuses to go below zero, so a debit is capped at what is
-  // there. Offering more would be a form that throws on submit.
-  const maxDebit = player.creditCents / 100;
-
-  return (
-    <form action={formAction} className="grid gap-1.5">
-      <Label htmlFor={`amount-${player.playerUserId}`}>{t('field.adjust')}</Label>
-
-      <div className="flex gap-2">
-        <select
-          name="direction"
-          aria-label={t('field.direction')}
-          className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-          value={direction}
-          onChange={(e) => setDirection(e.target.value as 'credit' | 'debit')}
-        >
-          <option value="credit">{t('direction.credit')}</option>
-          <option value="debit" disabled={player.creditCents <= 0}>
-            {t('direction.debit')}
-          </option>
-        </select>
-        <Input
-          id={`amount-${player.playerUserId}`}
-          name="amount"
-          type="number"
-          step="0.01"
-          min="0.01"
-          max={direction === 'debit' ? maxDebit : undefined}
-          required
-        />
-      </div>
-
-      {direction === 'debit' && (
-        <p className="text-content-muted text-sm">
-          {t('field.maxDebit', {
-            amount: format.number(maxDebit, { style: 'currency', currency: 'EUR' }),
-          })}
-        </p>
-      )}
-
-      <Label htmlFor={`note-${player.playerUserId}`}>{t('field.note')}</Label>
-      <Input
-        id={`note-${player.playerUserId}`}
-        name="note"
-        required
-        minLength={8}
-        placeholder={t('field.notePlaceholder')}
-      />
-
-      <div>
-        <Button type="submit" disabled={pending}>
-          {t('action.adjust')}
-        </Button>
-      </div>
-
-      {state && !state.ok && (
-        <p role="alert" className="text-content-error text-sm">
-          {t(`error.${state.error}`)}
-        </p>
-      )}
-    </form>
+    </div>
   );
 }

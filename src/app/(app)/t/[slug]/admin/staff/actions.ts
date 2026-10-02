@@ -3,12 +3,14 @@
 import type { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 
-import { createInvite, revokeInvite, INVITABLE_ROLES } from '@/app-layer/usecases/invites';
+import { createInvite, revokeInvite } from '@/app-layer/usecases/invites';
 import { changeMemberRole, setMemberSuspended } from '@/app-layer/usecases/staff';
 import { sendMail } from '@/lib/email/mailer';
 import { env } from '@/env';
 import { requireTenantAction } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+
+import { isInviteRole, ROLES } from './roles';
 
 /**
  * Staff mutations.
@@ -22,8 +24,6 @@ import { runInTenantContext } from '@/lib/db/rls-middleware';
  */
 
 type ActionResult = { ok: true } | { ok: false; error: string };
-
-const ROLES: readonly Role[] = ['OWNER', 'MANAGER', 'COACH', 'STAFF', 'PLAYER'];
 
 function mapError(err: unknown): ActionResult {
   const name = err instanceof Error ? err.name : '';
@@ -64,7 +64,7 @@ export async function changeRoleAction(
   const ctx = await requireTenantAction(slug, 'admin.staff_manage');
 
   const role = String(form.get('role') ?? '');
-  if (!ROLES.includes(role as Role)) return { ok: false, error: 'BAD_ROLE' };
+  if (!(ROLES as readonly string[]).includes(role)) return { ok: false, error: 'BAD_ROLE' };
 
   try {
     await runInTenantContext(ctx.tenantId, (db) =>
@@ -127,7 +127,10 @@ export async function inviteStaffAction(
   const role = String(form.get('role') ?? '');
 
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: 'BAD_EMAIL' };
-  if (!INVITABLE_ROLES.includes(role as Role)) return { ok: false, error: 'BAD_ROLE' };
+  // The page's list, not the use case's (#278): COACH and PLAYER invites are
+  // ones acceptance refuses by kind, so a hand-made POST for one is refused
+  // here rather than mailed out as a link that can never work.
+  if (!isInviteRole(role)) return { ok: false, error: 'BAD_ROLE' };
 
   let token: string;
   try {
