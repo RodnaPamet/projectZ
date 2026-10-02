@@ -2,6 +2,14 @@
   "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
   "rows": [
     {
+      "path": "src/components/layout/AppShellFrame.tsx",
+      "inflectPath": "src/components/layout/AppShellFrame.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "a3fe67aa9fa82b7ad5c778f34fd961be1fc53807e98f2c2fa331c649abf0980f"
+    },
+    {
       "path": "src/components/layout/EntityDetailLayout.tsx",
       "inflectPath": "src/components/layout/EntityDetailLayout.tsx",
       "baseSha": "1520b8b87",
@@ -24,6 +32,22 @@
       "sha": null,
       "status": "pending",
       "sha256": "687e4e697ee105f767612da64658569b0e342155681a37481f500e468e910076"
+    },
+    {
+      "path": "src/components/layout/LocaleSwitcher.tsx",
+      "inflectPath": "src/components/layout/LocaleSwitcher.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "cb10962f008b799a1536ccbce5978c5ef45d49c1bef73c932952fb1d2f298b1c"
+    },
+    {
+      "path": "src/components/layout/MobileNavDrawer.tsx",
+      "inflectPath": "src/components/layout/MobileNavDrawer.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "7465d97ecf8f19ff5d0b0e96a06e00a7310997d27968468630dedf2288f55866"
     },
     {
       "path": "src/components/layout/PageActions.tsx",
@@ -50,12 +74,52 @@
       "sha256": "a30af046979dcef25be13ecf5bb3f151dfced4c527743751734e6118185ea6ee"
     },
     {
+      "path": "src/components/layout/nav-bar.tsx",
+      "inflectPath": "src/components/layout/nav-bar.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "63219eb96284c1a93be0aba78298ff8a71870f8620dccef615ae176882ab585a"
+    },
+    {
+      "path": "src/components/layout/nav-item.tsx",
+      "inflectPath": "src/components/layout/nav-item.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "ccb5a3771ca1aed6f1ba5a658232e45e890d5cfa53f7e5a06048b90d97845e5b"
+    },
+    {
+      "path": "src/components/layout/nav-section.tsx",
+      "inflectPath": "src/components/layout/nav-section.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "121e662a59662228d75eb55d61f745052ba90ee47b9b579b45f347925bdfa1db"
+    },
+    {
       "path": "src/components/layout/session-expired-notice.tsx",
       "inflectPath": "src/components/layout/session-expired-notice.tsx",
       "baseSha": "0060a2f6f85692b6deb189ea5a028e911d40dd9a",
       "sha": "0060a2f6f85692b6deb189ea5a028e911d40dd9a",
       "status": "vendored",
       "sha256": "87e880a42e31b2824e3906e541b0a6d4e873a4bb0e90181491840cb40c0c4d45"
+    },
+    {
+      "path": "src/components/layout/sidebar-collapse-context.tsx",
+      "inflectPath": "src/components/layout/sidebar-collapse-context.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "9f81522db02b3fcfe8684f366a7355e65245b9daec69bbd8100f39e348b90f8d"
+    },
+    {
+      "path": "src/components/layout/user-menu.tsx",
+      "inflectPath": "src/components/layout/user-menu.tsx",
+      "baseSha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "sha": "38f2c476a3c7c0b4c1639a392f0e55cb510ede3a",
+      "status": "vendored",
+      "sha256": "99898fd4427af40b3b329683519b7349c3d9a16bf8138bc3d1a8f0a5d7329ad5"
     }
   ]
 }
