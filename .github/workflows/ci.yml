@@ -398,6 +398,11 @@ jobs:
     env:
       DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
       DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
+      # Production refuses to start a session without one: sign-in derives the
+      # session hash from it (src/lib/security/encryption.ts). No E2E signed in
+      # before T19's admin-shell specs, so the job never needed it. Throwaway,
+      # like NEXTAUTH_SECRET above and the perf harness's own.
+      DATA_ENCRYPTION_KEY: 'ci-e2e-data-encryption-key-throwaway-0000000000' # pragma: allowlist secret
     services:
       postgres:
         image: postgis/postgis:16-3.4
