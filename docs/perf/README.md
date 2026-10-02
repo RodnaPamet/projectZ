@@ -66,29 +66,32 @@ What `staleTimes { dynamic: 30 }` changed, main → T30 (medians, 20 samples per
 
 The `a56ea4f` baseline below is kept as the programme's starting point.
 
-## Measured, not adopted: T19's admin shell (#313), 2 October 2026
+## T19's admin shell (#313), re-measured after #314, 2 October 2026
 
-These numbers did NOT reset the budget. T19's runs failed `budget.ts` on 5 rows (the phone's
-warm staff steps), and the plan reserves merged baselines for T30 and T29, so the owner
-decides. Two branch runs at `8445cc6`, interleaved with two of `origin/main` at `e31aaee`,
-between 11:09 and 12:34 Sofia time. `perf:compare` found 0 faster and 8 slower beyond noise,
-all on the phone's staff journey. The desktop was within noise on every row.
+T19 changes no step id, so it commits no baseline and leaves both budgets alone. Two
+branch runs at `557cb72`, interleaved with two of `origin/main` at `f3a7459` (#316, the
+#314 fix), between 16:28 and 17:27 Sofia time. `budget.ts` passes on all 92 rows.
+`perf:compare` finds 0 faster and 6 slower beyond noise. The desktop is within noise on
+every soft row.
 
-- **The phone's warm staff steps lost their cache hits.** For example, calendar → courts went
-  from 46 to 357 ms. The shell is not slower to render. A phone now reaches a nav link in two
-  taps (the drawer, then the link), so the loop takes about 10 s instead of 5. The revisit of
-  the diary (`next day → today`) then lands just past the diary's 10 s self-refresh: 4 trailing
-  requests (about 22 KB) in all 10 samples, against 0 on main. The refresh purges the whole
-  router cache, so every warm step after it is a cold one. Main's warm rows depend on a loop
-  that finishes in under 10 s, which a real member of staff rarely manages. #314 is the
-  follow-up.
-- **First Load JS, gzip:**
-  - the admin routes went from 252.8–270.9 KB to 290.1–292.1 KB (+37 KB; +20 KB on the
-    calendar);
-  - `/platform/moderation` went from 245 to 295.1 KB, because it now has the shell;
-  - main's own build already exceeded the T30 bundle budget on 9 routes.
-
-  This was read with `bundle-budget.ts` on both builds.
+- **The phone's warm staff steps are cache hits again.** On a phone a nav link is two
+  taps (the drawer, then the link), so the staff loop takes about 10 s instead of 5, and
+  the diary revisit lands past its 10 s staleness check. Before #316 that check called
+  `router.refresh()`, which purged the router cache: calendar → courts went from 46 to
+  357 ms in T19's first runs (8445cc6 against e31aaee, 4 trailing requests in 10/10
+  samples). Since #316 it re-fetches only the day. The same step now takes 61 ms (47 ms on
+  main), with 0 trailing requests in all 20 samples on both sides.
+- **What is left is the shell's own cost on a ×4 CPU.** Five phone rows are 20–39 ms
+  slower and still render from the cache: pricing → players 90 → 115 ms, players → staff
+  196 → 220, players → calendar 57 → 96 warm and 61 → 95 cold, and staff-write's
+  calendar → courts 39 → 59. On the desktop, the staff landing's full load is 136 → 159 ms,
+  which is the larger bundle.
+- **First Load JS, gzip** (from the runs' builds): the admin routes went from
+  252.8–254.9 KB to 290.1–292.1 KB (+37 KB), and the calendar from 271.1 to 291.2 KB
+  (+20 KB). `/platform/moderation` went from 245 to 295.1 KB, because it now has the
+  shell. `/venues` and `/design-system` gained 9 KB and `/t/[slug]` lost 12.7 KB. Main
+  was already over `bundle-budget.json` on 11 routes before T19 (#315). The bundle
+  budget only reports until T29.
 
 ## Production: `6d8c525` on app.playerz.bg, 1 October 2026 (#290)
 
