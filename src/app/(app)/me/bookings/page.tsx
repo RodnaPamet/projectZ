@@ -1,13 +1,14 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 
-import { canReview, listMyBookings } from '@/app-layer/usecases/my-bookings';
+import { listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
-import { EmptyState } from '@/components/ui/empty-state';
+import { toMyBookingDto } from '@/app/api/v1/_lib/dto';
+import { Heading } from '@/components/ui/typography';
 import { requireSignedIn } from '@/lib/auth/page-context';
+import { ViewerScope } from '@/lib/data/provider';
 
-import { ReviewForm } from './ReviewForm';
+import { MyBookingsList } from './MyBookingsList';
 
 export async function generateMetadata() {
   const t = await getTranslations('myBookings');
@@ -25,24 +26,28 @@ export async function generateMetadata() {
  * `/api/v1/t/{slug}/bookings` is per club, because a club's API should be. A
  * PERSON's list is not: they booked padel at one club and tennis at another,
  * and a list showing one of them is wrong in a way they cannot see — the
- * missing booking looks like one that failed.
+ * missing booking looks like one that failed. `GET /api/v1/me/bookings` (T16)
+ * is the cross-club list, for the web and the native app alike.
  *
- * ═══ EVERY TIME IS RENDERED IN THE VENUE'S TIMEZONE ═══
+ * ═══ A SERVER SEED, THEN THE SAME ENDPOINT AS iOS (T22) ═══
  *
- * Not the browser's, and not the server's. A court booked for 19:00 in Sofia
- * is at 19:00 in Sofia whoever is reading the page and wherever they are
- * standing — a player checking their booking from abroad must not be shown
- * 17:00 and turn up two hours late. `Venue.timezone` is stored per venue for
- * exactly this, and `startTs` is `timestamptz`, so the conversion is the only
- * step that can be got wrong.
+ * This page reads page one on the server, through the same use case and the
+ * same mapper (`toMyBookingDto`) as `GET /api/v1/me/bookings`, so the first
+ * paint is the list and not a skeleton. `MyBookingsList` then holds it under
+ * that endpoint's SWR key and revalidates once after paint (one GET), on tab
+ * focus, and after a review; "load more" follows the endpoint's cursor. Seed
+ * and endpoint share one mapper, with dates as RFC 3339 strings, so the first
+ * revalidation cannot swap one shape for another under the person's thumb.
  *
- * ═══ A PLAYED BOOKING IS WHERE A REVIEW STARTS ═══
+ * The review write goes to `POST /api/v1/t/{slug}/bookings/{id}/review`, the
+ * route the native app calls; the Server Action that used to carry it is
+ * gone. It could not, before EDGE-250 (#265): the edge refused that route to a
+ * token without the club in its memberships, and a player who joined a club BY
+ * booking it had no such claim until they signed in again.
  *
- * A COMPLETED booking — the proof of visit — offers "rate this venue" until the
- * player has reviewed that venue; after that it shows the review they left and
- * whether a moderator has passed it. One review per venue, so a second visit to
- * the same club shows the first review rather than a form that could only be
- * refused.
+ * ViewerScope sends this page's user id with every read and write, so a tab
+ * left open across a switch to another account (#263) is refused 409
+ * VIEWER_CHANGED rather than shown, or reviewing as, the other account.
  *
  * ═══ IT IS WHERE A PLAYER LANDS (#227) ═══
  *
@@ -55,13 +60,14 @@ export default async function MyBookingsPage() {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/bookings');
 
-  const [t, tSports, locale] = await Promise.all([
+  const [t, page] = await Promise.all([
     getTranslations('myBookings'),
-    getTranslations('sports'),
-    getLocale(),
+    // No cursor and no limit: the endpoint's own defaults, so the seed is
+    // exactly what the key below, `/api/v1/me/bookings`, answers.
+    listMyBookings({ userId }),
   ]);
 
-  const { items } = await listMyBookings({ userId });
+  const seed = { items: page.items.map((b) => toMyBookingDto(b)), nextCursor: page.nextCursor };
 
   return (
     // The header (and the notch inset above it, NAV_BAR_SAFE_AREA) is the
@@ -70,84 +76,13 @@ export default async function MyBookingsPage() {
     // side inset set the gutter to 0 (see venues/page.tsx).
     <div className="bg-bg-page text-content-default safe-area-x flex-1">
       <main className="px-6 py-10">
-        <header className="mb-8">
-          <h1 className="text-content-emphasis text-3xl font-semibold">{t('title')}</h1>
-        </header>
+        <Heading level={1} className="mb-section">
+          {t('title')}
+        </Heading>
 
-        {items.length === 0 ? (
-          <div data-perf-ready className="space-y-4">
-            <EmptyState title={t('empty.title')} description={t('empty.description')} />
-            <Link
-              href="/venues"
-              className="bg-bg-brand text-content-on-brand inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
-            >
-              {t('browse')}
-            </Link>
-          </div>
-        ) : (
-          // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-          <ul data-perf-ready className="space-y-3">
-            {items.map((b) => {
-              if (!b) return null;
-              const tz = b.resource.venue.timezone;
-
-              const when = new Intl.DateTimeFormat(locale, {
-                dateStyle: 'full',
-                timeStyle: 'short',
-                timeZone: tz,
-              }).format(b.startTs);
-
-              const until = new Intl.DateTimeFormat(locale, {
-                timeStyle: 'short',
-                timeZone: tz,
-              }).format(b.endTs);
-
-              const price = new Intl.NumberFormat(locale, {
-                style: 'currency',
-                currency: b.currency,
-              }).format(b.totalCents / 100);
-
-              return (
-                <li
-                  key={b.id}
-                  className="border-border-subtle bg-bg-default rounded-lg border px-4 py-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-content-emphasis font-medium">{b.resource.venue.name}</p>
-                      <p className="text-content-muted text-sm">
-                        {b.resource.name} · {tSports(b.resource.sport as never)}
-                      </p>
-                    </div>
-                    <span className="text-content-muted shrink-0 text-xs">
-                      {t(`status.${b.status}` as never)}
-                    </span>
-                  </div>
-
-                  <p className="text-content-default mt-2 text-sm">
-                    {when} – {until}
-                  </p>
-                  <p className="text-content-muted mt-1 text-sm">{price}</p>
-
-                  {b.venueReview?.bookingId === b.id ? (
-                    <p className="text-content-default mt-3 text-sm">
-                      {t('review.yours', { rating: b.venueReview.rating })}{' '}
-                      <span className="text-content-muted">
-                        · {t(`review.status.${b.venueReview.status}` as never)}
-                      </span>
-                    </p>
-                  ) : b.venueReview && b.status === 'COMPLETED' ? (
-                    <p className="text-content-muted mt-3 text-sm">
-                      {t('review.alreadyThisVenue')}
-                    </p>
-                  ) : canReview(b) && b.clubSlug ? (
-                    <ReviewForm slug={b.clubSlug} bookingId={b.id} maxLength={REVIEW_MAX_LENGTH} />
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <ViewerScope viewerId={userId}>
+          <MyBookingsList seed={seed} reviewMaxLength={REVIEW_MAX_LENGTH} />
+        </ViewerScope>
       </main>
     </div>
   );

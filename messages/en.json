@@ -611,6 +611,8 @@
       "description": "Pick a court and reserve a time."
     },
     "browse": "Browse venues",
+    "loadMore": "Load more",
+    "loadMoreError": "The next bookings did not load. Try again.",
     "price": "{price}",
     "status": {
       "PENDING": "Awaiting payment",
@@ -639,7 +641,8 @@
         "TOO_LONG": "That review is too long.",
         "NO_PROOF_OF_VISIT": "Only a completed booking can be reviewed. This one may have been marked as a no-show.",
         "ALREADY_REVIEWED": "You have already reviewed this venue.",
-        "NOT_ALLOWED": "You can no longer review bookings at this club."
+        "NOT_ALLOWED": "You can no longer review bookings at this club.",
+        "FAILED": "The review was not sent. Try again."
       }
     }
   },
