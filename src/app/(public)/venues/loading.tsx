@@ -1,15 +1,13 @@
 import { RouteSkeleton } from '@/components/loading/route-skeleton';
-import {
-  CardGridSkeleton,
-  PageTitleSkeleton,
-  SiteHeaderSkeleton,
-} from '@/components/loading/shapes';
+import { CardGridSkeleton, PageTitleSkeleton } from '@/components/loading/shapes';
 
-/** /venues: the header, the title and the count, then the venue card grid. */
+/**
+ * /venues: the title and the count, then the venue card grid. No header
+ * stand-in since T20: (public)/layout.tsx renders the real one around this.
+ */
 export default function Loading() {
   return (
     <RouteSkeleton className="bg-bg-page">
-      <SiteHeaderSkeleton />
       <div className="safe-area-x">
         <div className="px-6 py-10">
           <PageTitleSkeleton className="mb-8" />

@@ -1,6 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 
-import { SiteHeader } from '@/components/layout/SiteHeader';
 import { MobileListAffordances } from '@/components/mobile/MobileListAffordances';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -55,10 +54,9 @@ export default async function VenuesPage({
     ),
   );
 
+  // The site header and the tab bar come from (public)/layout.tsx (T20).
   return (
     <>
-      <SiteHeader />
-
       {/*
         safe-area-x and px-6 on DIFFERENT elements. `.safe-area-x` lives in
         globals.css outside any cascade layer, so it beats Tailwind's layered

@@ -66,8 +66,11 @@ export function ScrollToTop({ className }: { className?: string }) {
         'bg-bg-elevated text-content-emphasis border-border-strong border shadow-lg',
         'hover:bg-bg-muted transition-colors',
         // Sits above the safe area, so it is not under the home indicator on a
-        // notched phone.
-        'bottom-[calc(1rem+env(safe-area-inset-bottom))]',
+        // notched phone — and above the player tab bar (T20), which publishes
+        // its height, home indicator included, as --app-bottom-inset while it
+        // shows. max(): with no tab bar the variable is unset (0px) and the
+        // safe area is the floor, as before.
+        'bottom-[calc(1rem+max(var(--app-bottom-inset,0px),env(safe-area-inset-bottom)))]',
         className,
       )}
     >

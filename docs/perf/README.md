@@ -343,10 +343,17 @@ The entry page is the only `goto`.
 
 | Journey | Account                             | Entry                                   | Steps                                                                                                                                                                  |
 | ------- | ----------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| public  | anonymous                           | `/`                                     | → venues (the call to action), → home (the wordmark), → login (header), back                                                                                           |
-| player  | `player@perf.playerz.test`          | `/`                                     | → my bookings (header), → home, → venues, → home                                                                                                                       |
+| public  | anonymous                           | `/`                                     | → venues (the call to action), → home (the wordmark), → login (tab bar / header), back                                                                                 |
+| player  | `player@perf.playerz.test`          | `/`                                     | → my bookings (tab bar / header), → home, → venues, → home                                                                                                             |
 | staff   | `owner@sofia.bg`, OWNER of one club | `/t/sofia-padel-club` (307 → the diary) | the club nav: → courts → pricing → players → staff; the back button; → calendar (nav); the diary's "next day" link; its "today" link                                   |
 | landing | player, then staff                  | `/start`                                | the post-sign-in redirect chain as a full load: what Google or Microsoft's callback lands on (#227). There is no web sign-in form to click, so this is the one `goto`. |
+
+Since T20 the player chrome differs by width, so `→ login` and `→ my bookings` are
+tapped on the bottom tab bar on the phone and clicked in the header on the desktop:
+each profile uses the control a person on it would see. The step ids did not change,
+so their budget rows still apply. Both are fully prefetched either way (the tab bar,
+and the header's `PublicPrefetchLink` to `/login`), except the desktop's header link
+to `/me/bookings`, which keeps the default.
 
 Left out on purpose:
 

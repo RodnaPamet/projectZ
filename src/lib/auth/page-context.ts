@@ -287,7 +287,15 @@ export interface SignedInIdentity {
   email: string | null;
 }
 
-export async function signedInIdentity(): Promise<SignedInIdentity | null> {
+/**
+ * Wrapped in React `cache` for the same reason as `resolveTenantPageContext`:
+ * since T20 the player layouts render the site header AND the bottom tab bar,
+ * and both need to know who is signed in. Per request, so a revoked session
+ * is still evicted on the very next one.
+ */
+export const signedInIdentity = cache(_signedInIdentity);
+
+async function _signedInIdentity(): Promise<SignedInIdentity | null> {
   const token = (await tokenFromHeaders()) as (PlayerzJWT & Partial<SignedInIdentity>) | null;
   if (!token?.sub) return null;
 

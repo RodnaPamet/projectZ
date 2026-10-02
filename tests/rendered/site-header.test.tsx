@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { HOME, PLAYER_HOME, type LandingDecision } from '@/lib/auth/landing';
 
+import bg from '../../messages/bg.json';
 import { withIntl } from '../helpers/intl';
 
 /**
@@ -17,6 +18,12 @@ import { withIntl } from '../helpers/intl';
  * An app with no observable difference between signed in and signed out cannot
  * be tested by a human either, which is why these assert on what is RENDERED
  * rather than on the session helper's return value.
+ *
+ * Since T20 the header sits on inflect's vendored NavBar slots, its links show
+ * from `md` (the bottom tab bar has them below), and the name and sign-out
+ * live in the vendored account menu. jsdom applies no media queries, so every
+ * width's markup is here at once; the phone half is the tab bar's test and
+ * tests/e2e/mobile/player-shell.spec.ts.
  */
 jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
 
@@ -25,9 +32,9 @@ jest.mock('@/lib/auth/page-context', () => ({
   signedInIdentity: () => signedInIdentity(),
 }));
 
-// Where `/start` would land the person — the header links back to it. It
-// reaches Prisma, which has no business loading under jsdom; what it returns is
-// the input here.
+// Where `/start` would land the person — the header links a club account back
+// to it. It reaches Prisma, which has no business loading under jsdom; what it
+// returns is the input here.
 const resolveLanding = jest.fn();
 jest.mock('@/app-layer/usecases/landing', () => ({
   resolveLanding: (...args: unknown[]) => resolveLanding(...args),
@@ -35,16 +42,15 @@ jest.mock('@/app-layer/usecases/landing', () => ({
 
 jest.mock('next-intl/server', () => ({
   getTranslations: async (ns: string) => {
-    // `as unknown as` and not a direct cast: the catalogue is NESTED —
-    // `common.error.title` is an object, not a string — so the obvious
-    // Record<string, Record<string, string>> does not describe it and tsc
-    // rejects the conversion. Values are narrowed at the point of use instead.
-    const messages = (await import('../../messages/bg.json')).default as unknown as Record<
-      string,
-      Record<string, unknown>
-    >;
+    // `as unknown as`: the catalogue is NESTED, so no flat record type
+    // describes it. The namespace may be dotted (`common.nav`).
+    const messages = (await import('../../messages/bg.json')).default as unknown;
+    const scope = ns
+      .split('.')
+      .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], messages) as
+      Record<string, unknown> | undefined;
     return (key: string) => {
-      const value = messages[ns]?.[key];
+      const value = scope?.[key];
       return typeof value === 'string' ? value : `${ns}.${key}`;
     };
   },
@@ -52,74 +58,77 @@ jest.mock('next-intl/server', () => ({
 
 const renderHeader = async () => render(withIntl(await SiteHeader()));
 
+const IVO = { userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' };
 const PLAYER: LandingDecision = { href: PLAYER_HOME, reason: 'player', club: null };
-
 const CLUB: LandingDecision = {
   href: '/t/sofia-padel/admin/calendar',
   reason: 'club',
   club: { tenantId: 'csofia', tenantSlug: 'sofia-padel', tenantName: 'Sofia Padel' },
 };
 
+const PLAY = bg.common.nav.play;
+const MINE = bg.common.nav.myBookings;
+const SIGN_IN = bg.login.title;
+const accountMenu = (name: string) => bg.nav.accountMenuFor.replace('{name}', name);
+const topNav = () => screen.getByRole('navigation', { name: bg.common.ui.mainNav });
+
 beforeEach(() => {
   signedInIdentity.mockReset();
   resolveLanding.mockReset();
-  // A player, unless a test says otherwise.
   resolveLanding.mockResolvedValue(PLAYER);
 });
 
-describe('SiteHeader', () => {
-  it('names the signed-in person and offers a way out', async () => {
-    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
-    await renderHeader();
-
-    expect(screen.getByText('Ivo')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Изход' })).toBeInTheDocument();
-    // The only thing in the app that points at /me/bookings. Without it the
-    // page is unreachable, which is the failure #224 exists to describe.
-    expect(screen.getByRole('link', { name: 'Моите резервации' })).toHaveAttribute(
-      'href',
-      '/me/bookings',
-    );
-    // No sign-in link while signed in — offering one implies it did not work.
-    expect(screen.queryByRole('link', { name: 'Вход' })).not.toBeInTheDocument();
-  });
-
-  it('falls back to the email when the provider gave no name', async () => {
-    // An OAuth profile with no name is ordinary, and a blank greeting beside a
-    // sign-out button reads as broken rather than as anonymous.
-    signedInIdentity.mockResolvedValue({ userId: 'u1', name: null, email: 'ivo@example.bg' });
-    await renderHeader();
-
-    expect(screen.getByText('ivo@example.bg')).toBeInTheDocument();
-  });
-
-  it('offers sign-in, and no sign-out, when nobody is signed in', async () => {
+describe('SiteHeader — signed out', () => {
+  it('offers sign-in and Discover, and no account', async () => {
     signedInIdentity.mockResolvedValue(null);
     await renderHeader();
 
-    expect(screen.getByRole('link', { name: 'Вход' })).toHaveAttribute('href', '/login');
-    expect(screen.queryByRole('button', { name: 'Изход' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: SIGN_IN })).toHaveAttribute('href', '/login');
+    expect(within(topNav()).getByRole('link', { name: PLAY })).toHaveAttribute('href', '/venues');
     // "My bookings" to a stranger is a link to a redirect.
-    expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: MINE })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Меню на акаунта/ })).not.toBeInTheDocument();
     // …and a stranger has no account to read, so nothing asks.
     expect(resolveLanding).not.toHaveBeenCalled();
   });
 
-  it('has no role switcher any more — one account is one kind (#263)', async () => {
-    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
-    resolveLanding.mockResolvedValue(CLUB);
+  it('keeps the wordmark charcoal, linking home (owner decision)', async () => {
+    signedInIdentity.mockResolvedValue(null);
     await renderHeader();
 
-    expect(screen.queryByRole('button', { name: /Смяна на ролята/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    const mark = screen.getByRole('link', { name: bg.common.appName });
+    expect(mark).toHaveAttribute('href', '/');
+    expect(mark).toHaveClass('text-content-emphasis');
+    expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 });
 
-describe('SiteHeader — the way back to your club (#263)', () => {
-  it('names a club account’s club, and links where /start would land it', async () => {
-    // The switcher used to be how a club account got back to its club from the
-    // public pages. With one kind per account the header just says which club.
-    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
+describe('SiteHeader — per landing reason', () => {
+  it('player: Discover and My bookings, an account menu that names them, no club', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    await renderHeader();
+
+    const nav = topNav();
+    expect(within(nav).getByRole('link', { name: PLAY })).toHaveAttribute('href', '/venues');
+    // The link that makes /me/bookings reachable from a desktop (#224).
+    expect(within(nav).getByRole('link', { name: MINE })).toHaveAttribute('href', '/me/bookings');
+    expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    // No sign-in link while signed in — offering one implies it did not work.
+    expect(screen.queryByRole('link', { name: SIGN_IN })).not.toBeInTheDocument();
+    expect(resolveLanding).toHaveBeenCalledWith('u1');
+  });
+
+  it('names the account by its email when the provider gave no name', async () => {
+    // An OAuth profile with no name is ordinary, and a blank trigger reads as broken.
+    signedInIdentity.mockResolvedValue({ ...IVO, name: null });
+    await renderHeader();
+
+    expect(screen.getByRole('button', { name: accountMenu('ivo@example.bg') })).toBeInTheDocument();
+  });
+
+  it('club: the way back to its one club, and no My bookings (#263)', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
     resolveLanding.mockResolvedValue(CLUB);
     await renderHeader();
 
@@ -127,27 +136,39 @@ describe('SiteHeader — the way back to your club (#263)', () => {
       'href',
       '/t/sofia-padel/admin/calendar',
     );
-    // A club account is not a player: no "My bookings" for it.
-    expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
-    // Asked about the person signed in, and nobody else.
-    expect(resolveLanding).toHaveBeenCalledWith('u1');
+    expect(screen.queryByRole('link', { name: MINE })).not.toBeInTheDocument();
+    expect(within(topNav()).getByRole('link', { name: PLAY })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
+    // One account, one kind: no switcher, no picker.
+    expect(screen.queryByRole('button', { name: /Смяна на ролята/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('offers a player "My bookings", and no club', async () => {
-    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
-    await renderHeader();
-
-    expect(screen.getByRole('link', { name: 'Моите резервации' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Sofia Padel' })).not.toBeInTheDocument();
-  });
-
-  it('offers neither to a club account whose club is gone', async () => {
-    signedInIdentity.mockResolvedValue({ userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' });
+  it('club-unavailable: neither a club nor My bookings, still a way out', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
     resolveLanding.mockResolvedValue({ href: HOME, reason: 'club-unavailable', club: null });
     await renderHeader();
 
-    expect(screen.queryByRole('link', { name: 'Моите резервации' })).not.toBeInTheDocument();
-    // Still somebody signed in, with a way out.
-    expect(screen.getByRole('button', { name: 'Изход' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: MINE })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
+  });
+
+  it('undecided, with no club to land on: a player’s links', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    resolveLanding.mockResolvedValue({ href: PLAYER_HOME, reason: 'undecided', club: null });
+    await renderHeader();
+
+    expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+  });
+
+  it('coach: a player’s links', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    resolveLanding.mockResolvedValue({ href: PLAYER_HOME, reason: 'coach', club: null });
+    await renderHeader();
+
+    expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
   });
 });

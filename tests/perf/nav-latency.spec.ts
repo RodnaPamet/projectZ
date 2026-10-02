@@ -59,6 +59,18 @@ function navTap(href: string, phone: boolean): { click: string; before?: string[
     : { click: `aside ${MAIN_NAV} a[href="${href}"]` };
 }
 
+/**
+ * A tap on the player chrome (T20), as the profile has it. Below `md` the
+ * header's links are hidden and the bottom tab bar carries them, so the phone
+ * taps the tab and the desktop clicks the header; each selector names the one
+ * copy visible on its profile. The step ids, and so their budget rows, are
+ * unchanged: same page to same page, through the control that profile shows.
+ */
+const TAB_BAR = `nav[aria-label="${bg.common.nav.tabBar}"]`;
+function playerTap(href: string, phone: boolean): { click: string } {
+  return { click: phone ? `${TAB_BAR} a[href="${href}"]` : `header a[href="${href}"]` };
+}
+
 /** The club's today, the way the diary decides it (in the club's zone, not the server's). */
 function shiftDay(isoDay: string, delta: number): string {
   const [y, m, d] = isoDay.split('-').map((n) => Number.parseInt(n, 10));
@@ -137,11 +149,12 @@ const READY: ReadyTable = {
 /**
  * One input. `click` is a selector; `nav` is an href in the admin nav, which
  * `navTap` turns into the right selector (and the drawer opening, on a phone)
- * for the profile being measured.
+ * for the profile being measured; `tab` is an href in the player chrome,
+ * which `playerTap` turns into the tab bar's link or the header's.
  */
 type Step =
   | ({ id: string; to: string } & (
-      { click: string; before?: string[] } | { back: true } | { nav: string }
+      { click: string; before?: string[] } | { back: true } | { nav: string } | { tab: string }
     ))
   | { id: string; write: WriteSpec };
 
@@ -194,7 +207,7 @@ const JOURNEYS: Journey[] = [
     steps: [
       { id: 'home → venues', to: '/venues', click: 'main a[href="/venues"]' },
       { id: 'venues → home', to: '/', click: 'header a[href="/"]' },
-      { id: 'home → login', to: '/login', click: 'header a[href="/login"]' },
+      { id: 'home → login', to: '/login', tab: '/login' },
       { id: 'login → home (back)', to: '/', back: true },
     ],
   },
@@ -204,7 +217,7 @@ const JOURNEYS: Journey[] = [
     entry: '/',
     lands: '/',
     steps: [
-      { id: 'home → my bookings', to: '/me/bookings', click: 'header a[href="/me/bookings"]' },
+      { id: 'home → my bookings', to: '/me/bookings', tab: '/me/bookings' },
       { id: 'my bookings → home', to: '/', click: 'header a[href="/"]' },
       { id: 'home → venues', to: '/venues', click: 'main a[href="/venues"]' },
       { id: 'venues → home', to: '/', click: 'header a[href="/"]' },
@@ -346,9 +359,11 @@ for (let run = 1; run <= PERF_RUNS; run++) {
             const input =
               'nav' in st
                 ? navTap(st.nav, profile.input === 'tap')
-                : 'click' in st
-                  ? { click: st.click, before: st.before }
-                  : { back: true };
+                : 'tab' in st
+                  ? playerTap(st.tab, profile.input === 'tap')
+                  : 'click' in st
+                    ? { click: st.click, before: st.before }
+                    : { back: true };
             await s.step({
               step: st.id,
               key: st.to,

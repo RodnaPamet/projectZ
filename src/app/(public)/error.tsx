@@ -22,7 +22,7 @@ export default function PublicError({
   const t = useTranslations('common');
 
   return (
-    <main className="safe-area-top safe-area-x flex min-h-dvh items-center justify-center p-6">
+    <main className="safe-area-x flex flex-1 items-center justify-center p-6">
       <ErrorState
         description={t('error.body')}
         onRetry={retry}

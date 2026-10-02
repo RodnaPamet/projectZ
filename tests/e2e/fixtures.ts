@@ -5,6 +5,7 @@ import {
   destroyTenant,
   type IsolatedTenant,
 } from './utils/create-isolated-tenant';
+import { createPlayer, destroyPlayer, type E2EPlayer } from './utils/create-player';
 
 /**
  * The E2E fixture spine.
@@ -19,6 +20,10 @@ import {
 interface Fixtures {
   isolatedTenant: IsolatedTenant;
   authedPage: import('@playwright/test').Page;
+  /** A PLAYER account (T20), with no club. */
+  player: E2EPlayer;
+  /** `page`, signed in as `player`. */
+  playerPage: import('@playwright/test').Page;
 }
 
 export const test = base.extend<Fixtures>({
@@ -35,31 +40,48 @@ export const test = base.extend<Fixtures>({
     // spec makes each of them a login test too — so a broken login page
     // fails 40 unrelated specs and buries the real signal. P07 wires the
     // NextAuth credentials endpoint this posts to.
-    const res = await page.request.post('/api/auth/callback/credentials', {
-      // A distinct client address per sign-in. The credentials POST allows 10
-      // attempts per IP per 15 minutes (LOGIN_LIMIT), keyed on the first
-      // x-forwarded-for hop, and every spec signs in from the same loopback:
-      // T19's 13 authed specs measured 429 from the eleventh. 198.18.0.0/15
-      // is the benchmarking range (RFC 2544), so it never names a real client.
-      headers: { 'x-forwarded-for': testClientIp() },
-      form: {
-        email: isolatedTenant.email,
-        password: isolatedTenant.password,
-        csrfToken: await csrfToken(page),
-        json: 'true',
-      },
-    });
+    await signIn(page, isolatedTenant);
+    await use(page);
+  },
 
-    if (!res.ok()) {
-      throw new Error(
-        `Programmatic sign-in failed (${res.status()}). The authedPage fixture ` +
-          `cannot proceed; check the NextAuth credentials provider.`,
-      );
-    }
+  player: async ({}, use) => {
+    const player = await createPlayer();
+    await use(player);
+    await destroyPlayer(player.userId);
+  },
 
+  playerPage: async ({ page, player }, use) => {
+    await signIn(page, player);
     await use(page);
   },
 });
+
+async function signIn(
+  page: import('@playwright/test').Page,
+  account: { email: string; password: string },
+): Promise<void> {
+  const res = await page.request.post('/api/auth/callback/credentials', {
+    // A distinct client address per sign-in. The credentials POST allows 10
+    // attempts per IP per 15 minutes (LOGIN_LIMIT), keyed on the first
+    // x-forwarded-for hop, and every spec signs in from the same loopback:
+    // T19's 13 authed specs measured 429 from the eleventh. 198.18.0.0/15
+    // is the benchmarking range (RFC 2544), so it never names a real client.
+    headers: { 'x-forwarded-for': testClientIp() },
+    form: {
+      email: account.email,
+      password: account.password,
+      csrfToken: await csrfToken(page),
+      json: 'true',
+    },
+  });
+
+  if (!res.ok()) {
+    throw new Error(
+      `Programmatic sign-in failed (${res.status()}). The sign-in fixture ` +
+        `cannot proceed; check the NextAuth credentials provider.`,
+    );
+  }
+}
 
 function testClientIp(): string {
   const n = Math.floor(Math.random() * 2 ** 17);

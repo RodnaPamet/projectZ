@@ -4,7 +4,6 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { canReview, listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
-import { SiteHeader } from '@/components/layout/SiteHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { requireSignedIn } from '@/lib/auth/page-context';
 
@@ -48,9 +47,9 @@ export async function generateMetadata() {
  * ═══ IT IS WHERE A PLAYER LANDS (#227) ═══
  *
  * Until the player UI exists (#224) this is `PLAYER_HOME` — the page sign-in
- * sends every player to. So it carries the site header: without it a player
- * landed on a page with no sign-out, and anyone who also runs a club had no
- * switcher to get there.
+ * sends every player to. So it wears the player chrome, from
+ * `(app)/me/layout.tsx` since T20: without a header a player landed on a page
+ * with no sign-out.
  */
 export default async function MyBookingsPage() {
   const userId = await requireSignedIn();
@@ -65,10 +64,11 @@ export default async function MyBookingsPage() {
   const { items } = await listMyBookings({ userId });
 
   return (
-    // The safe-area padding moves up a level so it clears the notch for the
-    // site header rather than only for the content under it.
-    <div className="bg-bg-page text-content-default safe-area-top safe-area-x min-h-screen">
-      <SiteHeader />
+    // The header (and the notch inset above it, NAV_BAR_SAFE_AREA) is the
+    // layout's now. safe-area-x and px-6 on DIFFERENT elements: `.safe-area-x`
+    // is unlayered CSS and beats Tailwind's px-6, which on a phone with no
+    // side inset set the gutter to 0 (see venues/page.tsx).
+    <div className="bg-bg-page text-content-default safe-area-x flex-1">
       <main className="px-6 py-10">
         <header className="mb-8">
           <h1 className="text-content-emphasis text-3xl font-semibold">{t('title')}</h1>

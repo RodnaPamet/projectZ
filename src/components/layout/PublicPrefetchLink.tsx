@@ -45,7 +45,16 @@ function connection(): (EventTarget & { saveData?: boolean }) | undefined {
 const saveDataNow = () => connection()?.saveData === true;
 const saveDataOnServer = () => true;
 
+/**
+ * Whether the browser asks to save data. `true` on the server and through
+ * hydration, then the real answer. Shared with the player tab bar (T20), the
+ * other full-prefetch site, so the two cannot disagree about Save-Data.
+ */
+export function useSaveData(): boolean {
+  return useSyncExternalStore(subscribe, saveDataNow, saveDataOnServer);
+}
+
 export function PublicPrefetchLink(props: Props) {
-  const saveData = useSyncExternalStore(subscribe, saveDataNow, saveDataOnServer);
+  const saveData = useSaveData();
   return <Link {...props} prefetch={saveData ? null : true} />;
 }
