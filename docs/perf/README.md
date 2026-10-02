@@ -18,7 +18,30 @@ npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a 
 npx tsx tests/perf/budget.ts .perf/after.json            # the budget (docs/perf/budget.json)
 ```
 
-## The current baseline: `7d7d27d` (T30, the router cache), 30 September 2026
+## The current baseline: `8445cc6` (T19, the admin shell), 2 October 2026
+
+`docs/perf/baseline-8445cc6.json` pools T19's two branch runs, interleaved with two runs of
+`origin/main` at `e31aaee` between 11:09 and 12:34 Sofia time. `budget.json` and
+`bundle-budget.json` were reset from it. `perf:compare` found 0 faster and 8 slower beyond
+noise, all on the phone's staff journey. The desktop was within noise on every row.
+
+- **The phone's warm staff steps lost their cache hits.** For example, calendar → courts went
+  from 46 to 357 ms. The shell is not slower to render. A phone now reaches a nav link in two
+  taps (the drawer, then the link), so the loop takes about 10 s instead of 5. The revisit of
+  the diary (`next day → today`) then lands just past the diary's 10 s self-refresh: 4 trailing
+  requests (about 22 KB) in all 10 samples, against 0 on main. The refresh purges the whole
+  router cache, so every warm step after it is a cold one. Main's warm rows depend on a loop
+  that finishes in under 10 s, which a real member of staff rarely manages. #314 is the
+  follow-up.
+- **First Load JS, gzip:**
+  - the admin routes went from 252.8–270.9 KB to 290.1–292.1 KB (+37 KB; +20 KB on the
+    calendar);
+  - `/platform/moderation` went from 245 to 295.1 KB, because it now has the shell;
+  - main's own build already exceeded the T30 bundle budget on 9 routes.
+
+  This was read with `bundle-budget.ts` on both builds.
+
+## T30's baseline: `7d7d27d` (the router cache), 30 September 2026
 
 `docs/perf/baseline-7d7d27d.json` holds T30's two branch runs, pooled. Each ran on a
 fresh seed and build, interleaved with two runs of `origin/main` at `0bb8f0d` (T12's
