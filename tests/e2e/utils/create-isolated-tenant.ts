@@ -13,7 +13,7 @@ import bcrypt from 'bcryptjs';
 
 let client: PrismaClient | undefined;
 
-function prisma(): PrismaClient {
+export function prisma(): PrismaClient {
   if (client) return client;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is unset — E2E needs .env.test loaded.');

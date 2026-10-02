@@ -79,7 +79,9 @@ runs behind.
 `tests/guardrails/router-cache-policy.test.ts` fails on `prefetch={true}`, any computed
 `prefetch={…}` value (only the literals `false`, `null` and `"auto"` pass), a bare
 `prefetch` attribute or `router.prefetch(` anywhere under `src/` except two files.
-`src/components/layout/BottomTabBar.tsx` is allow-listed ahead of T20.
+`src/components/layout/BottomTabBar.tsx` is the tab bar (T20). It reads Save-Data through
+the same `useSaveData` hook as `PublicPrefetchLink`, and its pages are still Server
+Components until T21 moves them to SWR.
 `src/components/layout/PublicPrefetchLink.tsx` is the public links' full prefetch, and the
 guardrail also pins where it is used: once in `src/app/(home)/page.tsx` to `/venues`, and
 once in `SiteHeader.tsx` to `/login`, nowhere else. The club admin, nav included, keeps

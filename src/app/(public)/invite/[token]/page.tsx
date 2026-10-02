@@ -61,7 +61,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   if (!preview) {
     return (
-      <main className="bg-bg-page text-content-default safe-area-top safe-area-x min-h-screen px-6 py-16">
+      <main className="bg-bg-page text-content-default safe-area-x flex-1 px-6 py-16">
         <div className="mx-auto max-w-md">
           <EmptyState title={t('invalid.title')} description={t('invalid.description')} />
         </div>
@@ -81,7 +81,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const here = `/invite/${encodeURIComponent(token)}`;
 
   return (
-    <main className="bg-bg-page text-content-default safe-area-top safe-area-x min-h-screen px-6 py-16">
+    <main className="bg-bg-page text-content-default safe-area-x flex-1 px-6 py-16">
       <div className="mx-auto max-w-md">
         <h1 className="text-2xl font-semibold">{t('title', { club: preview.tenantName })}</h1>
         <p className="text-content-muted mt-2">

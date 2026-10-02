@@ -232,7 +232,12 @@
       "staff": "Staff",
       "sectionVenue": "Venue",
       "sectionPeople": "People",
-      "moderation": "Moderation"
+      "moderation": "Moderation",
+      "play": "Play",
+      "myBookings": "My bookings",
+      "signIn": "Sign in",
+      "account": "Account",
+      "tabBar": "Main tabs"
     }
   },
   "nav": {

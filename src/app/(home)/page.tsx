@@ -1,27 +1,22 @@
 import { getTranslations } from 'next-intl/server';
 
 import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
-import { SiteHeader } from '@/components/layout/SiteHeader';
+import { PlayerChrome } from '@/components/layout/player-chrome';
 
 export default async function HomePage() {
   const t = await getTranslations('home');
   const tVenues = await getTranslations('venues');
 
   return (
-    <>
-      {/*
-        The header is what tells you whether you are signed in. Before it, the
-        homepage read no session at all, so a successful sign-in landed you back
-        on a page identical to the one you left — indistinguishable from a
-        failure, and reported as one.
-
-        The sign-in link lives THERE now rather than here, so there is one place
-        to look on every page instead of a link that exists only on this one.
-      */}
-      <SiteHeader />
-
-      {/* min-h-screen would now overflow by the height of the header. */}
-      <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6">
+    // The header is what tells you whether you are signed in. Before it, the
+    // homepage read no session at all, so a successful sign-in landed you back
+    // on a page identical to the one you left — indistinguishable from a
+    // failure, and reported as one. The home page is in the `(home)` group, not
+    // under a layout, so it wears the player chrome itself (T20).
+    <PlayerChrome>
+      {/* flex-1 in the chrome's column: centred in what the header and the
+          tab bar leave, with no header height to guess at. */}
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 py-10">
         {/* The product name is a brand — the same in both languages, and not a
             catalogue key. Green via text-content-brand, which changes shade
             with the theme; a fixed brand-NNN cannot pass as text in both (#233). */}
@@ -41,6 +36,6 @@ export default async function HomePage() {
           {tVenues('title')}
         </PublicPrefetchLink>
       </main>
-    </>
+    </PlayerChrome>
   );
 }

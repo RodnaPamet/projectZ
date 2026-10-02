@@ -1,6 +1,11 @@
 import { existsSync, globSync } from 'node:fs';
 
-import { clubAdminNav, platformNav, type NavItem } from '@/components/layout/nav-items';
+import {
+  clubAdminNav,
+  platformNav,
+  playerChromeHrefs,
+  type NavItem,
+} from '@/components/layout/nav-items';
 
 /**
  * EVERY NAV LINK HAS A PAGE BEHIND IT (#260).
@@ -37,15 +42,20 @@ function routePattern(pageFile: string): RegExp {
 const PAGES = globSync('src/app/**/page.tsx').map((f) => f.toString());
 const PATTERNS = PAGES.map((f) => ({ file: f, re: routePattern(f) }));
 
-const HREFS = [...clubAdminNav(SAMPLE_SLUG), ...platformNav()]
-  .flatMap((s): NavItem[] => s.items)
-  .map((i) => i.href);
+// The player chrome's header links and bottom tabs (T20) too: a tab to a 404
+// is the same failure on the one surface every player sees.
+const HREFS = [
+  ...[...clubAdminNav(SAMPLE_SLUG), ...platformNav()]
+    .flatMap((s): NavItem[] => s.items)
+    .map((i) => i.href),
+  ...playerChromeHrefs(),
+];
 
 describe('nav hrefs resolve to pages', () => {
   it('found the pages and the hrefs it checks', () => {
     // A glob that matched nothing would make every assertion below vacuous.
     expect(PAGES.length).toBeGreaterThan(10);
-    expect(HREFS.length).toBeGreaterThanOrEqual(6);
+    expect(HREFS.length).toBeGreaterThanOrEqual(9);
   });
 
   it.each(HREFS)('%s has a page.tsx', (href) => {

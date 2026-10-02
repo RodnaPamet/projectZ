@@ -232,7 +232,12 @@
       "staff": "Персонал",
       "sectionVenue": "Обект",
       "sectionPeople": "Хора",
-      "moderation": "Модерация"
+      "moderation": "Модерация",
+      "play": "Играй",
+      "myBookings": "Моите резервации",
+      "signIn": "Вход",
+      "account": "Акаунт",
+      "tabBar": "Основни раздели"
     }
   },
   "nav": {

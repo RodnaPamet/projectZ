@@ -188,3 +188,17 @@ authedTest.describe('@mobile horizontal drift — club admin', () => {
     });
   }
 });
+
+/**
+ * A PLAYER's own page, with the player chrome around it (T20): the header,
+ * and the bottom tab bar with all three of its tabs.
+ */
+authedTest.describe('@mobile horizontal drift — player', () => {
+  authedTest('my bookings does not scroll sideways', async ({ playerPage }) => {
+    await playerPage.goto('/me/bookings');
+    // By role, not `main h1`: under the 300 ms reveal throttle a streamed page
+    // sits in a hidden copy beside the shown one, and `main h1` finds both.
+    await expect(playerPage.getByRole('heading', { level: 1 })).toBeVisible();
+    await expectNoDrift(playerPage, '/me/bookings');
+  });
+});

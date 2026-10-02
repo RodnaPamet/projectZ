@@ -15,17 +15,18 @@ import { cn } from '@/lib/cn';
  */
 
 /**
- * Where `SiteHeader` will be. The player pages (/, /venues, /me/bookings)
- * render the header INSIDE the page, so their loading state replaces it too;
- * without a stand-in of the same height the skeleton would jump up by a row
- * and back down when the page arrives.
+ * Where `SiteHeader` will be, on the home page only since T20: /venues and
+ * /me/bookings get the real header from their layouts, around their loading
+ * state, but `/` renders its chrome INSIDE the page, so its loading state
+ * replaces the header too; without a stand-in the skeleton would jump up by
+ * a row and back down when the page arrives.
  *
  * A `div`, not a `header`: it holds no links, and the perf harness clicks
  * `header a[href=…]`, which must only ever find the real one.
  */
 export function SiteHeaderSkeleton() {
   return (
-    <div className="border-border-subtle flex items-center justify-between gap-x-4 border-b px-4 py-3">
+    <div className="border-border-subtle flex min-h-16 items-center justify-between gap-x-4 border-b px-4">
       <Skeleton className="h-5 w-24" />
       <Skeleton className="h-9 w-20 rounded-md" />
     </div>
