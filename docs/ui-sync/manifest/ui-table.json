@@ -4,162 +4,170 @@
     {
       "path": "src/components/ui/table/column-visibility-utils.ts",
       "inflectPath": "src/components/ui/table/column-visibility-utils.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "72298457caa23640fdccb1f7bb561de43bc48475123c19fe2cfdafd20cc543cd"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "5a92177451629345046a4b4ab98d544e2214afbbdf6e2bb980fadf7975272afe"
     },
     {
       "path": "src/components/ui/table/columns-dropdown.tsx",
       "inflectPath": "src/components/ui/table/columns-dropdown.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "dcbc762d8af8486c27c0e9316e062e3d6fe133e32deb7e49a2dc438fb4285f3e"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "67aa8e1d8760f66906552dde53b3162455c1d56045b2d6a20c3c3e72b8336d55"
     },
     {
       "path": "src/components/ui/table/data-table-cards.tsx",
       "inflectPath": "src/components/ui/table/data-table-cards.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "b877e00bc6390466ff341c5ca35a9b89a1857b3141565c675fc63ccaee8942c2"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "3e99510932e99426626a041cedd68d167933bdffd620106bd25be5ffffad0316"
     },
     {
       "path": "src/components/ui/table/data-table.tsx",
       "inflectPath": "src/components/ui/table/data-table.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "f10027e2a34415ab277d0d628ba96d68fc30ed16e43ed7b2a6bd81cdc670c34c"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "e396adb0bd35d462b35e0555446ef269de269dbfb32a6041a66bdf6dbdfced7e"
     },
     {
       "path": "src/components/ui/table/edit-columns-button.tsx",
       "inflectPath": "src/components/ui/table/edit-columns-button.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "7306fec268b669b81288da663d99fd64eef0a2e44f19b234e06ab3c4d5fcbbd1"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "6ed9c213b882ed7b2026745bb63276942d71bf9ea0155e1c8ded6ca23c965aae"
+    },
+    {
+      "path": "src/components/ui/table/features.ts",
+      "inflectPath": "src/components/ui/table/features.ts",
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "fa7238e122ea66be4aac49f31285667173e0aedc42a16945271d323b857728d4"
     },
     {
       "path": "src/components/ui/table/index.ts",
       "inflectPath": "src/components/ui/table/index.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "21623bc20961a57b5fe0c2062ac7a1e8ec8b402867a7b1c4a04382e6e52ba4b2"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "ccde28a05154f5b6b6d28e4c0f1ad42d99c141e443f7401bd66f4f0d52acd2c6"
     },
     {
       "path": "src/components/ui/table/infinite-scroll-sentinel.tsx",
       "inflectPath": "src/components/ui/table/infinite-scroll-sentinel.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "9c7cca173dce638df0659d2cc8d07e9ca374bd7cbe72a26e8f171fb8b9f46f22"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "2ee250769708b289971704500a3f4ddb01270818c7d437867b653ffcd4c1d1d0"
     },
     {
       "path": "src/components/ui/table/pagination-controls.tsx",
       "inflectPath": "src/components/ui/table/pagination-controls.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "f27b9e7703a329fa86734510514bc723bf0ee6d5525a814202fe6312b9526e29"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "0ab811aad951663af7fe372099df92a03e3390d1a2edb3e6ddf594fa7c8e198a"
     },
     {
       "path": "src/components/ui/table/pagination-utils.ts",
       "inflectPath": "src/components/ui/table/pagination-utils.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
       "sha256": "dc793737993ee6480de2dcd15ebdd1cda291a7a985c8579985c91721509c23b2"
     },
     {
       "path": "src/components/ui/table/selection-toolbar.tsx",
       "inflectPath": "src/components/ui/table/selection-toolbar.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "a7aaed2b4ed1dd4f85d234d1a785a10e17947e17b0ea8972e36b9a8b8cdd4a4f"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "682deb9c31eca550760dcf2e4aea3adaee7d49bc30a4595c2f8d184120abbc71"
     },
     {
       "path": "src/components/ui/table/sort-rows.ts",
       "inflectPath": "src/components/ui/table/sort-rows.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "4ada9da11603d261db3a4998450d9bf02fcc9a1960d165b5ff1485e68f873fe0"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "9fecc57a4bf62defe344e1492c3421d3123fe114f37bf8c0f8d48749b62d09d0"
     },
     {
       "path": "src/components/ui/table/table-empty-state.tsx",
       "inflectPath": "src/components/ui/table/table-empty-state.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "437c1a98eb1c10d61eed0333bb862757d5d296a0c8da16cf16042fe7de170674"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "c027d7cfcf3edf383d2d890d882690cdaa347d967e917754b24dbacc42ff6ce9"
     },
     {
       "path": "src/components/ui/table/table-utils.ts",
       "inflectPath": "src/components/ui/table/table-utils.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "09024b1a4b915df903ec4bd4303da2d15978b6a490e531ff933a6fb76950287e"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "82ba340d60a7e6777acd36acf2f96fe2b0079a8c09a253b3f938f8bb5354789d"
     },
     {
       "path": "src/components/ui/table/table.tsx",
       "inflectPath": "src/components/ui/table/table.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "f83c47e549f7e1c4307ef86db3127f46dac14d6f3ccd13c09218f0f80dd7cfc9"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "89da1fa0413b6046355e699ab9ede478a1afeaa5ee1ef05080cf410ca27e67f3"
     },
     {
       "path": "src/components/ui/table/types.ts",
       "inflectPath": "src/components/ui/table/types.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "224d93761b85adcebd540f2c9625a33640e7f482d49b6e1dde54505a0346275c"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "9a8e0b15512c16a6ed5c8f8a9b969dedffa92765fa920c2cde12f96383e02286"
     },
     {
       "path": "src/components/ui/table/use-columns-dropdown.tsx",
       "inflectPath": "src/components/ui/table/use-columns-dropdown.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "d55e6b9cc9ff0bd4cea7180ccb60c19667204d047fe0ba4e3150309811180a3a"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "ebb5cdcc7f19f657f41f2a25c94e94481b392e28fb01b3ae69af83928a36c77d"
     },
     {
       "path": "src/components/ui/table/use-is-below-md.ts",
       "inflectPath": "src/components/ui/table/use-is-below-md.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
       "sha256": "7c5ab5a5038bab59715f67ced62981b236bc429b7efdc1bead8b40bf8100fd52"
     },
     {
       "path": "src/components/ui/table/use-list-pagination.ts",
       "inflectPath": "src/components/ui/table/use-list-pagination.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "4c7422aadeb38fd203ad825588ebc8401996dc5cb7cb983e159e4e1790ebc201"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "3f9b85fed808cd9d4566489a5c6472c58562e31943bc0c9fa7ce07063f532cfe"
     },
     {
       "path": "src/components/ui/table/use-table-pagination.tsx",
       "inflectPath": "src/components/ui/table/use-table-pagination.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "411dbec8cbc8e124de45ec2287ce9ab45e9c7655a96f701e078b5f3d1a1bdd5d"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "6961606111839bf7227f1fcbc97e1514415bcbb66b28edeb5224e4b1bdb57ff5"
     },
     {
       "path": "src/components/ui/table/virtual-table-body.tsx",
       "inflectPath": "src/components/ui/table/virtual-table-body.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "00cf31cd7885f7defb0a9bfb5fa1050d7cdc5d5a4a07b11369accc1500a23117"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "16bb75d1345916ad9fedf44d39ea1e1477c1b2dab33c4621749a0acf4e2f6304"
     }
   ]
 }

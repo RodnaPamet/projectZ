@@ -7,24 +7,36 @@
  * this wrapper provides a simpler, ergonomic API for the most common pattern:
  *
  *   <DataTable
- *     data={controls}
- *     columns={controlColumns}
+ *     data={items}
+ *     columns={itemColumns}
  *     loading={isLoading}
- *     onRowClick={(row) => router.push(`/controls/${row.original.id}`)}
+ *     onRowClick={(row) => router.push(`/items/${row.original.id}`)}
  *   />
  *
  * For advanced features (column resizing, pinning, edit-columns), use the
  * lower-level `useTable` + `Table` directly.
  */
-import {
+import type {
   ColumnDef,
-  PaginationState,
+  ColumnVisibilityState,
   Row,
   RowSelectionState,
-  Table as TableType,
-  VisibilityState,
-} from '@tanstack/react-table';
-import { Dispatch, MouseEvent, ReactNode, SetStateAction, useRef, useState } from 'react';
+  TableInstance,
+  TableRowData,
+} from './types';
+// See the note in `./types`: `PaginationState` is not re-exported from the
+// platform because `./pagination-utils` owns that name on the barrel.
+import type { PaginationState } from '@tanstack/react-table';
+import {
+  Dispatch,
+  HTMLAttributes,
+  MouseEvent,
+  ReactNode,
+  SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { type BatchAction, renderBatchActions } from './selection-toolbar';
 import { Table, useTable } from './table';
 import { cn } from './table-utils';
@@ -36,11 +48,15 @@ import { useIsBelowMd } from './use-is-below-md';
 // ── Public Column Helper ────────────────────────────────────────────
 
 /**
- * Typed column definition for DataTable.
- * Re-exports TanStack ColumnDef for convenience so consumers don't need
- * to import from @tanstack/react-table directly.
+ * `ColumnDef` is no longer re-exported from here.
+ *
+ * It now lives in `./types`, bound to the platform's TanStack v9 feature
+ * set (`ColumnDef<TData, TValue>` → `ColumnDef<DataTableFeatures, TData,
+ * TValue>`), and the barrel re-exports that one. Two `export`s of the same
+ * name through `export *` would be ambiguous and silently drop the symbol,
+ * so this module must not re-export it as well. Consumers import it from
+ * `@/components/ui/table` exactly as before.
  */
-export type { ColumnDef };
 
 /**
  * Helper to create a typed column array with proper inference.
@@ -52,15 +68,40 @@ export type { ColumnDef };
  *     { id: "actions", header: "", cell: ({ row }) => <ActionsMenu row={row} /> },
  *   ]);
  */
-export function createColumns<T>(
-  columns: ColumnDef<T, any>[], // eslint-disable-line @typescript-eslint/no-explicit-any
-): ColumnDef<T, any>[] {
+export function createColumns<T extends TableRowData>(columns: ColumnDef<T>[]): ColumnDef<T>[] {
   return columns;
 }
 
 // ── DataTable Props ─────────────────────────────────────────────────
 
-export interface DataTableProps<T> {
+/**
+ * How long the pointer must REST on a row before its detail route is
+ * prefetched. Long enough that crossing a table on the way somewhere else
+ * prefetches nothing, short enough that a deliberate hover-then-click has
+ * always cleared it (a click follows a hover by ~250 ms at the very fastest).
+ */
+const ROW_PREFETCH_DWELL_MS = 120;
+
+/**
+ * Ceiling on the per-row prefetch-handler cache.
+ *
+ * Comfortably above any rendered window — the virtualizer keeps ~30 rows live
+ * and the un-virtualized threshold is 1000 — so eviction only ever reaches ids
+ * that scrolled out long ago, and a re-rendered row rebuilds its handler for
+ * the cost of one object.
+ */
+const PREFETCH_HANDLER_CACHE_MAX = 2000;
+
+/**
+ * The `virtualize` prop's value. Named rather than inlined so
+ * `decideVirtualization` can take it without indexing
+ * `DataTableProps<…>["virtualize"]` — under TanStack v9 that index would
+ * need a concrete row type to satisfy the `RowData` bound, and the option
+ * does not depend on the row type at all.
+ */
+export type DataTableVirtualize = boolean | { threshold: number } | undefined;
+
+export interface DataTableProps<T extends TableRowData> {
   /** The data array to render. */
   data: T[];
 
@@ -69,22 +110,20 @@ export interface DataTableProps<T> {
    *
    * ─── The DEFAULT IS 'card', and that is the point ──────────────────
    *
-   * An eight-column table at 390px does not fit, will not wrap, and pushes the
-   * whole PAGE sideways. So below `md` every DataTable collapses to a list of
-   * tappable cards, automatically, with no opt-in.
+   * An eight-column table at 390px does not fit, will not wrap, and pushes
+   * the whole PAGE sideways. So below `md` every DataTable collapses to a
+   * list of tappable cards, automatically, with no opt-in.
    *
    * This prop is therefore an ESCAPE HATCH, not a feature flag: a way to say
    * "this table is genuinely desktop-only — let it scroll". It exists so that
-   * choice has to be MADE and WRITTEN DOWN, rather than happening by omission.
-   *
-   * `tests/guardrails/datatable-mobile-fallback.test.ts` requires any `'scroll'`
-   * to carry a comment saying why. The failure mode we are refusing is a table
-   * that horizontal-scrolls on a phone because nobody thought about it.
+   * choice has to be MADE and WRITTEN DOWN, rather than happening by
+   * omission. Nothing enforces that a `'scroll'` carries its reason today;
+   * writing one beside the prop is the convention.
    */
   mobileFallback?: 'card' | 'scroll';
 
   /** TanStack column definitions. Use `createColumns<T>()` for type safety. */
-  columns: ColumnDef<T, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  columns: ColumnDef<T>[];
 
   /** Show a loading overlay. */
   loading?: boolean;
@@ -133,26 +172,40 @@ export interface DataTableProps<T> {
 
   /**
    * Expandable rows. `getRowCanExpand(row)` → true shows a leading chevron;
-   * toggling renders `renderExpandedRow(row)` as a full-width sub-row beneath
-   * it. Default off (no chevron / no behaviour change). Not supported in the
+   * toggling renders `renderAlignedSubRows(row, columnIds)` beneath it.
+   * Default off (no chevron / no behaviour change). Not supported in the
    * virtualized branch — a consumer using expansion should keep the table
    * non-virtualized (`virtualize={false}` or under the threshold).
    */
   getRowCanExpand?: (row: Row<T>) => boolean;
-  renderExpandedRow?: (row: Row<T>) => React.ReactNode;
   /**
    * Aligned expandable sub-rows — real `<tr>`/`<td>` rows whose cells align
    * with the parent columns (one `<td>` per visible column id). See the
-   * `BaseTableProps` doc. Forces the non-virtualized `<Table>` (like
-   * `renderExpandedRow`).
+   * `BaseTableProps` doc, which also records why the parallel
+   * `renderExpandedRow` slot was removed. Forces the non-virtualized
+   * `<Table>`.
    */
   renderAlignedSubRows?: (row: Row<T>, columnIds: string[]) => React.ReactNode;
   /**
-   * Infinite-scroll (load-on-scroll). Forwarded to the non-virtualized
-   * `<Table>`, which renders a bottom sentinel inside the scroll
-   * wrapper and fires `onReachEnd` when it scrolls into view. Pair with
-   * `useThresholdLoadMore`: `onReachEnd={hasMore ? loadMore : undefined}`.
-   * Replaces the `<TableLoadMoreFooter>` button.
+   * Infinite-scroll (load-on-scroll). Pair with `useThresholdLoadMore`:
+   * `onReachEnd={hasMore ? loadMore : undefined}`. Replaces the
+   * `<TableLoadMoreFooter>` button.
+   *
+   * Honoured by BOTH renderers, which matters because load-on-scroll
+   * is exactly what carries a table ACROSS the virtualization
+   * threshold: appending 50 rows at a time, a list that starts at 50
+   * eventually passes `VIRTUALIZE_DEFAULT_THRESHOLD` and swaps to
+   * `<VirtualTable>` mid-session. When only `<Table>` was wired, that
+   * crossing silently ended load-on-scroll and the rows past the
+   * threshold became unreachable.
+   *
+   * The two renderers detect "at the end" differently — `<Table>`
+   * renders an `<InfiniteScrollSentinel>` in its scroll wrapper,
+   * `<VirtualTable>` reads react-window's reported visible range (see
+   * the note in `virtual-table-body.tsx`) — but the consumer contract
+   * is identical: fired when the user nears the last row, once per
+   * batch, and the parent stops passing the callback when the data is
+   * exhausted.
    */
   onReachEnd?: () => void;
 
@@ -165,7 +218,7 @@ export interface DataTableProps<T> {
   selectedRows?: RowSelectionState;
 
   /** Custom toolbar rendered when rows are selected. */
-  selectionControls?: (table: TableType<T>) => ReactNode;
+  selectionControls?: (table: TableInstance<T>) => ReactNode;
 
   /**
    * R12-PR1 — opt out of the default-on select column. Pass `false`
@@ -192,10 +245,10 @@ export interface DataTableProps<T> {
   // ── Column visibility ──
 
   /** Column visibility state. */
-  columnVisibility?: VisibilityState;
+  columnVisibility?: ColumnVisibilityState;
 
   /** Callback when column visibility changes. */
-  onColumnVisibilityChange?: (visibility: VisibilityState) => void;
+  onColumnVisibilityChange?: (visibility: ColumnVisibilityState) => void;
 
   // ── Pagination ──
 
@@ -271,9 +324,9 @@ export interface DataTableProps<T> {
    *   - `false`              — force virtualization OFF. Use this on
    *                            pages where the existing
    *                            non-virtualized layout is intentionally
-   *                            preserved (e.g. the Controls page,
-   *                            where bespoke row affordances rely on
-   *                            the standard `<table>` layout).
+   *                            preserved (pages whose bespoke row
+   *                            affordances rely on the standard
+   *                            `<table>` layout).
    *   - `{ threshold: N }`   — auto with a custom threshold.
    *
    * When virtualization is on, the table renders via `<VirtualTable>`
@@ -284,7 +337,7 @@ export interface DataTableProps<T> {
    * non-virtualized `<Table>` automatically when those features are
    * requested.
    */
-  virtualize?: boolean | { threshold: number };
+  virtualize?: DataTableVirtualize;
 
   /**
    * Pixel height of each row when virtualization is on. Default 44
@@ -295,10 +348,10 @@ export interface DataTableProps<T> {
 
   /**
    * Explicit body height (px) when virtualization is on. When
-   * omitted, the body measures its own parent — which is the
+   * omitted, the body fills its parent via AutoSizer — which is the
    * production default (use inside `<ListPageShell.Body>` or any
-   * sized flex parent). Set this only when that measurement can't
-   * reach a sized ancestor (e.g. test harnesses, or ad-hoc layouts).
+   * sized flex parent). Set this only when AutoSizer can't reach a
+   * sized ancestor (e.g. test harnesses, or ad-hoc layouts).
    */
   virtualHeight?: number;
 }
@@ -321,17 +374,16 @@ export interface DataTableProps<T> {
  * Threshold raised to 1000 to scope auto-virtualization to genuinely
  * large unpaginated tables. Pages that legitimately need it for
  * smaller datasets can opt in with `virtualize={true}` or
- * `virtualize={{ threshold: N }}`. The Controls opt-out
+ * `virtualize={{ threshold: N }}`. The per-page opt-out
  * (`virtualize={false}`) stays as documented.
  */
 export const VIRTUALIZE_DEFAULT_THRESHOLD = 1000;
 
 // ── DataTable Component ─────────────────────────────────────────────
 
-export function DataTable<T>({
+export function DataTable<T extends TableRowData>({
   data,
   columns,
-  mobileFallback,
   loading,
   error,
   emptyState,
@@ -344,7 +396,6 @@ export function DataTable<T>({
   onRowPrefetch,
   getRowId,
   getRowCanExpand,
-  renderExpandedRow,
   renderAlignedSubRows,
   onReachEnd,
   onRowSelectionChange,
@@ -361,6 +412,7 @@ export function DataTable<T>({
   scrollWrapperClassName,
   fillBody,
   'data-testid': dataTestId,
+  mobileFallback,
   virtualize,
   virtualRowHeight,
   virtualHeight,
@@ -384,7 +436,7 @@ export function DataTable<T>({
         // (ListPageShell.Body). `max-h-full` is the cap;
         // `min-h-0` allows shrinking. NO `flex-1` — that would
         // force the card to fill the parent even when the scroll
-        // wrapper inside is short (Evidence with 1 row, empty
+        // wrapper inside is short (a list with 1 row, empty
         // state, etc.). Result: card grows with content up to
         // viewport, then stops; smaller content = smaller card.
         'md:flex md:flex-col md:max-h-full md:min-h-0 md:overflow-hidden',
@@ -397,7 +449,12 @@ export function DataTable<T>({
         // The JS whole-row clip in table.tsx adds an inline
         // max-height when content exceeds the viewport allocation,
         // overriding this max-h-full to a row-aligned value.
-        'md:max-h-full md:min-h-0 md:overflow-y-auto',
+        // `overscroll-contain`: this wrapper scrolls INSIDE AppShell's own
+        // `md:overflow-y-auto` content div, so without containment a wheel
+        // gesture that reaches either end chains outward and starts moving
+        // the page behind the table. Set here rather than only in table.tsx
+        // so the VirtualTable branch is covered by the same rule.
+        'md:max-h-full md:min-h-0 md:overflow-y-auto overscroll-contain',
         scrollWrapperClassName,
       )
     : scrollWrapperClassName;
@@ -431,7 +488,6 @@ export function DataTable<T>({
     !loading &&
     // Expandable rows (either mode) need the real <Table> — the virtualized
     // grid can't host colSpan slots or aligned sub-rows.
-    !renderExpandedRow &&
     !renderAlignedSubRows &&
     !(!!pagination && !!onPaginationChange && rowCount !== undefined);
   const resizingEnabled = enableColumnResizing && !willVirtualizeEarly;
@@ -453,7 +509,6 @@ export function DataTable<T>({
           onRowClick,
           getRowId,
           getRowCanExpand,
-          renderExpandedRow,
           renderAlignedSubRows,
           onRowSelectionChange: effectiveOnRowSelectionChange,
           selectedRows: effectiveSelectedRows,
@@ -482,7 +537,6 @@ export function DataTable<T>({
           onRowClick,
           getRowId,
           getRowCanExpand,
-          renderExpandedRow,
           renderAlignedSubRows,
           onRowSelectionChange: effectiveOnRowSelectionChange,
           selectedRows: effectiveSelectedRows,
@@ -501,23 +555,90 @@ export function DataTable<T>({
   // this is NOT a loose cast.
   const { table, ...rest } = useTable(tableProps as unknown as UseTableProps<T>);
 
-  // Hover-prefetch — fire the consumer's `onRowPrefetch` once per row on the
-  // first pointer-enter so it can warm that row's detail route before the
-  // click. Reuses the standard <Table>'s per-row `rowProps` hook; deduped by
-  // row id via a ref. The router lives in the consumer, NOT here, so a
-  // DataTable can render without an app-router context. Entity lists render
-  // ≤ the windowed row set (well under the virtualization threshold), so they
-  // take the standard <Table> path this attaches to.
+  // Hover-prefetch — fire the consumer's `onRowPrefetch` once per row so it
+  // can warm that row's detail route before the click. Reuses the standard
+  // <Table>'s per-row `rowProps` hook; deduped by row id via a ref. The router
+  // lives in the consumer, NOT here, so a DataTable can render without an
+  // app-router context. Entity lists render ≤ the windowed row set (well under
+  // the virtualization threshold), so they take the standard <Table> path this
+  // attaches to.
+  //
+  // The DWELL is the important part. This used to fire on bare
+  // `onMouseEnter`, so moving the pointer from the filter bar to a row near
+  // the bottom prefetched every row it crossed on the way — fifty route
+  // prefetches for one intended click. Requiring the pointer to REST on a row
+  // first turns "passed over" into "looking at", which is the signal we
+  // actually wanted; a genuine hover-then-click clears 120 ms long before the
+  // click lands.
   const prefetchedRows = useRef<Set<string>>(new Set());
+  const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (dwellTimer.current) clearTimeout(dwellTimer.current);
+    },
+    [],
+  );
+  // <Table> memoizes each row and compares `rowProps` by identity, so a
+  // fresh `{ onMouseEnter, onMouseLeave }` per render would re-render
+  // every row on every parent render — the exact cost that memo exists
+  // to remove, on the seven list pages that wire prefetch. Hand back
+  // ONE handler object per row id instead.
+  //
+  // Nothing captured in that object is allowed to go stale: the entry
+  // holds the CURRENT `Row` (refreshed on each lookup below) and the
+  // handlers read `onRowPrefetchRef`, so a cached handler always fires
+  // against this render's row and this render's callback.
+  const onRowPrefetchRef = useRef(onRowPrefetch);
+  useEffect(() => {
+    onRowPrefetchRef.current = onRowPrefetch;
+  });
+  // Keyed by row id so a row keeps ONE handler identity across renders —
+  // that stability is what lets the memo below actually bite.
+  //
+  // Bounded on purpose. Without a cap this grows one entry per row id ever
+  // seen for the lifetime of the mount, which on an infinite-scroll list is
+  // unbounded retention introduced by a performance change — the wrong trade
+  // to make while fixing re-renders. The cap is generous relative to any
+  // rendered window, so eviction only reaches ids that scrolled out long ago;
+  // an evicted row simply builds a fresh handler next time it is rendered,
+  // which costs one object and is correct either way.
+  const prefetchHandlers = useRef(
+    new Map<string, { row: Row<T>; props: HTMLAttributes<HTMLTableRowElement> }>(),
+  );
   const prefetchRowProps = onRowPrefetch
-    ? (row: Row<T>) => ({
-        onMouseEnter: () => {
-          if (!prefetchedRows.current.has(row.id)) {
-            prefetchedRows.current.add(row.id);
-            onRowPrefetch(row);
-          }
-        },
-      })
+    ? (row: Row<T>) => {
+        const cached = prefetchHandlers.current.get(row.id);
+        if (cached) {
+          cached.row = row;
+          return cached.props;
+        }
+        if (prefetchHandlers.current.size >= PREFETCH_HANDLER_CACHE_MAX) {
+          // Map iterates in insertion order, so this drops the oldest ids —
+          // the ones furthest from the current window.
+          const oldest = prefetchHandlers.current.keys().next();
+          if (!oldest.done) prefetchHandlers.current.delete(oldest.value);
+        }
+        const entry: {
+          row: Row<T>;
+          props: HTMLAttributes<HTMLTableRowElement>;
+        } = { row, props: {} };
+        entry.props = {
+          onMouseEnter: () => {
+            if (prefetchedRows.current.has(entry.row.id)) return;
+            if (dwellTimer.current) clearTimeout(dwellTimer.current);
+            dwellTimer.current = setTimeout(() => {
+              prefetchedRows.current.add(entry.row.id);
+              onRowPrefetchRef.current?.(entry.row);
+            }, ROW_PREFETCH_DWELL_MS);
+          },
+          onMouseLeave: () => {
+            // Left before the dwell elapsed — the pointer was passing through.
+            if (dwellTimer.current) clearTimeout(dwellTimer.current);
+          },
+        };
+        prefetchHandlers.current.set(row.id, entry);
+        return entry.props;
+      }
     : undefined;
 
   // The outermost wrapper exists for the dataTestId / id hooks the
@@ -530,16 +651,16 @@ export function DataTable<T>({
    * `overflow-x-auto` actually work.
    *
    * A child with overflow-x-auto still EXPANDS ITS PARENT unless the parent is
-   * allowed to be narrower than its content. Without these, this wrapper grows to
-   * fit an eight-column table, the wrapper pushes the page, and the document
-   * scrolls sideways — while the table's own scroll container sits there doing
-   * nothing, because there is nothing left to scroll.
+   * allowed to be narrower than its content. Without these, this wrapper grows
+   * to fit an eight-column table, the wrapper pushes the page, and the
+   * document scrolls sideways — while the table's own scroll container sits
+   * there doing nothing, because there is nothing left to scroll.
    *
-   * The mobile drift ratchet caught this the moment a DataTable was actually put
-   * on a page: /design-system scrolled 484px sideways at 393px. It affects every
-   * DataTable BEFORE HYDRATION (useIsBelowMd resolves false on the server, so the
-   * desktop table is what the phone first paints) and every table that opts out
-   * with mobileFallback="scroll".
+   * Upstream measured this the moment a DataTable was actually put on a page:
+   * the design-system page scrolled 484px sideways at a 393px viewport. It
+   * affects every DataTable BEFORE HYDRATION (`useIsBelowMd` resolves false on
+   * the server, so the desktop table is what the phone first paints) and every
+   * table that opts out with `mobileFallback="scroll"`.
    */
   const wrapperClassName = cn(
     'min-w-0 max-w-full',
@@ -565,7 +686,8 @@ export function DataTable<T>({
   const belowMd = useIsBelowMd();
 
   // 'card' unless a caller has EXPLICITLY opted out. See the prop's doc: the
-  // default is the safe one, and opting out is the thing that must be justified.
+  // default is the safe one, and opting out is the thing that must be
+  // justified.
   const collapsesToCards = (mobileFallback ?? 'card') === 'card';
 
   if (belowMd && collapsesToCards && data.length > 0 && !error && !loading) {
@@ -589,6 +711,7 @@ export function DataTable<T>({
           sortBy={sortBy}
           sortOrder={sortOrder}
           onSortChange={onSortChange}
+          onReachEnd={onReachEnd}
           containerClassName={filledContainerClassName}
           scrollWrapperClassName={filledScrollWrapperClassName}
         />
@@ -611,12 +734,9 @@ export function DataTable<T>({
 
 /**
  * Resolve the `virtualize` prop into a boolean. Pure function, also
- * exported for direct test coverage of the threshold contract.
+ * exported so the threshold contract can be tested directly.
  */
-export function decideVirtualization(
-  virtualize: DataTableProps<unknown>['virtualize'],
-  rowCount: number,
-): boolean {
+export function decideVirtualization(virtualize: DataTableVirtualize, rowCount: number): boolean {
   if (virtualize === false) return false;
   if (virtualize === true) return true;
   const threshold =

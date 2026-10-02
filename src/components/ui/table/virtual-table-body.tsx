@@ -31,28 +31,53 @@
  *   - server-side pagination footer (virtualization is the replacement)
  *
  * Preserved from `<Table>`:
- *   - sticky header at the top of the scroll container
+ *   - a header that stays put while rows scroll under it
  *   - sortable columns with sort indicator
  *   - selection (checkbox column flows through `getVisibleLeafColumns`)
  *   - hover + selected backgrounds
  *   - row click + middle-click handlers, with interactive-child guard
  *   - keyboard reachability (scroll container is `tabIndex=0` +
  *     `role=region` with an aria-label)
+ *   - load-on-scroll (`onReachEnd`) — see the note below on why this
+ *     one is implemented differently here
+ *
+ * Load-on-scroll: `<Table>` renders an `<InfiniteScrollSentinel>` at
+ * the bottom of its scroll wrapper. That does not transplant here —
+ * react-window absolutely-positions every child inside an element
+ * sized to `rowCount * rowHeight`, so a sentinel appended to the
+ * scroll container sits at the TOP of the scrolled content (it
+ * would intersect immediately and fire forever) unless it is manually
+ * positioned at the computed content height, which then has to be
+ * recomputed on every append. The windowing library already reports
+ * exactly what the sentinel exists to infer, so this component reads
+ * `onRowsRendered`'s `stopIndex` instead.
  */
 import * as React from 'react';
-import { flexRender, type Row, type Table as TableType } from '@tanstack/react-table';
+import { flexRender } from '@tanstack/react-table';
+import { useTranslations } from 'next-intl';
+import type { Row, TableInstance, TableRowData } from './types';
 import { List, type RowComponentProps } from 'react-window';
 
 import { SortOrder } from '../icons';
 import { Tooltip } from '../tooltip';
 import { cn, isClickOnInteractiveChild } from './table-utils';
-import { useTranslations } from 'next-intl';
 
 export const DEFAULT_VIRTUAL_ROW_HEIGHT = 44;
 
-export interface VirtualTableProps<T> {
+/**
+ * How close to the end of the data the visible window must get before
+ * `onReachEnd` fires, in rows.
+ *
+ * Calibrated against the non-virtualized path: `<InfiniteScrollSentinel>`
+ * pre-loads with a 320px bottom `rootMargin`, which at the default 44px
+ * row height is ~7 rows. 10 keeps the same "load before the user gets
+ * there" feel on the taller row heights some tables configure.
+ */
+export const VIRTUAL_REACH_END_ROW_MARGIN = 10;
+
+export interface VirtualTableProps<T extends TableRowData> {
   /** TanStack table instance from `useTable`. */
-  table: TableType<T>;
+  table: TableInstance<T>;
   /**
    * Explicit body height in pixels. When omitted the component
    * fills its parent — which react-window measures itself, so the
@@ -90,11 +115,23 @@ export interface VirtualTableProps<T> {
   sortOrder?: 'asc' | 'desc';
   /** Sort change callback. */
   onSortChange?: (props: { sortBy?: string; sortOrder?: 'asc' | 'desc' }) => void;
+  /**
+   * Infinite-scroll (load-on-scroll). Fires when the windowed
+   * viewport comes within {@link VIRTUAL_REACH_END_ROW_MARGIN} rows
+   * of the last row, at most ONCE per row count — so a load that
+   * appends rows re-arms it, and a load that appends nothing does
+   * not spin.
+   *
+   * Same consumer contract as the non-virtualized `<Table>`: the
+   * PARENT owns "is there more", by passing
+   * `onReachEnd={hasMore ? loadMore : undefined}`.
+   */
+  onReachEnd?: () => void;
   /** Class on the outer container (mirrors `Table`'s `containerClassName`). */
   containerClassName?: string;
   /** Class on the inner scroll container. */
   scrollWrapperClassName?: string;
-  /** Accessible label on the scroll container. */
+  /** Accessible label on the scroll container. Defaults to `common.table.tableContents`. */
   'aria-label'?: string;
   /** Test id forwarded to the outer wrapper. */
   'data-testid'?: string;
@@ -137,7 +174,7 @@ const bodyCellClassName = (
     'group-data-[selected=true]/row:bg-[var(--brand-subtle)]',
   );
 
-function buildGridTemplate<T>(table: TableType<T>): string {
+function buildGridTemplate<T extends TableRowData>(table: TableInstance<T>): string {
   return table
     .getVisibleLeafColumns()
     .map((col) => {
@@ -156,7 +193,7 @@ function buildGridTemplate<T>(table: TableType<T>): string {
     .join(' ');
 }
 
-interface RowItemData<T> {
+interface RowItemData<T extends TableRowData> {
   rows: ReadonlyArray<Row<T>>;
   gridTemplate: string;
   onRowClick?: (row: Row<T>, e: React.MouseEvent) => void;
@@ -172,7 +209,7 @@ interface RowItemData<T> {
  * This alias is the instantiation at the call site — it keeps the cast
  * honest (same props, T pinned) instead of reaching for `any`.
  */
-type VirtualRowComponent<T> = (
+type VirtualRowComponent<T extends TableRowData> = (
   props: RowComponentProps<RowItemData<T>>,
 ) => React.ReactElement | null;
 
@@ -181,7 +218,7 @@ type VirtualRowComponent<T> = (
  * onto it alongside `index` and `style`, so the fields arrive at the top
  * level — hence the destructure below rather than `data.rows` etc.
  */
-function VirtualRow<T>({
+function VirtualRow<T extends TableRowData>({
   index,
   style,
   rows,
@@ -294,7 +331,7 @@ function VirtualRow<T>({
   );
 }
 
-export function VirtualTable<T>({
+export function VirtualTable<T extends TableRowData>({
   table,
   height,
   rowHeight = DEFAULT_VIRTUAL_ROW_HEIGHT,
@@ -306,11 +343,14 @@ export function VirtualTable<T>({
   sortBy,
   sortOrder,
   onSortChange,
+  onReachEnd,
   containerClassName,
   scrollWrapperClassName,
-  'aria-label': ariaLabel = 'Table contents (scrollable)',
+  'aria-label': ariaLabelProp,
   'data-testid': testId,
 }: VirtualTableProps<T>) {
+  const t = useTranslations('common.table');
+  const ariaLabel = ariaLabelProp ?? t('tableContents');
   const rows = table.getRowModel().rows;
   const visibleColumns = table.getVisibleLeafColumns();
 
@@ -341,9 +381,9 @@ export function VirtualTable<T>({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gridTemplate = React.useMemo(() => buildGridTemplate(table), [visibleColumnsKey, table]);
 
-  // Stable `itemData` keeps react-window from re-rendering rows when
+  // Stable `rowProps` keeps react-window from re-rendering rows when
   // the row click handler is the same reference between renders.
-  const itemData = React.useMemo<RowItemData<T>>(
+  const rowProps = React.useMemo<RowItemData<T>>(
     () => ({
       rows,
       gridTemplate,
@@ -362,6 +402,35 @@ export function VirtualTable<T>({
       columnsAfterSelect,
       firstContentColumnId,
     ],
+  );
+
+  // Load-on-scroll. `firedForRowCountRef` is what keeps this to one
+  // call per batch: react-window re-reports the rendered range on
+  // every window change, so without it a user parked at the bottom
+  // would re-fire `onReachEnd` on each nudge. Keying the guard on
+  // the ROW COUNT (rather than a plain boolean) is what re-arms it:
+  // a load that appends rows changes the count and unlocks the next
+  // fire, while a load that appends nothing leaves it latched — no
+  // request loop at the true end of the data.
+  //
+  // v1 reported this through `onItemsRendered({ visibleStopIndex })`;
+  // v2's `onRowsRendered` hands the VISIBLE range as its first
+  // argument and the overscanned range as its second. Reading the
+  // first keeps the trigger point identical — overscan would fire
+  // `overscanCount` rows early, silently widening the margin.
+  const firedForRowCountRef = React.useRef<number | null>(null);
+  const rowCount = rows.length;
+  const handleRowsRendered = React.useCallback(
+    ({ stopIndex }: { startIndex: number; stopIndex: number }) => {
+      if (!onReachEnd || rowCount === 0) return;
+      if (stopIndex < rowCount - 1 - VIRTUAL_REACH_END_ROW_MARGIN) {
+        return;
+      }
+      if (firedForRowCountRef.current === rowCount) return;
+      firedForRowCountRef.current = rowCount;
+      onReachEnd();
+    },
+    [onReachEnd, rowCount],
   );
 
   /**
@@ -389,8 +458,6 @@ export function VirtualTable<T>({
    * mutable ref written during render, behind two `eslint-disable`
    * blocks. A sibling just takes props.
    */
-  const rowProps = itemData;
-
   const body = (
     <div
       role="region"
@@ -418,10 +485,26 @@ export function VirtualTable<T>({
         rowComponent={VirtualRow as VirtualRowComponent<T>}
         rowProps={rowProps}
         overscanCount={overscanCount}
-        // `flexGrow: 1` + `minHeight: 0` let the list take the space the
-        // header leaves instead of overflowing it. No numeric height is
-        // passed, so react-window measures this box itself — which is the
-        // AutoSizer that v1 needed a second dependency for.
+        onRowsRendered={onReachEnd ? handleRowsRendered : undefined}
+        // The explicit `height` goes to `defaultHeight`, NOT to
+        // `style.height`.
+        //
+        // A numeric `style.height` would be read verbatim and would
+        // disable react-window's own ResizeObserver — but `height` is
+        // the height of the whole component, and the header now
+        // occupies part of it as a flex sibling. Pinning the list to
+        // the full figure would push its last rows under the
+        // container's `overflow-hidden`.
+        //
+        // `defaultHeight` is the pre-measurement value instead: the
+        // observer still runs and corrects it to the real box, while
+        // the first render — the ONLY render under jsdom, whose
+        // ResizeObserver is a stub that never fires — windows against
+        // a real number rather than 0. A 0-height list still renders
+        // its overscan rows, so without this every windowing
+        // assertion in the table suite would pass vacuously on a
+        // collapsed list.
+        defaultHeight={height}
         style={{ flexGrow: 1, minHeight: 0 }}
       />
     </div>
@@ -452,8 +535,8 @@ function HeaderContent({ children, tooltip }: { children: React.ReactNode; toolt
   );
 }
 
-interface VirtualTableHeaderProps<T> {
-  table: TableType<T>;
+interface VirtualTableHeaderProps<T extends TableRowData> {
+  table: TableInstance<T>;
   gridTemplate: string;
   sortableColumns: string[];
   sortBy?: string;
@@ -462,7 +545,7 @@ interface VirtualTableHeaderProps<T> {
   columnsAfterSelect: ReadonlySet<string>;
 }
 
-function VirtualTableHeader<T>({
+function VirtualTableHeader<T extends TableRowData>({
   table,
   gridTemplate,
   sortableColumns,
@@ -472,17 +555,16 @@ function VirtualTableHeader<T>({
   columnsAfterSelect,
 }: VirtualTableHeaderProps<T>) {
   const t = useTranslations('common.table');
-
   return (
     <div
       role="rowgroup"
       data-virtual-table-header=""
       // `sticky top-0` is gone: under v1 this element lived INSIDE
-      // react-window's vertical scroller and had to stick. It is now a flex
-      // sibling of the list, so it never scrolls vertically in the first
-      // place and the sticky was doing nothing but suggesting otherwise.
-      // `shrink-0` replaces it — without it the flex parent would compress
-      // the header to make room for the list.
+      // react-window's vertical scroller and had to stick. It is now a
+      // flex sibling of the list, so it never scrolls vertically in the
+      // first place and the sticky was doing nothing but suggesting
+      // otherwise. `shrink-0` replaces it — without it the flex parent
+      // would compress the header to make room for the list.
       className="bg-bg-muted z-20 shrink-0"
       style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
     >
