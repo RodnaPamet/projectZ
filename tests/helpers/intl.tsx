@@ -1,9 +1,10 @@
 import { NextIntlClientProvider } from 'next-intl';
 
 import bg from '../../messages/bg.json';
+import en from '../../messages/en.json';
 
 /**
- * Wrap a rendered component in the REAL Bulgarian catalogue.
+ * Wrap a rendered component in the REAL catalogue: Bulgarian, or English when asked.
  *
  * Primitives that call `useTranslations()` throw outside a provider, so a test
  * rendering one has to supply it. Using the real `messages/bg.json` rather than
@@ -17,8 +18,10 @@ import bg from '../../messages/bg.json';
  * somebody may reword.
  */
 export function withIntl(ui: React.ReactNode, locale: 'bg' | 'en' = 'bg') {
+  // The catalogue follows the locale. It was always `bg`, so a test asking for
+  // English silently rendered Bulgarian and asserted nothing about English.
   return (
-    <NextIntlClientProvider locale={locale} messages={bg}>
+    <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : bg}>
       {ui}
     </NextIntlClientProvider>
   );
@@ -26,3 +29,6 @@ export function withIntl(ui: React.ReactNode, locale: 'bg' | 'en' = 'bg') {
 
 /** The real Bulgarian catalogue, for asserting on copy without hardcoding it. */
 export { bg as messages };
+
+/** The real English catalogue, for the same, under `withIntl(ui, 'en')`. */
+export { en as enMessages };

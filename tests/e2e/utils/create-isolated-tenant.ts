@@ -1,5 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 /**
  * Server-side tenant creation for E2E. Talks to Prisma DIRECTLY, not
@@ -37,6 +38,12 @@ export async function createIsolatedTenant(): Promise<IsolatedTenant> {
   const slug = `e2e-${Math.random().toString(36).slice(2, 10)}`;
   const email = `${slug}@playerz.test`;
 
+  // The `authedPage` fixture signs in through the credentials provider, which
+  // refuses an account with no password hash; until T19's admin-shell specs
+  // nothing used the fixture, so nothing noticed. Cost 4, not the app's 12:
+  // this account lives for one spec.
+  const passwordHash = await bcrypt.hash(E2E_PASSWORD, 4);
+
   return db.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
 
@@ -52,7 +59,7 @@ export async function createIsolatedTenant(): Promise<IsolatedTenant> {
     // A CLUB account (#263): the database refuses an ACTIVE OWNER membership
     // on any other kind of account.
     const user = await tx.user.create({
-      data: { email, name: 'E2E Owner', accountKind: 'CLUB' },
+      data: { email, name: 'E2E Owner', accountKind: 'CLUB', passwordHash },
     });
     await tx.tenantMembership.create({
       data: { tenantId: tenant.id, userId: user.id, role: 'OWNER', status: 'ACTIVE' },

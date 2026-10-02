@@ -6,7 +6,7 @@ import { dirname, join, normalize } from 'node:path';
  *
  * ═══ THE 500 THIS EXISTS FOR ═══
  *
- * `AppNav.tsx` is `'use client'`, and it exported two plain functions beside
+ * `AppNav.tsx` was `'use client'`, and it exported two plain functions beside
  * the component: `playerNav(slug)` and `adminNav(slug)`. The club layout, a
  * Server Component, imported and CALLED them. Under React Server Components
  * every export of a client module is a client reference on the server, and
@@ -132,12 +132,13 @@ describe('the client boundary', () => {
     // A resolver that resolved nothing would find no crossings and pass.
     expect(SERVER_SIDE.length).toBeGreaterThan(300);
     expect(crossings.length).toBeGreaterThan(10);
-    // The club layout renders AppNav across the boundary — legitimately.
+    // The club admin layout renders the client shell across the boundary —
+    // legitimately (T19; it was the old club layout rendering AppNav).
     expect(crossings).toContainEqual(
       expect.objectContaining({
-        file: 'src/app/(app)/t/[slug]/layout.tsx',
-        target: 'src/components/layout/AppNav.tsx',
-        names: ['AppNav'],
+        file: 'src/app/(app)/t/[slug]/admin/layout.tsx',
+        target: 'src/components/layout/club-admin-shell.tsx',
+        names: ['ClubAdminShell'],
       }),
     );
   });
@@ -168,16 +169,21 @@ describe('the client boundary', () => {
 
   // ── Negative controls ──────────────────────────────────────────────
   describe('the detector', () => {
-    const LAYOUT = 'src/app/(app)/t/[slug]/layout.tsx';
+    const LAYOUT = 'src/app/(app)/t/[slug]/admin/layout.tsx';
     const bad = (src: string) =>
       valuesImportedFromClient(src, LAYOUT)
         .flatMap((c) => c.names)
         .filter((n) => !isComponentName(n));
 
-    it('fires on the exact import that took the club UI down', () => {
+    it('fires on the shape of the import that took the club UI down', () => {
+      // #195-#227 imported `{ AppNav, adminNav, playerNav }` from the client
+      // AppNav.tsx. AppNav is gone (T19); the client shell stands in for it,
+      // because a resolvable 'use client' target is what the detector needs.
       expect(
-        bad(`import { AppNav, adminNav, playerNav } from '@/components/layout/AppNav';`),
-      ).toEqual(['adminNav', 'playerNav']);
+        bad(
+          `import { ClubAdminShell, clubAdminNav, platformNav } from '@/components/layout/club-admin-shell';`,
+        ),
+      ).toEqual(['clubAdminNav', 'platformNav']);
     });
 
     it('fires across line breaks, on aliases, and on hooks and constants', () => {
@@ -185,25 +191,26 @@ describe('the client boundary', () => {
         bad(
           [
             'import {',
-            '  AppNav,',
-            '  playerNav as nav,',
-            "} from '@/components/layout/AppNav';",
+            '  ClubAdminShell,',
+            '  clubAdminNav as nav,',
+            "} from '@/components/layout/club-admin-shell';",
             "import { SignOutButton, SOMETHING } from '@/components/layout/SignOutButton';",
           ].join('\n'),
         ),
-      ).toEqual(['playerNav', 'SOMETHING']);
+      ).toEqual(['clubAdminNav', 'SOMETHING']);
     });
 
     it('does not fire on components or types', () => {
-      expect(bad(`import { AppNav } from '@/components/layout/AppNav';`)).toEqual([]);
-      expect(bad(`import type { NavItem } from '@/components/layout/AppNav';`)).toEqual([]);
-      expect(bad(`import { type NavItem, AppNav } from '@/components/layout/AppNav';`)).toEqual([]);
+      const SHELL = `'@/components/layout/club-admin-shell'`;
+      expect(bad(`import { ClubAdminShell } from ${SHELL};`)).toEqual([]);
+      expect(bad(`import type { NavItem } from ${SHELL};`)).toEqual([]);
+      expect(bad(`import { type NavItem, ClubAdminShell } from ${SHELL};`)).toEqual([]);
     });
 
     it('does not fire on a module without the directive', () => {
-      expect(bad(`import { adminNav, playerNav } from '@/components/layout/nav-items';`)).toEqual(
-        [],
-      );
+      expect(
+        bad(`import { clubAdminNav, platformNav } from '@/components/layout/nav-items';`),
+      ).toEqual([]);
     });
 
     it('reads the directive past a leading comment, and nowhere else', () => {

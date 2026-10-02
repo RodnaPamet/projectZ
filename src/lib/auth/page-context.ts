@@ -70,6 +70,8 @@ export interface TenantPageContext {
   userId: string;
   tenantId: string;
   tenantSlug: string;
+  /** The club's display name, for the admin shell's top bar. Read with the membership, no extra query. */
+  tenantName: string;
   role: Role;
   permissions: readonly Permission[];
 }
@@ -173,7 +175,7 @@ export async function membershipContext(
       // are not now. Any of the three rendering an admin screen would be a
       // membership check that only asks whether a row exists.
       where: { userId, status: 'ACTIVE', tenant: { slug } },
-      select: { tenantId: true, role: true, tenant: { select: { slug: true } } },
+      select: { tenantId: true, role: true, tenant: { select: { slug: true, name: true } } },
     });
     if (!row) return null;
 
@@ -198,6 +200,7 @@ export async function membershipContext(
       userId,
       tenantId: membership.tenantId,
       tenantSlug: membership.tenant.slug,
+      tenantName: membership.tenant.name,
       role: membership.role,
       // Derived from the membership that matches THIS slug. Never the token.
       permissions: getPermissionsForRole(membership.role),

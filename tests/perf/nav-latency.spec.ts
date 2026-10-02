@@ -38,6 +38,27 @@ import { PerfSession, type WriteSpec } from './harness';
 const club = (page: string) => `/t/${CLUB_SLUG}/admin/${page}`;
 const MAIN_NAV = `nav[aria-label="${bg.common.ui.mainNav}"]`;
 
+/**
+ * A tap on the club admin's nav, as the profile has it (T19).
+ *
+ * The admin shell renders the nav twice: in the desktop rail (an `<aside>`,
+ * hidden below `md`) and, on a phone, in the left drawer once the hamburger
+ * opens it. So a phone tap is two inputs: the hamburger, untimed (`before`),
+ * then the link inside the drawer, timed as before. Each selector names the
+ * one copy that is visible on its profile, so neither matches the other.
+ *
+ * The drawer's links prefetch (auto) as it opens, and the harness settles
+ * before the timed tap, so those requests land in the step's "before"
+ * prefetch count, which is when a person's thumb would have caused them.
+ */
+const NAV_DRAWER = '[data-testid="nav-drawer"]';
+const NAV_TOGGLE = '[data-testid="nav-toggle"]';
+function navTap(href: string, phone: boolean): { click: string; before?: string[] } {
+  return phone
+    ? { click: `${NAV_DRAWER} ${MAIN_NAV} a[href="${href}"]`, before: [NAV_TOGGLE] }
+    : { click: `aside ${MAIN_NAV} a[href="${href}"]` };
+}
+
 /** The club's today, the way the diary decides it (in the club's zone, not the server's). */
 function shiftDay(isoDay: string, delta: number): string {
   const [y, m, d] = isoDay.split('-').map((n) => Number.parseInt(n, 10));
@@ -113,8 +134,15 @@ const READY: ReadyTable = {
   ],
 };
 
+/**
+ * One input. `click` is a selector; `nav` is an href in the admin nav, which
+ * `navTap` turns into the right selector (and the drawer opening, on a phone)
+ * for the profile being measured.
+ */
 type Step =
-  | ({ id: string; to: string } & ({ click: string } | { back: true }))
+  | ({ id: string; to: string } & (
+      { click: string; before?: string[] } | { back: true } | { nav: string }
+    ))
   | { id: string; write: WriteSpec };
 
 /**
@@ -148,11 +176,14 @@ interface Journey {
 }
 
 /**
- * Links that 404 today are left out on purpose: the club nav's `open-play`,
- * `coaches` and `my-bookings` (#260) point at pages that do not exist. A 404
- * is not a navigation to time. The venue cards linked to `/venues/{slug}`
- * too, until #267 made them plain text; when the venue page (#224) exists,
+ * Only links to pages that exist are timed: a 404 is not a navigation. The
+ * club nav's `open-play`, `coaches` and `my-bookings` were dead (#260) until
+ * T19 removed them. The venue cards linked to `/venues/{slug}` too, until
+ * #267 made them plain text; when the venue page (#224) exists,
  * `venues → venue` belongs in the public and player journeys.
+ *
+ * The staff steps keep their ids across T19, so their budget rows still
+ * apply: on a phone each nav step now opens the drawer first, untimed.
  */
 const JOURNEYS: Journey[] = [
   {
@@ -190,24 +221,24 @@ const JOURNEYS: Journey[] = [
       {
         id: 'calendar → courts',
         to: club('courts'),
-        click: `${MAIN_NAV} a[href="${club('courts')}"]`,
+        nav: club('courts'),
       },
       {
         id: 'courts → pricing',
         to: club('pricing'),
-        click: `${MAIN_NAV} a[href="${club('pricing')}"]`,
+        nav: club('pricing'),
       },
       {
         id: 'pricing → players',
         to: club('players'),
-        click: `${MAIN_NAV} a[href="${club('players')}"]`,
+        nav: club('players'),
       },
-      { id: 'players → staff', to: club('staff'), click: `${MAIN_NAV} a[href="${club('staff')}"]` },
+      { id: 'players → staff', to: club('staff'), nav: club('staff') },
       { id: 'staff → players (back)', to: club('players'), back: true },
       {
         id: 'players → calendar',
         to: club('calendar'),
-        click: `${MAIN_NAV} a[href="${club('calendar')}"]`,
+        nav: club('calendar'),
       },
       {
         id: 'calendar → next day',
@@ -230,7 +261,7 @@ const JOURNEYS: Journey[] = [
       {
         id: 'calendar → courts',
         to: club('courts'),
-        click: `${MAIN_NAV} a[href="${club('courts')}"]`,
+        nav: club('courts'),
       },
       { id: 'rename a court', write: courtWrite((name) => `${name}${COURT_SUFFIX}`) },
       {
@@ -243,12 +274,12 @@ const JOURNEYS: Journey[] = [
       {
         id: 'courts → pricing (after the writes)',
         to: club('pricing'),
-        click: `${MAIN_NAV} a[href="${club('pricing')}"]`,
+        nav: club('pricing'),
       },
       {
         id: 'pricing → calendar',
         to: club('calendar'),
-        click: `${MAIN_NAV} a[href="${club('calendar')}"]`,
+        nav: club('calendar'),
       },
     ],
   },
@@ -312,12 +343,18 @@ for (let run = 1; run <= PERF_RUNS; run++) {
               });
               continue;
             }
+            const input =
+              'nav' in st
+                ? navTap(st.nav, profile.input === 'tap')
+                : 'click' in st
+                  ? { click: st.click, before: st.before }
+                  : { back: true };
             await s.step({
               step: st.id,
               key: st.to,
               mode: pass === 0 ? 'cold' : 'warm',
               pass,
-              ...('click' in st ? { click: st.click } : { back: true }),
+              ...input,
             });
           }
         }

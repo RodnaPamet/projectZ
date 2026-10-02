@@ -225,16 +225,24 @@
       "settings": "Зареждане на настройките"
     },
     "nav": {
-      "play": "Играй",
-      "openPlay": "Свободна игра",
-      "coaches": "Треньори",
-      "myBookings": "Моите резервации",
       "calendar": "Календар",
       "courts": "Кортове",
       "pricing": "Ценообразуване",
       "players": "Играчи",
-      "staff": "Персонал"
+      "staff": "Персонал",
+      "sectionVenue": "Обект",
+      "sectionPeople": "Хора",
+      "moderation": "Модерация"
     }
+  },
+  "nav": {
+    "openNavigationMenu": "Отвори навигационното меню",
+    "brandHome": "playerz.bg — към началото",
+    "account": "Акаунт",
+    "accountMenu": "Меню на акаунта",
+    "accountMenuFor": "Меню на акаунта – {name}",
+    "expandSidebar": "Разгъни страничната лента",
+    "collapseSidebar": "Свий страничната лента"
   },
   "sports": {
     "TENNIS": "Тенис",
@@ -628,6 +636,7 @@
     }
   },
   "platform": {
+    "name": "Платформа",
     "moderation": {
       "metaTitle": "Модерация на отзиви — playerz.bg",
       "title": "Модерация на отзиви",

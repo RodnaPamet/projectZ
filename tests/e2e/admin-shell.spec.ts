@@ -1,0 +1,126 @@
+import AxeBuilder from '@axe-core/playwright';
+
+import { THEME_COOKIE } from '../../src/lib/theme-constants';
+import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
+import bg from '../../messages/bg.json';
+
+import { expect, test } from './fixtures';
+
+/**
+ * The club-admin shell at 1280 px, as the club's OWNER (T19).
+ *
+ * The sidebar is inflect's vendored frame with playerz's links; these check
+ * the parts a desktop user touches. The phone half (drawer, 44 px hamburger)
+ * is tests/e2e/mobile/admin-shell.spec.ts.
+ */
+test.use({ viewport: { width: 1280, height: 800 } });
+
+const MAIN_NAV = `aside nav[aria-label="${bg.common.ui.mainNav}"]`;
+const PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff'] as const;
+const COLLAPSE_KEY = `${UI_STORAGE_PREFIX}:sidebar-collapsed`;
+
+test.describe('club admin shell — desktop', () => {
+  test('the sidebar links every admin page, and no switcher', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    const nav = page.locator(MAIN_NAV);
+    await expect(nav).toBeVisible();
+
+    for (const p of PAGES) {
+      await expect(
+        nav.locator(`a[href="/t/${isolatedTenant.tenantSlug}/admin/${p}"]`),
+      ).toBeVisible();
+    }
+    await expect(nav.getByRole('link')).toHaveCount(PAGES.length);
+
+    // #263: one account, one club. The club's name is a label, not a picker.
+    const name = page.getByTestId('admin-context-name');
+    await expect(name).toHaveText(`E2E ${isolatedTenant.tenantSlug}`);
+    expect(await name.evaluate((el) => el.tagName)).toBe('SPAN');
+    await expect(page.getByRole('combobox')).toHaveCount(0);
+  });
+
+  test('collapses to an icon rail, and remembers it across a reload', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    const rail = page.locator('aside[data-collapsed]');
+    await expect(rail).toHaveAttribute('data-collapsed', 'false');
+
+    await page.getByTestId('sidebar-collapse-toggle').click();
+    await expect(rail).toHaveAttribute('data-collapsed', 'true');
+    expect(await page.evaluate((k) => localStorage.getItem(k), COLLAPSE_KEY)).toBe('true');
+
+    await page.reload();
+    await expect(page.locator('aside[data-collapsed]')).toHaveAttribute('data-collapsed', 'true');
+    // Collapsed rows keep their names, as tooltips' accessible labels.
+    await expect(
+      page.locator(MAIN_NAV).getByRole('link', { name: bg.common.nav.pricing }),
+    ).toBeVisible();
+  });
+
+  test('the nav works from the keyboard', async ({ authedPage: page, isolatedTenant }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    const pricing = page.locator(MAIN_NAV).getByRole('link', { name: bg.common.nav.pricing });
+    await expect(pricing).toBeVisible();
+
+    // Tab until the pricing link has focus; a nav reachable only by mouse fails here.
+    for (
+      let i = 0;
+      i < 20 && !(await pricing.evaluate((el) => el === document.activeElement));
+      i++
+    ) {
+      await page.keyboard.press('Tab');
+    }
+    await expect(pricing).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/pricing$`));
+    await expect(page.locator('main h1')).toHaveText(bg.admin.pricing.title);
+  });
+
+  test('the account menu has the theme toggle and signs out', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await page.getByTestId('top-chrome-user-menu').click();
+    await expect(page.getByTestId('user-menu-theme-row')).toBeVisible();
+    await expect(page.getByTestId('user-menu-language-row')).toHaveCount(0);
+    await page.getByTestId('user-menu-sign-out').click();
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`axe, ${theme}: no violations, best practice included (one <main>)`, async ({
+      authedPage: page,
+      isolatedTenant,
+      baseURL,
+    }) => {
+      await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
+      await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.locator('main h1')).toBeVisible();
+
+      // The shell renders the only <main>; a page that adds its own fails
+      // best-practice's landmark rules, which is why those tags are on.
+      await expect(page.locator('main')).toHaveCount(1);
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+        // The ONE rule off, and only until inflect fixes it: the vendored
+        // AppShellFrame renders the top bar (NavBar's role="banner") inside
+        // its <main>. Measured here as the sole violation, moderate, in both
+        // themes. The frame is byte-identical to inflect, so the fix is
+        // upstream: RodnaPamet/inflect-compliance#3104.
+        .disableRules(['landmark-banner-is-top-level'])
+        .analyze();
+      const report = results.violations
+        .map((v) => `  [${v.impact}] ${v.id}: ${v.help}\n    ${v.nodes[0]?.target.join(' ')}`)
+        .join('\n');
+      expect(results.violations, `axe found:\n${report}`).toEqual([]);
+    });
+  }
+});
