@@ -12,7 +12,7 @@
  * primitive; `useColumnsDropdown` owns the order+visibility state and maps
  * it into `items`.
  *
- * Sits SECOND (right) in the toolbar actions slot — it controls the table
+ * Sits SECOND (right) in the toolbar actions slot — it drives the table
  * below, secondary to the filter gear.
  */
 
@@ -49,7 +49,7 @@ export function ColumnsDropdown({
       onReset={onReset}
       onReorder={onReorder}
       someModified={someModified}
-      icon={<Columns3 className="h-4 w-4 shrink-0" />}
+      icon={<Columns3 className="h-3.5 w-3.5 shrink-0" />}
       title={t('table.toggleColumns')}
       data-testid="toggle-columns-button"
       className={className}

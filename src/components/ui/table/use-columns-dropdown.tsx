@@ -5,12 +5,12 @@
  *
  * Owns BOTH column visibility AND left-to-right order via the shared
  * click-to-order model (`checklist-order.ts`), persisted to localStorage
- * under the same `inflect:col-vis:<entity>` key (now storing the visible-
+ * under the same `<prefix>:col-vis:<entity>` key (now storing the visible-
  * id order array). Renders the `<ColumnsDropdown>` gear (Columns3) and
  * returns:
  *
  *   const { columnVisibility, orderColumns, dropdown: columnsGear } =
- *     useColumnsDropdown({ storageKey: 'inflect:col-vis:risks', columns: [...] });
+ *     useColumnsDropdown({ storageKey: uiStorageKey('col-vis', 'members'), columns: [...] });
  *
  *   <DataTable
  *     columns={orderColumns(baseColumns)}   // ← reorder per the gear
@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useMemo, type ReactNode } from 'react';
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from './types';
 import { ColumnsDropdown } from './columns-dropdown';
 import { useLocalStorage } from '../hooks';
 import {
@@ -52,7 +52,7 @@ export interface ColumnDropdownColumn {
 }
 
 export interface UseColumnsDropdownOptions {
-  /** Convention: `'inflect:col-vis:<entity>'`. */
+  /** Convention: `uiStorageKey('col-vis', entity)`. */
   storageKey: string;
   /** The full column list (toggleable + always-visible). */
   columns: ColumnDropdownColumn[];
@@ -60,15 +60,15 @@ export interface UseColumnsDropdownOptions {
 
 export interface UseColumnsDropdownResult {
   /** Pass to `<DataTable columnVisibility={…}>`. */
-  columnVisibility: VisibilityState;
+  columnVisibility: ColumnVisibilityState;
   /** Pass to `<DataTable onColumnVisibilityChange={…}>` (optional). */
-  setColumnVisibility: (visibility: VisibilityState) => void;
+  setColumnVisibility: (visibility: ColumnVisibilityState) => void;
   /** Reorder a column array per the gear: `columns={orderColumns(base)}`. */
   orderColumns: <T extends object>(columns: ReadonlyArray<T>) => T[];
   /** Pre-rendered gear — drop into the toolbar actions slot. */
   dropdown: ReactNode;
   /** Default visibility map. */
-  defaults: VisibilityState;
+  defaults: ColumnVisibilityState;
 }
 
 export function useColumnsDropdown({
@@ -92,16 +92,16 @@ export function useColumnsDropdown({
   // Include EVERY column: always-visible columns are explicitly `true`
   // (not merely absent) so the map round-trips cleanly to the DataTable
   // and consumers can read each column's state directly.
-  const columnVisibility = useMemo<VisibilityState>(() => {
-    const vis: VisibilityState = {};
+  const columnVisibility = useMemo<ColumnVisibilityState>(() => {
+    const vis: ColumnVisibilityState = {};
     for (const c of columns) {
       vis[c.id] = c.alwaysVisible === true ? true : orderSet.has(c.id);
     }
     return vis;
   }, [columns, orderSet]);
 
-  const defaultVisibility = useMemo<VisibilityState>(() => {
-    const vis: VisibilityState = {};
+  const defaultVisibility = useMemo<ColumnVisibilityState>(() => {
+    const vis: ColumnVisibilityState = {};
     const def = new Set(defaultVisibleDefs.map((c) => c.id));
     for (const c of columns) {
       vis[c.id] = c.alwaysVisible === true ? true : def.has(c.id);
@@ -130,7 +130,7 @@ export function useColumnsDropdown({
   // (no header-toggle UI ships today), fold it into the order — keep the
   // order of still-visible columns, append newly-visible at the end.
   const setColumnVisibility = useCallback(
-    (v: VisibilityState) =>
+    (v: ColumnVisibilityState) =>
       setStored((prev) => {
         const cur = reconcileOrder(prev, defaultVisibleDefs);
         const kept = cur.filter((id) => v[id] !== false);

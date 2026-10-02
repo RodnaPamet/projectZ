@@ -8,7 +8,7 @@
 import { useTranslations } from 'next-intl';
 
 import { cn } from './table-utils';
-import { Table } from '@tanstack/react-table';
+import type { Row, TableInstance, TableRowData } from './types';
 import { ButtonHTMLAttributes, forwardRef, ReactNode, useEffect, useState } from 'react';
 import { Checkbox } from '../checkbox';
 import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut';
@@ -34,7 +34,7 @@ import { DynamicTooltipWrapper, Tooltip } from '../tooltip';
  *     },
  *   ];
  */
-export interface BatchAction<T> {
+export interface BatchAction<T extends TableRowData> {
   /** Human-readable label for the button. */
   label: string;
 
@@ -42,7 +42,7 @@ export interface BatchAction<T> {
   icon?: ReactNode;
 
   /** Callback receiving the currently selected rows. */
-  onClick: (selectedRows: import('@tanstack/react-table').Row<T>[]) => void;
+  onClick: (selectedRows: Row<T>[]) => void;
 
   /** Visual variant — danger adds a red/destructive style. */
   variant?: 'default' | 'danger';
@@ -58,7 +58,7 @@ export interface BatchAction<T> {
 
 /**
  * Styled button for use inside the SelectionToolbar.
- * Matches Inflect's dark-theme design tokens and provides default + danger variants.
+ * Matches the platform's dark-theme design tokens and provides default + danger variants.
  *
  * Can be used standalone or generated from BatchAction[] via renderBatchActions.
  */
@@ -104,12 +104,14 @@ BatchActionButton.displayName = 'BatchActionButton';
  *     ...
  *   />
  */
-export function renderBatchActions<T>(actions: BatchAction<T>[]): (table: Table<T>) => ReactNode {
+export function renderBatchActions<T extends TableRowData>(
+  actions: BatchAction<T>[],
+): (table: TableInstance<T>) => ReactNode {
   // This returns a render function for DataTable's `batchActions` slot,
   // not a React component — ESLint's display-name heuristic misfires on
   // factories that return JSX-producing functions.
   // eslint-disable-next-line react/display-name
-  return (table: Table<T>) => {
+  return (table: TableInstance<T>) => {
     const selectedRows = table.getSelectedRowModel().rows;
     return (
       <>
@@ -138,13 +140,13 @@ export function renderBatchActions<T>(actions: BatchAction<T>[]): (table: Table<
 
 // ── SelectionToolbar ────────────────────────────────────────────────
 
-export function SelectionToolbar<T>({
+export function SelectionToolbar<T extends TableRowData>({
   table,
   controls,
   className,
 }: {
-  table: Table<T>;
-  controls?: (table: Table<T>) => ReactNode;
+  table: TableInstance<T>;
+  controls?: (table: TableInstance<T>) => ReactNode;
   className?: string;
 }) {
   const t = useTranslations('common');

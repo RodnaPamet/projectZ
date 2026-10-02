@@ -1,0 +1,18 @@
+[
+  {
+    "path": "src/components/layout/EntityListPage.tsx",
+    "inflectPath": "src/components/layout/EntityListPage.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "0f1ef6a10de4b5bd335f78182b45a327e1442911607b4b4e89adcf51df1eeec1"
+  },
+  {
+    "path": "src/components/layout/ListPageShell.tsx",
+    "inflectPath": "src/components/layout/ListPageShell.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "687e4e697ee105f767612da64658569b0e342155681a37481f500e468e910076"
+  }
+]

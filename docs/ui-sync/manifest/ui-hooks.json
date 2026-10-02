@@ -28,10 +28,10 @@
     {
       "path": "src/components/ui/hooks/use-column-visibility.ts",
       "inflectPath": "src/components/ui/hooks/use-column-visibility.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "3e7cf88c989c6916708acdddab24d00d5cef9de2b99ab97195ad0866e0869d3b"
+      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "status": "vendored",
+      "sha256": "4e9a507e30f33cc8437aca019b626d16c69920dd149118876ebceb6767c756b6"
     },
     {
       "path": "src/components/ui/hooks/use-copy-to-clipboard.tsx",

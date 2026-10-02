@@ -3,7 +3,7 @@
 /**
  * Epic 52 — adapter that bridges flat-list APIs to `<DataTable>` paginated mode.
  *
- * The Inflect list APIs currently return a full array per tenant (no server
+ * This app's list APIs currently return a full array per tenant (no server
  * cursor navigation). TanStack's `Table` runs in `manualPagination: true`
  * mode, expecting the consumer to slice `data` per page and report
  * `rowCount`. `useListPagination` owns that slicing, syncs the active page
@@ -19,10 +19,10 @@
  *   });
  *
  *   <DataTable
- *     data={pg.slice(controls)}
+ *     data={pg.slice(rows)}
  *     pagination={pg.pagination}
  *     onPaginationChange={pg.setPagination}
- *     rowCount={controls.length}
+ *     rowCount={rows.length}
  *     ...
  *   />
  *
@@ -30,7 +30,10 @@
  * those three props are set.
  */
 
-import { type PaginationState } from '@tanstack/react-table';
+// TanStack's `{ pageIndex, pageSize }` — imported from the library, not
+// from `./types`, because `./pagination-utils` owns the name
+// `PaginationState` on the barrel. See the note in `./types`.
+import type { PaginationState } from '@tanstack/react-table';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from './pagination-utils';

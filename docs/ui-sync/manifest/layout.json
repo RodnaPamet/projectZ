@@ -18,22 +18,6 @@
       "sha256": "0550cfda0a9affc276acbebed11f3fc6721ff49785878de1d0ee5f25e685f2fd"
     },
     {
-      "path": "src/components/layout/EntityListPage.tsx",
-      "inflectPath": "src/components/layout/EntityListPage.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "0f1ef6a10de4b5bd335f78182b45a327e1442911607b4b4e89adcf51df1eeec1"
-    },
-    {
-      "path": "src/components/layout/ListPageShell.tsx",
-      "inflectPath": "src/components/layout/ListPageShell.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "687e4e697ee105f767612da64658569b0e342155681a37481f500e468e910076"
-    },
-    {
       "path": "src/components/layout/LocaleSwitcher.tsx",
       "inflectPath": "src/components/layout/LocaleSwitcher.tsx",
       "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",

@@ -16,20 +16,20 @@
  */
 
 import { cn } from './table-utils';
-import { Table } from '@tanstack/react-table';
+import type { TableInstance, TableRowData } from './types';
 import { Command } from 'cmdk';
 import { RotateCcw, Settings } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Button } from '../button';
 import { Popover } from '../popover';
 import { ScrollContainer } from '../scroll-container';
-import { useTranslations } from 'next-intl';
 
 // ── Types ───────────────────────────────────────────────────────────
 
-export interface EditColumnsButtonProps<T> {
+export interface EditColumnsButtonProps<T extends TableRowData> {
   /** The TanStack table instance. */
-  table: Table<T>;
+  table: TableInstance<T>;
 
   /** Callback to reset column visibility to defaults. */
   onReset?: () => void;
@@ -37,7 +37,7 @@ export interface EditColumnsButtonProps<T> {
   /** Optional className for the trigger button. */
   className?: string;
 
-  /** Optional tooltip text for the trigger. */
+  /** Optional tooltip text for the trigger. Defaults to `common.table.editColumns`. */
   title?: string;
 }
 
@@ -60,16 +60,14 @@ function getColumnLabel(column: { id: string; columnDef: { header?: unknown } })
 
 // ── Component ───────────────────────────────────────────────────────
 
-export function EditColumnsButton<T>({
+export function EditColumnsButton<T extends TableRowData>({
   table,
   onReset,
   className,
   title: titleProp,
 }: EditColumnsButtonProps<T>) {
-  const t = useTranslations('common.ui');
-  // Default moved out of the parameter list — a hook cannot run there.
+  const t = useTranslations('common.table');
   const title = titleProp ?? t('editColumns');
-
   const [isOpen, setIsOpen] = useState(false);
 
   const hideableColumns = table.getAllColumns().filter((c) => c.getCanHide());

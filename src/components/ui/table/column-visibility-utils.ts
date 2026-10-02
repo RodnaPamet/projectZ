@@ -5,7 +5,9 @@
  * hook and direct DataTable integration. They are fully testable without React.
  */
 
-import { VisibilityState } from '@tanstack/react-table';
+import { uiStorageKey } from '@/lib/ui-storage';
+
+import type { ColumnVisibilityState } from './types';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -36,13 +38,21 @@ export interface ColumnVisibilityConfig {
 
 // ── Storage Key ─────────────────────────────────────────────────────
 
-/** Standard prefix for column visibility localStorage keys. */
-export const COLUMN_VISIBILITY_PREFIX = 'inflect:col-vis:';
+/**
+ * Standard prefix for column visibility localStorage keys.
+ *
+ * Built from `uiStorageKey` rather than spelled inline: the namespace is the
+ * one value a downstream product changes, and these keys address preferences
+ * already sitting in real browsers, so the VALUE is unchanged — the trailing
+ * `:` that the per-table suffix is concatenated onto is what the helper cannot
+ * supply.
+ */
+export const COLUMN_VISIBILITY_PREFIX = `${uiStorageKey('col-vis')}:`;
 
 /**
  * Build a localStorage key for a table's column visibility.
  *
- * @param tableId - Unique identifier for the table (e.g., "controls", "risks").
+ * @param tableId - Unique identifier for the table (e.g., "members", "items").
  */
 export function getVisibilityStorageKey(tableId: string): string {
   return `${COLUMN_VISIBILITY_PREFIX}${tableId}`;
@@ -51,12 +61,12 @@ export function getVisibilityStorageKey(tableId: string): string {
 // ── Pure Functions ──────────────────────────────────────────────────
 
 /**
- * Create the default VisibilityState from a config.
+ * Create the default ColumnVisibilityState from a config.
  *
  * All columns in `config.all` are included; those in `defaultVisible`
  * (and `fixed`) are set to `true`, all others to `false`.
  */
-export function getDefaultVisibility(config: ColumnVisibilityConfig): VisibilityState {
+export function getDefaultVisibility(config: ColumnVisibilityConfig): ColumnVisibilityState {
   const fixedSet = new Set(config.fixed ?? []);
   const defaultSet = new Set(config.defaultVisible);
 
@@ -74,9 +84,9 @@ export function getDefaultVisibility(config: ColumnVisibilityConfig): Visibility
  * removed without corrupting persisted preferences.
  */
 export function mergeVisibility(
-  saved: VisibilityState | null | undefined,
+  saved: ColumnVisibilityState | null | undefined,
   config: ColumnVisibilityConfig,
-): VisibilityState {
+): ColumnVisibilityState {
   const defaults = getDefaultVisibility(config);
 
   if (!saved) return defaults;
@@ -98,7 +108,7 @@ export function mergeVisibility(
 /**
  * Count visible and hidden columns from a visibility state.
  */
-export function countVisibility(state: VisibilityState): {
+export function countVisibility(state: ColumnVisibilityState): {
   visible: number;
   hidden: number;
   total: number;
@@ -116,7 +126,7 @@ export function countVisibility(state: VisibilityState): {
  * Check if any columns are hidden from their defaults.
  */
 export function hasCustomVisibility(
-  current: VisibilityState,
+  current: ColumnVisibilityState,
   config: ColumnVisibilityConfig,
 ): boolean {
   const defaults = getDefaultVisibility(config);
@@ -126,14 +136,14 @@ export function hasCustomVisibility(
 /**
  * Read persisted visibility from localStorage (SSR-safe).
  */
-export function readPersistedVisibility(tableId: string): VisibilityState | null {
+export function readPersistedVisibility(tableId: string): ColumnVisibilityState | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(getVisibilityStorageKey(tableId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as VisibilityState;
+      return parsed as ColumnVisibilityState;
     }
     return null;
   } catch {
@@ -144,7 +154,7 @@ export function readPersistedVisibility(tableId: string): VisibilityState | null
 /**
  * Write visibility state to localStorage (SSR-safe).
  */
-export function writePersistedVisibility(tableId: string, state: VisibilityState): void {
+export function writePersistedVisibility(tableId: string, state: ColumnVisibilityState): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(getVisibilityStorageKey(tableId), JSON.stringify(state));

@@ -91,6 +91,15 @@ const ESM_PACKAGES = [
   'graphql',
   'tough-cookie',
   'psl',
+  // TanStack Table v9 is ESM-only: both packages are "type": "module" with an
+  // `exports` map that has no `require` condition. Without these, every suite
+  // that reaches @/components/ui/table at RUNTIME dies with "Must use import
+  // to load ES Module", blamed on ui/table/table.tsx (the importer), as
+  // dependabot #241 showed. @tanstack/react-store and @tanstack/store come in
+  // with v9 but ship dual builds, so Jest already resolves them to CJS. Same
+  // pair as inflect jest.config.js ESM_TRANSFORM_ALLOW_LIST.
+  '@tanstack/react-table',
+  '@tanstack/table-core',
 ].join('|');
 
 // The components use the automatic JSX runtime (no `import React`), so swc
