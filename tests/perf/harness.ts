@@ -519,20 +519,30 @@ export class PerfSession {
    * else covers the link, the step fails and says so.
    */
   /**
-   * Until nothing on the page is still moving. Network quiet does not cover a
-   * CSS transition, and T19's phone drawer slides in and out on one (vaul).
+   * Until no overlay is still moving. Network quiet does not cover a CSS
+   * animation, and T19's phone drawer slides in and out on one (vaul).
    * Measured without this: a link scrolled into view while its panel was
    * still sliding in was left at x=500 on a 393 px screen, and the diary's
    * "next day" link was still covered by the closing drawer when tapped.
-   * Finite animations only: the nav rows' ambient shimmer loops for ever.
-   * Untimed, and a no-op on a page with nothing in flight.
+   * Untimed, and a no-op when no drawer is open or closing.
    */
   private async still() {
     await this.page.waitForFunction(
       () =>
         document
           .getAnimations()
-          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .filter((a) => {
+            // Overlay motion only (vaul marks its panel and backdrop). A
+            // page-wide wait also caught the nav rows' 3.5 s hover sweep on
+            // the desktop, and the extra seconds aged the diary past its
+            // 10 s self-refresh, which purged the router cache.
+            // Finite only: the nav rows inside the drawer shimmer for ever.
+            const el = (a.effect as KeyframeEffect | null)?.target;
+            return (
+              a.effect?.getComputedTiming().iterations !== Infinity &&
+              !!el?.closest('[data-vaul-drawer], [data-vaul-overlay]')
+            );
+          })
           .every((a) => a.playState !== 'running'),
       null,
       { timeout: STEP_TIMEOUT_MS, polling: 50 },
