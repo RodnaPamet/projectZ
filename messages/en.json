@@ -438,7 +438,6 @@
       "title": "Players",
       "subtitle": "The people who play at your club, and their credit.",
       "search": "Search by name or email",
-      "credit": "credit",
       "noShows": "{count, plural, one {# no-show} other {# no-shows}}",
       "truncated": "Showing the first {limit} players.",
       "empty": {
@@ -457,15 +456,18 @@
         "direction": "Direction",
         "maxDebit": "At most {amount} — the balance cannot go negative.",
         "note": "Reason",
-        "notePlaceholder": "Charged twice for Tuesday 19:00"
+        "notePlaceholder": "Charged twice for Tuesday 19:00",
+        "name": "Name",
+        "email": "Email",
+        "credit": "Credit",
+        "noShows": "No-shows",
+        "amount": "Amount"
       },
       "direction": {
         "credit": "Add",
         "debit": "Deduct"
       },
       "action": {
-        "manage": "Manage",
-        "close": "Close",
         "saveTags": "Save tags",
         "adjust": "Record"
       },
@@ -475,7 +477,9 @@
         "INSUFFICIENT_CREDIT": "The balance is now lower. Reload and try again.",
         "TOO_LARGE": "That exceeds the limit for a single adjustment.",
         "CONFLICT": "Someone else just changed this balance. Reload and try again."
-      }
+      },
+      "tagsFailed": "The tags for {name} were not saved. Try again.",
+      "creditSaved": "Credit adjusted."
     },
     "staff": {
       "metaTitle": "Staff",
@@ -492,11 +496,14 @@
       "status": {
         "SUSPENDED": "Suspended",
         "INVITED": "Invited",
-        "EXPIRED": "Expired"
+        "EXPIRED": "Expired",
+        "ACTIVE": "Active"
       },
       "field": {
         "role": "Role",
-        "email": "Email"
+        "email": "Email",
+        "name": "Name",
+        "status": "Status"
       },
       "action": {
         "save": "Save",
@@ -508,7 +515,9 @@
         "revoke": "Revoke"
       },
       "suspend": {
-        "confirm": "A suspended member loses access on their next request. Continue?"
+        "confirm": "A suspended member loses access on their next request. Continue?",
+        "title": "Suspend {name}?",
+        "failed": "The change for {name} was not saved."
       },
       "locked": {
         "self": "You cannot change your own role. Ask another owner.",
@@ -532,7 +541,9 @@
       "inviteNote": "An invite cannot grant Owner — that is given by an owner, to an existing member.",
       "invite": {
         "expires": "expires {date}",
-        "revokeConfirm": "Revoke the invite for {email}?"
+        "revokeConfirm": "Revoke the invite for {email}?",
+        "revokeTitle": "Revoke the invite",
+        "revokeFailed": "The invite for {email} was not revoked."
       },
       "separateAccount": "separate account"
     },
