@@ -1,18 +1,33 @@
 'use client';
 
 import { startTransition, useActionState, useOptimistic, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Heading } from '@/components/ui/typography';
 
 import { archiveCourtAction } from './actions';
-import { CourtForm, type CourtFormValues } from './CourtForm';
+import type { CourtFormValues } from './CourtForm';
+
+/**
+ * The form and the confirm load when first opened, not with the route.
+ *
+ * Statically imported, the Combobox (cmdk, the popover and its phone sheet),
+ * the Switch and the confirm dialog took the courts route's First Load JS from
+ * 294.3 to 315.7 KB gzip (+21.4 KB, 3 more files), measured on the perf
+ * harness's build — and the cold phone `calendar → courts` step was 42 ms
+ * slower for it, for a form most visits never open. Loaded on demand, the
+ * board's own JS is what the route pays for.
+ */
+const CourtForm = dynamic(() => import('./CourtForm').then((m) => m.CourtForm));
+const ConfirmDialog = dynamic(() =>
+  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+);
 
 /**
  * The courts screen's interactive half.
@@ -124,6 +139,7 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
   const t = useTranslations('admin.courts');
   const format = useFormatter();
   const [confirming, setConfirming] = useState(false);
+  const [asked, setAsked] = useState(false);
 
   const [status, setOptimisticStatus] = useOptimistic(court.status);
   const [failed, setArchived, pending] = useActionState(
@@ -184,8 +200,10 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
           disabled={pending}
           onClick={() => {
             if (archived) flip(true);
-            else if (court.upcomingBookings > 0) setConfirming(true);
-            else flip(false);
+            else if (court.upcomingBookings > 0) {
+              setAsked(true);
+              setConfirming(true);
+            } else flip(false);
           }}
         >
           {archived ? t('action.reopen') : t('action.archive')}
@@ -198,19 +216,24 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
         </InlineNotice>
       )}
 
-      <ConfirmDialog
-        showModal={confirming}
-        setShowModal={setConfirming}
-        tone="warning"
-        title={t('archive.title')}
-        description={t('archive.confirm', { count: court.upcomingBookings })}
-        confirmLabel={t('action.archive')}
-        cancelLabel={t('action.cancel')}
-        // Returns nothing, so the dialog closes at once and the card flips
-        // under it — awaiting the action here would hold the dialog open for
-        // the round trip and spend the optimistic update on a spinner.
-        onConfirm={() => flip(false)}
-      />
+      {/* Mounted from the first ask on, never before: a dynamic component
+          rendered at all is fetched at once. Kept mounted after, so closing
+          plays the dialog's exit rather than vanishing. */}
+      {asked && (
+        <ConfirmDialog
+          showModal={confirming}
+          setShowModal={setConfirming}
+          tone="warning"
+          title={t('archive.title')}
+          description={t('archive.confirm', { count: court.upcomingBookings })}
+          confirmLabel={t('action.archive')}
+          cancelLabel={t('action.cancel')}
+          // Returns nothing, so the dialog closes at once and the card flips
+          // under it — awaiting the action here would hold the dialog open for
+          // the round trip and spend the optimistic update on a spinner.
+          onConfirm={() => flip(false)}
+        />
+      )}
     </>
   );
 }
