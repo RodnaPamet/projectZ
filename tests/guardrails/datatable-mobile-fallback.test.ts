@@ -34,6 +34,13 @@ const CALL_SITES = [...globSync('src/app/**/*.tsx'), ...globSync('src/components
 
 const DATA_TABLE = readFileSync('src/components/ui/table/data-table.tsx', 'utf8');
 const CARDS = readFileSync('src/components/ui/table/data-table-cards.tsx', 'utf8');
+// Since T21 (inflect's table, after T04 upstreamed playerz's keyboard cards)
+// the card no longer spells its own role/tabIndex/key handler: it spreads
+// `buttonLikeKeys`, the helper every button-like row in the library shares.
+// The markers below therefore read the HELPER, and the card is held to
+// actually delegating to it — otherwise a card that dropped the spread would
+// pass on the helper's text alone.
+const BUTTON_LIKE = readFileSync('src/components/ui/button-like-keys.ts', 'utf8');
 
 describe('the safe default stays the default', () => {
   it('DataTable collapses to cards below md unless told otherwise', () => {
@@ -90,22 +97,32 @@ describe('the card renderer is actually usable', () => {
     // keyboard user could not reach the row and a screen-reader user was never
     // told it was actionable — the entire mobile list was unusable for them,
     // silently.
-    expect(CARDS).toMatch(/role=\{clickable \? ['"]button['"]/);
-    expect(CARDS).toMatch(/tabIndex: 0/);
-    expect(CARDS).toMatch(/onKeyDown/);
+    //
+    // A clickable card spreads the helper's role, tabIndex and onKeyDown; a
+    // read-only one is a listitem.
+    expect(CARDS).toMatch(
+      /import \{ buttonLikeKeys \} from ['"]@\/components\/ui\/button-like-keys['"]/,
+    );
+    expect(CARDS).toMatch(/clickable \? cardActivation\(/);
+    expect(CARDS).toMatch(/onKeyDown: \(e[^)]*\) => bound\(e\)\.onKeyDown\(e\)/);
+
+    expect(BUTTON_LIKE).toMatch(/role: ['"]button['"]/);
+    expect(BUTTON_LIKE).toMatch(/tabIndex: disabled \? -1 : 0/);
+    expect(BUTTON_LIKE).toMatch(/onKeyDown/);
 
     // BOTH keys must be handled — not the exact shape of the check. An early
     // `!==` return and an `===` branch are equally correct, and a guard that
     // dictates which one you wrote is a guard that fails on a refactor with no
     // behavioural change.
-    expect(CARDS).toMatch(/['"]Enter['"]/);
-    expect(CARDS).toMatch(/['"] ['"]/); // Space
+    expect(BUTTON_LIKE).toMatch(/['"]Enter['"]/);
+    expect(BUTTON_LIKE).toMatch(/['"] ['"]/); // Space
   });
 
   it('Space does not scroll the page instead of opening the row', () => {
     // The default action of Space on a focused element is to scroll. A row that
     // scrolls the list instead of opening is worse than one that does nothing.
-    expect(CARDS).toMatch(/preventDefault\(\)/);
+    // Read from the helper: the card's own file only mentions it in a comment.
+    expect(BUTTON_LIKE).toMatch(/event\.preventDefault\(\)/);
   });
 
   it('a tappable card is at least 44px tall', () => {
