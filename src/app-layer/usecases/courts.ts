@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 
+import { listCourts } from '@/app-layer/repositories/court';
 import type { CourtCreate, CourtUpdate } from '@/app-layer/schemas/court';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 
@@ -185,19 +186,72 @@ export async function archiveCourt(
   return after;
 }
 
-/** How many future bookings a court still carries — what the screen warns with. */
-export async function countUpcomingBookings(
+/**
+ * How many future bookings each court still carries — what the screen warns
+ * with before an archive. ONE grouped query for the whole list.
+ *
+ * ═══ WHY GROUPED, NOT ONE COUNT PER COURT ═══
+ *
+ * This was `countUpcomingBookings(db, tenantId, courtId, now)`, awaited once
+ * per court in a loop on the courts page ("sequential on purpose": the counts
+ * share one interactive transaction, and concurrent statements on its single
+ * connection interleave). That is an N+1 that grows with the club: the perf
+ * seed's 8 courts were 8 round trips, too short to see in the timings, and a
+ * 40-court club would make 40. The screen's load is now a constant 7
+ * statements whatever the court count (it was 7 for 1 court and 14 for 8) —
+ * tests/integration/admin-courts-page-queries.test.ts counts them for 1 court
+ * and for 8.
+ *
+ * A court with no upcoming bookings has no group, so it is absent from the
+ * map; callers read a miss as 0. No ids, no query: an empty `IN ()` asks
+ * Postgres a question whose answer is already known.
+ */
+export async function countUpcomingBookingsByCourt(
   db: PrismaClient,
   tenantId: string,
-  courtId: string,
+  courtIds: readonly string[],
   now: Date,
-): Promise<number> {
-  return db.booking.count({
+): Promise<Map<string, number>> {
+  if (courtIds.length === 0) return new Map();
+
+  const groups = await db.booking.groupBy({
+    by: ['resourceId'],
     where: {
       tenantId,
-      resourceId: courtId,
+      resourceId: { in: [...courtIds] },
       startTs: { gte: now },
+      // A past booking is no reason to hesitate, and neither is a cancelled one.
       status: { in: ['PENDING', 'CONFIRMED'] },
     },
+    _count: { _all: true },
   });
+
+  return new Map(groups.map((g) => [g.resourceId, g._count._all]));
+}
+
+/**
+ * Everything the courts screen reads, inside the one transaction the caller
+ * binds (`runInTenantContext`).
+ *
+ * Archived courts are included: the screen offers "reopen", and a court you
+ * cannot see is one you cannot bring back. The reads run one after another,
+ * not under `Promise.all` — they share the transaction's single connection, on
+ * which concurrent statements interleave.
+ */
+export async function loadCourtsScreen(db: PrismaClient, tenantId: string, now: Date) {
+  const courts = await listCourts(db, tenantId, { includeArchived: true });
+  const venues = await db.venue.findMany({
+    where: { tenantId, status: 'ACTIVE' },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+    take: 100,
+  });
+  const upcoming = await countUpcomingBookingsByCourt(
+    db,
+    tenantId,
+    courts.map((c) => c.id),
+    now,
+  );
+
+  return { courts, venues, upcoming };
 }
