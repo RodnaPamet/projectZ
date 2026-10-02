@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { listCourts } from '@/app-layer/repositories/court';
-import { listPricingRules } from '@/app-layer/usecases/pricing-rules';
+import { loadPricingScreen } from '@/app-layer/usecases/pricing-rules';
+import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -34,6 +34,13 @@ export async function generateMetadata() {
  * the failure would be obvious — rather than in the component, where
  * `Number(undefined)` would quietly become NaN and every preview would read
  * "NaN €".
+ *
+ * ═══ A CONSTANT NUMBER OF QUERIES (T24) ═══
+ *
+ * `loadPricingScreen` reads the courts and then every court's rules in ONE
+ * query, grouped in memory inside the same transaction — where this page
+ * awaited `listPricingRules` once per court. The page's database cost no
+ * longer grows with the club (see `listPricingRulesForCourts`).
  */
 export default async function PricingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -46,47 +53,41 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
 
   const t = await getTranslations('admin.pricing');
 
-  const { courts, rulesByCourt } = await runInTenantContext(ctx.tenantId, async (db) => {
-    // Archived courts are excluded: a closed court takes no bookings, so its
-    // prices decide nothing.
-    const rows = await listCourts(db, ctx.tenantId);
+  const { courts, rulesByCourt } = await runInTenantContext(ctx.tenantId, (db) =>
+    loadPricingScreen(db, ctx.tenantId),
+  );
 
-    const byCourt: Record<string, PricingRuleView[]> = {};
-    for (const c of rows) {
-      const rules = await listPricingRules(db, ctx.tenantId, c.id);
-      byCourt[c.id] = rules.map((r): PricingRuleView => ({
-        id: r.id,
-        name: r.name,
-        priority: r.priority,
-        // Decimal → number, at the boundary, once.
-        multiplier: r.multiplier === null ? null : Number(r.multiplier),
-        fixedPriceCents: r.fixedPriceCents,
-        conditions: (r.conditionsJson ?? {}) as PricingRuleView['conditions'],
-      }));
-    }
+  const byCourt: Record<string, PricingRuleView[]> = {};
+  for (const [courtId, rules] of rulesByCourt) {
+    byCourt[courtId] = rules.map((r): PricingRuleView => ({
+      id: r.id,
+      name: r.name,
+      priority: r.priority,
+      // Decimal → number, at the boundary, once.
+      multiplier: r.multiplier === null ? null : Number(r.multiplier),
+      fixedPriceCents: r.fixedPriceCents,
+      conditions: (r.conditionsJson ?? {}) as PricingRuleView['conditions'],
+    }));
+  }
 
-    return {
-      courts: rows.map((c): CourtOption => ({
-        id: c.id,
-        name: c.name,
-        basePriceCents: c.basePriceCents,
-        // The preview must price per BLOCK, as quoteBooking does. Without this
-        // the island cannot decompose the span and shows the price of a single
-        // unit however long the booking is.
-        minBookingMinutes: c.minBookingMinutes,
-      })),
-      rulesByCourt: byCourt,
-    };
-  });
+  const options = courts.map((c): CourtOption => ({
+    id: c.id,
+    name: c.name,
+    basePriceCents: c.basePriceCents,
+    // The preview must price per BLOCK, as quoteBooking does. Without this the
+    // island cannot decompose the span and shows the price of a single unit
+    // however long the booking is.
+    minBookingMinutes: c.minBookingMinutes,
+  }));
 
   return (
     <section>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <header className="mb-section">
+        <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
 
-      <PricingBoard slug={slug} courts={courts} rulesByCourt={rulesByCourt} />
+      <PricingBoard slug={slug} courts={options} rulesByCourt={byCourt} />
     </section>
   );
 }

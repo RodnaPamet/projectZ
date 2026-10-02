@@ -418,7 +418,9 @@
         "delete": "Delete"
       },
       "delete": {
-        "confirm": "Delete the rule “{name}”?"
+        "title": "Delete the rule",
+        "confirm": "Delete the rule “{name}”?",
+        "failed": "The rule “{name}” was not deleted. Try again."
       },
       "preview": {
         "title": "Price check",
