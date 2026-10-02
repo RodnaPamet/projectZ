@@ -1,52 +1,36 @@
 import { notFound, redirect } from 'next/navigation';
 
-import { AppNav } from '@/components/layout/AppNav';
-// NOT from AppNav: that module is 'use client', so a server component may
-// render what it exports but never call it. Calling these from there was a 500
-// on every club page — see nav-items.ts.
-import { adminNav, playerNav } from '@/components/layout/nav-items';
-import { SiteHeader } from '@/components/layout/SiteHeader';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 
 /**
- * The authenticated club shell — the first layout in this repo that renders a
- * navigation bar.
+ * The club's membership gate, and nothing else.
  *
- * ═══ `AppNav` HAD NO RENDERER AT ALL ═══
+ * ═══ THE CHROME MOVED DOWN A LEVEL (T19) ═══
  *
- * It was written, translated, permission-gated and tested, and no layout
- * mounted it. #176 says of its five admin links "any owner or manager sees five
- * nav links that 404 — that is user-facing today"; measured, nothing rendered
- * the nav, so nobody could see them. The links were unreachable rather than
- * broken. This is what makes them reachable, which is why the pages have to
- * exist in the same change.
+ * This layout used to render the site header, the club nav (nine links in one
+ * row: #255, 541-555 px of sideways scroll on a 393 px phone) and a <main>.
+ * The chrome now lives in `admin/layout.tsx`, on inflect's vendored shell,
+ * because everything with a screen under `/t/[slug]` is an admin screen:
+ * `page.tsx` here only redirects (to the diary, or out of the club for a
+ * role with no club page). Rendering chrome here as well would wrap the admin
+ * shell in a second header and a second <main>, which axe reports.
  *
  * ═══ WHY THE URL CARRIES THE SLUG ═══
  *
- * The nav pointed at bare `/admin/courts`. That path is UNGUARDED:
- * `tenantSlugFromPath` finds no slug, `checkTenantAccess` falls through to its
- * `allow` default, and `requiredPermission` returns null because every rule in
- * `route-permissions.ts` is anchored at `^/api/`. An anonymous visitor would
- * have reached it — `guard.ts` warns about exactly this shape, in prose, three
- * lines above the branch that does it.
- *
- * `/t/[slug]/admin/*` is matched by both, and by `page-segregation` and
- * `canonical-parents`, which already assume that shape.
+ * A bare `/admin/courts` is UNGUARDED: `tenantSlugFromPath` finds no slug,
+ * `checkTenantAccess` falls through to its `allow` default, and
+ * `requiredPermission` returns null because every rule in
+ * `route-permissions.ts` is anchored at `^/api/`. `/t/[slug]/admin/*` is
+ * matched by both, and by `page-segregation` and `canonical-parents`.
  *
  * ═══ THE EDGE IS NOT THE ONLY CHECK ═══
  *
  * Middleware gates membership before this runs. This resolves it again, from
  * the database, because the edge can only read the token — and `token.role` is
  * frozen to the club the user joined FIRST. Deriving authority from it is the
- * documented cross-tenant escalation. One indexed query buys the correct
- * answer and a truncated membership list stops mattering.
- *
- * ═══ THE SITE HEADER IS HERE TOO (#227) ═══
- *
- * Sign-in lands an owner or a manager on this layout, and it had no way out:
- * no sign-out, no link to the player side, no hint of which account was in.
- * The header carries all three, and the role switcher — which is useless if
- * it is absent from the one screen a club user lands on.
+ * documented cross-tenant escalation. `resolveTenantPageContext` is
+ * request-cached, so the admin layout and every page beneath asking again is
+ * not a second query.
  */
 export default async function TenantLayout({
   children,
@@ -71,16 +55,5 @@ export default async function TenantLayout({
     notFound();
   }
 
-  const { ctx } = result;
-
-  return (
-    <div className="bg-bg-page text-content-default safe-area-top safe-area-x min-h-screen">
-      <SiteHeader />
-      <AppNav
-        items={[...playerNav(ctx.tenantSlug), ...adminNav(ctx.tenantSlug)]}
-        permissions={ctx.permissions}
-      />
-      <main className="px-6 py-8">{children}</main>
-    </div>
-  );
+  return children;
 }

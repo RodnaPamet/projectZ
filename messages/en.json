@@ -225,16 +225,24 @@
       "settings": "Loading settings"
     },
     "nav": {
-      "play": "Play",
-      "openPlay": "Open play",
-      "coaches": "Coaches",
-      "myBookings": "My bookings",
       "calendar": "Calendar",
       "courts": "Courts",
       "pricing": "Pricing",
       "players": "Players",
-      "staff": "Staff"
+      "staff": "Staff",
+      "sectionVenue": "Venue",
+      "sectionPeople": "People",
+      "moderation": "Moderation"
     }
+  },
+  "nav": {
+    "openNavigationMenu": "Open navigation menu",
+    "brandHome": "playerz.bg — go to the start",
+    "account": "Account",
+    "accountMenu": "Account menu",
+    "accountMenuFor": "Account menu for {name}",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar"
   },
   "sports": {
     "TENNIS": "Tennis",
@@ -628,6 +636,7 @@
     }
   },
   "platform": {
+    "name": "Platform",
     "moderation": {
       "metaTitle": "Review moderation — playerz.bg",
       "title": "Review moderation",

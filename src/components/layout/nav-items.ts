@@ -1,90 +1,213 @@
+import type { PlatformCapability } from '@/lib/platform/capabilities';
+import type { Permission } from '@/lib/permissions';
+
 /**
- * What the club shell's navigation links to — data, not a component.
+ * What the club-admin and platform shells link to — data, not a component.
  *
- * ═══ WHY THIS IS NOT IN AppNav.tsx ═══
+ * ═══ WHY THIS MODULE HAS NO DIRECTIVE ═══
  *
- * These builders lived in `AppNav.tsx`, which is `'use client'`, and the club
- * layout — a Server Component — CALLED them. React Server Components forbid
- * that: every export of a client module is a client reference on the server,
- * and calling one throws
+ * The builders lived in the old `AppNav.tsx`, which is `'use client'`, and the
+ * club layout — a Server Component — CALLED them. React Server Components
+ * forbid that: every export of a client module is a client reference on the
+ * server, and calling one throws
  *
  *   Attempted to call playerNav() from the server but playerNav is on the
  *   client. It's not possible to invoke a client function from the server.
  *
- * So every page under `/t/[slug]` — the whole club UI — answered 500, from the
- * day the layout was added (#195). No test renders the layout, and jest does
- * not enforce the client boundary, so nothing said so; it surfaced when #227
- * began landing owners there and the page was loaded in a real server.
+ * So every page under `/t/[slug]` answered 500 from #195 until #227 moved them
+ * here. The admin layouts call these on the server, filter them by the
+ * database-resolved permissions, translate the labels, and hand the shell
+ * plain data. `client-boundary` holds that line.
  *
- * Nothing here needs the browser. Keeping it in a module with no directive
- * lets the server call it and the client import its type.
+ * ═══ WHAT IS NOT HERE ANY MORE (#260) ═══
+ *
+ * `playerNav` linked `/t/{slug}/open-play`, `/coaches` and `/my-bookings`,
+ * none of which has ever existed: three links to a 404, each prefetching that
+ * 404 as it scrolled into view (#267). A CLUB account (#263) never sees player
+ * links anyway, and players get their own bottom tab bar (T20), so the builder
+ * went with them. `tests/guardrails/nav-hrefs-resolve.test.ts` now fails any
+ * href here that has no `page.tsx` behind it.
  */
+
+/** The glyph a row shows. A key, because a component cannot cross to the client as a prop. */
+export type NavIconKey = 'calendar' | 'courts' | 'pricing' | 'players' | 'staff' | 'moderation';
 
 export interface NavItem {
   href: string;
   /**
    * A key under `common.nav`, NOT display text.
    *
-   * ═══ WHY THIS IS A KEY AND NOT A STRING ═══
-   *
-   * These were literal English — 'Play', 'Calendar', 'Courts' — rendered
-   * straight into the nav of an app whose default locale is Bulgarian. Nine
-   * user-visible strings, on the most visible surface there is.
-   *
-   * They survived because `i18n-no-hardcoded-copy` is an AST scan of JSX: it
-   * reads text nodes and copy-carrying ATTRIBUTES. These lived in a plain
-   * object literal at module scope and were rendered as `{item.label}` — a JSX
-   * expression, not a text node. Copy declared in a data structure and rendered
-   * through a variable was invisible to it, which is a blind spot worth knowing
-   * about rather than a gap in the rule.
-   *
-   * Naming the field `labelKey` rather than `label` is deliberate: `label` is
-   * in that guardrail's COPY_ATTRS set, so a future `label="Courts"` on a JSX
-   * element WOULD be caught — and a field called `label` holding a key invites
-   * somebody to put text back in it.
+   * These were literal English once — 'Play', 'Calendar', 'Courts' — in the
+   * nav of an app whose default locale is Bulgarian. `i18n-no-hardcoded-copy`
+   * reads JSX text and copy-carrying attributes, and copy declared in a data
+   * structure and rendered through a variable was invisible to it. Naming the
+   * field `labelKey`, not `label`, keeps a key from inviting text back in.
    */
   labelKey: string;
-  /** Hidden unless the viewer holds this permission. */
-  requires?: string;
+  iconKey: NavIconKey;
+  /**
+   * The router's prefetch for this link. Always `'auto'`, by type.
+   *
+   * docs/perf/navigation-policy.md: admin links fetch each dynamic route down
+   * to its `loading.tsx`, never in full. A fully prefetched diary would live
+   * under `staleTimes.static` and could be 180 s old on the tap, and every
+   * revalidating admin write would re-prefetch each such link in full. The
+   * vendored NavItem defaults to a full prefetch (inflect's choice), so the
+   * value is carried on every item rather than left to that default.
+   */
+  prefetch: 'auto';
+}
+
+/** A club item, shown only to a member whose role holds `requires`. */
+export interface ClubNavItem extends NavItem {
+  requires: Permission;
+}
+
+/** A platform item, shown only to a holder of a live grant carrying `requires`. */
+export interface PlatformNavItem extends NavItem {
+  requires: PlatformCapability;
+}
+
+export interface NavSection<T extends NavItem = NavItem> {
+  /** A key under `common.nav`. The first section has none: it is the home row. */
+  titleKey?: string;
+  items: T[];
 }
 
 /**
- * ═══ WHY THESE ARE FUNCTIONS OF A SLUG ═══
+ * The club-admin surface. Every item is permission-gated, and the gate is the
+ * same permission the page itself demands, so a link is never shown to
+ * somebody the page would refuse (`route-permission-coverage`).
  *
- * They were constants pointing at bare `/admin/courts`, and that path is
- * UNGUARDED. `tenantSlugFromPath` finds no slug in it, so `checkTenantAccess`
- * falls through to its `allow` default; and `requiredPermission` returns null
- * because every rule in `route-permissions.ts` is anchored at `^/api/`. An
- * anonymous visitor would have reached the page.
+ *   (no title)  Calendar — the diary, where staff spend the day
+ *   Venue       Courts, Pricing
+ *   People      Players, Staff
  *
- * `guard.ts` warns about precisely this: "a tenant URL shape this regex does
- * NOT recognise is not merely unmatched, it is UNGUARDED, and
- * `requiredPermission` goes quiet at the same moment for the same reason."
- *
- * Nothing rendered this nav, so nobody could click them — but the shape was
- * the trap waiting for whoever mounted it. Taking a slug makes the guarded
- * shape the only one expressible.
+ * A COACH holds `players.view` and nothing else here, so a coach sees only
+ * Players: today's permission-based view, kept until the coach UI decides.
  */
-
-/** The player-facing surface. */
-export function playerNav(slug: string): NavItem[] {
+export function clubAdminNav(slug: string): NavSection<ClubNavItem>[] {
+  const href = (page: string) => `/t/${slug}/admin/${page}`;
   return [
-    // Discovery stays global: a player browsing venues is not yet at a club,
-    // and this is the one page that exists today.
-    { href: '/venues', labelKey: 'play' },
-    { href: `/t/${slug}/open-play`, labelKey: 'openPlay' },
-    { href: `/t/${slug}/coaches`, labelKey: 'coaches' },
-    { href: `/t/${slug}/my-bookings`, labelKey: 'myBookings' },
+    {
+      items: [
+        {
+          href: href('calendar'),
+          labelKey: 'calendar',
+          iconKey: 'calendar',
+          requires: 'bookings.view_all',
+          prefetch: 'auto',
+        },
+      ],
+    },
+    {
+      titleKey: 'sectionVenue',
+      items: [
+        {
+          href: href('courts'),
+          labelKey: 'courts',
+          iconKey: 'courts',
+          requires: 'courts.manage',
+          prefetch: 'auto',
+        },
+        {
+          href: href('pricing'),
+          labelKey: 'pricing',
+          iconKey: 'pricing',
+          requires: 'admin.pricing_manage',
+          prefetch: 'auto',
+        },
+      ],
+    },
+    {
+      titleKey: 'sectionPeople',
+      items: [
+        {
+          href: href('players'),
+          labelKey: 'players',
+          iconKey: 'players',
+          requires: 'players.view',
+          prefetch: 'auto',
+        },
+        {
+          href: href('staff'),
+          labelKey: 'staff',
+          iconKey: 'staff',
+          requires: 'admin.staff_manage',
+          prefetch: 'auto',
+        },
+      ],
+    },
   ];
 }
 
-/** The venue-staff surface. Each item is permission-gated. */
-export function adminNav(slug: string): NavItem[] {
+/** The platform surface: what a holder of a platform grant can open. */
+export function platformNav(): NavSection<PlatformNavItem>[] {
   return [
-    { href: `/t/${slug}/admin/calendar`, labelKey: 'calendar', requires: 'bookings.view_all' },
-    { href: `/t/${slug}/admin/courts`, labelKey: 'courts', requires: 'courts.manage' },
-    { href: `/t/${slug}/admin/pricing`, labelKey: 'pricing', requires: 'admin.pricing_manage' },
-    { href: `/t/${slug}/admin/players`, labelKey: 'players', requires: 'players.view' },
-    { href: `/t/${slug}/admin/staff`, labelKey: 'staff', requires: 'admin.staff_manage' },
+    {
+      items: [
+        {
+          href: '/platform/moderation',
+          labelKey: 'moderation',
+          iconKey: 'moderation',
+          requires: 'REVIEW_MODERATE',
+          prefetch: 'auto',
+        },
+      ],
+    },
   ];
+}
+
+/**
+ * What the shell receives: the visible sections, labels already translated on
+ * the server. Plain data, so it crosses into the client shell as props.
+ */
+export interface ShellNavItem {
+  href: string;
+  label: string;
+  iconKey: NavIconKey;
+  prefetch: 'auto';
+}
+
+export interface ShellNavSection {
+  title?: string;
+  items: ShellNavItem[];
+}
+
+/**
+ * Keep the items `allows` admits, and drop any section left empty.
+ *
+ * Hiding a link is a courtesy, NOT a security control: every page and every
+ * Server Action authorises itself. This only keeps the nav from offering a
+ * page that would refuse the viewer.
+ */
+export function visibleSections<T extends NavItem>(
+  sections: NavSection<T>[],
+  allows: (item: T) => boolean,
+): NavSection<T>[] {
+  return sections
+    .map((s) => ({ ...s, items: s.items.filter(allows) }))
+    .filter((s) => s.items.length > 0);
+}
+
+/**
+ * Translate the visible sections into what the shell renders.
+ *
+ * `t` is `getTranslations('common.nav')` on the server. `requires` is dropped
+ * on the way: the client has no use for it, and a permission name in the
+ * payload is a list of what the role can do.
+ */
+export function toShellSections(
+  sections: NavSection[],
+  t: (key: string) => string,
+): ShellNavSection[] {
+  return sections.map((s) => ({
+    ...(s.titleKey ? { title: t(s.titleKey) } : {}),
+    items: s.items.map((i) => ({
+      href: i.href,
+      label: t(i.labelKey),
+      iconKey: i.iconKey,
+      prefetch: i.prefetch,
+    })),
+  }));
 }

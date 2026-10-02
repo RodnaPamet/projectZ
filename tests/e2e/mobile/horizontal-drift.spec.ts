@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { test as authedTest } from '../fixtures';
+
 /**
  * NO PAGE SCROLLS SIDEWAYS ON A PHONE.
  *
@@ -91,45 +93,47 @@ async function widestOffender(page: Page): Promise<string> {
   });
 }
 
+/** Wait for a settled layout, then fail with the widest offenders if the page scrolls sideways. */
+async function expectNoDrift(page: Page, path: string): Promise<void> {
+  // NOT `networkidle`.
+  //
+  // This app holds a PERSISTENT realtime connection (Centrifugo, P15), so
+  // the network never goes quiet and `waitForLoadState('networkidle')` waits
+  // for a silence that will never arrive. It does not fail as a drift
+  // assertion — it fails as a 30-second timeout, which looks like a bug in
+  // the page and is a bug in the test.
+  //
+  // Wait for something DETERMINISTIC instead: the DOM is parsed, the fonts
+  // have resolved (a font swap can change layout width), and the frame has
+  // painted.
+  await page.waitForLoadState('domcontentloaded');
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))));
+
+  const overflow = await horizontalOverflow(page);
+
+  if (overflow > 1) {
+    const offenders = await widestOffender(page);
+
+    throw new Error(
+      `${path} scrolls sideways by ${overflow}px at ${page.viewportSize()?.width}px.\n\n` +
+        `  Widest offenders:\n${offenders}\n\n` +
+        `The user swipes down the list and the whole page slides left. On iOS the\n` +
+        `sideways rubber-band chains into the back gesture, so they lose the page.\n\n` +
+        `Usual causes: an uncompensated negative margin, a table with no\n` +
+        `overflow-x-auto, a fixed-width element, or a long unbroken string.\n` +
+        `See tests/guardrails/no-horizontal-drift-patterns.test.ts.`,
+    );
+  }
+
+  expect(overflow).toBeLessThanOrEqual(1);
+}
+
 test.describe('@mobile horizontal drift', () => {
   for (const { label, path } of PAGES) {
     test(`${label} does not scroll sideways`, async ({ page }) => {
       await page.goto(path);
-
-      // NOT `networkidle`.
-      //
-      // This app holds a PERSISTENT realtime connection (Centrifugo, P15), so
-      // the network never goes quiet and `waitForLoadState('networkidle')` waits
-      // for a silence that will never arrive. It does not fail as a drift
-      // assertion — it fails as a 30-second timeout, which looks like a bug in
-      // the page and is a bug in the test.
-      //
-      // Wait for something DETERMINISTIC instead: the DOM is parsed, the fonts
-      // have resolved (a font swap can change layout width), and the frame has
-      // painted.
-      await page.waitForLoadState('domcontentloaded');
-      await page.evaluate(() => document.fonts.ready);
-      await page.evaluate(
-        () => new Promise((resolve) => requestAnimationFrame(() => resolve(null))),
-      );
-
-      const overflow = await horizontalOverflow(page);
-
-      if (overflow > 1) {
-        const offenders = await widestOffender(page);
-
-        throw new Error(
-          `${path} scrolls sideways by ${overflow}px at ${page.viewportSize()?.width}px.\n\n` +
-            `  Widest offenders:\n${offenders}\n\n` +
-            `The user swipes down the list and the whole page slides left. On iOS the\n` +
-            `sideways rubber-band chains into the back gesture, so they lose the page.\n\n` +
-            `Usual causes: an uncompensated negative margin, a table with no\n` +
-            `overflow-x-auto, a fixed-width element, or a long unbroken string.\n` +
-            `See tests/guardrails/no-horizontal-drift-patterns.test.ts.`,
-        );
-      }
-
-      expect(overflow).toBeLessThanOrEqual(1);
+      await expectNoDrift(page, path);
     });
   }
 
@@ -162,4 +166,25 @@ test.describe('@mobile horizontal drift', () => {
     // …and the page is clean again once it is gone.
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
   });
+});
+
+/**
+ * THE CLUB ADMIN, SIGNED IN AS ITS OWNER (#255).
+ *
+ * The club nav was nine links in one row that could not wrap: 541-555 px of
+ * sideways scroll on this phone, on every club page. T19 moved them into the
+ * admin shell's drawer. Each page is measured with the drawer closed, which
+ * is how a page is read.
+ */
+const CLUB_PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff'] as const;
+
+authedTest.describe('@mobile horizontal drift — club admin', () => {
+  for (const p of CLUB_PAGES) {
+    authedTest(`club ${p} does not scroll sideways`, async ({ authedPage, isolatedTenant }) => {
+      const path = `/t/${isolatedTenant.tenantSlug}/admin/${p}`;
+      await authedPage.goto(path);
+      await expect(authedPage.locator('main h1')).toBeVisible();
+      await expectNoDrift(authedPage, path);
+    });
+  }
 });

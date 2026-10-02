@@ -518,6 +518,18 @@ export class PerfSession {
    * visual viewport, and hit-tested before anything is sent. If something
    * else covers the link, the step fails and says so.
    */
+  /** Until React has attached its props to the element: a click before that is a full page load. */
+  private async waitHydrated(selector: string) {
+    await this.page.waitForFunction(
+      (sel) => {
+        const el = document.querySelector(sel);
+        return !!el && Object.keys(el).some((k) => k.startsWith('__reactProps$'));
+      },
+      selector,
+      { timeout: STEP_TIMEOUT_MS },
+    );
+  }
+
   private async tap(selector: string) {
     const p = await this.page.evaluate((sel) => {
       const el = document.querySelector(sel)!;
@@ -662,9 +674,25 @@ export class PerfSession {
     pass: number;
     click?: string;
     back?: boolean;
+    /**
+     * Untimed inputs before the timed one, in order: taps (or clicks) that
+     * reveal the link, like the hamburger that opens the admin drawer on a
+     * phone (T19). Each settles before the next, so what it fetched is done
+     * and attributed to the step's "before" prefetch, not to its navigation.
+     */
+    before?: string[];
   }) {
     const t = Date.now();
     await this.settle('before');
+
+    for (const sel of opts.before ?? []) {
+      await this.page.locator(sel).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await this.waitHydrated(sel);
+      if (this.profile.input === 'tap') await this.tap(sel);
+      else await this.page.locator(sel).click();
+      await this.settle(`after ${sel}`);
+      debug(`${opts.step}: before-input ${sel} done after ${Date.now() - t}ms`);
+    }
 
     let target = null;
     if (opts.click) {
@@ -672,14 +700,7 @@ export class PerfSession {
       // A click before hydration is a full page load, not a navigation.
       // settle() makes this nearly always true already; this makes it certain.
       await target.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await this.page.waitForFunction(
-        (sel) => {
-          const el = document.querySelector(sel);
-          return !!el && Object.keys(el).some((k) => k.startsWith('__reactProps$'));
-        },
-        opts.click,
-        { timeout: STEP_TIMEOUT_MS },
-      );
+      await this.waitHydrated(opts.click);
       debug(`${opts.step}: target hydrated after ${Date.now() - t}ms`);
       // Scrolling the link into view is the person's thumb, not the
       // navigation. Done first, so viewport-entry prefetch starts where it

@@ -323,8 +323,9 @@ The entry page is the only `goto`.
 
 Left out on purpose:
 
-- **Links that 404.** These are the venue cards (#267) and the club nav's
-  open-play, coaches and my-bookings (#260). A 404 is not a navigation to time.
+- **Links that 404.** These were the venue cards (#267) and the club nav's
+  open-play, coaches and my-bookings (#260, removed by T19). A 404 is not a
+  navigation to time.
 - **The role switcher.** #263 made accounts one kind each (player, club at one
   club, or coach) and removed the switcher, so no account here holds both a player
   and a club role. The fixture creates each account with its kind, as the database
@@ -471,6 +472,17 @@ click before hydration is a full page load. The link is scrolled into view first
 a thumb would. A real person does not wait for the network to go quiet. Clicking
 into an unfinished prefetch costs something real, but it would make every sample a
 different race. **These numbers are for the settled case.**
+
+**Untimed inputs before a tap (T19).** Since T19 the club admin's nav lives in a left
+drawer below `md`, so a phone reaches a nav link in two taps: the hamburger, then the
+link. A step names the first in `before` (a list of selectors), and the harness taps
+each one, waits for it to settle, and only then arms the timer for the real tap. The
+drawer's links prefetch (auto) as it opens, and those requests are counted in the
+step's prefetch-before column, which is when a thumb would have caused them. The staff
+journeys' step ids did not change, so their budget rows still apply; on the desktop
+the same steps click the rail's link, as before. `navTap` in `nav-latency.spec.ts`
+picks the selector per profile: the drawer's copy of the nav on a phone, the rail's
+(`aside`) on the desktop, so neither matches the hidden other.
 
 ### Data
 

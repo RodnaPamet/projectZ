@@ -37,7 +37,16 @@ const FULL_PREFETCH_ALLOWED: Record<string, string> = {
     "T20's player tab bar, allow-listed ahead of it: its pages (/venues, /me) read through SWR and revalidate after paint, so a 180 s old shell is refreshed on arrival. It skips full prefetch under Save-Data.",
   'src/components/layout/PublicPrefetchLink.tsx':
     "The anonymous home page's links to /venues and /login (#290): 1.4-2.4 KB, the same for every visitor, and a first visit then renders from the router cache instead of waiting out the 300 ms reveal throttle. It skips full prefetch under Save-Data. Where it may be used is pinned below.",
+  'src/components/layout/nav-item.tsx':
+    'Vendored from inflect (T19), byte-identical, so it cannot change here. It passes its caller\'s `prefetch` to <Link>, defaulting to inflect\'s full prefetch (inflect #3100 added the prop). Every playerz <NavItem> must pass prefetch="auto" as a literal, which the rule below pins.',
 };
+
+/**
+ * Where a vendored component takes `prefetch` as a prop and defaults it to
+ * full, every playerz use must pass the literal "auto". The allow-list above
+ * trusts the component; this is what makes that safe.
+ */
+const AUTO_ONLY_COMPONENTS = ['NavItem'];
 
 /**
  * Exactly where PublicPrefetchLink may appear, and to which page. A new use,
@@ -126,6 +135,27 @@ describe('router cache policy', () => {
     const src = code(readFileSync(f, 'utf8'));
     const hits = FULL_PREFETCH.flatMap((re) => [...src.matchAll(re)].map((m) => m[0]));
     expect({ file: f, hits }).toEqual({ file: f, hits: [] });
+  });
+
+  it.each(sources)('%s: every vendored NavItem is told prefetch="auto"', (f) => {
+    const src = code(readFileSync(f, 'utf8'));
+    for (const name of AUTO_ONLY_COMPONENTS) {
+      const uses = [...src.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'g'))].map((m) => m[0]);
+      const unpinned = uses.filter((u) => !/\sprefetch="auto"/.test(u));
+      expect({ file: f, component: name, unpinned }).toEqual({
+        file: f,
+        component: name,
+        unpinned: [],
+      });
+    }
+  });
+
+  it('the NavItem rule would catch a full or missing prefetch', () => {
+    const unpinned = (s: string) =>
+      [...s.matchAll(/<NavItem\b[^>]*>/g)].filter((m) => !/\sprefetch="auto"/.test(m[0])).length;
+    expect(unpinned('<NavItem href="/x" label="x" prefetch="auto" />')).toBe(0);
+    expect(unpinned('<NavItem href="/x" label="x" />')).toBe(1);
+    expect(unpinned('<NavItem href="/x" prefetch={true} />')).toBe(1);
   });
 
   it.each(sources)('%s: PublicPrefetchLink only where pinned', (f) => {

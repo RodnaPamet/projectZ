@@ -16,16 +16,16 @@ export async function generateMetadata() {
  *
  * ═══ THIS PAGE HOLDS NO AUTHORITY, ON PURPOSE ═══
  *
- * It renders for any signed-in person and reads nothing itself. Everything it
- * shows comes from `/api/v1/platform/moderation/**`, which checks a live grant
- * carrying REVIEW_MODERATE on every request and writes an audit row before it
- * answers. Without one, the frame renders and the API's refusal is said
+ * It reads nothing itself. Everything it shows comes from
+ * `/api/v1/platform/moderation/**`, which checks a live grant carrying
+ * REVIEW_MODERATE on every request and writes an audit row before it answers.
+ * If the grant lapses while the page is open, the API's refusal is said
  * plainly — no case text ever reaches the browser.
  *
- * It does not look the grant up to hide itself. Platform authority is resolved
- * only under the platform tree (`platform-route-discipline` asserts nothing
- * outside it asks), and a page that consulted the grant would be a second,
- * unaudited place deciding who is a moderator.
+ * Since T19 the platform LAYOUT looks the grant up, to decide whether to show
+ * the platform shell at all (a 404 otherwise). That decides what to show,
+ * never what to do: the API above stays the only place a moderation read or
+ * decision is authorised, and it audits each one.
  *
  * It does pass the queue WHO it was rendered for (ViewerScope): every queue
  * read and decision then carries `x-playerz-viewer`, and the API refuses with
@@ -39,7 +39,9 @@ export default async function ModerationPage() {
   const t = await getTranslations('platform.moderation');
 
   return (
-    <main className="bg-bg-page text-content-default safe-area-top safe-area-x min-h-screen px-6 py-10">
+    // No <main> and no page chrome: the platform layout's shell (T19) owns
+    // both, and a second <main> is an axe violation.
+    <section>
       <header className="mb-6">
         <h1 className="text-content-emphasis text-3xl font-semibold">{t('title')}</h1>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
@@ -48,6 +50,6 @@ export default async function ModerationPage() {
       <ViewerScope viewerId={userId}>
         <ModerationQueue />
       </ViewerScope>
-    </main>
+    </section>
   );
 }
