@@ -83,34 +83,34 @@ interface DemoBooking {
 const DEMO_BOOKINGS: DemoBooking[] = [
   {
     id: 'bk_1',
-    venue: 'Sofia Padel Club',
-    court: 'Court 3',
-    sport: 'Padel',
-    starts: 'Sat 10:00',
-    player: 'Ivan Petrov',
-    status: 'Confirmed',
+    venue: 'Падел клуб София',
+    court: 'Корт 3',
+    sport: 'Падел',
+    starts: 'Сб 10:00',
+    player: 'Иван Петров',
+    status: 'Потвърдена',
     price: '24.00 EUR',
   },
   {
     id: 'bk_2',
-    venue: 'Plovdiv Tennis Center',
-    court: 'Court 1',
-    sport: 'Tennis',
-    starts: 'Sun 18:30',
-    player: 'Maria Dimitrova',
-    status: 'Pending',
+    venue: 'Тенис център Пловдив',
+    court: 'Корт 1',
+    sport: 'Тенис',
+    starts: 'Нд 18:30',
+    player: 'Мария Димитрова',
+    status: 'Чакаща',
     price: '18.00 EUR',
   },
 ];
 
 const BOOKING_COLUMNS = createColumns<DemoBooking>([
-  { accessorKey: 'venue', header: 'Venue' },
-  { accessorKey: 'court', header: 'Court' },
-  { accessorKey: 'sport', header: 'Sport' },
-  { accessorKey: 'starts', header: 'Starts' },
-  { accessorKey: 'player', header: 'Player' },
-  { accessorKey: 'status', header: 'Status' },
-  { accessorKey: 'price', header: 'Price' },
+  { accessorKey: 'venue', header: 'Обект' },
+  { accessorKey: 'court', header: 'Корт' },
+  { accessorKey: 'sport', header: 'Спорт' },
+  { accessorKey: 'starts', header: 'Начало' },
+  { accessorKey: 'player', header: 'Играч' },
+  { accessorKey: 'status', header: 'Статус' },
+  { accessorKey: 'price', header: 'Цена' },
 ]);
 
 /**
@@ -486,13 +486,18 @@ export default function DesignSystemPage() {
          *
          * Below md this collapses to tappable cards automatically. That is what
          * stops an eight-column table pushing the whole page sideways at 390px,
-         * and it is now actually exercised rather than merely asserted.
+         * and it is now actually exercised rather than merely asserted. The
+         * cards are buttons when the table has a row action (onRowClick), so
+         * they take Tab and Enter/Space like the desktop rows (react-table v9,
+         * inflect's table as of T21). The rows are Bulgarian, as a player sees
+         * them; getRowId keys selection by booking id rather than array index.
          */}
         <Section title="DataTable">
           <DataTable<DemoBooking>
             data={DEMO_BOOKINGS}
             columns={BOOKING_COLUMNS}
-            resourceName={(plural) => (plural ? 'bookings' : 'booking')}
+            getRowId={(row) => row.id}
+            resourceName={(plural) => (plural ? 'резервации' : 'резервация')}
             onRowClick={() => {}}
           />
         </Section>
