@@ -116,7 +116,7 @@ async function expectAxeClean(page: Page) {
  *
  * Below md the Combobox is a bottom sheet, and the sheet does not move focus
  * into its search box the way the desktop popover does — so the search box is
- * focused explicitly before typing. Everything after that is the keyboard.
+ * focused explicitly before typing (#323). Everything after that is the keyboard.
  */
 async function chooseByKeyboard(page: Page, field: string, search: string, expected: string) {
   const trigger = page.getByRole('combobox', { name: new RegExp(`^${field},`) });
