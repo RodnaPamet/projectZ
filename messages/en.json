@@ -345,6 +345,15 @@
         "indoor": "Indoor",
         "outdoor": "Outdoor"
       },
+      "surface": {
+        "CLAY": "Clay",
+        "HARD": "Hard court",
+        "GRASS": "Grass",
+        "ARTIFICIAL_GRASS": "Artificial grass",
+        "CARPET": "Carpet",
+        "WOOD": "Wood",
+        "CONCRETE": "Concrete"
+      },
       "status": {
         "ACTIVE": "Active",
         "SUSPENDED": "Suspended",
@@ -360,7 +369,9 @@
         "reopen": "Reopen"
       },
       "archive": {
-        "confirm": "{count, plural, one {This court has # upcoming booking. Archiving does not cancel it. Continue?} other {This court has # upcoming bookings. Archiving does not cancel them. Continue?}}"
+        "confirm": "{count, plural, one {This court has # upcoming booking. Archiving does not cancel it. Continue?} other {This court has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+        "title": "Archive this court?",
+        "failed": "The court's status was not changed. Try again."
       }
     },
     "pricing": {

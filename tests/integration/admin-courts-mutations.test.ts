@@ -1,6 +1,6 @@
 import {
   archiveCourt,
-  countUpcomingBookings,
+  countUpcomingBookingsByCourt,
   createCourt,
   CourtNotFoundError,
   updateCourt,
@@ -198,9 +198,9 @@ describe('court mutations', () => {
     expect(archived[0]!.status).toBe('CLOSED');
 
     const upcoming = await runInTenantContext(t.tenantId, (c) =>
-      countUpcomingBookings(c, t.tenantId, court.id, new Date()),
+      countUpcomingBookingsByCourt(c, t.tenantId, [court.id], new Date()),
     );
-    expect(upcoming).toBe(1);
+    expect(upcoming.get(court.id)).toBe(1);
   });
 
   it('reopens an archived court', async () => {
@@ -255,8 +255,50 @@ describe('court mutations', () => {
     });
 
     const n = await runInTenantContext(t.tenantId, (c) =>
-      countUpcomingBookings(c, t.tenantId, court.id, new Date()),
+      countUpcomingBookingsByCourt(c, t.tenantId, [court.id], new Date()),
     );
-    expect(n).toBe(1);
+    expect(n.get(court.id)).toBe(1);
+  });
+
+  it('counts every court in one grouped query: a court with none is absent, not 0', async () => {
+    // The page reads `upcoming.get(id) ?? 0`, so a missing key must mean
+    // "no upcoming bookings" and never "not asked about".
+    const t = await seedTenant({}, db);
+    const v = await venueFor(t.tenantId);
+    const busy = await runInTenantContext(t.tenantId, (c) =>
+      createCourt(c, t.tenantId, t.userId, { ...BASE, name: 'Busy', venueId: v.id }),
+    );
+    const idle = await runInTenantContext(t.tenantId, (c) =>
+      createCourt(c, t.tenantId, t.userId, { ...BASE, name: 'Idle', venueId: v.id }),
+    );
+
+    const future = Date.now() + 172_800_000;
+    await asAppSuperuser(db, async (tx) => {
+      for (const offset of [0, 7_200_000]) {
+        await tx.booking.create({
+          data: {
+            tenantId: t.tenantId,
+            resourceId: busy.id,
+            bookedByUserId: t.userId,
+            startTs: new Date(future + offset),
+            endTs: new Date(future + offset + 3_600_000),
+            status: 'CONFIRMED',
+            totalCents: 2400,
+            idempotencyKey: `group-fixture-${offset}`,
+          },
+        });
+      }
+    });
+
+    const counts = await runInTenantContext(t.tenantId, (c) =>
+      countUpcomingBookingsByCourt(c, t.tenantId, [busy.id, idle.id], new Date()),
+    );
+    expect(Object.fromEntries(counts)).toEqual({ [busy.id]: 2 });
+
+    // No ids, no query, no rows.
+    const none = await runInTenantContext(t.tenantId, (c) =>
+      countUpcomingBookingsByCourt(c, t.tenantId, [], new Date()),
+    );
+    expect(none.size).toBe(0);
   });
 });

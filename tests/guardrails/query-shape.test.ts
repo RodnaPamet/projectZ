@@ -36,7 +36,12 @@ import ts from 'typescript';
  * Neither is caught by types, tests, or review. So they are caught here.
  */
 
-const SOURCES = ['src/app-layer/**/*.ts', 'src/lib/**/*.ts', 'src/app/**/*.ts'];
+/**
+ * `.tsx` under src/app too: a server component page is where a per-row read
+ * loop is most tempting, and the courts page had one (one `booking.count` per
+ * court, through a use case) that this scan, `.ts` only, never opened (T23).
+ */
+const SOURCES = ['src/app-layer/**/*.ts', 'src/lib/**/*.ts', 'src/app/**/*.ts', 'src/app/**/*.tsx'];
 
 interface Finding {
   file: string;
@@ -50,7 +55,6 @@ function sourceFiles(): string[] {
   );
 }
 
-const READ_CALL = /\b(?:db|tx|prisma)\.\w+\.(findMany|findFirst|findUnique|count|aggregate)\s*\(/;
 const ALLOW = /guardrail-allow:\s*(unbounded|n-plus-one)/;
 
 /** Array methods whose callback body is a loop body in all but name. */
@@ -68,7 +72,15 @@ const ITERATORS = new Set([
   'sort',
 ]);
 
-const READ_METHODS = new Set(['findMany', 'findFirst', 'findUnique', 'count', 'aggregate']);
+/** `groupBy` is a read too, and the shape that replaces a per-row `count`. */
+const READ_METHODS = new Set([
+  'findMany',
+  'findFirst',
+  'findUnique',
+  'count',
+  'aggregate',
+  'groupBy',
+]);
 const CLIENTS = new Set(['db', 'tx', 'prisma']);
 
 /** `db.booking.findMany(...)` — a client, a model, then a read. */

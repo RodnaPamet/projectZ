@@ -1,13 +1,19 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import { FieldGroup } from '@/components/ui/field-group';
+import { FormField } from '@/components/ui/form-field';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { bookableSports } from '@/lib/sports/registry';
 
-import { archiveCourtAction, createCourtAction, updateCourtAction } from './actions';
+import { createCourtAction, updateCourtAction } from './actions';
 
 /**
  * One form for adding a court and for editing one.
@@ -30,6 +36,20 @@ import { archiveCourtAction, createCourtAction, updateCourtAction } from './acti
  * typing; none of it reaches the server, and the action re-parses every field
  * with Zod regardless. The error shown here is the one the server returned, so
  * what the user reads is what actually stopped the write.
+ *
+ * ═══ NO NATIVE SELECT (T23) ═══
+ *
+ * Venue, sport and surface were native `<select>`s whose options read PADEL and
+ * ARTIFICIAL_GRASS — the Prisma enum, in English, on a Bulgarian screen. On a
+ * phone a native select is an OS wheel that ignores every token. They are the
+ * vendored Combobox now, labelled from `sports.*` and
+ * `admin.courts.surface.*`. A Combobox posts through a hidden input named like
+ * the select it replaced, so the actions read the same FormData keys; the
+ * indoor Switch posts `on` exactly as the checkbox did.
+ *
+ * Surface is a Combobox rather than a ToggleGroup: seven segments do not fit a
+ * 393 px row, and a ToggleGroup that wraps or scrolls is the drift the mobile
+ * specs exist to catch.
  */
 
 export interface CourtFormValues {
@@ -45,7 +65,19 @@ export interface CourtFormValues {
   slotStepMinutes: number;
 }
 
-const SPORTS = ['PADEL', 'TENNIS', 'SQUASH', 'BADMINTON', 'FOOTBALL', 'BASKETBALL'] as const;
+/**
+ * The sports this form offers: the registry's bookable sports played on a
+ * COURT — the resource type `createCourtAction` creates.
+ *
+ * It was a hand-written list of six, one of them SQUASH, which is not a
+ * `SportType` at all: `sportSchema` refused it, so picking it failed the save
+ * with an English Zod message. FOOTBALL is a FIELD in the registry. Reading the
+ * registry keeps this list honest as sports are added. A court already saved
+ * under any other sport keeps it on edit (see `sportKeys` below).
+ */
+const COURT_SPORTS: readonly string[] = bookableSports()
+  .filter((s) => s.resourceType === 'COURT')
+  .map((s) => s.key);
 const SURFACES = [
   'CLAY',
   'HARD',
@@ -55,6 +87,22 @@ const SURFACES = [
   'WOOD',
   'CONCRETE',
 ] as const;
+
+/**
+ * A required single-select: choosing the selected option again is not "clear".
+ *
+ * The vendored Combobox toggles — re-picking the current option hands back
+ * `null`, which would post an empty value the server then refuses. A court
+ * always has a sport, a surface and (when created) a venue.
+ */
+function useRequiredChoice(options: readonly ComboboxOption[], initial: string | undefined) {
+  const [value, setValue] = useState(initial ?? options[0]?.value ?? '');
+  const selected = options.find((o) => o.value === value) ?? null;
+  const setSelected = (o: ComboboxOption | null) => {
+    if (o) setValue(o.value);
+  };
+  return { selected, setSelected };
+}
 
 export function CourtForm({
   slug,
@@ -69,98 +117,118 @@ export function CourtForm({
   onDone?: () => void;
 }) {
   const t = useTranslations('admin.courts');
+  const tSport = useTranslations('sports');
   const editing = Boolean(court?.id);
+  const ids = useId();
 
   const [state, formAction, pending] = useActionState(
     editing ? updateCourtAction.bind(null, slug, court!.id!) : createCourtAction.bind(null, slug),
     null,
   );
 
+  const venueOptions: ComboboxOption[] = (venues ?? []).map((v) => ({
+    value: v.id,
+    label: v.name,
+  }));
+  // A court saved under a sport outside COURT_SPORTS keeps it on edit. The
+  // native select silently showed PADEL for one, and saving the form moved
+  // the court to padel without anyone choosing that.
+  const sportKeys: readonly string[] =
+    court && !COURT_SPORTS.includes(court.sport) ? [...COURT_SPORTS, court.sport] : COURT_SPORTS;
+  const sportOptions: ComboboxOption[] = sportKeys.map((s) => ({
+    value: s,
+    label: tSport(s as never),
+  }));
+  const surfaceOptions: ComboboxOption[] = SURFACES.map((s) => ({
+    value: s,
+    label: t(`surface.${s}`),
+  }));
+
+  const venue = useRequiredChoice(venueOptions, venues?.[0]?.id);
+  const sport = useRequiredChoice(sportOptions, court?.sport ?? 'PADEL');
+  const surface = useRequiredChoice(surfaceOptions, court?.surface ?? 'ARTIFICIAL_GRASS');
+
   // A successful submit closes the form. Checked on render rather than in an
   // effect: `state` only changes when the action returns, so there is nothing
   // to synchronise.
   if (state?.ok && onDone) onDone();
+
+  /**
+   * The trigger's accessible name is the field AND its value ("Спорт, Падел").
+   * The vendored Combobox names its trigger after the selection alone, which
+   * overrides the `<label for>` FormField wires — a screen reader heard
+   * "Падел, combobox" with no hint of what was being chosen.
+   */
+  const comboProps = (label: string, selected: ComboboxOption | null) => ({
+    matchTriggerWidth: true,
+    caret: true,
+    buttonProps: {
+      className: 'w-full',
+      'aria-label': selected ? `${label}, ${String(selected.label)}` : label,
+    },
+  });
 
   return (
     // data-perf-write="…": the perf harness's WRITE markers (docs/perf/README.md,
     // the staff-write journey). It renames a court here and saves it back, and
     // counts what the revalidating action costs on the wire. A rewrite of this
     // form keeps all three, or the journey stops with the marker it missed.
-    <form
-      action={formAction}
-      data-perf-write="form"
-      className="border-border-subtle grid gap-4 rounded-lg border p-4"
-    >
+    <form action={formAction} data-perf-write="form" className="gap-default grid">
       {!editing && venues && (
-        <div className="grid gap-1.5">
-          <Label htmlFor="venueId">{t('field.venue')}</Label>
-          <select
-            id="venueId"
+        <FormField label={t('field.venue')}>
+          <Combobox
+            id={`${ids}-venue`}
             name="venueId"
             required
-            className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-            defaultValue={venues[0]?.id}
-          >
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            options={venueOptions}
+            selected={venue.selected}
+            setSelected={venue.setSelected}
+            {...comboProps(t('field.venue'), venue.selected)}
+          />
+        </FormField>
       )}
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="name">{t('field.name')}</Label>
+      <FormField label={t('field.name')}>
         <Input
-          id="name"
+          id={`${ids}-name`}
           name="name"
           required
           maxLength={80}
           defaultValue={court?.name}
           data-perf-write="name"
         />
-      </div>
+      </FormField>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="sport">{t('field.sport')}</Label>
-          <select
-            id="sport"
+      <FieldGroup columns={2}>
+        <FormField label={t('field.sport')}>
+          <Combobox
+            id={`${ids}-sport`}
             name="sport"
-            className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-            defaultValue={court?.sport ?? 'PADEL'}
-          >
-            {SPORTS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
+            required
+            options={sportOptions}
+            selected={sport.selected}
+            setSelected={sport.setSelected}
+            {...comboProps(t('field.sport'), sport.selected)}
+          />
+        </FormField>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="surface">{t('field.surface')}</Label>
-          <select
-            id="surface"
+        <FormField label={t('field.surface')}>
+          <Combobox
+            id={`${ids}-surface`}
             name="surface"
-            className="border-border-subtle bg-bg-surface h-10 rounded-md border px-3"
-            defaultValue={court?.surface ?? 'ARTIFICIAL_GRASS'}
-          >
-            {SURFACES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+            required
+            options={surfaceOptions}
+            selected={surface.selected}
+            setSelected={surface.setSelected}
+            {...comboProps(t('field.surface'), surface.selected)}
+          />
+        </FormField>
+      </FieldGroup>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="capacity">{t('field.capacity')}</Label>
+      <FieldGroup columns={2}>
+        <FormField label={t('field.capacity')}>
           <Input
-            id="capacity"
+            id={`${ids}-capacity`}
             name="capacity"
             type="number"
             min={1}
@@ -168,25 +236,23 @@ export function CourtForm({
             required
             defaultValue={court?.capacity ?? 4}
           />
-        </div>
+        </FormField>
 
-        <div className="grid gap-1.5">
-          {/* Cents, and the label says so — a club typing 24 and getting
-              €0.24 is the predictable failure of a field called "price". */}
-          <Label htmlFor="basePriceCents">{t('field.basePriceCents')}</Label>
+        {/* Cents, and the label says so — a club typing 24 and getting
+            €0.24 is the predictable failure of a field called "price". */}
+        <FormField label={t('field.basePriceCents')}>
           <Input
-            id="basePriceCents"
+            id={`${ids}-basePriceCents`}
             name="basePriceCents"
             type="number"
             min={0}
             required
             defaultValue={court?.basePriceCents ?? 2400}
           />
-        </div>
-      </div>
+        </FormField>
+      </FieldGroup>
 
-      <fieldset className="grid gap-4 sm:grid-cols-3">
-        <legend className="text-content-muted mb-2 text-sm">{t('field.bookingWindow')}</legend>
+      <FieldGroup title={t('field.bookingWindow')} columns={3}>
         {(
           [
             ['minBookingMinutes', court?.minBookingMinutes ?? 60],
@@ -194,25 +260,31 @@ export function CourtForm({
             ['slotStepMinutes', court?.slotStepMinutes ?? 30],
           ] as const
         ).map(([key, value]) => (
-          <div key={key} className="grid gap-1.5">
-            <Label htmlFor={key}>{t(`field.${key}`)}</Label>
-            <Input id={key} name={key} type="number" min={5} required defaultValue={value} />
-          </div>
+          <FormField key={key} label={t(`field.${key}`)}>
+            <Input
+              id={`${ids}-${key}`}
+              name={key}
+              type="number"
+              min={5}
+              required
+              defaultValue={value}
+            />
+          </FormField>
         ))}
-      </fieldset>
+      </FieldGroup>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="isIndoor" defaultChecked={court?.isIndoor} />
-        {t('setting.indoor')}
-      </label>
+      {/* The whole row is the target: the label toggles the switch, and the
+          row is 44 px tall, which the 20 px track alone is not. */}
+      <div className="gap-tight flex min-h-11 items-center">
+        <Switch id={`${ids}-indoor`} name="isIndoor" defaultChecked={court?.isIndoor} />
+        <Label htmlFor={`${ids}-indoor`} className="cursor-pointer py-3">
+          {t('setting.indoor')}
+        </Label>
+      </div>
 
-      {state && !state.ok && (
-        <p role="alert" className="text-content-error text-sm">
-          {state.error}
-        </p>
-      )}
+      {state && !state.ok && <InlineNotice variant="error">{state.error}</InlineNotice>}
 
-      <div className="flex gap-2">
+      <div className="gap-tight flex">
         <Button type="submit" disabled={pending} data-perf-write="submit">
           {editing ? t('action.save') : t('action.add')}
         </Button>
@@ -223,54 +295,5 @@ export function CourtForm({
         )}
       </div>
     </form>
-  );
-}
-
-/**
- * Archive and reopen.
- *
- * Separate from the form because it is not an edit: it changes availability for
- * everyone, and the confirmation says what it does NOT do — the bookings
- * already on the court survive, and stay cancellable through the ordinary path
- * with its ordinary refund policy. An owner archiving a court mid-season will
- * otherwise expect the diary to clear.
- */
-export function ArchiveCourtButton({
-  slug,
-  courtId,
-  archived,
-  upcomingBookings,
-}: {
-  slug: string;
-  courtId: string;
-  archived: boolean;
-  upcomingBookings: number;
-}) {
-  const t = useTranslations('admin.courts');
-  const [busy, setBusy] = useState(false);
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      disabled={busy}
-      onClick={async () => {
-        if (
-          !archived &&
-          upcomingBookings > 0 &&
-          !window.confirm(t('archive.confirm', { count: upcomingBookings }))
-        ) {
-          return;
-        }
-        setBusy(true);
-        try {
-          await archiveCourtAction(slug, courtId, archived);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      {archived ? t('action.reopen') : t('action.archive')}
-    </Button>
   );
 }

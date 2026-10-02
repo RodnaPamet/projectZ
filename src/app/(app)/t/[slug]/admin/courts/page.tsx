@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { COURT_LIST_LIMIT, courtsWereTruncated, listCourts } from '@/app-layer/repositories/court';
-import { countUpcomingBookings } from '@/app-layer/usecases/courts';
+import { COURT_LIST_LIMIT, courtsWereTruncated } from '@/app-layer/repositories/court';
+import { loadCourtsScreen } from '@/app-layer/usecases/courts';
+import { InlineNotice } from '@/components/ui/inline-notice';
+import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -42,6 +44,16 @@ export async function generateMetadata() {
  * and has no tenant to bind to. This is the opposite: there IS a tenant, so the
  * query runs inside it and row security does real work. Bound wrong, the screen
  * would show another club's courts and nothing would raise.
+ *
+ * ═══ A CONSTANT NUMBER OF QUERIES (T23) ═══
+ *
+ * `loadCourtsScreen` reads courts, venues and every court's upcoming-booking
+ * count in one transaction — the counts as one grouped query, where they were
+ * one `count` per court. The page's database cost no longer grows with the
+ * club (see `countUpcomingBookingsByCourt`).
+ *
+ * Club admin stays RSC + Server Actions (the hybrid-by-surface decision); the
+ * board on top of it is where the optimistic archive lives.
  */
 export default async function CourtsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -55,62 +67,43 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
   const t = await getTranslations('admin.courts');
   const now = new Date();
 
-  const { courts, venues } = await runInTenantContext(ctx.tenantId, async (db) => {
-    // Archived courts are included: the screen offers "reopen", and a court
-    // you cannot see is one you cannot bring back.
-    const rows = await listCourts(db, ctx.tenantId, { includeArchived: true });
-    const sites = await db.venue.findMany({
-      where: { tenantId: ctx.tenantId, status: 'ACTIVE' },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-      take: 100,
-    });
+  const { courts, venues, upcoming } = await runInTenantContext(ctx.tenantId, (db) =>
+    loadCourtsScreen(db, ctx.tenantId, now),
+  );
 
-    // Sequential on purpose. These are short indexed counts and there are at
-    // most COURT_LIST_LIMIT of them; firing them concurrently inside one
-    // transaction would interleave statements on a single connection.
-    const counts = new Map<string, number>();
-    for (const r of rows) {
-      counts.set(r.id, await countUpcomingBookings(db, ctx.tenantId, r.id, now));
-    }
-
-    return { courts: rows, venues: sites, counts };
-  }).then(({ courts, venues, counts }) => ({
-    venues,
-    courts: courts.map((c): CourtRow => ({
-      id: c.id,
-      name: c.name,
-      sport: c.sport,
-      surface: c.surface,
-      isIndoor: c.isIndoor,
-      capacity: c.capacity,
-      basePriceCents: c.basePriceCents,
-      minBookingMinutes: c.minBookingMinutes,
-      maxBookingMinutes: c.maxBookingMinutes,
-      slotStepMinutes: c.slotStepMinutes,
-      status: c.status,
-      venueName: c.venue.name,
-      upcomingBookings: counts.get(c.id) ?? 0,
-    })),
+  const rows = courts.map((c): CourtRow => ({
+    id: c.id,
+    name: c.name,
+    sport: c.sport,
+    surface: c.surface,
+    isIndoor: c.isIndoor,
+    capacity: c.capacity,
+    basePriceCents: c.basePriceCents,
+    minBookingMinutes: c.minBookingMinutes,
+    maxBookingMinutes: c.maxBookingMinutes,
+    slotStepMinutes: c.slotStepMinutes,
+    status: c.status,
+    venueName: c.venue.name,
+    upcomingBookings: upcoming.get(c.id) ?? 0,
   }));
 
   return (
     <section>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <header className="mb-section">
+        <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
 
-      {courtsWereTruncated(courts) && (
+      {courtsWereTruncated(rows) && (
         // A capped list that looks complete is the failure the platform audit
         // route was redesigned to avoid. Saying so is cheaper than paging a
         // screen no real club needs paged.
-        <p className="text-content-muted mb-4 text-sm">
+        <InlineNotice variant="info" className="mb-default">
           {t('truncated', { limit: COURT_LIST_LIMIT })}
-        </p>
+        </InlineNotice>
       )}
 
-      <CourtsBoard slug={slug} courts={courts} venues={venues} />
+      <CourtsBoard slug={slug} courts={rows} venues={venues} />
     </section>
   );
 }
