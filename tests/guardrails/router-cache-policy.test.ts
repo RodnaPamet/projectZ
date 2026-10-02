@@ -79,9 +79,42 @@ describe('router cache policy', () => {
   it('the diary refreshes itself inside the dynamic window', () => {
     expect(STALE_AFTER_MS).toBeLessThan(30_000);
     const grid = readFileSync('src/app/(app)/t/[slug]/admin/calendar/DayGrid.tsx', 'utf8');
-    const page = readFileSync('src/app/(app)/t/[slug]/admin/calendar/page.tsx', 'utf8');
-    expect(code(grid)).toMatch(/useRefreshWhenStale\(renderedAt\)/);
-    expect(code(page)).toMatch(/renderedAt=\{/);
+    const fresh = readFileSync(
+      'src/app/(app)/t/[slug]/admin/calendar/use-fresh-diary-day.ts',
+      'utf8',
+    );
+    const day = readFileSync('src/app/(app)/t/[slug]/admin/calendar/diary-day.ts', 'utf8');
+    expect(code(grid)).toMatch(/useFreshDiaryDay\(/);
+    expect(code(fresh)).toMatch(/useRefreshWhenStale\(newest\.renderedAt, refresh\)/);
+    expect(code(day)).toMatch(/renderedAt: now\.getTime\(\)/);
+  });
+
+  /**
+   * #314. `router.refresh()` purges the WHOLE router cache (Next 16.3.6 bumps
+   * one global segment-cache version), and so does a Server Action that
+   * revalidates a path or tag or sets a cookie. The diary's stale refresh used
+   * the first, so every diary revisit after 10 s turned every other warm admin
+   * screen cold. It now re-fetches only the day, through an action that must
+   * stay a pure read.
+   */
+  it('the diary’s stale refresh re-fetches the day, never the router or a revalidation', () => {
+    const hook = code(readFileSync('src/lib/hooks/use-refresh-when-stale.ts', 'utf8'));
+    expect(hook).not.toMatch(/router\.refresh|useRouter/);
+
+    const fresh = code(
+      readFileSync('src/app/(app)/t/[slug]/admin/calendar/use-fresh-diary-day.ts', 'utf8'),
+    );
+    expect(fresh).toMatch(/refreshDiaryDayAction\(/);
+    expect(fresh).not.toMatch(/router\.refresh|useRouter/);
+
+    const actions = code(readFileSync('src/app/(app)/t/[slug]/admin/calendar/actions.ts', 'utf8'));
+    const start = actions.indexOf('export async function refreshDiaryDayAction');
+    expect(start).toBeGreaterThan(-1);
+    const next = actions.indexOf('export ', start + 1);
+    const body = actions.slice(start, next === -1 ? undefined : next);
+    expect(body).not.toMatch(
+      /revalidatePath|revalidateTag|updateTag|refresh\(|cookies\(|redirect\(/,
+    );
   });
 
   it('finds the source it scans', () => {

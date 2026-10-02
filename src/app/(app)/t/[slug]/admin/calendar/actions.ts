@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import {
   markNoShow,
@@ -9,6 +10,8 @@ import {
 } from '@/app-layer/usecases/booking-outcome';
 import { requireTenantAction } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+
+import { loadDiaryDay } from './diary-day';
 
 /**
  * Diary mutations.
@@ -45,4 +48,34 @@ export async function markNoShowAction(slug: string, bookingId: string): Promise
 
   revalidatePath(`/t/${slug}/admin/calendar`);
   return { ok: true };
+}
+
+/**
+ * The diary's stale-data refresh (#314): the same day, built again, handed
+ * back as data for the grid to swap in.
+ *
+ * ═══ A READ, AND IT MUST STAY ONE ═══
+ *
+ * It replaced `router.refresh()`, which purged the WHOLE client router cache
+ * on every stale revisit, taking every other warm admin screen with it. This
+ * action keeps the cache intact only because it changes nothing the router
+ * can see. In Next 16.3.6 an action response carries `x-action-revalidated`
+ * when it called `revalidatePath`/`revalidateTag`/`refresh()` or set a cookie
+ * (server/app-render/action-handler.js `addRevalidationHeader`), and the
+ * client's server-action reducer then evicts the BFCache and, for a tag or
+ * cookie, the entire prefetch cache. With no revalidation, no redirect and no
+ * page render (`skipPageRendering`), the reducer returns the router state
+ * unchanged. So: no revalidatePath here, no cookie writes, no redirect — the
+ * guardrail in tests/guardrails/router-cache-policy.test.ts holds it to that.
+ *
+ * `bookings.view_all`, as the page itself requires. A caller without it gets
+ * the action's refusal, which the grid treats as "keep what is on screen".
+ */
+export async function refreshDiaryDayAction(slug: string, requestedDay: string | null) {
+  const ctx = await requireTenantAction(slug, 'bookings.view_all');
+  const [t, locale] = await Promise.all([getTranslations('admin.calendar'), getLocale()]);
+  return loadDiaryDay(ctx.tenantId, typeof requestedDay === 'string' ? requestedDay : null, {
+    locale,
+    labels: { unknownPlayer: t('unknownPlayer'), guest: t('guest') },
+  });
 }

@@ -37,18 +37,33 @@ measurement (`docs/perf/README.md`), and pinned by
 
 The club diary is the front desk's live view. Bookings arrive from phones all day, and a
 diary served from the cache can be up to 30 s old. `useRefreshWhenStale`
-(`src/lib/hooks/use-refresh-when-stale.ts`) takes the server's render time, which
-`calendar/page.tsx` passes to `DayGrid` as `renderedAt`. It calls `router.refresh()` when
-the payload on screen is **older than 10 s** (`STALE_AFTER_MS`). It checks on mount, which
-covers a revisit from the cache, and when the tab becomes visible again, which covers a
-tablet woken after lunch. The cached grid stays on screen until the fresh one replaces it,
-because a refresh is a transition and shows no fallback.
+(`src/lib/hooks/use-refresh-when-stale.ts`) takes the server's render time (`renderedAt`,
+stamped by `calendar/diary-day.ts`). When the day on screen is **older than 10 s**
+(`STALE_AFTER_MS`), it re-fetches **the day, not the route**: `useFreshDiaryDay` calls
+`refreshDiaryDayAction`, a Server Action that builds the same `DiaryDay` the page renders
+and returns it as data, and the grid swaps it in. It checks on mount, which covers a
+revisit from the cache, and when the tab becomes visible again, which covers a tablet woken
+after lunch. The cached grid stays on screen until the fresh day replaces it. The tab keeps
+the newest day it fetched, so a later revisit inside the window paints that copy rather
+than the older cached payload; a newer server payload (after a write) always wins.
 
-Why 10 s: a refresh purges the whole cache (above). Refreshing on every revisit would also
-throw away every other cached admin screen. Waiting the full 30 s would let the diary lag
-by that much. Age is measured on the client's own clock from the moment this browser first
-showed the payload. Subtracting the server's timestamp from the phone's would refresh
-every visit on a phone whose clock runs ahead, and never on one whose clock runs behind.
+**Why not `router.refresh()` (#314).** It was the first version, and it purged the whole
+cache (above): every diary revisit after 10 s turned every other cached admin screen cold.
+On the phone that took calendar → courts from 46 ms to 357 ms, and a member of staff who
+takes more than 10 s over a loop always paid it. `revalidatePath` on the diary alone is no
+better: Next 16.3.6 sends no path to the client (`addRevalidationHeader` in
+`server/app-render/action-handler.js`), and the client's server-action reducer evicts the
+BFCache and refreshes all dynamic data on any revalidation. The action is a pure read
+instead: no `revalidatePath`, `revalidateTag` or `refresh()`, no cookie writes and no
+redirect. With none of those the response carries no `x-action-revalidated`, the server
+skips the page render (`skipPageRendering`), and the reducer returns the router state
+unchanged. `tests/guardrails/router-cache-policy.test.ts` pins all of it.
+
+Why 10 s still: a revisit within 10 s fetches nothing, and waiting the full 30 s would let
+the diary lag by that much. Age is measured on the client's own clock from the moment this
+browser first showed the payload. Subtracting the server's timestamp from the phone's
+would refresh every visit on a phone whose clock runs ahead, and never on one whose clock
+runs behind.
 
 ## Prefetching
 
