@@ -228,7 +228,7 @@ test.describe('club admin courts — desktop', () => {
       // keyboard-operable — focus sits in the search box, the arrows move
       // through the options and cmdk scrolls the active one into view, which
       // the keyboard specs above drive. The primitive is vendored read-only;
-      // the rule's finding is tracked upstream rather than patched here.
+      // the finding is #323 rather than patched here.
       await page.getByRole('combobox', { name: new RegExp(`^${c.field.sport},`) }).click();
       await expect(page.getByRole('option').first()).toBeVisible();
       await expectAxeClean(page, { disableRules: ['scrollable-region-focusable'] });
