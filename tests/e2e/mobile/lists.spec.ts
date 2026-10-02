@@ -52,6 +52,12 @@ test.describe('@mobile card mode', () => {
     await page.goto('/design-system');
     await page.waitForLoadState('domcontentloaded');
 
+    // Wait for the card list before counting. The server paints the desktop
+    // table (useIsBelowMd is false until hydration), so a bare count() races
+    // the swap to cards: measured at T21, it ran first and the test SKIPPED,
+    // passing without asserting anything.
+    await expect(page.locator('[data-testid="data-table-cards"]').first()).toBeVisible();
+
     const clickable = page.locator('[data-testid="data-table-cards"] [role="button"]').first();
 
     // Not every design-system table is clickable; skip cleanly if none is,
