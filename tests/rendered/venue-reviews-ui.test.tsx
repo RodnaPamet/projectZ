@@ -22,6 +22,7 @@ import { messages, withIntl } from '../helpers/intl';
 const markNoShowAction = jest.fn();
 jest.mock('@/app/(app)/t/[slug]/admin/calendar/actions', () => ({
   markNoShowAction: (...args: unknown[]) => markNoShowAction(...args),
+  refreshDiaryDayAction: jest.fn(),
 }));
 
 const reviewBookingAction = jest.fn();
@@ -69,16 +70,19 @@ describe('DayGrid: marking a no-show', () => {
       withIntl(
         <DayGrid
           slug="club"
-          isoDay="2026-09-29"
-          prevDay="2026-09-28"
-          nextDay="2026-09-30"
-          isToday
-          dayLabel="Tuesday"
-          courts={[{ id: 'r1', name: 'Court 1', venueName: null }]}
-          bookings={bookings}
-          firstHour={8}
-          lastHour={22}
-          renderedAt={Date.now()}
+          requestedDay={null}
+          day={{
+            isoDay: '2026-09-29',
+            prevDay: '2026-09-28',
+            nextDay: '2026-09-30',
+            isToday: true,
+            dayLabel: 'Tuesday',
+            courts: [{ id: 'r1', name: 'Court 1', venueName: null }],
+            bookings,
+            firstHour: 8,
+            lastHour: 22,
+            renderedAt: Date.now(),
+          }}
         />,
       ),
     );

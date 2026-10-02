@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 
 /**
  * How old a live screen's payload may be before it re-fetches itself.
@@ -14,10 +13,10 @@ import { useRouter } from 'next/navigation';
  * older than this it asks the server again, in the background, keeping the
  * cached grid on screen until the fresh one replaces it.
  *
- * Below 10 s the refresh would fire on nearly every revisit, and each one
- * purges the WHOLE client cache (Next 16.3.6's refresh-reducer bumps one
- * global segment-cache version), taking every other cached admin screen with
- * it. Above it, the diary can be most of a staleTimes window old.
+ * The refresh is the caller's, and it must be SCOPED to the screen. This hook
+ * used to call `router.refresh()`, which purges the WHOLE client router cache
+ * (Next 16.3.6's refresh reducer bumps one global segment-cache version), so a
+ * diary revisited after 10 s threw away every other warm admin screen (#314).
  */
 export const STALE_AFTER_MS = 10_000;
 
@@ -29,11 +28,11 @@ export const STALE_AFTER_MS = 10_000;
  *
  * Because that subtracts two different clocks. A phone whose clock runs 15 s
  * ahead of the server would find every diary stale the instant it mounted, and
- * refresh (purging the router cache) on every visit; one running behind would
- * never refresh at all. The server's timestamp identifies the payload; its age
- * is measured on the client's own clock, from the moment it was first shown.
- * A fresh navigation shows its payload within one round trip of the render,
- * so the two agree to within that round trip.
+ * refresh on every visit; one running behind would never refresh at all. The
+ * server's timestamp identifies the payload; its age is measured on the
+ * client's own clock, from the moment it was first shown. A fresh navigation
+ * shows its payload within one round trip of the render, so the two agree to
+ * within that round trip.
  *
  * Module state, on purpose: a cached payload remounts (a revisit inside the
  * staleTimes window, the back button) with its original `renderedAt`, and has
@@ -52,16 +51,25 @@ function remember(map: Map<number, number>, key: number, value: number) {
 }
 
 /**
- * Re-fetch the current route when the payload on screen is older than
- * `staleAfterMs`: checked on mount, and whenever the tab becomes visible again
- * (a front-desk tablet woken after lunch).
+ * Call `refresh` when the payload on screen is older than `staleAfterMs`:
+ * checked on mount, and whenever the tab becomes visible again (a front-desk
+ * tablet woken after lunch).
  *
- * `renderedAt` is `Date.now()` taken by the server component that rendered the
- * payload, passed down as a prop. `router.refresh()` is a transition: the
- * stale content stays on screen, and no loading.tsx fallback is shown.
+ * `renderedAt` is `Date.now()` taken on the server when the payload was built.
+ * `refresh` fetches a newer payload and puts it on screen, keeping the stale
+ * one there until it arrives; when it does, its new `renderedAt` starts a new
+ * window. It is read from a ref, so an inline function does not re-run the
+ * check on every render.
  */
-export function useRefreshWhenStale(renderedAt: number, staleAfterMs = STALE_AFTER_MS): void {
-  const router = useRouter();
+export function useRefreshWhenStale(
+  renderedAt: number,
+  refresh: () => void,
+  staleAfterMs = STALE_AFTER_MS,
+): void {
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  });
 
   useEffect(() => {
     if (!firstSeen.has(renderedAt)) remember(firstSeen, renderedAt, Date.now());
@@ -75,7 +83,7 @@ export function useRefreshWhenStale(renderedAt: number, staleAfterMs = STALE_AFT
       // may try again, but not more often than once per window.
       if (last != null && now - last <= staleAfterMs) return;
       remember(refreshedAt, renderedAt, now);
-      router.refresh();
+      refreshRef.current();
     };
 
     refreshIfStale();
@@ -84,5 +92,5 @@ export function useRefreshWhenStale(renderedAt: number, staleAfterMs = STALE_AFT
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [renderedAt, staleAfterMs, router]);
+  }, [renderedAt, staleAfterMs]);
 }

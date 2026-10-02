@@ -6,9 +6,9 @@ import Link from 'next/link';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { useRefreshWhenStale } from '@/lib/hooks/use-refresh-when-stale';
-
 import { markNoShowAction } from './actions';
+import type { DiaryDay } from './diary-day';
+import { useFreshDiaryDay } from './use-fresh-diary-day';
 
 /**
  * One day, every court, side by side — the front-desk view.
@@ -69,38 +69,25 @@ const ROW_HEIGHT = 56;
 
 export function DayGrid({
   slug,
-  isoDay,
-  prevDay,
-  nextDay,
-  isToday,
-  dayLabel,
-  courts,
-  bookings,
-  firstHour,
-  lastHour,
-  renderedAt,
+  requestedDay,
+  day,
 }: {
   slug: string;
-  isoDay: string;
-  prevDay: string;
-  nextDay: string;
-  isToday: boolean;
-  dayLabel: string;
-  courts: readonly GridCourt[];
-  bookings: readonly DayBooking[];
-  firstHour: number;
-  lastHour: number;
+  /** The URL's `?day=` as given, or null for the club's today. */
+  requestedDay: string | null;
   /**
-   * When the server rendered this day (`Date.now()` in page.tsx). A diary
-   * revisited from the router cache (staleTimes.dynamic, 30 s) paints at once,
-   * then refreshes itself in the background if it is older than
+   * The day as the server built it (`diary-day.ts`). A diary revisited from
+   * the router cache (staleTimes.dynamic, 30 s) paints at once, then
+   * re-fetches this day in the background if what it shows is older than
    * STALE_AFTER_MS (10 s): bookings arrive from phones all day, and this is
-   * the front desk's live view.
+   * the front desk's live view. Only the day is re-fetched, never the route
+   * (#314): see use-fresh-diary-day.ts.
    */
-  renderedAt: number;
+  day: DiaryDay;
 }) {
   const t = useTranslations('admin.calendar');
-  useRefreshWhenStale(renderedAt);
+  const { isoDay, prevDay, nextDay, isToday, dayLabel, courts, bookings, firstHour, lastHour } =
+    useFreshDiaryDay(slug, requestedDay, day);
   const [noShowTarget, setNoShowTarget] = useState<DayBooking | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);

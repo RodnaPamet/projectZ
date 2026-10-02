@@ -9,16 +9,15 @@ import { STALE_AFTER_MS, useRefreshWhenStale } from '@/lib/hooks/use-refresh-whe
  * more than 10 s ago re-fetches itself on mount and when the tab comes back,
  * exactly once, and a clock that disagrees with the server's changes nothing.
  *
- * The router is a STABLE object here, as the real one is. The shared
- * rtl-setup stub hands out a new one per render, which would re-run the
- * effect on every render and hide a loop.
+ * The refresh is the caller's (#314: the diary re-fetches its day, never the
+ * route). It is passed as a NEW inline function on every render here, as a
+ * component would write it: the hook must not re-run its check, or loop, on
+ * that alone.
  */
 const refresh = jest.fn();
-const mockRouter = { refresh, push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() };
-jest.mock('next/navigation', () => ({ useRouter: () => mockRouter }));
 
 function Diary({ renderedAt }: { renderedAt: number }) {
-  useRefreshWhenStale(renderedAt);
+  useRefreshWhenStale(renderedAt, () => refresh());
   return null;
 }
 
@@ -111,6 +110,22 @@ describe('useRefreshWhenStale', () => {
   it('ignores the server clock: a server a minute behind does not make a fresh payload stale', () => {
     render(<Diary renderedAt={Date.now() - 60_000} />);
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('calls the refresh it was given LAST, not the one it mounted with', () => {
+    const first = jest.fn();
+    const second = jest.fn();
+    function Grid({ at, onStale }: { at: number; onStale: () => void }) {
+      useRefreshWhenStale(at, onStale);
+      return null;
+    }
+    const at = nextPayload();
+    const view = render(<Grid at={at} onStale={first} />);
+    view.rerender(<Grid at={at} onStale={second} />);
+    act(() => jest.advanceTimersByTime(STALE_AFTER_MS + 1));
+    act(() => setVisibility('visible'));
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
   });
 
   it('removes its listener on unmount', () => {

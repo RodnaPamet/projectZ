@@ -55,6 +55,14 @@ What `staleTimes { dynamic: 30 }` changed, main → T30 (medians, 20 samples per
   4 runs). The diary refreshes itself when a cached copy older than 10 s is shown. In a
   one-off check, a revisit after 12 s painted the cached grid in 50 ms and re-fetched it
   66 ms after the click. A revisit after 5 s fetched nothing.
+- **Since #314 that re-fetch is the day, not the route.** It was `router.refresh()`, which
+  purged the whole cache, so the screens after a stale revisit went cold. The standard
+  journeys never see it, because their loop takes under 10 s. A one-off check (calendar →
+  courts → pricing, wait 11 s, → calendar → courts → pricing; 5 contexts per profile)
+  shows the difference. On main the revisit left 12 trailing requests (38 KB), and courts
+  then took 359 ms on the phone (330 ms on the desktop). With the fix the revisit leaves
+  one action POST and the three dead-link prefetches (#260), 4.3 KB in all, and courts
+  renders from the cache in 63 ms (30 ms).
 
 The `a56ea4f` baseline below is kept as the programme's starting point.
 
