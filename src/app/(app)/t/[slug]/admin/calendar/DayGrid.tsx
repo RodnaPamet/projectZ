@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
+import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InlineNotice } from '@/components/ui/inline-notice';
+import { Input } from '@/components/ui/input';
+import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
@@ -56,6 +60,18 @@ import { useFreshDiaryDay } from './use-fresh-diary-day';
  * every court's header row is as tall as the tallest one (a multi-site club
  * adds a venue line) and every timeline starts on the same line as the hour
  * ruler, without measuring anything.
+ *
+ * ═══ GETTING AROUND: A DATE, AND COURTS OFF THE EDGE (audit C07, C08) ═══
+ *
+ * Besides the day before and after, a date field jumps to any day (the
+ * phone's own date picker, writing `?day=` like the links do), and "Днес"
+ * comes back whenever the diary is on another day.
+ *
+ * At 393 px a four-court club showed two courts, and nothing said there were
+ * more. When the courts do not fit, the grid now says how many there are,
+ * offers a Button per court that scrolls it into view, and blurs the edge
+ * that has courts behind it (the vendored ProgressiveBlur); the hour ruler stays pinned on the left while the
+ * courts scroll, so a court scrolled into view still has its hours.
  */
 
 export interface DayBooking {
@@ -84,7 +100,23 @@ export interface GridCourt {
 
 const ROW_HEIGHT = 56;
 
-type DayLink = 'prev' | 'next' | 'today';
+type DayLink = 'prev' | 'next' | 'today' | 'date';
+
+/**
+ * A whole day the date field may navigate to. The 20xx bound is not a policy:
+ * a desktop date field reports each keystroke of the year as a date ("0002-…",
+ * "0020-…", "0202-…"), and navigating on those would leave before the year
+ * was typed.
+ */
+const ISO_DAY = /^20\d{2}-\d{2}-\d{2}$/;
+
+/** The court scroller's edges: whether it overflows, and whether each end is reached. */
+interface Edges {
+  overflow: boolean;
+  atStart: boolean;
+  atEnd: boolean;
+}
+const NO_OVERFLOW: Edges = { overflow: false, atStart: true, atEnd: true };
 
 /**
  * The day link a keyboard user just followed, so the new day can put focus
@@ -125,8 +157,12 @@ export function DayGrid({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
 
+  const router = useRouter();
+  const ids = useId();
   const navRef = useRef<HTMLDivElement>(null);
   const dayHeadingRef = useRef<HTMLHeadingElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState<Edges>(NO_OVERFLOW);
   // The booking just marked: its block leaves the grid with the revalidated
   // payload (NO_SHOW is not a diary status), taking the dialog's focus target
   // with it.
@@ -152,6 +188,50 @@ export function DayGrid({
     // keyboard user inside the diary.
     dayHeadingRef.current?.focus();
   }, [confirmOpen, bookings]);
+
+  // Measured, not guessed: whether the courts fit depends on the width, the
+  // number of courts and their names. Re-measured on scroll and on resize.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const overflow = el.scrollWidth > el.clientWidth + 1;
+      const atStart = el.scrollLeft <= 1;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      setEdges((prev) =>
+        prev.overflow === overflow && prev.atStart === atStart && prev.atEnd === atEnd
+          ? prev
+          : { overflow, atStart, atEnd },
+      );
+    };
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    resize?.observe(el);
+    return () => {
+      el.removeEventListener('scroll', measure);
+      resize?.disconnect();
+    };
+  }, [courts.length]);
+
+  const showCourt = (courtId: string) => {
+    const el = scrollerRef.current;
+    const card = document.getElementById(`diary-court-${courtId}`)?.closest('section');
+    if (!el || !(card instanceof HTMLElement)) return;
+    // Past the pinned hour ruler, which is the grid's first column.
+    const ruler = el.querySelector<HTMLElement>('[data-diary-ruler]')?.offsetWidth ?? 0;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollTo({
+      left: Math.max(0, card.offsetLeft - ruler),
+      behavior: reduce ? 'auto' : 'smooth',
+    });
+  };
+
+  const goToDay = (value: string) => {
+    if (!ISO_DAY.test(value) || value === isoDay) return;
+    refocusAfterDayChange = { slug, requestedDay: value, link: 'date' };
+    router.push(`/t/${slug}/admin/calendar?day=${value}`);
+  };
 
   const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i);
   const byCourt = new Map<string, DayBooking[]>();
@@ -201,6 +281,18 @@ export function DayGrid({
             {t('nav.today')}
           </Link>
         )}
+        <div className="w-40">
+          <Input
+            id={`${ids}-day`}
+            type="date"
+            aria-label={t('nav.pickDay')}
+            data-diary-day="date"
+            // Keyed by the day, so a navigation resets it to the day shown.
+            key={isoDay}
+            defaultValue={isoDay}
+            onChange={(e) => goToDay(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="gap-tight grid">
@@ -235,65 +327,120 @@ export function DayGrid({
         // stacked lists. The scroller is the only thing wider than the page,
         // so the page itself never drifts.
         // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-        <div data-perf-ready className="overflow-x-auto pb-1">
-          <div
-            className="gap-x-tight grid min-w-max grid-rows-[auto_auto]"
-            style={{ gridTemplateColumns: `3.5rem repeat(${courts.length}, minmax(9rem, 1fr))` }}
-          >
-            {/* The hour ruler, in the timeline row. The court cards' headers
-                share the row above through the subgrid. */}
-            <div className="col-start-1 row-start-2" aria-hidden="true">
-              {hours.map((h) => (
-                <div
-                  key={h}
-                  className="text-content-muted pr-1 text-right text-xs tabular-nums"
-                  style={{ height: ROW_HEIGHT }}
-                >
-                  {String(h).padStart(2, '0')}:00
-                </div>
-              ))}
-            </div>
-
-            {courts.map((court, i) => (
-              <Card
-                as="section"
-                key={court.id}
-                elevation="flat"
-                density="none"
-                aria-labelledby={`diary-court-${court.id}`}
-                className="bg-bg-default row-span-2 row-start-1 grid grid-rows-subgrid"
-                style={{ gridColumnStart: i + 2 }}
+        <div className="gap-tight grid">
+          {edges.overflow && (
+            <div className="gap-tight flex flex-wrap items-center" data-diary-courts-hint>
+              <Caption>{t('scroll.hint', { count: courts.length })}</Caption>
+              <div
+                role="group"
+                aria-label={t('scroll.jumpTo')}
+                className="gap-tight flex flex-wrap"
               >
-                <div className="border-border-subtle px-tight border-b py-2">
-                  <Heading level={3} id={`diary-court-${court.id}`}>
+                {courts.map((court) => (
+                  <Button
+                    key={court.id}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => showCourt(court.id)}
+                  >
                     {court.name}
-                  </Heading>
-                  {court.venueName && <Caption className="text-xs">{court.venueName}</Caption>}
-                </div>
-
-                <div className="relative" style={{ height: hours.length * ROW_HEIGHT }}>
-                  {hours.map((h, row) => (
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="relative">
+            <div ref={scrollerRef} data-perf-ready className="overflow-x-auto pb-1">
+              <div
+                className="gap-x-tight grid min-w-max grid-rows-[auto_auto]"
+                style={{
+                  gridTemplateColumns: `3.5rem repeat(${courts.length}, minmax(9rem, 1fr))`,
+                }}
+              >
+                {/* The hour ruler, in the timeline row. The court cards' headers
+                share the row above through the subgrid. Pinned to the left
+                edge, so the hours stay beside whichever courts are in view. */}
+                <div
+                  className="bg-bg-page sticky left-0 z-10 col-start-1 row-start-2"
+                  aria-hidden="true"
+                  data-diary-ruler
+                >
+                  {hours.map((h) => (
                     <div
                       key={h}
-                      className={cn(row > 0 && 'border-border-subtle border-t')}
+                      className="text-content-muted pr-1 text-right text-xs tabular-nums"
                       style={{ height: ROW_HEIGHT }}
-                    />
-                  ))}
-
-                  {(byCourt.get(court.id) ?? []).map((b) => (
-                    <BookingBlock
-                      key={b.id}
-                      booking={b}
-                      onMarkNoShow={() => {
-                        setRefusal(null);
-                        setNoShowTarget(b);
-                        setConfirmOpen(true);
-                      }}
-                    />
+                    >
+                      {String(h).padStart(2, '0')}:00
+                    </div>
                   ))}
                 </div>
-              </Card>
-            ))}
+
+                {courts.map((court, i) => (
+                  <Card
+                    as="section"
+                    key={court.id}
+                    elevation="flat"
+                    density="none"
+                    aria-labelledby={`diary-court-${court.id}`}
+                    className="bg-bg-default row-span-2 row-start-1 grid grid-rows-subgrid"
+                    style={{ gridColumnStart: i + 2 }}
+                  >
+                    <div className="border-border-subtle px-tight border-b py-2">
+                      <Heading level={3} id={`diary-court-${court.id}`}>
+                        {court.name}
+                      </Heading>
+                      {court.venueName && <Caption className="text-xs">{court.venueName}</Caption>}
+                    </div>
+
+                    <div className="relative" style={{ height: hours.length * ROW_HEIGHT }}>
+                      {hours.map((h, row) => (
+                        <div
+                          key={h}
+                          className={cn(row > 0 && 'border-border-subtle border-t')}
+                          style={{ height: ROW_HEIGHT }}
+                        />
+                      ))}
+
+                      {(byCourt.get(court.id) ?? []).map((b) => (
+                        <BookingBlock
+                          key={b.id}
+                          booking={b}
+                          onMarkNoShow={() => {
+                            setRefusal(null);
+                            setNoShowTarget(b);
+                            setConfirmOpen(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+            {/* The edge with courts behind it fades, so the cut-off reads as
+              "more this way", not as the end of the club. */}
+            {edges.overflow && !edges.atStart && (
+              <ProgressiveBlur
+                aria-hidden="true"
+                data-diary-fade="start"
+                side="left"
+                size="1.5rem"
+                strength={8}
+                className="left-14 z-20"
+              />
+            )}
+            {edges.overflow && !edges.atEnd && (
+              <ProgressiveBlur
+                aria-hidden="true"
+                data-diary-fade="end"
+                side="right"
+                size="2.5rem"
+                strength={8}
+                className="z-20"
+              />
+            )}
           </div>
         </div>
       )}

@@ -304,8 +304,26 @@ function InviteSection({ slug, invites }: { slug: string; invites: readonly Open
   const [asking, setAsking] = useState<OpenInviteRow | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  // A successful send closes the form; the new invite arrives via revalidation.
-  if (state?.ok && formOpen) setFormOpen(false);
+  // ═══ ONE RESULT, HANDLED ONCE (#328) ═══
+  //
+  // `useActionState` never resets `state`, so the first success stays `ok`
+  // for the life of the page. Closing the form on "state is ok" closed it
+  // again on every later open: a second invite needed a reload. So a result is
+  // acted on when it is NEW (a fresh object per submission), and the form
+  // closes on that render only. The same bookkeeping keeps an old error from
+  // greeting the next opening of the form.
+  const [handled, setHandled] = useState(state);
+  const [shownFrom, setShownFrom] = useState(state);
+  if (state !== handled) {
+    setHandled(state);
+    // A successful send closes the form; the new invite arrives via revalidation.
+    if (state?.ok) setFormOpen(false);
+  }
+  const error = state && !state.ok && state !== shownFrom ? state.error : null;
+  const openForm = () => {
+    setShownFrom(state);
+    setFormOpen(true);
+  };
 
   const [revoking, markRevoking] = useOptimistic(NONE_REVOKING, (s, id: string) =>
     new Set(s).add(id),
@@ -329,7 +347,7 @@ function InviteSection({ slug, invites }: { slug: string; invites: readonly Open
       <div className="gap-compact flex flex-wrap items-center">
         <Heading level={2}>{t('inviteHeading')}</Heading>
         {!formOpen && (
-          <Button type="button" onClick={() => setFormOpen(true)}>
+          <Button type="button" onClick={openForm}>
             {t('action.invite')}
           </Button>
         )}
@@ -376,8 +394,8 @@ function InviteSection({ slug, invites }: { slug: string; invites: readonly Open
               </Button>
             </div>
 
-            {state && !state.ok && !pending && (
-              <InlineNotice variant="error">{t(`error.${state.error}` as never)}</InlineNotice>
+            {error && !pending && (
+              <InlineNotice variant="error">{t(`error.${error}` as never)}</InlineNotice>
             )}
           </form>
         </Card>

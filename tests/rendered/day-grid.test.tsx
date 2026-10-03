@@ -23,10 +23,11 @@ import { messages as bg, withIntl } from '../helpers/intl';
  * server's day is tests/integration/admin-diary-day.test.ts.
  */
 
+const push = jest.fn();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     refresh: jest.fn(),
-    push: jest.fn(),
+    push: (...args: unknown[]) => push(...args),
     replace: jest.fn(),
     prefetch: jest.fn(),
   }),
@@ -81,7 +82,10 @@ const nextClub = () => `club-${++n}`;
 const grid = (slug: string, day: DiaryDay, requestedDay: string | null = day.isoDay) =>
   render(withIntl(<DayGrid slug={slug} requestedDay={requestedDay} day={day} />));
 
-beforeEach(() => markNoShowAction.mockReset());
+beforeEach(() => {
+  markNoShowAction.mockReset();
+  push.mockReset();
+});
 
 describe('DayGrid on the primitives', () => {
   it('day links are anchors to ?day=, dressed as buttons; "today" only off today', () => {
@@ -226,5 +230,77 @@ describe('DayGrid on the primitives', () => {
     grid(slug, dayOf({ isoDay: '2026-12-01' }), '2026-12-01');
     await act(async () => {});
     expect(document.body).toHaveFocus();
+  });
+});
+
+describe('getting around the diary (audit C07, C08)', () => {
+  it('a date field jumps to any day, through ?day=', () => {
+    const slug = nextClub();
+    grid(slug, dayOf());
+
+    const field = screen.getByLabelText(c.nav.pickDay);
+    expect(field).toHaveAttribute('type', 'date');
+    expect(field).toHaveValue('2026-09-29');
+
+    // A year still being typed is not a day to go to.
+    fireEvent.change(field, { target: { value: '0002-10-15' } });
+    expect(push).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: '2026-10-15' } });
+    expect(push).toHaveBeenCalledWith(`/t/${slug}/admin/calendar?day=2026-10-15`);
+  });
+
+  it('says nothing about scrolling while every court fits', () => {
+    grid(nextClub(), dayOf());
+    expect(screen.queryByRole('group', { name: c.scroll.jumpTo })).toBeNull();
+  });
+
+  describe('when the courts do not fit', () => {
+    // jsdom lays nothing out, so the scroller's geometry is given: 664 px of
+    // courts in a 361 px box, measured at 393 px in the audit.
+    const proto = HTMLElement.prototype;
+    const saved = {
+      scrollWidth: Object.getOwnPropertyDescriptor(proto, 'scrollWidth'),
+      clientWidth: Object.getOwnPropertyDescriptor(proto, 'clientWidth'),
+    };
+    const scrollTo = jest.fn();
+
+    beforeAll(() => {
+      Object.defineProperty(proto, 'scrollWidth', { configurable: true, get: () => 664 });
+      Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => 361 });
+      proto.scrollTo = scrollTo as unknown as typeof proto.scrollTo;
+    });
+    afterAll(() => {
+      for (const [k, d] of Object.entries(saved)) if (d) Object.defineProperty(proto, k, d);
+    });
+
+    const four = () =>
+      dayOf({
+        courts: ['1', '2', '3', '4'].map((i) => ({
+          id: `r${i}`,
+          name: `Корт ${i}`,
+          venueName: null,
+        })),
+      });
+
+    it('says how many courts there are, and fades the edge with courts behind it', () => {
+      const { container } = grid(nextClub(), four());
+
+      expect(screen.getByText(c.scroll.hint.replace('{count}', '4'))).toBeInTheDocument();
+      expect(container.querySelector('[data-diary-fade="end"]')).not.toBeNull();
+      // At the start: nothing is hidden to the left.
+      expect(container.querySelector('[data-diary-fade="start"]')).toBeNull();
+    });
+
+    it('a chip per court scrolls that court into view', () => {
+      grid(nextClub(), four());
+
+      const chips = within(screen.getByRole('group', { name: c.scroll.jumpTo })).getAllByRole(
+        'button',
+      );
+      expect(chips.map((b) => b.textContent)).toEqual(['Корт 1', 'Корт 2', 'Корт 3', 'Корт 4']);
+      fireEvent.click(chips[3]!);
+      expect(scrollTo).toHaveBeenCalled();
+    });
   });
 });

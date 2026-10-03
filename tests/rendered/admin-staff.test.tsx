@@ -224,6 +224,58 @@ describe('suspend, optimistically', () => {
   });
 });
 
+describe('inviting more than once (#328)', () => {
+  const email = () => screen.getByLabelText(s.field.email);
+
+  async function send(address: string) {
+    fireEvent.change(email(), { target: { value: address } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: s.action.send }));
+    });
+  }
+
+  it('THE POINT: a second invite after a first success, without a reload', async () => {
+    // `useActionState` keeps the first `{ ok: true }` for the life of the page.
+    // The form closed on "state is ok", so every later opening closed at once.
+    inviteStaffAction.mockImplementation(async () => ({ ok: true }));
+    board();
+
+    fireEvent.click(screen.getByRole('button', { name: s.action.invite }));
+    await send('first@example.bg');
+    await waitFor(() => expect(screen.queryByLabelText(s.field.email)).toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: s.action.invite }));
+    expect(email()).toBeInTheDocument();
+    // Still open on the next render, and the next.
+    await act(async () => {});
+    expect(email()).toBeInTheDocument();
+
+    await send('second@example.bg');
+    expect(inviteStaffAction).toHaveBeenCalledTimes(2);
+    expect((inviteStaffAction.mock.calls[1]![2] as FormData).get('email')).toBe(
+      'second@example.bg',
+    );
+    await waitFor(() => expect(screen.queryByLabelText(s.field.email)).toBeNull());
+  });
+
+  it('an error stays with the attempt it answered, not the next opening of the form', async () => {
+    inviteStaffAction.mockImplementation(async () => ({ ok: false, error: 'MAIL_FAILED' }));
+    board();
+
+    fireEvent.click(screen.getByRole('button', { name: s.action.invite }));
+    await send('nope@example.bg');
+    expect(await screen.findByText(s.error.MAIL_FAILED)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: s.action.cancel }));
+    fireEvent.click(screen.getByRole('button', { name: s.action.invite }));
+    expect(screen.queryByText(s.error.MAIL_FAILED)).toBeNull();
+
+    // A new failure is a new answer, and is shown.
+    await send('again@example.bg');
+    expect(await screen.findByText(s.error.MAIL_FAILED)).toBeInTheDocument();
+  });
+});
+
 describe('revoke, optimistically', () => {
   const inviteCard = () => document.querySelector('[data-invite-id="i1"]');
 

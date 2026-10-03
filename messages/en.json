@@ -157,7 +157,9 @@
   "notFound": {
     "title": "Page not found",
     "body": "That address does not exist. The link may be out of date, or the page may not be built yet.",
-    "backToVenues": "Browse venues"
+    "backToVenues": "Browse venues",
+    "backToClub": "Back to {club}",
+    "home": "Go to the start"
   },
   "admin": {
     "courts": {
@@ -414,7 +416,12 @@
       "nav": {
         "previous": "‹ Previous day",
         "next": "Next day ›",
-        "today": "Today"
+        "today": "Today",
+        "pickDay": "Date"
+      },
+      "scroll": {
+        "hint": "{count} courts: scroll sideways or pick a court.",
+        "jumpTo": "Show court"
       },
       "legend": {
         "confirmed": "Confirmed",
@@ -593,7 +600,7 @@
         "NETWORK": "Could not reach the server.",
         "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
         "STEP_UP_REQUIRED": "Confirm with a code from your app to continue, then try again.",
-        "MFA_ENROLMENT_REQUIRED": "Moderation needs two-step verification. Turn it on under Security.",
+        "MFA_ENROLMENT_REQUIRED": "Moderation needs two-step verification. Turn it on under Security, and the queue opens.",
         "UNKNOWN": "Something went wrong. Nothing was changed."
       }
     },

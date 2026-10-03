@@ -186,6 +186,49 @@ test.describe('club admin diary — phone', () => {
     await expect(page.getByRole('link', { name: c.nav.today })).toHaveCount(0);
   });
 
+  test('courts off the edge are announced, and a chip brings one into view (audit C07)', async ({
+    authedPage: page,
+    club,
+  }) => {
+    await page.goto(`/t/${club.slug}/admin/calendar`);
+    const scroller = page.locator('main [data-perf-ready]');
+    const court4 = page.getByRole('region', { name: 'Корт 4' });
+    await expect(court4).toBeAttached();
+
+    // 4 courts, and the right edge fades: there is more that way.
+    await expect(page.getByText(c.scroll.hint.replace('{count}', '4'))).toBeVisible();
+    await expect(page.locator('[data-diary-fade="end"]')).toBeAttached();
+    const inView = async () => {
+      const box = (await scroller.boundingBox())!;
+      const card = (await court4.boundingBox())!;
+      return card.x >= box.x - 1 && card.x + card.width <= box.x + box.width + 1;
+    };
+    expect(await inView()).toBe(false);
+
+    const chips = page.getByRole('group', { name: c.scroll.jumpTo });
+    await expectTarget(chips.getByRole('button', { name: 'Корт 4' }));
+    await chips.getByRole('button', { name: 'Корт 4' }).click();
+    await expect.poll(inView).toBe(true);
+    // At the far end now: the end fade goes, the start one comes.
+    await expect(page.locator('[data-diary-fade="end"]')).toHaveCount(0);
+    await expect(page.locator('[data-diary-fade="start"]')).toBeAttached();
+    // The hours stay beside the courts in view.
+    const ruler = (await page.locator('[data-diary-ruler]').boundingBox())!;
+    expect(ruler.x).toBeGreaterThanOrEqual((await scroller.boundingBox())!.x - 1);
+    await expectNoDrift(page);
+  });
+
+  test('a date field jumps to any day (audit C08)', async ({ authedPage: page, club }) => {
+    const calendar = `/t/${club.slug}/admin/calendar`;
+    const target = shiftDay(todayAtClub(), 9);
+    await page.goto(calendar);
+    await page.getByLabel(c.nav.pickDay).fill(target);
+    await expect(page).toHaveURL(`${calendar}?day=${target}`);
+    await expect(page.getByLabel(c.nav.pickDay)).toHaveValue(target);
+    await expect(page.getByRole('link', { name: c.nav.today })).toBeVisible();
+    await expectNoDrift(page);
+  });
+
   test('a tapped no-show goes through the confirm; cancel returns focus to the block', async ({
     authedPage: page,
     club,

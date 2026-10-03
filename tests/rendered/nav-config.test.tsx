@@ -63,7 +63,7 @@ const LABELS = {
   bg: {
     calendar: 'Календар',
     courts: 'Кортове',
-    pricing: 'Ценообразуване',
+    pricing: 'Цени',
     players: 'Играчи',
     staff: 'Персонал',
     sectionVenue: 'Обект',
@@ -117,7 +117,7 @@ describe('club admin nav, by role', () => {
   it('hides what the role cannot open: a STAFF member has no pricing or staff screen', () => {
     const staff = getPermissionsForRole('STAFF');
     renderNav(visibleSections(clubAdminNav(SLUG), (i) => staff.includes(i.requires)));
-    for (const label of ['Ценообразуване', 'Персонал']) {
+    for (const label of ['Цени', 'Персонал']) {
       expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument();
     }
   });

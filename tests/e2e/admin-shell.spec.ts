@@ -35,11 +35,30 @@ test.describe('club admin shell — desktop', () => {
     }
     await expect(nav.getByRole('link')).toHaveCount(PAGES.length);
 
+    // Every label is whole at 1280 px: "Ценообразуване" was cut to
+    // "Ценообразува…" by the vendored rail's width (audit C09).
+    const clipped = await nav.evaluate((el) =>
+      [...el.querySelectorAll('a *')]
+        .filter((n) => n.childElementCount === 0 && (n.textContent ?? '').trim() !== '')
+        .filter((n) => n.scrollWidth > n.clientWidth + 1)
+        .map((n) => n.textContent),
+    );
+    expect(clipped).toEqual([]);
+
     // #263: one account, one club. The club's name is a label, not a picker.
     const name = page.getByTestId('admin-context-name');
     await expect(name).toHaveText(`E2E ${isolatedTenant.tenantSlug}`);
     expect(await name.evaluate((el) => el.tagName)).toBe('SPAN');
     await expect(page.getByRole('combobox')).toHaveCount(0);
+  });
+
+  test('/t/{slug}/admin opens the first page the role may see (audit C10)', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin`);
+    await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
+    await expect(page.locator('main h1')).toHaveText(bg.admin.calendar.title);
   });
 
   test('collapses to an icon rail, and remembers it across a reload', async ({

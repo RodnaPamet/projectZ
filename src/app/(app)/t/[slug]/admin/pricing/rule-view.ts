@@ -1,5 +1,3 @@
-import type { Prisma } from '@prisma/client';
-
 import type { PricingConditions, PricingRuleRow } from '@/app-layer/usecases/pricing';
 
 /**
@@ -28,18 +26,8 @@ export interface PricingRuleView {
   conditions: PricingConditions;
 }
 
-/** What the page reads from the database for one rule. */
-export interface PricingRuleSource {
-  id: string;
-  name: string;
-  priority: number;
-  multiplier: Prisma.Decimal | number | null;
-  fixedPriceCents: number | null;
-  conditionsJson: Prisma.JsonValue;
-}
-
 /** Database row → the screen's view. Decimal → number, at the boundary, once. */
-export function toPricingRuleView(r: PricingRuleSource): PricingRuleView {
+export function toPricingRuleView(r: PricingRuleRow): PricingRuleView {
   return {
     id: r.id,
     name: r.name,
