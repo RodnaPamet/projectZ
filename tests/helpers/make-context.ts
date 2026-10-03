@@ -23,6 +23,8 @@ export function buildRequestContext(overrides: Partial<RequestContext> = {}): Re
     // No group gate cleared: like the role, a test that needs to be past a
     // club's Entra gate must say so.
     groupGateCleared: [],
+    // No session, so no step-up: a test of a platform write must name one.
+    userSessionId: null,
     requestId: 'test-request',
     locale: 'bg',
     ...overrides,

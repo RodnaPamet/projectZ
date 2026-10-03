@@ -2,9 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import type { PrismaClient } from '@prisma/client';
 
+import { assertFreshStepUp } from '@/lib/auth/step-up';
 import { getTenantContext } from '@/lib/db/tenant-context';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
-import { isRefusedWrite, type PlatformCapability } from '@/lib/platform/capabilities';
+import {
+  isRefusedWrite,
+  requiresStepUp,
+  type PlatformCapability,
+} from '@/lib/platform/capabilities';
 
 /**
  * The only sanctioned way to read across clubs.
@@ -66,11 +71,11 @@ export class AmbientPlatformEscalationError extends Error {
 export class PlatformWriteNotEnabledError extends Error {
   constructor(capability: PlatformCapability) {
     super(
-      `${capability} is a WRITE capability and is not one of ENABLED_PLATFORM_WRITES. ` +
-        'Stepping up to a cross-club write should require a second factor, and there is none: ' +
-        'User.mfaSecret is unencrypted and nothing writes it. The capability is declared ' +
-        'so the shape is settled, and refused here so the power does not ship before the ' +
-        'defence does.',
+      `${capability} is a WRITE capability and is not one of STEP_UP_PLATFORM_WRITES. ` +
+        'Every cross-club write is refused unless it is enabled there by name, with its ' +
+        'reasons — and an enabled one still needs a fresh second-factor step-up (#262). ' +
+        'The capability is declared so the shape is settled, and refused here so the ' +
+        'power does not ship before somebody has decided it should.',
     );
     this.name = 'PlatformWriteNotEnabledError';
   }
@@ -107,6 +112,12 @@ export interface PlatformAction {
   requestId?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
+  /**
+   * The session asking. Every WRITE capability needs a fresh step-up on it
+   * (#262), read from `user_session.mfaVerifiedAt` inside this transaction.
+   * Optional because reads do not need it; a write without it is refused.
+   */
+  userSessionId?: string | null;
 }
 
 /**
@@ -134,7 +145,7 @@ export async function runAsPlatformAdmin<T>(
   // Guards BEFORE the transaction opens: a refused action should not have cost
   // a connection, and should leave no audit row claiming it was attempted.
   if (getTenantContext()) throw new AmbientPlatformEscalationError();
-  // Every write is refused unless enabled by name — see ENABLED_PLATFORM_WRITES.
+  // Every write is refused unless enabled by name — see STEP_UP_PLATFORM_WRITES.
   if (isRefusedWrite(act.capability)) throw new PlatformWriteNotEnabledError(act.capability);
   if (act.reason.trim().length < MIN_REASON_LENGTH) throw new PlatformReasonRequiredError();
 
@@ -146,6 +157,17 @@ export async function runAsPlatformAdmin<T>(
       `SELECT set_config('app.platform_admin_id', $1, true)`,
       act.actorUserId,
     );
+
+    // ═══ THE SECOND FACTOR, FOR EVERY WRITE (#262) ═══
+    //
+    // Inside the transaction and before the audit row: a refused step-up
+    // throws, which rolls back nothing but the GUC, so no row claims an action
+    // that never ran. Read from the SESSION row, so revoking the session ends
+    // the step-up, and keyed on the actor, so one account's step-up cannot
+    // serve another's. See src/lib/auth/step-up.ts.
+    if (requiresStepUp(act.capability)) {
+      await assertFreshStepUp(db, { userId: act.actorUserId, userSessionId: act.userSessionId });
+    }
 
     // Before `fn`. If the trigger refuses this — no GUC set, or an actor that
     // does not match it — the whole transaction aborts and `fn` never runs.

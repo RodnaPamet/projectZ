@@ -124,12 +124,23 @@ model User {
   /// switch between.
   accountKind AccountKind? @default(PLAYER)
 
-  /// NOT encrypted, and nothing writes it. MFA is unimplemented: the string
-  /// "mfaSecret" appeared in exactly one other place in src/, a manifest that
-  /// was never wired to anything and has been removed. Whoever implements MFA
-  /// must encrypt this on the way in — a plaintext TOTP seed defeats the
-  /// entire second factor — and there is no mechanism waiting to do it.
+  /// Encrypted at rest (#262): the TOTP shared secret, as the `v1:`
+  /// AES-256-GCM envelope from src/lib/security/encryption.ts — `encryptField`
+  /// on the way in, `decryptField` on the way out, both in
+  /// src/lib/auth/mfa.ts and nowhere else. A CHECK
+  /// (`app_user_mfa_secret_is_envelope`, P38) refuses any value that is not
+  /// the envelope, so a plaintext seed is an error at write time.
+  ///
+  /// Set when enrolment STARTS; the enrolment is pending until `mfaEnabledAt`.
   mfaSecret String?
+
+  /// When the first code was confirmed. Null = not enrolled (or pending). A
+  /// pending secret is never accepted for a step-up.
+  mfaEnabledAt DateTime?
+
+  /// The 30-second TOTP step last accepted. A code is only accepted for a
+  /// step strictly after this, so a code cannot be replayed inside its window.
+  mfaLastUsedStep BigInt?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -141,6 +152,8 @@ model User {
   invitesSent Invite[]             @relation("InvitedBy")
   apiKeys     ApiKey[]
   invitedBy   TenantMembership[]   @relation("MembershipInvitedBy")
+
+  mfaRecoveryCodes MfaRecoveryCode[]
 
   /// Platform authority, if any. Almost always empty — see platform.prisma for
   /// why this is a grant row rather than a value in `enum Role` or a flag here.
@@ -277,6 +290,13 @@ model UserSession {
   previousRefreshTokenHash String?
   previousRefreshExpiresAt DateTime?
 
+  /// When THIS session last proved the second factor (#262). The step-up that
+  /// every cross-club write requires is read from here, inside the write's own
+  /// transaction, and is bound to this row: revoking the session ends it, and
+  /// another session of the same person has its own. See
+  /// MFA_STEP_UP_WINDOW_SECONDS for how long it lasts.
+  mfaVerifiedAt DateTime?
+
   createdAt DateTime @default(now())
 
   user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -387,4 +407,46 @@ model ApiKey {
   @@index([createdByUserId])
   @@index([expiresAt])
   @@map("api_key")
+}
+
+/// A single-use recovery code for a lost authenticator (#262).
+///
+/// SHA-256 of an 80-bit code, salted with the user id — see
+/// src/lib/auth/totp.ts for why that needs no server key. Spent by setting
+/// `usedAt` with `WHERE usedAt IS NULL`, so a race cannot spend one twice.
+/// Denied to app_user; read and written only by src/lib/auth/mfa.ts.
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
+  @@map("mfa_recovery_code")
+}
+
+/// What happened to a person's second factor: enrolment, every step-up that
+/// succeeded or failed, every recovery code spent (#262).
+///
+/// Append-only by trigger, no FK on userId (the record outlives the account),
+/// denied to app_user. Not `platform_audit_entry` — that row records a grant's
+/// capability being exercised, and enrolling a phone exercises none.
+model AccountSecurityEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  userSessionId String?
+  /// SCREAMING_SNAKE verb from MFA_EVENTS in src/lib/auth/mfa.ts.
+  action        String
+  detailsJson   Json     @default("{}")
+  requestId     String?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("account_security_event")
 }

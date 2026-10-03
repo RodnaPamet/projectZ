@@ -165,6 +165,42 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     clientMessage: 'Cross-club writes are not enabled.',
   },
 
+  // ── 403: the second factor (#262) ─────────────────────────────────
+  //
+  // A client MUST tell these apart: STEP_UP_REQUIRED is cured by a code
+  // (POST /me/mfa/step-up, then retry), MFA_ENROLMENT_REQUIRED only by
+  // enrolling first, and MFA_REAUTH_REQUIRED by signing in again. Each has a
+  // clientMessage because their own messages name internals for the log.
+  PlatformStepUpRequiredError: {
+    status: 403,
+    code: 'STEP_UP_REQUIRED',
+    clientMessage: 'Confirm with your authenticator code, then try again.',
+  },
+  MfaEnrolmentRequiredError: {
+    status: 403,
+    code: 'MFA_ENROLMENT_REQUIRED',
+    clientMessage: 'Set up two-step verification before doing this.',
+  },
+  MfaNotEligibleError: {
+    status: 403,
+    code: 'MFA_NOT_ELIGIBLE',
+    clientMessage: 'Two-step verification is available to platform administrators.',
+  },
+  MfaReauthRequiredError: {
+    status: 403,
+    code: 'MFA_REAUTH_REQUIRED',
+    clientMessage: 'Sign out and sign in again, then set up two-step verification.',
+  },
+  // A wrong, expired, replayed or spent code. One answer for all four: which
+  // of them it was would tell a guesser how close they are.
+  MfaCodeRejectedError: {
+    status: 403,
+    code: 'MFA_CODE_REJECTED',
+    clientMessage: 'That code was not accepted.',
+  },
+  MfaAlreadyEnrolledError: { status: 409, code: 'MFA_ALREADY_ENROLLED' },
+  MfaEnrolmentNotStartedError: { status: 409, code: 'MFA_ENROLMENT_NOT_STARTED' },
+
   // ── 404: it is not there, or not there for you ────────────────────
   UnknownPlayerRatingError: { status: 404, code: 'UNKNOWN_PLAYER_RATING' },
   // Only reachable from the platform moderation route, whose caller holds

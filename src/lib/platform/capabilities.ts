@@ -32,16 +32,15 @@ export const PLATFORM_CAPABILITIES = [
 /**
  * Capabilities that WRITE across clubs.
  *
- * `TENANT_SUSPEND` is declared and deliberately NOT enabled. Stepping up to a
- * cross-club write should require a second factor, and there is none:
- * `User.mfaSecret` is unencrypted and nothing writes it. The binding throws
- * `PlatformWriteNotEnabledError` rather than shipping a power that cannot be
- * defended, and a guardrail asserts no route asks for it.
+ * Every one of them needs a fresh second-factor step-up on the session that
+ * asks (#262) — see `requiresStepUp` below. `TENANT_SUSPEND` is still declared
+ * and NOT enabled at all: there is no route for it, and a guardrail asserts no
+ * route asks for it. Having a second factor does not by itself make taking a
+ * club offline a power worth shipping; that is a product decision of its own.
  *
- * This set is what makes that refusal data rather than a special case — adding
- * a second write capability later inherits the refusal automatically instead of
- * needing someone to remember. `REVIEW_MODERATE` is in it because it IS a
- * write; that it is also enabled is said separately, below, by name.
+ * This set is what makes both rules data rather than special cases — a write
+ * capability added later inherits the step-up AND the refusal automatically,
+ * instead of needing someone to remember either.
  */
 export const PLATFORM_WRITE_CAPABILITIES: ReadonlySet<PlatformCapability> = new Set([
   PlatformCapability.TENANT_SUSPEND,
@@ -49,38 +48,31 @@ export const PLATFORM_WRITE_CAPABILITIES: ReadonlySet<PlatformCapability> = new 
 ]);
 
 /**
- * The cross-club writes that ARE enabled — named one at a time.
+ * The cross-club writes that are ENABLED — each behind a step-up, by name.
  *
  * ═══ AN ALLOWLIST, SO REFUSAL STAYS THE DEFAULT ═══
  *
- * Moving a write OUT of the set above would have been one line, and it would
- * have made "is this a write?" answer no for something that plainly is one —
- * the refusal would then be a property of how a capability was labelled rather
- * than of what it does. Instead every write stays a write, and the binding
- * refuses every write that is not also listed here. A write capability added
- * tomorrow is refused until somebody adds it to this set, with its reasons.
+ * Every write stays a write, and the binding refuses every write that is not
+ * also listed here. A write capability added tomorrow is refused until somebody
+ * adds it to this set, with its reasons.
  *
- * ═══ WHY REVIEW_MODERATE, WITHOUT THE SECOND FACTOR ═══
+ * ═══ THERE IS NO LONGER A WRITE WITHOUT A SECOND FACTOR ═══
  *
- * The owner's decision on #228: a club must not moderate reviews of itself, so
- * the queue is worked by platform moderators — and a queue nobody may act on
- * holds every text review forever, because without a classifier key every one
- * of them lands there. It is admitted on these terms, which are what separate
- * it from TENANT_SUSPEND:
+ * Until #262 this set was `ENABLED_PLATFORM_WRITES` and meant "admitted with no
+ * second factor, because there was none": REVIEW_MODERATE was the one exception
+ * (#228), on the terms that it deletes nothing and audits every decision. That
+ * exception has ended. The set was renamed rather than emptied, because an
+ * empty "writes without MFA" list is an invitation to add one back; there is
+ * now no way to spell that at all. `requiresStepUp` is true for EVERY write,
+ * and tests/unit/platform/capabilities.test.ts pins it.
  *
- *   reach     one review's visibility, the case that tracks it, and the venue
- *             rating recomputed from them. No money, no access, no club state.
- *   deletes   nothing. A rejected review keeps its text; the case keeps who
- *             decided and why.
- *   record    every decision writes a platform audit row first, with the
- *             moderator's own note as its reason, in the same transaction.
- *
- * What a stolen moderator session could do is publish held reviews or hide
- * published ones until the grant is revoked — visible, attributable, and
- * bounded by the grant's expiry. Taking a club offline is not in that class,
- * which is why TENANT_SUSPEND is not here.
+ * REVIEW_MODERATE is here because a club must not moderate reviews of itself,
+ * and a queue nobody may act on holds every text review forever (#228). Its
+ * reach is still one review's visibility, the case, and the venue rating
+ * recomputed from them — and now a stolen moderator session can do none of it
+ * without the moderator's phone.
  */
-export const ENABLED_PLATFORM_WRITES: ReadonlySet<PlatformCapability> = new Set([
+export const STEP_UP_PLATFORM_WRITES: ReadonlySet<PlatformCapability> = new Set([
   PlatformCapability.REVIEW_MODERATE,
 ]);
 
@@ -88,10 +80,53 @@ export function isWriteCapability(capability: PlatformCapability): boolean {
   return PLATFORM_WRITE_CAPABILITIES.has(capability);
 }
 
-/** A write the binding refuses: every write, unless it is enabled by name above. */
+/** A write the binding refuses outright: every write not enabled by name above. */
 export function isRefusedWrite(capability: PlatformCapability): boolean {
-  return isWriteCapability(capability) && !ENABLED_PLATFORM_WRITES.has(capability);
+  return isWriteCapability(capability) && !STEP_UP_PLATFORM_WRITES.has(capability);
 }
+
+/**
+ * Whether exercising `capability` needs a fresh step-up on the session.
+ *
+ * Every write, without exception — the function exists so the binding asks a
+ * question with a name rather than re-deriving it. It is keyed on the
+ * CAPABILITY, like the refusal, not on the HTTP verb: the moderation queue's
+ * read runs under REVIEW_MODERATE as well, because the capability that permits
+ * the decision also permits seeing every club's held reviews, and a session
+ * that cannot decide has no business paging through them either.
+ */
+export function requiresStepUp(capability: PlatformCapability): boolean {
+  return isWriteCapability(capability);
+}
+
+/**
+ * How long a step-up lasts: 15 minutes from the moment the code was accepted,
+ * NOT sliding.
+ *
+ * ═══ WHY 15, AND WHY FIXED ═══
+ *
+ * The threat a step-up answers is a session used by somebody other than its
+ * owner — a cookie lifted by malware or a hostile extension, a laptop left
+ * unlocked, a native refresh token copied off a device. The session itself
+ * lives for days (SESSION_MAX_AGE_SECONDS, 7) and a native refresh token for
+ * 30; the step-up shrinks the part of that life in which the session can WRITE
+ * across clubs to the minutes right after the owner proved they hold the phone.
+ *
+ * Fixed rather than sliding: a window that renews on use is renewed by the
+ * attacker too, and turns one proof into a session-long one. Fifteen minutes
+ * is the length of a sitting at the queue — a moderator approves or rejects a
+ * batch, and types one code per batch — and short enough that a session
+ * stolen afterwards finds the window already shut. GitHub's sudo mode is two
+ * hours; this is a smaller population doing a narrower job, so it can afford a
+ * tighter bound.
+ *
+ * Written and checked on the app clock, like every other expiry in this
+ * codebase (Prisma stores `timestamp(3)` as UTC; mixing it with Postgres
+ * `now()` would tie the window to the server's TimeZone setting). Instances
+ * run NTP; `isStepUpFresh` tolerates a minute of skew in the "from the future"
+ * direction only, so skew can never lengthen the window by more than that.
+ */
+export const MFA_STEP_UP_WINDOW_SECONDS = 15 * 60;
 
 /**
  * A grant reduced to what an authorisation decision needs. Deliberately not the

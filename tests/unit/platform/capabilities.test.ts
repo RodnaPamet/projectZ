@@ -1,13 +1,16 @@
 import { PlatformCapability } from '@prisma/client';
 
+import * as capabilities from '@/lib/platform/capabilities';
 import {
-  ENABLED_PLATFORM_WRITES,
   grantAllows,
   isRefusedWrite,
   isWriteCapability,
   liveCapabilities,
+  MFA_STEP_UP_WINDOW_SECONDS,
   PLATFORM_CAPABILITIES,
   PLATFORM_WRITE_CAPABILITIES,
+  requiresStepUp,
+  STEP_UP_PLATFORM_WRITES,
   type PlatformGrantSnapshot,
 } from '@/lib/platform/capabilities';
 
@@ -137,11 +140,11 @@ describe('the capability list', () => {
 });
 
 describe('which writes the binding refuses', () => {
-  it('enables exactly one write, by name — REVIEW_MODERATE', () => {
+  it('enables exactly one write, by name — REVIEW_MODERATE, behind a step-up', () => {
     // Pinned so enabling a second cross-club write is an edit to THIS file as
     // well as to the set, and a reviewer sees both. The terms REVIEW_MODERATE
-    // is enabled on are written beside ENABLED_PLATFORM_WRITES.
-    expect([...ENABLED_PLATFORM_WRITES]).toEqual([PlatformCapability.REVIEW_MODERATE]);
+    // is enabled on are written beside STEP_UP_PLATFORM_WRITES.
+    expect([...STEP_UP_PLATFORM_WRITES]).toEqual([PlatformCapability.REVIEW_MODERATE]);
   });
 
   it('still refuses TENANT_SUSPEND', () => {
@@ -162,14 +165,38 @@ describe('which writes the binding refuses', () => {
   it('can only enable something that is a write', () => {
     // An entry here that is not in the write set would read as "enabled" while
     // meaning nothing — the kind of line that survives because it looks safe.
-    for (const c of ENABLED_PLATFORM_WRITES) {
+    for (const c of STEP_UP_PLATFORM_WRITES) {
       expect(PLATFORM_WRITE_CAPABILITIES.has(c)).toBe(true);
     }
   });
 
   it('refuses every write that is not enabled by name — the default stays refusal', () => {
-    const refused = [...PLATFORM_WRITE_CAPABILITIES].filter((c) => !ENABLED_PLATFORM_WRITES.has(c));
+    const refused = [...PLATFORM_WRITE_CAPABILITIES].filter((c) => !STEP_UP_PLATFORM_WRITES.has(c));
     expect(refused.length).toBeGreaterThan(0);
     for (const c of refused) expect(isRefusedWrite(c)).toBe(true);
+  });
+});
+
+describe('the second factor (#262)', () => {
+  it('EVERY write needs a step-up, and no read does — there is no exception left', () => {
+    // The REVIEW_MODERATE exception (#228) is over. This is the assertion that
+    // keeps it over: a write capability that does not require a step-up is not
+    // expressible, because `requiresStepUp` is keyed on the write set itself.
+    for (const c of PLATFORM_CAPABILITIES) {
+      expect(requiresStepUp(c)).toBe(isWriteCapability(c));
+    }
+    expect(requiresStepUp(PlatformCapability.REVIEW_MODERATE)).toBe(true);
+  });
+
+  it('the "writes without a second factor" allowlist is gone, not merely emptied', () => {
+    // An empty exception list is an invitation to add an entry back. The name
+    // must not exist at all, so a revert has to reintroduce it on purpose.
+    expect('ENABLED_PLATFORM_WRITES' in capabilities).toBe(false);
+  });
+
+  it('the step-up window is fifteen minutes', () => {
+    // Pinned: widening it is a security decision that should show up as a test
+    // change in review, not as one constant edited in passing.
+    expect(MFA_STEP_UP_WINDOW_SECONDS).toBe(15 * 60);
   });
 });

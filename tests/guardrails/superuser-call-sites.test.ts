@@ -53,6 +53,12 @@ const ALLOWED: Record<string, string> = {
   'src/lib/auth/verify-credentials.ts': 'reads a User by email before any tenant is known',
   'src/app/api/v1/auth/refresh/route.ts': 'rotates a refresh token with no tenant context',
   'src/lib/auth/platform-admin.ts': 'reads platform_admin_grant, which denies app_user outright',
+  'src/lib/auth/mfa.ts':
+    'the second factor (#262): the caller’s own app_user MFA columns, their own user_session ' +
+    'step-up, and mfa_recovery_code / account_security_event — both of which deny app_user ' +
+    'outright, like platform_admin_grant. Keyed on the userId and userSessionId of a session ' +
+    '`checkSession` vouched for, never on the request, so it can only ever touch the caller. ' +
+    'NOT asPlatformAdmin: enrolling a phone exercises no capability and reaches into no club.',
   'src/lib/auth/page-context.ts':
     'resolves which tenant a PAGE is about, so there is no app.tenant_id to bind yet — ' +
     'tenant_membership carries FORCE RLS and returns zero rows unbound, which every caller ' +

@@ -16,6 +16,7 @@ const ctx = (over: Partial<RequestContext> = {}): RequestContext => ({
   appPermissions: [],
   platformGrantId: null,
   groupGateCleared: [],
+  userSessionId: null,
   requestId: 'req_1',
   locale: 'bg',
   ...over,

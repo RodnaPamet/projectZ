@@ -49,6 +49,8 @@ describe('v1 domain error map', () => {
       'MissingPlatformGrantError',
       'MissingPlatformCapabilityError',
       'PlatformWriteNotEnabledError',
+      'PlatformStepUpRequiredError',
+      'MfaEnrolmentRequiredError',
     ]) {
       expect(DOMAIN_ERROR_MAP[name]?.status).toBe(403);
     }
@@ -67,12 +69,27 @@ describe('v1 domain error map', () => {
       'MissingPlatformGrantError',
       'MissingPlatformCapabilityError',
       'PlatformWriteNotEnabledError',
+      'PlatformStepUpRequiredError',
+      'MfaEnrolmentRequiredError',
+      'MfaCodeRejectedError',
     ]) {
       const m = DOMAIN_ERROR_MAP[name];
       expect(m?.clientMessage).toBeTruthy();
       // Nothing internal in what the caller receives.
       expect(m!.clientMessage).not.toMatch(/asPlatformAdmin|platform_admin_grant|Postgres|enum/i);
     }
+  });
+
+  it('the second-factor refusals are distinct codes a client can act on (#262)', () => {
+    // A step-up is cured by a code, enrolment only by enrolling: one code for
+    // both would leave the moderation queue unable to say which to ask for.
+    expect(DOMAIN_ERROR_MAP.PlatformStepUpRequiredError?.code).toBe('STEP_UP_REQUIRED');
+    expect(DOMAIN_ERROR_MAP.MfaEnrolmentRequiredError?.code).toBe('MFA_ENROLMENT_REQUIRED');
+    // A rejected code says nothing about WHY — wrong, expired, replayed or
+    // spent all read the same, so a guesser learns nothing from the answer.
+    expect(DOMAIN_ERROR_MAP.MfaCodeRejectedError?.clientMessage).not.toMatch(
+      /expired|used|replay|window/i,
+    );
   });
 
   it('the capability denial does not enumerate what the caller lacks', () => {

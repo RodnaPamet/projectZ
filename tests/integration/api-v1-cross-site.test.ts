@@ -10,6 +10,7 @@ import { createReview } from '@/app-layer/usecases/reviews';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
+import { enrolAndStepUp } from '../helpers/mfa';
 import { setModerationScores, useMswServer } from '../helpers/msw';
 import { asAppSuperuser, asAppUser } from '../helpers/rls';
 
@@ -271,6 +272,10 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
       );
     });
     moderator = await signInAs(db, { userId: admin, memberships: [] });
+    // Every moderation decision needs a second-factor step-up on this session
+    // (#262). Done through the real routes, with a Bearer header, so what this
+    // suite then varies is only the origin and the credential's carrier.
+    await enrolAndStepUp(moderator.bearer);
   });
 
   /** A flagged review at the club, and its open case. */

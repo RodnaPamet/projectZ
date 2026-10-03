@@ -49,8 +49,9 @@ const KEY_LENGTH = 32; // AES-256
  *        `isEncryptedValue` and `getCiphertextVersion` have zero callers.
  *
  *        The v1 path IS live: `encryptField`/`decryptField` protect the
- *        wearable OAuth tokens, and `hashForLookup` backs session lookup.
- *        Those are the only encrypted columns in the database.
+ *        wearable OAuth tokens and, since #262, the TOTP seed in
+ *        `app_user.mfaSecret` (src/lib/auth/mfa.ts); `hashForLookup` backs
+ *        session lookup. Those are the only encrypted columns in the database.
  *
  *        Kept rather than deleted because the envelope format is what a
  *        future per-tenant rollout would have to match, and re-deriving it

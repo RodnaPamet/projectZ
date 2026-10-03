@@ -37,7 +37,14 @@ const SCHEMAS = globSync('prisma/schema/*.prisma').map((f) => f.toString());
  * src/app-layer/usecases/wearables.ts. Adding a line here means the write path
  * exists — not that it is planned.
  */
-const ACTUALLY_ENCRYPTED = ['accessTokenEnc', 'refreshTokenEnc'];
+const ACTUALLY_ENCRYPTED = [
+  'accessTokenEnc',
+  'refreshTokenEnc',
+  // #262: `encryptField` in startEnrolment, `decryptField` in confirmEnrolment
+  // and stepUp — src/lib/auth/mfa.ts, the only reader and writer — and a CHECK
+  // (`app_user_mfa_secret_is_envelope`) refusing any value that is not `v1:`.
+  'mfaSecret',
+];
 
 /**
  * A doc comment that promises ciphertext.
@@ -102,10 +109,10 @@ describe('every schema comment claiming encryption is true', () => {
   });
 
   it('the allowlist is not a dumping ground', () => {
-    // Two fields, both wearable OAuth tokens. Growth here should be rare and
-    // visible; a list that quietly reaches a dozen entries is the manifest
-    // this guardrail replaced.
-    expect(ACTUALLY_ENCRYPTED).toHaveLength(2);
+    // Three fields: the two wearable OAuth tokens and the TOTP seed (#262).
+    // Growth here should be rare and visible; a list that quietly reaches a
+    // dozen entries is the manifest this guardrail replaced.
+    expect(ACTUALLY_ENCRYPTED).toHaveLength(3);
   });
 
   it('the dead manifest has not come back', () => {

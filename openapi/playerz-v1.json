@@ -2647,7 +2647,7 @@
         "operationId": "listPlatformModerationCases",
         "summary": "The open review moderation cases, across every club",
         "tags": ["Platform"],
-        "description": "The review moderation queue: every OPEN case about a review, oldest first, with the review text, its stars, the venue and club it is about, why it is here, and the classifier's scores. Worked by a person with authority over no club in particular, because a club moderating reviews of itself is what moderation exists to prevent.\n\n**Needs `REVIEW_MODERATE`.** The capability that permits the decision also permits the reading: the queue shows review text across every club and is only useful to someone who can act on it.\n\n`reason` is why a case is queued: a classifier category (`harassment`, `hate`, `violence`, …) scored above the review threshold, `classifier_unavailable` (the classifier could not be reached, so a human decides), or `user_report`. `scores` are the classifier's, per category, 0–1; empty when none ran.\n\nEvery page writes a `PLATFORM_MODERATION_QUEUE_READ` audit row with the stated reason. 50 per page.",
+        "description": "The review moderation queue: every OPEN case about a review, oldest first, with the review text, its stars, the venue and club it is about, why it is here, and the classifier's scores. Worked by a person with authority over no club in particular, because a club moderating reviews of itself is what moderation exists to prevent.\n\n**Needs `REVIEW_MODERATE`, and a second-factor step-up on this session from the last 15 minutes (#262)** — the step-up is keyed on the capability, so reading the queue needs one as well as deciding. The capability that permits the decision also permits the reading: the queue shows review text across every club and is only useful to someone who can act on it.\n\n`reason` is why a case is queued: a classifier category (`harassment`, `hate`, `violence`, …) scored above the review threshold, `classifier_unavailable` (the classifier could not be reached, so a human decides), or `user_report`. `scores` are the classifier's, per category, 0–1; empty when none ran.\n\nEvery page writes a `PLATFORM_MODERATION_QUEUE_READ` audit row with the stated reason. 50 per page.",
         "security": [
           {
             "bearerAuth": []
@@ -2707,7 +2707,7 @@
             }
           },
           "403": {
-            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log.",
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the moderator has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2724,7 +2724,7 @@
         "operationId": "resolvePlatformModerationCase",
         "summary": "Approve or reject a review moderation case",
         "tags": ["Platform"],
-        "description": "`APPROVE` publishes the review; `REJECT` hides it. Either way the case closes with the moderator's note, and the venue's `avgRating` and `reviewCount` are recomputed in the same transaction, so the decision reaches the venue list at once.\n\n**Needs `REVIEW_MODERATE` — the one cross-club WRITE the platform enables.** Every other write capability is refused at the binding; see `PlatformCapability`.\n\n**The note is the audit reason.** It becomes the case's resolution note (the answer to \"why was my review taken down?\") and the `reason` on the `PLATFORM_REVIEW_APPROVED` / `PLATFORM_REVIEW_REJECTED` audit row, written before the decision takes effect. A refused request — already resolved, or no such case — leaves no row.\n\nNothing is deleted. A rejected review is kept with its text, and the case keeps who decided and why.",
+        "description": "`APPROVE` publishes the review; `REJECT` hides it. Either way the case closes with the moderator's note, and the venue's `avgRating` and `reviewCount` are recomputed in the same transaction, so the decision reaches the venue list at once.\n\n**Needs `REVIEW_MODERATE` — the one cross-club WRITE the platform enables — and a second-factor step-up on this session from the last 15 minutes (#262).** Every other write capability is refused at the binding; see `PlatformCapability`.\n\n**The note is the audit reason.** It becomes the case's resolution note (the answer to \"why was my review taken down?\") and the `reason` on the `PLATFORM_REVIEW_APPROVED` / `PLATFORM_REVIEW_REJECTED` audit row, written before the decision takes effect. A refused request — already resolved, or no such case — leaves no row.\n\nNothing is deleted. A rejected review is kept with its text, and the case keeps who decided and why.",
         "security": [
           {
             "bearerAuth": []
@@ -2783,7 +2783,7 @@
             }
           },
           "403": {
-            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log.",
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the moderator has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2991,6 +2991,451 @@
           },
           "409": {
             "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's (another account signed in from another tab). Nothing was read. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mfa": {
+      "get": {
+        "operationId": "getMfaStatus",
+        "summary": "The caller’s second factor, and this session’s step-up",
+        "description": "Whether two-step verification (TOTP) is on for this account, and whether THIS session has a step-up that still counts. A step-up is bound to the session that made it: the phone and the laptop each have their own, and signing out ends it.\n\n`eligible` is true for holders of a live platform grant — the only accounts that may enrol today (#262). `recoveryCodesRemaining` is 0 unless enrolled.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The status.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. A second factor belongs to a session, so there is nothing to do without one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or changed. A native client never sends the header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mfa/enrolment": {
+      "post": {
+        "operationId": "startMfaEnrolment",
+        "summary": "Begin enrolling an authenticator",
+        "description": "A new TOTP shared secret (RFC 6238: SHA-1, 6 digits, 30 s), returned ONCE as base32 together with the `otpauth://` URI that carries it. The server keeps it only as AES-256-GCM ciphertext. Nothing is switched on until `POST /me/mfa/enrolment/confirm` succeeds; calling this again before then replaces the pending secret.\n\nNeeds a sign-in from the last 15 minutes: the first enrolment is trust-on-first-use, so a session that has been alive for days may not plant an authenticator on its own.\n\nThe response carries a secret and is sent `Cache-Control: no-store`.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pending enrolment.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrolmentEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. A second factor belongs to a session, so there is nothing to do without one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`MFA_NOT_ELIGIBLE` — the caller holds no live platform grant. `MFA_REAUTH_REQUIRED` — the session is more than 15 minutes old; sign in again and retry. `STEP_UP_REQUIRED` — the session vanished mid-request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`MFA_ALREADY_ENROLLED` — already on. Replacing an authenticator is an operator reset (docs/platform-admin-runbook.md), so a stolen session cannot swap the owner's phone for its own. `VIEWER_CHANGED` — as everywhere on the web.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mfa/enrolment/confirm": {
+      "post": {
+        "operationId": "confirmMfaEnrolment",
+        "summary": "Confirm the authenticator and turn two-step verification on",
+        "description": "The first code from the new authenticator. On success two-step verification is on, THIS session is stepped up (it just proved the factor), and the response carries ten single-use recovery codes — the only time they are ever shown. The server keeps their SHA-256 only.\n\nSent `Cache-Control: no-store`.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "On, with the recovery codes.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrolmentConfirmedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `code` is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. A second factor belongs to a session, so there is nothing to do without one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`MFA_CODE_REJECTED` — the code was wrong, outside the ±30 s window, already used (a TOTP code is accepted ONCE, even inside its validity), or a recovery code that is spent or unknown. One code for all of them, deliberately: telling them apart would tell a guesser how close they are. Every refusal is recorded. `MFA_NOT_ELIGIBLE` — no live platform grant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`MFA_ALREADY_ENROLLED` — already on. `MFA_ENROLMENT_NOT_STARTED` — no pending secret; call `POST /me/mfa/enrolment` first. `VIEWER_CHANGED` — as everywhere.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — too many second-factor attempts for this account: 5 per 15 minutes (then a 5-minute lockout) and 50 a day for a step-up, 10 per 15 minutes for an enrolment confirmation. Keyed on the USER, not the IP. `Retry-After` is not sent on this path; wait a few minutes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mfa/step-up": {
+      "post": {
+        "operationId": "stepUpMfa",
+        "summary": "Prove the second factor on this session",
+        "description": "Every cross-club WRITE capability — today `REVIEW_MODERATE`, the moderation queue and its decisions — answers `403 STEP_UP_REQUIRED` until this succeeds. After it, THIS session (and no other) may use them for 15 minutes from the moment the code was accepted. The window is fixed, not sliding: using it does not extend it.\n\nSend exactly one of `code` (six digits from the authenticator) or `recoveryCode` (spent by the attempt that succeeds). Every attempt, accepted or refused, is recorded in an append-only security log.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaStepUpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stepped up.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStepUpEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — neither or both of `code` and `recoveryCode`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. A second factor belongs to a session, so there is nothing to do without one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`MFA_CODE_REJECTED` — the code was wrong, outside the ±30 s window, already used (a TOTP code is accepted ONCE, even inside its validity), or a recovery code that is spent or unknown. One code for all of them, deliberately: telling them apart would tell a guesser how close they are. Every refusal is recorded. `MFA_ENROLMENT_REQUIRED` — two-step verification is not on for this account; enrol first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or changed. A native client never sends the header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — too many second-factor attempts for this account: 5 per 15 minutes (then a 5-minute lockout) and 50 a day for a step-up, 10 per 15 minutes for an enrolment confirmation. Keyed on the USER, not the IP. `Retry-After` is not sent on this path; wait a few minutes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mfa/recovery-codes": {
+      "post": {
+        "operationId": "regenerateMfaRecoveryCodes",
+        "summary": "Replace every recovery code with a new set of ten",
+        "description": "Every previous code, used or not, stops working. Needs a step-up on this session in the last 15 minutes: a fresh set of codes is as good as the phone. Shown once, in this response, sent `Cache-Control: no-store`.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new codes.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaRecoveryCodesEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. A second factor belongs to a session, so there is nothing to do without one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`STEP_UP_REQUIRED` — step up first. `MFA_ENROLMENT_REQUIRED` — not enrolled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or changed. A native client never sends the header.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4324,7 +4769,7 @@
       "PlatformCapability": {
         "type": "string",
         "enum": ["TENANT_READ", "AUDIT_READ", "USER_READ", "TENANT_SUSPEND", "REVIEW_MODERATE"],
-        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: stepping up to a cross-club write should require a second factor and there is none yet. `REVIEW_MODERATE` is the one write that IS enabled, by owner decision: reading the review moderation queue and approving or rejecting its cases. Its reach is a review's visibility and the venue rating computed from it, nothing is deleted, and every decision is audited with the moderator's note."
+        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: taking a club offline is a power nobody has decided to ship. `REVIEW_MODERATE` is the one write that IS enabled, by owner decision: reading the review moderation queue and approving or rejecting its cases. Its reach is a review's visibility and the venue rating computed from it, nothing is deleted, and every decision is audited with the moderator's note. Since #262 every write capability — `REVIEW_MODERATE` included, for reading the queue as well as deciding — also needs a second-factor step-up on the calling session from the last 15 minutes (`POST /me/mfa/step-up`)."
       },
       "PlatformAuditEntry": {
         "type": "object",
@@ -4863,6 +5308,183 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MyBookingPage"
+          }
+        }
+      },
+      "MfaStatus": {
+        "type": "object",
+        "title": "MfaStatus",
+        "required": [
+          "eligible",
+          "enrolled",
+          "pending",
+          "stepUpExpiresAt",
+          "recoveryCodesRemaining"
+        ],
+        "properties": {
+          "eligible": {
+            "type": "boolean",
+            "description": "May enrol: holds a live platform grant."
+          },
+          "enrolled": {
+            "type": "boolean"
+          },
+          "pending": {
+            "type": "boolean",
+            "description": "Enrolment started and not confirmed."
+          },
+          "stepUpExpiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When THIS session’s step-up stops counting; null if it has none."
+          },
+          "recoveryCodesRemaining": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "MfaStatusEnvelope": {
+        "type": "object",
+        "title": "MfaStatusEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaStatus"
+          }
+        }
+      },
+      "MfaEnrolment": {
+        "type": "object",
+        "title": "MfaEnrolment",
+        "required": ["secret", "otpauthUri"],
+        "properties": {
+          "secret": {
+            "type": "string",
+            "description": "Base32, no padding. Shown once."
+          },
+          "otpauthUri": {
+            "type": "string",
+            "description": "`otpauth://totp/playerz.bg:<email>?secret=…&issuer=playerz.bg&…`"
+          }
+        }
+      },
+      "MfaEnrolmentEnvelope": {
+        "type": "object",
+        "title": "MfaEnrolmentEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaEnrolment"
+          }
+        }
+      },
+      "MfaCodeRequest": {
+        "type": "object",
+        "title": "MfaCodeRequest",
+        "required": ["code"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\s*\\d{3}\\s*\\d{3}\\s*$"
+          }
+        }
+      },
+      "MfaStepUpRequest": {
+        "type": "object",
+        "title": "MfaStepUpRequest",
+        "description": "Exactly one of the two.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Six digits from the authenticator."
+          },
+          "recoveryCode": {
+            "type": "string",
+            "description": "XXXX-XXXX-XXXX-XXXX; case, spaces and hyphens are ignored."
+          }
+        }
+      },
+      "MfaRecoveryCodes": {
+        "type": "object",
+        "title": "MfaRecoveryCodes",
+        "required": ["recoveryCodes"],
+        "properties": {
+          "recoveryCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 10,
+            "maxItems": 10
+          }
+        }
+      },
+      "MfaRecoveryCodesEnvelope": {
+        "type": "object",
+        "title": "MfaRecoveryCodesEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaRecoveryCodes"
+          }
+        }
+      },
+      "MfaEnrolmentConfirmed": {
+        "type": "object",
+        "title": "MfaEnrolmentConfirmed",
+        "required": ["recoveryCodes", "stepUpExpiresAt"],
+        "properties": {
+          "recoveryCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 10,
+            "maxItems": 10
+          },
+          "stepUpExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MfaEnrolmentConfirmedEnvelope": {
+        "type": "object",
+        "title": "MfaEnrolmentConfirmedEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaEnrolmentConfirmed"
+          }
+        }
+      },
+      "MfaStepUp": {
+        "type": "object",
+        "title": "MfaStepUp",
+        "required": ["stepUpExpiresAt", "method", "recoveryCodesRemaining"],
+        "properties": {
+          "stepUpExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["totp", "recovery_code"]
+          },
+          "recoveryCodesRemaining": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "MfaStepUpEnvelope": {
+        "type": "object",
+        "title": "MfaStepUpEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaStepUp"
           }
         }
       }
