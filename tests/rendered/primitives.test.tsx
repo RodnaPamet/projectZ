@@ -13,10 +13,8 @@ import { useState } from 'react';
 import { render, screen, waitFor, within } from '../helpers/render';
 
 import { Button } from '@/components/ui/button';
-import { CalendarMonth } from '@/components/ui/CalendarMonth';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CopyButton } from '@/components/ui/copy-button';
 import { Table, useTable } from '@/components/ui/table/table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -219,17 +217,6 @@ describe('Tooltip', () => {
     // readers, so the string is present twice by design.
     const shown = await screen.findAllByText('60 min · €24');
     expect(shown.length).toBeGreaterThan(0);
-  });
-});
-
-describe('CopyButton', () => {
-  it('writes its value to the clipboard when clicked', async () => {
-    const writeText = jest.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
-
-    render(<CopyButton value="PLZ-4821" label="Copy booking reference" />);
-    await userEvent.click(screen.getByRole('button', { name: /Copy booking reference/i }));
-    expect(writeText).toHaveBeenCalledWith('PLZ-4821');
   });
 });
 
@@ -500,18 +487,5 @@ describe('Table (DataTable)', () => {
     expect(screen.getByText('Court 2')).toBeInTheDocument();
     // 2 data rows + 1 header row.
     expect(screen.getAllByRole('row')).toHaveLength(3);
-  });
-});
-
-describe('CalendarMonth', () => {
-  it('renders a grid for the requested month', () => {
-    render(<CalendarMonth month={new Date('2026-07-01T00:00:00Z')} events={[]} />);
-    // The month renders as a labelled <section>, not an ARIA grid.
-    const cal = screen.getByTestId('calendar-month');
-    expect(cal).toHaveAttribute('aria-label', 'July 2026');
-    // July has 31 days — the last one must be plotted.
-    expect(within(cal).getByText('31')).toBeInTheDocument();
-    // …and the weekday header row is present.
-    expect(within(cal).getByText('Mon')).toBeInTheDocument();
   });
 });

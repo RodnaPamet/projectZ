@@ -135,7 +135,8 @@ describe('view transitions', () => {
     // `document.startViewTransition` is in the browser.
     //
     // NOTE: `motion` IS already a dependency — it came with the ported component
-    // library and is genuinely used by the table and the charts (9 import sites).
+    // library and is genuinely used by the table, the toggle group and the root
+    // providers (5 import sites since T28 deleted the charts).
     // So the claim is not "no animation library exists"; it is that the ROUTE
     // TRANSITION layer added nothing and pulls in nothing.
     const imports = VT.match(/^import .*/gm) ?? [];

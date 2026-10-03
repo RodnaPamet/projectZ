@@ -394,10 +394,11 @@ const PAIRINGS: Pairing[] = [
 
   // ── The label on the brand fill (#245) ────────────────────────────
   //
-  // `bg-bg-brand text-content-on-brand` on the primary links (home, the empty
-  // bookings list, the invite page) resolves to --content-inverted on
-  // --brand-emphasis. Before #245 neither utility existed and the links had no
-  // fill at all.
+  // --content-inverted on --brand-emphasis. #245 drew the primary links (home,
+  // the empty bookings list, the invite page) with `bg-bg-brand
+  // text-content-on-brand` aliases for this pair; T22 and T27 moved them to
+  // buttonVariants and T28 deleted the aliases. The pair stays: it is the
+  // PRIMARY button's label on its bottom stop.
   {
     fg: '--content-inverted',
     bg: '--brand-emphasis',

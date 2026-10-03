@@ -6,7 +6,7 @@ import {
   VIRTUALIZE_DEFAULT_THRESHOLD,
   createColumns,
   decideVirtualization,
-} from '@/components/ui/table';
+} from '@/components/ui/table/data-table';
 
 import { withIntl } from '../helpers/intl';
 

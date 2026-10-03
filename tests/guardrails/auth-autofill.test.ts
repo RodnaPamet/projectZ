@@ -1,5 +1,7 @@
 import { readFileSync, globSync } from 'node:fs';
 
+import { treeFiles } from '../helpers/scan-floor';
+
 /**
  * PASSWORD FIELDS MUST BE AUTOFILLABLE.
  *
@@ -149,8 +151,13 @@ function passwordFields(): Field[] {
 describe('the scan is not vacuous', () => {
   it('found the source tree', () => {
     // A broken glob would make this guard pass by scanning nothing — the exact
-    // failure it exists to prevent, one level up.
-    expect(SOURCE.length).toBeGreaterThan(100);
+    // failure it exists to prevent, one level up. The floor is the tree itself,
+    // counted a second way (tests/helpers/scan-floor.ts), and the two text
+    // fields every form renders through.
+    expect([...SOURCE].sort()).toEqual(treeFiles(['src/components', 'src/app'], /\.tsx$/));
+    for (const sentinel of ['src/components/ui/input.tsx', 'src/components/ui/textarea.tsx']) {
+      expect(SOURCE).toContain(sentinel);
+    }
   });
 
   it('states honestly whether it is currently guarding anything', () => {

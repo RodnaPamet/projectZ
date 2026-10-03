@@ -2,6 +2,8 @@ import { readFileSync, globSync } from 'node:fs';
 
 import ts from 'typescript';
 
+import { treeFiles } from '../helpers/scan-floor';
+
 /**
  * USER-FACING COPY COMES FROM THE CATALOGUE, NOT FROM JSX.
  *
@@ -192,7 +194,15 @@ describe('navigation copy is never a literal', () => {
   }
 
   it('the scan reads the source tree', () => {
-    expect(files.length).toBeGreaterThan(100);
+    // The tree itself, counted a second way (tests/helpers/scan-floor.ts), and
+    // the two files that build navigation labels.
+    expect([...files].sort()).toEqual(treeFiles(['src'], /\.tsx?$/));
+    for (const sentinel of [
+      'src/components/layout/nav-items.ts',
+      'src/components/layout/BottomTabBar.tsx',
+    ]) {
+      expect(files).toContain(sentinel);
+    }
   });
 
   // The exemption that used to live here is GONE.
@@ -247,8 +257,13 @@ describe('navigation copy is never a literal', () => {
 
 describe('no hardcoded user-facing copy', () => {
   it('the scan reads the component tree', () => {
-    // A broken glob, or a parser that yields no JSX, makes this vacuous.
-    expect(FILES.length).toBeGreaterThan(100);
+    // A broken glob, or a parser that yields no JSX, makes this vacuous. The
+    // floor is every .tsx under src, counted a second way
+    // (tests/helpers/scan-floor.ts), less the exemptions.
+    expect([...FILES].sort()).toEqual(
+      treeFiles(['src'], /\.tsx$/).filter((f) => !EXEMPT.some((e) => e.pattern.test(f))),
+    );
+    expect(FILES).toContain('src/app/(public)/login/login-form.tsx');
     expect(FILES.some((f) => f.startsWith('src/app/'))).toBe(true);
   });
 

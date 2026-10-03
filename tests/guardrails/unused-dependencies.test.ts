@@ -85,8 +85,6 @@ const CONFIG = [
  */
 const KNOWN_UNUSED: Record<string, string> = {
   bullmq: 'the job queue the notification and sweep docs describe; nothing enqueues',
-  'canvas-confetti': 'gamification UI, unbuilt',
-  'driver.js': 'onboarding tour, unbuilt',
   'maplibre-gl': 'the venue map, unbuilt — geo search exists server-side only',
   'p-retry': 'no retry wrapper written',
   'react-map-gl': 'the React wrapper for the venue map, also unbuilt',
@@ -113,6 +111,10 @@ const CONFIG_ONLY: Record<string, string> = {
   eslint: 'the linter, invoked as a binary',
   '@playwright/test': 'the e2e runner',
   prisma: 'the migration/generate CLI, run as a binary',
+  // Until T28 (#225) the date pickers and charts imported it directly. They are
+  // gone, but date-fns-tz declares it as a required peer and requires it at
+  // runtime, so removing it would break every diary and availability read.
+  'date-fns': 'the required peer dependency of date-fns-tz, which requires it at runtime',
 };
 
 function isImported(name: string): boolean {
@@ -231,8 +233,11 @@ describe('the KNOWN_UNUSED ratchet only shrinks', () => {
     // human editing this line downward-only. 9 → 7 when the client data layer
     // (src/lib/data) chose SWR, which inflect already uses: @tanstack/react-query
     // was the layer nobody wrote, and superjson the RPC boundary v1's JSON
-    // envelope made unnecessary. Both were removed, not explained.
-    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(7);
+    // envelope made unnecessary. Both were removed, not explained. 7 → 5 at
+    // T28 (#225): canvas-confetti and driver.js were inflect's celebration and
+    // onboarding tour, which playerz never built, so they went with the rest of
+    // the deletion pass instead of waiting for a feature.
+    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(5);
   });
 });
 

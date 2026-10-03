@@ -3,11 +3,9 @@
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { CalendarMonth } from '@/components/ui/CalendarMonth';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, createColumns } from '@/components/ui/table/data-table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CopyButton } from '@/components/ui/copy-button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { FieldGroup } from '@/components/ui/field-group';
@@ -50,11 +48,9 @@ const SECTIONS = [
   'EmptyState',
   'ErrorState',
   'Tooltip',
-  'CopyButton',
   'Modal',
   'Sheet',
   'ConfirmDialog',
-  'CalendarMonth',
 ] as const;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -423,10 +419,6 @@ export default function DesignSystemPage() {
           </Tooltip>
         </Section>
 
-        <Section title="CopyButton">
-          <CopyButton value="PLZ-4821" label="Copy booking reference" />
-        </Section>
-
         <Section title="Modal">
           <Button variant="secondary" onClick={() => setModalOpen(true)}>
             Open modal
@@ -472,10 +464,6 @@ export default function DesignSystemPage() {
             confirmLabel="Cancel booking"
             onConfirm={() => setConfirmOpen(false)}
           />
-        </Section>
-
-        <Section title="CalendarMonth">
-          <CalendarMonth month={new Date('2026-07-01T00:00:00Z')} events={[]} />
         </Section>
 
         {/*

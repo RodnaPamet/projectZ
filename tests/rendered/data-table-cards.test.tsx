@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import * as React from 'react';
 
-import { DataTable, createColumns } from '@/components/ui/table';
+import { DataTable, createColumns } from '@/components/ui/table/data-table';
 
 import { withIntl } from '../helpers/intl';
 

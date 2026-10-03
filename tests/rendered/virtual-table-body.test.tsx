@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import * as React from 'react';
 
-import { createColumns, useTable } from '@/components/ui/table';
+import { createColumns } from '@/components/ui/table/data-table';
+import { useTable } from '@/components/ui/table/table';
 import { VirtualTable } from '@/components/ui/table/virtual-table-body';
 
 import { messages, withIntl } from '../helpers/intl';

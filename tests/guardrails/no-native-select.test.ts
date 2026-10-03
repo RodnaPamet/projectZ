@@ -1,5 +1,7 @@
 import { readFileSync, globSync } from 'node:fs';
 
+import { treeFiles } from '../helpers/scan-floor';
+
 /**
  * NO NATIVE <select> ON A PHONE.
  *
@@ -96,7 +98,16 @@ const NATIVE_SELECT = /<select[\s/>]/;
 
 describe('the scan is not vacuous', () => {
   it('found the component tree', () => {
-    expect(SOURCE.length).toBeGreaterThan(100);
+    // The floor is the tree itself, counted a second way
+    // (tests/helpers/scan-floor.ts), and the two primitives that replace
+    // <select> (they are pinned again below).
+    expect([...SOURCE].sort()).toEqual(treeFiles(['src'], /\.tsx$/));
+    for (const sentinel of [
+      'src/components/ui/combobox/index.tsx',
+      'src/components/ui/radio-group.tsx',
+    ]) {
+      expect(SOURCE).toContain(sentinel);
+    }
   });
 
   it('the comment stripper does not swallow real code', () => {
