@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
 
+import NotFound from '@/app/not-found';
+
 import bg from '../../messages/bg.json';
 import en from '../../messages/en.json';
+
+jest.mock('next-intl/server', () => ({
+  getTranslations: async (ns: string) => (key: string) =>
+    (require('../../messages/bg.json') as Record<string, Record<string, string>>)[ns]![key],
+}));
 
 /**
  * THE 404 IS THE PAGE MOST LIKELY TO BE SEEN BY SOMEBODY WHO DOES NOT READ ENGLISH.
@@ -15,17 +22,17 @@ import en from '../../messages/en.json';
  * exist yet (#176), and the player half of that nav is not permission-gated, so a
  * signed-out visitor is three clicks away.
  *
- * ═══ WHY THIS TESTS THE CATALOGUE AND NOT THE COMPONENT ═══
+ * ═══ THE CATALOGUE, AND THEN THE COMPONENT ═══
  *
- * `not-found.tsx` is an async server component calling
- * `getTranslations` from `next-intl/server`, which sits behind a `react-server`
- * export condition — importing it under jest fails, and this repo has already
- * been bitten by exactly that (the `notifyAfterCommit` work). Rendering it here
- * would test the harness rather than the page.
+ * `not-found.tsx` is an async server component calling `getTranslations` from
+ * `next-intl/server`, which sits behind a `react-server` export condition —
+ * importing it under jest fails (the `notifyAfterCommit` work hit exactly
+ * that). So that one module is mocked with a lookup in the real catalogue,
+ * and the page itself is rendered (T27); before, a hand-written stand-in was.
  *
- * What CAN go wrong and is worth pinning: the keys it reads not existing, or
- * existing only in English. A missing key renders as the bare key name, so the
- * user sees `notFound.title` — which is worse than the English it replaced.
+ * The catalogue checks stay: the keys it reads not existing, or existing only
+ * in English. A missing key renders as the bare key name, so the user sees
+ * `notFound.title` — which is worse than the English it replaced.
  */
 
 const KEYS = ['title', 'body', 'backToVenues'] as const;
@@ -63,24 +70,21 @@ describe('the 404 page has copy in both locales', () => {
     }
   });
 
-  it('renders the shape the page renders, from the real catalogue', () => {
-    // A stand-in for the server component: same strings, same structure, so the
-    // copy is exercised as copy rather than only as JSON. It asserts the
-    // catalogue reads naturally in place, which a key-existence check cannot.
-    render(
-      <main>
-        <h1>{bg.notFound.title}</h1>
-        <p>{bg.notFound.body}</p>
-        <a href="/venues">{bg.notFound.backToVenues}</a>
-      </main>,
-    );
+  it('renders the page itself, from the real catalogue', async () => {
+    // The real component, with `next-intl/server` swapped for a lookup in the
+    // real catalogue (mocked above, so its `react-server` condition is never
+    // resolved). It asserts the copy reads in place AND that the page is
+    // built from the primitives, which a stand-in could not.
+    render(await NotFound());
 
-    expect(screen.getByRole('heading', { name: bg.notFound.title })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: bg.notFound.title })).toBeInTheDocument();
     // /venues is the one substantial page that currently exists, which is why it
     // is the only link offered.
-    expect(screen.getByRole('link', { name: bg.notFound.backToVenues })).toHaveAttribute(
-      'href',
-      '/venues',
-    );
+    const link = screen.getByRole('link', { name: bg.notFound.backToVenues });
+    expect(link).toHaveAttribute('href', '/venues');
+    // The way out is the primary button's recipe (a pill, 44 px on touch), not
+    // an underlined footnote.
+    expect(link.className).toMatch(/rounded-full/);
+    expect(link.className).toMatch(/pointer-coarse:min-h-11/);
   });
 });

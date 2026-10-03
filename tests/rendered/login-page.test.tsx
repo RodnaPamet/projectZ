@@ -99,6 +99,15 @@ describe('/login — where the sign-in ends', () => {
       withIntl(await LoginPage({ searchParams: Promise.resolve({ error: 'OAuthCallback' }) })),
     );
 
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    // The error notice, in its own token colour — it used to be a bare <p>
+    // in `text-destructive`, a class this theme does not define.
+    expect(screen.getByRole('alert')).toHaveClass('text-content-error');
+  });
+
+  it('is one landmark with one level-one heading', async () => {
+    render(withIntl(await LoginPage({ searchParams: Promise.resolve({}) })));
+
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 });

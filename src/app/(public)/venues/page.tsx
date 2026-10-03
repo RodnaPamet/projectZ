@@ -1,10 +1,12 @@
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 
-import { MobileListAffordances } from '@/components/mobile/MobileListAffordances';
-import { EmptyState } from '@/components/ui/empty-state';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { listVenues } from '@/app-layer/repositories/venue';
+import { toVenueSummary, type VenueSummary } from '@/app/api/v1/_lib/dto';
+import { Heading } from '@/components/ui/typography';
+import type { V1Page } from '@/lib/data/keys';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+
+import { VenueList, type VenueFilters } from './VenueList';
 
 export async function generateMetadata() {
   const t = await getTranslations('venues');
@@ -12,12 +14,33 @@ export async function generateMetadata() {
 }
 
 /**
- * Public venue search.
+ * Public venue search: a server SEED, then `GET /api/v1/venues` through SWR.
  *
- * A server component reading through the repository, so the QUERY lives in
- * venue.ts where the query-shape and tenant-isolation ratchets scan it. The
- * BINDING is this file's own responsibility, and nothing about going through
- * the repository supplies it — see the comment on the call below.
+ * ═══ THE SEED IS THE ENDPOINT'S PAGE ONE ═══
+ *
+ * The page reads page one on the server and hands it to `VenueList`, which
+ * holds it under `KEYS.venues({ q, city, sport })` — the URL the native app
+ * reads too — and revalidates once after paint, on tab focus, and on a pull
+ * to refresh. So the seed must be EXACTLY what that URL answers, or the first
+ * revalidation swaps one list for another under the person's thumb:
+ *
+ *   - the same repository call with the same filters, and NO `limit`, so
+ *     `listVenues` applies `clampLimit`'s default (20) exactly as the route
+ *     does for a key that carries none;
+ *   - the same mapper, `toVenueSummary`, with each venue's club slug looked
+ *     up the way the route looks it up, and a venue with no club row left
+ *     out the way the route leaves it out (`venue.tenantId` is not a foreign
+ *     key, so a venue can outlive its club — see the route's comments).
+ *
+ * The slug lookup is written out here as well as in
+ * src/app/api/v1/venues/route.ts rather than shared, because the route is not
+ * this change's file. tests/unit/app/venues-page-binding.test.tsx pins the
+ * seed's half: the binding, the filters, the default page size, and the
+ * club-less venue left out.
+ *
+ * The QUERY lives in venue.ts, where the query-shape and tenant-isolation
+ * ratchets scan it. The BINDING is this file's own responsibility, and nothing
+ * about going through the repository supplies it — see the comment below.
  */
 export default async function VenuesPage({
   searchParams,
@@ -26,11 +49,18 @@ export default async function VenuesPage({
 }) {
   const sp = await searchParams;
   const t = await getTranslations('venues');
-  const locale = await getLocale();
-  const money = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' });
 
-  // BYPASSRLS, not the raw singleton — the same binding /api/venues uses, and
-  // for the same reason. `venue` carries FORCE ROW LEVEL SECURITY keyed on
+  // Only what the key carries, and empty is absent — as `query()` in keys.ts
+  // treats it. A filter the server applied that the key did not would serve
+  // one query's rows under another query's name.
+  const filters: VenueFilters = {};
+  for (const k of ['q', 'city', 'sport'] as const) {
+    const v = sp[k];
+    if (typeof v === 'string' && v !== '') filters[k] = v;
+  }
+
+  // BYPASSRLS, not the raw singleton — the same binding /api/v1/venues uses,
+  // and for the same reason. `venue` carries FORCE ROW LEVEL SECURITY keyed on
   // app.tenant_id, and a public search has no tenant to bind: as app_user this
   // returns ZERO ROWS, so the page renders "no venues in Sofia" with nothing in
   // the logs. It only appeared to work because the dev connection role is a
@@ -38,21 +68,39 @@ export default async function VenuesPage({
   //
   // Cross-tenant is the point — a player hunting a padel court does not know
   // which club owns it — so what keeps this read safe is `status: ACTIVE` in
-  // listVenues, not the tenant policy.
+  // listVenues and the hand-written DTO, not the tenant policy. `venue_org` is
+  // no more readable unbound than `venue`, so the slug lookup shares the
+  // transaction.
   //
   // `runAsSuperuser` directly rather than `asSuperuser` from the v1 bindings:
   // that helper takes a RequestContext, which a page does not have.
-  const { items } = await runAsSuperuser((db) =>
-    listVenues(
+  const seed: V1Page<VenueSummary> = await runAsSuperuser(async (db) => {
+    const result = await listVenues(
       db,
-      {
-        q: sp.q,
-        city: sp.city,
-        sport: sp.sport as never,
-      },
-      { limit: 20 },
-    ),
-  );
+      { q: filters.q, city: filters.city, sport: filters.sport as never },
+      {},
+    );
+
+    // One lookup over the page's distinct clubs, `id` and `slug` only — the
+    // slug is already in every public `/t/{slug}` URL.
+    const tenantIds = [...new Set(result.items.map((v) => v.tenantId))];
+    const clubs = tenantIds.length
+      ? await db.venueOrg.findMany({
+          where: { id: { in: tenantIds } },
+          select: { id: true, slug: true },
+          take: tenantIds.length,
+        })
+      : [];
+    const slugs = new Map(clubs.map((c) => [c.id, c.slug]));
+
+    return {
+      items: result.items.flatMap((v) => {
+        const clubSlug = slugs.get(v.tenantId);
+        return clubSlug ? [toVenueSummary(v, clubSlug)] : [];
+      }),
+      nextCursor: result.nextCursor,
+    };
+  });
 
   // The site header and the tab bar come from (public)/layout.tsx (T20).
   return (
@@ -67,77 +115,8 @@ export default async function VenuesPage({
       */}
       <main className="bg-bg-page text-content-default safe-area-x">
         <div className="px-6 py-10">
-          {/* Pull down to refresh; jump back to the top of a long list. Both are
-          client-only gestures, so they live in an island rather than dragging
-          this whole server component to the client. */}
-          <MobileListAffordances />
-
-          <header className="mb-8">
-            <h1 className="text-content-emphasis text-3xl font-semibold">{t('title')}</h1>
-            {/* ICU plural, not `venue{s}`. Bulgarian does not form plurals by
-            appending a letter, and the count word itself changes — so the
-            shape has to come from the catalogue, not from the JSX. */}
-            <p className="text-content-muted mt-1 text-sm">{t('count', { count: items.length })}</p>
-          </header>
-
-          {items.length === 0 ? (
-            <div data-perf-ready>
-              <EmptyState title={t('empty.title')} description={t('empty.description')} />
-            </div>
-          ) : (
-            // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-            <ul data-perf-ready className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((v) => {
-                const sports = [...new Set(v.resources.map((c) => c.sport))];
-                const from = v.resources.length
-                  ? Math.min(...v.resources.map((c) => c.basePriceCents))
-                  : null;
-
-                return (
-                  // NOT a link, until the venue page exists (#224). Every card
-                  // linked to /venues/{slug}, a route that was never built: a tap
-                  // was a 404, and because a <Link> in the viewport prefetches,
-                  // every visit to this page also fetched one 404 per card in the
-                  // background (#267). The name is plain text until there is
-                  // somewhere for it to go.
-                  <li
-                    key={v.id}
-                    className="border-border-subtle bg-bg-default rounded-lg border p-4"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-content-emphasis font-medium">{v.name}</h2>
-                      {v.reviewCount > 0 && (
-                        <StatusBadge variant="success">
-                          {Number(v.avgRating).toFixed(1)} ★
-                        </StatusBadge>
-                      )}
-                    </div>
-
-                    <p className="text-content-muted mt-1 text-sm">
-                      {v.city}, {v.country}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {sports.map((s) => (
-                        <StatusBadge key={s} variant="neutral">
-                          {s.toLowerCase()}
-                        </StatusBadge>
-                      ))}
-                    </div>
-
-                    {from !== null && (
-                      <p className="text-content-subtle mt-3 text-xs">
-                        {/* Formatted through Intl, not `€` + toFixed. Bulgarian
-                          writes the amount before the symbol and uses a comma
-                          for the decimal separator — "24,00 €", not "€24.00". */}
-                        {t('priceFrom', { price: money.format(from / 100) })}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <Heading level={1}>{t('title')}</Heading>
+          <VenueList seed={seed} initialFilters={filters} />
         </div>
       </main>
     </>
