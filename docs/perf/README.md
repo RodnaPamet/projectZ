@@ -28,6 +28,12 @@ runs were interleaved in one session, main `4f9b3fd`, branch, main, branch, betw
 three error notices, so the comparison with main is the control it should be: **0 rows
 faster, 0 slower, beyond noise**, every per-profile median within 7 ms.
 
+The name is the sha the branch runs measured, not the sha on main. The runs carry
+`dirty: true` because the docs-only edits (this README and the budgets) were still
+uncommitted; they landed as later commits on the branch, and the rebase-merge rewrote
+every sha again. No app code differs between `da4342f` and what merged, so the numbers
+stand for the merged tree.
+
 What the whole programme did, measured against the first baseline (`a56ea4f`, before
 any of it) by `npm run perf:compare -- docs/perf/baseline-a56ea4f.json <after>`:
 
