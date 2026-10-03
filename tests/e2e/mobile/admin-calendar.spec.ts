@@ -222,9 +222,9 @@ test.describe('club admin diary — phone', () => {
     const calendar = `/t/${club.slug}/admin/calendar`;
     const target = shiftDay(todayAtClub(), 9);
     await page.goto(calendar);
-    await page.getByLabel(c.nav.pickDay).fill(target);
+    await page.getByRole('textbox', { name: c.nav.pickDay }).fill(target);
     await expect(page).toHaveURL(`${calendar}?day=${target}`);
-    await expect(page.getByLabel(c.nav.pickDay)).toHaveValue(target);
+    await expect(page.getByRole('textbox', { name: c.nav.pickDay })).toHaveValue(target);
     await expect(page.getByRole('link', { name: c.nav.today })).toBeVisible();
     await expectNoDrift(page);
   });
