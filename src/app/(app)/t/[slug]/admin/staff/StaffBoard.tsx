@@ -91,9 +91,9 @@ export type LockReason = 'self' | 'lastOwner' | 'ownerManagement' | null;
 
 /**
  * The name is a real button and the table has no `onRowClick`: a clickable
- * DataTable renders its phone cards as `role="button"` inside `role="list"`,
- * which axe refuses as critical (aria-required-children, measured at 393 px),
- * and a clickable `<tr>` has no keyboard path. 44 px on a coarse pointer.
+ * `<tr>` has no keyboard path. (The phone cards' `role="button"` inside
+ * `role="list"`, which axe refused at 393 px, is fixed upstream
+ * (#3129 there).) 44 px on a coarse pointer.
  */
 const NAME_BUTTON =
   'text-content-emphasis focus-visible:ring-ring rounded-sm text-left font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none pointer-coarse:min-h-11';

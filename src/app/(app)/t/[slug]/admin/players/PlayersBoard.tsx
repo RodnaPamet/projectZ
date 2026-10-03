@@ -74,12 +74,12 @@ export interface PlayerRow {
 /**
  * ═══ OPENING A ROW ═══
  *
- * The name is a real button, and the row has no `onRowClick`. A clickable
- * DataTable renders its phone cards as `role="button"` inside the cards'
- * `role="list"`, which axe refuses as critical (aria-required-children; measured
- * at 393 px on this page) — and from md a clickable `<tr>` has no keyboard path
- * at all. A button in the name cell is reachable by Tab and Enter in both
- * renderings, and leaves each card a plain list item. 44 px on a coarse pointer.
+ * The name is a real button, and the row has no `onRowClick`: from md a
+ * clickable `<tr>` has no keyboard path at all. (Below md a clickable card was
+ * also `role="button"` straight inside `role="list"`, which axe refused as
+ * critical at 393 px on this page; upstream #3129 wraps it in a listitem now.)
+ * A button in the name cell is reachable by Tab and Enter in both renderings,
+ * and leaves each card a plain list item. 44 px on a coarse pointer.
  */
 const NAME_BUTTON =
   'text-content-emphasis focus-visible:ring-ring rounded-sm text-left font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none pointer-coarse:min-h-11';
