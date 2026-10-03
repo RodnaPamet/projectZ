@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
 import { PlayerChrome } from '@/components/layout/player-chrome';
+import { buttonVariants } from '@/components/ui/button-variants';
 
 export default async function HomePage() {
   const t = await getTranslations('home');
@@ -21,17 +22,22 @@ export default async function HomePage() {
             catalogue key. Green via text-content-brand, which changes shade
             with the theme; a fixed brand-NNN cannot pass as text in both (#233). */}
         <h1 className="text-content-brand text-4xl font-semibold">playerz.bg</h1>
-        <p className="text-sm opacity-70">{t('tagline')}</p>
+        {/* A token, not `opacity-70`: faded body text is whatever the page
+            behind it makes it, and is not a colour a contrast check can read. */}
+        <p className="text-content-muted text-sm">{t('tagline')}</p>
 
         {/* data-perf-ready: the harness's "this page's content is on screen"
             marker (docs/perf/README.md, "READY markers"). Keep it on whatever
             becomes this page's primary content.
             Fully prefetched (#290): the first visit renders from the router
-            cache instead of waiting out the 300 ms reveal throttle. */}
+            cache instead of waiting out the 300 ms reveal throttle.
+            The primary button's own recipe, not the #245 alias classes
+            (`bg-bg-brand text-content-on-brand h-10 rounded-md`) that drew a
+            look-alike: one button material, one hover, one 44 px touch target. */}
         <PublicPrefetchLink
           href="/venues"
           data-perf-ready
-          className="bg-bg-brand text-content-on-brand inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+          className={buttonVariants({ variant: 'primary' })}
         >
           {tVenues('title')}
         </PublicPrefetchLink>

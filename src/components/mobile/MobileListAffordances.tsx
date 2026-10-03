@@ -9,32 +9,42 @@ import { ScrollToTop } from './ScrollToTop';
 /**
  * The two affordances every long list page wants, in one client island.
  *
- * ─── router.refresh(), not SWR mutate() ──────────────────────────────
+ * ─── What a pull refreshes ───────────────────────────────────────────
  *
- * The obvious wiring for pull-to-refresh is "call the page's SWR mutate()". Our
- * list pages are SERVER COMPONENTS: they have no SWR key, no client cache, and
- * nothing to mutate. The data was fetched on the server and streamed as HTML.
+ * It depends on where the list's data lives, so the caller says:
  *
- * `router.refresh()` is the App Router equivalent — it re-runs the server
- * component and streams the new markup in, preserving client state and scroll
- * position. Reaching for SWR here would mean adding a client-side fetch of data
- * the server already has, purely so that pull-to-refresh had something to call.
+ *   - A list read through SWR (the player surfaces, on /api/v1) passes
+ *     `onRefresh={() => mutate()}`. Its rows are in the client cache, and
+ *     `router.refresh()` would re-render the server component around them
+ *     while the list itself kept showing the cached rows — a pull that
+ *     fetched something and changed nothing.
+ *   - A list rendered by a SERVER COMPONENT (club admin, RSC + Server
+ *     Actions) has no SWR key and nothing to mutate, so the default is
+ *     `router.refresh()`: it re-runs the server component and streams the new
+ *     markup in, keeping client state and scroll position.
  *
- * It returns void, so we wrap it in a promise that resolves on the next frame:
- * the refresh indicator must stay up long enough to be seen, or the gesture
- * feels like it did nothing.
+ * Either way the indicator is held for at least 400 ms. `router.refresh()`
+ * is fire-and-forget, and a cached SWR revalidation can settle within a
+ * frame: without a floor the spinner appears and vanishes before the eye
+ * catches it, the pull seems not to have registered, and the person pulls
+ * again.
  */
-export function MobileListAffordances() {
+export function MobileListAffordances({
+  onRefresh,
+}: {
+  /** What a pull re-reads. Defaults to `router.refresh()`; see above. */
+  onRefresh?: () => Promise<unknown> | void;
+} = {}) {
   const router = useRouter();
 
   const refresh = useCallback(async () => {
-    router.refresh();
-
-    // `router.refresh()` is fire-and-forget. Without a small floor the spinner
-    // appears and vanishes within a frame, and the user cannot tell whether the
-    // pull registered — so they pull again.
-    await new Promise((resolve) => setTimeout(resolve, 400));
-  }, [router]);
+    const floor = new Promise((resolve) => setTimeout(resolve, 400));
+    if (onRefresh) await Promise.all([onRefresh(), floor]);
+    else {
+      router.refresh();
+      await floor;
+    }
+  }, [onRefresh, router]);
 
   return (
     <>

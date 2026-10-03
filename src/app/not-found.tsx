@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
+import { buttonVariants } from '@/components/ui/button-variants';
+import { Heading } from '@/components/ui/typography';
+
 /**
  * The 404 page.
  *
@@ -35,13 +38,14 @@ export default async function NotFound() {
   const t = await getTranslations('notFound');
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-      <h1 className="text-2xl font-semibold">{t('title')}</h1>
+    <main className="bg-bg-page text-content-default flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
+      <Heading level={1}>{t('title')}</Heading>
       <p className="text-content-muted max-w-sm text-sm">{t('body')}</p>
-      {/* text-content-brand, not --brand-emphasis. That token is a FILL, and as
-          14px text on the light page it is 4.48:1, short of AA (#233). This one
-          is 6.37:1 light; in dark it is the same #16a34a as before. */}
-      <Link href="/venues" className="text-content-brand mt-2 text-sm underline underline-offset-4">
+      {/* The way out is a button, the primary one: on a page whose only job is
+          to get somebody back on track, the one action should look like an
+          action rather than a footnote. The button recipe owns its contrast
+          and its 44 px touch target. */}
+      <Link href="/venues" className={buttonVariants({ variant: 'primary', className: 'mt-2' })}>
         {t('backToVenues')}
       </Link>
     </main>

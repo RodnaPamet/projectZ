@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { InlineNotice } from '@/components/ui/inline-notice';
+import { Heading } from '@/components/ui/typography';
 
 /**
  * Sign-in, on the web, is Google or Microsoft.
@@ -54,15 +56,17 @@ export function LoginForm({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">{t('title')}</h1>
-        <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
+        <Heading level={1}>{t('title')}</Heading>
+        {/* text-content-muted, not `text-muted-foreground` / `text-destructive`:
+            those are shadcn names this theme never defined, so both lines
+            rendered in the inherited body colour — an error that looked like
+            the subtitle. */}
+        <p className="text-content-muted text-sm">{t('subtitle')}</p>
       </div>
 
-      {message ? (
-        <p role="alert" className="text-destructive text-sm">
-          {message}
-        </p>
-      ) : null}
+      {/* InlineNotice's error variant carries role="alert" itself, so the
+          message is still announced the moment it renders. */}
+      {message ? <InlineNotice variant="error">{message}</InlineNotice> : null}
 
       <div className="space-y-3">
         {google ? (
@@ -96,9 +100,9 @@ export function LoginForm({
           // Better than an empty card. This is a deployment that registered no
           // identity provider, and saying so beats leaving the user to wonder
           // where the buttons went.
-          <p role="alert" className="text-muted-foreground text-sm">
-            {t('noProviders')}
-          </p>
+          // An error notice (role="alert"), because it is one: nobody can sign
+          // in here, and the person reading it has to tell somebody.
+          <InlineNotice variant="error">{t('noProviders')}</InlineNotice>
         ) : null}
       </div>
     </div>

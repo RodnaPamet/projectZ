@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation';
 
 import { inviteAcceptanceFor, previewInvite } from '@/app-layer/usecases/invites';
 import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Heading } from '@/components/ui/typography';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
@@ -83,7 +85,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <main className="bg-bg-page text-content-default safe-area-x flex-1 px-6 py-16">
       <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold">{t('title', { club: preview.tenantName })}</h1>
+        <Heading level={1}>{t('title', { club: preview.tenantName })}</Heading>
         <p className="text-content-muted mt-2">
           {t('asRole', { role: t(`role.${preview.role}`) })}
         </p>
@@ -107,10 +109,15 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         ) : (
           <div className="mt-6">
             {/* `next` carries the token back, so signing in does not lose the
-                invite — the commonest way an invite flow strands somebody. */}
+                invite — the commonest way an invite flow strands somebody.
+                The primary button's recipe rather than the #245 alias classes,
+                so it is the same object as the Accept button it leads to.
+                Default (auto) prefetch: a query-string link, which the
+                router-cache policy leaves on auto (docs/perf/navigation-policy.md),
+                and the one full-prefetch /login link is the header's. */}
             <Link
               href={`/login?next=${encodeURIComponent(here)}`}
-              className="bg-bg-brand text-content-on-brand inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+              className={buttonVariants({ variant: 'primary' })}
             >
               {t('signInToAccept')}
             </Link>

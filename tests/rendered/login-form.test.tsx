@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 
 import { LoginForm } from '@/app/(public)/login/login-form';
 
-import { withIntl } from '../helpers/intl';
+import { messages, withIntl } from '../helpers/intl';
 
 /**
  * Web sign-in is Google or Microsoft. There is no password form.
@@ -70,6 +70,19 @@ describe('LoginForm', () => {
     const alert = screen.getByRole('alert');
     expect(alert).toBeInTheDocument();
     expect(alert.textContent).not.toMatch(/CredentialsSignin/);
+  });
+
+  it('is a level-one heading, and every colour is a theme token', () => {
+    // `text-muted-foreground` and `text-destructive` are shadcn names this
+    // theme never defined: the subtitle and the error both rendered in the
+    // inherited body colour, so a failed sign-in looked like the subtitle.
+    const { container } = render(withIntl(<LoginForm {...BOTH} error="OAuthSignin" />));
+
+    expect(screen.getByRole('heading', { level: 1, name: messages.login.title })).toBeVisible();
+    expect(screen.getByText(messages.login.subtitle)).toHaveClass('text-content-muted');
+    // The error is the error notice — its own token colour, not body text.
+    expect(screen.getByRole('alert')).toHaveClass('text-content-error');
+    expect(container.innerHTML).not.toMatch(/muted-foreground|text-destructive/);
   });
 
   it('does not leak a raw next-auth error code for anything else either', () => {
