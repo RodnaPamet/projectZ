@@ -87,7 +87,8 @@
       "myBookings": "My bookings",
       "signIn": "Sign in",
       "account": "Account",
-      "tabBar": "Main tabs"
+      "tabBar": "Main tabs",
+      "security": "Security"
     }
   },
   "nav": {
@@ -575,7 +576,82 @@
         "CASE_NOT_FOUND": "That case no longer exists.",
         "NETWORK": "Could not reach the server.",
         "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
+        "STEP_UP_REQUIRED": "Confirm with a code from your app to continue, then try again.",
+        "MFA_ENROLMENT_REQUIRED": "Moderation needs two-step verification. Turn it on under Security.",
         "UNKNOWN": "Something went wrong. Nothing was changed."
+      }
+    },
+    "security": {
+      "metaTitle": "Two-step verification — playerz.bg",
+      "title": "Two-step verification",
+      "subtitle": "A code from an authenticator app on your phone. Required for every platform action that changes a club’s data — review moderation included.",
+      "status": {
+        "label": "Status",
+        "on": "On",
+        "off": "Off",
+        "pending": "Started, not confirmed"
+      },
+      "notEligible": "Two-step verification is available to platform administrators who hold a live grant.",
+      "enrol": {
+        "intro": "You will need an authenticator app on your phone that shows six-digit codes changing every 30 seconds.",
+        "start": "Start setup",
+        "restart": "Start over",
+        "step1": "Add the account to your app",
+        "openApp": "Open in authenticator app",
+        "manual": "Or type this key in by hand, choosing “time-based”:",
+        "copyKey": "Copy key",
+        "copied": "Copied",
+        "step2": "Enter the six-digit code the app shows",
+        "codeLabel": "Code from the app",
+        "confirm": "Confirm and turn on",
+        "reauth": "To turn this on, sign in again: sign out, sign back in, and open this page within 15 minutes."
+      },
+      "recovery": {
+        "title": "Recovery codes",
+        "intro": "Each code works once, for when you cannot reach your phone. Keep them somewhere safe: you will not see them again.",
+        "copyAll": "Copy all",
+        "done": "I have saved them",
+        "remaining": "Recovery codes left: {count}",
+        "regenerate": "Create new codes",
+        "regenerateHint": "The old codes stop working. Needs a code confirmation in the last 15 minutes."
+      },
+      "stepUp": {
+        "active": "This device is confirmed until {time}.",
+        "inactive": "This device has not been confirmed in the last 15 minutes."
+      },
+      "lost": "Lost your phone and your recovery codes? Contact the platform team — only an operator can reset it.",
+      "error": {
+        "UNAUTHORIZED": "Your session has ended. Sign in again.",
+        "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
+        "NETWORK": "Could not reach the server.",
+        "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
+        "UNKNOWN": "Something went wrong. Nothing was changed.",
+        "MFA_CODE_REJECTED": "That code was not accepted. Wait for the next code in the app and try again.",
+        "MFA_NOT_ELIGIBLE": "Two-step verification is available to platform administrators only.",
+        "MFA_REAUTH_REQUIRED": "To turn this on, sign out and sign in again, then come back here.",
+        "MFA_ALREADY_ENROLLED": "Two-step verification is already on.",
+        "MFA_ENROLMENT_NOT_STARTED": "Setup was not started or has lapsed. Start over.",
+        "MFA_ENROLMENT_REQUIRED": "Turn on two-step verification first.",
+        "STEP_UP_REQUIRED": "Confirm with a code from your app first."
+      }
+    },
+    "stepUp": {
+      "title": "Confirm with a code",
+      "description": "Actions that change clubs’ data need a code from your authenticator app. The confirmation lasts 15 minutes, on this device only.",
+      "codeLabel": "Six-digit code",
+      "recoveryLabel": "Recovery code",
+      "useRecovery": "I cannot reach my phone — use a recovery code",
+      "useTotp": "Use a code from the app",
+      "submit": "Confirm",
+      "enrolLink": "Go to security settings",
+      "error": {
+        "UNAUTHORIZED": "Your session has ended. Sign in again.",
+        "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
+        "NETWORK": "Could not reach the server.",
+        "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
+        "UNKNOWN": "Something went wrong. Nothing was changed.",
+        "MFA_CODE_REJECTED": "That code was not accepted. Wait for the next code in the app and try again.",
+        "MFA_ENROLMENT_REQUIRED": "Turn on two-step verification first."
       }
     }
   },

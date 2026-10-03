@@ -8,7 +8,15 @@ import { DataProvider, ViewerScope } from '@/lib/data/provider';
 import { __resetViewerForTests } from '@/lib/data/viewer';
 
 import { messages, withIntl } from '../helpers/intl';
-import { fail, installFakeFetch, ok, tick, type FakeHandler } from '../unit/data/fake-v1';
+import {
+  fail,
+  fakeResponse,
+  installFakeFetch as installRawFakeFetch,
+  ok,
+  tick,
+  type FakeCall,
+  type FakeHandler,
+} from '../unit/data/fake-v1';
 
 /**
  * The moderation queue on the client data layer, against the REAL Bulgarian
@@ -38,6 +46,40 @@ const moderation = (messages as unknown as { platform: { moderation: Record<stri
 };
 
 const REASON = 'review moderation shift 2026-09-29';
+
+/**
+ * `GET /me/mfa` (#262), answered beside the queue's fake and NOT recorded in
+ * its calls: every count below is of audited queue reads, and the status read
+ * is neither audited nor a queue read. Defaults to a session that has stepped
+ * up, so the queue behaves as it did before the second factor existed.
+ */
+type MfaState = { enrolled: boolean; stepUpExpiresAt: string | null };
+const STEPPED_UP: MfaState = { enrolled: true, stepUpExpiresAt: '2099-01-01T00:00:00Z' };
+let mfaState: MfaState = STEPPED_UP;
+let stepUpCalls: FakeCall[] = [];
+
+function installFakeFetch(handler: FakeHandler): FakeCall[] {
+  const calls = installRawFakeFetch(handler);
+  const queueFetch = globalThis.fetch;
+  globalThis.fetch = jest.fn(async (input: unknown, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith('/me/mfa')) return fakeResponse(ok(mfaState));
+    if (url.endsWith('/me/mfa/step-up')) {
+      const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
+      stepUpCalls.push({ url, method: init?.method ?? 'GET', headers: {}, body });
+      if ((body as { code?: string }).code !== '123456') {
+        return fakeResponse(fail(403, 'MFA_CODE_REJECTED'));
+      }
+      mfaState = STEPPED_UP;
+      return fakeResponse(ok({ stepUpExpiresAt: STEPPED_UP.stepUpExpiresAt, method: 'totp' }));
+    }
+    return (queueFetch as unknown as (i: unknown, n?: RequestInit) => Promise<unknown>)(
+      input,
+      init,
+    );
+  }) as unknown as typeof fetch;
+  return calls;
+}
 
 const item = (caseId: string, body: string) => ({
   caseId,
@@ -99,6 +141,8 @@ const gets = <T extends { method: string }>(calls: T[]) => calls.filter((c) => c
 beforeEach(() => {
   __resetSessionExpiryForTests();
   __resetViewerForTests();
+  mfaState = STEPPED_UP;
+  stepUpCalls = [];
 });
 
 describe('opening the queue', () => {
@@ -263,5 +307,68 @@ describe('deciding', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(moderation.error.UNKNOWN!);
     expect(screen.getByText('the owner is a thief')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe('the second factor (#262)', () => {
+  const stepUp = (messages as unknown as { platform: { stepUp: Record<string, string> } }).platform
+    .stepUp as { codeLabel: string; submit: string };
+
+  it('asks for a code up front when this session has not stepped up', async () => {
+    mfaState = { enrolled: true, stepUpExpiresAt: null };
+    const calls = queue();
+    mount();
+
+    expect(await screen.findByLabelText(stepUp.codeLabel)).toBeInTheDocument();
+    // Asking reads nothing from the queue.
+    expect(gets(calls)).toHaveLength(0);
+  });
+
+  it('tells a moderator who has not enrolled where to go', async () => {
+    mfaState = { enrolled: false, stepUpExpiresAt: null };
+    queue();
+    mount();
+
+    const link = await screen.findByRole('link', {
+      name: (messages as unknown as { platform: { stepUp: { enrolLink: string } } }).platform.stepUp
+        .enrolLink,
+    });
+    expect(link).toHaveAttribute('href', '/platform/security');
+  });
+
+  it('a read refused with STEP_UP_REQUIRED asks for a code, then reads again once — and only then', async () => {
+    let stepped = false;
+    const calls = installFakeFetch((c) => {
+      if (c.method === 'POST') return ok({});
+      return stepped ? ok(PAGE_1) : fail(403, 'STEP_UP_REQUIRED');
+    });
+    mount();
+    await userEvent.type(screen.getByLabelText(moderation.reason.label), REASON);
+    await userEvent.click(screen.getByRole('button', { name: moderation.open }));
+
+    const field = await screen.findByLabelText(stepUp.codeLabel);
+    expect(gets(calls)).toHaveLength(1);
+
+    stepped = true;
+    await userEvent.type(field, '123456');
+    await userEvent.click(screen.getByRole('button', { name: stepUp.submit }));
+
+    await screen.findByText('the owner is a thief');
+    expect(stepUpCalls).toHaveLength(1);
+    expect(stepUpCalls[0]!.body).toEqual({ code: '123456' });
+    expect(gets(calls)).toHaveLength(2);
+  });
+
+  it('a decision refused with STEP_UP_REQUIRED keeps its card and its note', async () => {
+    queue(() => fail(403, 'STEP_UP_REQUIRED'));
+    mount();
+    await openQueue();
+
+    await decide('the owner is a thief', 'abusive and unfounded', moderation.approve);
+
+    expect(await screen.findByLabelText(stepUp.codeLabel)).toBeInTheDocument();
+    const card = screen.getByText('the owner is a thief').closest('li')!;
+    expect(within(card).getByLabelText(moderation.note.label)).toHaveValue('abusive and unfounded');
+    expect(within(card).getByRole('alert')).toHaveTextContent(moderation.error.STEP_UP_REQUIRED!);
   });
 });

@@ -5,6 +5,7 @@ import {
   LocationPin,
   MoneyBill,
   ShieldCheck,
+  ShieldKeyhole,
   UserCheck,
   Users,
 } from '@/components/ui/icons/nucleo';
@@ -27,4 +28,5 @@ export const NAV_ICONS: Record<NavIconKey, ComponentType<SVGProps<SVGSVGElement>
   players: Users,
   staff: UserCheck,
   moderation: ShieldCheck,
+  security: ShieldKeyhole,
 };

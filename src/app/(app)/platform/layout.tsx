@@ -2,7 +2,12 @@ import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
-import { platformNav, toShellSections, visibleSections } from '@/components/layout/nav-items';
+import {
+  platformItemAllowed,
+  platformNav,
+  toShellSections,
+  visibleSections,
+} from '@/components/layout/nav-items';
 import { signedInIdentity } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
 
@@ -35,7 +40,9 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     getTranslations('platform'),
   ]);
 
-  const sections = visibleSections(platformNav(), (item) => capabilities.includes(item.requires));
+  const sections = visibleSections(platformNav(), (item) =>
+    platformItemAllowed(item, capabilities),
+  );
   if (sections.length === 0) notFound();
 
   return (
