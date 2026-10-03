@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { CardListSkeleton } from '@/components/loading/shapes';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -196,9 +197,7 @@ export function ModerationQueue() {
       </form>
 
       {error && (
-        <p role="alert" className="text-content-error text-sm">
-          {t(`error.${knownCode(error)}` as never)}
-        </p>
+        <InlineNotice variant="error">{t(`error.${knownCode(error)}` as never)}</InlineNotice>
       )}
       {notice && (
         <p role="status" className="text-content-muted text-sm">
@@ -350,11 +349,7 @@ function CaseCard({
             {t('reject')}
           </Button>
         </div>
-        {error && (
-          <p role="alert" className="text-content-error text-sm">
-            {t(`error.${error}` as never)}
-          </p>
-        )}
+        {error && <InlineNotice variant="error">{t(`error.${error}` as never)}</InlineNotice>}
       </div>
     </li>
   );

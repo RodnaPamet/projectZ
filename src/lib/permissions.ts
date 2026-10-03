@@ -3,7 +3,7 @@ import type { Role } from '@prisma/client';
 /**
  * The playerz permission model.
  *
- * inflect's `PermissionSet` is `controls / evidence / policies / risks /
+ * Upstream's `PermissionSet` is `controls / evidence / policies / risks /
  * vendors / tests` — a compliance product. This is a booking product, so
  * the shape is ported and the content is not.
  *

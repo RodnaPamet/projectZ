@@ -16,7 +16,7 @@ import { noteViewerChanged } from './viewer';
  *      `details` as properties — see errors.ts for why the status may never
  *      live only in a message.
  *   3. A 401 from a session-bearing path marks the session expired
- *      (`noteUnauthorized`, vendored from inflect: it ignores `/api/auth/**`,
+ *      (`noteUnauthorized`, vendored from upstream: it ignores `/api/auth/**`,
  *      where a 401 is about the sign-in being attempted, not a lapsed session),
  *      and a 409 VIEWER_CHANGED marks the viewer changed. The SWR provider
  *      reads both stores and stops every revalidation.

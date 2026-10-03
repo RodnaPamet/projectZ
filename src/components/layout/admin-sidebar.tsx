@@ -13,13 +13,13 @@ import { NavSection } from './nav-section';
 import { useSidebarCollapsed } from './sidebar-collapse-context';
 
 /**
- * The admin shell's rail: playerz's sidebar CONTENT inside inflect's vendored frame.
+ * The admin shell's rail: playerz's sidebar CONTENT inside upstream's vendored frame.
  *
- * inflect's `SidebarContent` lives in its `SidebarNav.tsx` beside the
- * compliance IA (/risks, /controls, /evidence) and reads inflect's tenant
+ * Upstream's `SidebarContent` lives in its `SidebarNav.tsx` beside the
+ * compliance IA (/risks, /controls, /evidence) and reads upstream's tenant
  * context, so it is not vendored. What is vendored is every part it is built
  * from: `NavSection`, `NavItem` (the band, the gloss, the 44 px touch row) and
- * the collapse context. This file only arranges them, in the order inflect's
+ * the collapse context. This file only arranges them, in the order upstream's
  * rail does: the collapse control, then the sections.
  *
  * The same component fills the desktop rail and the phone drawer. The drawer

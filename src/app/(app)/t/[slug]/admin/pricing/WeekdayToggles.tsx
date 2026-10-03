@@ -15,7 +15,7 @@ import { cn } from '@/lib/cn';
  * string, arrows that move the selection — and a rule wants any subset of the
  * week. Driving it with a set would announce seven radios of which several are
  * "checked", which is a lie to a screen reader. The primitive is vendored
- * read-only from inflect, so the multi-select lives here: the same tokens,
+ * read-only from upstream, so the multi-select lives here: the same tokens,
  * radius and selected-pill fill as the ToggleGroup, but each day is a toggle
  * button (`aria-pressed`) inside a labelled `fieldset`, which is what a
  * multi-select toggle row is.

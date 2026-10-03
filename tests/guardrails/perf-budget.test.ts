@@ -1,6 +1,12 @@
 import { globSync, readFileSync } from 'node:fs';
 
 import { BUDGET_PATH, BUDGET_SCHEMA, ceilingFor, timedRows, type BudgetDoc } from '../perf/budget';
+import {
+  BUNDLE_BUDGET_SCHEMA,
+  budgetFor,
+  judge,
+  type BundleBudgetDoc,
+} from '../perf/bundle-budget';
 import { BASELINE_SCHEMA, rowKey, type BaselineDoc } from '../perf/report';
 
 /**
@@ -72,5 +78,45 @@ describe('perf budget', () => {
       expect.arrayContaining(['/', '/venues', '/me/bookings', '/t/[slug]/admin/calendar']),
     );
     for (const kb of Object.values(bundle.routes)) expect(kb).toBeGreaterThan(0);
+  });
+
+  it('the First Load JS budget says its rule, and was written by --write (T29)', () => {
+    expect(bundle.schema).toBe(BUNDLE_BUDGET_SCHEMA);
+    expect((bundle as BundleBudgetDoc).rule).toBe(
+      'measured First Load JS + 5%, rounded up to 0.1 KB',
+    );
+  });
+});
+
+// ── The --enforce verdict (the CI gate), on data ─────────────────────
+
+describe('bundle-budget --enforce', () => {
+  const doc: BundleBudgetDoc = {
+    schema: BUNDLE_BUDGET_SCHEMA,
+    source: 'test',
+    unit: 'gzip KB',
+    routes: { '/': 100, '/venues': 200 },
+  };
+  const route = (r: string, gzipKB: number) => ({ route: r, gzipKB, rawKB: 0, files: 1 });
+
+  it('passes a build within budget', () => {
+    expect(judge([route('/', 100), route('/venues', 150)], doc)).toEqual({
+      over: [],
+      unbudgeted: [],
+      gone: [],
+    });
+  });
+
+  it('fails a route over budget, a route with none, and a budgeted route not built', () => {
+    expect(judge([route('/', 100.1), route('/new', 50)], doc)).toEqual({
+      over: ['/: 100.1 KB > 100 KB'],
+      unbudgeted: ['/new'],
+      gone: ['/venues'],
+    });
+  });
+
+  it('sets a budget 5% over the measurement, rounded up', () => {
+    expect(budgetFor(100)).toBe(105);
+    expect(budgetFor(196.4)).toBe(206.3);
   });
 });

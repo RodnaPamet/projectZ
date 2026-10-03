@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 import { SignOutButton } from '@/components/layout/SignOutButton';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import type { AccountKindRefusal } from '@/lib/auth/account-kind';
 
 /**
@@ -30,15 +31,18 @@ export function InviteRefusal({
   const t = useTranslations('invite');
 
   return (
-    <div role="alert" className="border-border-subtle mt-6 rounded-lg border p-4">
+    // InlineNotice's error variant is the one role="alert" surface
+    // (no-hand-rolled-alerts). The heading goes in the body, not `title`,
+    // because `title` renders inside a <p>.
+    <InlineNotice variant="error" className="mt-6">
       <h2 className="font-medium">{t(`refusal.${refusal}.title`)}</h2>
-      <p className="text-content-muted mt-1 text-sm">{t(`refusal.${refusal}.description`)}</p>
+      <p className="mt-1">{t(`refusal.${refusal}.description`)}</p>
       <div className="mt-3">
         <SignOutButton
           label={t('signOutToSwitch')}
           callbackUrl={`/login?next=${encodeURIComponent(invitePath)}`}
         />
       </div>
-    </div>
+    </InlineNotice>
   );
 }

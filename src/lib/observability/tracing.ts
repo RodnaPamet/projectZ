@@ -12,7 +12,7 @@ import { trace, SpanStatusCode, type Span, type Tracer } from '@opentelemetry/ap
 import type { RequestContext } from '@/app-layer/types';
 import { getRequestContext } from './context';
 
-const TRACER_NAME = 'inflect-compliance';
+const TRACER_NAME = 'playerz';
 
 /**
  * Get a named OTel tracer. Falls back to noop tracer if OTel is not initialized.

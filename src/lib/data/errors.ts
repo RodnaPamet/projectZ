@@ -3,7 +3,7 @@
  *
  * ═══ WHY A CLASS WITH `status` AS A PROPERTY ═══
  *
- * inflect learned this the expensive way (#2222 in its session-expiry seam):
+ * Upstream learned this the expensive way (#2222 in its session-expiry seam):
  * three of its fetchers threw `new Error(\`upcoming-count ${res.status}\`)`,
  * with the status in the MESSAGE, and the SWR `onError` that reads
  * `err.status` could never see them — so the 401 seam it was written for was

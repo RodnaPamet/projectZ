@@ -184,6 +184,28 @@ describe('test-infra integrity (meta-ratchet)', () => {
       expect(ci).toContain('failure|cancelled');
     });
 
+    it('enforces the First Load JS budget in the Build job, after the build (T29)', () => {
+      // Report-only, the budget was a table nobody read (T30). The gate is one
+      // step, and the cheapest ways to lose it are to drop `--enforce`, to move
+      // it before `next build` (it then exits 2 on every run and gets deleted),
+      // or to mark it continue-on-error.
+      const steps =
+        (
+          parseYaml(ci) as {
+            jobs: Record<
+              string,
+              { steps?: Array<{ name?: string; run?: string; 'continue-on-error'?: unknown }> }
+            >;
+          }
+        ).jobs.build?.steps ?? [];
+      const build = steps.findIndex((s) => s.run === 'npm run build');
+      const gate = steps.findIndex((s) => /perf:bundle -- --enforce/.test(s.run ?? ''));
+      expect(build).toBeGreaterThanOrEqual(0);
+      expect(gate).toBeGreaterThan(build);
+      expect(steps[gate]?.['continue-on-error']).toBeUndefined();
+      expect(read('package.json')).toMatch(/"perf:bundle": "tsx tests\/perf\/bundle-budget\.ts"/);
+    });
+
     it('runs the E2E app under LEAST PRIVILEGE, not as the table owner', () => {
       // ═══ WHY THIS IS A RATCHET AND NOT A COMMENT ═══
       //

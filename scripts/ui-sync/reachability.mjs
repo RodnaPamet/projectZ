@@ -22,6 +22,12 @@
  * tests pin each form; unresolvedSymbols lists any named import it could not
  * follow.
  *
+ * The unreachable files split in two (T29). `heldByBarrel`: a used barrel
+ * re-exports them, so they are compiled and deleting one breaks the build
+ * until the barrel drops the line. `orphaned`: nothing built imports them at
+ * all, so they can simply go. tests/guardrails/component-reachability.test.ts
+ * keeps `orphaned` at its allow-list and `heldByBarrel` from growing.
+ *
  * Importable too: tests/guardrails can call analyseReachability() directly.
  */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -308,6 +314,30 @@ export function analyseReachability({
     for (const t of mod.whole) for (const p of allFiles(t)) markUsed(p);
   }
 
+  // The FILE-level closure of what is used: every module a used module imports
+  // or re-exports, whole, whatever it names. A file in here that the symbol walk
+  // did not reach is "held": nothing runs it, but deleting it breaks the build,
+  // because a used barrel re-exports it (`export * from './x'`) or a held file
+  // imports it. T28 kept 326 such files behind the vendored ui/hooks and
+  // ui/icons barrels, which are byte-identical copies and cannot drop a line.
+  const held = new Set(used);
+  const pending = [...used];
+  while (pending.length) {
+    const mod = mods.get(pending.pop());
+    if (!mod) continue;
+    const next = [
+      ...mod.imports.map((i) => i.target),
+      ...mod.reexports.map((r) => r.target),
+      ...mod.whole,
+    ].filter(Boolean);
+    for (const t of next)
+      for (const f of allFiles(t))
+        if (!held.has(f)) {
+          held.add(f);
+          pending.push(f);
+        }
+  }
+
   // A colocated test is never reachable from the product and is not a component:
   // it goes when the file it tests goes.
   const scoped = files.filter((f) => scope.some((p) => f.startsWith(p)) && !isTestFile(f));
@@ -329,6 +359,10 @@ export function analyseReachability({
     files: scoped.length,
     reachable: scoped.filter((f) => used.has(f)).length,
     unreachable: scoped.filter((f) => !used.has(f)),
+    /** Unreachable, but a used barrel (or another held file) still pulls it into the build. */
+    heldByBarrel: scoped.filter((f) => !used.has(f) && held.has(f)),
+    /** Unreachable and imported by nothing that is built: deleting it breaks nothing. */
+    orphaned: scoped.filter((f) => !held.has(f)),
     byDirectory: [...byDirectory.values()].sort((a, b) => (a.directory < b.directory ? -1 : 1)),
     unresolvedSymbols: [...unresolvedSymbols].sort(),
   };

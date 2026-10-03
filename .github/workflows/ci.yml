@@ -361,6 +361,12 @@ jobs:
       - name: next build
         if: needs.preflight.outputs.has_app == 'true'
         run: npm run build
+      # First Load JS per route against docs/perf/bundle-budget.json (T29).
+      # Fails on a route over budget, a built route with no budget, a budgeted
+      # route that was not built, and (exit 2) unreadable build manifests.
+      - name: 'Gate: First Load JS budget'
+        if: needs.preflight.outputs.has_app == 'true'
+        run: npm run perf:bundle -- --enforce
       - name: Upload build output
         if: needs.preflight.outputs.has_app == 'true'
         uses: actions/upload-artifact@v7

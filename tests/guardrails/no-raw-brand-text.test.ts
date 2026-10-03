@@ -36,6 +36,16 @@ import ts from 'typescript';
  *   text-brand-NNN          → color
  *   placeholder-brand-NNN   → &::placeholder { color }
  *
+ * and, since #246, the same two utilities over a `--brand-<name>` FILL token
+ * written as an arbitrary value, in both of Tailwind 4's spellings:
+ *
+ *   text-[var(--brand-default)]   text-(--brand-default)   → color: var(--brand-default)
+ *
+ * The fill tokens were tuned as fills. #246 measured `--brand-default` as text
+ * at 2.95:1 on the light page and `--brand-emphasis` initials at 4.23 / 3.97
+ * on `--brand-subtle`. All six sites were in the ported library and T28
+ * deleted or rewrote them, so this part of the rule starts at zero too.
+ *
  * This includes any variant (`hover:`, `md:`, `placeholder:`, `[&_a]:`), any
  * opacity (`/80`, which only lowers the ratio further) and `!`.
  *
@@ -51,8 +61,8 @@ import ts from 'typescript';
  *   text-brand-{default,emphasis,muted,subtle}
  *       The SEMANTIC fill tokens. Each current use sets currentColor for an
  *       SVG chart mark or the radio dot, both non-text. Using one to colour
- *       words is still wrong, and so is the arbitrary-value form,
- *       `text-[var(--brand-default)]` and its siblings. Both are #246.
+ *       words is still wrong; the arbitrary-value form of the same thing is
+ *       banned above (#246).
  *
  *       (Do not abbreviate that class with a `*` in this file. Tailwind scans
  *       tests/ too, and a wildcard inside the brackets compiles to a rule whose
@@ -80,8 +90,14 @@ import ts from 'typescript';
  * the next one fails the build.
  */
 
-/** A glyph-colour utility over the FIXED brand palette. */
-const BRAND_TEXT = /(?<![\w-])(?:text|placeholder)-brand-\d{2,3}(?![\w-])/g;
+/**
+ * A glyph-colour utility over the FIXED brand palette, or over a `--brand-*`
+ * fill token as an arbitrary value (#246). The same regex as
+ * scripts/ui-sync/portable-rules.mjs's brand-text rule, so an upstream author
+ * sees the failure before the copy lands here.
+ */
+const BRAND_TEXT =
+  /(?<![\w-])(?:text|placeholder)-(?:brand-\d{2,3}|\[var\(--brand-[\w-]+\)\]|\(--brand-[\w-]+\))(?![\w-])/g;
 
 const CODE = globSync('src/**/*.{ts,tsx,js,jsx}').map((f) => f.toString());
 const CSS = globSync('src/**/*.css').map((f) => f.toString());
@@ -232,6 +248,35 @@ describe('the rule fires on the code it forbids', () => {
     ['a class after a URL on the same line', `<a href="https://x.bg" className="text-brand-600">`],
   ])('catches %s', (_label, src) => {
     expect(tokensIn(src)).toHaveLength(1);
+  });
+
+  // #246, the arbitrary-value forms. Assembled from two halves, so Tailwind's
+  // scan of this file never sees (and compiles) a whole class.
+  const ARB = 'text-[var(--brand-' + 'default)]';
+  const PAREN = 'text-(--brand-' + 'emphasis)';
+  it.each([
+    ['var() in brackets', `<p className="${ARB}" />`, ARB],
+    ['the v4 parenthesis shorthand', `<p className="${PAREN}" />`, PAREN],
+    ['with a variant', `cn('hover:${ARB}')`, ARB],
+    ['with opacity', `cn('${PAREN}/80')`, null],
+    ['the placeholder utility', "cn('placeholder-[var(--brand-" + "muted)]')", null],
+    ['in @apply', `.x { @apply ${PAREN}; }`, PAREN],
+  ])('catches the #246 form: %s', (_label, src, token) => {
+    const file = src.startsWith('.x') ? 't.css' : 't.tsx';
+    const found = tokensIn(src, file);
+    expect(found).toHaveLength(1);
+    if (token) expect(found[0]).toBe(token);
+  });
+
+  it.each([
+    // The same tokens as fills stay legal: #233 keeps fills on the palette.
+    'bg-[var(--brand-' + 'default)]',
+    'border-(--brand-' + 'emphasis)',
+    // Not a brand token.
+    'text-[var(--content-' + 'brand)]',
+    'text-(--content-' + 'muted)',
+  ])('does NOT flag the fill or a non-brand token: %s', (good) => {
+    expect(tokensIn(`<p className="${good}" />`)).toEqual([]);
   });
 
   it('catches @apply in CSS', () => {

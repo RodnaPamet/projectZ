@@ -21,7 +21,7 @@ import { useSaveData } from './PublicPrefetchLink';
  *   club account        Discover · Account
  *
  * The tabs come from `nav-items.ts` (`playerTabs`), so `nav-hrefs-resolve`
- * follows every one to a page. inflect's sidebar shell is the club admin's;
+ * follows every one to a page. Upstream's sidebar shell is the club admin's;
  * a player on a phone gets what a native app gives them, a row under the
  * thumb, and the iOS client (/api/v1) has the same three.
  *

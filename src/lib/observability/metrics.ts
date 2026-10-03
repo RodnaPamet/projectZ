@@ -96,7 +96,7 @@
 
 import { metrics } from '@opentelemetry/api';
 
-const METER_NAME = 'inflect-compliance';
+const METER_NAME = 'playerz';
 
 function getMeter() {
   return metrics.getMeter(METER_NAME);
@@ -807,7 +807,7 @@ export function startQueueDepthReporting(
       for (const state of reportableStates) {
         if (counts[state] !== undefined) {
           result.observe(counts[state], {
-            'queue.name': 'inflect-jobs',
+            'queue.name': 'playerz-jobs',
             'queue.state': state,
           });
         }
@@ -855,7 +855,7 @@ export function recordSlowQuery(model: string): void {
 // SSR PAYLOAD CACHE METRICS
 //
 // Emitted by src/lib/cache/ssr-cache.ts::cachedSsrPayload. Label is
-// `route` (the canonical route name — bounded: dashboard, risks, …) plus
+// `route` (the canonical route name — bounded: venues, bookings, …) plus
 // `outcome` on the duration histogram. Watch the per-route hit ratio in
 // Grafana; a low ratio means the tenant-wide invalidation is too eager or
 // the TTL is too short.
@@ -900,105 +900,6 @@ export function recordSsrCacheHit(route: string, durationMs: number): void {
 export function recordSsrCacheMiss(route: string, durationMs: number): void {
   getSsrMiss().add(1, { route });
   getSsrDuration().record(durationMs, { route, outcome: 'miss' });
-}
-
-// ─── AI risk-assessment metrics (AISVS C12 — monitoring of the AI subsystem) ──
-//
-// Operational observability for IC's AI-enabled risk-assessment feature: how
-// often it runs, how long the provider call takes, and how often it falls back
-// to the deterministic stub (a degraded-but-safe outcome). `tenant.id` is NOT a
-// label (cardinality discipline); `provider` + `outcome` are bounded enums.
-let _aiRiskCalls: ReturnType<ReturnType<typeof getMeter>['createCounter']> | null = null;
-let _aiRiskDuration: ReturnType<ReturnType<typeof getMeter>['createHistogram']> | null = null;
-let _aiRiskFallbacks: ReturnType<ReturnType<typeof getMeter>['createCounter']> | null = null;
-let _aiRiskSuggestions: ReturnType<ReturnType<typeof getMeter>['createHistogram']> | null = null;
-let _aiRiskTokens: ReturnType<ReturnType<typeof getMeter>['createCounter']> | null = null;
-
-function getAiRiskCalls() {
-  if (!_aiRiskCalls) {
-    _aiRiskCalls = getMeter().createCounter('ai.risk_assessment.calls', {
-      description:
-        'AI risk-assessment generations, labelled by provider + outcome (success/failure)',
-      unit: '1',
-    });
-  }
-  return _aiRiskCalls;
-}
-function getAiRiskDuration() {
-  if (!_aiRiskDuration) {
-    _aiRiskDuration = getMeter().createHistogram('ai.risk_assessment.duration', {
-      description:
-        'Wall-clock time for an AI risk-assessment generation (provider call + validation)',
-      unit: 'ms',
-    });
-  }
-  return _aiRiskDuration;
-}
-function getAiRiskFallbacks() {
-  if (!_aiRiskFallbacks) {
-    _aiRiskFallbacks = getMeter().createCounter('ai.risk_assessment.fallbacks', {
-      description:
-        'AI risk-assessments served from the deterministic stub fallback (provider unavailable or output rejected)',
-      unit: '1',
-    });
-  }
-  return _aiRiskFallbacks;
-}
-function getAiRiskSuggestions() {
-  if (!_aiRiskSuggestions) {
-    _aiRiskSuggestions = getMeter().createHistogram('ai.risk_assessment.suggestions', {
-      description: 'Number of risk suggestions returned per AI generation',
-      unit: '1',
-    });
-  }
-  return _aiRiskSuggestions;
-}
-function getAiRiskTokens() {
-  if (!_aiRiskTokens) {
-    _aiRiskTokens = getMeter().createCounter('ai.risk_assessment.tokens', {
-      description:
-        'Tokens consumed by AI risk-assessment inferences, labelled by provider + kind (prompt/completion). Per-tenant attribution lives in the audit trail; this metric stays low-cardinality for capacity planning.',
-      unit: '1',
-    });
-  }
-  return _aiRiskTokens;
-}
-
-/**
- * Record one AI risk-assessment generation — called once at the usecase
- * boundary after the provider call settles (success OR failure).
- *
- *   - `ai.risk_assessment.calls`       counter  (provider, outcome)
- *   - `ai.risk_assessment.duration`    histogram(provider, outcome)
- *   - `ai.risk_assessment.fallbacks`   counter  (provider) — when fallback=true
- *   - `ai.risk_assessment.suggestions` histogram(provider) — on success
- *   - `ai.risk_assessment.tokens`      counter  (provider, kind) — when reported
- */
-export function recordAiRiskAssessment(attrs: {
-  provider: string;
-  outcome: 'success' | 'failure';
-  durationMs: number;
-  fallback: boolean;
-  suggestionCount?: number;
-  /** Token usage when the provider reported it (AISVS C12.2.5). */
-  promptTokens?: number;
-  completionTokens?: number;
-}): void {
-  const labels = { provider: attrs.provider, outcome: attrs.outcome };
-  getAiRiskCalls().add(1, labels);
-  getAiRiskDuration().record(attrs.durationMs, labels);
-  if (attrs.fallback) getAiRiskFallbacks().add(1, { provider: attrs.provider });
-  if (attrs.outcome === 'success' && typeof attrs.suggestionCount === 'number') {
-    getAiRiskSuggestions().record(attrs.suggestionCount, { provider: attrs.provider });
-  }
-  // AISVS C12.2.5 — token volume by provider + kind (low cardinality; the
-  // per-tenant attribution lives in the audit inference-log).
-  if (typeof attrs.promptTokens === 'number') {
-    getAiRiskTokens().add(attrs.promptTokens, { provider: attrs.provider, kind: 'prompt' });
-  }
-  if (typeof attrs.completionTokens === 'number') {
-    getAiRiskTokens().add(attrs.completionTokens, { provider: attrs.provider, kind: 'completion' });
-  }
 }
 
 // ─── AI decision log (Art 12/14) — invocation + human-outcome metrics ───
