@@ -479,7 +479,8 @@
         "CONFLICT": "Someone else just changed this balance. Reload and try again."
       },
       "tagsFailed": "The tags for {name} were not saved. Try again.",
-      "creditSaved": "Credit adjusted."
+      "creditSaved": "Credit adjusted.",
+      "showMore": "Show {count} more"
     },
     "staff": {
       "metaTitle": "Staff",
