@@ -88,6 +88,37 @@ describe('PricingBoard', () => {
     expect(container.textContent).toContain(p.preview.via.replace('{name}', PEAK.name));
   });
 
+  it('a weekend-only rule does not price Thursday 19:00; on Saturday it does (#350)', async () => {
+    // The preview handed its views to the engine by cast, and the engine read
+    // `conditionsJson`, which a view does not have: every rule matched every
+    // day, so the default Thursday 19:00 answered 36,00 € "by Weekend peak".
+    const user = userEvent.setup();
+    const weekendPeak: PricingRuleView = {
+      id: 'r3',
+      name: 'Weekend peak',
+      priority: 100,
+      multiplier: 1.5,
+      fixedPriceCents: null,
+      conditions: { dayOfWeek: [0, 6], timeRange: { from: '18:00', to: '22:00' } },
+    };
+    const { container } = board({ c1: [weekendPeak] });
+    const via = p.preview.via.replace('{name}', weekendPeak.name);
+    // The preview's figure is the only element whose whole text is a price.
+    const price = (amount: string) => screen.queryByText(new RegExp(`^${amount}\\s€$`));
+
+    // Thursday: the base price, and no rule named.
+    expect(price('24,00')).toBeInTheDocument();
+    expect(screen.getByText(p.preview.base)).toBeInTheDocument();
+    expect(container.textContent).not.toContain(via);
+
+    await user.click(screen.getByRole('combobox', { name: `${p.preview.day}, ${day['4']}` }));
+    await user.click(await screen.findByRole('option', { name: day['6'] }));
+
+    expect(price('36,00')).toBeInTheDocument();
+    expect(price('24,00')).toBeNull();
+    expect(container.textContent).toContain(via);
+  });
+
   it('switching court shows that court’s rules', async () => {
     const user = userEvent.setup();
     board({ c1: [PEAK], c2: [WEEKEND] });
