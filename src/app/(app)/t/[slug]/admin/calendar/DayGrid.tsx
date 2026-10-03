@@ -327,7 +327,7 @@ export function DayGrid({
         // stacked lists. The scroller is the only thing wider than the page,
         // so the page itself never drifts.
         // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-        <div className="gap-tight grid">
+        <div className="gap-tight grid min-w-0">
           {edges.overflow && (
             <div className="gap-tight flex flex-wrap items-center" data-diary-courts-hint>
               <Caption>{t('scroll.hint', { count: courts.length })}</Caption>
@@ -350,7 +350,7 @@ export function DayGrid({
               </div>
             </div>
           )}
-          <div className="relative">
+          <div className="relative min-w-0">
             <div ref={scrollerRef} data-perf-ready className="overflow-x-auto pb-1">
               <div
                 className="gap-x-tight grid min-w-max grid-rows-[auto_auto]"
