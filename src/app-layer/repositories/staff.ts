@@ -28,16 +28,22 @@ export interface StaffMember {
 }
 
 /**
- * Everyone with a membership at this club, staff and players alike.
+ * The club's staff: its OWNER, MANAGER, STAFF and COACH memberships, in any
+ * status.
  *
- * PLAYER rows are included deliberately: promoting a regular into a coach is
- * the ordinary way a club gains staff, and a screen that only showed existing
- * staff would give no way to do it — with invites unavailable (#199), it would
- * give no way to add anyone at all.
+ * ═══ PLAYERS ARE NOT STAFF (#349) ═══
+ *
+ * PLAYER rows used to be included, so a regular could be promoted into a coach
+ * from this screen. #263 ended that: a role change stays within one kind of
+ * account (`RoleChangesAccountKindError`), so a PLAYER membership can never
+ * become a staff one, and booking makes every player a PLAYER member (#229).
+ * Left in, they filled "Members" with people who had only booked a court and
+ * used up STAFF_LIST_LIMIT before the staff did. Players are listed on
+ * `/admin/players`; staff arrive by invite.
  */
 export async function listStaff(db: PrismaClient, tenantId: string): Promise<StaffMember[]> {
   const memberships = await db.tenantMembership.findMany({
-    where: { tenantId },
+    where: { tenantId, role: { not: 'PLAYER' } },
     select: { id: true, userId: true, role: true, status: true, acceptedAt: true },
     orderBy: [{ role: 'asc' }, { id: 'asc' }],
     take: STAFF_LIST_LIMIT,

@@ -1,4 +1,6 @@
 import { listPlayers } from '@/app-layer/repositories/player';
+import { createBooking } from '@/app-layer/usecases/booking';
+import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import {
   adjustPlayerCredit,
   CreditAdjustmentTooLargeError,
@@ -9,8 +11,10 @@ import {
 import { getBalance } from '@/app-layer/usecases/wallet';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
-import { prismaTestClient, resetDatabase, seedTenant } from '../helpers/db';
+import { prismaTestClient, resetDatabase, seedAccount, seedTenant, seedVenue } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
+
+const HOUR = 3_600_000;
 
 /**
  * THE PLAYERS SCREEN'S DATA, AND THE LEDGER BENEATH IT.
@@ -66,6 +70,186 @@ describe('admin players', () => {
     // The join resolved — a blank email would mean the user lookup silently
     // returned nothing and the screen would render empty rows.
     expect(rows.every((r) => r.email.length > 0)).toBe(true);
+  });
+
+  describe('a player who booked is listed (#348)', () => {
+    /**
+     * Booking as the booking route does it: join the club as a PLAYER
+     * (`resolvePlayerTenant`, #229), then `createBooking`. Neither writes a
+     * PlayerVenueRelationship, which is the point.
+     */
+    async function book(
+      t: { tenantId: string; tenantSlug: string },
+      resourceId: string,
+      userId: string,
+      hoursFromNow: number,
+    ) {
+      await resolvePlayerTenant(userId, t.tenantSlug, {
+        createIfAbsent: true,
+        groupGateCleared: [],
+      });
+      const start = new Date(Date.now() + hoursFromNow * HOUR);
+      return runInTenantContext(t.tenantId, (c) =>
+        createBooking(c, t.tenantId, {
+          resourceId,
+          startTs: start,
+          endTs: new Date(start.getTime() + HOUR),
+          totalCents: 2400,
+          idempotencyKey: `k-${Math.random().toString(36).slice(2)}`,
+          bookedByUserId: userId,
+        }),
+      );
+    }
+
+    /** A booking already played: CONFIRMED, in the past. */
+    async function played(tenantId: string, resourceId: string, userId: string, hoursAgo: number) {
+      const start = new Date(Date.now() - hoursAgo * HOUR);
+      await asAppSuperuser(db, (tx) =>
+        tx.booking.create({
+          data: {
+            tenantId,
+            resourceId,
+            bookedByUserId: userId,
+            startTs: start,
+            endTs: new Date(start.getTime() + HOUR),
+            status: 'CONFIRMED',
+            totalCents: 2400,
+            idempotencyKey: `played-${Math.random().toString(36).slice(2)}`,
+          },
+        }),
+      );
+      return start;
+    }
+
+    it('THE POINT: books, then appears on the players screen with no relationship row', async () => {
+      const t = await seedTenant({}, db);
+      const { resourceId } = await seedVenue(t.tenantId, {}, db);
+      const playerId = await seedAccount('PLAYER', db);
+
+      await book(t, resourceId, playerId, 24);
+
+      expect(
+        await asAppSuperuser(db, (tx) =>
+          tx.playerVenueRelationship.count({ where: { tenantId: t.tenantId } }),
+        ),
+      ).toBe(0);
+      const rows = await runInTenantContext(t.tenantId, (c) => listPlayers(c, t.tenantId));
+
+      expect(rows.map((r) => r.playerUserId)).toEqual([playerId]);
+      expect(rows[0]).toMatchObject({ tags: [], noShowCount: 0, creditCents: 0 });
+      expect(rows[0]!.email.length).toBeGreaterThan(0);
+      // Only an upcoming booking: booked, but not played yet.
+      expect(rows[0]!.lastPlayedAt).toBeNull();
+    });
+
+    it('lists an ACTIVE PLAYER member, last played from their bookings, most recent first', async () => {
+      const t = await seedTenant({}, db);
+      const { resourceId } = await seedVenue(t.tenantId, {}, db);
+      const early = await seedAccount('PLAYER', db);
+      const recent = await seedAccount('PLAYER', db);
+      const memberOnly = await seedAccount('PLAYER', db);
+
+      const earlyAt = await played(t.tenantId, resourceId, early, 72);
+      const recentAt = await played(t.tenantId, resourceId, recent, 3);
+      await asAppSuperuser(db, (tx) =>
+        tx.tenantMembership.create({
+          data: { tenantId: t.tenantId, userId: memberOnly, role: 'PLAYER', status: 'ACTIVE' },
+        }),
+      );
+
+      const rows = await runInTenantContext(t.tenantId, (c) => listPlayers(c, t.tenantId));
+
+      expect(rows.map((r) => r.playerUserId)).toEqual([recent, early, memberOnly]);
+      expect(rows[0]!.lastPlayedAt?.getTime()).toBe(recentAt.getTime());
+      expect(rows[1]!.lastPlayedAt?.getTime()).toBe(earlyAt.getTime());
+      expect(rows[2]!.lastPlayedAt).toBeNull();
+    });
+
+    it('keeps the club’s notes: tags and no-shows from the relationship, merged in', async () => {
+      const t = await seedTenant({}, db);
+      const { resourceId } = await seedVenue(t.tenantId, {}, db);
+      const p = await seedAccount('PLAYER', db);
+      await played(t.tenantId, resourceId, p, 5);
+      await asAppSuperuser(db, (tx) =>
+        tx.playerVenueRelationship.create({
+          data: { tenantId: t.tenantId, playerUserId: p, tags: ['vip'], noShowCount: 2 },
+        }),
+      );
+
+      const rows = await runInTenantContext(t.tenantId, (c) => listPlayers(c, t.tenantId));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ playerUserId: p, tags: ['vip'], noShowCount: 2 });
+    });
+
+    it('lists neither guests nor another club’s players', async () => {
+      const mine = await seedTenant({}, db);
+      const theirs = await seedTenant({}, db);
+      const myCourt = await seedVenue(mine.tenantId, {}, db);
+      const theirCourt = await seedVenue(theirs.tenantId, {}, db);
+      const p = await seedAccount('PLAYER', db);
+      const elsewhere = await seedAccount('PLAYER', db);
+
+      await book(mine, myCourt.resourceId, p, 24);
+      await book(theirs, theirCourt.resourceId, elsewhere, 24);
+      await asAppSuperuser(db, (tx) =>
+        tx.booking.create({
+          data: {
+            tenantId: mine.tenantId,
+            resourceId: myCourt.resourceId,
+            guestName: 'Гост',
+            guestEmail: 'guest@test.invalid',
+            startTs: new Date(Date.now() + 48 * HOUR),
+            endTs: new Date(Date.now() + 49 * HOUR),
+            status: 'CONFIRMED',
+            totalCents: 2400,
+            idempotencyKey: 'guest-booking',
+          },
+        }),
+      );
+
+      const rows = await runInTenantContext(mine.tenantId, (c) => listPlayers(c, mine.tenantId));
+      expect(rows.map((r) => r.playerUserId)).toEqual([p]);
+    });
+
+    it('a player listed from a booking can be tagged and credited; a stranger still cannot', async () => {
+      // The relationship row is created on the club's first write about them.
+      const t = await seedTenant({}, db);
+      const { resourceId } = await seedVenue(t.tenantId, {}, db);
+      const p = await seedAccount('PLAYER', db);
+      const stranger = await seedAccount('PLAYER', db);
+      await book(t, resourceId, p, 24);
+
+      await runInTenantContext(t.tenantId, (c) =>
+        setPlayerTags(c, t.tenantId, t.userId, p, ['regular']),
+      );
+      await runInTenantContext(
+        t.tenantId,
+        (c) =>
+          adjustPlayerCredit(c, t.tenantId, t.userId, {
+            playerUserId: p,
+            deltaCents: 500,
+            note: 'goodwill for a booked player',
+          }),
+        undefined,
+        { isolationLevel: 'Serializable' },
+      );
+
+      const rows = await runInTenantContext(t.tenantId, (c) => listPlayers(c, t.tenantId));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ playerUserId: p, tags: ['regular'], creditCents: 500 });
+
+      await expect(
+        runInTenantContext(t.tenantId, (c) =>
+          setPlayerTags(c, t.tenantId, t.userId, stranger, ['vip']),
+        ),
+      ).rejects.toThrow(PlayerNotAtThisClubError);
+      expect(
+        await asAppSuperuser(db, (tx) =>
+          tx.playerVenueRelationship.count({ where: { tenantId: t.tenantId } }),
+        ),
+      ).toBe(1);
+    });
   });
 
   it('reports credit as the sum of deltas, agreeing with wallet.getBalance', async () => {
