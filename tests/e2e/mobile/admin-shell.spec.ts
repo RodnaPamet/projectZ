@@ -1,3 +1,6 @@
+import AxeBuilder from '@axe-core/playwright';
+
+import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import bg from '../../../messages/bg.json';
 import { expect, test } from '../fixtures';
 
@@ -64,4 +67,32 @@ test.describe('club admin shell — phone', () => {
     await expect(page.locator('main h1')).toHaveText(bg.admin.pricing.title);
     await expect(page.locator(DRAWER)).toHaveCount(0);
   });
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`axe, ${theme}: the drawer open (#317)`, async ({
+      authedPage: page,
+      isolatedTenant,
+      baseURL,
+    }) => {
+      await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
+      await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await page.getByTestId('nav-toggle').tap();
+      const drawer = page.getByRole('dialog', { name: bg.nav.openNavigationMenu });
+      await expect(drawer).toBeVisible();
+      await expect(
+        page.locator(DRAWER).getByRole('link', { name: bg.common.nav.pricing }),
+      ).toBeVisible();
+
+      // The rules the desktop shell is held to (admin-shell.spec.ts), with
+      // the page behind the drawer included: what is inert must stay so.
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+        .analyze();
+      const report = results.violations
+        .map((v) => `  [${v.impact}] ${v.id}: ${v.help}\n    ${v.nodes[0]?.target.join(' ')}`)
+        .join('\n');
+      expect(results.violations, `axe found:\n${report}`).toEqual([]);
+    });
+  }
 });

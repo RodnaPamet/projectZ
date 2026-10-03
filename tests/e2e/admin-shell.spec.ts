@@ -50,7 +50,10 @@ test.describe('club admin shell — desktop', () => {
     const rail = page.locator('aside[data-collapsed]');
     await expect(rail).toHaveAttribute('data-collapsed', 'false');
 
-    await page.getByTestId('sidebar-collapse-toggle').click();
+    // The upstream 28 px control footprint, not the 24 px it shipped with (#317).
+    const toggle = page.getByTestId('sidebar-collapse-toggle');
+    expect((await toggle.boundingBox())?.height).toBeGreaterThanOrEqual(28);
+    await toggle.click();
     await expect(rail).toHaveAttribute('data-collapsed', 'true');
     expect(await page.evaluate((k) => localStorage.getItem(k), COLLAPSE_KEY)).toBe('true');
 
@@ -110,12 +113,8 @@ test.describe('club admin shell — desktop', () => {
 
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
-        // The ONE rule off, and only until inflect fixes it: the vendored
-        // AppShellFrame renders the top bar (NavBar's role="banner") inside
-        // its <main>. Measured here as the sole violation, moderate, in both
-        // themes. The frame is byte-identical to inflect, so the fix is
-        // upstream: RodnaPamet/inflect-compliance#3104.
-        .disableRules(['landmark-banner-is-top-level'])
+        // No rule off. `landmark-banner-is-top-level` used to be: the vendored
+        // AppShellFrame put the top bar inside its <main> until upstream #3104.
         .analyze();
       const report = results.violations
         .map((v) => `  [${v.impact}] ${v.id}: ${v.help}\n    ${v.nodes[0]?.target.join(' ')}`)

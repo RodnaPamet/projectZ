@@ -57,7 +57,7 @@ export function AdminSidebar({
             aria-pressed={collapsed}
             data-testid="sidebar-collapse-toggle"
             className={cn(
-              'text-content-muted hover:text-content-emphasis flex min-h-6 w-full items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none',
+              'text-content-muted hover:text-content-emphasis flex min-h-7 w-full items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none',
               collapsed ? 'justify-center' : 'gap-tight',
             )}
           >
