@@ -598,6 +598,8 @@
         "restart": "Start over",
         "step1": "Add the account to your app",
         "openApp": "Open in authenticator app",
+        "scan": "Scan this code with the authenticator app on your phone.",
+        "qrAlt": "QR code with the key for your authenticator app. If you can’t scan it, type the key in by hand.",
         "manual": "Or type this key in by hand, choosing “time-based”:",
         "copyKey": "Copy key",
         "copied": "Copied",

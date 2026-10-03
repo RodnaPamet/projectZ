@@ -30,7 +30,7 @@ function post(url: string, bearer: string, body?: unknown) {
 
 export async function callEnrol(bearer: string) {
   const res = await enrolRoute(post('http://t/api/v1/me/mfa/enrolment', bearer), {});
-  return { status: res.status, json: (await res.json()) as Json };
+  return { status: res.status, headers: res.headers, json: (await res.json()) as Json };
 }
 
 export async function callConfirm(bearer: string, code: string) {

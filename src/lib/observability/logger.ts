@@ -48,6 +48,8 @@ const REDACT_PATHS = [
   'recoveryCode',
   'recoveryCodes',
   'otpauthUri',
+  // #342: the enrolment QR is the otpauth URI drawn as a path; it decodes to the seed.
+  'qr',
   'req.headers.authorization',
   'req.headers.cookie',
 ];

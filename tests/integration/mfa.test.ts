@@ -7,8 +7,10 @@ import { GET as statusRoute } from '@/app/api/v1/me/mfa/route';
 import { POST as regenerateRoute } from '@/app/api/v1/me/mfa/recovery-codes/route';
 import { createUserSession, newSessionSecret } from '@/lib/auth/sessions';
 import { hashRecoveryCode, newTotpSecret, totpAt, totpStep } from '@/lib/auth/totp';
+import { enrolmentQr } from '@/lib/auth/totp-qr';
 import { decryptField } from '@/lib/security/encryption';
 
+import { captureLogs } from '../helpers/capture-logs';
 import { prismaTestClient } from '../helpers/db';
 import { callConfirm, callEnrol, callStepUp, enrolAndStepUp, nextCode } from '../helpers/mfa';
 import { asAppSuperuser } from '../helpers/rls';
@@ -162,6 +164,43 @@ describe('enrolment', () => {
     // Pending until a code is confirmed.
     expect(stored.mfaEnabledAt).toBeNull();
     expect((await status(bearer)).data).toMatchObject({ enrolled: false, pending: true });
+  });
+
+  it('draws the QR from the very URI it returns, uncached, and logs none of it (#342)', async () => {
+    await grant();
+    const { bearer } = await signIn();
+    const consoles = (['log', 'info', 'warn', 'error', 'debug'] as const).map((m) =>
+      jest.spyOn(console, m),
+    );
+    const logs = captureLogs();
+    let r: Awaited<ReturnType<typeof callEnrol>>;
+    try {
+      r = await callEnrol(bearer);
+    } finally {
+      logs.restore();
+    }
+    expect(r.status).toBe(200);
+    expect(r.headers.get('cache-control')).toBe('no-store');
+    const { secret, otpauthUri, qr } = r.json.data as {
+      secret: string;
+      otpauthUri: string;
+      qr: { size: number; path: string };
+    };
+    // The geometry is that of this enrolment's own URI, and no other.
+    expect(qr).toEqual(enrolmentQr(otpauthUri));
+    expect(otpauthUri).toContain(`secret=${secret}`);
+
+    // The request WAS logged (so the capture works), and nothing that carries
+    // the seed reached a log line or the console.
+    expect(logs.lines.some((l) => l.includes('"route":"/api/v1/me/mfa/enrolment"'))).toBe(true);
+    const written = [
+      ...logs.lines,
+      ...consoles.flatMap((s) => s.mock.calls.map((c) => c.map(String).join(' '))),
+    ].join('\n');
+    for (const leak of [secret, otpauthUri, qr.path.slice(0, 40)]) {
+      expect(written).not.toContain(leak);
+    }
+    for (const s of consoles) s.mockRestore();
   });
 
   it('the database itself refuses a plaintext seed', async () => {
