@@ -166,17 +166,12 @@ body {
  * from coming back.
  * ────────────────────────────────────────────────────────────────── */
 
-/* Tables — LEGACY: only used by detail-page sub-tables and SoA.
- * For list pages, use <DataTable> from @/components/ui/table.
- * See: src/components/ui/table/GUIDE.md
- * Do NOT extend these rules for new list pages. */
-/* R13-PR3 — legacy `.data-table` cells visually mirror the
- * shared `<DataTable>` primitive so the three remaining raw-<table>
- * sites (admin RBAC permission matrix, admin custom-role permission
- * editor, reports SoA report) read at the same row height + hover
- * tone as every other list page in the product. The CSS class is
- * still legacy — see the comment above; new list pages MUST use
- * `<DataTable>`. */
+/* Tables — LEGACY: the only consumer is the table skeleton in
+ * src/components/ui/skeleton.tsx. For list pages, use <DataTable>
+ * from @/components/ui/table/data-table. Do NOT extend these rules
+ * for new list pages. The cells visually mirror the shared
+ * <DataTable> primitive (row height + hover tone), so the skeleton
+ * lines up with the table that replaces it. */
 .data-table {
   @apply w-full text-left text-sm;
 }
