@@ -32,8 +32,8 @@ import { firstLoadJs, stringify, type FirstLoadJs } from './report';
  *
  * 5% over the measured build. Two builds of the same tree measure the same
  * bytes, so the margin is not for noise: it is the size of change that
- * passes without a conversation. 5% of the largest route (/design-system,
- * ~290 KB) is ~14 KB gzip, about one small dependency; anything bigger is a
+ * passes without a conversation. 5% of the largest route (/t/[slug]/admin/staff,
+ * 335 KB at T29) is ~17 KB gzip, about one small dependency; anything bigger is a
  * decision the PR should state, by re-running --write and committing it.
  */
 

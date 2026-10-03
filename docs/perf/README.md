@@ -15,10 +15,47 @@ in the page, from the click.
 ```sh
 npm run perf:nav          # one run: reset and seed, build, serve, measure (about 12 min)
 npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a change"
-npx tsx tests/perf/budget.ts .perf/after.json            # the budget (docs/perf/budget.json)
+npm run perf:budget -- .perf/after.json                     # the latency budget (docs/perf/budget.json)
+npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
 ```
 
-## The current baseline: `7d7d27d` (T30, the router cache), 30 September 2026
+## The current baseline: `da4342f` (T29, the end of the port), 3 October 2026
+
+`docs/perf/baseline-da4342f.json` holds T29's two branch runs, merged, and
+`docs/perf/budget.json` is set from it under the tightened rule (10% / 30 ms). The four
+runs were interleaved in one session, main `4f9b3fd`, branch, main, branch, between
+10:52 and 11:59 Sofia time, each about 16.5 minutes. T29 changes guards, comments and
+three error notices, so the comparison with main is the control it should be: **0 rows
+faster, 0 slower, beyond noise**, every per-profile median within 7 ms.
+
+What the whole programme did, measured against the first baseline (`a56ea4f`, before
+any of it) by `npm run perf:compare -- docs/perf/baseline-a56ea4f.json <after>`:
+
+| Profile · mode            | Rows | Faster | Slower | Median Δ ms | Range Δ ms  |
+| ------------------------- | ---: | -----: | -----: | ----------: | ----------- |
+| phone cold (full loads)   |    5 |      5 |      0 |        -260 | -296 … -258 |
+| phone cold                |   16 |     10 |      1 |        -137 | -351 … 53   |
+| phone warm                |   16 |     15 |      0 |        -151 | -164 … -13  |
+| phone warm (full loads)   |    2 |      0 |      2 |          93 | 89 … 96     |
+| desktop cold (full loads) |    5 |      5 |      0 |        -243 | -301 … -220 |
+| desktop cold              |   16 |      0 |      5 |          -1 | -20 … 268   |
+| desktop warm              |   16 |      6 |      0 |         -17 | -31 … 2     |
+| desktop warm (full loads) |    2 |      1 |      0 |         -12 | -24 … 0     |
+
+(The staff-write journey's 22 rows did not exist at `a56ea4f`.) A phone navigation is
+now 140-150 ms faster at the median, cold or warm, and every cold full load 240-300 ms
+faster. The slower rows: five desktop cold admin hops went from 60-85 ms to 330-345 ms,
+which is the 300 ms Suspense throttle a skeleton brings (#290) and was already there
+at `7d7d27d`; the two warm `/start` landings on the phone (+89, +96 ms) and pricing →
+players on the phone (+53 ms; the players board T25 rebuilt) are the rest. Against
+`7d7d27d`, T30's baseline, the tree is 13 rows faster and 2 slower.
+
+First Load JS grew since T30 set its budget at `7d7d27d`: 196 → 281 KB gzip on `/`, 243 → 335 KB on
+`/t/[slug]/admin/staff` (the vendored shells, DataTable and primitives T19-T27 adopted).
+T29 resets `bundle-budget.json` to those numbers + 5% and makes it a CI gate, so it
+cannot grow again without a PR saying so.
+
+## T30's baseline: `7d7d27d` (the router cache), 30 September 2026
 
 `docs/perf/baseline-7d7d27d.json` holds T30's two branch runs, pooled. Each ran on a
 fresh seed and build, interleaved with two runs of `origin/main` at `0bb8f0d` (T12's
@@ -593,8 +630,10 @@ checked against it.
 
 ## Comparing a change
 
-This is the perf programme's protocol (T30). A committed baseline is the reference for
-the budget. It is **not** the "before" of a comparison: it was taken on another day,
+This is the protocol for every future PR that can move a navigation: a change to a
+page, a layout, a loader, the data layer, the router-cache policy or a dependency the
+client bundle pulls in (T30 wrote it; T29 made both budgets binding). A committed
+baseline is the reference for the budget. It is **not** the "before" of a comparison: it was taken on another day,
 under another load and at another hour of the club's day. Measure both sides yourself,
 in one session.
 
@@ -610,8 +649,9 @@ in one session.
    npm run perf:nav; rmdir /tmp/playerz-perf.lock
    ```
 
-   Give each session its own database (a local name ending in `_perf`), port and Redis
-   database: `PERF_DATABASE_URL`, `PERF_PORT` and `PERF_REDIS_URL`.
+   Give each session its own database (a local name ending in `_perf`, e.g.
+   `playerz_<task>_perf`; the harness refuses any other name), port and Redis database:
+   `PERF_DATABASE_URL`, `PERF_PORT` and `PERF_REDIS_URL`.
 
 3. **Merge each side's pair:**
 
@@ -635,7 +675,7 @@ in one session.
 5. **Budget:**
 
    ```sh
-   npx tsx tests/perf/budget.ts .perf/after.json
+   npm run perf:budget -- .perf/after.json
    ```
 
    This exits 1 if any row's median is over its ceiling in `docs/perf/budget.json`, or
@@ -646,17 +686,28 @@ in one session.
    `<sha>` is the commit the runs measured. It then resets the budgets from that file:
 
    ```sh
-   npx tsx tests/perf/budget.ts --write docs/perf/baseline-<sha>.json
-   npm run build && npx tsx tests/perf/bundle-budget.ts --write <sha>
+   npm run perf:budget -- --write docs/perf/baseline-<sha>.json
+   npm run build && npm run perf:bundle -- --write <sha>
    ```
 
    `tests/guardrails/perf-budget.test.ts` fails if `budget.json` does not match the
    newest baseline row for row.
 
-The ceiling is `max(median × 1.15, median + 50 ms)`; `tests/perf/budget.ts` explains
-why. `npx tsx tests/perf/bundle-budget.ts`, run after `npm run build`, prints First Load
-JS per route against `docs/perf/bundle-budget.json`. It only reports, and T29 makes it a
-gate. It exits 2 if the build's manifests cannot be read.
+7. **First Load JS is a CI gate** (T29). The Build job runs
+   `npm run perf:bundle -- --enforce` right after `next build`, and fails on a route
+   over its budget, a built route with no budget, a budgeted route that was not built,
+   or (exit 2) build manifests it cannot read. A PR that grows a route past its
+   budget on purpose says why and commits the `--write` from step 6. Run it locally the
+   same way before pushing:
+
+   ```sh
+   SKIP_ENV_VALIDATION=1 npm run build && npm run perf:bundle -- --enforce
+   ```
+
+The latency ceiling is `max(median × 1.10, median + 30 ms)` (T29 tightened it from T30's
+15% / 50 ms); `tests/perf/budget.ts` explains why. The First Load JS budget is each
+route's measured size + 5% (`tests/perf/bundle-budget.ts`). `npm run perf:bundle`
+without a flag prints the table and exits 0.
 
 `npm run perf:compare -- --tables <file>` prints any run or baseline as the markdown
 tables above. The tool prints "Feedback came from" as counts: `url 20/20`,
@@ -722,5 +773,5 @@ Two more cautions:
 | `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                      |
 | `docs/perf/baseline-7d7d27d.json` | T30's merged "after", the current baseline; the budget is set from it               |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)    |
-| `docs/perf/bundle-budget.json`    | First Load JS per route (`tests/perf/bundle-budget.ts`, report-only until T29)      |
+| `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)  |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                       |
