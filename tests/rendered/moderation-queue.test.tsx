@@ -334,6 +334,10 @@ describe('the second factor (#262)', () => {
         .enrolLink,
     });
     expect(link).toHaveAttribute('href', '/platform/security');
+    // And no reason field or greyed "open" under it, with nothing saying why
+    // it is grey (audit M04): there is nothing to open until enrolment.
+    expect(screen.queryByLabelText(moderation.reason.label)).toBeNull();
+    expect(screen.queryByRole('button', { name: moderation.open })).toBeNull();
   });
 
   it('a read refused with STEP_UP_REQUIRED asks for a code, then reads again once — and only then', async () => {

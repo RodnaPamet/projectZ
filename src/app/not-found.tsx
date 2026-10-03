@@ -1,7 +1,8 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-import { buttonVariants } from '@/components/ui/button-variants';
+import { PlayerChrome } from '@/components/layout/player-chrome';
+import { playerChrome } from '@/components/layout/SiteHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Heading } from '@/components/ui/typography';
 
 /**
@@ -15,9 +16,13 @@ import { Heading } from '@/components/ui/typography';
  * who does not read English, because arriving here means something already went
  * wrong.
  *
- * It is not hypothetical. Eight of the nine links in `AppNav` point at pages that
- * do not exist yet (#176), and the player half of that nav is not
- * permission-gated — so a signed-out visitor is three clicks from here.
+ * ═══ IT WEARS THE CHROME (audit A06) ═══
+ *
+ * It was a bare card: no header, no tab bar, no account menu, so the way on
+ * was the one button or the browser's back. It now sits in the player chrome
+ * like every public page, which also gives a club member who opened an admin
+ * page their role does not reach (an admin `notFound()` lands here) the
+ * header's link back to their club.
  *
  * ═══ WHAT IT DELIBERATELY DOES NOT DO ═══
  *
@@ -25,29 +30,38 @@ import { Heading } from '@/components/ui/typography';
  * plausible turns "this address is wrong" into "you are somewhere unexpected and
  * nobody told you", and the back button stops working the way the reader expects.
  *
- * It offers ONE link, to `/venues`, because that is the only substantial page
- * that currently exists. When the rest of the nav is built this should point at
- * whatever the real home becomes — and if it still says `/venues` then, the link
- * is stale rather than wrong, which is the safer way round.
+ * It offers two ways on instead, as the vendored EmptyState's actions: the
+ * place this account lives (its club's diary for a club account, the venues
+ * for everyone else) as the primary action, and the home page.
  */
 export default async function NotFound() {
   // `getTranslations` with no locale argument resolves from the request, so this
   // honours the NEXT_LOCALE cookie and falls back to bg. A 404 is rendered for a
   // real request, unlike the offline page, which is precached and must bake in
-  // the default.
-  const t = await getTranslations('notFound');
+  // the default. `playerChrome` is the header's own read, request-cached.
+  const [t, { landing }] = await Promise.all([getTranslations('notFound'), playerChrome()]);
+  const club = landing?.club ? { href: landing.href, name: landing.club.tenantName } : null;
 
   return (
-    <main className="bg-bg-page text-content-default flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-      <Heading level={1}>{t('title')}</Heading>
-      <p className="text-content-muted max-w-sm text-sm">{t('body')}</p>
-      {/* The way out is a button, the primary one: on a page whose only job is
-          to get somebody back on track, the one action should look like an
-          action rather than a footnote. The button recipe owns its contrast
-          and its 44 px touch target. */}
-      <Link href="/venues" className={buttonVariants({ variant: 'primary', className: 'mt-2' })}>
-        {t('backToVenues')}
-      </Link>
-    </main>
+    <PlayerChrome>
+      <main className="bg-bg-page text-content-default flex flex-1 flex-col items-center justify-center p-8">
+        {/* The page's heading, for the outline and the tab's reader; the
+            vendored EmptyState draws its title as text, not as a heading. */}
+        <Heading level={1} className="sr-only">
+          {t('title')}
+        </Heading>
+        <EmptyState
+          variant="no-results"
+          title={t('title')}
+          description={t('body')}
+          primaryAction={
+            club
+              ? { label: t('backToClub', { club: club.name }), href: club.href }
+              : { label: t('backToVenues'), href: '/venues' }
+          }
+          secondaryAction={{ label: t('home'), href: '/' }}
+        />
+      </main>
+    </PlayerChrome>
   );
 }

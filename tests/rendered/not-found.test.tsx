@@ -2,12 +2,31 @@ import { render, screen } from '@testing-library/react';
 
 import NotFound from '@/app/not-found';
 
+import { withIntl } from '../helpers/intl';
+
 import bg from '../../messages/bg.json';
 import en from '../../messages/en.json';
 
 jest.mock('next-intl/server', () => ({
-  getTranslations: async (ns: string) => (key: string) =>
-    (require('../../messages/bg.json') as Record<string, Record<string, string>>)[ns]![key],
+  getTranslations: async (ns: string) => (key: string, values?: Record<string, string>) =>
+    Object.entries(values ?? {}).reduce(
+      (text, [k, v]) => text.replace(`{${k}}`, v),
+      (require('../../messages/bg.json') as Record<string, Record<string, string>>)[ns]![key]!,
+    ),
+}));
+
+// The chrome is the site header and the tab bar, each tested on its own
+// (site-header, bottom-tab-bar). Here it is a marked wrapper, so the test can
+// see the page is inside it; `playerChrome` is the header's read, which says
+// whose 404 this is.
+jest.mock('@/components/layout/player-chrome', () => ({
+  PlayerChrome: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="player-chrome">{children}</div>
+  ),
+}));
+let landing: unknown = null;
+jest.mock('@/components/layout/SiteHeader', () => ({
+  playerChrome: async () => ({ me: null, landing, kind: 'signed-out' }),
 }));
 
 /**
@@ -35,7 +54,7 @@ jest.mock('next-intl/server', () => ({
  * `notFound.title` — which is worse than the English it replaced.
  */
 
-const KEYS = ['title', 'body', 'backToVenues'] as const;
+const KEYS = ['title', 'body', 'backToVenues', 'backToClub', 'home'] as const;
 
 describe('the 404 page has copy in both locales', () => {
   it('bg carries every key the page reads', () => {
@@ -70,21 +89,40 @@ describe('the 404 page has copy in both locales', () => {
     }
   });
 
-  it('renders the page itself, from the real catalogue', async () => {
+  it('renders the page itself, from the real catalogue, inside the chrome (audit A06)', async () => {
     // The real component, with `next-intl/server` swapped for a lookup in the
     // real catalogue (mocked above, so its `react-server` condition is never
     // resolved). It asserts the copy reads in place AND that the page is
     // built from the primitives, which a stand-in could not.
-    render(await NotFound());
+    landing = null;
+    render(withIntl(await NotFound()));
 
-    expect(screen.getByRole('heading', { level: 1, name: bg.notFound.title })).toBeInTheDocument();
-    // /venues is the one substantial page that currently exists, which is why it
-    // is the only link offered.
-    const link = screen.getByRole('link', { name: bg.notFound.backToVenues });
-    expect(link).toHaveAttribute('href', '/venues');
-    // The way out is the primary button's recipe (a pill, 44 px on touch), not
-    // an underlined footnote.
-    expect(link.className).toMatch(/rounded-full/);
-    expect(link.className).toMatch(/pointer-coarse:min-h-11/);
+    expect(screen.getByTestId('player-chrome')).toContainElement(
+      screen.getByRole('heading', { level: 1, name: bg.notFound.title }),
+    );
+    // "обекти", as everywhere else; it said "залите".
+    expect(bg.notFound.backToVenues).toBe('Към обектите');
+    const venues = screen.getByRole('link', { name: bg.notFound.backToVenues });
+    expect(venues).toHaveAttribute('href', '/venues');
+    // The way on is the vendored EmptyState's primary action (the button
+    // recipe: a pill, 44 px on touch); home is its secondary one.
+    expect(venues.className).toMatch(/rounded-full/);
+    expect(venues.className).toMatch(/pointer-coarse:min-h-11/);
+    expect(screen.getByRole('link', { name: bg.notFound.home })).toHaveAttribute('href', '/');
+  });
+
+  it('a club account is offered its club first', async () => {
+    landing = {
+      href: '/t/sofia-padel/admin/calendar',
+      reason: 'club',
+      club: { tenantId: 'c1', tenantSlug: 'sofia-padel', tenantName: 'Sofia Padel' },
+    };
+    render(withIntl(await NotFound()));
+
+    expect(
+      screen.getByRole('link', { name: bg.notFound.backToClub.replace('{club}', 'Sofia Padel') }),
+    ).toHaveAttribute('href', '/t/sofia-padel/admin/calendar');
+    expect(screen.queryByRole('link', { name: bg.notFound.backToVenues })).toBeNull();
+    expect(screen.getByRole('link', { name: bg.notFound.home })).toHaveAttribute('href', '/');
   });
 });

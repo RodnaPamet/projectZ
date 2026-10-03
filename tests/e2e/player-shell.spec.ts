@@ -46,5 +46,32 @@ test.describe('player shell — desktop', () => {
       `E2E ${isolatedTenant.tenantSlug}`,
     );
     await expect(page.locator(TOP_NAV).getByRole('link', { name: n.myBookings })).toHaveCount(0);
+
+    // A club account cannot book, so "My bookings" is not its page (audit C12):
+    // it goes where it lands after sign-in, its club's diary.
+    await page.goto('/me/bookings');
+    await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
+  });
+
+  test('/login does not link to itself (#319, audit A05)', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.locator(TOP_NAV).getByRole('link', { name: n.play })).toBeVisible();
+    await expect(page.locator('header a[href="/login"]')).toHaveCount(0);
+  });
+
+  test('the 404 wears the chrome, and offers more than one way on (audit A06)', async ({
+    page,
+  }) => {
+    const res = await page.goto('/no-such-page');
+    expect(res?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1, name: bg.notFound.title })).toBeAttached();
+    await expect(page.locator(TOP_NAV).getByRole('link', { name: n.play })).toBeVisible();
+    await expect(page.locator('header a[href="/login"]')).toBeVisible();
+    const main = page.locator('main');
+    await expect(main.getByRole('link', { name: bg.notFound.backToVenues })).toHaveAttribute(
+      'href',
+      '/venues',
+    );
+    await expect(main.getByRole('link', { name: bg.notFound.home })).toHaveAttribute('href', '/');
   });
 });
