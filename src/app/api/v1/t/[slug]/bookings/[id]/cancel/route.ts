@@ -54,6 +54,14 @@ import { getRequestId } from '@/lib/observability/context';
  * writes can both read the same balance and both succeed.
  *
  * Same reasoning, and the same option, as the checkout route.
+ *
+ * ═══ THE CUTOFF (#354) ═══
+ *
+ * A player cancels until the venue's `cancellationCutoffHours` before the start
+ * and never after it; past that the answer is 403 CANCELLATION_CUTOFF_PASSED,
+ * in the player's language, saying to contact the club. Staff holding
+ * `bookings.view_all` are not bound by it. A booking paid at the club is
+ * quoted 0% / 0 — there is nothing of the player's to return.
  */
 async function handler(
   req: NextRequest,
@@ -94,6 +102,9 @@ async function handler(
 
       return cancelBooking(db, ctx.tenantId!, {
         bookingId: booking.id,
+        // The cutoff binds the PLAYER; the desk may always cancel (#354). Decided
+        // by the permission the caller holds, never by anything in the body.
+        actor: asStaff ? 'STAFF' : 'PLAYER',
         cancelledByUserId: ctx.userId,
         reason,
       });

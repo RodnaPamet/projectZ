@@ -57,10 +57,54 @@ describe('booking golden path', () => {
       totalCents: 2400,
       idempotencyKey: `k-${Math.random().toString(36).slice(2)}`,
       bookedByUserId: t.userId,
+      // Most of this file is the ONLINE-payment path — the PENDING hold, the
+      // expiry sweeper, the refund bands over money actually taken — which
+      // since #354 runs only for a club with `onlinePaymentEnabled`. The pilot's
+      // pay-at-the-club path is pinned explicitly below and in api-v1-bookings.
+      onlinePayment: true,
       ...o,
     });
 
-  it('creates a PENDING booking with a 15-minute expiry', async () => {
+  /** Money taken by card, as the Stripe webhook records it. */
+  const payByCard = (bookingId: string, amountCents = 2400) =>
+    asAppSuperuser(prisma, (tx) =>
+      tx.payment.create({
+        data: {
+          tenantId: t.tenantId,
+          bookingId,
+          amountCents,
+          status: 'PAID',
+          providerRefId: `pi_${bookingId}`,
+          paidAt: new Date(),
+        },
+      }),
+    );
+
+  it('creates a CONFIRMED booking with no hold when the club pays at the club (#354)', async () => {
+    const r = await asAppSuperuser(prisma, (tx) => mk(tx, { onlinePayment: false }));
+
+    expect(r.status).toBe('CONFIRMED');
+    expect(r.expiresAt).toBeNull();
+
+    const row = await asAppSuperuser(prisma, (tx) =>
+      tx.booking.findUniqueOrThrow({ where: { id: r.bookingId } }),
+    );
+    expect(row.status).toBe('CONFIRMED');
+    expect(row.expiresAt).toBeNull();
+  });
+
+  it('an ONLINE booking may not start in the past; the DESK may book the hour under way', async () => {
+    const underWay = { startTs: at(-0.25), endTs: at(0.75), onlinePayment: false };
+
+    await expect(asAppSuperuser(prisma, (tx) => mk(tx, underWay))).rejects.toMatchObject({
+      name: 'SlotNotBookableError',
+    });
+
+    const walkIn = await asAppSuperuser(prisma, (tx) => mk(tx, { ...underWay, channel: 'DESK' }));
+    expect(walkIn.status).toBe('CONFIRMED');
+  });
+
+  it('creates a PENDING booking with a 15-minute expiry when the club takes payment online', async () => {
     const r = await asAppSuperuser(prisma, (tx) => mk(tx));
 
     expect(r.status).toBe('PENDING');
@@ -68,7 +112,7 @@ describe('booking golden path', () => {
 
     // A PENDING booking HOLDS the slot (the EXCLUDE constraint counts it).
     // Without the expiry, an abandoned checkout holds the court forever.
-    const ttl = r.expiresAt.getTime() - Date.now();
+    const ttl = r.expiresAt!.getTime() - Date.now();
     expect(ttl).toBeGreaterThan(14 * 60_000);
     expect(ttl).toBeLessThanOrEqual(15 * 60_000 + 1000);
   });
@@ -231,6 +275,7 @@ describe('booking golden path', () => {
         expect(await balance(t.userId)).toBe(0);
 
         const res = await cancelBooking(prisma, t.tenantId, {
+          actor: 'STAFF',
           bookingId: b.bookingId,
           cancelledByUserId: t.userId,
         });
@@ -262,7 +307,10 @@ describe('booking golden path', () => {
           bookingId: b.bookingId,
         });
 
-        const res = await cancelBooking(prisma, t.tenantId, { bookingId: b.bookingId });
+        const res = await cancelBooking(prisma, t.tenantId, {
+          actor: 'STAFF',
+          bookingId: b.bookingId,
+        });
 
         expect(res.refundPercent).toBe(0);
         expect(res.refundCreditCents).toBe(0);
@@ -280,8 +328,12 @@ describe('booking golden path', () => {
         // The inverse lie. A REFUND_CREDIT entry for credit never spent is the
         // same class of error as the receipt that used to keep it.
         const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+        await payByCard(b.bookingId);
 
-        const res = await cancelBooking(prisma, t.tenantId, { bookingId: b.bookingId });
+        const res = await cancelBooking(prisma, t.tenantId, {
+          actor: 'STAFF',
+          bookingId: b.bookingId,
+        });
 
         expect(res.refundPercent).toBe(100);
         expect(res.refundCreditCents).toBe(0);
@@ -293,11 +345,39 @@ describe('booking golden path', () => {
       });
     });
 
-    it('> 24h out → 100% refund, written onto the receipt', async () => {
-      const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+    it('a booking PAID AT THE CLUB is quoted nothing, whatever the timing (#354)', async () => {
+      // No money was taken online, so the bands have nothing to apply to. A
+      // "100%, €24" quote here would tell the player we owe them money we
+      // never took.
+      const b = await asAppSuperuser(prisma, (tx) =>
+        mk(tx, { startTs: at(48), endTs: at(49), onlinePayment: false }),
+      );
 
       const res = await asAppSuperuser(prisma, (tx) =>
-        cancelBooking(tx, t.tenantId, { bookingId: b.bookingId, cancelledByUserId: t.userId }),
+        cancelBooking(tx, t.tenantId, {
+          actor: 'PLAYER',
+          bookingId: b.bookingId,
+          cancelledByUserId: t.userId,
+        }),
+      );
+      expect(res).toMatchObject({ refundPercent: 0, refundAmountCents: 0, refundCreditCents: 0 });
+
+      const receipt = await asAppSuperuser(prisma, (tx) =>
+        tx.cancellation.findUniqueOrThrow({ where: { bookingId: b.bookingId } }),
+      );
+      expect(receipt.refundAmountCents).toBe(0);
+    });
+
+    it('> 24h out → 100% refund, written onto the receipt', async () => {
+      const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
+      await payByCard(b.bookingId);
+
+      const res = await asAppSuperuser(prisma, (tx) =>
+        cancelBooking(tx, t.tenantId, {
+          actor: 'STAFF',
+          bookingId: b.bookingId,
+          cancelledByUserId: t.userId,
+        }),
       );
 
       expect(res.refundPercent).toBe(100);
@@ -314,9 +394,10 @@ describe('booking golden path', () => {
 
     it('12–24h out → 50% refund', async () => {
       const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(20), endTs: at(21) }));
+      await payByCard(b.bookingId);
 
       const res = await asAppSuperuser(prisma, (tx) =>
-        cancelBooking(tx, t.tenantId, { bookingId: b.bookingId }),
+        cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: b.bookingId }),
       );
       expect(res.refundPercent).toBe(50);
       expect(res.refundAmountCents).toBe(1200);
@@ -324,9 +405,10 @@ describe('booking golden path', () => {
 
     it('< 12h out → no refund', async () => {
       const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(6), endTs: at(7) }));
+      await payByCard(b.bookingId);
 
       const res = await asAppSuperuser(prisma, (tx) =>
-        cancelBooking(tx, t.tenantId, { bookingId: b.bookingId }),
+        cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: b.bookingId }),
       );
       expect(res.refundPercent).toBe(0);
     });
@@ -355,7 +437,11 @@ describe('booking golden path', () => {
 
       await expect(
         asAppSuperuser(prisma, (tx) =>
-          cancelBooking(tx, t.tenantId, { bookingId: b.bookingId, cancelledByUserId: t.userId }),
+          cancelBooking(tx, t.tenantId, {
+            actor: 'STAFF',
+            bookingId: b.bookingId,
+            cancelledByUserId: t.userId,
+          }),
         ),
       ).rejects.toBeInstanceOf(BookingNotCancellableError);
 
@@ -385,7 +471,9 @@ describe('booking golden path', () => {
       expect(swept.released).toBeGreaterThanOrEqual(1);
 
       await expect(
-        asAppSuperuser(prisma, (tx) => cancelBooking(tx, t.tenantId, { bookingId: b.bookingId })),
+        asAppSuperuser(prisma, (tx) =>
+          cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: b.bookingId }),
+        ),
       ).rejects.toBeInstanceOf(BookingNotCancellableError);
 
       const row = await asAppSuperuser(prisma, (tx) =>
@@ -401,11 +489,13 @@ describe('booking golden path', () => {
       const b = await asAppSuperuser(prisma, (tx) => mk(tx, { startTs: at(48), endTs: at(49) }));
 
       await asAppSuperuser(prisma, (tx) =>
-        cancelBooking(tx, t.tenantId, { bookingId: b.bookingId }),
+        cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: b.bookingId }),
       );
 
       await expect(
-        asAppSuperuser(prisma, (tx) => cancelBooking(tx, t.tenantId, { bookingId: b.bookingId })),
+        asAppSuperuser(prisma, (tx) =>
+          cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: b.bookingId }),
+        ),
       ).rejects.toBeInstanceOf(BookingNotCancellableError);
 
       const receipts = await asAppSuperuser(prisma, (tx) =>
@@ -437,7 +527,9 @@ describe('booking golden path', () => {
       );
 
       await expect(
-        asAppSuperuser(prisma, (tx) => cancelBooking(tx, t.tenantId, { bookingId: b.bookingId })),
+        asAppSuperuser(prisma, (tx) =>
+          cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: b.bookingId }),
+        ),
       ).rejects.toBeInstanceOf(BookingNotCancellableError);
     });
 
@@ -445,7 +537,7 @@ describe('booking golden path', () => {
       const first = await asAppSuperuser(prisma, (tx) => mk(tx));
 
       await asAppSuperuser(prisma, (tx) =>
-        cancelBooking(tx, t.tenantId, { bookingId: first.bookingId }),
+        cancelBooking(tx, t.tenantId, { actor: 'STAFF', bookingId: first.bookingId }),
       );
 
       // The EXCLUDE constraint's WHERE clause excludes CANCELLED. Without

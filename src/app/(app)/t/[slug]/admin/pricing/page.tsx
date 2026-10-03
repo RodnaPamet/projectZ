@@ -6,6 +6,7 @@ import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
+import { CancellationCutoffForm, type CutoffVenue } from './CancellationCutoffForm';
 import { PricingBoard, type CourtOption, type PricingRuleView } from './PricingBoard';
 
 export async function generateMetadata() {
@@ -53,9 +54,22 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
 
   const t = await getTranslations('admin.pricing');
 
-  const { courts, rulesByCourt } = await runInTenantContext(ctx.tenantId, (db) =>
-    loadPricingScreen(db, ctx.tenantId),
-  );
+  // The player-cancellation cutoff (#354) is a venue term, edited here beside
+  // the prices by whoever holds `admin.venue_manage`.
+  const canSetCutoff = ctx.permissions.includes('admin.venue_manage');
+
+  const { courts, rulesByCourt, venues } = await runInTenantContext(ctx.tenantId, async (db) => {
+    const screen = await loadPricingScreen(db, ctx.tenantId);
+    const venues: CutoffVenue[] = canSetCutoff
+      ? await db.venue.findMany({
+          where: { tenantId: ctx.tenantId, status: 'ACTIVE' },
+          select: { id: true, name: true, cancellationCutoffHours: true },
+          orderBy: { name: 'asc' },
+          take: 50,
+        })
+      : [];
+    return { ...screen, venues };
+  });
 
   const byCourt: Record<string, PricingRuleView[]> = {};
   for (const [courtId, rules] of rulesByCourt) {
@@ -86,6 +100,8 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
+
+      <CancellationCutoffForm slug={slug} venues={venues} />
 
       <PricingBoard slug={slug} courts={options} rulesByCourt={byCourt} />
     </section>

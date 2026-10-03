@@ -116,6 +116,16 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // the same answer at every slug. No clientMessage: the use case already wrote
   // it in the caller's own language, and it is the sentence they need.
   PlayerAccountRequiredError: { status: 403, code: 'PLAYER_ACCOUNT_REQUIRED' },
+  // Three no-shows in 90 days at this club block ONLINE booking there until
+  // staff lift it (#354). About the caller's standing at THIS club, so — unlike
+  // the account refusal above — it is only reachable once the club is known.
+  // No clientMessage: written in the caller's own language, saying to contact
+  // the club, which is the only cure.
+  NoShowBlockedError: { status: 403, code: 'NO_SHOW_BLOCKED' },
+  // A player cancelling after the venue's cutoff, or after the start (#354).
+  // Staff are not bound by it, so the message says to contact the club. In the
+  // caller's own language, like the two above.
+  CancellationCutoffPassedError: { status: 403, code: 'CANCELLATION_CUTOFF_PASSED' },
 
   // ── 400: a malformed platform request ─────────────────────────────
   //
@@ -234,6 +244,13 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   ViewerChangedError: { status: 409, code: 'VIEWER_CHANGED' },
   PayoutsNotEnabledError: { status: 409, code: 'PAYOUTS_NOT_ENABLED' },
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
+  // The club takes payment at the club, not online (#354, the Sofia pilot).
+  // Its bookings are CONFIRMED when made; there is nothing to check out.
+  OnlinePaymentDisabledError: {
+    status: 409,
+    code: 'ONLINE_PAYMENT_DISABLED',
+    clientMessage: 'This club takes payment at the club. The booking is already confirmed.',
+  },
 
   // ── 503: ours, not theirs, and retryable ──────────────────────────
   EngineUnavailableError: { status: 503, code: 'ENGINE_UNAVAILABLE' },

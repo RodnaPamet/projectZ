@@ -24,9 +24,11 @@ import { messages as bg, withIntl } from '../helpers/intl';
 
 const setPlayerTagsAction = jest.fn();
 const adjustCreditAction = jest.fn();
+const clearNoShowBlockAction = jest.fn();
 jest.mock('@/app/(app)/t/[slug]/admin/players/actions', () => ({
   setPlayerTagsAction: (...args: unknown[]) => setPlayerTagsAction(...args),
   adjustCreditAction: (...args: unknown[]) => adjustCreditAction(...args),
+  clearNoShowBlockAction: (...args: unknown[]) => clearNoShowBlockAction(...args),
 }));
 
 const p = bg.admin.players;
@@ -40,6 +42,7 @@ const IVAN: PlayerRow = {
   lastPlayedAt: null,
   membershipLevel: null,
   creditCents: 1500,
+  noShowBlock: { recentNoShows: 2, blocked: false, lastLiftedAt: null },
 };
 const MARIA: PlayerRow = {
   playerUserId: 'u2',
@@ -50,14 +53,25 @@ const MARIA: PlayerRow = {
   lastPlayedAt: null,
   membershipLevel: 'Злато',
   creditCents: 0,
+  noShowBlock: { recentNoShows: 0, blocked: false, lastLiftedAt: null },
 };
 
-const board = (players: PlayerRow[] = [IVAN, MARIA], canAdjustCredit = true) =>
+const board = (
+  players: PlayerRow[] = [IVAN, MARIA],
+  canAdjustCredit = true,
+  canLiftNoShowBlock = true,
+) =>
   render(
     // The app root provides the TooltipProvider the Sheet's close button needs.
     withIntl(
       <TooltipProvider>
-        <PlayersBoard slug="club" players={players} canAdjustCredit={canAdjustCredit} />
+        <PlayersBoard
+          slug="club"
+          players={players}
+          canAdjustCredit={canAdjustCredit}
+          canLiftNoShowBlock={canLiftNoShowBlock}
+          noShowWindowDays={90}
+        />
       </TooltipProvider>,
     ),
   );
@@ -82,6 +96,7 @@ async function openPlayer(name: string) {
 beforeEach(() => {
   setPlayerTagsAction.mockReset();
   adjustCreditAction.mockReset();
+  clearNoShowBlockAction.mockReset();
 });
 
 describe('PlayersBoard', () => {
@@ -232,5 +247,39 @@ describe('thirty at a time', () => {
     // The search runs over every player, not only the rendered ones.
     fireEvent.change(screen.getByLabelText(p.search), { target: { value: 'p34@' } });
     expect(rows()).toBe(1);
+  });
+});
+
+describe('the no-show block (#354)', () => {
+  const BLOCKED: PlayerRow = {
+    ...IVAN,
+    noShowCount: 4,
+    noShowBlock: { recentNoShows: 3, blocked: true, lastLiftedAt: null },
+  };
+
+  it('a blocked player carries the badge on their row', () => {
+    board([BLOCKED, MARIA]);
+
+    expect(within(row(BLOCKED.name!)).getByText(p.noShowBlock.badge)).toBeInTheDocument();
+    expect(within(row(MARIA.email)).queryByText(p.noShowBlock.badge)).toBeNull();
+  });
+
+  it('the desk lifts it from the sheet', async () => {
+    clearNoShowBlockAction.mockResolvedValue({ ok: true });
+    board([BLOCKED]);
+
+    const sheet = await openPlayer(BLOCKED.name!);
+    fireEvent.click(within(sheet).getByRole('button', { name: p.noShowBlock.lift }));
+
+    await waitFor(() => expect(clearNoShowBlockAction).toHaveBeenCalledWith('club', 'u1'));
+    expect(await within(sheet).findByText(p.noShowBlock.lifted)).toBeInTheDocument();
+  });
+
+  it('a COACH sees why, and has no button to lift it', async () => {
+    board([BLOCKED], true, false);
+
+    const sheet = await openPlayer(BLOCKED.name!);
+    expect(within(sheet).getByText(/90/)).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: p.noShowBlock.lift })).toBeNull();
   });
 });

@@ -6,6 +6,7 @@ import {
   PLAYER_LIST_LIMIT,
   playersWereTruncated,
 } from '@/app-layer/repositories/player';
+import { NO_SHOW_WINDOW_DAYS, noShowStandings } from '@/app-layer/usecases/booking-rules';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -39,14 +40,27 @@ export default async function PlayersPage({ params }: { params: Promise<{ slug: 
 
   const t = await getTranslations('admin.players');
 
-  const players = await runInTenantContext(ctx.tenantId, (db) => listPlayers(db, ctx.tenantId));
+  // The no-show block (#354) is computed from the club's NO_SHOW bookings, in
+  // the same transaction as the list it annotates.
+  const { players, standings } = await runInTenantContext(ctx.tenantId, async (db) => {
+    const players = await listPlayers(db, ctx.tenantId);
+    return { players, standings: await noShowStandings(db, ctx.tenantId, players) };
+  });
 
   // Dates do not cross the RSC boundary as Date objects usefully — serialise
   // to ISO here and let the client format with the viewer's locale.
-  const rows = players.map((p): PlayerRow => ({
-    ...p,
-    lastPlayedAt: p.lastPlayedAt?.toISOString() ?? null,
-  }));
+  const rows = players.map(({ noShowBlockClearedAt, ...p }): PlayerRow => {
+    const standing = standings.get(p.playerUserId);
+    return {
+      ...p,
+      lastPlayedAt: p.lastPlayedAt?.toISOString() ?? null,
+      noShowBlock: {
+        recentNoShows: standing?.recentNoShows ?? 0,
+        blocked: standing?.blocked ?? false,
+        lastLiftedAt: noShowBlockClearedAt?.toISOString() ?? null,
+      },
+    };
+  });
 
   return (
     <section>
@@ -65,6 +79,8 @@ export default async function PlayersPage({ params }: { params: Promise<{ slug: 
         slug={slug}
         players={rows}
         canAdjustCredit={ctx.permissions.includes('players.credit_adjust')}
+        canLiftNoShowBlock={ctx.permissions.includes('bookings.view_all')}
+        noShowWindowDays={NO_SHOW_WINDOW_DAYS}
       />
     </section>
   );

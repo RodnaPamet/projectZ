@@ -6,8 +6,10 @@ import {
   getResourceForBooking,
   listOwnBookings,
 } from '@/app-layer/repositories/booking';
+import { createBookingBodySchema } from '@/app-layer/schemas/booking';
 import { quoteBooking } from '@/app-layer/usecases/availability';
 import { createBooking } from '@/app-layer/usecases/booking';
+import { clubTakesOnlinePayment } from '@/app-layer/usecases/booking-rules';
 import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import { minutesFromTimeColumn } from '@/app-layer/repositories/availability';
 import { inTenant } from '@/app/api/v1/_lib/bind';
@@ -43,26 +45,21 @@ import { getRequestId } from '@/lib/observability/context';
  * billable units — not the availability of the slot.
  */
 
-interface CreateBody {
-  resourceId?: unknown;
-  startTs?: unknown;
-  endTs?: unknown;
-  notes?: unknown;
-}
+/**
+ * The body, through `createBookingBodySchema` (#354): RFC 3339 instants, a
+ * capped `notes`, unknown keys ignored. The first issue names the field, as the
+ * hand-rolled checks this replaced did, and every issue rides in `details`.
+ */
+function parseCreateBody(raw: unknown) {
+  const parsed = createBookingBodySchema.safeParse(raw);
+  if (parsed.success) return parsed.data;
 
-function requireString(v: unknown, field: string): string {
-  if (typeof v !== 'string' || v.trim() === '') {
-    throw new ValidationError(`\`${field}\` is required`, { field });
-  }
-  return v;
-}
-
-function requireInstant(v: unknown, field: string): Date {
-  const d = new Date(requireString(v, field));
-  if (Number.isNaN(d.getTime())) {
-    throw new ValidationError(`\`${field}\` must be an RFC 3339 timestamp`, { field });
-  }
-  return d;
+  const first = parsed.error.issues[0];
+  const field = first?.path.join('.') || 'body';
+  throw new ValidationError(`\`${field}\`: ${first?.message ?? 'invalid'}`, {
+    field,
+    issues: parsed.error.issues,
+  });
 }
 
 async function listHandler(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
@@ -128,14 +125,16 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
     });
   }
 
-  const body = (await req.json().catch(() => {
-    throw new ValidationError('Body must be JSON');
-  })) as CreateBody;
+  const body = parseCreateBody(
+    await req.json().catch(() => {
+      throw new ValidationError('Body must be JSON');
+    }),
+  );
 
-  const resourceId = requireString(body.resourceId, 'resourceId');
-  const startTs = requireInstant(body.startTs, 'startTs');
-  const endTs = requireInstant(body.endTs, 'endTs');
-  const notes = typeof body.notes === 'string' ? body.notes : null;
+  const resourceId = body.resourceId;
+  const startTs = new Date(body.startTs);
+  const endTs = new Date(body.endTs);
+  const notes = body.notes ? body.notes : null;
 
   // ═══ A SIGNED-IN PLAYER MAY BOOK AT ANY ACTIVE CLUB ═══
   //
@@ -195,6 +194,13 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
       })),
     });
 
+    // CONFIRMED at once and paid at the club, unless this club takes payment
+    // online — none does in the Sofia pilot (#354). A slot that has started
+    // (400 SLOT_NOT_BOOKABLE) and a player with three recent no-shows here
+    // (403 NO_SHOW_BLOCKED) are refused inside `createBooking`, AFTER the
+    // idempotent replay, so a retry still returns the booking it made.
+    const onlinePayment = await clubTakesOnlinePayment(db, tenantId);
+
     const result = await createBooking(db, tenantId, {
       resourceId,
       startTs,
@@ -203,6 +209,7 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
       idempotencyKey,
       bookedByUserId: ctx.userId,
       notes,
+      onlinePayment,
     });
 
     const row = await getOwnBooking(db, tenantId, {

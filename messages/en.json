@@ -274,6 +274,14 @@
         "base": "at the base price",
         "units": "{units, plural, one {# block of {minutes} min} other {# blocks of {minutes} min}}",
         "mixed": "different rules across the blocks"
+      },
+      "cutoff": {
+        "title": "Player cancellations",
+        "description": "How long before the start a player may cancel their own booking in the app. After that, only the club can cancel it.",
+        "label": "{venue}: hours before the start",
+        "save": "Save",
+        "saved": "Saved.",
+        "invalid": "Enter a whole number of hours from 0 to {max}."
       }
     },
     "players": {
@@ -323,7 +331,15 @@
       },
       "tagsFailed": "The tags for {name} were not saved. Try again.",
       "creditSaved": "Credit adjusted.",
-      "showMore": "Show {count} more"
+      "showMore": "Show {count} more",
+      "noShowBlock": {
+        "badge": "Blocked",
+        "summary": "{count} no-shows in the last {days} days. Online booking at your club is blocked until you lift the block.",
+        "lift": "Lift the block",
+        "lifted": "Block lifted.",
+        "lastLifted": "Last lifted on {date}.",
+        "notBlocked": "This player is no longer blocked."
+      }
     },
     "staff": {
       "metaTitle": "Staff",
@@ -681,5 +697,10 @@
       "createLabelEmpty": "Create new option…",
       "triggerLabel": "Select"
     }
+  },
+  "bookingRules": {
+    "noShowBlocked": "You can't book online at this club: you have {count} no-shows in the last {days} days. Contact the club to have the block lifted.",
+    "cancellationCutoffPassed": "This booking can no longer be cancelled in the app: the club accepts cancellations up to {hours} hours before the start. Contact the club to cancel.",
+    "cancellationStarted": "This booking has already started and can no longer be cancelled in the app. Contact the club."
   }
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { clearNoShowBlock, NoShowBlockNotSetError } from '@/app-layer/usecases/booking-rules';
 import { adjustPlayerCredit, setPlayerTags } from '@/app-layer/usecases/players';
 import { requireTenantAction } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
@@ -111,6 +112,35 @@ export async function adjustCreditAction(
     if (code === 'P2034' || /40001|could not serialize/i.test(message)) {
       return { ok: false, error: 'CONFLICT' };
     }
+    throw err;
+  }
+
+  revalidatePath(`/t/${slug}/admin/players`);
+  return { ok: true };
+}
+
+/**
+ * Lift a player's no-show block on online booking (#354).
+ *
+ * `bookings.view_all`, the desk's permission — the same one that marks the
+ * no-show in the diary. STAFF, MANAGER and OWNER hold it; a COACH, who can see
+ * this screen through `players.view`, cannot undo what the desk recorded.
+ *
+ * `NOT_BLOCKED` when there is nothing to lift: the block lapsed, or another
+ * member of staff lifted it a moment ago.
+ */
+export async function clearNoShowBlockAction(
+  slug: string,
+  playerUserId: string,
+): Promise<{ ok: true } | { ok: false; error: 'NOT_BLOCKED' }> {
+  const ctx = await requireTenantAction(slug, 'bookings.view_all');
+
+  try {
+    await runInTenantContext(ctx.tenantId, (db) =>
+      clearNoShowBlock(db, ctx.tenantId, { playerUserId, actorUserId: ctx.userId }),
+    );
+  } catch (err) {
+    if (err instanceof NoShowBlockNotSetError) return { ok: false, error: 'NOT_BLOCKED' };
     throw err;
   }
 

@@ -69,6 +69,11 @@ export interface PlayerRow {
   lastPlayedAt: string | null;
   membershipLevel: string | null;
   creditCents: number;
+  /**
+   * The block on online booking (#354): no-shows that count towards it, whether
+   * it is in force, and when staff last lifted one. Computed by the page.
+   */
+  noShowBlock: { recentNoShows: number; blocked: boolean; lastLiftedAt: string | null };
 }
 
 /**
@@ -112,11 +117,16 @@ export function PlayersBoard({
   slug,
   players,
   canAdjustCredit,
+  canLiftNoShowBlock,
+  noShowWindowDays,
 }: {
   slug: string;
   players: readonly PlayerRow[];
   /** `players.credit_adjust` — OWNER and MANAGER only. A COACH sees no form. */
   canAdjustCredit: boolean;
+  /** `bookings.view_all` — the desk. A COACH sees the block but cannot lift it. */
+  canLiftNoShowBlock: boolean;
+  noShowWindowDays: number;
 }) {
   const t = useTranslations('admin.players');
   const format = useFormatter();
@@ -224,14 +234,20 @@ export function PlayersBoard({
       {
         id: 'noShows',
         header: t('field.noShows'),
-        cell: ({ row }) =>
-          row.original.noShowCount > 0 ? (
-            <StatusBadge variant="warning">
-              {t('noShows', { count: row.original.noShowCount })}
-            </StatusBadge>
-          ) : (
-            <span className="text-content-muted tabular-nums">0</span>
-          ),
+        cell: ({ row }) => (
+          <span className="inline-flex flex-wrap justify-end gap-1 md:justify-start">
+            {row.original.noShowCount > 0 ? (
+              <StatusBadge variant="warning">
+                {t('noShows', { count: row.original.noShowCount })}
+              </StatusBadge>
+            ) : (
+              <span className="text-content-muted tabular-nums">0</span>
+            )}
+            {row.original.noShowBlock.blocked && (
+              <StatusBadge variant="error">{t('noShowBlock.badge')}</StatusBadge>
+            )}
+          </span>
+        ),
       },
     ]);
   }, [t, format, open]);
@@ -299,6 +315,8 @@ export function PlayersBoard({
           slug={slug}
           player={current}
           canAdjustCredit={canAdjustCredit}
+          canLiftNoShowBlock={canLiftNoShowBlock}
+          noShowWindowDays={noShowWindowDays}
           open={sheetOpen}
           setOpen={setSheetOpen}
           onSaveTags={(form) => {

@@ -107,12 +107,12 @@ beforeEach(async () => {
 // ══ POST /t/{slug}/bookings ══════════════════════════════════════════
 
 describe('POST /api/v1/t/:slug/bookings', () => {
-  // 2026-07-15 is a Wednesday; 09:00 Sofia = 06:00Z. Each case books its own hour.
+  // 2036-07-16 is a Wednesday; 09:00 Sofia = 06:00Z. Each case books its own hour.
   let hour = 6;
   const slot = () => {
     const h = hour++;
     const pad = (n: number) => String(n).padStart(2, '0');
-    return { startTs: `2026-07-15T${pad(h)}:00:00Z`, endTs: `2026-07-15T${pad(h + 1)}:00:00Z` };
+    return { startTs: `2036-07-16T${pad(h)}:00:00Z`, endTs: `2036-07-16T${pad(h + 1)}:00:00Z` };
   };
   beforeEach(() => {
     hour = 6;

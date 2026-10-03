@@ -11,7 +11,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Heading } from '@/components/ui/typography';
 
-import { adjustCreditAction } from './actions';
+import { adjustCreditAction, clearNoShowBlockAction } from './actions';
 import type { PlayerRow } from './PlayersBoard';
 
 /**
@@ -25,6 +25,8 @@ export default function PlayerSheet({
   slug,
   player,
   canAdjustCredit,
+  canLiftNoShowBlock,
+  noShowWindowDays,
   open,
   setOpen,
   onSaveTags,
@@ -32,6 +34,8 @@ export default function PlayerSheet({
   slug: string;
   player: PlayerRow;
   canAdjustCredit: boolean;
+  canLiftNoShowBlock: boolean;
+  noShowWindowDays: number;
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
   /** The board's optimistic save: it closes this sheet and updates the row. */
@@ -52,6 +56,16 @@ export default function PlayerSheet({
             {format.number(player.creditCents / 100, { style: 'currency', currency: 'EUR' })}
           </span>
         </p>
+
+        {(player.noShowBlock.blocked || player.noShowBlock.lastLiftedAt) && (
+          <NoShowBlock
+            key={player.playerUserId}
+            slug={slug}
+            player={player}
+            canLift={canLiftNoShowBlock}
+            windowDays={noShowWindowDays}
+          />
+        )}
 
         <form
           className="gap-compact grid"
@@ -168,5 +182,60 @@ function CreditForm({ slug, player }: { slug: string; player: PlayerRow }) {
       )}
       {state?.ok && !pending && <InlineNotice variant="success">{t('creditSaved')}</InlineNotice>}
     </form>
+  );
+}
+
+/**
+ * The no-show block on online booking (#354): why it is in force, and — for the
+ * desk — the button that lifts it. Not optimistic: the badge on the row goes
+ * when the revalidated page says the block is gone.
+ */
+function NoShowBlock({
+  slug,
+  player,
+  canLift,
+  windowDays,
+}: {
+  slug: string;
+  player: PlayerRow;
+  canLift: boolean;
+  windowDays: number;
+}) {
+  const t = useTranslations('admin.players');
+  const format = useFormatter();
+  const [state, lift, pending] = useActionState(
+    async () => clearNoShowBlockAction(slug, player.playerUserId),
+    null,
+  );
+  const { blocked, recentNoShows, lastLiftedAt } = player.noShowBlock;
+
+  return (
+    <div className="gap-compact grid">
+      {blocked && (
+        <InlineNotice variant="warning">
+          {t('noShowBlock.summary', { count: recentNoShows, days: windowDays })}
+        </InlineNotice>
+      )}
+      {lastLiftedAt && (
+        <p className="text-content-muted text-sm">
+          {t('noShowBlock.lastLifted', {
+            date: format.dateTime(new Date(lastLiftedAt), { dateStyle: 'medium' }),
+          })}
+        </p>
+      )}
+      {blocked && canLift && (
+        <form action={lift}>
+          <Button type="submit" variant="secondary" disabled={pending}>
+            {t('noShowBlock.lift')}
+          </Button>
+        </form>
+      )}
+      {state && !pending && !state.ok && (
+        <InlineNotice variant="error">{t('noShowBlock.notBlocked')}</InlineNotice>
+      )}
+      {state?.ok && !pending && (
+        <InlineNotice variant="success">{t('noShowBlock.lifted')}</InlineNotice>
+      )}
+    </div>
   );
 }

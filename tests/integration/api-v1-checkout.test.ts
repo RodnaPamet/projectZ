@@ -46,7 +46,13 @@ describe('POST /api/v1/t/:slug/bookings/:id/checkout', () => {
       // The venue must be able to receive money at all.
       await tx.venueOrg.update({
         where: { id: tenant.tenantId },
-        data: { stripeAccountId: 'acct_test_club', payoutsEnabled: true },
+        // Online payment is OFF for every club in the Sofia pilot (#354); this
+        // suite is the Stripe flow kept behind the flag, so it turns it on.
+        data: {
+          stripeAccountId: 'acct_test_club',
+          payoutsEnabled: true,
+          onlinePaymentEnabled: true,
+        },
       });
 
       const venue = await tx.venue.create({

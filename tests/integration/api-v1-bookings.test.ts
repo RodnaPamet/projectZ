@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 
+import { clearNoShowBlock } from '@/app-layer/usecases/booking-rules';
 import { POST as cancelRoute } from '@/app/api/v1/t/[slug]/bookings/[id]/cancel/route';
+import { POST as checkoutRoute } from '@/app/api/v1/t/[slug]/bookings/[id]/checkout/route';
 import { GET as listRoute, POST as createRoute } from '@/app/api/v1/t/[slug]/bookings/route';
 import { GET as availabilityRoute } from '@/app/api/v1/venues/[id]/availability/route';
 
@@ -30,9 +32,9 @@ describe('POST /api/v1/t/:slug/bookings', () => {
   let venueId: string;
   let resourceId: string;
 
-  // 2026-07-15 is a Wednesday. Sofia is UTC+3 in July: 09:00 local = 06:00Z.
-  const NINE_AM = '2026-07-15T06:00:00Z';
-  const TEN_AM = '2026-07-15T07:00:00Z';
+  // 2036-07-16 is a Wednesday. Sofia is UTC+3 in July: 09:00 local = 06:00Z.
+  const NINE_AM = '2036-07-16T06:00:00Z';
+  const TEN_AM = '2036-07-16T07:00:00Z';
 
   beforeEach(async () => {
     tenant = await seedTenant({});
@@ -134,7 +136,64 @@ describe('POST /api/v1/t/:slug/bookings', () => {
 
     expect(res.status).toBe(201);
     expect((body as Created).data.totalCents).toBe(2400);
-    expect((body as Created).data.status).toBe('PENDING');
+  });
+
+  it('CONFIRMS at once, with no hold — the pilot pays at the club (#354)', async () => {
+    const { res, body } = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+
+    expect(res.status).toBe(201);
+    const data = (body as { data: Record<string, unknown> }).data;
+    expect(data.status).toBe('CONFIRMED');
+    expect(data.expiresAt).toBeNull();
+    // The venue's default cutoff is 24 h: the player may cancel until then.
+    expect(data.cancellableUntil).toBe('2036-07-15T06:00:00Z');
+
+    const row = await asAppSuperuser(db, (tx) =>
+      tx.booking.findUniqueOrThrow({ where: { id: data.id as string } }),
+    );
+    expect(row).toMatchObject({ status: 'CONFIRMED', expiresAt: null });
+  });
+
+  it('refuses a slot that has already started', async () => {
+    // Instant confirmation would otherwise make yesterday's court a COMPLETED
+    // booking — the proof of visit a review needs.
+    const { res, body } = await create(player, {
+      resourceId,
+      startTs: '2026-07-15T06:00:00Z',
+      endTs: '2026-07-15T07:00:00Z',
+    });
+
+    expect(res.status).toBe(400);
+    expect((body as ApiError).error.code).toBe('SLOT_NOT_BOOKABLE');
+  });
+
+  it.each([
+    ['notes longer than 500 characters', { notes: 'x'.repeat(501) }, 'notes'],
+    ['notes that are not text', { notes: 42 }, 'notes'],
+    ['a startTs that is not RFC 3339', { startTs: 'next wednesday' }, 'startTs'],
+    ['no resourceId', { resourceId: undefined }, 'resourceId'],
+  ])('400s on %s, naming the field', async (_label, override, field) => {
+    const { res, body } = await create(player, {
+      resourceId,
+      startTs: NINE_AM,
+      endTs: TEN_AM,
+      ...override,
+    });
+
+    expect(res.status).toBe(400);
+    const error = (body as { error: { code: string; details: { field: string } } }).error;
+    expect(error.code).toBe('BAD_REQUEST');
+    expect(error.details.field).toBe(field);
+  });
+
+  it('keeps notes up to the cap', async () => {
+    const { res } = await create(player, {
+      resourceId,
+      startTs: NINE_AM,
+      endTs: TEN_AM,
+      notes: 'ring the bell '.repeat(40).slice(0, 500),
+    });
+    expect(res.status).toBe(201);
   });
 
   it('IGNORES a price supplied by the client', async () => {
@@ -158,7 +217,7 @@ describe('POST /api/v1/t/:slug/bookings', () => {
     const { body } = await create(player, {
       resourceId,
       startTs: NINE_AM,
-      endTs: '2026-07-15T09:00:00Z', // three hours
+      endTs: '2036-07-16T09:00:00Z', // three hours
     });
 
     expect((body as Created).data.totalCents).toBe(7200);
@@ -168,7 +227,7 @@ describe('POST /api/v1/t/:slug/bookings', () => {
     // Cross-endpoint consistency, end to end. If these drift the app shows one
     // number and charges another, and nothing fails.
     const availRes = await availabilityRoute(
-      new NextRequest(`http://t/api/v1/venues/${venueId}/availability?date=2026-07-15`),
+      new NextRequest(`http://t/api/v1/venues/${venueId}/availability?date=2036-07-16`),
       { params: Promise.resolve({ id: venueId }) },
     );
     const avail = (await availRes.json()) as {
@@ -254,9 +313,9 @@ describe('POST /api/v1/t/:slug/bookings', () => {
   });
 
   it.each([
-    ['before opening', '2026-07-15T05:00:00Z', '2026-07-15T06:00:00Z'],
-    ['past closing', '2026-07-15T13:00:00Z', '2026-07-15T15:00:00Z'],
-    ['not a whole unit', NINE_AM, '2026-07-15T06:30:00Z'],
+    ['before opening', '2036-07-16T05:00:00Z', '2036-07-16T06:00:00Z'],
+    ['past closing', '2036-07-16T13:00:00Z', '2036-07-16T15:00:00Z'],
+    ['not a whole unit', NINE_AM, '2036-07-16T06:30:00Z'],
   ])('rejects a booking %s', async (_label, startTs, endTs) => {
     const { res, body } = await create(player, { resourceId, startTs, endTs });
 
@@ -303,8 +362,8 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       const mine = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
       const theirs = await create(rival, {
         resourceId,
-        startTs: '2026-07-15T08:00:00Z',
-        endTs: '2026-07-15T09:00:00Z',
+        startTs: '2036-07-16T08:00:00Z',
+        endTs: '2036-07-16T09:00:00Z',
       });
 
       const playerList = await list(player);
@@ -432,8 +491,8 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       // too, where they would not even have had to join — and left untouched.
       const { res, body } = await create(owner, {
         resourceId,
-        startTs: '2026-07-15T08:00:00Z',
-        endTs: '2026-07-15T09:00:00Z',
+        startTs: '2036-07-16T08:00:00Z',
+        endTs: '2036-07-16T09:00:00Z',
       });
 
       expect(res.status).toBe(403);
@@ -524,6 +583,312 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       expect(res.status).toBe(201);
       // Still PLAYER, and still the row seedPlayer made — not a second one.
       expect(await membershipOf(playerId)).toMatchObject({ role: 'PLAYER', status: 'ACTIVE' });
+    });
+  });
+
+  /**
+   * ═══ THE PILOT'S RULES (#354) ═══
+   *
+   * A player cancels until the venue's cutoff and never after the start; the
+   * desk may always cancel. Three no-shows in 90 days block online booking at
+   * the club until staff lift it. Checkout is off.
+   */
+  describe('the pilot booking model', () => {
+    const HOUR = 3_600_000;
+
+    const cancel = async (who: TestIdentity, bookingId: string) => {
+      const res = await cancelRoute(
+        new NextRequest(`http://t/api/v1/t/${tenant.tenantSlug}/bookings/${bookingId}/cancel`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${who.bearer}` },
+        }),
+        { params: Promise.resolve({ slug: tenant.tenantSlug, id: bookingId }) },
+      );
+      return { res, body: (await res.json()) as never };
+    };
+
+    /** Book through the route, then move the booking to `hoursFromNow`. */
+    const bookStartingIn = async (hoursFromNow: number) => {
+      const { body } = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+      const id = (body as Created).data.id;
+      const startTs = new Date(Date.now() + hoursFromNow * HOUR);
+      await asAppSuperuser(db, (tx) =>
+        tx.booking.update({
+          where: { id },
+          data: { startTs, endTs: new Date(startTs.getTime() + HOUR) },
+        }),
+      );
+      return id;
+    };
+
+    const setCutoff = (hours: number) =>
+      asAppSuperuser(db, (tx) =>
+        tx.venue.update({ where: { id: venueId }, data: { cancellationCutoffHours: hours } }),
+      );
+
+    const statusOf = async (id: string) =>
+      (await asAppSuperuser(db, (tx) => tx.booking.findUniqueOrThrow({ where: { id } }))).status;
+
+    it('a player cancels BEFORE the cutoff, and is quoted nothing — nothing was paid', async () => {
+      const id = await bookStartingIn(30);
+
+      const { res, body } = await cancel(player, id);
+
+      expect(res.status).toBe(200);
+      expect((body as { data: Record<string, unknown> }).data).toMatchObject({
+        refundPercent: 0,
+        refundAmountCents: 0,
+      });
+      expect(await statusOf(id)).toBe('CANCELLED');
+    });
+
+    it('a player is REFUSED after the cutoff, in their own language; the desk is not', async () => {
+      const id = await bookStartingIn(2);
+
+      const refused = await cancel(player, id);
+      expect(refused.res.status).toBe(403);
+      const error = (refused.body as ApiError).error;
+      expect(error.code).toBe('CANCELLATION_CUTOFF_PASSED');
+      // `User.locale` defaults to bg: the sentence the player reads is Bulgarian.
+      expect(error.message).toContain('24 часа');
+      expect(await statusOf(id)).toBe('CONFIRMED');
+
+      // The OWNER holds bookings.view_all: the club may always cancel.
+      const byClub = await cancel(owner, id);
+      expect(byClub.res.status).toBe(200);
+      expect(await statusOf(id)).toBe('CANCELLED');
+
+      const audit = await asAppSuperuser(db, (tx) =>
+        tx.auditEntry.findFirstOrThrow({
+          where: { entityId: id, action: 'BOOKING_CANCELLED' },
+        }),
+      );
+      expect(audit.actorUserId).toBe(owner.userId);
+      expect(audit.detailsJson).toMatchObject({ actor: 'STAFF', cutoffHours: 24 });
+    });
+
+    it('the cutoff is the VENUE’s setting', async () => {
+      await setCutoff(1);
+      const id = await bookStartingIn(2);
+
+      expect((await cancel(player, id)).res.status).toBe(200);
+    });
+
+    it('a player can never cancel once it has started, even with a cutoff of 0', async () => {
+      await setCutoff(0);
+      const id = await bookStartingIn(-0.5);
+
+      const refused = await cancel(player, id);
+      expect(refused.res.status).toBe(403);
+      expect((refused.body as ApiError).error.code).toBe('CANCELLATION_CUTOFF_PASSED');
+
+      expect((await cancel(owner, id)).res.status).toBe(200);
+    });
+
+    it('checkout is off: 409 ONLINE_PAYMENT_DISABLED, and nothing is charged', async () => {
+      const { body } = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+      const id = (body as Created).data.id;
+
+      const res = await checkoutRoute(
+        new NextRequest(`http://t/api/v1/t/${tenant.tenantSlug}/bookings/${id}/checkout`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${player.bearer}` },
+        }),
+        { params: Promise.resolve({ slug: tenant.tenantSlug, id }) },
+      );
+
+      expect(res.status).toBe(409);
+      expect(((await res.json()) as ApiError).error.code).toBe('ONLINE_PAYMENT_DISABLED');
+      const payments = await asAppSuperuser(db, (tx) =>
+        tx.payment.count({ where: { bookingId: id } }),
+      );
+      expect(payments).toBe(0);
+    });
+
+    it('a RETRY that lands after the slot started still returns the booking it made', async () => {
+      // The start check runs after the idempotent replay: a player whose
+      // request stalled must not be told "cannot be booked" about a booking
+      // that exists.
+      const key = 'stalled-retry';
+      const first = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM }, key);
+      const id = (first.body as Created).data.id;
+      await asAppSuperuser(db, (tx) =>
+        tx.booking.update({
+          where: { id },
+          data: { startTs: new Date(Date.now() - HOUR), endTs: new Date(Date.now()) },
+        }),
+      );
+
+      const retry = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM }, key);
+      expect(retry.res.status).toBe(200);
+      expect((retry.body as Created).data.id).toBe(id);
+    });
+
+    it('a club that DOES take payment online still gets the PENDING hold checkout expects', async () => {
+      await asAppSuperuser(db, (tx) =>
+        tx.venueOrg.update({
+          where: { id: tenant.tenantId },
+          data: { onlinePaymentEnabled: true },
+        }),
+      );
+
+      const { res, body } = await create(player, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+
+      expect(res.status).toBe(201);
+      const data = (body as { data: { status: string; expiresAt: string | null } }).data;
+      expect(data.status).toBe('PENDING');
+      expect(data.expiresAt).not.toBeNull();
+    });
+
+    describe('the no-show block', () => {
+      let noShowHour = 0;
+
+      /** A NO_SHOW booking for `userId`, `daysAgo` days back, each on its own hour. */
+      const noShow = (userId: string, daysAgo: number) =>
+        asAppSuperuser(db, (tx) => {
+          const startTs = new Date(Date.now() - daysAgo * 86_400_000 - noShowHour++ * HOUR);
+          return tx.booking.create({
+            data: {
+              tenantId: tenant.tenantId,
+              resourceId,
+              startTs,
+              endTs: new Date(startTs.getTime() + HOUR),
+              status: 'NO_SHOW',
+              totalCents: 2400,
+              idempotencyKey: `no-show-${Math.random()}`,
+              bookedByUserId: userId,
+            },
+          });
+        });
+
+      const bookAt = (hourUtc: number, key?: string) =>
+        create(
+          player,
+          {
+            resourceId,
+            startTs: `2036-07-16T${String(hourUtc).padStart(2, '0')}:00:00Z`,
+            endTs: `2036-07-16T${String(hourUtc + 1).padStart(2, '0')}:00:00Z`,
+          },
+          key,
+        );
+
+      it('two no-shows do not block', async () => {
+        await noShow(player.userId, 3);
+        await noShow(player.userId, 10);
+
+        expect((await bookAt(6)).res.status).toBe(201);
+      });
+
+      it('THREE in 90 days block online booking, in the player’s language', async () => {
+        await noShow(player.userId, 3);
+        await noShow(player.userId, 10);
+        await noShow(player.userId, 80);
+
+        const { res, body } = await bookAt(6);
+
+        expect(res.status).toBe(403);
+        const error = (body as ApiError).error;
+        expect(error.code).toBe('NO_SHOW_BLOCKED');
+        expect(error.message).toContain('неявявания');
+        expect(error.message).toContain('90');
+
+        const made = await asAppSuperuser(db, (tx) =>
+          tx.booking.count({ where: { bookedByUserId: player.userId, status: 'CONFIRMED' } }),
+        );
+        expect(made).toBe(0);
+      });
+
+      it('a no-show older than 90 days no longer counts', async () => {
+        await noShow(player.userId, 3);
+        await noShow(player.userId, 10);
+        await noShow(player.userId, 91);
+
+        expect((await bookAt(6)).res.status).toBe(201);
+      });
+
+      it('is per player: another player’s no-shows do not block this one', async () => {
+        await noShow(rival.userId, 1);
+        await noShow(rival.userId, 2);
+        await noShow(rival.userId, 3);
+
+        expect((await bookAt(6)).res.status).toBe(201);
+      });
+
+      it('an idempotent REPLAY of a booking made before the block still returns it', async () => {
+        const first = await bookAt(6, 'before-the-block');
+        expect(first.res.status).toBe(201);
+
+        await noShow(player.userId, 1);
+        await noShow(player.userId, 2);
+        await noShow(player.userId, 3);
+
+        const replay = await bookAt(6, 'before-the-block');
+        expect(replay.res.status).toBe(200);
+        expect((replay.body as Created).data.id).toBe((first.body as Created).data.id);
+
+        // …while a NEW booking is refused.
+        expect((await bookAt(8)).res.status).toBe(403);
+      });
+
+      it('staff lift it — recorded with who and when — and the player books again', async () => {
+        await noShow(player.userId, 3);
+        await noShow(player.userId, 10);
+        await noShow(player.userId, 80);
+        expect((await bookAt(6)).res.status).toBe(403);
+
+        const lifted = await asAppSuperuser(db, (tx) =>
+          clearNoShowBlock(tx, tenant.tenantId, {
+            playerUserId: player.userId,
+            actorUserId: owner.userId,
+          }),
+        );
+        expect(lifted.recentNoShows).toBe(3);
+
+        expect((await bookAt(6)).res.status).toBe(201);
+
+        const rel = await asAppSuperuser(db, (tx) =>
+          tx.playerVenueRelationship.findUniqueOrThrow({
+            where: {
+              tenantId_playerUserId: { tenantId: tenant.tenantId, playerUserId: player.userId },
+            },
+          }),
+        );
+        expect(rel.noShowBlockClearedByUserId).toBe(owner.userId);
+        expect(rel.noShowBlockClearedAt).toEqual(lifted.clearedAt);
+
+        const audit = await asAppSuperuser(db, (tx) =>
+          tx.auditEntry.findFirstOrThrow({
+            where: { entityId: player.userId, action: 'PLAYER_NO_SHOW_BLOCK_CLEARED' },
+          }),
+        );
+        expect(audit).toMatchObject({ actorUserId: owner.userId, tenantId: tenant.tenantId });
+
+        // Three NEW no-shows after a lift block again. (The lift is moved back
+        // ten days so the new ones can sit after it and still be in the past.)
+        await asAppSuperuser(db, (tx) =>
+          tx.playerVenueRelationship.update({
+            where: { id: rel.id },
+            data: { noShowBlockClearedAt: new Date(Date.now() - 10 * 86_400_000) },
+          }),
+        );
+        await noShow(player.userId, 1);
+        await noShow(player.userId, 2);
+        await noShow(player.userId, 4);
+        expect((await bookAt(9)).res.status).toBe(403);
+      });
+
+      it('lifting refuses when there is no block — no pre-forgiving', async () => {
+        await noShow(player.userId, 3);
+
+        await expect(
+          asAppSuperuser(db, (tx) =>
+            clearNoShowBlock(tx, tenant.tenantId, {
+              playerUserId: player.userId,
+              actorUserId: owner.userId,
+            }),
+          ),
+        ).rejects.toMatchObject({ name: 'NoShowBlockNotSetError' });
+      });
     });
   });
 });

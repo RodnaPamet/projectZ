@@ -330,7 +330,7 @@ describe('what a request is then allowed, through the middleware', () => {
       `/api/v1/t/${gated.tenantSlug}/bookings`,
       gated.tenantSlug,
       await native(stranger.email),
-      { resourceId: 'any', startTs: '2026-07-15T06:00:00Z', endTs: '2026-07-15T07:00:00Z' },
+      { resourceId: 'any', startTs: '2036-07-16T06:00:00Z', endTs: '2036-07-16T07:00:00Z' },
     );
 
     expect(booked).toMatchObject({ status: 404, by: 'route' });
