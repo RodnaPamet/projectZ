@@ -194,7 +194,11 @@ export function DayGrid({
     'data-diary-day': link,
     // Auto prefetch (docs/perf/navigation-policy.md: the `?day=` links keep
     // the default; never `prefetch={true}` on club admin).
-    onClick: () => {
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+      // A modified or non-primary click opens a new tab and leaves this one
+      // where it is; recording it would strand a pending refocus that a later
+      // in-tab visit to the same day would then consume.
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       refocusAfterDayChange = { slug, requestedDay: target, link };
     },
   });
