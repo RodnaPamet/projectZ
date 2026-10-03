@@ -103,10 +103,9 @@ async function expectNoDrift(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function expectAxeClean(page: Page, opts: { disableRules?: string[] } = {}) {
+async function expectAxeClean(page: Page) {
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(opts.disableRules ?? [])
     .analyze();
   const blocking = results.violations.filter(
     (v) => v.impact === 'critical' || v.impact === 'serious',
@@ -217,13 +216,12 @@ test.describe('club admin pricing — desktop', () => {
       await expect(page.getByRole('combobox')).toHaveCount(3);
       await expectAxeClean(page);
 
-      // And with the preview's day list open. `scrollable-region-focusable`
-      // is off for this one check only, as on the courts board: the vendored
-      // Combobox's option list scrolls and is not itself focusable, but focus
-      // sits in its search box and the arrows move through it (#323).
+      // And with the preview's day list open, which scrolls. As on the courts
+      // board, the scroller is the combobox's own listbox, so axe's
+      // `scrollable-region-focusable` passes without an exemption (#323).
       await page.getByRole('combobox', { name: new RegExp(`^${p.preview.day},`) }).click();
       await expect(page.getByRole('option').first()).toBeVisible();
-      await expectAxeClean(page, { disableRules: ['scrollable-region-focusable'] });
+      await expectAxeClean(page);
     });
   }
 });

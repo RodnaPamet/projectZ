@@ -100,32 +100,6 @@ type DayLink = 'prev' | 'next' | 'today';
 let refocusAfterDayChange: { slug: string; requestedDay: string | null; link: DayLink } | null =
   null;
 
-/**
- * Put focus back on the block the confirm was opened from, once the confirm
- * has gone, if nothing else took it.
- *
- * The desktop Dialog does this itself (modal.tsx's onCloseAutoFocus). The
- * phone's bottom sheet does not: measured at 393 px, cancelling left focus on
- * <body>, so a screen-reader user was thrown back to the top of the page. The
- * sheet is the vendored Modal, fixed upstream rather than here (#329);
- * until then this waits out its close (a few frames, capped at ~1.5 s) and
- * restores focus only from <body>, so it is a no-op wherever the Dialog has
- * already done it.
- */
-function returnFocusAfterClose(opener: HTMLElement | null) {
-  let frames = 90;
-  const tick = () => {
-    const active = document.activeElement;
-    if (!opener?.isConnected || active === opener) return;
-    if (active === null || active === document.body) {
-      opener.focus();
-      return;
-    }
-    if (--frames > 0) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
 export function DayGrid({
   slug,
   requestedDay,
@@ -157,8 +131,6 @@ export function DayGrid({
   // payload (NO_SHOW is not a diary status), taking the dialog's focus target
   // with it.
   const markedRef = useRef<string | null>(null);
-  // The block the confirm was opened from.
-  const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const pending = refocusAfterDayChange;
@@ -312,8 +284,7 @@ export function DayGrid({
                     <BookingBlock
                       key={b.id}
                       booking={b}
-                      onMarkNoShow={(opener) => {
-                        openerRef.current = opener;
+                      onMarkNoShow={() => {
                         setRefusal(null);
                         setNoShowTarget(b);
                         setConfirmOpen(true);
@@ -347,17 +318,13 @@ export function DayGrid({
             end: noShowTarget.endLabel,
           })}
           confirmLabel={t('noShow.confirm')}
-          onCancel={() => returnFocusAfterClose(openerRef.current)}
           onConfirm={async () => {
             const result = await markNoShowAction(slug, noShowTarget.id);
             // A refusal closes the dialog and is shown above the grid, where it
-            // stays readable, and focus goes back to the block, which is still
-            // there. On success the revalidated payload drops the block.
+            // stays readable, and the Modal puts focus back on the block, which
+            // is still there. On success the revalidated payload drops the block.
             if (result.ok) markedRef.current = noShowTarget.id;
-            else {
-              setRefusal(result.error);
-              returnFocusAfterClose(openerRef.current);
-            }
+            else setRefusal(result.error);
           }}
         />
       )}
@@ -375,7 +342,7 @@ function BookingBlock({
   onMarkNoShow,
 }: {
   booking: DayBooking;
-  onMarkNoShow: (opener: HTMLElement) => void;
+  onMarkNoShow: () => void;
 }) {
   const t = useTranslations('admin.calendar');
   const pending = b.status === 'PENDING';
@@ -424,7 +391,7 @@ function BookingBlock({
       style={style}
       data-booking-status={b.status}
       aria-label={t('noShow.open', { who: b.who, start: b.startLabel, end: b.endLabel })}
-      onClick={(event) => onMarkNoShow(event.currentTarget)}
+      onClick={onMarkNoShow}
     >
       {content}
     </button>

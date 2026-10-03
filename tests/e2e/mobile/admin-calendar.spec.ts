@@ -202,7 +202,7 @@ test.describe('club admin diary — phone', () => {
     await expectTarget(cancel);
     await cancel.click();
     await expect(dialog).toHaveCount(0);
-    // The sheet itself leaves focus on <body> (#329); DayGrid puts it back.
+    // The Modal's phone sheet puts focus back on its opener (#329).
     await expect(block).toBeFocused();
     expect(await bookingStatus(club.startedId)).toBe('CONFIRMED');
 
