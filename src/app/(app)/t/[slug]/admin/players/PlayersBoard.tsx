@@ -1,9 +1,18 @@
 'use client';
 
-import { startTransition, useActionState, useId, useMemo, useOptimistic, useState } from 'react';
+import {
+  startTransition,
+  useActionState,
+  useCallback,
+  useId,
+  useMemo,
+  useOptimistic,
+  useState,
+} from 'react';
 import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FormField } from '@/components/ui/form-field';
 import { InlineNotice } from '@/components/ui/inline-notice';
@@ -75,6 +84,22 @@ export interface PlayerRow {
 const NAME_BUTTON =
   'text-content-emphasis focus-visible:ring-ring rounded-sm text-left font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none pointer-coarse:min-h-11';
 
+/**
+ * ═══ THIRTY AT A TIME ═══
+ *
+ * The list renders the first 30 matches and a "show more" button, not all of
+ * them. Measured with perf:nav on the perf seed's 121-player club, the whole
+ * list as a DataTable made the phone (CPU x4) `pricing → players` step 431 →
+ * 555 ms cold and 110 → 194 ms warm: below md the table renders every row once
+ * as a desktop table (`useIsBelowMd` is false until its effect) and again as cards.
+ * Thirty at a time measured 483 ms cold and 108 ms warm; what remains of the
+ * cold step is the table's ~30 KB of JS arriving with the route.
+ * Search still runs over every player the page loaded, so nobody is out of
+ * reach; the button is in both renderings, unlike the DataTable's pagination
+ * footer, which the cards do not draw.
+ */
+const PAGE = 30;
+
 const NO_TAG_OVERRIDES: Readonly<Record<string, readonly string[]>> = {};
 
 /** The same cleaning `setPlayerTags` applies, so the optimistic row matches what lands. */
@@ -97,6 +122,7 @@ export function PlayersBoard({
   const format = useFormatter();
   const ids = useId();
   const [search, setSearch] = useState('');
+  const [limit, setLimit] = useState(PAGE);
   // The open player outlives the sheet's open flag, so the closing sheet still
   // shows them while it plays its exit. Mounted from the first open on.
   const [openId, setOpenId] = useState<string | null>(null);
@@ -139,71 +165,76 @@ export function PlayersBoard({
     [rows, q],
   );
 
-  const money = (cents: number) =>
-    format.number(cents / 100, { style: 'currency', currency: 'EUR' });
+  const shown = useMemo(() => visible.slice(0, limit), [visible, limit]);
 
-  const open = (id: string) => {
+  const open = useCallback((id: string) => {
     setOpenId(id);
     setSheetOpen(true);
-  };
+  }, []);
 
-  const columns = createColumns<PlayerRow>([
-    {
-      id: 'name',
-      header: t('field.name'),
-      cell: ({ row }) => {
-        // The name IS the row's control, in the table and in the cards: see
-        // OPENING A ROW below.
-        return (
-          <button
-            type="button"
-            className={NAME_BUTTON}
-            onClick={() => open(row.original.playerUserId)}
-          >
-            {row.original.name ?? row.original.email}
-          </button>
-        );
+  // Memoised: a fresh column array each render makes the table rebuild its
+  // column model on every keystroke in the search box.
+  const columns = useMemo(() => {
+    const money = (cents: number) =>
+      format.number(cents / 100, { style: 'currency', currency: 'EUR' });
+    return createColumns<PlayerRow>([
+      {
+        id: 'name',
+        header: t('field.name'),
+        cell: ({ row }) => {
+          // The name IS the row's control, in the table and in the cards: see
+          // OPENING A ROW below.
+          return (
+            <button
+              type="button"
+              className={NAME_BUTTON}
+              onClick={() => open(row.original.playerUserId)}
+            >
+              {row.original.name ?? row.original.email}
+            </button>
+          );
+        },
       },
-    },
-    {
-      id: 'email',
-      header: t('field.email'),
-      cell: ({ row }) => <span className="text-content-muted">{row.original.email}</span>,
-    },
-    {
-      id: 'tags',
-      header: t('field.tags'),
-      cell: ({ row }) => (
-        <span className="inline-flex flex-wrap justify-end gap-1 md:justify-start">
-          {row.original.membershipLevel && (
-            <StatusBadge variant="info">{row.original.membershipLevel}</StatusBadge>
-          )}
-          {row.original.tags.map((tag) => (
-            <StatusBadge key={tag} variant="neutral">
-              {tag}
-            </StatusBadge>
-          ))}
-        </span>
-      ),
-    },
-    {
-      id: 'credit',
-      header: t('field.credit'),
-      cell: ({ row }) => <span className="tabular-nums">{money(row.original.creditCents)}</span>,
-    },
-    {
-      id: 'noShows',
-      header: t('field.noShows'),
-      cell: ({ row }) =>
-        row.original.noShowCount > 0 ? (
-          <StatusBadge variant="warning">
-            {t('noShows', { count: row.original.noShowCount })}
-          </StatusBadge>
-        ) : (
-          <span className="text-content-muted tabular-nums">0</span>
+      {
+        id: 'email',
+        header: t('field.email'),
+        cell: ({ row }) => <span className="text-content-muted">{row.original.email}</span>,
+      },
+      {
+        id: 'tags',
+        header: t('field.tags'),
+        cell: ({ row }) => (
+          <span className="inline-flex flex-wrap justify-end gap-1 md:justify-start">
+            {row.original.membershipLevel && (
+              <StatusBadge variant="info">{row.original.membershipLevel}</StatusBadge>
+            )}
+            {row.original.tags.map((tag) => (
+              <StatusBadge key={tag} variant="neutral">
+                {tag}
+              </StatusBadge>
+            ))}
+          </span>
         ),
-    },
-  ]);
+      },
+      {
+        id: 'credit',
+        header: t('field.credit'),
+        cell: ({ row }) => <span className="tabular-nums">{money(row.original.creditCents)}</span>,
+      },
+      {
+        id: 'noShows',
+        header: t('field.noShows'),
+        cell: ({ row }) =>
+          row.original.noShowCount > 0 ? (
+            <StatusBadge variant="warning">
+              {t('noShows', { count: row.original.noShowCount })}
+            </StatusBadge>
+          ) : (
+            <span className="text-content-muted tabular-nums">0</span>
+          ),
+      },
+    ]);
+  }, [t, format, open]);
 
   if (players.length === 0) {
     return (
@@ -223,7 +254,10 @@ export function PlayersBoard({
             id={`${ids}-search`}
             type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setLimit(PAGE);
+            }}
             autoComplete="off"
           />
         </FormField>
@@ -241,7 +275,7 @@ export function PlayersBoard({
           <EmptyState title={t('noMatch.title')} description={t('noMatch.description')} />
         ) : (
           <DataTable<PlayerRow>
-            data={visible}
+            data={shown}
             columns={columns}
             getRowId={(p) => p.playerUserId}
             // Cards below md, explicitly: a five-column table does not fit 393 px.
@@ -251,6 +285,14 @@ export function PlayersBoard({
           />
         )}
       </div>
+
+      {visible.length > shown.length && (
+        <div>
+          <Button type="button" variant="secondary" onClick={() => setLimit((n) => n + PAGE)}>
+            {t('showMore', { count: Math.min(PAGE, visible.length - shown.length) })}
+          </Button>
+        </div>
+      )}
 
       {openId !== null && current && (
         <PlayerSheet

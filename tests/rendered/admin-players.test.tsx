@@ -212,3 +212,25 @@ describe('credit, NOT optimistically', () => {
     expect(within(sheet).getByLabelText(p.field.tags)).toBeInTheDocument();
   });
 });
+
+describe('thirty at a time', () => {
+  const many = Array.from({ length: 35 }, (_, i): PlayerRow => ({
+    ...MARIA,
+    playerUserId: `p${i}`,
+    email: `p${i}@example.bg`,
+  }));
+
+  it('renders 30, and the button shows the rest; a search starts over', () => {
+    board(many);
+    const rows = () => screen.getAllByRole('row').length - 1; // minus the header row
+
+    expect(rows()).toBe(30);
+    fireEvent.click(screen.getByRole('button', { name: p.showMore.replace('{count}', '5') }));
+    expect(rows()).toBe(35);
+    expect(screen.queryByRole('button', { name: /^Покажи още/ })).toBeNull();
+
+    // The search runs over every player, not only the rendered ones.
+    fireEvent.change(screen.getByLabelText(p.search), { target: { value: 'p34@' } });
+    expect(rows()).toBe(1);
+  });
+});
