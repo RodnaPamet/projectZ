@@ -3,26 +3,43 @@ import type { PrismaClient } from '@prisma/client';
 /**
  * The club's players.
  *
+ * ═══ WHO COUNTS AS A PLAYER HERE (#348) ═══
+ *
+ * Anybody the club has a record of playing with, from three tenant-scoped
+ * sources, merged:
+ *
+ *   tenant_membership           an ACTIVE PLAYER membership — booking makes one (#229)
+ *   booking                     a booking at this club under their account
+ *   player_venue_relationship   the club's own notes: tags, the no-show count
+ *
+ * This read only the relationship once, and the only writer of that table is
+ * `markNoShow`. So a player appeared here only after the club had marked them
+ * a no-show, and the screen's empty state ("players appear after their first
+ * booking") was false for every club. The relationship is now the club's notes
+ * about a player, left-joined for its counters, and `ownPlayer` in
+ * `usecases/players.ts` creates it the first time the club writes one.
+ *
  * ═══ THIS JOIN CROSSES THE RLS BOUNDARY, ON PURPOSE ═══
  *
- * `player_venue_relationship` is tenant-scoped with FORCE row security.
- * `app_user` and `player_profile` are GLOBAL and deliberately carry no policy
- * at all — a person is one person across every club they play at, and
- * `rls-coverage` allowlists exactly those two tables.
+ * All three sources are tenant-scoped with FORCE row security. `app_user` and
+ * `player_profile` are GLOBAL and deliberately carry no policy at all — a
+ * person is one person across every club they play at, and `rls-coverage`
+ * allowlists exactly those two tables.
  *
  * So the query is two steps, in this order, and the order is the safety:
  *
- *   1. read the relationships, which RLS constrains to this club
+ *   1. read the club's rows, which RLS constrains to this club
  *   2. read the users those rows name, by id
  *
  * Starting from the users instead would be a scan of every person on the
  * platform, filtered in application code — one forgotten `where` from being a
- * cross-club directory. Starting from the relationships means the set of ids is
+ * cross-club directory. Starting from the club's rows means the set of ids is
  * already the answer, and step 2 cannot widen it.
  *
- * There is also no Prisma relation to follow: `playerUserId` is a bare column
- * with no `@relation`, precisely because the two live on different sides of the
- * tenancy boundary. The join being manual is the model telling the truth.
+ * There is also no Prisma relation to follow: `playerUserId` and
+ * `bookedByUserId` are bare columns with no `@relation` to the user, precisely
+ * because the two live on different sides of the tenancy boundary. The join
+ * being manual is the model telling the truth.
  */
 
 export const PLAYER_LIST_LIMIT = 500;
@@ -40,32 +57,95 @@ export interface PlayerListItem {
   creditCents: number;
 }
 
+/** A booking that was played, or is being: what "last played" is measured from. */
+const PLAYED = ['CONFIRMED', 'COMPLETED'] as const;
+
 export async function listPlayers(
   db: PrismaClient,
   tenantId: string,
-  opts: { search?: string } = {},
+  opts: { search?: string; now?: Date } = {},
 ): Promise<PlayerListItem[]> {
-  const relationships = await db.playerVenueRelationship.findMany({
-    where: { tenantId },
-    select: {
-      playerUserId: true,
-      tags: true,
-      noShowCount: true,
-      noShowBlockClearedAt: true,
-      lastPlayedAt: true,
-    },
-    // Recently active first — the people a club is actually dealing with.
-    // `playerUserId` breaks ties because `lastPlayedAt` is nullable and a
-    // club's first import gives everyone the same null.
-    orderBy: [{ lastPlayedAt: 'desc' }, { playerUserId: 'asc' }],
-    take: PLAYER_LIST_LIMIT,
-  });
+  const now = opts.now ?? new Date();
 
-  if (relationships.length === 0) return [];
+  // Step 1: the club's own rows, each bounded. Grouped reads, not one per
+  // player: `query-shape` refuses a read in a loop, and rightly.
+  const [relationships, playerMemberships, booked, played] = await Promise.all([
+    db.playerVenueRelationship.findMany({
+      where: { tenantId },
+      select: {
+        playerUserId: true,
+        tags: true,
+        noShowCount: true,
+        noShowBlockClearedAt: true,
+        lastPlayedAt: true,
+      },
+      orderBy: [{ lastPlayedAt: 'desc' }, { playerUserId: 'asc' }],
+      take: PLAYER_LIST_LIMIT,
+    }),
+    db.tenantMembership.findMany({
+      where: { tenantId, role: 'PLAYER', status: 'ACTIVE' },
+      select: { userId: true },
+      orderBy: [{ createdAt: 'desc' }, { userId: 'asc' }],
+      take: PLAYER_LIST_LIMIT,
+    }),
+    // Everybody who has booked here under their account, whatever became of
+    // the booking: a player who booked and cancelled is still the club's
+    // player. A guest booking has no account and no row here.
+    db.booking.groupBy({
+      by: ['bookedByUserId'],
+      where: { tenantId, bookedByUserId: { not: null } },
+      _max: { startTs: true },
+      orderBy: { _max: { startTs: 'desc' } },
+      take: PLAYER_LIST_LIMIT,
+    }),
+    // And when each last played: the latest booking that has started and was
+    // not cancelled, pending or a no-show.
+    db.booking.groupBy({
+      by: ['bookedByUserId'],
+      where: {
+        tenantId,
+        bookedByUserId: { not: null },
+        status: { in: [...PLAYED] },
+        startTs: { lte: now },
+      },
+      _max: { startTs: true },
+      orderBy: { _max: { startTs: 'desc' } },
+      take: PLAYER_LIST_LIMIT,
+    }),
+  ]);
 
-  const ids = relationships.map((r) => r.playerUserId);
+  const relById = new Map(relationships.map((r) => [r.playerUserId, r]));
+  const playedById = new Map<string, Date>();
+  for (const p of played) {
+    if (p.bookedByUserId && p._max.startTs) playedById.set(p.bookedByUserId, p._max.startTs);
+  }
 
-  // Three lookups against a bounded id set, rather than one per player.
+  const lastPlayed = (id: string): Date | null => {
+    const fromBookings = playedById.get(id) ?? null;
+    const fromNotes = relById.get(id)?.lastPlayedAt ?? null;
+    if (!fromBookings) return fromNotes;
+    if (!fromNotes) return fromBookings;
+    return fromBookings > fromNotes ? fromBookings : fromNotes;
+  };
+
+  const candidates = new Set<string>([
+    ...relationships.map((r) => r.playerUserId),
+    ...playerMemberships.map((m) => m.userId),
+    ...booked.flatMap((b) => (b.bookedByUserId ? [b.bookedByUserId] : [])),
+  ]);
+
+  // Recently active first — the people a club is actually dealing with. The id
+  // breaks ties, because a player who has only booked ahead has no "last
+  // played" yet, and neither has a club's first import.
+  const ids = [...candidates]
+    .map((id) => ({ id, at: lastPlayed(id)?.getTime() ?? -Infinity }))
+    .sort((a, b) => b.at - a.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, PLAYER_LIST_LIMIT)
+    .map((c) => c.id);
+
+  if (ids.length === 0) return [];
+
+  // Step 2: three lookups against the bounded id set, rather than one per player.
   const [users, memberships, credit] = await Promise.all([
     db.user.findMany({
       where: { id: { in: ids } },
@@ -112,21 +192,23 @@ export async function listPlayers(
     if (!levelById.has(m.playerUserId)) levelById.set(m.playerUserId, m.level);
   const creditById = new Map(credit.map((c) => [c.userId, c._sum.deltaCents ?? 0]));
 
-  const rows = relationships.map((r): PlayerListItem => {
-    const u = byId.get(r.playerUserId);
+  const rows = ids.map((id): PlayerListItem => {
+    const u = byId.get(id);
+    const r = relById.get(id);
     return {
-      playerUserId: r.playerUserId,
+      playerUserId: id,
       name: u?.name ?? null,
-      // A relationship whose user row is gone should not crash the screen.
-      // It should not happen — nothing deletes users — and if it does, the
-      // club needs to see the row rather than a blank page.
+      // A row whose user is gone should not crash the screen. It should not
+      // happen — nothing deletes users — and if it does, the club needs to see
+      // the row rather than a blank page.
       email: u?.email ?? '',
-      tags: r.tags,
-      noShowCount: r.noShowCount,
-      noShowBlockClearedAt: r.noShowBlockClearedAt,
-      lastPlayedAt: r.lastPlayedAt,
-      membershipLevel: levelById.get(r.playerUserId) ?? null,
-      creditCents: creditById.get(r.playerUserId) ?? 0,
+      // No relationship yet means the club has written nothing about them.
+      tags: r?.tags ?? [],
+      noShowCount: r?.noShowCount ?? 0,
+      noShowBlockClearedAt: r?.noShowBlockClearedAt ?? null,
+      lastPlayedAt: lastPlayed(id),
+      membershipLevel: levelById.get(id) ?? null,
+      creditCents: creditById.get(id) ?? 0,
     };
   });
 

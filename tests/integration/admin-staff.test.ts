@@ -85,6 +85,21 @@ describe('admin staff', () => {
     expect(rows.every((r) => r.email.length > 0)).toBe(true);
   });
 
+  it('lists staff only: a PLAYER membership is not a member of the staff (#349)', async () => {
+    // Booking makes a player a PLAYER member of the club (#229), so a busy
+    // club's staff screen filled up with everybody who had booked a court.
+    const t = await seedTenant({}, db);
+    await member(t.tenantId, 'coach', 'COACH');
+    await member(t.tenantId, 'desk', 'STAFF');
+    await member(t.tenantId, 'mgr', 'MANAGER');
+    const booker = await member(t.tenantId, 'booker', 'PLAYER');
+
+    const rows = await runInTenantContext(t.tenantId, (c) => listStaff(c, t.tenantId));
+
+    expect(rows.map((r) => r.role).sort()).toEqual(['COACH', 'MANAGER', 'OWNER', 'STAFF']);
+    expect(rows.some((r) => r.userId === booker.userId)).toBe(false);
+  });
+
   it('REFUSES to demote the last active owner', async () => {
     // ═══ THE LOCKOUT ═══
     //

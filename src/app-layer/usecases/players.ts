@@ -14,7 +14,8 @@ import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
  * they have never visited.
  *
  * So this file only writes `PlayerVenueRelationship` — the standing AT this
- * club — and the credit ledger, which is tenant-scoped.
+ * club, created on the club's first write (`ownPlayer`) — and the credit
+ * ledger, which is tenant-scoped.
  */
 
 export class PlayerNotAtThisClubError extends Error {
@@ -64,6 +65,19 @@ function assertId(value: unknown): asserts value is string {
   if (typeof value !== 'string' || value.trim() === '') throw new PlayerNotAtThisClubError();
 }
 
+/**
+ * The club's record of a player, created the first time the club writes one.
+ *
+ * ═══ A PLAYER IS AT A CLUB BEFORE THE CLUB HAS NOTES ON THEM (#348) ═══
+ *
+ * The players screen lists everybody with an ACTIVE PLAYER membership or a
+ * booking here, and most of them have no `PlayerVenueRelationship` yet:
+ * booking never wrote one, only `markNoShow` did. Refusing those would make
+ * every new player's tags and credit unchangeable. So a player who is at
+ * this club by membership or booking gets the row on first write; somebody
+ * with neither is still refused. Every read is tenant-scoped under RLS, so
+ * another club's player is invisible here, not merely filtered out.
+ */
 async function ownPlayer(db: PrismaClient, tenantId: string, playerUserId: string) {
   assertId(playerUserId);
 
@@ -71,8 +85,27 @@ async function ownPlayer(db: PrismaClient, tenantId: string, playerUserId: strin
     where: { tenantId, playerUserId },
     select: { id: true, tags: true },
   });
-  if (!rel) throw new PlayerNotAtThisClubError();
-  return rel;
+  if (rel) return rel;
+
+  const [member, booking] = await Promise.all([
+    db.tenantMembership.findFirst({
+      where: { tenantId, userId: playerUserId, role: 'PLAYER', status: 'ACTIVE' },
+      select: { id: true },
+    }),
+    db.booking.findFirst({
+      where: { tenantId, bookedByUserId: playerUserId },
+      select: { id: true },
+    }),
+  ]);
+  if (!member && !booking) throw new PlayerNotAtThisClubError();
+
+  // An upsert, so two first writes racing each other land on one row.
+  return db.playerVenueRelationship.upsert({
+    where: { tenantId_playerUserId: { tenantId, playerUserId } },
+    create: { tenantId, playerUserId },
+    update: {},
+    select: { id: true, tags: true },
+  });
 }
 
 export async function setPlayerTags(
