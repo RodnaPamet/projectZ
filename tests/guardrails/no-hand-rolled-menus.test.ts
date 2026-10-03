@@ -159,7 +159,7 @@ describe('the scan is not vacuous', () => {
     const tree = treeFiles(['src/components', 'src/app'], /\.tsx$/).filter(
       (f) => !OVERLAY_PRIMITIVES.has(f),
     );
-    expect(SOURCE.sort()).toEqual(tree);
+    expect([...SOURCE].sort()).toEqual(tree);
     for (const sentinel of [
       'src/components/ui/combobox/index.tsx',
       'src/components/ui/table/table.tsx',
