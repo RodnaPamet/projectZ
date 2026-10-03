@@ -4,10 +4,10 @@
     {
       "path": "src/components/ui/table/data-table-cards.tsx",
       "inflectPath": "src/components/ui/table/data-table-cards.tsx",
-      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
-      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "baseSha": "09eaf2b2a0e25f2b464bfd539208be59d627e470",
+      "sha": "09eaf2b2a0e25f2b464bfd539208be59d627e470",
       "status": "vendored",
-      "sha256": "3e99510932e99426626a041cedd68d167933bdffd620106bd25be5ffffad0316"
+      "sha256": "2845eba6eaa157efbb05d1ef8369c8c38ccc16e1164cbcadc2d1c15b87c25080"
     },
     {
       "path": "src/components/ui/table/data-table.tsx",

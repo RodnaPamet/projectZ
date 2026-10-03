@@ -4,10 +4,10 @@
     {
       "path": "src/components/layout/AppShellFrame.tsx",
       "inflectPath": "src/components/layout/AppShellFrame.tsx",
-      "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
-      "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
+      "baseSha": "09eaf2b2a0e25f2b464bfd539208be59d627e470",
+      "sha": "09eaf2b2a0e25f2b464bfd539208be59d627e470",
       "status": "vendored",
-      "sha256": "a3fe67aa9fa82b7ad5c778f34fd961be1fc53807e98f2c2fa331c649abf0980f"
+      "sha256": "f06987d15f5bfb926633418f105ab310d40b1741baf7a025c6c97a56a5da8be6"
     },
     {
       "path": "src/components/layout/LocaleSwitcher.tsx",
