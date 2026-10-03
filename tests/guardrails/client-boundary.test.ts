@@ -1,6 +1,8 @@
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 
+import { treeFiles } from '../helpers/scan-floor';
+
 /**
  * A SERVER MODULE MAY RENDER WHAT A 'use client' MODULE EXPORTS — NEVER CALL IT.
  *
@@ -129,9 +131,28 @@ describe('the client boundary', () => {
   );
 
   it('the scan is not vacuous', () => {
-    // A resolver that resolved nothing would find no crossings and pass.
-    expect(SERVER_SIDE.length).toBeGreaterThan(300);
-    expect(crossings.length).toBeGreaterThan(10);
+    // The floor is the tree, counted a second way (tests/helpers/scan-floor.ts):
+    // every non-test module under src is either server-side (scanned here) or
+    // 'use client' (what the scan looks for), and the two add up. Absolute
+    // floors (> 300 modules, > 10 crossings) stood here until T28 (#225)
+    // deleted inflect's unreachable components out from under them.
+    const tree = treeFiles(['src'], /\.tsx?$/).filter((f) => !isTestFile(f));
+    const client = new Set(tree.filter((f) => directiveOf(readFileSync(f, 'utf8')) === 'client'));
+    expect(client.size).toBeGreaterThan(0);
+    expect([...SERVER_SIDE].sort()).toEqual(tree.filter((f) => !client.has(f)));
+    // nav builders and the data-layer keys live in modules with no directive.
+    expect(SERVER_SIDE).toContain('src/lib/data/keys.ts');
+    expect(SERVER_SIDE).toContain('src/components/layout/nav-items.ts');
+    // A resolver that resolved nothing would find no crossings and pass, so two
+    // known crossings are sentinels. The home page, a Server Component, renders
+    // the client prefetch link (#290).
+    expect(crossings).toContainEqual(
+      expect.objectContaining({
+        file: 'src/app/(home)/page.tsx',
+        target: 'src/components/layout/PublicPrefetchLink.tsx',
+        names: ['PublicPrefetchLink'],
+      }),
+    );
     // The club admin layout renders the client shell across the boundary —
     // legitimately (T19; it was the old club layout rendering AppNav).
     expect(crossings).toContainEqual(

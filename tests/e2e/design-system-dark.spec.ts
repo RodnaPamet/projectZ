@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 test.describe('design system — dark @visual', () => {
   test.use({ colorScheme: 'dark' });
 
-  test('buttons and calendar match the dark baseline', async ({ page }) => {
+  test('buttons match the dark baseline', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/design-system');
 
@@ -28,9 +28,5 @@ test.describe('design system — dark @visual', () => {
     const buttons = page.getByTestId('ds-section-Button');
     await expect(buttons).toBeVisible();
     await expect(buttons).toHaveScreenshot('dark-buttons.png', { maxDiffPixelRatio: 0.01 });
-
-    const calendar = page.getByTestId('calendar-month');
-    await expect(calendar).toBeVisible();
-    await expect(calendar).toHaveScreenshot('dark-calendar.png', { maxDiffPixelRatio: 0.01 });
   });
 });

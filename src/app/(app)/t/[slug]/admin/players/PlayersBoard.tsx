@@ -18,7 +18,7 @@ import { FormField } from '@/components/ui/form-field';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { createColumns, DataTable } from '@/components/ui/table';
+import { createColumns, DataTable } from '@/components/ui/table/data-table';
 
 import { setPlayerTagsAction } from './actions';
 

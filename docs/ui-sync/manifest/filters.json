@@ -1,13 +1,4 @@
 {
   "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
-  "rows": [
-    {
-      "path": "src/components/filters/FilterToolbar.tsx",
-      "inflectPath": "src/components/filters/FilterToolbar.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "b3adef8f96e7578788169d2c811dcfff701d793a35f2ae84c3e7605be0a69a2a"
-    }
-  ]
+  "rows": []
 }

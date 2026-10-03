@@ -1,5 +1,7 @@
 import { readFileSync, globSync } from 'node:fs';
 
+import { treeFiles } from '../helpers/scan-floor';
+
 /**
  * POPOVER IS THE ONLY MENU PRIMITIVE.
  *
@@ -150,10 +152,22 @@ const MENU_STATE = /\b(?:openMenuId|menuOpenFor|activeMenuId|openRowMenu|showMen
 
 describe('the scan is not vacuous', () => {
   it('scans the whole library, not just the handful of files outside ui/', () => {
-    // 419 of 431 components live in ui/. If this number ever collapses toward
-    // seventeen, somebody has exempted the directory again and the guard is
-    // protecting almost nothing.
-    expect(SOURCE.length).toBeGreaterThan(300);
+    // Every .tsx under src/components and src/app but the three overlay
+    // primitives, counted a second way (tests/helpers/scan-floor.ts). Most of
+    // the library lives in ui/: if someone exempts the directory again, the
+    // sentinels below fail.
+    const tree = treeFiles(['src/components', 'src/app'], /\.tsx$/).filter(
+      (f) => !OVERLAY_PRIMITIVES.has(f),
+    );
+    expect(SOURCE.sort()).toEqual(tree);
+    for (const sentinel of [
+      'src/components/ui/combobox/index.tsx',
+      'src/components/ui/table/table.tsx',
+      'src/components/layout/BottomTabBar.tsx',
+      'src/app/(app)/t/[slug]/admin/calendar/DayGrid.tsx',
+    ]) {
+      expect(SOURCE).toContain(sentinel);
+    }
   });
 
   it('the three overlay primitives ARE excluded, and only those', () => {

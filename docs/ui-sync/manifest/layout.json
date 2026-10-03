@@ -10,14 +10,6 @@
       "sha256": "a3fe67aa9fa82b7ad5c778f34fd961be1fc53807e98f2c2fa331c649abf0980f"
     },
     {
-      "path": "src/components/layout/EntityDetailLayout.tsx",
-      "inflectPath": "src/components/layout/EntityDetailLayout.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "0550cfda0a9affc276acbebed11f3fc6721ff49785878de1d0ee5f25e685f2fd"
-    },
-    {
       "path": "src/components/layout/LocaleSwitcher.tsx",
       "inflectPath": "src/components/layout/LocaleSwitcher.tsx",
       "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
@@ -32,30 +24,6 @@
       "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
       "status": "vendored",
       "sha256": "7465d97ecf8f19ff5d0b0e96a06e00a7310997d27968468630dedf2288f55866"
-    },
-    {
-      "path": "src/components/layout/PageActions.tsx",
-      "inflectPath": "src/components/layout/PageActions.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "b3e5760e9e31cfaa588fe27022fead8ea4cb3da5bcd45cd03ba70f145fc28ff2"
-    },
-    {
-      "path": "src/components/layout/PageHeader.tsx",
-      "inflectPath": "src/components/layout/PageHeader.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "3a7c7a47b388ac2780be954e0139289282388d3aac150572c32a351ac18db5c2"
-    },
-    {
-      "path": "src/components/layout/breadcrumbs-store.tsx",
-      "inflectPath": "src/components/layout/breadcrumbs-store.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "a30af046979dcef25be13ecf5bb3f151dfced4c527743751734e6118185ea6ee"
     },
     {
       "path": "src/components/layout/nav-bar.tsx",

@@ -1,13 +1,4 @@
 {
   "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
-  "rows": [
-    {
-      "path": "src/components/nav/BackAffordance.tsx",
-      "inflectPath": "src/components/nav/BackAffordance.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "b7431d91fc367a9ed182a39e0e845fc795787aa43d0ab199cb23f10a1e96e66d"
-    }
-  ]
+  "rows": []
 }

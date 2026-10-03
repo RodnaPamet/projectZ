@@ -28,11 +28,10 @@ import ts from 'typescript';
 
 type Finding = { file: string; line: number; what: string };
 
-const ALLOW_SWR_IMPORT: Record<string, string> = {
-  'src/components/ui/user-combobox.tsx':
-    'vendored from inflect and imported by nothing in playerz (dead). T28 deletes the file and ' +
-    'this entry with it; it is not edited here because vendored files change only via copy.mjs.',
-};
+// Empty since T28 deleted user-combobox.tsx, the one vendored file that
+// imported swr directly. An entry needs a file that still imports swr (1a) and
+// a reason of more than 40 characters.
+const ALLOW_SWR_IMPORT: Record<string, string> = {};
 
 const ALL = globSync('src/**/*.{ts,tsx}')
   .map((f) => f.toString())

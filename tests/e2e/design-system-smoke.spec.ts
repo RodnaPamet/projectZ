@@ -23,11 +23,9 @@ const SECTIONS = [
   'EmptyState',
   'ErrorState',
   'Tooltip',
-  'CopyButton',
   'Modal',
   'Sheet',
   'ConfirmDialog',
-  'CalendarMonth',
 ];
 
 /**

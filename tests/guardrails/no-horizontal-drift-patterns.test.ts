@@ -1,5 +1,7 @@
 import { readFileSync, globSync } from 'node:fs';
 
+import { treeFiles } from '../helpers/scan-floor';
+
 /**
  * HORIZONTAL DRIFT — THE #1 MOBILE BUG CLASS, CAUGHT AT AUTHORING TIME.
  *
@@ -92,23 +94,6 @@ const BASELINE: Baseline[] = [
       'Popover.Separator. The -mx-1 bleeds the divider to the edges of Popover.Menu, which carries p-1 (popover.tsx:186). Compensated by the parent, not the element.',
   },
   {
-    file: 'src/components/ui/filter/filter-list.tsx',
-    match: 'border-border-subtle -mx-1 my-1 border-b',
-    reason:
-      'Command.Separator inside Command.List, which carries p-1 (filter-list.tsx:512). Same bleed-to-edge pattern.',
-  },
-  {
-    file: 'src/components/ui/filter/filter-select.tsx',
-    match: 'border-border-subtle -mx-1 my-1 border-b',
-    reason: 'Command.Separator in a p-1 menu list. Same bleed-to-edge pattern.',
-  },
-  {
-    file: 'src/components/ui/filter/filter-select.tsx',
-    match: '-m-1 flex items-center justify-center',
-    reason:
-      '-m-1 on a flex centring wrapper for the loading state. It cancels the parent p-1 so the spinner is optically centred; it adds no width.',
-  },
-  {
     file: 'src/components/ui/combobox/index.tsx',
     match: 'bg-border-subtle -mx-1 my-1 h-px',
     reason: 'Command.Separator in a p-1 menu list. Same bleed-to-edge pattern.',
@@ -139,8 +124,13 @@ const ICON_NUDGE = /size-[0-9]|h-[0-9]\s|w-[0-9]\s|shrink-0/;
 
 describe('the scan is not vacuous', () => {
   it('found the component tree', () => {
-    // A broken glob makes every assertion below trivially true.
-    expect(SOURCE.length).toBeGreaterThan(100);
+    // A broken glob makes every assertion below trivially true. The floor is the
+    // tree itself, counted a second way (tests/helpers/scan-floor.ts), plus the
+    // files whose drift this guard has baselined.
+    expect([...SOURCE].sort()).toEqual(treeFiles(['src/components', 'src/app'], /\.tsx$/));
+    for (const sentinel of ['src/components/ui/popover.tsx', 'src/components/ui/table/table.tsx']) {
+      expect(SOURCE).toContain(sentinel);
+    }
   });
 
   it('the baselined files still exist', () => {

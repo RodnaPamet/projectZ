@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { createColumns, DataTable } from '@/components/ui/table';
+import { createColumns, DataTable } from '@/components/ui/table/data-table';
 import { Heading } from '@/components/ui/typography';
 
 import { inviteStaffAction, revokeInviteAction, setSuspendedAction } from './actions';
