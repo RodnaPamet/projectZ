@@ -21,7 +21,12 @@ describe('toMyBookingDto', () => {
       id: 'r1',
       name: 'Court 1',
       sport: 'PADEL',
-      venue: { id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' },
+      venue: {
+        id: 'v1',
+        name: 'Padel Palace',
+        timezone: 'Europe/Sofia',
+        cancellationCutoffHours: 24,
+      },
     },
     clubSlug: 'slot-club-sofia',
     venueReview: null,
@@ -43,12 +48,20 @@ describe('toMyBookingDto', () => {
       expiresAt: null,
       cancelledAt: null,
       createdAt: '2026-07-01T10:11:12Z',
+      // COMPLETED: not cancellable at all. The cutoff on the row is not published.
+      cancellableUntil: null,
       resource: { id: 'r1', name: 'Court 1', sport: 'PADEL' },
       venue: { id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' },
       clubSlug: 'slot-club-sofia',
       venueReview: null,
       canReview: true,
     });
+  });
+
+  it('says until when the PLAYER may cancel a live booking: the cutoff before the start', () => {
+    const dto = toMyBookingDto({ ...row, status: 'CONFIRMED' });
+    expect(dto.cancellableUntil).toBe('2026-07-14T06:00:00Z');
+    expect(dto.venue).toEqual({ id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' });
   });
 
   it('rebuilds the review rather than passing the row through', () => {

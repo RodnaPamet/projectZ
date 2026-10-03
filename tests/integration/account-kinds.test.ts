@@ -298,8 +298,8 @@ describe('booking a court needs a PLAYER account', () => {
       },
       body: JSON.stringify({
         resourceId: courtId,
-        startTs: '2026-07-15T06:00:00Z',
-        endTs: '2026-07-15T07:00:00Z',
+        startTs: '2036-07-16T06:00:00Z',
+        endTs: '2036-07-16T07:00:00Z',
       }),
     });
     const url = `http://localhost:3000/api/v1/t/${slug}/bookings`;

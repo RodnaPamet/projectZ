@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 
+import { playerCancellableUntil } from '@/lib/booking/cutoff';
+
 /**
  * Wire shapes for v1.
  *
@@ -291,6 +293,13 @@ export interface BookingDto {
   expiresAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
+  /**
+   * The last instant the PLAYER may cancel this booking in the app (#354): the
+   * venue's cutoff before the start. Null when it is not cancellable at all
+   * (cancelled, completed, no-show). May be in the past — then only the club
+   * can cancel, and POST …/cancel answers 403 CANCELLATION_CUTOFF_PASSED.
+   */
+  cancellableUntil: string | null;
   resource: {
     id: string;
     name: string;
@@ -317,7 +326,7 @@ type BookingRow = {
     id: string;
     name: string;
     sport: string;
-    venue: { id: string; name: string; timezone: string };
+    venue: { id: string; name: string; timezone: string; cancellationCutoffHours: number };
   };
 };
 
@@ -340,8 +349,19 @@ export function toBooking(b: BookingRow): BookingDto {
     expiresAt: b.expiresAt ? rfc3339(b.expiresAt) : null,
     cancelledAt: b.cancelledAt ? rfc3339(b.cancelledAt) : null,
     createdAt: rfc3339(b.createdAt),
+    cancellableUntil:
+      b.status === 'PENDING' || b.status === 'CONFIRMED'
+        ? rfc3339(playerCancellableUntil(b.startTs, b.resource.venue.cancellationCutoffHours))
+        : null,
     resource: { id: b.resource.id, name: b.resource.name, sport: b.resource.sport },
-    venue: b.resource.venue,
+    // Rebuilt, not passed through: the cutoff is on the row for the line
+    // above, and a venue block that grew a field with every select would be a
+    // wire shape nobody decided.
+    venue: {
+      id: b.resource.venue.id,
+      name: b.resource.venue.name,
+      timezone: b.resource.venue.timezone,
+    },
   };
 }
 

@@ -1,9 +1,14 @@
-import type { PrismaClient } from '@prisma/client';
+import type { BookingStatus, PrismaClient } from '@prisma/client';
 
 import { assertBookingSpanValid, computeExpiresAt } from '@/lib/db/booking-invariants';
 import { isExclusionViolation, isUniqueViolation } from '@/lib/db/pg-errors';
 
-import { computeRefundAmount, hoursUntil, parsePolicy } from './refund';
+import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
+import { playerMayCancel } from '@/lib/booking/cutoff';
+
+import { SlotNotBookableError } from './availability';
+import { assertMayBookOnline, cancellationCutoffError } from './booking-rules';
+import { computeRefundAmount, hoursUntil, parsePolicy, type RefundQuote } from './refund';
 import { appendEntry } from './wallet';
 
 /**
@@ -105,12 +110,33 @@ export interface CreateBookingInput {
   bookedByUserId?: string | null;
   guestContact?: { name: string; email: string; phone?: string } | null;
   notes?: string | null;
+  /**
+   * The club takes payment ONLINE (`VenueOrg.onlinePaymentEnabled`). Then the
+   * booking is a PENDING hold that checkout confirms, as before #354.
+   *
+   * Absent or false — every club in the Sofia pilot — the booking is CONFIRMED
+   * the moment it is written and paid at the club. There is no hold to expire
+   * and nothing for checkout to do.
+   */
+  onlinePayment?: boolean;
+  /**
+   * Who is booking. `ONLINE` (the default) is a player in the app or on the
+   * web, and is held to the pilot's rules (#354): the slot must not have
+   * started, and three recent no-shows at the club refuse it. `DESK` is the
+   * club booking on someone's behalf (#364) — the block is on ONLINE booking,
+   * and a walk-in may well be for the hour already under way.
+   */
+  channel?: 'ONLINE' | 'DESK';
+  /** "Now", for the start check and the no-show window. Tests pin it. */
+  now?: Date;
 }
 
 export interface CreatedBooking {
   bookingId: string;
-  status: 'PENDING';
-  expiresAt: Date;
+  /** CONFIRMED or PENDING when created; whatever it is now on a replay. */
+  status: BookingStatus;
+  /** The hold's end for a PENDING booking; null for a confirmed one. */
+  expiresAt: Date | null;
   /** True when an existing booking was returned for a repeated key. */
   idempotentReplay: boolean;
 }
@@ -128,8 +154,9 @@ export async function createBooking(
     throw new GuestContactRequiredError();
   }
 
-  const createdAt = new Date();
-  const expiresAt = computeExpiresAt(createdAt);
+  const createdAt = input.now ?? new Date();
+  const status: BookingStatus = input.onlinePayment ? 'PENDING' : 'CONFIRMED';
+  const expiresAt = status === 'PENDING' ? computeExpiresAt(createdAt) : null;
 
   // ── Idempotency pre-check ─────────────────────────────────────────
   //
@@ -151,12 +178,36 @@ export async function createBooking(
   });
 
   if (replay) {
+    // The booking as it IS, not as this request would have made it: a retry
+    // after the player cancelled must not read as a fresh confirmation, and
+    // the route re-reads the row for the body anyway.
     return {
       bookingId: replay.id,
-      status: 'PENDING',
-      expiresAt: replay.expiresAt ?? expiresAt,
+      status: replay.status,
+      expiresAt: replay.expiresAt,
       idempotentReplay: true,
     };
+  }
+
+  // ═══ THE ONLINE RULES (#354), AFTER THE REPLAY CHECK ═══
+  //
+  // Deliberately after it: a retry of a booking that was made returns that
+  // booking, which is what an idempotency key promises — even if the slot has
+  // started by the time the retry lands, or the player has been blocked since.
+  // Only a NEW booking is refused.
+  if ((input.channel ?? 'ONLINE') === 'ONLINE') {
+    // NOT IN THE PAST. With instant confirmation a booking for a slot already
+    // under way would be CONFIRMED, then COMPLETED by the sweep at its end —
+    // and a COMPLETED booking is the proof of visit a review needs. Booking
+    // yesterday's court would be a way to review a club you never went to.
+    if (input.startTs.getTime() <= createdAt.getTime()) {
+      throw new SlotNotBookableError('that time has already started');
+    }
+
+    // THE NO-SHOW BLOCK. A guest booking has no player to count against.
+    if (input.bookedByUserId) {
+      await assertMayBookOnline(db, tenantId, input.bookedByUserId, createdAt);
+    }
   }
 
   try {
@@ -166,7 +217,7 @@ export async function createBooking(
         resourceId: input.resourceId,
         startTs: input.startTs,
         endTs: input.endTs,
-        status: 'PENDING',
+        status,
         totalCents: input.totalCents,
         idempotencyKey: input.idempotencyKey,
         bookedByUserId: input.bookedByUserId ?? null,
@@ -180,7 +231,7 @@ export async function createBooking(
 
     return {
       bookingId: booking.id,
-      status: 'PENDING',
+      status,
       expiresAt,
       idempotentReplay: false,
     };
@@ -218,10 +269,47 @@ export interface CancelResult {
   reason: string;
 }
 
+/**
+ * The quote for a booking nothing was paid for online — every booking in the
+ * Sofia pilot, paid at the club (#354). There is no money of the player's to
+ * return, so the club's refund bands have nothing to apply to; quoting "100%,
+ * €24 due" would tell the player we owe them money we never took.
+ */
+export const PAID_AT_CLUB_QUOTE: RefundQuote = {
+  refundPercent: 0,
+  refundAmountCents: 0,
+  reason: 'Paid at the club; nothing was taken online',
+};
+
+/**
+ * Cancel a booking, and quote what is owed back.
+ *
+ * ═══ WHO IS CANCELLING DECIDES WHETHER THE CUTOFF APPLIES (#354) ═══
+ *
+ * `actor: 'PLAYER'` — the booker, in the app — may cancel until the venue's
+ * `cancellationCutoffHours` before the start, and never once it has started.
+ * `actor: 'STAFF'` — the desk, holding `bookings.view_all` — may always cancel:
+ * "after that only the club can cancel" is the owner's rule, and the club is
+ * the desk. The route decides which from the permission, not from the body.
+ *
+ * ═══ THE REFUND BANDS NO LONGER DECIDE ANYTHING FOR A PILOT BOOKING ═══
+ *
+ * `Venue.cancellationPolicyJson` priced the refund of money taken online. With
+ * payment at the club there is none, so a booking with no PAID payment and no
+ * wallet spend gets `PAID_AT_CLUB_QUOTE`. A booking that was paid online — a
+ * club with `onlinePaymentEnabled`, or one made before #354 — is still quoted
+ * by the bands, because there the money is real.
+ */
 export async function cancelBooking(
   db: PrismaClient,
   tenantId: string,
-  input: { bookingId: string; cancelledByUserId?: string | null; reason?: string; now?: Date },
+  input: {
+    bookingId: string;
+    actor: 'PLAYER' | 'STAFF';
+    cancelledByUserId?: string | null;
+    reason?: string;
+    now?: Date;
+  },
 ): Promise<CancelResult> {
   const now = input.now ?? new Date();
 
@@ -230,8 +318,18 @@ export async function cancelBooking(
     include: { resource: { include: { venue: true } } },
   });
 
+  const cutoffHours = booking.resource.venue.cancellationCutoffHours;
+  if (input.actor === 'PLAYER' && !playerMayCancel(booking.startTs, cutoffHours, now)) {
+    throw await cancellationCutoffError(db, {
+      userId: input.cancelledByUserId ?? booking.bookedByUserId ?? '',
+      startTs: booking.startTs,
+      cutoffHours,
+      now,
+    });
+  }
+
   const policy = parsePolicy(booking.resource.venue.cancellationPolicyJson);
-  const quote = computeRefundAmount({
+  const bandQuote = computeRefundAmount({
     bookingTotalCents: booking.totalCents,
     hoursUntilStart: hoursUntil(booking.startTs, now),
     policy,
@@ -255,17 +353,6 @@ export async function cancelBooking(
   try {
     return await db.$transaction(
       async (tx) => {
-        const updated = await tx.booking.updateMany({
-          where: { id: booking.id, tenantId, status: { in: ['PENDING', 'CONFIRMED'] } },
-          data: {
-            status: 'CANCELLED',
-            cancelledAt: now,
-            cancellationReasonJson: { reason: input.reason ?? null, quote: { ...quote } },
-          },
-        });
-
-        if (updated.count === 0) throw new BookingNotCancellableError();
-
         // ═══ THE WALLET LEG ═══
         //
         // The receipt used to quote a refund percentage and return NOTHING of
@@ -286,6 +373,29 @@ export async function cancelBooking(
           where: { tenantId, refType: 'booking', refId: booking.id, reason: 'SPEND' },
           _sum: { deltaCents: true },
         });
+
+        // Was anything taken online at all? A card payment that landed, or
+        // credit spent above. Neither means paid at the club: nothing to return.
+        const paidOnline = await tx.payment.count({
+          where: {
+            tenantId,
+            bookingId: booking.id,
+            status: { in: ['PAID', 'PARTIALLY_REFUNDED'] },
+          },
+        });
+        const spentAny = spent.some((row) => (row._sum.deltaCents ?? 0) !== 0);
+        const quote = paidOnline > 0 || spentAny ? bandQuote : PAID_AT_CLUB_QUOTE;
+
+        const updated = await tx.booking.updateMany({
+          where: { id: booking.id, tenantId, status: { in: ['PENDING', 'CONFIRMED'] } },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: now,
+            cancellationReasonJson: { reason: input.reason ?? null, quote: { ...quote } },
+          },
+        });
+
+        if (updated.count === 0) throw new BookingNotCancellableError();
 
         let refundCreditCents = 0;
 
@@ -324,6 +434,30 @@ export async function cancelBooking(
             refundPercent: quote.refundPercent,
             refundAmountCents: quote.refundAmountCents,
             refundCreditCents,
+          },
+        });
+
+        // The record of WHO. A staff cancellation after the player's cutoff is
+        // exactly the override a club will be asked about later.
+        await appendAuditEntry(tx as unknown as PrismaClient, {
+          tenantId,
+          actorUserId: input.cancelledByUserId ?? null,
+          actorType: 'USER',
+          entity: 'Booking',
+          entityId: booking.id,
+          action: AUDIT_ACTIONS.BOOKING_CANCELLED,
+          details: input.actor === 'STAFF' ? 'Cancelled by the club' : 'Cancelled by the player',
+          detailsJson: {
+            category: 'booking',
+            summary:
+              input.actor === 'STAFF'
+                ? 'Staff cancelled the booking'
+                : 'The player cancelled their booking',
+            before: { status: booking.status },
+            after: { status: 'CANCELLED' },
+            actor: input.actor,
+            cutoffHours,
+            hoursBeforeStart: Number(hoursUntil(booking.startTs, now).toFixed(2)),
           },
         });
 

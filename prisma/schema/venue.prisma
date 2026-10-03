@@ -34,6 +34,15 @@ model Venue {
   /// club can set its own terms without a code change.
   cancellationPolicyJson Json @default("{\"fullRefundBeforeHours\":24,\"halfRefundBeforeHours\":12}")
 
+  /// How many hours before the start a PLAYER may still cancel in the app
+  /// (#354). After it only the club's staff can cancel. Elapsed hours on the
+  /// absolute timeline, not wall-clock: see `playerCancellableUntil`.
+  ///
+  /// Per venue rather than per club because a booking already reaches its
+  /// venue (booking → resource → venue) on every read that shows it, and the
+  /// club's other cancellation terms live here too. 0..168, CHECKed in P39.
+  cancellationCutoffHours Int @default(24)
+
   status      TenantStatus @default(ACTIVE)
   /// Denormalised from Review. Recomputed on write — a venue list renders
   /// hundreds of cards, and an AVG() per card is a guaranteed N+1.

@@ -41,10 +41,10 @@ import { asAppSuperuser } from '../helpers/rls';
 const db = prismaTestClient();
 const PASSWORD = 'correct horse battery staple';
 
-// 2026-07-15 is a Wednesday; Sofia is UTC+3 in July, so 09:00 local is 06:00Z.
+// 2036-07-16 is a Wednesday; Sofia is UTC+3 in July, so 09:00 local is 06:00Z.
 const slot = (hourUtc: number) => ({
-  startTs: `2026-07-15T${String(hourUtc).padStart(2, '0')}:00:00Z`,
-  endTs: `2026-07-15T${String(hourUtc + 1).padStart(2, '0')}:00:00Z`,
+  startTs: `2036-07-16T${String(hourUtc).padStart(2, '0')}:00:00Z`,
+  endTs: `2036-07-16T${String(hourUtc + 1).padStart(2, '0')}:00:00Z`,
 });
 
 type Params = Record<string, string>;
@@ -290,8 +290,9 @@ describe('a NATIVE token at its own club', () => {
   });
 
   it('reaches checkout, where the club — not the gate — says no', async () => {
-    // Club A has no Stripe account, so checkout refuses with 409. That answer
-    // can only come from inside the handler, past every authorisation step.
+    // Club A takes payment at the club (#354), so checkout refuses with 409.
+    // That answer can only come from inside the handler, past every
+    // authorisation step.
     const native = await nativeSignIn(player.email);
     const booked = await book(native, clubA, courtA, 7);
 
@@ -304,7 +305,7 @@ describe('a NATIVE token at its own club', () => {
     );
 
     expect(paid).toMatchObject({ status: 409, by: 'route' });
-    expect((paid.body as { error: { code: string } }).error.code).toBe('PAYOUTS_NOT_ENABLED');
+    expect((paid.body as { error: { code: string } }).error.code).toBe('ONLINE_PAYMENT_DISABLED');
   });
 
   it('is never told its token is stale — it carries no claims to go stale', async () => {
@@ -401,7 +402,8 @@ describe('a NATIVE token at a club it does not belong to', () => {
     expect(
       await asAppSuperuser(db, (tx) => tx.booking.findUnique({ where: { id: idOf(theirs) } })),
     ).toMatchObject({
-      status: 'PENDING',
+      // Untouched: still the CONFIRMED booking its owner made (#354).
+      status: 'CONFIRMED',
     });
   });
 });

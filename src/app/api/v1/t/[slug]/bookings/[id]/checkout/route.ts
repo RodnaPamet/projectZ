@@ -1,6 +1,10 @@
 import { type NextRequest } from 'next/server';
 
 import { getOwnBooking } from '@/app-layer/repositories/booking';
+import {
+  clubTakesOnlinePayment,
+  OnlinePaymentDisabledError,
+} from '@/app-layer/usecases/booking-rules';
 import { checkoutBooking } from '@/app-layer/usecases/payments';
 import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -33,6 +37,14 @@ import { getRequestId } from '@/lib/observability/context';
  * So when nothing is due on a card, this route performs the confirmation
  * itself — through the SAME `recordPaymentAndConfirm` the webhook uses, so the
  * two paths cannot drift.
+ *
+ * ═══ OFF UNLESS THE CLUB TAKES PAYMENT ONLINE (#354) ═══
+ *
+ * The Sofia pilot pays at the club: a booking is CONFIRMED when it is made, and
+ * this route answers 409 ONLINE_PAYMENT_DISABLED before reading anything else.
+ * The Stripe flow below is kept, whole, behind `VenueOrg.onlinePaymentEnabled`
+ * (default off), which is also what makes `createBooking` write the PENDING
+ * hold this route expects. Nothing in the app turns it on.
  *
  * ═══ WHAT THE CLIENT GETS ═══
  *
@@ -73,6 +85,10 @@ async function handler(req: NextRequest, { params }: Ctx) {
   const result = await inTenant(
     ctx,
     async (db) => {
+      if (!(await clubTakesOnlinePayment(db, ctx.tenantId!))) {
+        throw new OnlinePaymentDisabledError();
+      }
+
       const booking = await getOwnBooking(db, ctx.tenantId!, {
         bookingId: id,
         userId: ctx.userId!,

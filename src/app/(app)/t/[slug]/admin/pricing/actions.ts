@@ -4,6 +4,10 @@ import { revalidatePath } from 'next/cache';
 
 import { pricingRuleWriteSchema } from '@/app-layer/schemas/pricing';
 import {
+  InvalidCancellationCutoffError,
+  setVenueCancellationCutoff,
+} from '@/app-layer/usecases/booking-rules';
+import {
   createPricingRule,
   deletePricingRule,
   updatePricingRule,
@@ -116,6 +120,40 @@ export async function deletePricingRuleAction(slug: string, ruleId: string): Pro
   await runInTenantContext(ctx.tenantId, (db) =>
     deletePricingRule(db, ctx.tenantId, ctx.userId, ruleId),
   );
+
+  revalidatePath(`/t/${slug}/admin/pricing`);
+  return { ok: true };
+}
+
+/**
+ * How long before the start a player may cancel in the app (#354), per venue.
+ *
+ * `admin.venue_manage` — the venue's terms, which OWNER and MANAGER hold — not
+ * `admin.pricing_manage`, though the field sits on this screen beside the
+ * other commercial terms. The two are held by the same roles today; checking
+ * the one that names the decision keeps it right if they ever part.
+ */
+export async function setCancellationCutoffAction(
+  slug: string,
+  venueId: string,
+  _prev: { ok: true } | { ok: false; error: 'INVALID' } | null,
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: 'INVALID' }> {
+  const ctx = await requireTenantAction(slug, 'admin.venue_manage');
+
+  const raw = form.get('hours');
+  // `Number('')` is 0, which is a legitimate cutoff — so an empty field must
+  // not be read as one.
+  const hours = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN;
+
+  try {
+    await runInTenantContext(ctx.tenantId, (db) =>
+      setVenueCancellationCutoff(db, ctx.tenantId, { venueId, hours, actorUserId: ctx.userId }),
+    );
+  } catch (err) {
+    if (err instanceof InvalidCancellationCutoffError) return { ok: false, error: 'INVALID' };
+    throw err;
+  }
 
   revalidatePath(`/t/${slug}/admin/pricing`);
   return { ok: true };

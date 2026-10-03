@@ -33,6 +33,8 @@ export interface PlayerListItem {
   email: string;
   tags: string[];
   noShowCount: number;
+  /** When staff last lifted this player's no-show block here (#354). */
+  noShowBlockClearedAt: Date | null;
   lastPlayedAt: Date | null;
   membershipLevel: string | null;
   creditCents: number;
@@ -49,6 +51,7 @@ export async function listPlayers(
       playerUserId: true,
       tags: true,
       noShowCount: true,
+      noShowBlockClearedAt: true,
       lastPlayedAt: true,
     },
     // Recently active first — the people a club is actually dealing with.
@@ -120,6 +123,7 @@ export async function listPlayers(
       email: u?.email ?? '',
       tags: r.tags,
       noShowCount: r.noShowCount,
+      noShowBlockClearedAt: r.noShowBlockClearedAt,
       lastPlayedAt: r.lastPlayedAt,
       membershipLevel: levelById.get(r.playerUserId) ?? null,
       creditCents: creditById.get(r.playerUserId) ?? 0,

@@ -125,7 +125,11 @@ test.describe('club admin pricing — desktop', () => {
     await expect(page.locator('main select')).toHaveCount(0);
     await page.getByRole('button', { name: p.action.add }).click();
 
-    const form = page.locator('main form');
+    // The RULE form: the page also carries the player-cancellation cutoff
+    // form for an owner (#354), so `main form` alone is no longer one element.
+    const form = page
+      .locator('main form')
+      .filter({ has: page.getByLabel(p.field.name, { exact: true }) });
     await form.getByLabel(p.field.name, { exact: true }).focus();
     await page.keyboard.type('Вечерен пик');
     await page.keyboard.press('Tab');

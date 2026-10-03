@@ -13,8 +13,19 @@ model PlayerVenueRelationship {
   playerUserId String
 
   tags         String[]
+  /// Every no-show ever recorded here. A running total for the club's eyes;
+  /// the BLOCK is not computed from it (see below).
   noShowCount  Int       @default(0)
   lastPlayedAt DateTime?
+
+  /// Staff lifted the no-show block (#354). No-shows on bookings that started
+  /// at or before this instant no longer count towards it. The block itself is
+  /// never stored: it is "3+ NO_SHOW bookings in the last 90 days, after this",
+  /// counted from `booking` at the moment of booking — see `noShowStanding`.
+  noShowBlockClearedAt       DateTime? @db.Timestamptz(3)
+  /// Who lifted it. The audit row (PLAYER_NO_SHOW_BLOCK_CLEARED) is the full
+  /// record; this is what the players screen shows without reading the log.
+  noShowBlockClearedByUserId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

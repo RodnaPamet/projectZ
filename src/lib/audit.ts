@@ -82,6 +82,10 @@ export const AUDIT_ACTIONS = {
   /// A staff member moved a player's credit by hand. The ledger row is the
   /// record of the money; this is the record of the decision.
   PLAYER_CREDIT_ADJUSTED: 'PLAYER_CREDIT_ADJUSTED',
+  /// Staff lifted a player's no-show block on online booking (#354).
+  PLAYER_NO_SHOW_BLOCK_CLEARED: 'PLAYER_NO_SHOW_BLOCK_CLEARED',
+  /// A club admin changed how long before the start a player may cancel.
+  VENUE_CANCELLATION_CUTOFF_CHANGED: 'VENUE_CANCELLATION_CUTOFF_CHANGED',
   /// MEMBER_ROLE_CHANGED and MEMBER_REMOVED already exist at the top of this
   /// list — the staff screen reuses them rather than minting near-duplicates.
   MEMBER_REINSTATED: 'MEMBER_REINSTATED',

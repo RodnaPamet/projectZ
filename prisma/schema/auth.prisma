@@ -55,6 +55,15 @@ model VenueOrg {
   stripeAccountId String?
   payoutsEnabled  Boolean @default(false)
 
+  /// Whether players PAY ONLINE when they book here (#354). Off by default and
+  /// off for every club in the Sofia pilot: a booking is CONFIRMED the moment
+  /// it is made and paid at the club, and `POST …/checkout` refuses.
+  ///
+  /// On, a booking is created PENDING with a 15-minute hold and is confirmed
+  /// by checkout — the Stripe flow, kept intact behind this flag rather than
+  /// deleted. Nothing in the app sets it; it is an operator's decision.
+  onlinePaymentEnabled Boolean @default(false)
+
   // The venue's OWN subscription to us (Stripe Billing), which sets planTier
   // and therefore the commission bps. Distinct from stripeAccountId, which is
   // the connected account we pay OUT to.
