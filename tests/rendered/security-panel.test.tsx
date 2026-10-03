@@ -24,13 +24,23 @@ const sec = (messages as unknown as { platform: { security: Record<string, unkno
   .security as {
   status: { on: string; off: string };
   notEligible: string;
-  enrol: { start: string; codeLabel: string; confirm: string; reauth: string };
+  enrol: {
+    start: string;
+    codeLabel: string;
+    confirm: string;
+    reauth: string;
+    openApp: string;
+    qrAlt: string;
+  };
   recovery: { title: string; done: string };
   error: Record<string, string>;
 };
 
 // A made-up fixture key; nothing anywhere is enrolled with it.
 const SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'; // pragma: allowlist secret
+const URI = `otpauth://totp/x?secret=${SECRET}`;
+// What the server sends for that URI: the QR's geometry, drawn server-side (#342).
+const QR = { size: 29, path: 'M4 4h7v1h-7zM12 4h1v1h-1z' };
 const CODES = Array.from({ length: 10 }, (_, i) => `AAAA-BBBB-CCCC-DDD${'ABCDEFGHIJ'[i]}`);
 
 let status = {
@@ -74,7 +84,7 @@ beforeEach(() => {
 it('enrols: shows the key, confirms a code, and shows the recovery codes ONCE', async () => {
   const calls = v1((c) => {
     if (c.url.endsWith('/me/mfa/enrolment')) {
-      return ok({ secret: SECRET, otpauthUri: `otpauth://totp/x?secret=${SECRET}` });
+      return ok({ secret: SECRET, otpauthUri: URI, qr: QR });
     }
     if (c.url.endsWith('/me/mfa/enrolment/confirm')) {
       status = { ...status, enrolled: true, recoveryCodesRemaining: 10 };
@@ -87,6 +97,16 @@ it('enrols: shows the key, confirms a code, and shows the recovery codes ONCE', 
   await userEvent.click(await screen.findByRole('button', { name: sec.enrol.start }));
   // Grouped in fours so it can be typed by hand.
   expect(await screen.findByText('JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP')).toBeInTheDocument();
+  // The QR, as the server drew it, named by its fallback; the phone's deep link beside it.
+  const qr = screen.getByRole('img', { name: sec.enrol.qrAlt });
+  expect(qr.tagName.toLowerCase()).toBe('svg');
+  expect(qr.getAttribute('viewBox')).toBe('0 0 29 29');
+  expect(qr.querySelector('path')!.getAttribute('d')).toBe(QR.path);
+  expect(screen.getByRole('link', { name: sec.enrol.openApp })).toHaveAttribute('href', URI);
+  // Nothing went anywhere but our own API: no QR service ever sees the key.
+  expect(calls.map((c) => new URL(c.url, 'http://localhost').pathname)).toEqual(
+    calls.map(() => expect.stringMatching(/^\/api\/v1\//)),
+  );
 
   await userEvent.type(screen.getByLabelText(sec.enrol.codeLabel), '123456');
   await userEvent.click(screen.getByRole('button', { name: sec.enrol.confirm }));

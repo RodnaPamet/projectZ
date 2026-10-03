@@ -3085,7 +3085,7 @@
       "post": {
         "operationId": "startMfaEnrolment",
         "summary": "Begin enrolling an authenticator",
-        "description": "A new TOTP shared secret (RFC 6238: SHA-1, 6 digits, 30 s), returned ONCE as base32 together with the `otpauth://` URI that carries it. The server keeps it only as AES-256-GCM ciphertext. Nothing is switched on until `POST /me/mfa/enrolment/confirm` succeeds; calling this again before then replaces the pending secret.\n\nNeeds a sign-in from the last 15 minutes: the first enrolment is trust-on-first-use, so a session that has been alive for days may not plant an authenticator on its own.\n\nThe response carries a secret and is sent `Cache-Control: no-store`.",
+        "description": "A new TOTP shared secret (RFC 6238: SHA-1, 6 digits, 30 s), returned ONCE as base32 together with the `otpauth://` URI that carries it and that URI's QR code (`qr`). The server keeps it only as AES-256-GCM ciphertext. Nothing is switched on until `POST /me/mfa/enrolment/confirm` succeeds; calling this again before then replaces the pending secret.\n\nNeeds a sign-in from the last 15 minutes: the first enrolment is trust-on-first-use, so a session that has been alive for days may not plant an authenticator on its own.\n\nThe response carries a secret and is sent `Cache-Control: no-store`.",
         "tags": ["Me"],
         "security": [
           {
@@ -5357,7 +5357,7 @@
       "MfaEnrolment": {
         "type": "object",
         "title": "MfaEnrolment",
-        "required": ["secret", "otpauthUri"],
+        "required": ["secret", "otpauthUri", "qr"],
         "properties": {
           "secret": {
             "type": "string",
@@ -5366,6 +5366,22 @@
           "otpauthUri": {
             "type": "string",
             "description": "`otpauth://totp/playerz.bg:<email>?secret=…&issuer=playerz.bg&…`"
+          },
+          "qr": {
+            "type": "object",
+            "description": "`otpauthUri` as a QR code (error correction M), drawn on the server so the secret never reaches a QR library in a browser or a third-party service. Draw it as `<svg viewBox=\"0 0 {size} {size}\">` with a light background and `path` filled dark; the quiet zone (4 modules) is inside `size`. It encodes the secret: treat it like `otpauthUri`. A phone app enrolling itself has no use for it and can ignore it.",
+            "required": ["size", "path"],
+            "properties": {
+              "size": {
+                "type": "integer",
+                "minimum": 29,
+                "description": "Side of the square in modules, quiet zone included: the SVG viewBox."
+              },
+              "path": {
+                "type": "string",
+                "description": "SVG path data (`d`) of every dark module, in module units."
+              }
+            }
           }
         }
       },

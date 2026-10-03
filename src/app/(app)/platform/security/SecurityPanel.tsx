@@ -68,19 +68,52 @@ const TIME_ZONE = 'Europe/Sofia';
 /** `ABCDEFGH…` → `ABCD EFGH …`, so a key typed by hand is typed in fours. */
 const grouped = (secret: string) => secret.match(/.{1,4}/g)?.join(' ') ?? secret;
 
+/** `POST /me/mfa/enrolment`: the seed, its URI, and that URI's QR as drawn by the server. */
+interface Enrolment {
+  secret: string;
+  otpauthUri: string;
+  qr: { size: number; path: string };
+}
+
+/**
+ * The enrolment QR (#342). The server drew it (`src/lib/auth/totp-qr.ts`);
+ * this only puts its path in an `<svg>`, so no QR library ships to the
+ * browser and nothing is set as HTML.
+ *
+ * Black on white in BOTH themes, the quiet zone included in the white: a
+ * scanner wants dark on light, and in dark mode a QR without its light margin
+ * melts into the page. So the fills are literals on purpose (a theme token
+ * would invert it), and `forced-color-adjust-none` keeps a high-contrast
+ * theme off it.
+ */
+function EnrolmentQrCode({ qr, label }: { qr: Enrolment['qr']; label: string }) {
+  return (
+    <svg
+      role="img"
+      aria-label={label}
+      viewBox={`0 0 ${qr.size} ${qr.size}`}
+      shapeRendering="crispEdges"
+      className="border-border-subtle size-40 rounded-md border forced-color-adjust-none md:size-56"
+    >
+      <rect width={qr.size} height={qr.size} fill="#ffffff" />
+      <path d={qr.path} fill="#000000" />
+    </svg>
+  );
+}
+
 export function SecurityPanel() {
   const t = useTranslations('platform.security');
   const format = useFormatter();
   const status = useV1SWR<MfaStatus>(KEYS.mfaStatus());
   const [error, setError] = useState<string | null>(null);
-  const [enrolment, setEnrolment] = useState<{ secret: string; otpauthUri: string } | null>(null);
+  const [enrolment, setEnrolment] = useState<Enrolment | null>(null);
   const [code, setCode] = useState('');
   const [codes, setCodes] = useState<string[] | null>(null);
   const [needsStepUp, setNeedsStepUp] = useState(false);
   const keyCopy = useCopyToClipboard();
   const codesCopy = useCopyToClipboard();
 
-  const start = useV1Mutation<void, { secret: string; otpauthUri: string }>({
+  const start = useV1Mutation<void, Enrolment>({
     url: () => V1.mfaEnrol(),
   });
   const confirm = useV1Mutation<{ code: string }, { recoveryCodes: string[] }>({
@@ -187,9 +220,21 @@ export function SecurityPanel() {
             </div>
           ) : (
             <>
-              <div className="grid gap-2">
-                <p className="text-content-emphasis font-medium">1. {t('enrol.step1')}</p>
-                <div>
+              {/*
+               * Three ways in, in the order that suits the screen (#342):
+               *   - below md, the phone's own deep link first: you cannot
+               *     scan a QR with the phone that shows it;
+               *   - from md, the QR first and large: the laptop shows it, the
+               *     phone scans it;
+               *   - the key in fours, for anything else.
+               * The DOM order stays link → QR → key (the QR is not focusable,
+               * so moving it at md changes no tab order).
+               */}
+              <div className="grid gap-x-6 gap-y-2 md:grid-cols-[auto_minmax(0,1fr)] md:grid-rows-[auto_auto_auto_auto_1fr]">
+                <p className="text-content-emphasis font-medium md:col-span-2">
+                  1. {t('enrol.step1')}
+                </p>
+                <div className="md:col-start-2 md:row-start-2">
                   <a
                     href={enrolment.otpauthUri}
                     className={buttonVariants({ variant: 'secondary' })}
@@ -197,8 +242,16 @@ export function SecurityPanel() {
                     {t('enrol.openApp')}
                   </a>
                 </div>
-                <p className="text-content-muted text-sm">{t('enrol.manual')}</p>
-                <div className="flex flex-wrap items-center gap-2">
+                <figure className="grid justify-items-start gap-1.5 md:col-start-1 md:row-span-4 md:row-start-2">
+                  <EnrolmentQrCode qr={enrolment.qr} label={t('enrol.qrAlt')} />
+                  <figcaption className="text-content-muted max-w-56 text-sm">
+                    {t('enrol.scan')}
+                  </figcaption>
+                </figure>
+                <p className="text-content-muted text-sm md:col-start-2 md:row-start-3">
+                  {t('enrol.manual')}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 md:col-start-2 md:row-start-4">
                   <code className="border-border-subtle bg-bg-muted rounded-md border px-3 py-2 font-mono text-sm break-all">
                     {grouped(enrolment.secret)}
                   </code>
