@@ -1,5 +1,7 @@
 import { existsSync, globSync, readFileSync } from 'node:fs';
 
+import ts from 'typescript';
+
 import { STALE_AFTER_MS } from '@/lib/hooks/use-refresh-when-stale';
 
 /**
@@ -76,6 +78,43 @@ function code(src: string): string {
 
 const sources = globSync('src/**/*.{ts,tsx}').map((f) => f.toString());
 
+/**
+ * The `<name …>` elements in `src` that do not pass the literal prefetch="auto",
+ * each as its source text.
+ *
+ * Parsed, not matched: a `<NavItem\b[^>]*>` regex stops at the first `>`, so an
+ * arrow function or a comparison in an earlier prop cuts the tag short and a
+ * pinned use reads as unpinned, and a `prefetch="auto"` on a JSX element passed
+ * in a prop reads as the NavItem's own. A spread after the attribute can
+ * override it, so that counts as unpinned too.
+ */
+function unpinnedUses(src: string, name: string, file = 'x.tsx'): string[] {
+  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, kind);
+  const out: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(sf) === name
+    ) {
+      const props = node.attributes.properties;
+      const at = props.findIndex((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === 'prefetch');
+      const attr = props[at];
+      const pinned =
+        attr !== undefined &&
+        ts.isJsxAttribute(attr) &&
+        attr.initializer !== undefined &&
+        ts.isStringLiteral(attr.initializer) &&
+        attr.initializer.text === 'auto' &&
+        !props.slice(at + 1).some(ts.isJsxSpreadAttribute);
+      if (!pinned) out.push(node.getText(sf));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
 describe('router cache policy', () => {
   it('pins staleTimes to { dynamic: 30, static: 180 }', () => {
     const m = /staleTimes:\s*\{\s*dynamic:\s*(\d+),\s*static:\s*(\d+)\s*\}/.exec(code(config));
@@ -138,10 +177,9 @@ describe('router cache policy', () => {
   });
 
   it.each(sources)('%s: every vendored NavItem is told prefetch="auto"', (f) => {
-    const src = code(readFileSync(f, 'utf8'));
+    const src = readFileSync(f, 'utf8');
     for (const name of AUTO_ONLY_COMPONENTS) {
-      const uses = [...src.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'g'))].map((m) => m[0]);
-      const unpinned = uses.filter((u) => !/\sprefetch="auto"/.test(u));
+      const unpinned = unpinnedUses(src, name, f);
       expect({ file: f, component: name, unpinned }).toEqual({
         file: f,
         component: name,
@@ -151,11 +189,23 @@ describe('router cache policy', () => {
   });
 
   it('the NavItem rule would catch a full or missing prefetch', () => {
-    const unpinned = (s: string) =>
-      [...s.matchAll(/<NavItem\b[^>]*>/g)].filter((m) => !/\sprefetch="auto"/.test(m[0])).length;
+    const unpinned = (s: string) => unpinnedUses(s, 'NavItem').length;
     expect(unpinned('<NavItem href="/x" label="x" prefetch="auto" />')).toBe(0);
     expect(unpinned('<NavItem href="/x" label="x" />')).toBe(1);
     expect(unpinned('<NavItem href="/x" prefetch={true} />')).toBe(1);
+    expect(unpinned('<NavItem href="/x" prefetch={on ? "auto" : true} />')).toBe(1);
+    expect(unpinned('<NavItem href="/x" prefetch="auto" {...rest} />')).toBe(1);
+    expect(unpinned('<NavItem>{"x"}</NavItem>')).toBe(1);
+  });
+
+  it('the NavItem rule reads past a `>` inside an earlier prop', () => {
+    const unpinned = (s: string) => unpinnedUses(s, 'NavItem').length;
+    // An arrow function and a comparison before the attribute: still pinned.
+    expect(
+      unpinned('<NavItem onSelect={() => go()} active={n > 0} href="/x" prefetch="auto" />'),
+    ).toBe(0);
+    // And a pinned element passed in a prop does not pin the NavItem itself.
+    expect(unpinned('<NavItem icon={<Link prefetch="auto" />} href="/x" />')).toBe(1);
   });
 
   it.each(sources)('%s: PublicPrefetchLink only where pinned', (f) => {
