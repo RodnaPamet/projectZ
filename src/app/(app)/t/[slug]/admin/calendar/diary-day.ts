@@ -230,7 +230,19 @@ export async function loadDiaryDay(
     // `toZonedTime` result converted TWICE. On a server east of the club that
     // landed a day early: "Wednesday 14 January" above Thursday's grid, with
     // prev/next links stepping from the correct day.
-    dayLabel: formatInTimeZone(from, timezone, 'EEEE d MMMM yyyy'),
+    //
+    // In the viewer's LANGUAGE, on the club's calendar (T26): this was
+    // date-fns's `EEEE d MMMM yyyy` with no locale, so the Bulgarian diary
+    // read "Wednesday 14 January 2026". Intl with `timeZone` reads the same
+    // instant on the same wall clock, and words it as `сряда, 14 януари
+    // 2026 г.`.
+    dayLabel: new Intl.DateTimeFormat(locale, {
+      timeZone: timezone,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(from),
     courts: courts.map((c): GridCourt => ({
       id: c.id,
       name: c.name,

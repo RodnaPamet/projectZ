@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
+import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 
 import { DayGrid } from './DayGrid';
@@ -43,8 +44,8 @@ export default async function CalendarPage({
 
   return (
     <section>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <header className="mb-section">
+        <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
 
