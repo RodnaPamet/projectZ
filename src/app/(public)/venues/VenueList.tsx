@@ -138,7 +138,9 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-content-emphasis font-medium">{v.name}</h2>
         {v.reviewCount > 0 && (
-          <StatusBadge variant="success" className="shrink-0">
+          // icon={null}: the badge's default status glyph is a check or an
+          // ⓘ, which says "state" on what is a fact. The ★ is the glyph here.
+          <StatusBadge variant="success" icon={null} className="shrink-0">
             {format.number(v.avgRating, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★
           </StatusBadge>
         )}
@@ -154,7 +156,7 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
               `table_tennis` was on every card, in English, on a Bulgarian
               page. `sports.*` carries every value of the Sport enum. */}
           {v.sports.map((s) => (
-            <StatusBadge key={s} variant="neutral">
+            <StatusBadge key={s} variant="neutral" icon={null}>
               {tSports(s as never)}
             </StatusBadge>
           ))}
