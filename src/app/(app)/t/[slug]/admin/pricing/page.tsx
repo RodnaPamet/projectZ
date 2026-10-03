@@ -7,7 +7,8 @@ import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
 import { CancellationCutoffForm, type CutoffVenue } from './CancellationCutoffForm';
-import { PricingBoard, type CourtOption, type PricingRuleView } from './PricingBoard';
+import { PricingBoard, type CourtOption } from './PricingBoard';
+import { toPricingRuleView, type PricingRuleView } from './rule-view';
 
 export async function generateMetadata() {
   const t = await getTranslations('admin.pricing');
@@ -73,15 +74,7 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
 
   const byCourt: Record<string, PricingRuleView[]> = {};
   for (const [courtId, rules] of rulesByCourt) {
-    byCourt[courtId] = rules.map((r): PricingRuleView => ({
-      id: r.id,
-      name: r.name,
-      priority: r.priority,
-      // Decimal → number, at the boundary, once.
-      multiplier: r.multiplier === null ? null : Number(r.multiplier),
-      fixedPriceCents: r.fixedPriceCents,
-      conditions: (r.conditionsJson ?? {}) as PricingRuleView['conditions'],
-    }));
+    byCourt[courtId] = rules.map(toPricingRuleView);
   }
 
   const options = courts.map((c): CourtOption => ({

@@ -4,7 +4,7 @@ import { startTransition, useActionState, useId, useMemo, useOptimistic, useStat
 import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 
-import { computeSpanPrice, type PricingRuleRow } from '@/app-layer/usecases/pricing';
+import { computeSpanPrice } from '@/app-layer/usecases/pricing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -18,6 +18,9 @@ import { Heading } from '@/components/ui/typography';
 
 import { deletePricingRuleAction } from './actions';
 import { comboProps, useRequiredChoice, WEEK } from './choices';
+import { toEngineRules, type PricingRuleView } from './rule-view';
+
+export type { PricingRuleView } from './rule-view';
 
 /**
  * The rule form and the delete confirm load when first opened, not with the
@@ -65,21 +68,6 @@ const ConfirmDialog = dynamic(() =>
  * Combobox now. Delete asks through a ConfirmDialog instead of
  * `window.confirm`, whose box ignores the theme and the locale's button labels.
  */
-
-export interface PricingRuleView {
-  id: string;
-  name: string;
-  priority: number;
-  /** Already narrowed from Prisma.Decimal at the server boundary. */
-  multiplier: number | null;
-  fixedPriceCents: number | null;
-  conditions: {
-    dayOfWeek?: number[];
-    timeRange?: { from: string; to: string };
-    playerTags?: string[];
-    membershipLevel?: string;
-  };
-}
 
 export interface CourtOption {
   id: string;
@@ -189,9 +177,12 @@ export function PricingBoard({
     // exists to answer.
     //
     // `computeSpanPrice` is the same loop `quoteBooking` runs, shared rather
-    // than reimplemented, so the two cannot drift apart again.
+    // than reimplemented, so the two cannot drift apart again. The rules go
+    // back through `toEngineRules`: the engine reads `conditionsJson`, and a
+    // view handed over by cast carried none, so every rule matched every day
+    // (#350).
     const units = Math.max(1, Math.floor(duration / court.minBookingMinutes));
-    return computeSpanPrice(rules as unknown as PricingRuleRow[], {
+    return computeSpanPrice(toEngineRules(rules), {
       basePriceCents: court.basePriceCents,
       localDayOfWeek: day,
       localStartMinutes: start,

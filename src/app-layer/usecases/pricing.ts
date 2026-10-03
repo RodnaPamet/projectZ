@@ -17,7 +17,13 @@ export interface PricingRuleRow {
   id: string;
   name: string;
   priority: number;
-  conditionsJson: Prisma.JsonValue;
+  /**
+   * The rule's conditions: the stored JSON as the database returns it, or the
+   * same shape already parsed (the pricing screen's preview, #350). Named
+   * `conditionsJson` either way — a rule handed in under another name is
+   * evaluated with no conditions, and matches everything.
+   */
+  conditionsJson: Prisma.JsonValue | PricingConditions;
   multiplier: Prisma.Decimal | number | null;
   fixedPriceCents: number | null;
 }

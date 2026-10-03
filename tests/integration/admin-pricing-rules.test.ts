@@ -3,10 +3,12 @@ import {
   createPricingRule,
   deletePricingRule,
   listPricingRules,
+  loadPricingScreen,
   PricingRuleNotFoundError,
   updatePricingRule,
 } from '@/app-layer/usecases/pricing-rules';
-import { computePrice } from '@/app-layer/usecases/pricing';
+import { computePrice, computeSpanPrice } from '@/app-layer/usecases/pricing';
+import { toEngineRules, toPricingRuleView } from '@/app/(app)/t/[slug]/admin/pricing/rule-view';
 import { createCourt } from '@/app-layer/usecases/courts';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -103,6 +105,57 @@ describe('pricing rules', () => {
     expect(priced.appliedRuleId).toBe(rules[0]!.id);
     expect(priced.ruleTrace).toHaveLength(1);
     expect(priced.ruleTrace[0]!.matched).toBe(true);
+  });
+
+  it('the screen’s preview prices a weekend rule on the weekend only, as the engine does (#350)', async () => {
+    // The preview renamed `conditionsJson` to `conditions` and handed the
+    // views to the engine by cast, so every rule was evaluated with no
+    // conditions: Thursday 19:00 came out at the weekend price. This is the
+    // screen's whole path: the page's load, its row → view mapping, and the
+    // preview's view → engine mapping.
+    const c = await club();
+    await runInTenantContext(c.tenantId, (db2) =>
+      createPricingRule(
+        db2,
+        c.tenantId,
+        c.userId,
+        rule(c.courtId, {
+          name: 'Weekend peak',
+          conditions: { dayOfWeek: [0, 6], timeRange: { from: '18:00', to: '22:00' } },
+          multiplier: 1.5,
+        }),
+      ),
+    );
+
+    const { courts, rulesByCourt } = await runInTenantContext(c.tenantId, (db2) =>
+      loadPricingScreen(db2, c.tenantId),
+    );
+    const rows = rulesByCourt.get(c.courtId) ?? [];
+    const views = rows.map(toPricingRuleView);
+    const base = courts[0]!.basePriceCents;
+
+    const quote = (rules: Parameters<typeof computeSpanPrice>[0], day: number) =>
+      computeSpanPrice(rules, {
+        basePriceCents: base,
+        localDayOfWeek: day,
+        localStartMinutes: 19 * 60,
+        unitMinutes: 60,
+        units: 1,
+      });
+
+    const thursday = quote(toEngineRules(views), 4);
+    const saturday = quote(toEngineRules(views), 6);
+
+    expect(thursday.finalPriceCents).toBe(2400);
+    expect(thursday.appliedRuleIds).toEqual([]);
+    expect(saturday.finalPriceCents).toBe(3600);
+    expect(saturday.appliedRuleIds).toEqual([rows[0]!.id]);
+    expect(thursday.finalPriceCents).not.toBe(saturday.finalPriceCents);
+
+    // And the preview agrees with the engine on the database rows, which is
+    // what the booking route prices with.
+    expect(thursday).toEqual(quote(rows, 4));
+    expect(saturday).toEqual(quote(rows, 6));
   });
 
   it('honours priority: the higher rule wins and the lower is traced as skipped', async () => {
