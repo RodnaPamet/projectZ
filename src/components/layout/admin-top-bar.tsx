@@ -10,7 +10,7 @@ import { NavBar, NavBarMobileMenu } from './nav-bar';
 import { USER_MENU_ROW_CLASS, UserMenu } from './user-menu';
 
 /**
- * The admin shell's top bar, on inflect's vendored `NavBar` slots.
+ * The admin shell's top bar, on upstream's vendored `NavBar` slots.
  *
  *   left   the 44 px hamburger (phones only) · the playerz.bg wordmark
  *   right  the club's (or the platform's) name · the account menu
@@ -18,7 +18,7 @@ import { USER_MENU_ROW_CLASS, UserMenu } from './user-menu';
  * ═══ NO SWITCHER (#263) ═══
  *
  * A CLUB account holds exactly one club, so the name on the right is a
- * static label, not a picker. inflect's tenant switcher has nothing to switch
+ * static label, not a picker. Upstream's tenant switcher has nothing to switch
  * here and is not vendored.
  *
  * ═══ THE WORDMARK, NOT `NavBarBrand` ═══
@@ -32,7 +32,7 @@ import { USER_MENU_ROW_CLASS, UserMenu } from './user-menu';
  * ═══ THE ACCOUNT MENU ═══
  *
  * The vendored `UserMenu` brings the identity header and the theme row. Its
- * language row is off (`showLanguage={false}`, inflect #3100): the middleware
+ * language row is off (`showLanguage={false}`, upstream #3100): the middleware
  * re-seeds the locale cookie from `User.locale` on every signed-in request, so
  * a cookie-only switch would flip the page and flip it straight back. Sign-out
  * arrives through the `items` slot, because the menu no longer imports an auth

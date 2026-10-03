@@ -22,13 +22,13 @@ export function EngineAttribution({ className }: { className?: string }) {
   const t = useTranslations('engine');
 
   return (
-    <p className={className ?? 'text-muted-foreground text-xs'}>
+    <p className={className ?? 'text-content-muted text-xs'}>
       {t('analysisBy')}{' '}
       <a
         href={ENGINE_SOURCE_URL}
         target="_blank"
         rel="noreferrer noopener"
-        className="hover:text-foreground underline underline-offset-2"
+        className="hover:text-content-emphasis underline underline-offset-2"
       >
         {ENGINE_NAME}
       </a>
@@ -37,7 +37,7 @@ export function EngineAttribution({ className }: { className?: string }) {
         href={ENGINE_LICENSE_URL}
         target="_blank"
         rel="noreferrer noopener"
-        className="hover:text-foreground underline underline-offset-2"
+        className="hover:text-content-emphasis underline underline-offset-2"
       >
         GNU GPL v3
       </a>

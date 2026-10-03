@@ -11,12 +11,12 @@ import type { ShellNavSection } from './nav-items';
 import { SidebarCollapseProvider } from './sidebar-collapse-context';
 
 /**
- * The club-admin shell (and the platform's): inflect's vendored frame with playerz's content.
+ * The club-admin shell (and the platform's): upstream's vendored frame with playerz's content.
  *
- * `AppShellFrame` (inflect T07) owns the layout chain, the drawer's open
+ * `AppShellFrame` (upstream T07) owns the layout chain, the drawer's open
  * state, the persisted collapse (`playerz:sidebar-collapsed`, through the
  * `uiStorageKey` seam) and closing the drawer on navigation. This supplies its
- * three slots, the way inflect's own `AppShell` does:
+ * three slots, the way upstream's own `AppShell` does:
  *
  *   sidebar    `AdminSidebar` in the desktop rail, collapsible
  *   mobileNav  the same sidebar in the vendored left drawer (a vaul Sheet),

@@ -111,7 +111,7 @@ export const env = createEnv({
     // `AUTH_URL` and `AUTH_SECRET` are the Auth.js **v5** names. This app is on
     // next-auth **v4**, which reads `NEXTAUTH_URL` and `NEXTAUTH_SECRET` — both
     // declared above and both actually used. They arrived with the port from
-    // inflect-compliance, where they are correct.
+    // upstream, where they are correct.
     //
     // The cost was not cosmetic. Four required variables that nothing consumes
     // made `npm run dev` fail on EVERY route that imports this module, with
@@ -261,7 +261,7 @@ export const env = createEnv({
     SMTP_PORT: z.coerce.number().optional(),
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
-    // Was `noreply@inflect.app` — a leftover from the compliance product this
+    // Was the upstream product's noreply address — a leftover from the compliance product this
     // codebase started as, which would have put another company's domain in
     // the From header of every invite.
     SMTP_FROM: z.string().default('noreply@playerz.bg'),

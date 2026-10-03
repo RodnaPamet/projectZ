@@ -194,7 +194,7 @@
 
   /* ── Glass ─────────────────────────────────────────────────────── */
   /*
-   * The default raised <Card> (`.glass-card`). These were inflect's navy
+   * The default raised <Card> (`.glass-card`). These were upstream's navy
    * (rgba(0, 47, 95, 0.82)), the one blue slab left on a charcoal-green page.
    * Now --bg-default and --border-default at partial alpha, the same recipe
    * as the light block: the glass card reads as a card, with the blur behind
@@ -218,7 +218,7 @@
 
   /* ── Still Surface — the motionless button material (DARK) ─────────
    *
-   * button-variants.ts is vendored byte-identical from inflect (T18) and
+   * button-variants.ts is vendored byte-identical from upstream (T18) and
    * reads these seven tokens; playerz owns only their values. They replace
    * the R19 carbon, R20 ambient/iridescent/aura and R24 glass stacks, whose
    * tokens had no consumer left once the vendored material landed.
@@ -228,7 +228,7 @@
    *   --btn-still-lift   rest elevation
    *   --btn-still-press  that lift inverted, on :active
    *
-   * The lift is tinted green-black (0, 12, 4), not inflect's navy
+   * The lift is tinted green-black (0, 12, 4), not upstream's navy
    * (0, 10, 25): it falls on the #0d110e page, and a blue shadow under a
    * green tile reads as a second, unrelated light source.
    *
@@ -236,7 +236,7 @@
    * complementary edge primary takes on hover (see the Brand / Secondary
    * block above).
    *
-   * Danger keeps its own stops, inflect's red-700/800/600, because a white
+   * Danger keeps its own stops, upstream's red-700/800/600, because a white
    * label needs a DARK red: white on #b91c1c is 6.47:1 (rest, the floor),
    * #dc2626 4.83:1 (hover) and #991b1b 8.31:1 (the deep stop). */
   --btn-still-top: rgba(255, 255, 255, 0.26);
@@ -260,7 +260,7 @@
    * just the focus indicator) now also carries a 2-stop ambient
    * drop so a focused control reads "warm AND raised". It was
    * shaped after the retired R20 button token
-   * `--btn-ambient-focus` (removed when T18 vendored inflect's
+   * `--btn-ambient-focus` (removed when T18 vendored upstream's
    * Still Surface buttons), minus that token's 4px outer brand
    * ring; it now stands on its own. */
   --ctrl-edge-focus:
@@ -512,7 +512,7 @@
   --shadow-lg: 0 8px 24px rgba(60, 50, 40, 0.12);
 
   /* ── Still Surface (LIGHT) ─────────────────────────────────────────
-   * inflect's light values, kept: the warm off-white ground shows shadow
+   * Upstream's light values, kept: the warm off-white ground shows shadow
    * far more readily than the dark page, so the edge light is brighter
    * (.34 vs .26) and the seat line and lift are softer. The danger stops
    * are the red-800 family, the same #991616 as --content-error: white

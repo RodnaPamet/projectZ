@@ -17,13 +17,19 @@ import { isBaseline, rowKey, stringify, type BaselineDoc, type Row, type RunDoc 
  *
  * ═══ THE CEILING ═══
  *
- * max(median × 1.15, median + 50 ms), from the merged runs of the change that
- * set it. The 15% is for slow rows, where the machine's own drift is
- * proportional. The 50 ms is for fast ones: a warm revisit served from the
- * router cache is 30-60 ms on the phone, and ±15% of that is a few
- * milliseconds of scheduling noise. 50 ms is still far less than what a lost
+ * max(median × 1.10, median + 30 ms), from the merged runs of the change that
+ * set it. The 10% is for slow rows, where the machine's own drift is
+ * proportional. The 30 ms is for fast ones: a warm revisit served from the
+ * router cache is 30-60 ms on the phone, and ±10% of that is a few
+ * milliseconds of scheduling noise. 30 ms is still far less than what a lost
  * cache hit costs (a round trip and the 300 ms Suspense throttle, #290), so
  * the budget catches the regression it exists for.
+ *
+ * T30 set it at 15% / 50 ms while the programme was still moving rows. T29,
+ * the programme's last task, tightened it to 10% / 30 ms. Two runs of one
+ * commit differ by at most 7.3 ms (3.7%) on a phone soft navigation and 32 ms
+ * on a desktop full load (docs/perf/README.md, "Run-to-run variance"), and a
+ * budget is set from a MERGED pair, so 10% / 30 ms is still above the noise.
  *
  * Only rows with a time are budgeted. A write (harness.ts `write`) is
  * untimed; its request counts are reported, not budgeted.
@@ -41,7 +47,7 @@ export interface BudgetDoc {
   rows: Record<string, { median: number; ceiling: number }>;
 }
 
-export const ceilingFor = (median: number) => Math.ceil(Math.max(median * 1.15, median + 50));
+export const ceilingFor = (median: number) => Math.ceil(Math.max(median * 1.1, median + 30));
 
 const rowsOf = (d: RunDoc | BaselineDoc): Row[] => (isBaseline(d) ? d.pooled : d.rows);
 
@@ -57,7 +63,7 @@ export function makeBudget(doc: RunDoc | BaselineDoc, source: string): BudgetDoc
   return {
     schema: BUDGET_SCHEMA,
     source,
-    rule: 'ceiling = ceil(max(median × 1.15, median + 50 ms)), median time to ready',
+    rule: 'ceiling = ceil(max(median × 1.10, median + 30 ms)), median time to ready',
     rows,
   };
 }

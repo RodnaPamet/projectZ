@@ -477,7 +477,7 @@ export default function DesignSystemPage() {
          * and it is now actually exercised rather than merely asserted. The
          * cards are buttons when the table has a row action (onRowClick), so
          * they take Tab and Enter/Space like the desktop rows (react-table v9,
-         * inflect's table as of T21). The rows are Bulgarian, as a player sees
+         * upstream's table as of T21). The rows are Bulgarian, as a player sees
          * them; getRowId keys selection by booking id rather than array index.
          */}
         <Section title="DataTable">

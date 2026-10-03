@@ -53,7 +53,7 @@ export interface NavItem {
    * to its `loading.tsx`, never in full. A fully prefetched diary would live
    * under `staleTimes.static` and could be 180 s old on the tap, and every
    * revalidating admin write would re-prefetch each such link in full. The
-   * vendored NavItem defaults to a full prefetch (inflect's choice), so the
+   * vendored NavItem defaults to a full prefetch (upstream's choice), so the
    * value is carried on every item rather than left to that default.
    */
   prefetch: 'auto';

@@ -8,7 +8,7 @@
 @import '../styles/tokens.css';
 
 /* ──────────────────────────────────────────────────────────────────
- * Legacy color aliases (from the inflect-compliance port).
+ * Legacy color aliases (from the upstream port).
  *
  * These `--bg-primary` / `--text-primary` / `--brand` names predate
  * the Epic 51 semantic token system in `src/styles/tokens.css`. They
@@ -74,12 +74,12 @@ body {
    MUST own its own scroll context — this makes the "the page scrolls"
    failure mode structurally impossible THERE.
 
-   It was unconditional, inherited from inflect, where every page sits in
+   It was unconditional, inherited from upstream, where every page sits in
    an AppShell that owns a scroll container. No playerz page does yet, so
    at 1280px the whole document was simply unscrollable: /design-system's
    lower half was unreachable by wheel, keyboard or trackpad, and the one
    desktop e2e only passed because it scrolled programmatically. Gating
-   on :has() keeps inflect's contract for the shell that opts in (T19)
+   on :has() keeps upstream's contract for the shell that opts in (T19)
    and leaves every other page scrolling like a web page.
 
    Below md the document scrolls naturally so mobile touch behaviour
@@ -304,7 +304,7 @@ body {
  * their own floor with `pointer-coarse:min-h-11` in their cva.
  *
  * These rules used to sit inside the process-canvas section inherited from
- * inflect; T28 (#225) deleted that section and moved them here.
+ * upstream; T28 (#225) deleted that section and moved them here.
  * tests/guardrails/touch-targets.test.ts keeps them.
  * ───────────────────────────────────────────────────────────────── */
 @media (pointer: coarse) {

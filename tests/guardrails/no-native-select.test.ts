@@ -87,14 +87,24 @@ function code(source: string): string {
     // A `<select>` inside a JSX string/template literal is prose too.
     line = line.replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
 
-    if (line.trim()) out.push(line);
+    // Keep blank lines too: dropping them shifted every reported line number
+    // by the count of blank lines above it.
+    out.push(line);
   }
 
   return out.join('\n');
 }
 
-/** A rendered native select. Not the word; the element. */
-const NATIVE_SELECT = /<select[\s/>]/;
+/**
+ * A rendered native select. Not the word; the element.
+ *
+ * `<select` followed by whitespace, `/`, `>` OR the end of the line (#253).
+ * Prettier writes a multi-attribute element with `<select` alone on its line,
+ * and the old `/<select[\s/>]/` needed a character that is not there: it
+ * passed while nine of them sat in the club admin (#253 listed them; T23-T25
+ * replaced them). The same regex as scripts/ui-sync/portable-rules.mjs.
+ */
+const NATIVE_SELECT = /<select(?:[\s/>]|$)/;
 
 describe('the scan is not vacuous', () => {
   it('found the component tree', () => {
@@ -167,13 +177,39 @@ describe('the rule fires on the code it forbids', () => {
     '<select>',
     '<select />',
     '  <select onChange={handle}>',
+    // #253: Prettier's shape for an element with several attributes.
+    '        <select',
+    '<select\t',
   ])('catches %s', (bad) => {
     expect(NATIVE_SELECT.test(bad)).toBe(true);
+  });
+
+  it('catches a multi-line select, on the line it opens (#253)', () => {
+    // Exactly how StaffBoard.tsx:161 was written: the guard returned false for it.
+    const src = [
+      '// a comment above',
+      '',
+      'return (',
+      '  <select',
+      '    name="role"',
+      '    value={role}',
+      '    onChange={(e) => setRole(e.target.value)}',
+      '  >',
+      '    <option value="OWNER">x</option>',
+      '  </select>',
+      ');',
+    ].join('\n');
+    const hits = code(src)
+      .split('\n')
+      .flatMap((line, i) => (NATIVE_SELECT.test(line) ? [i + 1] : []));
+    expect(hits).toEqual([4]);
   });
 
   it.each([
     '<Select value={v} />', // our own capital-S component, if one ever exists
     '<Combobox options={o} />',
+    '<selection>',
+    '<selectbox',
     'const selected = useSelection();',
     'onSelect={handleSelect}',
   ])('does NOT flag %s', (good) => {

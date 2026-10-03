@@ -8,7 +8,7 @@ import { UserArrowRight } from '@/components/ui/icons/nucleo';
 import { USER_MENU_ROW_CLASS, UserMenu } from './user-menu';
 
 /**
- * The player chrome's account menu: inflect's vendored `UserMenu`, with
+ * The player chrome's account menu: upstream's vendored `UserMenu`, with
  * playerz's sign-out in its `items` slot (T20).
  *
  * A client module of its own because `items` is a render prop, and a function

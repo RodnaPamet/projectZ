@@ -89,7 +89,7 @@ function useThemeColorMetaSync() {
  * The global toast host.
  *
  * Bottom-centre below md, where the thumb is and where a top toast would sit
- * under the notch; top-right from md, where inflect puts it. The bottom offset
+ * under the notch; top-right from md, where upstream puts it. The bottom offset
  * adds `--app-bottom-inset` (0px until the player tab bar sets it) so a toast
  * never lands on top of the bar. sonner switches to its own full-width mobile
  * layout below 600px and reads `mobileOffset` there, so both offsets carry it.
@@ -121,9 +121,9 @@ function ThemeColorMetaSync() {
 /**
  * The two "stop, this page is out of date" notices, mounted once.
  *
- * inflect's SessionExpiredNotice is vendored as shipped, and it is fixed at
+ * Upstream's SessionExpiredNotice is vendored as shipped, and it is fixed at
  * `top-0` with 12 px of padding — under the notch on an installed iPhone PWA.
- * Its class list cannot change here (it is hash-locked to inflect), so the
+ * Its class list cannot change here (it is hash-locked to upstream), so the
  * notch is added from outside: `display: contents` keeps this wrapper out of
  * layout, and the child selector — an id beats a utility class — tops up the
  * notice's own padding with the safe-area inset. The viewer notice is playerz's

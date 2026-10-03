@@ -8,7 +8,7 @@ import { isViewerChanged, subscribeViewerChanged } from './viewer';
 /**
  * The notice for a tab whose account changed underneath it (#263).
  *
- * Shaped like inflect's `SessionExpiredNotice` (mounted beside it in
+ * Shaped like upstream's `SessionExpiredNotice` (mounted beside it in
  * src/app/providers.tsx) and for the same reasons: one notice for the whole
  * app however many hooks saw the 409, and an offer rather than a redirect — a
  * half-typed review is not thrown away by a background revalidation.
@@ -16,7 +16,7 @@ import { isViewerChanged, subscribeViewerChanged } from './viewer';
  * The action is a full reload of this URL, not a client navigation: the page,
  * its server-rendered viewer id and every SWR key must be rebuilt for the
  * account that is signed in now, and only a document load starts all of them
- * from nothing. playerz-owned (no inflect counterpart), so it lives here.
+ * from nothing. playerz-owned (no upstream counterpart), so it lives here.
  *
  * The top padding is the notice's own 12 px (`compact`) plus the notch: it is
  * fixed at the very top, where an installed PWA draws under the status bar.

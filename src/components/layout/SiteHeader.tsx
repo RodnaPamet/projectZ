@@ -26,7 +26,7 @@ export const playerChrome = cache(async () => {
 });
 
 /**
- * The public site header, on inflect's vendored `NavBar` slots (T20).
+ * The public site header, on upstream's vendored `NavBar` slots (T20).
  *
  *   left   the charcoal wordmark · from md, Discover and (for a player) My bookings
  *   right  a CLUB account's link to its club · from md, the account menu or Sign in

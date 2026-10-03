@@ -9,7 +9,7 @@ import { resolveTenantPageContext } from '@/lib/auth/page-context';
  *
  * This layout used to render the site header, the club nav (nine links in one
  * row: #255, 541-555 px of sideways scroll on a 393 px phone) and a <main>.
- * The chrome now lives in `admin/layout.tsx`, on inflect's vendored shell,
+ * The chrome now lives in `admin/layout.tsx`, on upstream's vendored shell,
  * because everything with a screen under `/t/[slug]` is an admin screen:
  * `page.tsx` here only redirects (to the diary, or out of the club for a
  * role with no club page). Rendering chrome here as well would wrap the admin

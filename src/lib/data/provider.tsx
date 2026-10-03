@@ -13,7 +13,7 @@ import { isViewerChanged, noteViewerChanged, subscribeViewerChanged } from './vi
  *
  * ═══ WHY THE SEAM IS MIDDLEWARE, NOT A CONFIG VALUE ═══
  *
- * inflect puts its session-expiry overrides into the `<SWRConfig value>`. SWR
+ * Upstream puts its session-expiry overrides into the `<SWRConfig value>`. SWR
  * merges a hook's own options OVER the provider's, so any hook that sets
  * `revalidateOnFocus: true` — and `useV1SWR` sets it by default — wins against
  * the seam, and every tab focus after expiry restarts the 401 burst the seam
@@ -23,7 +23,7 @@ import { isViewerChanged, noteViewerChanged, subscribeViewerChanged } from './vi
  * Once the session has expired or the viewer changed, every hook gets:
  *   refreshInterval 0, revalidateOnFocus / OnReconnect / IfStale false,
  *   shouldRetryOnError false.
- * Nothing new STARTS. `isPaused` is deliberately not used: inflect measured
+ * Nothing new STARTS. `isPaused` is deliberately not used: upstream measured
  * that SWR also checks it inside its catch and then DISCARDS the error, so a
  * hook mounting after expiry would render neither data nor error.
  *
@@ -84,7 +84,7 @@ export const sessionSeam: Middleware = (useSWRNext) => (key, fetcher, config) =>
     // retry's GET: 2 GETs instead of 1 in tests/rendered/data-hooks ("a retry
     // scheduled BEFORE the session expired") without this. The stores are
     // checked when the retry is scheduled and again when it fires.
-    // Not the seam itself (inflect's caution: SWR skips this hook entirely when
+    // Not the seam itself (upstream's caution: SWR skips this hook entirely when
     // shouldRetryOnError is false) — a second lock behind it.
     onErrorRetry,
   });

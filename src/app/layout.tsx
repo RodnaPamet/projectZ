@@ -7,7 +7,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 // From the SERVER-SAFE module, never from ThemeProvider ('use client'): a
 // server import of a client module's constant is a client-reference proxy, not
 // the string — which is how `cookies().get(THEME_COOKIE)` silently always missed
-// in inflect. See src/lib/theme-constants.ts.
+// in upstream. See src/lib/theme-constants.ts.
 import { THEME_COOKIE, THEME_STORAGE_KEY, type Theme } from '@/lib/theme-constants';
 
 import { Providers } from './providers';
