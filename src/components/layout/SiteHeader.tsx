@@ -1,14 +1,17 @@
 import { cache } from 'react';
 
 import Link from 'next/link';
+import { unstable_rethrow } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { resolveLanding } from '@/app-layer/usecases/landing';
+import { HiddenOnSignIn } from '@/components/layout/HiddenOnSignIn';
 import { playerChromeKind, playerTopLinks } from '@/components/layout/nav-items';
 import { NavBar } from '@/components/layout/nav-bar';
 import { PlayerUserMenu } from '@/components/layout/player-user-menu';
 import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
 import { signedInIdentity } from '@/lib/auth/page-context';
+import { logger } from '@/lib/observability/logger';
 
 /**
  * Who the player chrome is for, read once per request.
@@ -18,12 +21,40 @@ import { signedInIdentity } from '@/lib/auth/page-context';
  * the session check and the landing read run once however many pieces of
  * chrome ask. `resolveLanding` is read from the database, not the token: the
  * token has neither club names nor club status.
+ *
+ * ═══ NEITHER READ MAY BREAK THE PAGE (#319) ═══
+ *
+ * This runs in the layouts of /login, /invite/*, /venues and the 404, above
+ * their `error.tsx`, so a throw here (the session store or the database
+ * unreachable) took the whole page down, sign-in included, where nothing
+ * could catch it. Each read now falls back instead: no identity reads as
+ * signed out, and no landing as a player with no club link. The page below
+ * still checks its own session and answers for itself. Next's own control
+ * flow (a dynamic-usage bail-out, a redirect) is rethrown, never swallowed.
  */
 export const playerChrome = cache(async () => {
-  const me = await signedInIdentity();
-  const landing = me ? await resolveLanding(me.userId) : null;
+  const me = await signedInIdentity().catch((err: unknown) => {
+    unstable_rethrow(err);
+    chromeReadFailed('identity', err);
+    return null;
+  });
+  const landing = me
+    ? await resolveLanding(me.userId).catch((err: unknown) => {
+        unstable_rethrow(err);
+        chromeReadFailed('landing', err);
+        return null;
+      })
+    : null;
   return { me, landing, kind: playerChromeKind(me !== null, landing?.reason) };
 });
+
+function chromeReadFailed(read: 'identity' | 'landing', err: unknown) {
+  logger.warn('player chrome read failed; rendering the fallback', {
+    component: 'player-chrome',
+    read,
+    error: err instanceof Error ? err.message : String(err),
+  });
+}
 
 /**
  * The public site header, on upstream's vendored `NavBar` slots (T20).
@@ -127,12 +158,15 @@ export async function SiteHeader() {
           // Fully prefetched (#290): anonymous only, the same 1.4 KB for
           // everyone, and the first visit then skips the reveal throttle.
           // From md; below it the tab bar's Sign in tab is the same link.
-          <PublicPrefetchLink
-            href="/login"
-            className="border-border-default hidden h-9 items-center rounded-md border px-3 text-sm font-medium md:inline-flex"
-          >
-            {tLogin('title')}
-          </PublicPrefetchLink>
+          // Not on /login itself, where it would link to the page (#319).
+          <HiddenOnSignIn>
+            <PublicPrefetchLink
+              href="/login"
+              className="border-border-default hidden h-9 items-center rounded-md border px-3 text-sm font-medium md:inline-flex"
+            >
+              {tLogin('title')}
+            </PublicPrefetchLink>
+          </HiddenOnSignIn>
         )
       }
     />

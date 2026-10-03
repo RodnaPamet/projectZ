@@ -27,6 +27,12 @@ import { withIntl } from '../helpers/intl';
  */
 jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
 
+let pathname = '/venues';
+jest.mock('next/navigation', () => ({
+  ...jest.requireActual('next/navigation'),
+  usePathname: () => pathname,
+}));
+
 const signedInIdentity = jest.fn();
 jest.mock('@/lib/auth/page-context', () => ({
   signedInIdentity: () => signedInIdentity(),
@@ -73,6 +79,7 @@ const accountMenu = (name: string) => bg.nav.accountMenuFor.replace('{name}', na
 const topNav = () => screen.getByRole('navigation', { name: bg.common.ui.mainNav });
 
 beforeEach(() => {
+  pathname = '/venues';
   signedInIdentity.mockReset();
   resolveLanding.mockReset();
   resolveLanding.mockResolvedValue(PLAYER);
@@ -90,6 +97,15 @@ describe('SiteHeader — signed out', () => {
     expect(screen.queryByRole('button', { name: /Меню на акаунта/ })).not.toBeInTheDocument();
     // …and a stranger has no account to read, so nothing asks.
     expect(resolveLanding).not.toHaveBeenCalled();
+  });
+
+  it('does not link /login to itself (#319)', async () => {
+    signedInIdentity.mockResolvedValue(null);
+    pathname = '/login';
+    await renderHeader();
+
+    expect(screen.queryByRole('link', { name: SIGN_IN })).not.toBeInTheDocument();
+    expect(within(topNav()).getByRole('link', { name: PLAY })).toBeInTheDocument();
   });
 
   it('keeps the wordmark charcoal, linking home (owner decision)', async () => {
@@ -170,5 +186,26 @@ describe('SiteHeader — per landing reason', () => {
 
     expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
     expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+  });
+});
+
+describe('SiteHeader — a failed read does not break the page (#319)', () => {
+  // It renders above /login's error boundary: a throw here took sign-in down.
+  it('identity unreadable: the signed-out header', async () => {
+    signedInIdentity.mockRejectedValue(new Error('session store down'));
+    await renderHeader();
+
+    expect(screen.getByRole('link', { name: SIGN_IN })).toHaveAttribute('href', '/login');
+    expect(resolveLanding).not.toHaveBeenCalled();
+  });
+
+  it('landing unreadable: a player’s links and no club link', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    resolveLanding.mockRejectedValue(new Error('database down'));
+    await renderHeader();
+
+    expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
   });
 });

@@ -223,29 +223,34 @@ export function ModerationQueue() {
       )}
       {(showStepUp || needsStepUp(error)) && <StepUpForm onStepped={() => void stepped()} />}
 
-      <form
-        className="grid gap-1.5 sm:max-w-xl"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (reasonReady) void open();
-        }}
-      >
-        <Label htmlFor="moderation-reason">{t('reason.label')}</Label>
-        <Input
-          id="moderation-reason"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          minLength={MIN_REASON}
-          maxLength={500}
-          autoComplete="off"
-        />
-        <p className="text-content-muted text-sm">{t('reason.hint', { min: MIN_REASON })}</p>
-        <div>
-          <Button type="submit" disabled={!reasonReady || isValidating}>
-            {items === null ? t('open') : t('refresh')}
-          </Button>
-        </div>
-      </form>
+      {/* Not before a second factor exists (audit M04): a reason field and a
+          greyed "open" button under the enrolment notice read as a form that
+          is broken, when nothing it could send would be accepted. */}
+      {!notEnrolled && (
+        <form
+          className="grid gap-1.5 sm:max-w-xl"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (reasonReady) void open();
+          }}
+        >
+          <Label htmlFor="moderation-reason">{t('reason.label')}</Label>
+          <Input
+            id="moderation-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            minLength={MIN_REASON}
+            maxLength={500}
+            autoComplete="off"
+          />
+          <p className="text-content-muted text-sm">{t('reason.hint', { min: MIN_REASON })}</p>
+          <div>
+            <Button type="submit" disabled={!reasonReady || isValidating}>
+              {items === null ? t('open') : t('refresh')}
+            </Button>
+          </div>
+        </form>
+      )}
 
       {error && (
         <InlineNotice variant="error">{t(`error.${knownCode(error)}` as never)}</InlineNotice>
