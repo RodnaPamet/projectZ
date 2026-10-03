@@ -76,18 +76,26 @@ bootstrap themselves.
 | `TENANT_SUSPEND`  | **declared, refused at the binding**                         |
 | `REVIEW_MODERATE` | work the review moderation queue — **the one enabled write** |
 
-`TENANT_SUSPEND` is refused because stepping up to a cross-club **write** should
-require a second factor and there is none: `User.mfaSecret` is unencrypted and
-nothing writes it. Granting it today buys nothing. If you need a cross-club write,
-that is a decision to make deliberately, not a flag to flip during an incident.
+**Every write needs a second factor (#262).** A write capability is usable only
+from a session that has stepped up with its holder's authenticator in the last
+**15 minutes** — see [Two-step verification](#two-step-verification) below. A
+grant holder who has not enrolled cannot use a write capability at all. Reads
+(`TENANT_READ`, `AUDIT_READ`, `USER_READ`) need no step-up.
+
+`TENANT_SUSPEND` is refused outright even with a step-up: taking a club offline
+is a power nobody has decided to ship. Granting it today buys nothing. If you need
+a cross-club write, that is a decision to make deliberately, not a flag to flip
+during an incident.
 
 `REVIEW_MODERATE` is that decision, made once, for one narrow write (#228): a club
 must not moderate reviews of itself, so platform moderators work the queue. It is
-enabled by name in `ENABLED_PLATFORM_WRITES` (`src/lib/platform/capabilities.ts`),
+enabled by name in `STEP_UP_PLATFORM_WRITES` (`src/lib/platform/capabilities.ts`),
 which states the terms — it changes a review's visibility and the venue rating
 computed from it, deletes nothing, and audits every decision with the moderator's
-own note. Every other write, present or future, is still refused unless it is
-added there too.
+own note. Until #262 it was the one write admitted without a second factor; that
+exception has ended, and the "writes without MFA" list no longer exists at all.
+Every other write, present or future, is still refused unless it is added there
+too.
 
 ### Moderating reviews
 
@@ -103,7 +111,13 @@ npm run grant:platform-admin -- \
   --reason "review moderation rota Q4"
 ```
 
-The queue is the page `/platform/moderation`. It asks for a reason once (written
+**The moderator must then enrol a second factor** — `/platform/security`, within
+15 minutes of signing in (see below). Until they do, the queue answers
+`MFA_ENROLMENT_REQUIRED` and shows nothing.
+
+The queue is the page `/platform/moderation`. It asks for a code from the
+moderator's authenticator first (a step-up, good for 15 minutes on that device),
+then for a reason once (written
 with every page it loads) and a note for every decision (kept on the case as the
 answer to "why", and written as the audit reason). The same two operations exist
 over HTTP for tooling:
@@ -113,10 +127,109 @@ GET  /api/v1/platform/moderation/cases?reason=<why>[&cursor=<opaque>]
 POST /api/v1/platform/moderation/cases/{id}/resolve   {"decision":"APPROVE"|"REJECT","note":"…"}
 ```
 
+Both answer `403 STEP_UP_REQUIRED` until the calling session has stepped up
+(`POST /api/v1/me/mfa/step-up {"code":"123456"}`), and again once its 15 minutes
+are up.
+
 **Why the queue fills up.** Every review with text is classified by the Claude API
 before it is shown. When `ANTHROPIC_API_KEY` is unset, or the API is down, the
 review is held for a human rather than published unchecked — so without a key,
 every text review lands here. Star-only reviews are never queued.
+
+---
+
+## Two-step verification
+
+Every cross-club **write** — today, the moderation queue — needs a fresh proof
+from the admin's authenticator app, bound to the session that made it (#262).
+
+| Property                                    | Where it is enforced                                     |
+| ------------------------------------------- | -------------------------------------------------------- |
+| TOTP seed is ciphertext at rest             | `encryptField` + CHECK `app_user_mfa_secret_is_envelope` |
+| a step-up lasts 15 minutes, not sliding     | `MFA_STEP_UP_WINDOW_SECONDS`, read in the binding        |
+| a step-up belongs to one session            | `user_session.mfaVerifiedAt`, checked in the write's tx  |
+| a code is accepted once (no replay)         | `app_user.mfaLastUsedStep`, conditional UPDATE           |
+| a recovery code is spent once               | `mfa_recovery_code.usedAt`, conditional UPDATE           |
+| 5 guesses / 15 min (+5 min lockout), 50/day | `MFA_VERIFY_LIMIT`, `MFA_VERIFY_DAILY_LIMIT`, per user   |
+| every attempt is recorded, append-only      | `account_security_event`, `…_append_only_trg`            |
+
+### How an admin enrols
+
+1. Hold a live grant (any capability). Enrolment is closed to everyone else.
+2. **Sign in afresh**, then open `/platform/security` within 15 minutes. The
+   first enrolment is trust-on-first-use, so a session older than that is
+   refused with "sign out and sign in again" — a stolen cookie alone cannot
+   plant an authenticator on an admin who has not enrolled yet.
+3. "Start setup" shows the key. On a phone, "Open in authenticator app" adds it
+   directly; on a laptop, type the key into the app as a time-based account.
+4. Type the six-digit code the app shows. Two-step verification is now on, the
+   session is stepped up, and **ten recovery codes are shown once**. Save them.
+
+Over HTTP: `POST /api/v1/me/mfa/enrolment`, then
+`POST /api/v1/me/mfa/enrolment/confirm {"code":"123456"}`.
+
+An enrolled admin cannot re-enrol from the app — swapping in a new phone would
+let a stolen, stepped-up session replace the owner's authenticator with its own.
+A new phone is an operator reset (below). Recovery codes can be regenerated from
+`/platform/security` after a step-up; every old code stops working.
+
+### Recovering a locked-out admin
+
+Lost phone **and** no recovery codes left. This is an ops procedure on the owner
+connection (`DIRECT_DATABASE_URL`), and it has one step nothing can automate:
+**confirm it is really them** — a call on a number you already had, in person,
+or through the second person who issued their grant. A reset hands two-step
+verification to whoever enrols next, so a reset requested by a stranger who
+sounds like the admin is the attack.
+
+Then, in one transaction:
+
+```sql
+BEGIN;
+
+-- 1. Who, exactly. One row, or stop.
+SELECT id, email, "mfaEnabledAt" FROM app_user WHERE email = 'alice@playerz.bg';
+
+-- 2. Turn the factor off and void every code.
+UPDATE app_user
+   SET "mfaSecret" = NULL, "mfaEnabledAt" = NULL, "mfaLastUsedStep" = NULL
+ WHERE id = '<id from step 1>';
+DELETE FROM mfa_recovery_code WHERE "userId" = '<id>';
+
+-- 3. Sign them out everywhere, which also ends every step-up they hold.
+--    (A stepped-up session would already be refused — the binding checks
+--    mfaEnabledAt as well — but a reset should leave nothing behind.)
+UPDATE user_session SET "revokedAt" = now()
+ WHERE "userId" = '<id>' AND "revokedAt" IS NULL;
+
+-- 4. Say who did it and why. The log is append-only; this row is permanent.
+INSERT INTO account_security_event (id, "userId", action, "detailsJson")
+VALUES (gen_random_uuid()::text, '<id>', 'MFA_RESET_BY_OPERATOR',
+        jsonb_build_object('operator', 'bob@playerz.bg',
+                           'reason',   'lost phone, identity confirmed by call 2026-10-03'));
+
+COMMIT;
+```
+
+They then sign in and enrol again, as above, within 15 minutes of signing in.
+
+If the reset is because the admin may be **compromised** rather than locked out,
+revoke their grant first (see [Revoking](#revoking)) and reset afterwards.
+
+### Reading the security log
+
+```sql
+SELECT "createdAt", "userId", action, "userSessionId", "ipAddress", "detailsJson"
+  FROM account_security_event
+ ORDER BY "createdAt" DESC
+ LIMIT 50;
+```
+
+`MFA_STEP_UP_FAILED` in a burst, or `MFA_STEP_UP_RATE_LIMITED` at all, is
+somebody guessing codes on a live session of that account — treat it as a
+compromised session: revoke the grant, then sign the account out everywhere.
+`MFA_RECOVERY_CODE_USED` that the admin does not recognise means their codes
+have leaked.
 
 ---
 
