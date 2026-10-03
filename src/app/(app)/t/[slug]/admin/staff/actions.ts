@@ -159,6 +159,10 @@ export async function inviteStaffAction(
       text: `You have been invited to help run a club on playerz.bg.\n\nOpen this link to accept:\n${link}\n\nThe link works once and expires in 14 days.`,
     });
   } catch {
+    // The invite row exists and is open, and the message tells the admin to
+    // withdraw it: so the list has to show it, now, with its withdraw button.
+    // It did not until a reload (audit C11).
+    revalidatePath(`/t/${slug}/admin/staff`);
     return { ok: false, error: 'MAIL_FAILED' };
   }
 

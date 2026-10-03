@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
 import { toMyBookingDto } from '@/app/api/v1/_lib/dto';
+import { playerChrome } from '@/components/layout/SiteHeader';
 import { Heading } from '@/components/ui/typography';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
@@ -49,6 +50,9 @@ export async function generateMetadata() {
  * left open across a switch to another account (#263) is refused 409
  * VIEWER_CHANGED rather than shown, or reviewing as, the other account.
  *
+ * A CLUB account is redirected to its own landing: it has no bookings to
+ * make (#263).
+ *
  * ═══ IT IS WHERE A PLAYER LANDS (#227) ═══
  *
  * Until the player UI exists (#224) this is `PLAYER_HOME` — the page sign-in
@@ -59,6 +63,16 @@ export async function generateMetadata() {
 export default async function MyBookingsPage() {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/bookings');
+
+  // ═══ NOT A PAGE FOR A CLUB ACCOUNT (#263, audit C12) ═══
+  //
+  // A CLUB account cannot book (PLAYER_ACCOUNT_REQUIRED), so a list inviting
+  // it to "choose a court and book" is a promise the API then breaks. It is
+  // sent where it lands after sign-in: its club's diary, or home when its club
+  // is not live. The read is the chrome's, request-cached, so it costs no
+  // second query.
+  const { kind, landing } = await playerChrome();
+  if (kind === 'club' && landing) redirect(landing.href);
 
   const [t, page] = await Promise.all([
     getTranslations('myBookings'),

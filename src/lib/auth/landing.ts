@@ -86,8 +86,9 @@ export function isClubRole(role: string): role is ClubRole {
 /**
  * A club's landing page: the diary.
  *
- * There is no `/t/[slug]/admin` index to land on, and the calendar is the one
- * admin screen EVERY club role can open — it needs `bookings.view_all`, which
+ * Named directly rather than via the `/t/[slug]/admin` index (which redirects
+ * by permission, audit C10) to save the hop: the calendar is the one admin
+ * screen EVERY club role can open — it needs `bookings.view_all`, which
  * OWNER, MANAGER and STAFF all hold. Courts, pricing and staff are closed to
  * STAFF, so landing a front-desk account on any of them would be a 404 on
  * sign-in. A unit test pins every club role to that permission.

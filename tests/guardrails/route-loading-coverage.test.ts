@@ -46,6 +46,8 @@ const NO_LOADING: Record<string, string> = {
     'force-static: served from the service worker with no request to wait on, so there is no navigation to cover',
   '(app)/t/[slug]':
     'redirect-only index: it sends a club user on to the diary, whose own loading.tsx is what paints',
+  '(app)/t/[slug]/admin':
+    'redirect-only index (audit C10): it sends a member on to the first admin page their role opens, whose own loading.tsx is what paints',
   '(design)/design-system':
     'developer-facing component gallery, not linked from the app; no user navigates to it',
 };
