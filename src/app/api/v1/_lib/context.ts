@@ -207,6 +207,7 @@ export async function contextFromRequest(
     role: null,
     permissions: [],
     groupGateCleared: [],
+    userSessionId: null,
   };
 
   // What the permission table demands of this path and verb — the lookup the
@@ -262,6 +263,11 @@ export async function contextFromRequest(
   // database also says yes. See `@/lib/auth/group-gate`.
   const groupGateCleared = groupGateClearedFrom(raw);
 
+  // Usable, so this id is authentic: `checkSession` matched the token's
+  // embedded secret against this row. The platform binding reads the
+  // second-factor step-up from it (#262).
+  const userSessionId = raw.userSessionId ?? null;
+
   const slug = input.slug ?? null;
   if (!slug) {
     // Every rule in the table is anchored at `/t/{slug}/`, so a route that
@@ -281,6 +287,7 @@ export async function contextFromRequest(
       role: null,
       permissions: [],
       groupGateCleared,
+      userSessionId,
     };
   }
 
@@ -310,6 +317,7 @@ export async function contextFromRequest(
       role: null,
       permissions: [],
       groupGateCleared,
+      userSessionId,
     };
   }
 
@@ -329,5 +337,6 @@ export async function contextFromRequest(
     role: held.role,
     permissions: held.permissions,
     groupGateCleared,
+    userSessionId,
   };
 }

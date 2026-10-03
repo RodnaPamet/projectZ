@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 
 import { PlatformCapability } from '@prisma/client';
 
+import { MfaEnrolmentRequiredError, PlatformStepUpRequiredError } from '@/lib/auth/mfa-errors';
+import { createUserSession, newSessionSecret } from '@/lib/auth/sessions';
+import { newTotpSecret } from '@/lib/auth/totp';
 import {
   AmbientPlatformEscalationError,
   PlatformReasonRequiredError,
@@ -9,6 +12,8 @@ import {
   runAsPlatformAdmin,
 } from '@/lib/db/platform-admin-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { MFA_STEP_UP_WINDOW_SECONDS, STEP_UP_PLATFORM_WRITES } from '@/lib/platform/capabilities';
+import { encryptField } from '@/lib/security/encryption';
 
 import { prismaTestClient, resetDatabase } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
@@ -32,12 +37,14 @@ const REASON = 'support ticket 4821 escalation';
 describe('runAsPlatformAdmin', () => {
   const db = prismaTestClient();
   let admin: string;
+  let granterId: string;
   let grantId: string;
 
   beforeEach(async () => {
     await resetDatabase(db);
     admin = `cadmin${randomUUID().replace(/-/g, '').slice(0, 18)}`;
     const granter = `cgrant${randomUUID().replace(/-/g, '').slice(0, 18)}`;
+    granterId = granter;
     grantId = `cgr${randomUUID().replace(/-/g, '').slice(0, 20)}`;
 
     await asAppSuperuser(db, async (tx) => {
@@ -133,24 +140,102 @@ describe('runAsPlatformAdmin', () => {
     expect(await auditRows()).toHaveLength(0);
   });
 
-  it('lets through the one ENABLED write, REVIEW_MODERATE — and still audits it', async () => {
-    // Enabled by name in ENABLED_PLATFORM_WRITES (#228). The binding does not
-    // check the grant (asPlatformAdmin does, one layer up), so this proves
-    // only what this layer decides: the write is not refused, and it is not
-    // exempt from the row written before the work.
-    await expect(
+  // ═══ THE SECOND FACTOR (#262): EACH ENABLED WRITE REFUSES WITHOUT A STEP-UP ═══
+  //
+  // Data-driven over STEP_UP_PLATFORM_WRITES, so a write enabled tomorrow is
+  // tested here the day it is enabled, without anybody writing a new case.
+  describe.each([...STEP_UP_PLATFORM_WRITES])('the enabled write %s', (capability) => {
+    const write = (userSessionId: string | null) =>
       runAsPlatformAdmin(
-        act({ capability: PlatformCapability.REVIEW_MODERATE, action: 'PLATFORM_REVIEW_APPROVED' }),
-        async () => 'decided',
-      ),
-    ).resolves.toBe('decided');
+        act({ capability, action: `${capability}_TEST`, userSessionId }),
+        async () => 'written',
+      );
 
-    const rows = await asAppSuperuser(db, (tx) =>
-      tx.$queryRawUnsafe<{ capability: string; action: string }[]>(
-        `SELECT capability::text AS capability, action FROM platform_audit_entry`,
-      ),
-    );
-    expect(rows).toEqual([{ capability: 'REVIEW_MODERATE', action: 'PLATFORM_REVIEW_APPROVED' }]);
+    const sessionFor = async (userId: string) =>
+      (
+        await createUserSession({
+          userId,
+          sessionSecret: newSessionSecret(),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        })
+      ).userSessionId;
+
+    const enrol = (userId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.user.update({
+          where: { id: userId },
+          data: { mfaSecret: encryptField(newTotpSecret()), mfaEnabledAt: new Date() },
+        }),
+      );
+
+    const stepUp = (userSessionId: string, at = new Date()) =>
+      asAppSuperuser(db, (tx) =>
+        tx.userSession.update({ where: { id: userSessionId }, data: { mfaVerifiedAt: at } }),
+      );
+
+    it('refuses with no session at all, and leaves no audit row', async () => {
+      await expect(write(null)).rejects.toThrow(PlatformStepUpRequiredError);
+      expect(await auditRows()).toHaveLength(0);
+    });
+
+    it('refuses an actor who has not enrolled, even on a "stepped-up" session', async () => {
+      const sid = await sessionFor(admin);
+      await stepUp(sid);
+      await expect(write(sid)).rejects.toThrow(MfaEnrolmentRequiredError);
+      expect(await auditRows()).toHaveLength(0);
+    });
+
+    it('refuses an enrolled actor whose session has not stepped up', async () => {
+      await enrol(admin);
+      const sid = await sessionFor(admin);
+      await expect(write(sid)).rejects.toThrow(PlatformStepUpRequiredError);
+      expect(await auditRows()).toHaveLength(0);
+    });
+
+    it('refuses a step-up past the window', async () => {
+      await enrol(admin);
+      const sid = await sessionFor(admin);
+      await stepUp(sid, new Date(Date.now() - MFA_STEP_UP_WINDOW_SECONDS * 1000 - 1000));
+      await expect(write(sid)).rejects.toThrow(PlatformStepUpRequiredError);
+      expect(await auditRows()).toHaveLength(0);
+    });
+
+    it("refuses ANOTHER account's stepped-up session — a step-up cannot be lent", async () => {
+      await enrol(admin);
+      const someoneElse = await sessionFor(granterId);
+      await stepUp(someoneElse);
+      await expect(write(someoneElse)).rejects.toThrow(PlatformStepUpRequiredError);
+      expect(await auditRows()).toHaveLength(0);
+    });
+
+    it('refuses a revoked session, however fresh its step-up', async () => {
+      await enrol(admin);
+      const sid = await sessionFor(admin);
+      await stepUp(sid);
+      await asAppSuperuser(db, (tx) =>
+        tx.userSession.update({ where: { id: sid }, data: { revokedAt: new Date() } }),
+      );
+      await expect(write(sid)).rejects.toThrow(PlatformStepUpRequiredError);
+      expect(await auditRows()).toHaveLength(0);
+    });
+
+    it('runs once THIS session has stepped up — and still audits it first', async () => {
+      await enrol(admin);
+      const sid = await sessionFor(admin);
+      await stepUp(sid);
+      await expect(write(sid)).resolves.toBe('written');
+
+      const rows = await asAppSuperuser(db, (tx) =>
+        tx.$queryRawUnsafe<{ capability: string; action: string }[]>(
+          `SELECT capability::text AS capability, action FROM platform_audit_entry`,
+        ),
+      );
+      expect(rows).toEqual([{ capability, action: `${capability}_TEST` }]);
+    });
+  });
+
+  it('a READ needs no step-up — the second factor guards writes only', async () => {
+    await expect(runAsPlatformAdmin(act(), async () => 'read')).resolves.toBe('read');
   });
 
   it('refuses a reason too short to answer anything later', async () => {

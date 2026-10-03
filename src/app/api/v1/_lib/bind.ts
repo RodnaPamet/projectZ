@@ -174,6 +174,8 @@ export async function asPlatformAdmin<T>(
       // Without it, "what else happened while they were in there?" has no
       // answer.
       requestId: ctx.requestId,
+      // The session whose step-up a write is checked against (#262).
+      userSessionId: ctx.userSessionId,
     },
     fn,
   );

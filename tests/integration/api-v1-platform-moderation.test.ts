@@ -10,6 +10,7 @@ import { createReview, reportContent } from '@/app-layer/usecases/reviews';
 import { createUserSession, newSessionSecret } from '@/lib/auth/sessions';
 
 import { seedPlayer } from '../helpers/auth';
+import { enrolAndStepUp } from '../helpers/mfa';
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
 import { setModerationScores, useMswServer } from '../helpers/msw';
 import { asAppSuperuser, asAppUser } from '../helpers/rls';
@@ -120,6 +121,17 @@ async function bearerFor(userId: string) {
   });
 }
 
+/**
+ * A Bearer token for the admin whose session has stepped up (#262): enrolled
+ * and confirmed through the real `/me/mfa` routes. Every moderation read and
+ * decision needs this now; `bearerFor` alone is refused with STEP_UP_REQUIRED.
+ */
+async function moderatorBearer() {
+  const bearer = await bearerFor(admin);
+  await enrolAndStepUp(bearer);
+  return bearer;
+}
+
 /** A real review, through createReview, at club `i` — held if `flag` is set. */
 async function reviewAt(i: number, opts: { rating?: number; body?: string; flag?: boolean } = {}) {
   const { tenant, venueId } = clubs[i]!;
@@ -223,7 +235,7 @@ describe('GET /api/v1/platform/moderation/cases', () => {
     const first = await reviewAt(0, { flag: true, body: 'the owner is a thief' });
     const second = await reviewAt(1, { flag: true, body: 'worst club in Sofia' });
 
-    const { status, json } = await list(await bearerFor(admin));
+    const { status, json } = await list(await moderatorBearer());
 
     expect(status).toBe(200);
     const { items, nextCursor } = (json as Page).data;
@@ -252,7 +264,7 @@ describe('GET /api/v1/platform/moderation/cases', () => {
       if (key !== undefined) process.env.ANTHROPIC_API_KEY = key;
     });
 
-    const { json } = await list(await bearerFor(admin));
+    const { json } = await list(await moderatorBearer());
 
     const [item] = (json as Page).data.items;
     expect(item).toMatchObject({
@@ -280,7 +292,7 @@ describe('GET /api/v1/platform/moderation/cases', () => {
       }),
     );
 
-    const { json } = await list(await bearerFor(admin));
+    const { json } = await list(await moderatorBearer());
 
     expect((json as Page).data.items.map((i) => i.caseId)).toEqual([open.caseId]);
   });
@@ -289,7 +301,7 @@ describe('GET /api/v1/platform/moderation/cases', () => {
     await grant([PlatformCapability.REVIEW_MODERATE]);
     await reviewAt(0, { flag: true, body: 'x' });
 
-    await list(await bearerFor(admin));
+    await list(await moderatorBearer());
 
     expect(await auditRows()).toEqual([
       expect.objectContaining({
@@ -331,7 +343,7 @@ describe('GET /api/v1/platform/moderation/cases', () => {
         });
       }
     });
-    const bearer = await bearerFor(admin);
+    const bearer = await moderatorBearer();
 
     const one = (await list(bearer)).json as Page;
     expect(one.data.items).toHaveLength(50);
@@ -388,7 +400,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
     const held = await reviewAt(0, { rating: 5, flag: true, body: 'rude staff but great courts' });
     expect(await venueScore(0)).toEqual({ avgRating: 0, reviewCount: 0 });
 
-    const { status, json } = await resolve(await bearerFor(admin), held.caseId!, {
+    const { status, json } = await resolve(await moderatorBearer(), held.caseId!, {
       decision: 'APPROVE',
       note: NOTE,
     });
@@ -427,7 +439,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
       reason: 'fake review from a rival',
     });
 
-    const { status, json } = await resolve(await bearerFor(admin), caseId, {
+    const { status, json } = await resolve(await moderatorBearer(), caseId, {
       decision: 'REJECT',
       note: 'posted from a rival club, per the report',
     });
@@ -447,7 +459,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
     await grant([PlatformCapability.REVIEW_MODERATE]);
     const held = await reviewAt(0, { flag: true, body: 'x' });
 
-    await resolve(await bearerFor(admin), held.caseId!, { decision: 'REJECT', note: NOTE });
+    await resolve(await moderatorBearer(), held.caseId!, { decision: 'REJECT', note: NOTE });
 
     expect(await auditRows()).toEqual([
       {
@@ -466,7 +478,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
     // first had just rejected, under a note describing the opposite.
     await grant([PlatformCapability.REVIEW_MODERATE]);
     const held = await reviewAt(0, { flag: true, body: 'x' });
-    const bearer = await bearerFor(admin);
+    const bearer = await moderatorBearer();
     await resolve(bearer, held.caseId!, { decision: 'REJECT', note: NOTE });
 
     const again = await resolve(bearer, held.caseId!, {
@@ -487,7 +499,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
   it('an unknown case is 404, and leaves no row', async () => {
     await grant([PlatformCapability.REVIEW_MODERATE]);
 
-    const { status, json } = await resolve(await bearerFor(admin), 'cnosuchcase00000000000', {
+    const { status, json } = await resolve(await moderatorBearer(), 'cnosuchcase00000000000', {
       decision: 'APPROVE',
       note: NOTE,
     });
@@ -500,7 +512,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
   it('refuses a note too short to answer "why", and a decision that is neither', async () => {
     await grant([PlatformCapability.REVIEW_MODERATE]);
     const held = await reviewAt(0, { flag: true, body: 'x' });
-    const bearer = await bearerFor(admin);
+    const bearer = await moderatorBearer();
 
     const short = await resolve(bearer, held.caseId!, { decision: 'APPROVE', note: 'ok' });
     expect(short.status).toBe(400);
@@ -538,5 +550,95 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
     const { status } = await resolve(null, held.caseId!, { decision: 'APPROVE', note: NOTE });
 
     expect(status).toBe(401);
+  });
+});
+
+// ══ The second factor (#262) ═════════════════════════════════════════
+
+describe('every moderation read and decision needs a fresh step-up on THIS session', () => {
+  it('a moderator who has not enrolled is told to enrol — and nothing is read or decided', async () => {
+    await grant([PlatformCapability.REVIEW_MODERATE]);
+    const held = await reviewAt(0, { flag: true, body: 'x' });
+    const bearer = await bearerFor(admin);
+
+    const read = await list(bearer);
+    expect(read.status).toBe(403);
+    expect(code(read.json)).toBe('MFA_ENROLMENT_REQUIRED');
+
+    const decided = await resolve(bearer, held.caseId!, { decision: 'APPROVE', note: NOTE });
+    expect(decided.status).toBe(403);
+    expect(code(decided.json)).toBe('MFA_ENROLMENT_REQUIRED');
+
+    // Refused BEFORE the audit row: nothing claims an action that never ran.
+    expect(await auditRows()).toEqual([]);
+    const c = await asAppSuperuser(db, (tx) =>
+      tx.moderationCase.findUniqueOrThrow({ where: { id: held.caseId! } }),
+    );
+    expect(c.status).toBe('OPEN');
+  });
+
+  it('an enrolled moderator on a session that has not stepped up gets STEP_UP_REQUIRED', async () => {
+    await grant([PlatformCapability.REVIEW_MODERATE]);
+    const held = await reviewAt(0, { flag: true, body: 'x' });
+    // Enrolled from one session (the laptop)…
+    await moderatorBearer();
+    // …and acting from another (the phone), which has proved nothing.
+    const other = await bearerFor(admin);
+
+    const read = await list(other);
+    expect(read.status).toBe(403);
+    expect(code(read.json)).toBe('STEP_UP_REQUIRED');
+    const decided = await resolve(other, held.caseId!, { decision: 'REJECT', note: NOTE });
+    expect(code(decided.json)).toBe('STEP_UP_REQUIRED');
+    expect(await auditRows()).toEqual([]);
+  });
+
+  it('a step-up older than 15 minutes no longer counts', async () => {
+    await grant([PlatformCapability.REVIEW_MODERATE]);
+    const held = await reviewAt(0, { flag: true, body: 'x' });
+    const bearer = await moderatorBearer();
+
+    // Wind THIS session's proof back to just past the window.
+    await asAppSuperuser(db, (tx) =>
+      tx.userSession.updateMany({
+        where: { userId: admin },
+        data: { mfaVerifiedAt: new Date(Date.now() - 15 * 60_000 - 1_000) },
+      }),
+    );
+
+    const decided = await resolve(bearer, held.caseId!, { decision: 'APPROVE', note: NOTE });
+    expect(decided.status).toBe(403);
+    expect(code(decided.json)).toBe('STEP_UP_REQUIRED');
+    expect(await auditRows()).toEqual([]);
+  });
+
+  it('signing the session out ends its step-up with it', async () => {
+    await grant([PlatformCapability.REVIEW_MODERATE]);
+    const bearer = await moderatorBearer();
+    await asAppSuperuser(db, (tx) =>
+      tx.userSession.updateMany({ where: { userId: admin }, data: { revokedAt: new Date() } }),
+    );
+
+    // A revoked session is anonymous to the context builder: 401, never a write.
+    const read = await list(bearer);
+    expect(read.status).toBe(401);
+  });
+
+  it('works end to end: enrol, step up, read the queue, decide', async () => {
+    await grant([PlatformCapability.REVIEW_MODERATE]);
+    const held = await reviewAt(0, { flag: true, body: 'rude staff but great courts' });
+    const bearer = await moderatorBearer();
+
+    const read = await list(bearer);
+    expect(read.status).toBe(200);
+    const items = (read.json as Page).data.items;
+    expect(items.map((i) => i.caseId)).toContain(held.caseId);
+
+    const decided = await resolve(bearer, held.caseId!, { decision: 'APPROVE', note: NOTE });
+    expect(decided.status).toBe(200);
+    expect((await auditRows()).map((r) => r.action)).toEqual([
+      'PLATFORM_MODERATION_QUEUE_READ',
+      'PLATFORM_REVIEW_APPROVED',
+    ]);
   });
 });

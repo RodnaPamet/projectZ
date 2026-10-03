@@ -342,6 +342,21 @@ export const MFA_VERIFY_LIMIT: RateLimitConfig = {
   lockoutMs: 5 * 60 * 1000, // 5 minute lockout
 };
 
+/**
+ * MFA verify, per day: 50 attempts per 24 hours, beside the burst limit above.
+ *
+ * Threat model: a stolen session grinding six-digit codes. The burst limit
+ * alone allows ~5 guesses every 20 minutes, ~360 a day; with three steps
+ * accepted per attempt (±1 drift) that is a ~0.1% chance a day of hitting one,
+ * which compounds over a 7-day session. Capping the day at 50 brings it to
+ * ~0.015% a day. A moderator stepping up once per 15-minute window across a
+ * long shift uses about 32, so the cap does not get in an honest way.
+ */
+export const MFA_VERIFY_DAILY_LIMIT: RateLimitConfig = {
+  maxAttempts: 50,
+  windowMs: 24 * 60 * 60 * 1000,
+};
+
 /** MFA enrollment verify: 10 attempts per 15 minutes */
 export const MFA_ENROLL_VERIFY_LIMIT: RateLimitConfig = {
   maxAttempts: 10,

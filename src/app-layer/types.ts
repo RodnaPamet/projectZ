@@ -56,6 +56,17 @@ export interface RequestContext {
    * Empty for anonymous callers and for every non-Entra sign-in.
    */
   groupGateCleared: readonly string[];
+  /**
+   * The `user_session` row this request authenticated with — null when
+   * anonymous. Its id came out of a JWT whose embedded secret `checkSession`
+   * matched against that row, so it names THIS caller's session and no other.
+   *
+   * Carried for one reader: the platform binding, which checks the second-
+   * factor step-up on this row before any cross-club write (#262). A step-up
+   * is a property of a session, not of a person, so the binding needs to know
+   * which session is asking.
+   */
+  userSessionId: string | null;
   requestId: string;
   locale: 'bg' | 'en';
 }

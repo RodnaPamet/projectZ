@@ -36,11 +36,12 @@
 /// ungranted capability cannot be spelled, and adding one is a migration a
 /// reviewer sees.
 ///
-/// TENANT_SUSPEND is declared but REFUSED by the binding. Stepping up to a
-/// cross-club write should require a second factor and there is none:
-/// `User.mfaSecret` is unencrypted and nothing writes it. Declaring the shape
-/// without shipping the power is the honest position — see
-/// `PlatformWriteNotEnabledError`.
+/// Every WRITE capability needs a second-factor step-up on the calling session
+/// from the last 15 minutes (#262) — see `requiresStepUp` and
+/// src/lib/auth/step-up.ts. TENANT_SUSPEND is declared but REFUSED by the
+/// binding even then: taking a club offline is a power nobody has decided to
+/// ship. Declaring the shape without shipping the power is the honest position
+/// — see `PlatformWriteNotEnabledError`.
 enum PlatformCapability {
   /// Read any club's operational data — bookings, venues, members.
   TENANT_READ
@@ -52,7 +53,8 @@ enum PlatformCapability {
   TENANT_SUSPEND
   /// Work the review moderation queue: read open cases across clubs, and
   /// approve or reject them. A WRITE, and the one write that is ENABLED — by
-  /// owner decision (#228); see ENABLED_PLATFORM_WRITES for the terms.
+  /// owner decision (#228), behind a step-up since #262; see
+  /// STEP_UP_PLATFORM_WRITES for the terms.
   REVIEW_MODERATE
 }
 

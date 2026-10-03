@@ -44,6 +44,10 @@ const REDACT_PATHS = [
   'idToken',
   'privateKey',
   'totpSecret',
+  // #262: the second factor's own secrets, by the names its routes use.
+  'recoveryCode',
+  'recoveryCodes',
+  'otpauthUri',
   'req.headers.authorization',
   'req.headers.cookie',
 ];
