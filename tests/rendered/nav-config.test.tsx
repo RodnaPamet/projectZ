@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import {
   clubAdminNav,
+  platformItemAllowed,
   platformNav,
   toShellSections,
   visibleSections,
@@ -147,13 +148,26 @@ describe('club admin nav, by role', () => {
 
 describe('platform nav', () => {
   it('offers moderation to a REVIEW_MODERATE holder, and nothing to anyone else', () => {
-    const has = visibleSections(platformNav(), (i) => ['REVIEW_MODERATE'].includes(i.requires));
+    const has = visibleSections(platformNav(), (i) => platformItemAllowed(i, ['REVIEW_MODERATE']));
     renderNav(has);
     expect(screen.getByRole('link', { name: 'Модерация' })).toHaveAttribute(
       'href',
       '/platform/moderation',
     );
     expect(visibleSections(platformNav(), () => false)).toEqual([]);
+    expect(visibleSections(platformNav(), (i) => platformItemAllowed(i, []))).toEqual([]);
+  });
+
+  it('offers the security page (#262) to every grant holder, whatever the grant carries', () => {
+    // Enrolling a second factor is open to any live grant; a TENANT_READ holder
+    // has no moderation link but must still be able to reach security.
+    const readOnly = visibleSections(platformNav(), (i) => platformItemAllowed(i, ['TENANT_READ']));
+    renderNav(readOnly);
+    expect(screen.getByRole('link', { name: 'Сигурност' })).toHaveAttribute(
+      'href',
+      '/platform/security',
+    );
+    expect(screen.queryByRole('link', { name: 'Модерация' })).toBeNull();
   });
 });
 

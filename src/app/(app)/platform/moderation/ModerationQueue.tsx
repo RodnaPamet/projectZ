@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 
@@ -14,7 +15,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type V1Page } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
-import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+import { needsSkeleton, useV1SWR, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+
+import { StepUpForm } from '../StepUpForm';
 
 /**
  * The review moderation queue.
@@ -51,6 +54,16 @@ import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
  * says why on the card. Notes and per-card errors live HERE, not in the card:
  * the card unmounts the moment it is removed, and a rolled-back card is a new
  * instance that would otherwise come back with the moderator's note erased.
+ *
+ * ═══ EVERY READ AND DECISION NEEDS A STEP-UP (#262) ═══
+ *
+ * REVIEW_MODERATE is a write capability, and every write capability needs a
+ * second-factor step-up on the session from the last 15 minutes — reading the
+ * queue included. The queue asks for it up front when `GET /me/mfa` says this
+ * session has none (that read is not audited), and again whenever the API
+ * answers STEP_UP_REQUIRED, because the window can close mid-sitting. A
+ * decision refused that way keeps its card and its note; the moderator types a
+ * code and presses the button again. Nothing is retried on their behalf.
  */
 
 /** The platform's own minimum; the API refuses anything shorter. */
@@ -92,10 +105,15 @@ const KNOWN_ERRORS = new Set([
   // The tab was rendered for another account (#263). The app-wide notice says
   // so too; without a key here the queue said "something went wrong".
   'VIEWER_CHANGED',
+  // The second factor (#262): a code is needed, or enrolment first.
+  'STEP_UP_REQUIRED',
+  'MFA_ENROLMENT_REQUIRED',
 ]);
 
 const knownCode = (e: unknown) =>
   isApiClientError(e) && KNOWN_ERRORS.has(e.code) ? e.code : 'UNKNOWN';
+
+const needsStepUp = (e: unknown) => isApiClientError(e) && e.code === 'STEP_UP_REQUIRED';
 
 const resolvedElsewhere = (e: unknown) =>
   isApiClientError(e) && e.status === 409 && e.code === 'CASE_ALREADY_RESOLVED';
@@ -105,12 +123,22 @@ const categoryKey = (c: string) => c.replace(/[/-]/g, '_');
 
 export function ModerationQueue() {
   const t = useTranslations('platform.moderation');
+  const tStepUp = useTranslations('platform.stepUp');
   const [reason, setReason] = useState('');
   // The reason the list was opened with. Null until then — and so is the key.
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
+  // Set when the API said STEP_UP_REQUIRED; cleared when a code is accepted.
+  const [stepUpAsked, setStepUpAsked] = useState(false);
+
+  // Not audited, and decides nothing: it only lets the queue ask for the code
+  // BEFORE the first read is refused. The binding is what enforces it.
+  const mfa = useV1SWR<{ enrolled: boolean; stepUpExpiresAt: string | null }>(KEYS.mfaStatus());
+  const notEnrolled = mfa.data?.enrolled === false;
+  const showStepUp =
+    !notEnrolled && (stepUpAsked || (mfa.data !== undefined && !mfa.data.stepUpExpiresAt));
 
   const getKey = useMemo(
     () => (submitted ? KEYS.moderationCases({ reason: submitted }) : null),
@@ -166,12 +194,35 @@ export function ModerationQueue() {
         setNotes(({ [caseId]: _gone, ...rest }) => rest);
         return;
       }
+      if (needsStepUp(e)) setStepUpAsked(true);
       setCardErrors((prev) => ({ ...prev, [caseId]: knownCode(e) }));
     }
   }
 
+  async function stepped() {
+    setStepUpAsked(false);
+    setCardErrors({});
+    void mfa.mutate();
+    // The list was refused for want of a step-up: read it again now, which is
+    // the read the moderator asked for when they opened it. ONE read: a refused
+    // first page leaves the size at 1, and `setSize(1)` as well would fetch
+    // that page a second time — another audit row (measured in the rendered
+    // test, which counts them).
+    if (needsStepUp(error)) await mutate();
+  }
+
   return (
     <div className="grid gap-6">
+      {notEnrolled && (
+        <InlineNotice variant="warning">
+          {t('error.MFA_ENROLMENT_REQUIRED')}{' '}
+          <Link href="/platform/security" className="underline">
+            {tStepUp('enrolLink')}
+          </Link>
+        </InlineNotice>
+      )}
+      {(showStepUp || needsStepUp(error)) && <StepUpForm onStepped={() => void stepped()} />}
+
       <form
         className="grid gap-1.5 sm:max-w-xl"
         onSubmit={(e) => {

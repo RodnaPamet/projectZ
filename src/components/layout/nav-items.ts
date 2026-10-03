@@ -31,7 +31,8 @@ import type { Permission } from '@/lib/permissions';
  */
 
 /** The glyph a row shows. A key, because a component cannot cross to the client as a prop. */
-export type NavIconKey = 'calendar' | 'courts' | 'pricing' | 'players' | 'staff' | 'moderation';
+export type NavIconKey =
+  'calendar' | 'courts' | 'pricing' | 'players' | 'staff' | 'moderation' | 'security';
 
 export interface NavItem {
   href: string;
@@ -64,9 +65,24 @@ export interface ClubNavItem extends NavItem {
   requires: Permission;
 }
 
-/** A platform item, shown only to a holder of a live grant carrying `requires`. */
+/**
+ * A platform item, shown only to a holder of a live grant carrying `requires` —
+ * or, for `'ANY_GRANT'`, to the holder of any live grant at all. That is the
+ * security page (#262): enrolling a second factor is open to every grant
+ * holder, whatever their grant carries.
+ */
 export interface PlatformNavItem extends NavItem {
-  requires: PlatformCapability;
+  requires: PlatformCapability | 'ANY_GRANT';
+}
+
+/** Whether a holder of `capabilities` is shown `item`. Hiding only; the API authorises. */
+export function platformItemAllowed(
+  item: PlatformNavItem,
+  capabilities: readonly PlatformCapability[],
+): boolean {
+  return item.requires === 'ANY_GRANT'
+    ? capabilities.length > 0
+    : capabilities.includes(item.requires);
 }
 
 export interface NavSection<T extends NavItem = NavItem> {
@@ -152,6 +168,13 @@ export function platformNav(): NavSection<PlatformNavItem>[] {
           labelKey: 'moderation',
           iconKey: 'moderation',
           requires: 'REVIEW_MODERATE',
+          prefetch: 'auto',
+        },
+        {
+          href: '/platform/security',
+          labelKey: 'security',
+          iconKey: 'security',
+          requires: 'ANY_GRANT',
           prefetch: 'auto',
         },
       ],

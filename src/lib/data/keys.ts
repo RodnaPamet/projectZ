@@ -102,6 +102,8 @@ export const KEYS = {
    */
   moderationCases: (params: { reason: string }) =>
     paged(`${BASE}/platform/moderation/cases`, params),
+  /** The caller's second factor, and THIS session's step-up (#262). */
+  mfaStatus: () => `${BASE}/me/mfa`,
 } as const;
 
 /** Writes: the URLs `useV1Mutation` posts to. */
@@ -112,6 +114,10 @@ export const V1 = {
   review: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/bookings/${seg(bookingId)}/review`,
   resolveCase: (caseId: string) => `${BASE}/platform/moderation/cases/${seg(caseId)}/resolve`,
+  mfaEnrol: () => `${BASE}/me/mfa/enrolment`,
+  mfaConfirm: () => `${BASE}/me/mfa/enrolment/confirm`,
+  mfaStepUp: () => `${BASE}/me/mfa/step-up`,
+  mfaRecoveryCodes: () => `${BASE}/me/mfa/recovery-codes`,
 } as const;
 
 /**
