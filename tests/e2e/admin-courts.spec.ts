@@ -117,10 +117,9 @@ async function expectNoDrift(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function expectAxeClean(page: Page, opts: { disableRules?: string[] } = {}) {
+async function expectAxeClean(page: Page) {
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .disableRules(opts.disableRules ?? [])
     .analyze();
   const blocking = results.violations.filter(
     (v) => v.impact === 'critical' || v.impact === 'serious',
@@ -222,16 +221,13 @@ test.describe('club admin courts — desktop', () => {
       await expect(page.getByRole('combobox')).toHaveCount(3);
       await expectAxeClean(page);
 
-      // And with the sport list open. `scrollable-region-focusable` is off for
-      // this one check only: the vendored Combobox's option list scrolls (8
-      // options over its 250 px cap) and is not itself focusable, but it is
-      // keyboard-operable — focus sits in the search box, the arrows move
-      // through the options and cmdk scrolls the active one into view, which
-      // the keyboard specs above drive. The primitive is vendored read-only;
-      // the finding is #323 rather than patched here.
+      // And with the sport list open: 8 options over its 250 px cap, so the
+      // list scrolls. The scroller is the combobox's own listbox, which axe's
+      // `scrollable-region-focusable` accepts (#323) — focus sits in the
+      // search box and the arrows move through the options.
       await page.getByRole('combobox', { name: new RegExp(`^${c.field.sport},`) }).click();
       await expect(page.getByRole('option').first()).toBeVisible();
-      await expectAxeClean(page, { disableRules: ['scrollable-region-focusable'] });
+      await expectAxeClean(page);
     });
   }
 });

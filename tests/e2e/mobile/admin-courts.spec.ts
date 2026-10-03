@@ -114,9 +114,8 @@ async function expectAxeClean(page: Page) {
 /**
  * Focus the field's trigger, open it with Enter, type, and pick with Enter.
  *
- * Below md the Combobox is a bottom sheet, and the sheet does not move focus
- * into its search box the way the desktop popover does — so the search box is
- * focused explicitly before typing (#323). Everything after that is the keyboard.
+ * Below md the Combobox is a bottom sheet, and it opens into its search box as
+ * the desktop popover does (#323), so it is the keyboard from end to end.
  */
 async function chooseByKeyboard(page: Page, field: string, search: string, expected: string) {
   const trigger = page.getByRole('combobox', { name: new RegExp(`^${field},`) });
@@ -124,7 +123,7 @@ async function chooseByKeyboard(page: Page, field: string, search: string, expec
   await trigger.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('option').first()).toBeVisible();
-  await page.locator('[cmdk-input]').focus();
+  await expect(page.locator('[cmdk-input]')).toBeFocused();
   await page.keyboard.type(search);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('combobox', { name: `${field}, ${expected}` })).toBeVisible();
