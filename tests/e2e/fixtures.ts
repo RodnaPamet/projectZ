@@ -56,7 +56,7 @@ export const test = base.extend<Fixtures>({
   },
 });
 
-async function signIn(
+export async function signIn(
   page: import('@playwright/test').Page,
   account: { email: string; password: string },
 ): Promise<void> {

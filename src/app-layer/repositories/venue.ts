@@ -120,6 +120,28 @@ export async function getVenueById(db: PrismaClient, venueId: string) {
   });
 }
 
+/**
+ * Public venue detail by its PUBLIC slug (#355), cross-tenant like
+ * `getVenueById`. `publicSlug` is unique across every club (P40), so — unlike
+ * `slug` — it names exactly one venue, and `/venues/{publicSlug}` can be a
+ * readable URL.
+ *
+ * Resources carry what the venue page needs to offer durations (Q16).
+ */
+export async function getVenueByPublicSlug(db: PrismaClient, publicSlug: string) {
+  // guardrail-allow: cross-tenant — the public venue page, reached from the
+  // public index. Same rationale as getVenueById. `status: ACTIVE` is the only
+  // filter.
+  return db.venue.findFirst({
+    where: { publicSlug, status: 'ACTIVE' },
+    include: {
+      resources: { where: { status: 'ACTIVE' }, orderBy: { name: 'asc' }, take: 50 },
+      photos: { orderBy: { position: 'asc' }, take: 20 },
+      amenities: { take: 30 },
+    },
+  });
+}
+
 export async function getVenueBySlug(db: PrismaClient, tenantId: string, venueSlug: string) {
   return db.venue.findFirst({
     // tenantId is redundant under RLS — the policy adds it anyway. It is

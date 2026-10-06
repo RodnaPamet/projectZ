@@ -473,3 +473,73 @@ function localMinutesToUtc(localDay: Date, minutes: number, timezone: string): D
   const naive = new Date(y, mo, d, h, min, 0, 0);
   return fromZonedTime(naive, timezone);
 }
+
+export interface DurationOption {
+  minutes: number;
+  endTs: Date;
+  priceCents: number;
+}
+
+export interface SlotDurationOptions {
+  timezone: string;
+  windows: readonly AvailabilityWindow[];
+  basePriceCents: number;
+  minBookingMinutes: number;
+  maxBookingMinutes: number;
+  slotStepMinutes: number;
+  booked: readonly BookedRange[];
+  pricingRules?: readonly PricingRuleRow[];
+  playerTags?: readonly string[];
+  membershipLevel?: string | null;
+}
+
+/**
+ * Every length a booking starting at `startTs` may have (Q16), with its price.
+ *
+ * A court has a start grid (`computeSlots`) and allowed durations: whole units
+ * of `minBookingMinutes`, up to `maxBookingMinutes`. A length is offered when
+ * the whole span is free and `quoteBooking` accepts it, and its price IS
+ * `quoteBooking`'s — the very function `POST …/bookings` charges with — so the
+ * number on the button and the number on the booking cannot disagree.
+ *
+ * Lengths are tried shortest first and the walk stops at the first one that
+ * fails: a span that runs into a booking or past closing only gets worse as it
+ * grows. A slot already taken has no options at all.
+ *
+ * Not a guarantee. Like the slot itself it is a snapshot; the EXCLUDE
+ * constraint decides at INSERT time (see booking.ts).
+ */
+export function slotDurations(startTs: Date, opts: SlotDurationOptions): DurationOption[] {
+  const out: DurationOption[] = [];
+  const unit = opts.minBookingMinutes;
+  if (!(unit > 0)) return out;
+
+  for (let minutes = unit; minutes <= opts.maxBookingMinutes; minutes += unit) {
+    const endTs = new Date(startTs.getTime() + minutes * 60_000);
+    if (opts.booked.some((b) => overlaps(startTs, endTs, b.startTs, b.endTs))) break;
+
+    let quote: BookingQuote;
+    try {
+      quote = quoteBooking({
+        startTs,
+        endTs,
+        timezone: opts.timezone,
+        windows: opts.windows,
+        basePriceCents: opts.basePriceCents,
+        minBookingMinutes: opts.minBookingMinutes,
+        maxBookingMinutes: opts.maxBookingMinutes,
+        slotStepMinutes: opts.slotStepMinutes,
+        pricingRules: opts.pricingRules,
+        playerTags: opts.playerTags,
+        membershipLevel: opts.membershipLevel,
+      });
+    } catch (err) {
+      if (err instanceof SlotNotBookableError) break;
+      throw err;
+    }
+
+    out.push({ minutes, endTs, priceCents: quote.priceCents });
+  }
+
+  return out;
+}

@@ -96,6 +96,13 @@ export const KEYS = {
   /** The public venue index, by cursor. */
   venues: (params: VenueSearchParams = {}) => paged(`${BASE}/venues`, { ...params }),
   /**
+   * One venue's slots for one calendar day AT THE CLUB (`date=YYYY-MM-DD`,
+   * resolved in the venue's zone by the server, never the device's): the venue
+   * page's day picker (#355), and what the native app reads.
+   */
+  venueAvailability: (venueId: string, params: { date: string }) =>
+    `${BASE}/venues/${seg(venueId)}/availability${query(params)}`,
+  /**
    * The review moderation queue. `reason` is part of the key because the server
    * records it with every page it serves (PLATFORM_MODERATION_QUEUE_READ): a
    * different reason is a different, separately audited read.
