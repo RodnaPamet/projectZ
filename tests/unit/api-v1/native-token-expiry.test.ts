@@ -73,8 +73,9 @@ const SESSION_ROW: Record<string, unknown> = {
  * is what makes "delete `expiresAt` from the select" a failing mutation and not
  * a silent pass.
  */
-const findUniqueOrThrow = jest.fn((args: { select: Record<string, true> }) =>
-  Promise.resolve(Object.fromEntries(Object.keys(args.select).map((k) => [k, SESSION_ROW[k]]))),
+const findUnique = jest.fn(
+  (args: { select: Record<string, true> }): Promise<Record<string, unknown> | null> =>
+    Promise.resolve(Object.fromEntries(Object.keys(args.select).map((k) => [k, SESSION_ROW[k]]))),
 );
 
 let ipCounter = 0;
@@ -102,11 +103,11 @@ beforeEach(() => {
   mockRotate.mockReset();
   mockCreate.mockReset();
   mockVerify.mockReset();
-  findUniqueOrThrow.mockClear();
+  findUnique.mockClear();
 
   mockSuperuser.mockReset();
   mockSuperuser.mockImplementation((run: (db: unknown) => unknown) =>
-    run({ userSession: { findUniqueOrThrow } }),
+    run({ userSession: { findUnique } }),
   );
 });
 
@@ -176,9 +177,26 @@ describe('POST /auth/refresh — refreshExpiresAt', () => {
 
     await refresh(post('http://t/api/v1/auth/refresh', { refreshToken: 'old' }), undefined);
 
-    expect(findUniqueOrThrow).toHaveBeenCalledWith(
+    expect(findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'ses_other' } }),
     );
+  });
+
+  it('a session deleted since the rotation is "sign in again", not a 500 (#419)', async () => {
+    // The account was deleted between `rotateRefreshToken` and this read; the
+    // session cascaded with it.
+    mockRotate.mockResolvedValue(rotated);
+    findUnique.mockResolvedValueOnce(null);
+
+    const res = await refresh(
+      post('http://t/api/v1/auth/refresh', { refreshToken: 'old' }),
+      undefined,
+    );
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: { code: 'INVALID_REFRESH_TOKEN', message: 'Sign in again.' },
+    });
   });
 });
 

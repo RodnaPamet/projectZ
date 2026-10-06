@@ -23,6 +23,21 @@ import { logger } from '@/lib/observability/logger';
 // because callers expect it here.
 export { SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
 
+/**
+ * Membership rows to claims, skipping a club that is gone.
+ *
+ * Prisma 7 loads `tenant` with a second select, so a club deleted between the
+ * two comes back as `tenant: null` although the relation is required (#419).
+ * Reading `.id` off it would fail the sign-in with a TypeError.
+ */
+function membershipClaimsFrom(
+  rows: readonly { role: MembershipClaim['role']; tenant: { id: string; slug: string } | null }[],
+): MembershipClaim[] {
+  return rows.flatMap(({ role, tenant }) =>
+    tenant ? [{ tenantId: tenant.id, tenantSlug: tenant.slug, role }] : [],
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   /**
    * 7 days, not next-auth's 30-day default.
@@ -301,11 +316,7 @@ export const authOptions: NextAuthOptions = {
           }),
         );
 
-        let all: MembershipClaim[] = rows.map((m) => ({
-          tenantId: m.tenant.id,
-          tenantSlug: m.tenant.slug,
-          role: m.role,
-        }));
+        let all: MembershipClaim[] = membershipClaimsFrom(rows);
 
         // ═══ ENTRA GROUP SYNC ═══
         //
@@ -387,11 +398,7 @@ export const authOptions: NextAuthOptions = {
                     orderBy: { createdAt: 'asc' },
                   }),
                 );
-                all = fresh.map((m) => ({
-                  tenantId: m.tenant.id,
-                  tenantSlug: m.tenant.slug,
-                  role: m.role,
-                }));
+                all = membershipClaimsFrom(fresh);
               }
 
               // The gate denies ACCESS. The database row is untouched — the

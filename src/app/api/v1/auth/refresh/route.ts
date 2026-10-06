@@ -55,13 +55,22 @@ async function handler(req: NextRequest) {
   // token for this session, and rotating it here would invalidate the ones
   // already in flight. That is the logout cannon, from the other end.
   const session = await runAsSuperuser((db) =>
-    db.userSession.findUniqueOrThrow({
+    db.userSession.findUnique({
       where: { id: outcome.userSessionId },
       // `expiresAt` is not checked here — it is the refresh deadline the
       // response advertises. See `refreshExpiresAt` below.
       select: { sessionVersion: true, expiresAt: true },
     }),
   );
+
+  // Gone since `rotateRefreshToken` read it: the account was deleted (the
+  // session cascades) in between. That is "sign in again", not a 500 (#419).
+  if (!session) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_REFRESH_TOKEN', message: 'Sign in again.' } },
+      { status: 401 },
+    );
+  }
 
   const { accessToken, expiresAt } = await mintAccessToken({
     sub: outcome.userId,
