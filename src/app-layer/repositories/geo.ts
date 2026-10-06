@@ -1,5 +1,7 @@
 import { Prisma, type PrismaClient, type SportType } from '@prisma/client';
 
+import { publicVenueFilter } from './public-venue';
+
 /**
  * Geo search.
  *
@@ -87,9 +89,10 @@ export async function nearVenues(
         )`
     : Prisma.empty;
 
+  const publicVenue = await publicVenueFilter(db);
   // guardrail-allow: cross-tenant — "venues near me" is the public discovery
   // read. A player looking for a court within 5km does not know which club
-  // owns it. Same rationale as listVenues.
+  // owns it. Same rationale as listVenues, and the same predicate (#298).
   const rows = await db.$queryRaw<Array<NearVenueRow & { distancem: number }>>(Prisma.sql`
     SELECT
       v.id,
@@ -102,7 +105,7 @@ export async function nearVenues(
       ST_Distance(v.geog, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography) AS distancem
     FROM "venue" v
     WHERE v.geog IS NOT NULL
-      AND v.status = 'ACTIVE'
+      AND ${publicVenue.sql('v')}
       -- ST_DWithin is the INDEXED predicate (GiST). Filtering on
       -- ST_Distance(...) < r instead would compute the distance for every
       -- venue in the table before discarding almost all of them.

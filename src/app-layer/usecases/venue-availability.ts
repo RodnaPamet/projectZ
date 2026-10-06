@@ -21,7 +21,7 @@ import { computeSlots, slotDurations, type DurationOption, type Slot } from './a
  * call this, and both map the result with `toAvailability`.
  *
  * The caller binds the handle: the venue is public and cross-tenant, so both
- * callers use BYPASSRLS with `status: ACTIVE` as the filter (see the route).
+ * callers use BYPASSRLS with `publicVenueFilter` as the filter (see the route).
  */
 export interface VenueAvailabilityResource {
   resource: {

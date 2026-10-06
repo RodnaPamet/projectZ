@@ -71,7 +71,7 @@ export default async function VenuesPage({
   // cluster superuser and is exempt from row security.
   //
   // Cross-tenant is the point — a player hunting a padel court does not know
-  // which club owns it — so what keeps this read safe is `status: ACTIVE` in
+  // which club owns it — so what keeps this read safe is `publicVenueFilter` in
   // listVenues and the hand-written DTO, not the tenant policy. `venue_org` is
   // no more readable unbound than `venue`, so the slug lookup shares the
   // transaction.

@@ -22,6 +22,8 @@ import { INDEXES } from './indexes';
  */
 
 export async function syncVenue(db: PrismaClient, venueId: string): Promise<void> {
+  // public-venue-filter: not a public read — the index mirrors every venue;
+  // what /api/search shows is filtered at query time (club status: #421).
   const venue = await db.venue.findUnique({
     where: { id: venueId },
     include: { resources: { take: 100 }, amenities: { take: 50 } },
@@ -89,6 +91,7 @@ export async function syncCoach(db: PrismaClient, coachId: string): Promise<void
 export async function reindexAll(
   db: PrismaClient,
 ): Promise<{ venues: number; sessions: number; coaches: number }> {
+  // public-venue-filter: not a public read — a rebuild mirrors every venue (#421).
   const venues = await db.venue.findMany({
     include: { resources: { take: 100 }, amenities: { take: 50 } },
     take: 10_000,
@@ -131,7 +134,7 @@ function noteFailure(what: string) {
     // would roll back a legitimate write because a SEARCH server was down.
     // But a silently-swallowed sync failure is how an index rots unnoticed,
     // so it must leave SOME trace.
-     
+
     console.warn(`[search] ${what} failed (index stale, data safe):`, err); // guardrail-allow: console — a swallowed sync failure needs one signal
   };
 }

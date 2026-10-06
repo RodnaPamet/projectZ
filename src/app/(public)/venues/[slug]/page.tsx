@@ -57,9 +57,10 @@ const readVenue = cache(async (publicSlug: string) => {
 
   // BYPASSRLS, as the venue index and the public v1 venue routes: a public
   // page has no tenant to bind, and `venue` carries FORCE row security, so as
-  // app_user this would find nothing. `status: ACTIVE` in the repository and
-  // the fields picked below are what keep it public-safe. The club's slug
-  // (what `POST /t/{slug}/bookings` takes) shares the transaction:
+  // app_user this would find nothing. `publicVenueFilter` in the repository
+  // (the venue ACTIVE, its club ACTIVE: a suspended club's venue is a 404,
+  // #298) and the fields picked below are what keep it public-safe. The club's
+  // slug (what `POST /t/{slug}/bookings` takes) shares the transaction:
   // `venue.tenantId` is not a foreign key, so a venue whose club is gone is a
   // 404 here as it is on the API.
   return runAsSuperuser(async (db) => {
@@ -67,9 +68,9 @@ const readVenue = cache(async (publicSlug: string) => {
     if (!venue) return null;
     const club = await db.venueOrg.findUnique({
       where: { id: venue.tenantId },
-      select: { slug: true, status: true },
+      select: { slug: true },
     });
-    if (!club || club.status !== 'ACTIVE') return null;
+    if (!club) return null;
     return { venue, clubSlug: club.slug };
   });
 });
