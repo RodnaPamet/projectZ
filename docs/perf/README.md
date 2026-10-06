@@ -503,8 +503,8 @@ target. For each navigation:
 "Network idle" is **no request waiting for headers, and nothing moving for
 500 ms**. A plain "nothing in flight" never arrives here: Chrome never reports the
 dead links' 404 prefetches as finished (#267), and waiting for them cost 20 s per
-click. The venue cards no longer link anywhere (T12), but the rule stays: the next
-dead link would bring the hang back.
+click. The venue cards link to real pages again since #355, but the rule stays: the
+next dead link would bring the hang back.
 
 ### Profiles
 

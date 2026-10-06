@@ -101,6 +101,16 @@ export const PERF_DATA_ENCRYPTION_KEY = 'perf-data-encryption-key-throwaway-0000
 export const CLUB_SLUG = 'sofia-padel-club';
 export const CLUB_TIMEZONE = 'Europe/Sofia';
 
+/**
+ * The venue the venue journeys open (#397): the club's main site, created by
+ * `scripts/seed.ts` with the venue slug `sofia-padel-club`. P41's insert
+ * trigger gives it this `publicSlug`, so `/venues` links its card to
+ * `/venues/sofia-padel-club`; the perf fixture checks it did. Its four courts
+ * are about half booked for the next 14 days, so tomorrow has free times.
+ */
+export const VENUE_PUBLIC_SLUG = 'sofia-padel-club';
+export const VENUE_NAME = 'Sofia Padel Club';
+
 /** Dev credential from scripts/seed.ts, reused so the seeded owner can sign in. */
 export const PERF_PASSWORD = 'Passw0rd!'; // pragma: allowlist secret
 

@@ -4,7 +4,7 @@ import type { BookingStatus, Prisma, PrismaClient, SportType } from '@prisma/cli
 import bcrypt from 'bcryptjs';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
-import { CLUB_SLUG, CLUB_TIMEZONE, PERF_PASSWORD, PERSONAS } from './config';
+import { CLUB_SLUG, CLUB_TIMEZONE, PERF_PASSWORD, PERSONAS, VENUE_PUBLIC_SLUG } from './config';
 
 /**
  * The data the navigation baseline is measured against, layered on top of
@@ -584,6 +584,15 @@ export async function seedPerfFixture(db: PrismaClient, now: Date): Promise<Perf
       const venueOf = (tenantId: string, slug: string) =>
         tx.venue.findUniqueOrThrow({ where: { tenantId_slug: { tenantId, slug } } });
       const sofiaVenue = await venueOf(sofia.id, CLUB_SLUG);
+      // The venue journeys tap this venue's card and land on its page (#397).
+      // P41's trigger names it; a seed or trigger change that names it
+      // differently would turn those steps into a 404, so say so here.
+      if (sofiaVenue.publicSlug !== VENUE_PUBLIC_SLUG) {
+        throw new Error(
+          `the venue journeys open /venues/${VENUE_PUBLIC_SLUG}, but the seeded venue's ` +
+            `publicSlug is ${JSON.stringify(sofiaVenue.publicSlug)}`,
+        );
+      }
       const plovdivVenue = await venueOf(plovdiv.id, 'plovdiv-tennis-center');
       const reviewed = await tx.booking.findFirstOrThrow({
         where: { bookedByUserId: persona.id, tenantId: sofia.id, status: 'COMPLETED' },
