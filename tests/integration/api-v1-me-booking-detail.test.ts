@@ -167,9 +167,17 @@ describe('GET /api/v1/me/bookings/{id}, ?when=, and cancel (#359)', () => {
       expect(Date.parse(d.cancellableUntil!)).toBe(start - 12 * HOUR);
       expect(d.cancellableUntil).toMatch(/:\d\dZ$/);
 
-      // The booker alone (#358 has not landed): a name and a face, nothing else.
+      // The booker alone, nobody added yet (#358): a name and a face, nothing
+      // else. No user id: the booker is not a participant row, so no id at all.
       expect(d.players).toEqual([
-        { name: 'Test Player', avatarUrl: null, isBooker: true, registered: true },
+        {
+          participantId: null,
+          name: 'Test Player',
+          avatarUrl: null,
+          isBooker: true,
+          isYou: true,
+          registered: true,
+        },
       ]);
       expect(JSON.stringify(d)).not.toMatch(/@playerz\.test/);
       expect(JSON.stringify(d)).not.toContain(club.tenantId);

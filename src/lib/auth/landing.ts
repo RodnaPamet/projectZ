@@ -44,6 +44,18 @@ export const PLAYER_HOME = '/me/bookings';
 export const START_PATH = '/start';
 
 /**
+ * "Играч или треньор?" (#360, Q13): where an account that has not chosen its
+ * kind, and holds no club role to land on, is sent before anything else.
+ */
+export const KIND_CHOOSER_PATH = '/start/kind';
+
+/**
+ * Where a person lands right after choosing PLAYER: Играй, the venue index,
+ * because a new player has nothing in Резервации yet.
+ */
+export const PLAY_PATH = '/venues';
+
+/**
  * Where a CLUB account lands when its club is not there to land on — suspended,
  * closed, or its own membership ended. Not the player UI: a club account is
  * not a player, and landing it on "your bookings" would be a page about
@@ -225,7 +237,12 @@ export function decideLanding(
         return landOn(coaching, coachHome(coaching.tenantSlug), 'undecided');
       }
 
-      return { href: PLAYER_HOME, reason: 'undecided', club: null };
+      // ═══ NOTHING TO LAND ON: ASK (#360, audit U01) ═══
+      //
+      // A brand-new account (NULL since #360) or an old undecided one with no
+      // live club or coach UI. It used to land on the player's bookings with
+      // no explanation; it is asked "player or coach?" instead.
+      return { href: KIND_CHOOSER_PATH, reason: 'undecided', club: null };
     }
   }
 }

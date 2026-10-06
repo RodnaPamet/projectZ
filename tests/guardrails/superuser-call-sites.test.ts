@@ -142,6 +142,17 @@ const ALLOWED: Record<string, string> = {
     'the session-derived id, so it can only ever return their own. Reached from the page and, ' +
     'since T16, from `GET /api/v1/me/bookings`: the same read, the same session-derived id, ' +
     'with only a cursor and a clamped limit taken from the request.',
+  'src/app-layer/usecases/booking-players.ts':
+    'players on a booking (#358). Two questions start before any club is known: "which club ' +
+    'is this booking at?" for a booking the caller booked OR was added to (any club; the token ' +
+    'does not list them), and "which booking is this invite link for?" from a token. Each is ' +
+    'ONE read scoped by the session user id, or by hashForLookup(token) — a secret the ' +
+    'visitor holds, which cannot enumerate — and answers a tenant id; every write and every ' +
+    're-check then runs in runInTenantContext under a row lock, so RLS holds the writes. The ' +
+    'two reads that stay superuser are reads only: the invite preview (venue, time, booker ' +
+    "first name; for a live token only) and the caller's recent co-players (their own bookings, " +
+    'by session id, bounded to 50, names and avatars). NOT asPlatformAdmin: nobody reaches into ' +
+    'a club that is not theirs.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {

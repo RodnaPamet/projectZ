@@ -204,6 +204,23 @@ function upcomingWhere(now: Date) {
  * `bookedByUserId` is indexed (`@@index([bookedByUserId])`), so this does not
  * become a cross-tenant sequential scan as the table grows.
  */
+/** A booking in a person's cross-club list: the booker tells the caller which side they are on. */
+export type BookingAcrossClubs = NonNullable<Awaited<ReturnType<typeof getOwnBooking>>> & {
+  tenantId: string;
+  bookedByUserId: string | null;
+};
+
+/**
+ * A person's bookings are the ones they BOOKED and, since #358, the ones they
+ * were ADDED to (a `booking_participant` row with their id): an added player
+ * sees the game in Резервации like the booker does. Both filters are the
+ * session-derived id; `booking_participant.userId` is indexed like
+ * `bookedByUserId`.
+ */
+function mine(userId: string) {
+  return { OR: [{ bookedByUserId: userId }, { participants: { some: { userId } } }] };
+}
+
 export async function listBookingsForUserAcrossClubs(
   db: PrismaClient,
   input: {
@@ -216,7 +233,7 @@ export async function listBookingsForUserAcrossClubs(
     now?: Date;
   },
 ): Promise<{
-  items: Array<Awaited<ReturnType<typeof getOwnBooking>> & { tenantId: string }>;
+  items: Array<BookingAcrossClubs>;
   nextCursor: string | null;
 }> {
   const take = clampBookingLimit(input.limit);
@@ -226,11 +243,11 @@ export async function listBookingsForUserAcrossClubs(
   // and the filter is their session-derived id, not a request parameter.
   const rows = await db.booking.findMany({
     where: {
-      bookedByUserId: input.userId,
+      ...mine(input.userId),
       ...(input.when === 'upcoming' ? upcomingWhere(now) : {}),
       ...(input.when === 'past' ? { NOT: upcomingWhere(now) } : {}),
     },
-    select: { ...BOOKING_FIELDS, tenantId: true },
+    select: { ...BOOKING_FIELDS, tenantId: true, bookedByUserId: true },
     // Upcoming reads soonest first, so the next game is on top (audit P05).
     // Everything else reads newest first.
     orderBy:
@@ -245,7 +262,7 @@ export async function listBookingsForUserAcrossClubs(
   const items = hasMore ? rows.slice(0, take) : rows;
 
   return {
-    items: items as Array<Awaited<ReturnType<typeof getOwnBooking>> & { tenantId: string }>,
+    items: items as BookingAcrossClubs[],
     nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
   };
 }
@@ -256,9 +273,10 @@ export async function listBookingsForUserAcrossClubs(
  * for a link back, and the people on the booking.
  *
  * Cross-tenant for `listBookingsForUserAcrossClubs`'s reason, and scoped the
- * same way: `bookedByUserId` is in the WHERE, from a verified session. Another
- * player's booking id finds nothing, which the route answers 404, the same
- * answer as an id that never existed, so ids cannot be probed.
+ * same way: `mine(userId)` is in the WHERE (booked it, or was added to it,
+ * #358), from a verified session. Another player's booking id finds nothing,
+ * which the route answers 404, the same answer as an id that never existed,
+ * so ids cannot be probed.
  *
  * Participants are ids and guest names only. Their emails are not selected at
  * all, rather than selected here and dropped by the mapper.
@@ -270,13 +288,18 @@ export async function getBookingForUserAcrossClubs(
   // guardrail-allow: cross-tenant — a person's own booking, at whichever club
   // it is; the filter is their session-derived id, not a request parameter.
   return db.booking.findFirst({
-    where: { id: input.bookingId, bookedByUserId: input.userId },
+    where: {
+      id: input.bookingId,
+      ...mine(input.userId),
+    },
     select: {
       ...BOOKING_FIELDS,
       tenantId: true,
+      bookedByUserId: true,
       resource: {
         select: {
           ...BOOKING_FIELDS.resource.select,
+          capacity: true,
           venue: {
             select: {
               ...BOOKING_FIELDS.resource.select.venue.select,
@@ -291,9 +314,102 @@ export async function getBookingForUserAcrossClubs(
         },
       },
       participants: {
-        select: { userId: true, guestName: true, position: true },
+        select: { id: true, userId: true, guestName: true, position: true },
         orderBy: { position: 'asc' },
       },
     },
   });
+}
+
+/**
+ * A person on a booking, as the booking shows them (#359, #358): a name and a
+ * face. Never an email, a phone or a user id, for anybody: a participant sees
+ * the other players' names and avatars and nothing they could contact them by.
+ */
+export interface BookingPlayer {
+  /**
+   * The `booking_participant` row, which is what the booker removes by. Null
+   * for the booker, who is not a row (position 1 is `bookedByUserId`).
+   */
+  participantId: string | null;
+  /** Null for a registered player who has not set a name yet. */
+  name: string | null;
+  avatarUrl: string | null;
+  isBooker: boolean;
+  /** The caller. */
+  isYou: boolean;
+  /** Registered (has an account), as opposed to a guest named by the booker. */
+  registered: boolean;
+}
+
+/**
+ * The booker first, then each participant by position: names and avatars
+ * from `app_user`, which is global (no RLS), so this reads the same under a
+ * tenant binding or the superuser one. One query for the whole booking.
+ */
+export async function readBookingPlayers(
+  db: PrismaClient,
+  b: {
+    bookedByUserId: string | null;
+    participants: ReadonlyArray<{
+      id: string;
+      userId: string | null;
+      guestName: string | null;
+      position: number;
+    }>;
+  },
+  viewerId: string,
+): Promise<BookingPlayer[]> {
+  const rows = [...b.participants].sort((x, y) => x.position - y.position);
+  const ids = [
+    ...(b.bookedByUserId ? [b.bookedByUserId] : []),
+    ...rows.flatMap((p) => (p.userId ? [p.userId] : [])),
+  ];
+  const unique = [...new Set(ids)];
+
+  const users = unique.length
+    ? await db.user.findMany({
+        where: { id: { in: unique } },
+        select: { id: true, name: true, avatarUrl: true },
+        take: unique.length,
+      })
+    : [];
+  const byId = new Map(users.map((u) => [u.id, u]));
+
+  const players: BookingPlayer[] = [];
+  if (b.bookedByUserId) {
+    const u = byId.get(b.bookedByUserId);
+    players.push({
+      participantId: null,
+      name: u?.name ?? null,
+      avatarUrl: u?.avatarUrl ?? null,
+      isBooker: true,
+      isYou: b.bookedByUserId === viewerId,
+      registered: true,
+    });
+  }
+  for (const p of rows) {
+    if (p.userId) {
+      if (p.userId === b.bookedByUserId) continue;
+      const u = byId.get(p.userId);
+      players.push({
+        participantId: p.id,
+        name: u?.name ?? null,
+        avatarUrl: u?.avatarUrl ?? null,
+        isBooker: false,
+        isYou: p.userId === viewerId,
+        registered: true,
+      });
+    } else if (p.guestName) {
+      players.push({
+        participantId: p.id,
+        name: p.guestName,
+        avatarUrl: null,
+        isBooker: false,
+        isYou: false,
+        registered: false,
+      });
+    }
+  }
+  return players;
 }

@@ -158,6 +158,26 @@ describe('decideInviteAcceptance — an account the migration left undecided', (
   });
 });
 
+describe('a brand-new account that has not chosen player or coach yet (#360)', () => {
+  const NOT_CHOSEN = account({ kind: null, isEmpty: true });
+
+  it.each([
+    ['STAFF', 'CLUB'],
+    ['MANAGER', 'CLUB'],
+    ['PLAYER', 'PLAYER'],
+    ['COACH', 'COACH'],
+  ] as const)('accepts a %s invite and becomes %s: the invitation is its answer', (role, kind) => {
+    expect(decideInviteAcceptance(NOT_CHOSEN, { role, tenantId: 'ct_this' })).toEqual({
+      ok: true,
+      becomes: kind,
+    });
+  });
+
+  it('can be made an owner, and becomes CLUB', () => {
+    expect(decideOwnerAssignment(NOT_CHOSEN, 'ct_this')).toEqual({ ok: true, becomes: 'CLUB' });
+  });
+});
+
 describe('decideOwnerAssignment — who create-venue-org may make an owner', () => {
   it('a brand-new account, which becomes CLUB', () => {
     expect(decideOwnerAssignment(BRAND_NEW, 'ct_this')).toEqual({ ok: true, becomes: 'CLUB' });

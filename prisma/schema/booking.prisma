@@ -65,6 +65,7 @@ model Booking {
   session       OpenPlaySession?     @relation("SessionBooking")
   bookingSplits BookingSplit[]
   series        BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  inviteLinks   BookingInviteLink[]
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, resourceId, startTs])
@@ -160,10 +161,43 @@ model BookingParticipant {
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@unique([bookingId, position])
+  /// A person is on a booking once (P45, #358). Guests (userId NULL) are not
+  /// constrained: Postgres treats NULLs as distinct.
+  @@unique([bookingId, userId])
   @@index([tenantId])
   @@index([bookingId])
   @@index([userId])
   @@map("booking_participant")
+}
+
+/// A shareable link that adds whoever opens it to a booking (#358, P45).
+///
+/// The token exists once, in the booker's hands: only `hashForLookup(token)`
+/// (HMAC-SHA256 with a server key) is stored, so a leaked database yields no
+/// working link. A link adds the signed-in person who opens it, while the
+/// court has room, until the booking starts (`expiresAt` = `booking.startTs`)
+/// or the booker revokes it. Several may be live at once, so sharing again does
+/// not break a link already sent; `MAX_LIVE_INVITE_LINKS` bounds them.
+model BookingInviteLink {
+  id        String @id @default(cuid())
+  tenantId  String
+  bookingId String
+
+  tokenHash       String
+  createdByUserId String
+
+  expiresAt       DateTime  @db.Timestamptz(3)
+  revokedAt       DateTime? @db.Timestamptz(3)
+  revokedByUserId String?
+
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenHash])
+  @@index([tenantId])
+  @@index([bookingId])
+  @@map("booking_invite_link")
 }
 
 model Payment {

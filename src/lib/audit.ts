@@ -108,6 +108,16 @@ export const AUDIT_ACTIONS = {
   INVITE_REVOKED: 'INVITE_REVOKED',
   /// The invitee accepted. actorUserId is THEM, not the person who invited.
   INVITE_ACCEPTED: 'INVITE_ACCEPTED',
+  /// Players on a booking (#358). The booker made or stopped a link to share;
+  /// the token itself is never recorded.
+  BOOKING_INVITE_LINK_CREATED: 'BOOKING_INVITE_LINK_CREATED',
+  BOOKING_INVITE_LINK_REVOKED: 'BOOKING_INVITE_LINK_REVOKED',
+  /// A player was added, by a link (actor: the player) or by the booker.
+  BOOKING_PLAYER_JOINED: 'BOOKING_PLAYER_JOINED',
+  /// An added player left; actor: them.
+  BOOKING_PLAYER_LEFT: 'BOOKING_PLAYER_LEFT',
+  /// The booker took a player off; actor: the booker.
+  BOOKING_PLAYER_REMOVED: 'BOOKING_PLAYER_REMOVED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

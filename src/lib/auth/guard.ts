@@ -108,6 +108,10 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // the shared secret in `x-centrifugo-secret` is the whole boundary, which the
   // route's own docblock states. Also `security: []` in the spec.
   /^\/api\/v1\/realtime\/subscribe$/,
+  // What a booking invite link is for (#358), shown before the sign-in wall:
+  // the person holding the link usually has no session yet. One literal path.
+  // Accepting it is NOT here: that needs a session, and the route says so.
+  /^\/api\/v1\/booking-invites\/preview$/,
   // The orchestrator's probes. These are the paths that EXIST — `/api/livez`
   // and `/api/readyz` were listed here for a while and are not routes, which
   // meant readiness was public only by accident, via the `allow` default.
@@ -143,8 +147,16 @@ const PUBLIC_PATTERNS: RegExp[] = [
  *
  * The token in the URL is the credential here; the redeem route verifies it
  * against the hashed value and its expiry.
+ *
+ * `/invite/booking/{token}` is a booking invite (#358): a player added to a
+ * game, not a member added to a club. Its page shows the game before asking
+ * the visitor to sign in, so it must be reachable signed out too.
  */
-const INVITE_PATTERNS: RegExp[] = [/^\/invite\/[^/]+$/, /^\/api\/invites\/[^/]+(\/|$)/];
+const INVITE_PATTERNS: RegExp[] = [
+  /^\/invite\/[^/]+$/,
+  /^\/invite\/booking\/[^/]+$/,
+  /^\/api\/invites\/[^/]+(\/|$)/,
+];
 
 export function checkPublicRoute(pathname: string): boolean {
   return PUBLIC_PATTERNS.some((re) => re.test(pathname));

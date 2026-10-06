@@ -58,7 +58,20 @@ const detail = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => (
   venueReview: null,
   canReview: false,
   payAtClub: true,
-  players: [{ name: 'Иван Петров', avatarUrl: null, isBooker: true, registered: true }],
+  players: [
+    {
+      participantId: null,
+      name: 'Иван Петров',
+      avatarUrl: null,
+      isBooker: true,
+      isYou: true,
+      registered: true,
+    },
+  ],
+  capacity: 4,
+  spotsLeft: 3,
+  playersOpen: true,
+  viewerRole: 'BOOKER',
   ...over,
 });
 
@@ -167,9 +180,30 @@ describe('the detail page', () => {
     mount(
       detail({
         players: [
-          { name: 'Иван Петров', avatarUrl: null, isBooker: true, registered: true },
-          { name: 'Мария', avatarUrl: null, isBooker: false, registered: true },
-          { name: 'Гост Георги', avatarUrl: null, isBooker: false, registered: false },
+          {
+            participantId: null,
+            name: 'Иван Петров',
+            avatarUrl: null,
+            isBooker: true,
+            isYou: true,
+            registered: true,
+          },
+          {
+            participantId: 'bp1',
+            name: 'Мария',
+            avatarUrl: null,
+            isBooker: false,
+            isYou: false,
+            registered: true,
+          },
+          {
+            participantId: 'bp2',
+            name: 'Гост Георги',
+            avatarUrl: null,
+            isBooker: false,
+            isYou: false,
+            registered: false,
+          },
         ],
       }),
       START - 48 * HOUR,

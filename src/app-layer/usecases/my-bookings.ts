@@ -3,6 +3,8 @@ import type { ReviewStatus } from '@prisma/client';
 import {
   getBookingForUserAcrossClubs,
   listBookingsForUserAcrossClubs,
+  readBookingPlayers,
+  type BookingPlayer,
   type BookingWhen,
 } from '@/app-layer/repositories/booking';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -89,14 +91,16 @@ export async function listMyBookings(input: {
     return {
       items: bookings.map((b) => {
         const venueReview = reviewByVenue.get(b.resource.venue.id) ?? null;
+        const viewerRole = roleOf(b, input.userId);
         return {
           ...b,
           clubSlug: slugByTenant.get(b.tenantId) ?? null,
           venueReview,
+          viewerRole,
           // Decided HERE, by the rule below, so `GET /api/v1/me/bookings` and
           // the page cannot disagree about which bookings offer a review: the
           // v1 mapper copies this rather than restating the rule.
-          canReview: canReview({ status: b.status, venueReview }),
+          canReview: canReview({ status: b.status, venueReview, viewerRole }),
         };
       }),
       nextCursor: page.nextCursor,
@@ -104,14 +108,16 @@ export async function listMyBookings(input: {
   });
 }
 
-/** A person on a booking, as its detail page shows them: a name and a face. */
-export interface BookingPlayer {
-  /** Null for a registered player who has not set a name yet. */
-  name: string | null;
-  avatarUrl: string | null;
-  isBooker: boolean;
-  /** Registered (has an account), as opposed to a guest named by the booker. */
-  registered: boolean;
+export type { BookingPlayer };
+
+/**
+ * The caller's side of a booking (#358): they booked it, or were added to it.
+ * The booker cancels it; an added player may only leave.
+ */
+export type BookingViewerRole = 'BOOKER' | 'PARTICIPANT';
+
+function roleOf(b: { bookedByUserId: string | null }, userId: string): BookingViewerRole {
+  return b.bookedByUserId === userId ? 'BOOKER' : 'PARTICIPANT';
 }
 
 /**
@@ -121,7 +127,8 @@ export interface BookingPlayer {
  *
  * Superuser for `listMyBookings`'s reason (`booking` and `booking_participant`
  * are tenant-scoped, and no binding means "mine, at any club"), and scoped the
- * same way: the booking by `bookedByUserId` from a verified session, then only
+ * same way: the booking by `bookedByUserId` or, since #358, a participant row with
+ * the caller's id, from a verified session, then only
  * rows hanging off that one booking, its club's slug, the caller's own review
  * of its venue, and the names of the people on it.
  */
@@ -131,14 +138,9 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
     if (!b) return null;
 
     const venueId = b.resource.venue.id;
-    // The booker first, then each participant once. Until #358 lets a booker
-    // add players there are none, and the list is the booker alone.
-    const userIds = [
-      input.userId,
-      ...b.participants.flatMap((p) => (p.userId && p.userId !== input.userId ? [p.userId] : [])),
-    ];
+    const viewerRole = roleOf(b, input.userId);
 
-    const [club, review, users] = await Promise.all([
+    const [club, review, players] = await Promise.all([
       db.venueOrg.findUnique({
         where: { id: b.tenantId },
         select: { slug: true, onlinePaymentEnabled: true },
@@ -149,38 +151,17 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
         where: { authorUserId: input.userId, venueId },
         select: { id: true, bookingId: true, rating: true, status: true },
       }),
-      // Names and avatars, never emails: `User` is global, and this is the
-      // only thing about another person a booking shows.
-      db.user.findMany({
-        where: { id: { in: [...new Set(userIds)] } },
-        select: { id: true, name: true, avatarUrl: true },
-        take: userIds.length,
-      }),
+      // Names and avatars, never emails or ids: `User` is global, and this is
+      // the only thing about another person a booking shows (#358).
+      readBookingPlayers(db, b, input.userId),
     ]);
-
-    const byId = new Map(users.map((u) => [u.id, u]));
-    const seen = new Set<string>();
-    const players: BookingPlayer[] = [];
-    for (const id of userIds) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const u = byId.get(id);
-      players.push({
-        name: u?.name ?? null,
-        avatarUrl: u?.avatarUrl ?? null,
-        isBooker: id === input.userId,
-        registered: true,
-      });
-    }
-    for (const p of b.participants) {
-      if (!p.userId && p.guestName) {
-        players.push({ name: p.guestName, avatarUrl: null, isBooker: false, registered: false });
-      }
-    }
 
     const venueReview: MyVenueReview | null = review
       ? { id: review.id, bookingId: review.bookingId, rating: review.rating, status: review.status }
       : null;
+
+    const capacity = b.resource.capacity;
+    const now = new Date();
 
     return {
       ...b,
@@ -190,8 +171,16 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
       // same: there is nothing online to point at.
       payAtClub: !club?.onlinePaymentEnabled,
       venueReview,
-      canReview: canReview({ status: b.status, venueReview }),
+      viewerRole,
+      canReview: canReview({ status: b.status, venueReview, viewerRole }),
       players,
+      capacity,
+      // Places left for added players: the booker holds position 1.
+      spotsLeft: Math.max(0, capacity - 1 - b.participants.length),
+      // Players may be added, leave or be removed until the game starts, while
+      // the booking holds its court (`booking-players`'s own rule).
+      playersOpen:
+        (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTs.getTime() > now.getTime(),
     };
   });
 }
@@ -204,7 +193,17 @@ export type MyBookingDetail = NonNullable<Awaited<ReturnType<typeof getMyBooking
  * COMPLETED — the proof of visit — and no review of that venue yet, since a
  * second is refused (see `AlreadyReviewedError`). Offering a form that can only
  * fail would be the worst version of that rule.
+ *
+ * The booker's alone (#358): a review is proved by a booking the AUTHOR made
+ * (`reviews.ts`), so an added player would be offered a form that can only
+ * fail. Reviews by added players are a follow-up.
  */
-export function canReview(b: { status: string; venueReview: MyVenueReview | null }): boolean {
-  return b.status === 'COMPLETED' && b.venueReview === null;
+export function canReview(b: {
+  status: string;
+  venueReview: MyVenueReview | null;
+  viewerRole?: BookingViewerRole;
+}): boolean {
+  return (
+    (b.viewerRole ?? 'BOOKER') === 'BOOKER' && b.status === 'COMPLETED' && b.venueReview === null
+  );
 }

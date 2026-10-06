@@ -6,7 +6,7 @@ import { resolveLanding } from '@/app-layer/usecases/landing';
 import { GET as start } from '@/app/(app)/start/route';
 import ClubIndexPage from '@/app/(app)/t/[slug]/page';
 import { kindForRole } from '@/lib/auth/account-kind';
-import { HOME, PLAYER_HOME } from '@/lib/auth/landing';
+import { HOME, KIND_CHOOSER_PATH, PLAYER_HOME } from '@/lib/auth/landing';
 
 import { signInAs } from '../helpers/auth';
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
@@ -232,6 +232,20 @@ describe('GET /start — the post-sign-in router', () => {
     const t = await seedTenant({});
     const userId = await newUser('player');
     await join(userId, t.tenantId, 'PLAYER');
+    await signIn(userId);
+
+    expect(await destination(() => start())).toBe(PLAYER_HOME);
+  });
+
+  it('sends a new account that has not chosen player or coach to the chooser (#360, U01)', async () => {
+    const userId = await newUser('fresh', null);
+    await signIn(userId);
+
+    expect(await destination(() => start())).toBe(KIND_CHOOSER_PATH);
+  });
+
+  it('…and, once it chose PLAYER, to the player UI', async () => {
+    const userId = await newUser('chose', 'PLAYER');
     await signIn(userId);
 
     expect(await destination(() => start())).toBe(PLAYER_HOME);

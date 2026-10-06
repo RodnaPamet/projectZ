@@ -110,14 +110,25 @@ export type InviteAcceptance =
  * `becomes` is the kind the account must be switched to first: CLUB for an
  * empty account accepting a staff invite, otherwise null (it already fits).
  *
- * A COACH invite converts nobody. COACH is set by the coach flow alone, which
- * does not exist yet (#263 leaves it for a later issue).
+ * A COACH invite converts no account that has a kind. An empty account that
+ * has not chosen yet (#360) is the one exception: see below.
  */
 export function decideInviteAcceptance(
   account: AccountStanding,
   invite: { role: Role; tenantId: string },
 ): InviteAcceptance {
-  if (account.kind === null) return { ok: false, refusal: 'ACCOUNT_KIND_UNDECIDED' };
+  // ═══ A BRAND-NEW ACCOUNT HAS NOT CHOSEN YET (#360) ═══
+  //
+  // Since #360 a first sign-in is NULL until the person answers "player or
+  // coach?". An invitation is itself that answer, for an account that holds
+  // nothing: a staff invite makes it CLUB, as it made an empty player CLUB
+  // before; a player or coach invite makes it that kind. Only an undecided
+  // account that HOLDS something (P37's mixed accounts) is still refused.
+  if (account.kind === null) {
+    return account.isEmpty
+      ? { ok: true, becomes: kindForRole(invite.role) }
+      : { ok: false, refusal: 'ACCOUNT_KIND_UNDECIDED' };
+  }
 
   switch (kindForRole(invite.role)) {
     case 'CLUB': {
@@ -154,7 +165,11 @@ export type OwnerAssignment =
  * CLUB.
  */
 export function decideOwnerAssignment(account: AccountStanding, tenantId: string): OwnerAssignment {
-  if (account.kind === null) return { ok: false, refusal: 'UNDECIDED' };
+  // An empty account that has not chosen yet (#360) becomes CLUB, like an
+  // empty player; one that holds something is for a person to decide.
+  if (account.kind === null) {
+    return account.isEmpty ? { ok: true, becomes: 'CLUB' } : { ok: false, refusal: 'UNDECIDED' };
+  }
   if (account.kind === 'COACH') return { ok: false, refusal: 'COACH_ACCOUNT' };
 
   if (account.kind === 'CLUB') {

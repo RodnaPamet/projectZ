@@ -20,6 +20,7 @@ import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 
 import { BOOKING_LIST_KEYS, STATUS_TONE } from '../MyBookingsList';
+import { BookingPlayers } from './BookingPlayers';
 import { directionsUrl } from './directions';
 
 const ConfirmDialog = dynamic(() =>
@@ -238,33 +239,7 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
         ) : null}
       </div>
 
-      <section className="gap-tight flex flex-col" aria-labelledby="booking-players">
-        <Heading level={2} tone="muted" className="text-sm" id="booking-players">
-          {td('players')}
-        </Heading>
-        <Card elevation="flat" density="none">
-          <ul className="divide-border-subtle divide-y" data-testid="booking-players">
-            {b.players.map((p, i) => (
-              <li key={i} className="flex min-h-14 items-center gap-3 px-4 py-2">
-                <InitialsAvatar value={p.name ?? td('unnamed')} imageUrl={p.avatarUrl} />
-                <span className="text-content-default min-w-0 flex-1 truncate text-sm">
-                  {p.isBooker ? td('you') : (p.name ?? td('unnamed'))}
-                </span>
-                {p.isBooker ? (
-                  <Caption className="shrink-0">{td('booker')}</Caption>
-                ) : !p.registered ? (
-                  <Caption className="shrink-0">{td('guest')}</Caption>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </Card>
-        {/*
-          #358 (the booker adds players: an invite link, up to the court's
-          capacity) puts "Покани играчи" HERE, under the list. It had not
-          landed when #359 shipped, so nothing is drawn for it yet.
-        */}
-      </section>
+      <BookingPlayers booking={b} date={date} time={from} />
 
       {state !== 'none' || cancelError ? (
         <section className="gap-tight flex flex-col" data-testid="booking-cancel">
