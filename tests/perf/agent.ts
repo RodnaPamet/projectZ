@@ -208,7 +208,11 @@ export function installPerfAgent(args: {
       }
       pre = new WeakSet(Array.from(document.querySelectorAll(feedback)).filter(visible));
       loadingUiPending = false;
-      firstPending = false;
+      // A step that stays on the page (the venue's next day) already shows its
+      // first content: there is nothing to time, so tFirst stays null.
+      const firstPath = key.split('?')[0]!;
+      const firstConds = first[firstPath];
+      firstPending = !!firstConds && location.pathname === firstPath && satisfied(firstConds);
       stepReadyPending = false;
       agent.step = {
         key,
