@@ -161,13 +161,12 @@ export function clubAdminNav(slug: string): NavSection<ClubNavItem>[] {
 /**
  * Where "Публична страница ↗" leads from a club's admin (#347, #362).
  *
- * The club's own public page, once there is one: its club page (#356), or
- * else its first venue's page (#355, `/venues/{publicSlug}`). Neither route is
- * on main yet, so it is the venue list, where players find the club today.
- * When one of them lands, this takes the club and returns its page.
+ * The club's first live venue's page (#355, `/venues/{publicSlug}`), from
+ * `clubFirstVenuePublicSlug`; the venue list for a club with no live venue
+ * yet. When the club page (#356) exists, it takes this place.
  */
-export function clubPublicHref(): string {
-  return '/venues';
+export function clubPublicHref(venuePublicSlug: string | null): string {
+  return venuePublicSlug ? `/venues/${encodeURIComponent(venuePublicSlug)}` : '/venues';
 }
 
 /** The platform surface: what a holder of a platform grant can open. */
@@ -384,7 +383,8 @@ export function playerChromeHrefs(): string[] {
       ]),
       PROFILE_HREF,
       PLATFORM_HREF,
-      clubPublicHref(),
+      clubPublicHref(null),
+      clubPublicHref('sample-venue'),
     ]),
   ];
 }
