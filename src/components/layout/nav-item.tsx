@@ -32,7 +32,7 @@
  */
 
 import Link from 'next/link';
-import type { ComponentType, CSSProperties, SVGProps } from 'react';
+import type { ComponentType, CSSProperties, ElementType, SVGProps } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -65,7 +65,7 @@ export type NavGlyph = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
  * wants a 44×44 CSS-px minimum for TOUCH; NavItem renders in the mobile
  * drawer, so the base stays `min-h-[44px]`. On desktop (`md:`) the nav is
  * pointer-driven, where 44px reads as oversized — `md:min-h-[34px]` tightens
- * the sidebar rows (Board / Asset / Risk / …) without sacrificing the mobile
+ * the sidebar's repeated nav rows without sacrificing the mobile
  * touch target.
  */
 export const NAV_ITEM_HEIGHT_MIN = 'min-h-[44px] md:min-h-[34px]';
@@ -130,8 +130,19 @@ export const NAV_ITEM_ICON_SIZE = 'h-4 w-4';
 export const NAV_ITEM_ICON_CLASS = `${NAV_ITEM_ICON_SIZE} flex-shrink-0`;
 
 export interface NavItemProps {
-  /** Tenant-prefixed href. */
-  href: string;
+  /**
+   * Tenant-prefixed href.
+   *
+   * OMIT IT for an action row: the row then renders a `<button>` that runs
+   * `onClick` (sign out, open a dialog) in the same recipe as its link
+   * neighbours. A drawer's last rows are often verbs, not places, and a
+   * verb dressed as a link is wrong twice over: a screen reader announces
+   * "link" for something that goes nowhere, and a host that needs the row
+   * has to re-type this file's geometry beside it, which
+   * `nav-item-import-discipline` exists to stop. An action row is never
+   * `active` (it is not a place) and has nothing to prefetch.
+   */
+  href?: string;
   /**
    * Glyph component, rendered at 18×18.
    *
@@ -159,7 +170,10 @@ export interface NavItemProps {
    * than guessed. Applied as the chip's aria-label + title.
    */
   badgeLabel?: string;
-  /** Optional click handler — used by the mobile drawer to close itself. */
+  /**
+   * Optional click handler — used by the mobile drawer to close itself.
+   * On an action row (no `href`) it is the row's whole job.
+   */
   onClick?: () => void;
   /**
    * How far `<Link>` prefetches this route. Defaults to `true`, the full-RSC
@@ -571,21 +585,44 @@ export const NAV_ITEM_ACTIVE =
  *       "Unread notifications (47)" with a narrow sidebar, flex
  *       would steal width from the badge too.
  *
- *   (4) `animate-in fade-in`
- *       Tailwindcss-animate's enter animation primitive — opacity
- *       0 → 100 on initial mount. The conditional `{badge != null
- *       && ...}` mounts/unmounts the badge naturally: when a count
- *       first appears (null → 3), the badge fades in. When it
- *       changes value (3 → 4), the element stays mounted and the
- *       animation does NOT re-fire. The entrance is the breath;
- *       updates are silent. Same motion language as the band:
- *       opacity only, no transform / scale / translate.
+ *   (4) `animate-fade-in`
+ *       Opacity 0 → 100 on initial mount. The conditional
+ *       `{badge != null && ...}` mounts/unmounts the badge
+ *       naturally: when a count first appears (null → 3), the badge
+ *       fades in. When it changes value (3 → 4), the element stays
+ *       mounted and the animation does NOT re-fire. The entrance is
+ *       the breath; updates are silent. Same motion language as the
+ *       band: opacity only, no transform / scale / translate.
  *
- *   (5) `duration-300`
- *       The breath has a measured tempo. 300ms is one rung slower
- *       than the band's 200ms — the badge arrives just after the
- *       row finishes settling, which reads as deliberate
- *       choreography rather than competing motion.
+ *       ── IT DID NOT FADE, AND THE TEMPO IS NOW 150ms ───────────
+ *
+ *       This read `animate-in fade-in duration-300` and all three
+ *       were inert. `animate-in` and `fade-in` are
+ *       `tailwindcss-animate` classes, and that plugin has never
+ *       been a dependency of this repo — `git log -S` over
+ *       `package.json` across every ref finds no commit that added
+ *       or removed it, and `postcss.config.js` loads only
+ *       `@tailwindcss/postcss` + `autoprefixer`. Compiling
+ *       `src/app/globals.css` the way postcss.config.js does emits
+ *       no `.animate-in` and no `.fade-in` rule, so the badge has
+ *       never faded on initial mount, here or in the repo this file
+ *       is vendored into. `duration-300` was the plugin's way of
+ *       setting `animation-duration`; plain Tailwind emits
+ *       `transition-duration` for it, which an animation does not
+ *       read — so it was shaping nothing either.
+ *
+ *       The replacement is `animate-fade-in`, which is a real
+ *       `theme.extend.animation` key (`fade-in 0.15s ease-out`,
+ *       opacity-only) and one of the six classes `globals.css`
+ *       names as this repo's canonical motion set. Preferring an
+ *       existing key over declaring a new 300ms one is deliberate:
+ *       a theme key is part of the token contract a vendoring
+ *       consumer already mirrors, and widening that contract to
+ *       preserve a tempo nobody has ever seen would be paying for
+ *       the wrong thing. The documented 300ms intent is therefore
+ *       NOT preserved — the breath is 150ms, the same as the
+ *       overlay backdrop. Anything that wants 300ms back should add
+ *       the key and say so here.
  *
  * The badge variant + size + tone are chosen by the JSX, not by
  * this recipe: `variant="info"` (blue, neutral signal — never a
@@ -593,7 +630,7 @@ export const NAV_ITEM_ACTIVE =
  * brand-subtle wash) and `size="sm"` (10px text — quiet, doesn't
  * crowd the 14px label or the 18px icon).
  */
-export const NAV_ITEM_BADGE = 'ml-auto tabular-nums flex-shrink-0 animate-in fade-in duration-300';
+export const NAV_ITEM_BADGE = 'ml-auto tabular-nums flex-shrink-0 animate-fade-in';
 
 /**
  * R15-PR5 — asymmetric per-row drift.
@@ -650,7 +687,8 @@ export function NavItem({
   onClick,
   prefetch = true,
 }: NavItemProps) {
-  const slug = href.split('/').pop() ?? '';
+  // An action row has no route to name it, so its label does.
+  const slug = href !== undefined ? (href.split('/').pop() ?? '') : label;
   const { shimmerDelayMs, breathDelayMs } = hashSlugToDriftDelays(slug);
   const driftStyle = {
     // CSS custom properties consumed by the per-track
@@ -668,43 +706,8 @@ export function NavItem({
   // provider is mounted, so the expanded path is the default.
   const collapsed = useSidebarCollapsed();
 
-  const link = (
-    <Link
-      href={href}
-      // By default (the `prefetch` prop) a FULL-RSC prefetch (not just
-      // the loading-boundary slice Next prefetches by default for
-      // `force-dynamic` routes). The
-      // sidebar is always in the viewport, so every hot route prefetches
-      // its RSC into the client router cache on mount; combined with the
-      // 30 s `staleTimes.dynamic` (next.config.js) the click then renders
-      // from cache instead of paying the ~276 ms server round-trip — the
-      // "instant nav" lever. Background prefetch render cost is bounded
-      // by the 30 s `cachedSsrPayload` SSR cache.
-      //
-      // KNOWN COST, deliberately accepted. The sidebar is always in the
-      // viewport, so this prefetches all fourteen nav routes on every
-      // page load — fourteen RSC payloads and their chunk graphs to
-      // serve the one the user clicks. Chrome itemises it as ~1,400
-      // "preloaded using link preload but not used within a few seconds
-      // from the window's load event" warnings per load.
-      //
-      // Moving it to hover/focus (`prefetch={false}` + a
-      // `router.prefetch` on pointer-enter) was tried on 2026-08-09 and
-      // REVERTED: it trades first-click latency for load-time bandwidth,
-      // and nobody had measured the nav latency either side. If you pick
-      // this up again, measure that first — the console warnings alone
-      // are not the argument.
-      prefetch={prefetch}
-      onClick={onClick}
-      className={cn(
-        NAV_ITEM_BASE,
-        active ? NAV_ITEM_ACTIVE : NAV_ITEM_DEFAULT,
-        collapsed && 'justify-center',
-      )}
-      data-testid={`nav-${slug}`}
-      style={driftStyle}
-      aria-label={collapsed ? label : undefined}
-    >
+  const content = (
+    <>
       <Icon className={NAV_ITEM_ICON_CLASS} aria-hidden="true" />
       {/* R15-PR8 — magnetic letter spacing. The label
                 breathes its tracking open on hover-of-the-row.
@@ -735,7 +738,102 @@ export function NavItem({
           {badge}
         </StatusBadge>
       )}
-    </Link>
+    </>
+  );
+
+  // ONE element whichever row it is, so the row recipe below is written once.
+  // A link row is `<Link>`; an action row (no `href`) is a `<button>` that
+  // runs `onClick`, `w-full text-left` because a button shrinks to its
+  // content where a block-level link fills the rail.
+  const Row = (href !== undefined ? Link : 'button') as ElementType;
+  const link = (
+    <Row
+      // By default (the `prefetch` prop) a FULL-RSC prefetch, not the
+      // loading-boundary slice Next prefetches by default for
+      // `force-dynamic` routes. Verified against the installed Next
+      // 16.3.6 rather than its docs: `getFetchStrategyFromPrefetchIntent`
+      // maps the `true` intent to the Full strategy and the `auto` intent
+      // to PPR, on the branch that reads `__NEXT_CACHE_COMPONENTS` — off
+      // here, because next.config.js sets no `cacheComponents`. The
+      // sidebar is always in the viewport, so every hot route prefetches
+      // its RSC into the client router cache on mount; combined with the
+      // 30 s `staleTimes.dynamic` (next.config.js) the click then renders
+      // from cache instead of paying the ~276 ms server round-trip — the
+      // "instant nav" lever. Background prefetch render cost is bounded
+      // by the 30 s `cachedSsrPayload` SSR cache.
+      //
+      // KNOWN COST, deliberately accepted. FOURTEEN nav routes is the
+      // CEILING, not the typical load: eleven are ungated and three
+      // (`/agents`, `/processes`, `/reports`) are permission- or
+      // module-gated in `useNavSections` (SidebarNav.tsx), so a given
+      // user mounts 11-14 of them. Viewport prefetch is also
+      // PRODUCTION-ONLY — Next's visibility handler returns early off
+      // production — so neither this cost nor its benefit is observable
+      // under `next dev`. Measuring either needs a production build or
+      // CI.
+      //
+      // THE COST SIDE IS MEASURED (#3099). A CI trace of an E2E row
+      // click shows 59-63 requests in flight about 670 ms after
+      // `domcontentloaded`, and a cold `router.push` issued inside that
+      // window got its 200 and never committed.
+      //
+      // DO NOT re-cite "~1,400 unused preloads" as this file's cost, as
+      // earlier revisions of this comment did. That figure comes from
+      // #1814 and is a COMBINED total over TWO sources: this prefetch
+      // AND `DataTable`'s then-undwelled row hover. The DataTable half
+      // was fixed and KEPT (its 120 ms dwell), so the share attributable
+      // to the sidebar alone has never been measured.
+      //
+      // Moving it to hover/focus was tried on 2026-08-09 (#1814) and
+      // REVERTED the same week (#1827): it trades first-click latency
+      // for load-time bandwidth, and nobody had measured the nav latency
+      // either side.
+      //
+      // THAT NUMBER STILL DOES NOT EXIST. #3099 went looking for it and
+      // this is what the repo actually holds on the benefit side: one
+      // prod measurement from 2026-06-30, TTFB ~276 ms per tenant
+      // navigation, in
+      // docs/implementation-notes/2026-06-30-instant-nav-router-cache.md.
+      // Read what that buys carefully — 276 ms is what the ROUTER CACHE
+      // saves on RE-navigation, and `staleTimes.dynamic` delivers that
+      // with or without this prefetch. What the prefetch alone adds is
+      // extending the saving to the FIRST click on each route per 30 s
+      // window. So its benefit is bounded by ~276 ms x first clicks, not
+      // x all navigations — and even that bound is inferred, never
+      // observed. The same doc's own follow-up asked for the re-measure
+      // and it was never done either.
+      //
+      // AND THE INSTRUMENT THAT LOOKS LIKE IT WOULD MEASURE THIS IS
+      // INERT. `src/lib/observability/web-vitals.ts` allowlists
+      // `Next.js-route-change-to-render` and its reporter calls that the
+      // in-app navigation signal — but on Next 16.3.6
+      // `useReportWebVitals` subscribes to the six Core Web Vitals only,
+      // and the three `Next.js-*` measures are emitted from the PAGES
+      // router bootstrap. This app is App Router only, so they can never
+      // arrive. The note in web-vitals.ts carries the detail.
+      //
+      // So the blocker on this trade is not a judgement call, it is a
+      // missing instrument, and that is why this comment still asks for
+      // a measurement rather than making the change. Land a real
+      // navigation-latency metric first (a mark on this row's click
+      // through to the destination's first paint, or INP segmented by
+      // route), read it per route off the `web_vital` log line, THEN
+      // weigh first-click latency against those 59-63 concurrent
+      // requests. The console warnings alone are still not the argument.
+      {...(href !== undefined ? { href, prefetch } : { type: 'button' })}
+      onClick={onClick}
+      className={cn(
+        NAV_ITEM_BASE,
+        active ? NAV_ITEM_ACTIVE : NAV_ITEM_DEFAULT,
+        collapsed && 'justify-center',
+        href === undefined && 'w-full text-left',
+      )}
+      data-testid={`nav-${slug}`}
+      style={driftStyle}
+      aria-label={collapsed ? label : undefined}
+    >
+      {content}
+    </Row>
   );
 
   return collapsed ? (

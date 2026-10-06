@@ -4,26 +4,26 @@
     {
       "path": "src/components/layout/AppShellFrame.tsx",
       "inflectPath": "src/components/layout/AppShellFrame.tsx",
-      "baseSha": "09eaf2b2a0e25f2b464bfd539208be59d627e470",
-      "sha": "09eaf2b2a0e25f2b464bfd539208be59d627e470",
+      "baseSha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
+      "sha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
       "status": "vendored",
-      "sha256": "f06987d15f5bfb926633418f105ab310d40b1741baf7a025c6c97a56a5da8be6"
+      "sha256": "ca4f26740373988f9a0a3eb5fac93eba2c876d7c85b785457b7c798397546ccb"
     },
     {
       "path": "src/components/layout/LocaleSwitcher.tsx",
       "inflectPath": "src/components/layout/LocaleSwitcher.tsx",
-      "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
-      "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
+      "baseSha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
+      "sha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
       "status": "vendored",
-      "sha256": "cb10962f008b799a1536ccbce5978c5ef45d49c1bef73c932952fb1d2f298b1c"
+      "sha256": "270b90a1e12427737c6725f0aa4d3beb943eea56526dd55ccc40b4f3db2fcb2f"
     },
     {
       "path": "src/components/layout/MobileNavDrawer.tsx",
       "inflectPath": "src/components/layout/MobileNavDrawer.tsx",
-      "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
-      "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
+      "baseSha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
+      "sha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
       "status": "vendored",
-      "sha256": "7465d97ecf8f19ff5d0b0e96a06e00a7310997d27968468630dedf2288f55866"
+      "sha256": "166fc6d9aba59abae4046b9b14e71ddd896b7a6df6f3f5a96f020b7faf3303fd"
     },
     {
       "path": "src/components/layout/nav-bar.tsx",
@@ -36,10 +36,10 @@
     {
       "path": "src/components/layout/nav-item.tsx",
       "inflectPath": "src/components/layout/nav-item.tsx",
-      "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
-      "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
+      "baseSha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
+      "sha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
       "status": "vendored",
-      "sha256": "ccb5a3771ca1aed6f1ba5a658232e45e890d5cfa53f7e5a06048b90d97845e5b"
+      "sha256": "932b1c47f62622c240b2c2eb8b62f5b1f9ab22f0abfa4593000cbc4f260e6089"
     },
     {
       "path": "src/components/layout/nav-section.tsx",
@@ -68,10 +68,10 @@
     {
       "path": "src/components/layout/user-menu.tsx",
       "inflectPath": "src/components/layout/user-menu.tsx",
-      "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
-      "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
+      "baseSha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
+      "sha": "15bf010987279071b7cd2fc4bc356927443c8aa7",
       "status": "vendored",
-      "sha256": "99898fd4427af40b3b329683519b7349c3d9a16bf8138bc3d1a8f0a5d7329ad5"
+      "sha256": "aa0ffa97e86f5ac70e894d724fa7a079055cba336933b16ebc8da120d7f8be0f"
     }
   ]
 }
