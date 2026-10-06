@@ -105,7 +105,8 @@
       "notificationsEmptyBody": "Reminders about your games and changes to your bookings will show up here.",
       "notificationsUnread": "Notifications, {count} unread",
       "notificationsError": "Notifications could not be loaded.",
-      "notificationsRetry": "Try again"
+      "notificationsRetry": "Try again",
+      "photos": "Photos"
     }
   },
   "nav": {
@@ -230,6 +231,10 @@
         "failedTitle": "The booking was not made",
         "failed": "Try again. If the connection dropped, trying again will not make a second booking."
       }
+    },
+    "gallery": {
+      "title": "Photos",
+      "label": "Photos of {name}"
     }
   },
   "club": {
@@ -723,6 +728,72 @@
           "actionError": "That did not work. Try again.",
           "markNoShow": "Mark no-show"
         }
+      }
+    },
+    "photos": {
+      "metaTitle": "Photos and info",
+      "title": "Photos and info",
+      "subtitle": "A cover and a gallery for each venue. They appear on the venue's public page and on the club's page.",
+      "notConfigured": {
+        "title": "Photo uploads are not set up",
+        "description": "The photo storage is not connected yet. Photos already uploaded still show as before."
+      },
+      "noVenues": {
+        "title": "No venues",
+        "description": "Photos belong to a venue. When the club has one, it will appear here."
+      },
+      "viewPublic": "{venue}'s public page",
+      "cover": {
+        "title": "Cover",
+        "description": "The large photo at the top of the venue's page.",
+        "none": "The venue has no cover yet.",
+        "replace": "Replace the cover",
+        "remove": "Remove the cover",
+        "removeTitle": "Remove the cover?",
+        "removeConfirm": "The venue's page will show no cover until you upload a new one."
+      },
+      "gallery": {
+        "title": "Gallery",
+        "count": "{count} of {max} photos",
+        "empty": "No photos in the gallery yet.",
+        "full": "The gallery is full. Delete a photo to add another.",
+        "label": "Photos in {venue}'s gallery"
+      },
+      "upload": {
+        "choose": "Choose a photo",
+        "chosen": "Chosen: {name}",
+        "hint": "JPEG, PNG or WebP, up to {mb} MB.",
+        "alt": "Photo description",
+        "altHint": "What the photo shows, for people who cannot see it.",
+        "submit": "Upload",
+        "uploading": "Uploading…",
+        "done": "The photo is uploaded."
+      },
+      "photo": {
+        "altLabel": "Description",
+        "save": "Save",
+        "saved": "Saved.",
+        "moveUp": "Move “{alt}” up",
+        "moveDown": "Move “{alt}” down",
+        "delete": "Delete “{alt}”",
+        "deleteTitle": "Delete the photo?",
+        "deleteConfirm": "The photo will disappear from the venue's page.",
+        "deleteAction": "Delete",
+        "cancel": "Cancel"
+      },
+      "errors": {
+        "VENUE_NOT_FOUND": "The venue was not found.",
+        "PHOTO_NOT_FOUND": "The photo is gone. Reload the page.",
+        "ALT_REQUIRED": "Write a description of the photo.",
+        "ALT_TOO_LONG": "The description is too long (up to {max} characters).",
+        "GALLERY_FULL": "The gallery is full. Delete a photo to add another.",
+        "MEDIA_NOT_CONFIGURED": "Photo uploads are not set up",
+        "UNSUPPORTED_TYPE": "This file is not a JPEG, PNG or WebP photo.",
+        "TOO_LARGE": "The file is larger than {mb} MB.",
+        "TOO_MANY_PIXELS": "The photo has too high a resolution. Make it smaller and try again.",
+        "TOO_SMALL": "The photo is too small (at least {min} pixels on each side).",
+        "UNREADABLE": "The file cannot be read as a photo. If it is HEIC, save it as JPEG.",
+        "generic": "Something went wrong. Try again."
       }
     }
   },

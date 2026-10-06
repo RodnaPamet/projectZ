@@ -107,6 +107,10 @@ const ALLOWED: Record<string, string> = {
     'changes gets its own SYSTEM audit entry instead. Behind CRON_SECRET, like the expiry sweep.',
   'src/app/api/cron/warn-expiring-platform-grants/route.ts':
     'reads grant expiry dates; platform_admin_grant denies app_user, and a cron job is not a person',
+  'src/app/api/cron/sweep-orphan-media/route.ts':
+    'the media sweep (#366) deletes stored photo objects no venue_photo row names, across every ' +
+    'club. It reads only venue_photo.objectKey and writes no row. A timer, not a person, behind ' +
+    'CRON_SECRET like the other sweeps.',
   'src/app-layer/usecases/notifications.ts': 'writes a user-bound row after the tenant tx commits',
   'src/app/api/v1/realtime/subscribe/route.ts': 'resolves channel membership before binding',
   'src/app/api/v1/t/[slug]/me/route.ts': 'resolves the membership that the binding needs',

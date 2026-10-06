@@ -15,6 +15,7 @@ import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { slugSchema } from '@/app-layer/schemas/common';
 import { toAvailability, type AvailabilityDto } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
+import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -51,7 +52,8 @@ import { FreeToday } from './FreeToday';
  *
  * ═══ WHAT IT SHOWS ═══
  *
- * The name; a cover band until photo uploads (#366); the club's phone (or its
+ * The name; the cover (#366: its first venue's that has one, else a tinted
+ * band); the club's phone (or its
  * main venue's) and the main venue's address; the sports across all venues.
  * `VenueOrg` has no description column, so there is none (adding one is a
  * migration this page does not need). Then one card per venue: name, address,
@@ -112,7 +114,7 @@ export async function generateMetadata({
     city: main ? cityLabel(tCities, main.city) : 'none',
   });
   const path = clubPath(club.slug);
-  const images = club.logoUrl ? [club.logoUrl] : [];
+  const images = [club.cover?.url, club.logoUrl].filter((u): u is string => !!u);
 
   return {
     // Every absolute URL on the ONE canonical origin (SITE_URL; #396, Q47).
@@ -129,7 +131,7 @@ export async function generateMetadata({
       url: path,
       ...(images.length > 0 ? { images } : {}),
     },
-    twitter: { card: 'summary', title, description },
+    twitter: { card: club.cover ? 'summary_large_image' : 'summary', title, description },
   };
 }
 
@@ -172,6 +174,7 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
     url: absoluteUrl(clubPath(club.slug)),
     phone: club.phone,
     logoUrl: club.logoUrl,
+    images: club.cover ? [club.cover.url] : [],
     address: main ?? null,
     venues: club.venues.map((v) => ({
       name: v.name,
@@ -180,6 +183,7 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
       city: v.city,
       country: v.country,
       sports: v.sports.map((s) => tSports(s)),
+      image: v.cover?.url ?? null,
     })),
   });
   const place = (v: { addressLine: string; city: string }) =>
@@ -197,10 +201,23 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
       />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
         <header className="flex flex-col gap-4">
-          {/* The cover: a token-tinted band until clubs can upload photos
-              (#366). Decorative; the back link is the page's own way to the
+          {/* The cover (#366): the first venue's photo that has one, else a
+              token-tinted band. The back link is the page's own way to the
               index, not navigation chrome. */}
-          <div className="bg-bg-success relative h-32 md:h-40 md:rounded-lg">
+          <div
+            className={cn(
+              'bg-bg-success relative overflow-hidden md:rounded-lg',
+              club.cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
+            )}
+          >
+            {club.cover && (
+              <VenuePhotoImg
+                photo={club.cover}
+                sizes="(min-width: 768px) 720px, 100vw"
+                className="absolute inset-0 size-full"
+                priority
+              />
+            )}
             <Link
               href="/venues"
               aria-label={t('back')}
@@ -275,6 +292,13 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
                     density="compact"
                     className="bg-bg-default focus-within:ring-ring relative flex flex-col gap-2 focus-within:ring-2"
                   >
+                    {v.cover && (
+                      <VenuePhotoImg
+                        photo={v.cover}
+                        sizes="(min-width: 640px) 340px, 100vw"
+                        className="bg-bg-muted aspect-[16/9] w-full rounded-md"
+                      />
+                    )}
                     <h3 className="text-content-emphasis font-medium">
                       {/* Default (auto) prefetch, as /venues' cards
                           (docs/perf/navigation-policy.md): the venue page's

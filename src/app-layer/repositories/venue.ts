@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient, SportType } from '@prisma/client';
 
 import { canonicalCity, citiesMatching, citySpellings } from '@/lib/geo/cities';
+import { PHOTO_SELECT } from '@/lib/media/photo-view';
 
 import { publicVenueFilter } from './public-venue';
 
@@ -49,7 +50,13 @@ export async function listVenues(
   db: PrismaClient,
   filter: VenueFilter,
   opts: { cursor?: string; limit?: number } = {},
-): Promise<Page<Prisma.VenueGetPayload<{ include: { resources: true } }>>> {
+): Promise<
+  Page<
+    Prisma.VenueGetPayload<{
+      include: { resources: true; photos: { select: typeof PHOTO_SELECT } };
+    }>
+  >
+> {
   const take = clampLimit(opts.limit);
   const publicVenue = await publicVenueFilter(db);
 
@@ -90,7 +97,11 @@ export async function listVenues(
   // integration test asserts this did not weaken RLS for anything else.
   const rows = await db.venue.findMany({
     where: { AND: [publicVenue.where, filters] },
-    include: { resources: { where: { status: 'ACTIVE' }, take: 20 } },
+    include: {
+      resources: { where: { status: 'ACTIVE' }, take: 20 },
+      // The card's cover (#366): one row, by the partial unique index.
+      photos: { where: { kind: 'COVER' }, select: PHOTO_SELECT, take: 1 },
+    },
     orderBy: { id: 'asc' },
     // take + 1 so we can tell "there is a next page" WITHOUT a second
     // count(*) query, which on a large table is the expensive half.

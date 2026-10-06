@@ -158,6 +158,18 @@ const PROTECTED: Protected[] = [
     recreate: /CREATE UNIQUE INDEX\s+(?:IF NOT EXISTS\s+)?"?platform_admin_grant_one_live_idx/i,
     why: 'overlapping live grants make "what could this person do?" unanswerable',
   },
+  {
+    name: 'venue_photo_one_cover_idx (PARTIAL unique index, #366)',
+    drop: /DROP INDEX\s+(?:IF EXISTS\s+)?"?venue_photo_one_cover_idx/i,
+    recreate: /CREATE UNIQUE INDEX\s+(?:IF NOT EXISTS\s+)?"?venue_photo_one_cover_idx/i,
+    why: 'two racing uploads leave a venue with two covers, and the page shows whichever it reads first',
+  },
+  {
+    name: 'venue_photo_tenant_matches_venue (trigger, #366)',
+    drop: /DROP TRIGGER\s+(?:IF EXISTS\s+)?"?venue_photo_tenant_matches_venue"?\s+ON/i,
+    recreate: /CREATE TRIGGER\s+"?venue_photo_tenant_matches_venue/i,
+    why: 'without it a club can attach a photo to another club’s venue, and the public page shows it',
+  },
 ];
 
 /** A DROP inside a comment is documentation, not a statement. */

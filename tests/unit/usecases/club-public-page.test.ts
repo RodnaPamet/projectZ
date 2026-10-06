@@ -45,6 +45,7 @@ describe('loadClubPublicPage', () => {
         timezone: 'Europe/Sofia',
         phone: v.phone ?? null,
         resources: (v.sports ?? []).map((sport) => ({ sport })),
+        photos: [],
       })),
     );
     return {

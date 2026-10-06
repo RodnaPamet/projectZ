@@ -6445,7 +6445,8 @@
           "reviewCount",
           "sports",
           "fromPriceCents",
-          "coverPhotoUrl"
+          "coverPhotoUrl",
+          "cover"
         ],
         "properties": {
           "id": {
@@ -6495,7 +6496,19 @@
             "description": "Lowest `basePriceCents` among ACTIVE resources, in integer CENTS. Null — never 0 — when the venue has no active bookable resource. The currency is NOT carried on the summary; it only appears per-resource on the availability response."
           },
           "coverPhotoUrl": {
-            "type": ["string", "null"]
+            "type": ["string", "null"],
+            "description": "The cover's default URL (`cover.url`), kept for clients that predate `cover`. Prefer `cover`, which carries every width and the alt text."
+          },
+          "cover": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VenuePhoto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The venue's cover photo (#366), or null when the club has not uploaded one."
           }
         }
       },
@@ -6528,7 +6541,7 @@
       },
       "VenueDetail": {
         "type": "object",
-        "description": "Full public venue, as produced by `toVenueDetail`. Written out in full rather than as an allOf of VenueSummary so generated clients get one flat struct. Deliberately absent: `email`, `tenantId`, `cancellationPolicyJson`, `amenityIds`, `geog`, `createdAt`, `updatedAt`. Photos and amenities are loaded by the query but NOT serialised by the DTO.",
+        "description": "Full public venue, as produced by `toVenueDetail`. Written out in full rather than as an allOf of VenueSummary so generated clients get one flat struct. Deliberately absent: `email`, `tenantId`, `cancellationPolicyJson`, `amenityIds`, `geog`, `createdAt`, `updatedAt`. Photos are `cover` and `photos` (#366); amenities are loaded by the query but NOT serialised by the DTO.",
         "required": [
           "id",
           "slug",
@@ -6542,6 +6555,7 @@
           "sports",
           "fromPriceCents",
           "coverPhotoUrl",
+          "cover",
           "description",
           "addressLine",
           "lat",
@@ -6549,6 +6563,7 @@
           "timezone",
           "phone",
           "openingHours",
+          "photos",
           "resources"
         ],
         "properties": {
@@ -6596,7 +6611,19 @@
             "description": "Lowest `basePriceCents` among ACTIVE resources, integer CENTS; null when there are none."
           },
           "coverPhotoUrl": {
-            "type": ["string", "null"]
+            "type": ["string", "null"],
+            "description": "The cover's default URL (`cover.url`), kept for clients that predate `cover`. Prefer `cover`, which carries every width and the alt text."
+          },
+          "cover": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VenuePhoto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The venue's cover photo (#366), or null when the club has not uploaded one."
           },
           "description": {
             "type": ["string", "null"],
@@ -6622,6 +6649,13 @@
           },
           "openingHours": {
             "description": "The venue's `openingHoursJson` column, passed through verbatim. No shape is enforced anywhere in the codebase and nothing else reads it; the column default is `{}`. Modelled as free-form JSON on purpose — do not generate a typed struct for it."
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenuePhoto"
+            },
+            "description": "The venue's gallery (#366), in the order the club set; at most 12. The cover is `cover`, never repeated here. Empty when there are none."
           },
           "resources": {
             "type": "array",
@@ -9808,6 +9842,56 @@
                 "type": "boolean"
               }
             }
+          }
+        }
+      },
+      "VenuePhoto": {
+        "type": "object",
+        "title": "VenuePhoto",
+        "description": "One photo a club uploaded for a venue (#366): its cover or a picture of its gallery. Uploaded in the club admin, decoded and re-encoded on the server (EXIF and GPS stripped), and stored as WebP renditions. Every URL is ABSOLUTE and IMMUTABLE: a changed photo is a new URL, so a client may cache any of them indefinitely (the objects carry `Cache-Control: public, max-age=31536000, immutable`). Pick from `variants` by the width you draw at (`srcset`-style); `url` is the default.",
+        "required": ["id", "alt", "url", "width", "height", "variants", "blurDataUrl"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "cuid."
+          },
+          "alt": {
+            "type": "string",
+            "description": "The club's description of the photo, for screen readers (VoiceOver). Plain text, 1–200 characters, usually Bulgarian; never empty for a photo uploaded since #366, `\"\"` only for an older row."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The default variant: 1280 px wide, or the widest below that."
+          },
+          "width": {
+            "type": ["integer", "null"],
+            "description": "Width of the LARGEST variant in pixels, for the aspect ratio. Null only for a row from before #366."
+          },
+          "height": {
+            "type": ["integer", "null"],
+            "description": "Height of the largest variant in pixels. Null only for a row from before #366."
+          },
+          "variants": {
+            "type": "array",
+            "description": "Every rendition, ascending by width: 640, 1280 and 1920 px, never wider than the upload (a 1000 px upload has 640 and 1000). WebP. Empty only for a row from before #366, which has just `url`.",
+            "items": {
+              "type": "object",
+              "required": ["width", "url"],
+              "properties": {
+                "width": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "blurDataUrl": {
+            "type": ["string", "null"],
+            "description": "A ~16 px wide WebP as a `data:image/webp;base64,…` URL: a placeholder to draw (scaled up, blurred) while the image loads."
           }
         }
       }

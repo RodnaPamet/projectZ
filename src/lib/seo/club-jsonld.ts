@@ -30,6 +30,8 @@ export interface ClubJsonLdVenue {
   country: string;
   /** Display names of the sports played there, in the page's language. */
   sports: readonly string[];
+  /** The venue's cover, absolute (#366). Omitted: no `image`. */
+  image?: string | null;
 }
 
 export interface ClubJsonLdInput {
@@ -38,6 +40,8 @@ export interface ClubJsonLdInput {
   url: string;
   phone?: string | null;
   logoUrl?: string | null;
+  /** The club's cover photo URLs, absolute, best first (#366). Empty: no `image`. */
+  images?: readonly string[];
   /** The address people are pointed to: the club's main (first) venue's. */
   address?: { addressLine: string; city: string; country: string } | null;
   venues: readonly ClubJsonLdVenue[];
@@ -61,6 +65,9 @@ export function buildClubJsonLd(input: ClubJsonLdInput): JsonLd {
     url: input.url,
     ...(input.phone ? { telephone: input.phone } : {}),
     ...(input.logoUrl ? { logo: new URL(input.logoUrl, input.url).toString() } : {}),
+    ...(input.images && input.images.length > 0
+      ? { image: input.images.map((src) => new URL(src, input.url).toString()) }
+      : {}),
     ...(input.address ? { address: postalAddress(input.address) } : {}),
     ...(input.venues.length > 0
       ? {
@@ -70,6 +77,7 @@ export function buildClubJsonLd(input: ClubJsonLdInput): JsonLd {
             name: v.name,
             url: v.url,
             address: postalAddress(v),
+            ...(v.image ? { image: new URL(v.image, v.url).toString() } : {}),
             ...(v.sports.length > 0
               ? {
                   amenityFeature: [...new Set(v.sports)].map((name) => ({

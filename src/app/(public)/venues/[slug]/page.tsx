@@ -5,12 +5,14 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
+import { splitPhotos } from '@/lib/media/photo-view';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { venuePath } from '@/lib/seo/sitemap';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { buildVenueJsonLd, serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
 import { isPublicSlug } from './booking-days';
+import { VenueGallery } from './VenueGallery';
 import { VenueHeader } from './VenueHeader';
 import { VenueSlots, VenueSlotsSkeleton } from './VenueSlots';
 
@@ -146,9 +148,13 @@ export async function generateMetadata({
   };
 }
 
-/** The cover first, then the gallery (#366 adds uploads; today both are empty). */
-function venueImages(venue: { coverPhotoUrl: string | null; photos: { url: string }[] }) {
-  return [...new Set([venue.coverPhotoUrl, ...venue.photos.map((p) => p.url)])].filter(
+/**
+ * The cover first, then the gallery (#366), as absolute URLs of each photo's
+ * default rendition. A pre-#366 `coverPhotoUrl` with no photo row still counts.
+ */
+function venueImages(venue: FoundVenue) {
+  const { cover, gallery } = splitPhotos(venue.photos);
+  return [...new Set([cover?.url ?? venue.coverPhotoUrl, ...gallery.map((p) => p.url)])].filter(
     (u): u is string => !!u,
   );
 }
@@ -168,6 +174,7 @@ export default async function VenuePage({
   const publicSlug = venue.publicSlug ?? slug;
   const sports = [...new Set(venue.resources.map((r) => r.sport))];
   const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug));
+  const { cover, gallery } = splitPhotos(venue.photos);
 
   // The header and the tab bar come from (public)/layout.tsx (T20).
   return (
@@ -186,6 +193,7 @@ export default async function VenuePage({
           addressLine={venue.addressLine}
           city={venue.city}
           sports={sports}
+          cover={cover}
         />
         {/* The second stage (#403): only the slots wait for the day's
             availability; the header above is already on screen. */}
@@ -202,6 +210,7 @@ export default async function VenuePage({
             searchParams={searchParams}
           />
         </Suspense>
+        {gallery.length > 0 && <VenueGallery name={venue.name} photos={gallery} />}
       </div>
     </main>
   );

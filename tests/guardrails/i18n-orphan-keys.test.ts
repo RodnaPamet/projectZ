@@ -56,6 +56,11 @@ const FAMILIES: Family[] = [
     via: 'src/components/ui/combobox/messages.ts',
     why: "the vendored Combobox takes a 'ui.combobox' translator and calls t(key) by message id",
   },
+  {
+    prefix: 'admin.photos.errors.',
+    via: 'src/app/(app)/t/[slug]/admin/photos/PhotosBoard.tsx',
+    why: "one sentence per VenuePhotoError code (#366), looked up as t(code) from the server's answer",
+  },
 ];
 
 const BG = catalogueKeys('bg');

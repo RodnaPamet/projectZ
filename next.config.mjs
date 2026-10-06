@@ -9,6 +9,11 @@ const nextConfig = {
   // generated RouteImpl union rejects. Routes don't exist yet anyway —
   // P06 lands them. Revisit once the route tree is real.
   typedRoutes: false,
+  // Loaded from node_modules at runtime rather than bundled (#366): the GCS
+  // client resolves its own files and protobufs relative to its package, and
+  // the runtime image ships the whole node_modules anyway. sharp is on Next's
+  // built-in list already.
+  serverExternalPackages: ['@google-cloud/storage'],
   experimental: {
     // ═══ THE CLIENT ROUTER CACHE (docs/perf/navigation-policy.md) ═══
     //

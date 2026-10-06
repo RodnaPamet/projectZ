@@ -4,6 +4,7 @@ import type { Me } from '@/app-layer/usecases/me';
 import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/my-notifications';
 
 import { playerCancellableUntil } from '@/lib/booking/cutoff';
+import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
 
 /**
  * Wire shapes for v1.
@@ -31,7 +32,25 @@ import { playerCancellableUntil } from '@/lib/booking/cutoff';
  * survives until a typed client tries to read it.
  */
 
-type VenueWithResources = Prisma.VenueGetPayload<{ include: { resources: true } }>;
+/**
+ * `photos` is optional: the list reads only the cover (`kind: 'COVER'`,
+ * take 1), the detail reads them all, and a caller that read none gets
+ * `cover: null` rather than a type error.
+ */
+type VenueWithResources = Prisma.VenueGetPayload<{ include: { resources: true } }> & {
+  photos?: PhotoRow[];
+};
+
+/**
+ * One uploaded venue photo (#366). Every URL is absolute and immutable (a
+ * changed photo is a new URL), so a client may cache them for as long as it
+ * likes. `variants` are WebP, ascending by width (640/1280/1920, never wider
+ * than the upload); `url` is the 1280 one, or the widest below it. `width`
+ * and `height` are the largest variant's, for the aspect ratio. `alt` is the
+ * club's description, plain text, never empty for a photo uploaded since
+ * #366. `blurDataUrl` is a ~16 px WebP `data:` URL to show while loading.
+ */
+export type VenuePhotoDto = PhotoView;
 
 export interface VenueSummary {
   id: string;
@@ -62,7 +81,10 @@ export interface VenueSummary {
   reviewCount: number;
   sports: string[];
   fromPriceCents: number | null;
+  /** The cover's default URL. Kept for clients that predate `cover`; prefer `cover`. */
   coverPhotoUrl: string | null;
+  /** The venue's cover photo with every variant (#366), or null. */
+  cover: VenuePhotoDto | null;
 }
 
 /**
@@ -72,6 +94,7 @@ export interface VenueSummary {
  */
 export function toVenueSummary(v: VenueWithResources, clubSlug: string): VenueSummary {
   const active = v.resources.filter((r) => r.status === 'ACTIVE');
+  const { cover } = splitPhotos(v.photos ?? []);
 
   return {
     id: v.id,
@@ -87,7 +110,8 @@ export function toVenueSummary(v: VenueWithResources, clubSlug: string): VenueSu
     // Null, not 0. A venue with no bookable court has no price, and 0 would
     // render as "free" on a card.
     fromPriceCents: active.length ? Math.min(...active.map((r) => r.basePriceCents)) : null,
-    coverPhotoUrl: v.coverPhotoUrl,
+    coverPhotoUrl: cover?.url ?? v.coverPhotoUrl,
+    cover,
   };
 }
 
@@ -99,6 +123,8 @@ export interface VenueDetail extends VenueSummary {
   timezone: string;
   phone: string | null;
   openingHours: unknown;
+  /** The gallery (#366), in the club's order; the cover is `cover`, not here. */
+  photos: VenuePhotoDto[];
   resources: Array<{
     id: string;
     name: string;
@@ -136,6 +162,7 @@ export function toVenueDetail(v: VenueFull, clubSlug: string): VenueDetail {
     timezone: v.timezone,
     phone: v.phone,
     openingHours: v.openingHoursJson,
+    photos: splitPhotos(v.photos).gallery,
 
     resources: active.map((r) => ({
       id: r.id,

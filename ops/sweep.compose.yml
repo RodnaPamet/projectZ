@@ -294,3 +294,44 @@ services:
                esac \
             || echo "outbox: request FAILED -> $$body"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  The media sweep (#366): deletes venue-photo objects no row names.
+  #
+  #  A removed photo's objects are deleted right after its row, so this
+  #  only catches what that missed: storage down at the moment of a
+  #  delete, a venue or club removed (its rows cascade, its objects do
+  #  not), an upload that died between its objects and its row. Only
+  #  objects over a day old are touched. Daily, request first, as the
+  #  grant warning: a restarted container should not wait a day. With
+  #  media storage not configured the route answers `"scanned":0`.
+  # ═══════════════════════════════════════════════════════════════════
+  media-sweep:
+    image: alpine:3
+    container_name: playerz-media-sweep
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the media sweep}
+      MEDIA_SWEEP_URL: ${MEDIA_SWEEP_URL:-http://playerz-app:3000/api/cron/sweep-orphan-media}
+      MEDIA_SWEEP_INTERVAL_SECONDS: ${MEDIA_SWEEP_INTERVAL_SECONDS:-86400}
+    # busybox wget, `--post-data=""`, `$$` escaping: see booking-sweep above.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "media-sweep: every $${MEDIA_SWEEP_INTERVAL_SECONDS}s -> $${MEDIA_SWEEP_URL}"
+        sleep 120   # let the app finish booting before the first run
+        while true; do
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${MEDIA_SWEEP_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"deleted":0'*'"truncated":false'*) : ;;   # nothing orphaned — stay quiet
+                 *) echo "media-sweep: $$body" ;;
+               esac \
+            || echo "media-sweep: request FAILED -> $$body"
+          sleep "$${MEDIA_SWEEP_INTERVAL_SECONDS}"
+        done
