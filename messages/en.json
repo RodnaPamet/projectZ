@@ -149,7 +149,22 @@
       "title": "No venues match your search",
       "description": "Try a different city or sport."
     },
-    "priceFrom": "from {price} / hour"
+    "priceFrom": "from {price} / hour",
+    "filters": {
+      "label": "Filters",
+      "search": "Search venues",
+      "searchPlaceholder": "Venue name or city",
+      "sport": "Sport",
+      "allSports": "All",
+      "city": "City",
+      "allCities": "All cities",
+      "citySearch": "Search cities",
+      "cityNone": "No such city"
+    },
+    "error": {
+      "title": "The venues did not load",
+      "description": "Check your connection and try again."
+    }
   },
   "venue": {
     "metaTitle": "{name} — book a court | playerz.bg",
@@ -213,6 +228,46 @@
         "failed": "Try again. If the connection dropped, trying again will not make a second booking."
       }
     }
+  },
+  "club": {
+    "metaTitle": "{name} — courts and booking | playerz.bg",
+    "metaDescription": "{name}: {count, plural, one {# venue} other {# venues}}{city, select, none {} other { in {city}}}. Free times and online booking, pay at the club.",
+    "back": "To the venues",
+    "sportsLabel": "Sports",
+    "contactLabel": "Contact",
+    "phone": "Phone: {phone}",
+    "venuesTitle": "Venues",
+    "venuesCount": "{count, plural, one {# venue} other {# venues}}",
+    "freeToday": "Free today",
+    "freeMore": "+{count}",
+    "noneToday": "No free times today",
+    "freeError": "The free times did not load",
+    "noVenues": {
+      "title": "This club has no venues yet",
+      "description": "Once the club adds a venue, you can book here."
+    }
+  },
+  "cities": {
+    "sofia": "Sofia",
+    "plovdiv": "Plovdiv",
+    "varna": "Varna",
+    "burgas": "Burgas",
+    "ruse": "Ruse",
+    "staraZagora": "Stara Zagora",
+    "pleven": "Pleven",
+    "sliven": "Sliven",
+    "dobrich": "Dobrich",
+    "shumen": "Shumen",
+    "pernik": "Pernik",
+    "haskovo": "Haskovo",
+    "yambol": "Yambol",
+    "pazardzhik": "Pazardzhik",
+    "blagoevgrad": "Blagoevgrad",
+    "velikoTarnovo": "Veliko Tarnovo",
+    "vratsa": "Vratsa",
+    "gabrovo": "Gabrovo",
+    "bansko": "Bansko",
+    "samokov": "Samokov"
   },
   "offline": {
     "title": "You’re offline",

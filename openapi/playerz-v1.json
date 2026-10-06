@@ -327,7 +327,7 @@
       "get": {
         "operationId": "listVenues",
         "summary": "Search venues",
-        "description": "Public, unauthenticated, cross-tenant venue search. Returns ACTIVE venues only, ordered by `id` ascending, paged with an opaque keyset cursor.\n\nThe response is the PAGE envelope: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nNo query parameter here is rejected: unparseable numbers fall back to the default and an unknown `sport` reaches the query layer, where it fails as a 500. `limit` is clamped, never refused.",
+        "description": "Public, unauthenticated, cross-tenant venue search. Returns ACTIVE venues only, ordered by `id` ascending, paged with an opaque keyset cursor.\n\nThe response is the PAGE envelope: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nOnly `sport` is ever rejected: a value outside the SportType enum is a 400 `BAD_REQUEST` (#334). Unparseable numbers fall back to the default, and `limit` is clamped, never refused.",
         "tags": ["Venues"],
         "security": [],
         "parameters": [
@@ -335,7 +335,7 @@
             "name": "q",
             "in": "query",
             "required": false,
-            "description": "Case-insensitive substring match against the venue's name OR city.",
+            "description": "Case-insensitive substring match against the venue's name OR city. A query that is part of a known Bulgarian city's name in either script (e.g. `соф`) also matches venues stored under any spelling of that city.",
             "schema": {
               "type": "string"
             }
@@ -344,7 +344,7 @@
             "name": "city",
             "in": "query",
             "required": false,
-            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that).",
+            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`.",
             "schema": {
               "type": "string"
             }
@@ -353,7 +353,7 @@
             "name": "sport",
             "in": "query",
             "required": false,
-            "description": "Keep only venues with at least one ACTIVE resource for this sport. Not validated server-side: a value outside the enum produces a 500.",
+            "description": "Keep only venues with at least one ACTIVE resource for this sport. A value outside the enum is a 400 `BAD_REQUEST`.",
             "schema": {
               "$ref": "#/components/schemas/SportType"
             }
@@ -430,6 +430,16 @@
               }
             }
           },
+          "400": {
+            "description": "`BAD_REQUEST` when `sport` is not a SportType value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "500": {
             "description": "`INTERNAL`. Reachable from this endpoint by sending a `sport` outside the enum (it is passed through unvalidated), as well as by an ordinary backend failure.",
             "content": {
@@ -489,7 +499,7 @@
             "name": "sport",
             "in": "query",
             "required": false,
-            "description": "Keep only venues with an ACTIVE resource for this sport. Not validated before it reaches SQL: a value outside the enum is a 500.",
+            "description": "Keep only venues with an ACTIVE resource for this sport. A value outside the enum is a 400 `BAD_REQUEST`.",
             "schema": {
               "$ref": "#/components/schemas/SportType"
             }
@@ -539,7 +549,7 @@
             }
           },
           "400": {
-            "description": "`BAD_REQUEST` when `lat`/`lng` is absent, blank or not a finite number; `INVALID_COORDINATES` when it parses but falls outside -90..90 / -180..180.",
+            "description": "`BAD_REQUEST` when `lat`/`lng` is absent, blank or not a finite number, or `sport` is not a SportType value; `INVALID_COORDINATES` when a coordinate parses but falls outside -90..90 / -180..180.",
             "content": {
               "application/json": {
                 "schema": {

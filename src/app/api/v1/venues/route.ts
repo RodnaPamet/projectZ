@@ -9,6 +9,8 @@ import { toV1ErrorResponse } from '@/app/api/v1/_lib/errors';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { getRequestId } from '@/lib/observability/context';
 
+import { sportParam } from '../_lib/sport-param';
+
 /**
  * Public venue search. Cross-tenant, unauthenticated.
  *
@@ -35,6 +37,9 @@ import { getRequestId } from '@/lib/observability/context';
 async function handler(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
+  // Before the transaction: an unknown sport is a 400 naming the parameter,
+  // not an invalid enum value inside Prisma (a 500, #334).
+  const sport = sportParam(sp.get('sport'));
 
   const { result, clubSlugs } = await asSuperuser(ctx, async (db) => {
     const result = await listVenues(
@@ -42,7 +47,7 @@ async function handler(req: NextRequest) {
       {
         q: sp.get('q') ?? undefined,
         city: sp.get('city') ?? undefined,
-        sport: (sp.get('sport') as never) ?? undefined,
+        sport,
         indoor: sp.has('indoor') ? sp.get('indoor') === 'true' : undefined,
         maxPriceCents: sp.has('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
       },

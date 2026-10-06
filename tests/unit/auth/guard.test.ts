@@ -156,16 +156,26 @@ describe('the platform tree', () => {
 });
 
 describe('public routes', () => {
-  it.each(['/', '/venues', '/venues/sofia-padel', '/open-play', '/coaches', '/api/venues'])(
-    '%s is public',
-    (p) => {
-      expect(checkPublicRoute(p)).toBe(true);
-      expect(checkTenantAccess(p, null).kind).toBe('public');
-    },
-  );
+  it.each([
+    '/',
+    '/venues',
+    '/venues/sofia-padel',
+    '/clubs/sofia-padel',
+    '/open-play',
+    '/coaches',
+    '/api/venues',
+  ])('%s is public', (p) => {
+    expect(checkPublicRoute(p)).toBe(true);
+    expect(checkTenantAccess(p, null).kind).toBe('public');
+  });
 
   it('a tenant route is NOT public', () => {
     expect(checkPublicRoute('/t/sofia-padel/dashboard')).toBe(false);
+  });
+
+  it('the club page prefix opens no lookalike (#356)', () => {
+    expect(checkPublicRoute('/clubsecrets')).toBe(false);
+    expect(checkPublicRoute('/t/clubs')).toBe(false);
   });
 });
 

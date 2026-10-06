@@ -8,6 +8,8 @@ import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ValidationError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
 
+import { sportParam } from '../../_lib/sport-param';
+
 /**
  * Venues near a point. Public, cross-tenant, unauthenticated.
  *
@@ -52,13 +54,15 @@ async function handler(req: NextRequest) {
   const lat = coord(sp.get('lat'), 'lat');
   const lng = coord(sp.get('lng'), 'lng');
   const radiusKm = clampRadiusKm(sp.has('radiusKm') ? Number(sp.get('radiusKm')) : undefined);
+  // An unknown sport is a 400 here, not an invalid enum in the SQL (#334).
+  const sport = sportParam(sp.get('sport'));
 
   const venues = await asSuperuser(ctx, (db) =>
     nearVenues(db, {
       lat,
       lng,
       radiusKm,
-      sport: (sp.get('sport') as never) ?? undefined,
+      sport,
       limit: sp.has('limit') ? Number(sp.get('limit')) : undefined,
     }),
   );

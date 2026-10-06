@@ -125,7 +125,7 @@ test.describe('club admin shell — phone', () => {
     const account = drawer.getByTestId('drawer-account');
     await expect(account.getByRole('link', { name: n.publicPage })).toHaveAttribute(
       'href',
-      '/venues',
+      `/clubs/${isolatedTenant.tenantSlug}`,
     );
     await expect(account.getByRole('link', { name: n.profile })).toHaveAttribute(
       'href',

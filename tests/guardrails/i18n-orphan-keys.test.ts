@@ -37,6 +37,11 @@ const FAMILIES: Family[] = [
     why: 'one label per Sport enum value, looked up as t(sport)',
   },
   {
+    prefix: 'cities.',
+    via: 'src/lib/geo/cities.ts',
+    why: 'one name per known city (#357), looked up as t(key) from the city a venue row stores',
+  },
+  {
     prefix: 'common.nav.',
     via: 'src/components/layout/nav-items.ts',
     why: "nav items carry labelKey/titleKey as data; the shells call t(item.labelKey) in 'common.nav'",

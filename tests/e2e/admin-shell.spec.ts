@@ -5,7 +5,12 @@ import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
 import bg from '../../messages/bg.json';
 
 import { expect, test } from './fixtures';
-import { prisma } from './utils/create-isolated-tenant';
+import {
+  clubPageToVenue,
+  destroyClubVenue,
+  expectAxeClean,
+  seedClubVenue,
+} from './utils/club-page-journey';
 
 /**
  * The club-admin shell at 1280 px, as the club's OWNER (T19).
@@ -58,69 +63,45 @@ test.describe('club admin shell — desktop', () => {
     authedPage: page,
     isolatedTenant,
   }) => {
-    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    const slug = isolatedTenant.tenantSlug;
+    await page.goto(`/t/${slug}/admin/courts`);
     await expect(page.getByTestId('admin-wordmark')).toHaveAttribute('href', '/');
     // No bottom bar on a desktop.
     await expect(page.locator(`nav[aria-label="${bg.common.nav.tabBar}"]`)).toBeHidden();
 
+    // The club's own page (#356), even before it has a venue: it says so.
     const pub = page.getByTestId('admin-public-link');
     await expect(pub).toHaveText(bg.common.nav.publicPage);
     await pub.click();
-    await expect(page).toHaveURL(/\/venues$/);
+    await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
+    await expect(page.getByRole('heading', { level: 1, name: `E2E ${slug}` })).toBeVisible();
+    await expect(page.getByText(bg.club.noVenues.title)).toBeVisible();
 
     // And the menu offers the same, with the profile.
-    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await page.goto(`/t/${slug}/admin/courts`);
     await page.getByTestId('top-chrome-user-menu').click();
     const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
-    await expect(menu.getByTestId('user-menu-public')).toHaveAttribute('href', '/venues');
+    await expect(menu.getByTestId('user-menu-public')).toHaveAttribute('href', `/clubs/${slug}`);
     await expect(menu.getByTestId('user-menu-profile')).toHaveAttribute('href', '/me/profile');
   });
 
-  test('"Публична страница" opens the club’s venue page once it has a live venue (#355)', async ({
+  test('"Публична страница" → the club page → its venue (#356)', async ({
     authedPage: page,
     isolatedTenant,
   }) => {
-    // A live venue for this club; the database fills its publicSlug (P41).
-    const venue = await prisma().$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
-      const v = await tx.venue.create({
-        data: {
-          tenantId: isolatedTenant.tenantId,
-          slug: `${isolatedTenant.tenantSlug}-venue`,
-          name: `E2E venue ${isolatedTenant.tenantSlug}`,
-          addressLine: 'ул. Корт 1',
-          city: 'Sofia',
-          lat: 42.6977,
-          lng: 23.3219,
-          email: `${isolatedTenant.tenantSlug}@playerz.test`,
-          timezone: 'Europe/Sofia',
-        },
-      });
-      return tx.venue.findUniqueOrThrow({
-        where: { id: v.id },
-        select: { id: true, publicSlug: true, name: true },
-      });
-    });
-
+    const slug = isolatedTenant.tenantSlug;
+    const venue = await seedClubVenue(isolatedTenant.tenantId, slug);
     try {
-      await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
-      const pub = page.getByTestId('admin-public-link');
-      await expect(pub).toHaveAttribute('href', `/venues/${venue.publicSlug}`);
-      await pub.click();
-      // The page mirrors its day into the query string as its booking panel
-      // mounts (#355), which can happen before this first check, so `?day=` is
-      // allowed, as in venue-booking.spec.ts.
-      await expect(page).toHaveURL(new RegExp(`/venues/${venue.publicSlug}(\\?|$)`));
-      await expect(page.getByRole('heading', { level: 1, name: venue.name })).toBeVisible();
+      await page.goto(`/t/${slug}/admin/courts`);
+      await page.getByTestId('admin-public-link').click();
+      await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
+      await expectAxeClean(page);
+      await clubPageToVenue(page, `E2E ${slug}`, venue);
       // And back: the club account's way home from its own venue page.
       await page.getByTestId('site-header-admin').click();
-      await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
+      await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
     } finally {
-      // `venue.tenantId` is not a foreign key: the venue does not go with the club.
-      await prisma().$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
-        await tx.venue.deleteMany({ where: { id: venue.id } });
-      });
+      await destroyClubVenue(venue);
     }
   });
 
