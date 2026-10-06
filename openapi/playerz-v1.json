@@ -3597,6 +3597,7 @@
           "id",
           "slug",
           "clubSlug",
+          "publicSlug",
           "name",
           "city",
           "country",
@@ -3618,6 +3619,11 @@
           "clubSlug": {
             "type": "string",
             "description": "The slug of the CLUB that owns this venue — the `{slug}` every `/t/{slug}/…` route takes, e.g. `POST /t/{slug}/bookings`. NOT the venue's own `slug`: a venue slug is unique only within its club, a club slug everywhere, and the two coincide only when a club happens to name its venue after itself. A venue whose club row is gone is never returned (`venue.tenantId` is not a foreign key), so this is never empty.",
+            "examples": ["slot-club-sofia"]
+          },
+          "publicSlug": {
+            "type": ["string", "null"],
+            "description": "The venue's public web address, `/venues/{publicSlug}` (#355). Unique across EVERY club, unlike `slug`; filled by a database trigger when a venue is created and never changed after (P40), so a shared link keeps working. Null only for a venue the backfill missed, which should be none; the web lists such a venue without linking it. Native clients keep addressing venues by `id`.",
             "examples": ["slot-club-sofia"]
           },
           "name": {
@@ -3687,6 +3693,7 @@
           "id",
           "slug",
           "clubSlug",
+          "publicSlug",
           "name",
           "city",
           "country",
@@ -3715,6 +3722,11 @@
           "clubSlug": {
             "type": "string",
             "description": "The slug of the CLUB that owns this venue — the `{slug}` every `/t/{slug}/…` route takes, e.g. `POST /t/{slug}/bookings`. NOT the venue's own `slug`: a venue slug is unique only within its club, a club slug everywhere, and the two coincide only when a club happens to name its venue after itself. A venue whose club row is gone is never returned (`venue.tenantId` is not a foreign key), so this is never empty.",
+            "examples": ["slot-club-sofia"]
+          },
+          "publicSlug": {
+            "type": ["string", "null"],
+            "description": "The venue's public web address, `/venues/{publicSlug}` (#355). Unique across EVERY club, unlike `slug`; filled by a database trigger when a venue is created and never changed after (P40), so a shared link keeps working. Null only for a venue the backfill missed, which should be none; the web lists such a venue without linking it. Native clients keep addressing venues by `id`.",
             "examples": ["slot-club-sofia"]
           },
           "name": {
@@ -3889,6 +3901,13 @@
           "blockedReason": {
             "type": "string",
             "description": "Present ONLY when `available` is false. Currently always the literal \"booked\"."
+          },
+          "durations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlotDuration"
+            },
+            "description": "Present ONLY when `available` is true: every length a booking starting here can have — whole units of `minBookingMinutes` up to `maxBookingMinutes`, the whole span free and inside one opening window — shortest first. The first entry is the slot itself. A snapshot like the slot: the booking's INSERT still decides (409 `SLOT_TAKEN`)."
           }
         }
       },
@@ -3901,6 +3920,7 @@
           "sport",
           "currency",
           "minBookingMinutes",
+          "maxBookingMinutes",
           "slotStepMinutes",
           "slots"
         ],
@@ -3921,6 +3941,10 @@
           "minBookingMinutes": {
             "type": "integer",
             "description": "Length of each slot below."
+          },
+          "maxBookingMinutes": {
+            "type": "integer",
+            "description": "The longest booking this resource takes, in minutes. `durations` never exceeds it."
           },
           "slotStepMinutes": {
             "type": "integer",
@@ -5509,6 +5533,26 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MfaStepUp"
+          }
+        }
+      },
+      "SlotDuration": {
+        "type": "object",
+        "description": "One length a free slot can be booked for (Q16), priced by the same quote `POST /t/{slug}/bookings` charges with, so the price shown is the price booked.",
+        "required": ["minutes", "endTs", "priceCents"],
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "description": "A whole number of `minBookingMinutes` units, at most `maxBookingMinutes`."
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 UTC, no fractional seconds: the slot start plus `minutes`. Send it as `endTs` when booking."
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Integer CENTS for the whole span, in the resource's `currency`."
           }
         }
       }

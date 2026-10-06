@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
@@ -43,13 +44,16 @@ const FILTER_NAMES = ['q', 'city', 'sport'] as const;
  * same twenty venues the server-rendered page always showed. A "show more"
  * needs copy the `venues` catalogue does not carry yet.
  *
- * ═══ THE CARDS ARE NOT LINKS ═══
+ * ═══ EACH CARD LINKS TO ITS VENUE PAGE (#355) ═══
  *
- * Not until the venue page exists (#224). Every card linked to
- * /venues/{slug}, a route that was never built: a tap was a 404, and because
- * a <Link> in the viewport prefetches, every visit also fetched one 404 per
- * card in the background (#267). The name is plain text until there is
- * somewhere for it to go; tests/e2e/venue-discovery.spec.ts holds that.
+ * `/venues/{publicSlug}`: the venue's public address, unique across clubs
+ * (P40). The name is the link and stretches over the card, so the whole card
+ * is the target and a screen reader hears one link named after the venue.
+ * Default (auto) prefetch, per docs/perf/navigation-policy.md: each card in the
+ * viewport fetches the page's `loading.tsx` shell, so a tap paints the
+ * skeleton at once. Full prefetch stays pinned to the two links T30 chose.
+ * A venue without a public slug (none, after P40's backfill) stays plain text
+ * rather than linking to a 404 (#267).
  */
 export function VenueList({
   seed,
@@ -134,9 +138,25 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
   const format = useFormatter();
 
   return (
-    <Card as="li" elevation="flat" density="compact" className="bg-bg-default">
+    <Card
+      as="li"
+      elevation="flat"
+      density="compact"
+      className="bg-bg-default focus-within:ring-ring relative focus-within:ring-2"
+    >
       <div className="flex items-start justify-between gap-2">
-        <h2 className="text-content-emphasis font-medium">{v.name}</h2>
+        <h2 className="text-content-emphasis font-medium">
+          {v.publicSlug ? (
+            <Link
+              href={`/venues/${encodeURIComponent(v.publicSlug)}`}
+              className="outline-none after:absolute after:inset-0 after:rounded-[inherit] hover:underline"
+            >
+              {v.name}
+            </Link>
+          ) : (
+            v.name
+          )}
+        </h2>
         {v.reviewCount > 0 && (
           // icon={null}: the badge's default status glyph is a check or an
           // ⓘ, which says "state" on what is a fact. The ★ is the glyph here.

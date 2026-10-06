@@ -1,11 +1,7 @@
 import { type NextRequest } from 'next/server';
 
-import {
-  getAvailabilityInputs,
-  getPublicVenue,
-  minutesFromTimeColumn,
-} from '@/app-layer/repositories/availability';
-import { computeSlots } from '@/app-layer/usecases/availability';
+import { getPublicVenue } from '@/app-layer/repositories/availability';
+import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { asSuperuser } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
@@ -68,49 +64,11 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   const { from, to } = resolveAvailabilityRange(req.nextUrl.searchParams, venue.timezone);
   const resourceId = req.nextUrl.searchParams.get('resourceId');
 
-  const inputs = await asSuperuser(ctx, (db) =>
-    getAvailabilityInputs(db, { venue, resourceId, from, to }),
+  // The slots, and each free slot's lengths and prices (Q16): the same loop
+  // the venue page renders its first day with — see loadVenueAvailability.
+  const resources = await asSuperuser(ctx, (db) =>
+    loadVenueAvailability(db, { venue, resourceId, from, to }),
   );
-
-  const resources = inputs.resources.map((resource) => {
-    const booked = inputs.bookings.filter((b) => b.resourceId === resource.id);
-
-    return {
-      resource,
-      // RangeTooWideError escapes to defineV1Route, which maps it to
-      // 400 RANGE_TOO_WIDE via DOMAIN_ERROR_MAP. `resolveAvailabilityRange`
-      // has already applied the same ceiling above — it has to, because the
-      // booking query runs before this line and would otherwise be unbounded.
-      slots: computeSlots({
-        from,
-        to,
-        timezone: venue.timezone,
-        slotStepMinutes: resource.slotStepMinutes,
-        minBookingMinutes: resource.minBookingMinutes,
-        basePriceCents: resource.basePriceCents,
-        windows: resource.availability.map((w) => ({
-          dayOfWeek: w.dayOfWeek,
-          // `openTime`/`closeTime` are `time` columns: a Date pinned to
-          // 1970-01-01 UTC. The wall clock lives in the UTC accessors and
-          // nowhere else — see minutesFromTimeColumn.
-          openMinutes: minutesFromTimeColumn(w.openTime),
-          closeMinutes: minutesFromTimeColumn(w.closeTime),
-          effectiveFrom: w.effectiveFrom,
-          effectiveTo: w.effectiveTo,
-          exceptionDate: w.exceptionDate,
-        })),
-        booked,
-        pricingRules: resource.pricingRules.map((r) => ({
-          id: r.id,
-          name: r.name,
-          priority: r.priority,
-          conditionsJson: r.conditionsJson as never,
-          multiplier: r.multiplier as never,
-          fixedPriceCents: r.fixedPriceCents,
-        })),
-      }),
-    };
-  });
 
   return ok(toAvailability({ venue, from, to, resources }));
 }

@@ -99,6 +99,7 @@ export interface AvailabilityInputs {
     basePriceCents: number;
     currency: string;
     minBookingMinutes: number;
+    maxBookingMinutes: number;
     slotStepMinutes: number;
     availability: Array<{
       dayOfWeek: number;
@@ -153,6 +154,7 @@ export async function getAvailabilityInputs(
       basePriceCents: true,
       currency: true,
       minBookingMinutes: true,
+      maxBookingMinutes: true,
       slotStepMinutes: true,
       availability: {
         select: {
@@ -185,6 +187,8 @@ export async function getAvailabilityInputs(
   // guardrail-allow: cross-tenant — public availability, restricted to the
   // resource ids of the one venue resolved above. Three columns are selected
   // and none of them identifies the booker.
+  const longestMinutes = Math.max(0, ...resources.map((r) => r.maxBookingMinutes));
+
   const bookings = await db.booking.findMany({
     take: MAX_BOOKINGS_IN_WINDOW + 1,
     where: {
@@ -193,7 +197,10 @@ export async function getAvailabilityInputs(
       // Half-open overlap with the requested window, matching the '[)' range
       // in the exclusion constraint: a booking ending exactly at `from` does
       // not overlap it, and neither does one starting exactly at `to`.
-      startTs: { lt: opts.to },
+      // Past `to` by the longest booking any court here allows: a slot near the
+      // end of the window offers durations (`slotDurations`) that run beyond it,
+      // and a booking there must still be seen to block them.
+      startTs: { lt: new Date(opts.to.getTime() + longestMinutes * 60_000) },
       endTs: { gt: opts.from },
     },
     select: { resourceId: true, startTs: true, endTs: true },

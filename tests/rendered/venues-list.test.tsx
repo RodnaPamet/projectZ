@@ -35,6 +35,7 @@ const venue = (over: Partial<VenueSummary> = {}): VenueSummary => ({
   id: 'v1',
   slug: 'alfa',
   clubSlug: 'alpha',
+  publicSlug: 'alfa',
   name: 'Алфа Кортове',
   city: 'Sofia',
   country: 'BG',
@@ -96,7 +97,7 @@ describe('/venues — the seed', () => {
     await act(tick);
   });
 
-  it('shows the rating and the price the Bulgarian way, and the name is not a link', async () => {
+  it('shows the rating and the price the Bulgarian way, and the name links to the venue', async () => {
     installFakeFetch(() => ok(page([venue()])));
     mount(page([venue()]));
 
@@ -104,8 +105,12 @@ describe('/venues — the seed', () => {
     // A decimal comma, and the amount before the symbol (`24,00 €`).
     expect(within(card).getByText(/4,5/)).toBeInTheDocument();
     expect(within(card).getByText(/24,00\s€/)).toBeInTheDocument();
-    // #267: no venue page exists yet, so nothing on a card may link to one.
-    expect(within(card).queryByRole('link')).toBeNull();
+    // #355: the venue page exists now; one link per card, named after the venue.
+    expect(within(card).getAllByRole('link')).toHaveLength(1);
+    expect(within(card).getByRole('link', { name: 'Алфа Кортове' })).toHaveAttribute(
+      'href',
+      '/venues/alfa',
+    );
     await act(tick);
   });
 
@@ -200,5 +205,26 @@ describe('/venues — pull to refresh', () => {
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1]!.url).toBe('/api/v1/venues');
     expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('/venues — the cards link to the venue page (#355)', () => {
+  it('names one link per card after the venue, at its public slug', () => {
+    installFakeFetch(() => ok(page([venue()])));
+    mount(page([venue(), venue({ id: 'v2', name: 'Бета', publicSlug: 'beta-club' })]));
+
+    expect(screen.getByRole('link', { name: 'Алфа Кортове' })).toHaveAttribute(
+      'href',
+      '/venues/alfa',
+    );
+    expect(screen.getByRole('link', { name: 'Бета' })).toHaveAttribute('href', '/venues/beta-club');
+  });
+
+  it('leaves a venue without a public slug as plain text, not a link to a 404', () => {
+    installFakeFetch(() => ok(page([venue({ publicSlug: null })])));
+    mount(page([venue({ publicSlug: null })]));
+
+    expect(screen.getByText('Алфа Кортове')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 });

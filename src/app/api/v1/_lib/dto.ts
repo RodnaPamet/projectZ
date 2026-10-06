@@ -45,6 +45,13 @@ export interface VenueSummary {
    * its venue after itself, and fails as "not a member" the day it does not.
    */
   clubSlug: string;
+  /**
+   * The venue's public address on the web, `/venues/{publicSlug}` (#355):
+   * unique across every club, unlike `slug`. Null only for a venue written
+   * before P40's trigger existed and missed by its backfill, which should be
+   * none; such a venue is listed and not linked.
+   */
+  publicSlug: string | null;
   name: string;
   city: string;
   country: string;
@@ -67,6 +74,7 @@ export function toVenueSummary(v: VenueWithResources, clubSlug: string): VenueSu
     id: v.id,
     slug: v.slug,
     clubSlug,
+    publicSlug: v.publicSlug,
     name: v.name,
     city: v.city,
     country: v.country,
@@ -174,6 +182,20 @@ export interface SlotDto {
   available: boolean;
   /** Present only when `available` is false. Currently always "booked". */
   blockedReason?: string;
+  /**
+   * Present only when `available` is true: every length this start can be
+   * booked for (whole units of `minBookingMinutes`, up to
+   * `maxBookingMinutes`, the whole span free and inside one opening window),
+   * shortest first, each priced by the same quote `POST …/bookings` charges.
+   * The first is always the slot itself. Empty when even that no longer fits.
+   */
+  durations?: SlotDurationDto[];
+}
+
+export interface SlotDurationDto {
+  minutes: number;
+  endTs: string;
+  priceCents: number;
 }
 
 export interface ResourceSlotsDto {
@@ -182,6 +204,8 @@ export interface ResourceSlotsDto {
   sport: string;
   currency: string;
   minBookingMinutes: number;
+  /** The longest booking this resource takes, in minutes (Q16). */
+  maxBookingMinutes: number;
   slotStepMinutes: number;
   slots: SlotDto[];
 }
@@ -215,6 +239,7 @@ export function toAvailability(args: {
       sport: string;
       currency: string;
       minBookingMinutes: number;
+      maxBookingMinutes: number;
       slotStepMinutes: number;
     };
     slots: Array<{
@@ -223,6 +248,7 @@ export function toAvailability(args: {
       priceCents: number;
       available: boolean;
       blockedReason?: string;
+      durations?: Array<{ minutes: number; endTs: Date; priceCents: number }>;
     }>;
   }>;
 }): AvailabilityDto {
@@ -238,6 +264,7 @@ export function toAvailability(args: {
       sport: resource.sport,
       currency: resource.currency,
       minBookingMinutes: resource.minBookingMinutes,
+      maxBookingMinutes: resource.maxBookingMinutes,
       slotStepMinutes: resource.slotStepMinutes,
       slots: slots.map((s) => ({
         startTs: rfc3339(s.startTs),
@@ -247,6 +274,15 @@ export function toAvailability(args: {
         priceCents: s.priceCents,
         available: s.available,
         ...(s.blockedReason ? { blockedReason: s.blockedReason } : {}),
+        ...(s.durations
+          ? {
+              durations: s.durations.map((d) => ({
+                minutes: d.minutes,
+                endTs: rfc3339(d.endTs),
+                priceCents: d.priceCents,
+              })),
+            }
+          : {}),
       })),
     })),
   };

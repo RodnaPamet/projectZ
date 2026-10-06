@@ -101,8 +101,9 @@ test.describe('public pages — desktop', () => {
       for (const e of SPORT_ENUMS) expect(text).not.toMatch(new RegExp(`\\b${e.toLowerCase()}\\b`));
     }
 
-    // #267: nothing links to a venue page that does not exist.
-    await expect(page.locator('main a[href^="/venues/"]')).toHaveCount(0);
+    // #355: each card links to its venue page (#267 kept them plain text until
+    // that page existed) — one link per card, named after the venue.
+    await expect(page.locator('main li a[href^="/venues/"]')).toHaveCount(await cards.count());
   });
 
   test('/venues?city=…: the filter is in the read, and the seed is that city', async ({ page }) => {

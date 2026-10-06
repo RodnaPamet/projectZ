@@ -32,16 +32,24 @@ test.describe('venue discovery', () => {
   });
 
   /**
-   * #267. Every card linked to /venues/{slug}, a page that does not exist: a
-   * tap was a 404, and each card's viewport prefetch fetched one in the
-   * background on every visit. The cards are plain text until the venue page
-   * (#224) exists. When it does, this test is the one to turn around.
+   * #267, turned around by #355. Every card linked to /venues/{slug} before
+   * that page existed: a tap was a 404, and each card's viewport prefetch
+   * fetched one in the background. Now every card links to its venue page at
+   * its public slug, and each of those pages answers.
    */
-  test('no venue card links to the venue page that does not exist yet', async ({ page }) => {
+  test('every venue card links to its venue page, and the page answers', async ({ page }) => {
     await page.goto('/venues');
-    await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
+    const cards = page.getByRole('main').getByRole('listitem');
+    await expect(cards.first()).toBeVisible();
 
-    await expect(page.locator('main a[href^="/venues/"]')).toHaveCount(0);
+    const hrefs = await page
+      .locator('main li a[href^="/venues/"]')
+      .evaluateAll((as) => as.map((a) => a.getAttribute('href')!));
+    expect(hrefs.length).toBe(await cards.count());
+    for (const href of hrefs.slice(0, 3)) {
+      const res = await page.request.get(href);
+      expect(res.status(), href).toBe(200);
+    }
   });
 
   test('has no critical or serious accessibility violations', async ({ page }) => {

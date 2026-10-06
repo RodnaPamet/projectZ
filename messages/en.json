@@ -137,6 +137,69 @@
     },
     "priceFrom": "from {price} / hour"
   },
+  "venue": {
+    "metaTitle": "{name} — book a court | playerz.bg",
+    "metaDescription": "{name}, {address}, {city}. Free times and online booking, paid at the club.",
+    "back": "Back to venues",
+    "sportsLabel": "Sports",
+    "day": {
+      "label": "Day",
+      "today": "Today",
+      "tomorrow": "Tomorrow"
+    },
+    "slots": {
+      "title": "Free times",
+      "courtTimes": "Times, {court}",
+      "durationLabel": "Duration, {court}",
+      "minutes": "{minutes} min",
+      "none": "No free times on this day.",
+      "noCourtsTitle": "No courts to book online",
+      "noCourts": "This venue does not take online bookings yet.",
+      "errorTitle": "Free times did not load",
+      "errorDescription": "Check your connection and try again."
+    },
+    "selection": {
+      "prompt": "Choose a time",
+      "summary": "{court} · {date}, {time}",
+      "detail": "{price} · {minutes} min"
+    },
+    "book": "Book",
+    "signInHint": "You will sign in and come back to this time.",
+    "clubAccount": "Club accounts cannot book. Sign in with a player account to book.",
+    "sheet": {
+      "title": "Confirm your booking",
+      "court": "Court",
+      "date": "Date",
+      "time": "Time",
+      "duration": "Duration",
+      "price": "Price",
+      "payment": "Payment",
+      "payAtClub": "Pay at the club",
+      "timeRange": "{start}–{end}",
+      "cancelUntilTitle": "Free cancellation",
+      "cancelUntil": "You can cancel in the app until {deadline}.",
+      "noOnlineCancelTitle": "No cancelling in the app",
+      "noOnlineCancel": "The club takes cancellations up to {hours, plural, one {# hour} other {# hours}} before the start. This time starts sooner, so once confirmed only the club can cancel it.",
+      "back": "Back",
+      "confirm": "Confirm",
+      "pickAnother": "Choose another time",
+      "signIn": "Sign in",
+      "error": {
+        "slotTakenTitle": "That time is taken",
+        "slotTaken": "Someone has just booked this time. The free times are refreshed — choose another.",
+        "slotNotBookableTitle": "That time cannot be booked",
+        "slotNotBookable": "This time can no longer be booked. The free times are refreshed — choose another.",
+        "noShowBlockedTitle": "Online booking is paused",
+        "limitTitle": "You have reached this club's limit",
+        "limit": "You have {upcoming, plural, one {# upcoming booking} other {# upcoming bookings}} at this club (maximum {limit}). Cancel one to book another.",
+        "accountTitle": "A player account is needed",
+        "signedOutTitle": "Your session has ended",
+        "signedOut": "Sign in again to book this time.",
+        "failedTitle": "The booking was not made",
+        "failed": "Try again. If the connection dropped, trying again will not make a second booking."
+      }
+    }
+  },
   "offline": {
     "title": "You’re offline",
     "body": "We can’t reach playerz.bg right now. Your bookings are safe — this page will work again as soon as you have a connection."
