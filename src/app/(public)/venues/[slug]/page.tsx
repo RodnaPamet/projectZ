@@ -2,7 +2,7 @@ import { cache } from 'react';
 
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
@@ -11,6 +11,9 @@ import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
 import { playerChrome } from '@/components/layout/SiteHeader';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
+import { venuePath } from '@/lib/seo/sitemap';
+import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
+import { buildVenueJsonLd, serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
 import { bookingDays, isPublicSlug, parseInitialPick } from './booking-days';
 import { VenueBooking } from './VenueBooking';
@@ -70,6 +73,9 @@ const readVenue = cache(async (publicSlug: string) => {
   });
 });
 
+/** og:locale for the page's language. Crawlers send no cookie, so get `bg`. */
+const OG_LOCALE: Record<string, string> = { bg: 'bg_BG', en: 'en_GB' };
+
 export async function generateMetadata({
   params,
 }: {
@@ -78,12 +84,23 @@ export async function generateMetadata({
   const { slug } = await params;
   const found = await readVenue(slug);
   // The page renders the not-found page (notFound below), which names itself.
-  // Its status is 200, not 404: loading.tsx (T12) has started the stream
+  // Its status is 200, not 404: a loading boundary has started the stream
   // before the venue is read, and a status cannot change mid-stream, so Next
   // marks the page `noindex` instead (Next's streaming guide, "The HTTP
   // contract"). An unknown slug is therefore never indexed.
+  //
+  // Calling notFound() HERE does not change that, for any user agent — tried
+  // against a production build (#396): browsers, Googlebot, and the
+  // HTML-limited bots whose metadata Next resolves before streaming (Bingbot,
+  // Twitterbot) all got 200 + noindex. The boundary is not only this
+  // segment's loading.tsx but also `venues/loading.tsx`, which wraps every
+  // segment below it, so no await anywhere under /venues runs before the
+  // status is sent. A real 404 needs the check before rendering starts, in
+  // src/middleware.ts — which runs on the edge, without Prisma; Next 16's
+  // Node `proxy.ts` could, at the price of a database read in front of the
+  // render on every request. Google treats noindex like a 404 here. See #396.
   if (!found) return { robots: { index: false } };
-  const t = await getTranslations('venue');
+  const [t, locale] = await Promise.all([getTranslations('venue'), getLocale()]);
 
   const { venue } = found;
   const title = t('metaTitle', { name: venue.name });
@@ -92,25 +109,46 @@ export async function generateMetadata({
     address: venue.addressLine,
     city: venue.city,
   });
-  const path = `/venues/${venue.publicSlug}`;
+  const path = venuePath(venue.publicSlug ?? slug);
+  const images = venueImages(venue);
 
   return {
-    // NEXTAUTH_URL is the app's own origin (the login page builds callbacks
-    // from it too), so the canonical URL names the host the page is served on.
-    ...(process.env.NEXTAUTH_URL ? { metadataBase: new URL(process.env.NEXTAUTH_URL) } : {}),
+    // Every absolute URL below (canonical, og:url, og:image) is on the ONE
+    // canonical origin (SITE_URL, else NEXTAUTH_URL; src/lib/seo/site-url.ts),
+    // not whichever host this request came in on (#396, Q47).
+    metadataBase: siteUrl(),
     title,
     description,
     // One canonical address: `?day=`/`?court=` variants of the same venue are
     // one page to a search engine, not fourteen.
+    //
+    // No `alternates.languages`: BG and EN are the SAME URL here, chosen by a
+    // cookie (Q12, #368). hreflang maps a language to a DIFFERENT URL; two
+    // entries naming this one URL contradict each other and search engines
+    // drop them. It belongs with per-language URLs, if those are ever made.
     alternates: { canonical: path },
     openGraph: {
       type: 'website',
+      siteName: 'playerz.bg',
+      locale: OG_LOCALE[locale] ?? OG_LOCALE.bg,
       title,
       description,
       url: path,
-      ...(venue.coverPhotoUrl ? { images: [venue.coverPhotoUrl] } : {}),
+      ...(images.length > 0 ? { images } : {}),
+    },
+    twitter: {
+      card: images.length > 0 ? 'summary_large_image' : 'summary',
+      title,
+      description,
     },
   };
+}
+
+/** The cover first, then the gallery (#366 adds uploads; today both are empty). */
+function venueImages(venue: { coverPhotoUrl: string | null; photos: { url: string }[] }) {
+  return [...new Set([venue.coverPhotoUrl, ...venue.photos.map((p) => p.url)])].filter(
+    (u): u is string => !!u,
+  );
 }
 
 export default async function VenuePage({
@@ -143,6 +181,8 @@ export default async function VenuePage({
     playerChrome(),
   ]);
   const seed = toAvailability({ venue: publicVenue, from, to, resources });
+  const sports = [...new Set(venue.resources.map((r) => r.sport))];
+  const jsonLd = await venueJsonLd(venue, sports, venuePath(venue.publicSlug ?? slug));
 
   const booking = (
     <VenueBooking
@@ -165,12 +205,20 @@ export default async function VenuePage({
   // The header and the tab bar come from (public)/layout.tsx (T20).
   return (
     <main className="bg-bg-page text-content-default safe-area-x flex-1">
+      {/* Structured data (#396), in the server HTML. A data block, not a
+          script: browsers never execute `application/ld+json`, so script-src
+          does not apply to it. serializeJsonLd escapes `<`, so no venue name
+          can close the element. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
         <VenueHeader
           name={venue.name}
           addressLine={venue.addressLine}
           city={venue.city}
-          sports={[...new Set(venue.resources.map((r) => r.sport))]}
+          sports={sports}
         />
         {/* ViewerScope sends the signed-in user's id with the booking, so a
             tab left open across a switch to another account is refused 409
@@ -179,4 +227,26 @@ export default async function VenuePage({
       </div>
     </main>
   );
+}
+
+type FoundVenue = NonNullable<Awaited<ReturnType<typeof readVenue>>>['venue'];
+
+/** The page's SportsActivityLocation, in the page's language. */
+async function venueJsonLd(venue: FoundVenue, sports: string[], path: string) {
+  const [tSports, locale] = await Promise.all([getTranslations('sports'), getLocale()]);
+  return buildVenueJsonLd({
+    name: venue.name,
+    description: venue.description,
+    addressLine: venue.addressLine,
+    city: venue.city,
+    country: venue.country,
+    lat: venue.lat,
+    lng: venue.lng,
+    phone: venue.phone,
+    url: absoluteUrl(path),
+    images: venueImages(venue),
+    sports: sports.map((s) => tSports(s as never)),
+    courts: venue.resources,
+    locale,
+  });
 }

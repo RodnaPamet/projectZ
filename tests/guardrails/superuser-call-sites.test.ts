@@ -81,6 +81,8 @@ const ALLOWED: Record<string, string> = {
 
   // ── Public discovery, which spans every club by design ──────────────
   'src/app/(public)/venues/page.tsx': 'the public venue index spans every club',
+  'src/app/sitemap.ts':
+    "sitemap.xml lists every club's public venue pages; it selects only slug and date (#396)",
   'src/app/(public)/venues/[slug]/page.tsx':
     'the public venue page (#355): one venue by its public slug, from any club, with its ' +
     'first day of slots, as the public availability route reads them',
