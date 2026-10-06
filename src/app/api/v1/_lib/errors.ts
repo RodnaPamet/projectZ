@@ -287,6 +287,39 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     clientMessage: 'This club takes payment at the club. The booking is already confirmed.',
   },
 
+  // ── Players on a booking (#358) and the account kind (#360) ───────
+  //
+  // Not a booking the caller booked or is on: the same 404 an id that never
+  // existed gets, so a stranger holding a booking id learns nothing.
+  BookingNotFoundForPlayersError: {
+    status: 404,
+    code: 'NOT_FOUND',
+    clientMessage: 'Booking not found',
+  },
+  // Expired, revoked, unknown, or its booking cancelled or started: one
+  // answer, so live tokens cannot be told from dead ones by probing.
+  BookingInviteNotUsableError: { status: 404, code: 'BOOKING_INVITE_NOT_USABLE' },
+  // A participant id not on this booking, or a user id the booker never
+  // played with (the only people `POST …/participants` accepts).
+  BookingPlayerNotFoundError: { status: 404, code: 'PLAYER_NOT_FOUND' },
+  // On the booking, but not its booker: inviting and removing are theirs.
+  BookerOnlyError: { status: 403, code: 'BOOKER_ONLY' },
+  // The account is a club or coach account; joining a game needs a player.
+  BookingNeedsPlayerAccountError: { status: 403, code: 'PLAYER_ACCOUNT_REQUIRED' },
+  // The account has not chosen player or coach yet (#360): choose, then retry.
+  AccountKindRequiredError: { status: 403, code: 'ACCOUNT_KIND_REQUIRED' },
+  // Every place up to the court's capacity is taken. Somebody leaving frees one.
+  BookingFullError: { status: 409, code: 'BOOKING_FULL' },
+  // Started, ended or cancelled: who played is settled.
+  BookingPlayersClosedError: { status: 409, code: 'BOOKING_PLAYERS_CLOSED' },
+  // The booker cancels their booking; they do not "leave" it.
+  BookerCannotLeaveError: { status: 409, code: 'BOOKER_CANNOT_LEAVE' },
+  TooManyInviteLinksError: { status: 409, code: 'TOO_MANY_INVITE_LINKS' },
+  // Chosen once, never switched (#263).
+  AccountKindAlreadySetError: { status: 409, code: 'ACCOUNT_KIND_ALREADY_SET' },
+  // An old undecided account holding a role of the other kind (P37's trigger).
+  AccountKindNotAllowedError: { status: 409, code: 'ACCOUNT_KIND_NOT_ALLOWED' },
+
   // ── 503: ours, not theirs, and retryable ──────────────────────────
   EngineUnavailableError: { status: 503, code: 'ENGINE_UNAVAILABLE' },
   ModerationUnavailableError: { status: 503, code: 'MODERATION_UNAVAILABLE' },

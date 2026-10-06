@@ -55,6 +55,7 @@ const booking = (over: Partial<MyBookingDto> = {}): MyBookingDto => ({
   clubSlug: 'alpha',
   venueReview: null,
   canReview: true,
+  viewerRole: 'BOOKER',
   ...over,
 });
 

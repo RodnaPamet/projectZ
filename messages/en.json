@@ -755,6 +755,48 @@
         "yes": "Cancel booking",
         "no": "Back"
       }
+    },
+    "coachNotice": "The coach profile is coming: approval by playerz.bg and by clubs, then your sessions. Until then you can book and play as a player.",
+    "players": {
+      "invite": "Invite players",
+      "spotsLeft": "{count, plural, =0 {No places left} one {# place left} other {# places left}}",
+      "full": "Every place on the court is taken.",
+      "sheetTitle": "Invite players",
+      "sheetDescription": "Add up to {count, plural, one {# player} other {# players}}. Payment stays at the club.",
+      "share": "Share a link",
+      "copy": "Copy the link",
+      "copied": "Link copied.",
+      "shareTitle": "Invitation to play",
+      "shareText": "Come and play: {venue}, {date} at {time}.",
+      "linkReady": "The link works until the game starts. Anyone who opens it and signs in is added while there is room.",
+      "liveLinks": "{count, plural, one {# live link} other {# live links}}",
+      "stopLinks": "Stop the links",
+      "linksStopped": "The links are stopped. Players already added stay.",
+      "recent": "You have played with",
+      "recentEmpty": "People you have played with will show here. For now, share a link.",
+      "add": "Add",
+      "remove": "Remove",
+      "removeLabel": "Remove {name}",
+      "leave": "Leave the game",
+      "closed": "The game has started or was cancelled: its players no longer change.",
+      "removeConfirm": {
+        "title": "Remove {name}?",
+        "description": "The place frees up and can be taken through the link.",
+        "yes": "Remove",
+        "no": "Back"
+      },
+      "leaveConfirm": {
+        "title": "Leave the game?",
+        "description": "The booking stays with its booker. You will need a new invitation to come back.",
+        "yes": "Leave",
+        "no": "Back"
+      },
+      "error": {
+        "FULL": "There are no places left.",
+        "CLOSED": "The game has started or was cancelled.",
+        "TOO_MANY": "There are too many live links. Stop the old ones and try again.",
+        "FAILED": "That did not work. Try again."
+      }
     }
   },
   "platform": {
@@ -979,6 +1021,54 @@
       "save": "Save",
       "cancel": "Cancel",
       "failed": "Your sports were not saved. Try again."
+    }
+  },
+  "bookingInvite": {
+    "metaTitle": "Invitation to play — playerz.bg",
+    "title": "{name} invites you to play",
+    "titleNoName": "Invitation to play",
+    "when": "When",
+    "where": "Where",
+    "court": "Court",
+    "payAtClub": "Payment is at the club.",
+    "join": "Join",
+    "signInToJoin": "Sign in to join",
+    "signInNote": "After signing in you will come back here.",
+    "chooseKindFirst": "Choose your account type",
+    "chooseKindNote": "First say whether you are a player or a coach, then you come back here.",
+    "invalid": {
+      "title": "This invitation no longer works",
+      "description": "The link expired, was stopped, or the game was cancelled. Ask for a new one."
+    },
+    "error": {
+      "FULL": "The game is full: every place is taken.",
+      "NOT_USABLE": "This invitation no longer works.",
+      "PLAYER_ACCOUNT_REQUIRED": "Only a player account can join a game. Sign in with your player account.",
+      "RATE_LIMITED": "Too many attempts. Wait a minute and try again.",
+      "FAILED": "We could not add you. Try again."
+    },
+    "spotsLeft": "{count, plural, =0 {No places left} one {# place left} other {# places left}}"
+  },
+  "onboarding": {
+    "kind": {
+      "metaTitle": "Player or coach? — playerz.bg",
+      "title": "Player or coach?",
+      "description": "Choose how you will use playerz.bg. You choose once, and it cannot be changed later.",
+      "legend": "Account type",
+      "player": {
+        "label": "Player",
+        "description": "Book courts and play with friends."
+      },
+      "coach": {
+        "label": "Coach",
+        "description": "The coach profile is coming. Until then you can book as a player."
+      },
+      "continue": "Continue",
+      "error": {
+        "ALREADY_SET": "This account has already been chosen.",
+        "NOT_ALLOWED": "This account cannot be that type. Please contact us.",
+        "FAILED": "Your choice was not saved. Try again."
+      }
     }
   }
 }

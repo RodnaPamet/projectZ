@@ -4690,6 +4690,1225 @@
           }
         }
       }
+    },
+    "/me/bookings/{id}/participants": {
+      "get": {
+        "operationId": "listBookingParticipants",
+        "summary": "Who is playing a booking",
+        "description": "For anyone ON the booking: its booker or an added player (#358). Names and avatars only. Not on it: 404, as for an id that never existed.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The players.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingParticipantsEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or was added to has this id: somebody else's, or none at all. Deliberately indistinguishable, so a stranger holding a booking id learns nothing (IDOR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addBookingParticipant",
+        "summary": "Add somebody you have played with",
+        "description": "The booker adds a co-player (`GET …/co-players`). Answers the participants list: 201 when added, 200 when they were already on it. Any user id that is not a co-player is 404 `PLAYER_NOT_FOUND`, so nobody can be put on a booking by guessing ids. Audited (`BOOKING_PLAYER_JOINED`).",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBookingParticipantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Already on it; the list.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingParticipantsEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Added; the list.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingParticipantsEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — the body is not JSON, or fails the `.strict()` schema; `details.field` names the property at fault (an unknown property names itself).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller did not book it. `PLAYER_ACCOUNT_REQUIRED` — the person is not a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — not your booking. `PLAYER_NOT_FOUND` — not somebody you have played with.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`BOOKING_FULL` — every place is taken. `BOOKING_PLAYERS_CLOSED` — the booking has started, ended or been cancelled: who played is settled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/participants/{participantId}": {
+      "delete": {
+        "operationId": "removeBookingParticipant",
+        "summary": "Take a player off your booking",
+        "description": "The booker removes an added player. Audited (`BOOKING_PLAYER_REMOVED`). 204.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "participantId",
+            "in": "path",
+            "required": true,
+            "description": "`BookingPlayer.participantId`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it. Inviting and removing are the booker’s.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — not your booking. `PLAYER_NOT_FOUND` — no such player on it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`BOOKING_PLAYERS_CLOSED` — the booking has started, ended or been cancelled: who played is settled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/participation": {
+      "delete": {
+        "operationId": "leaveBooking",
+        "summary": "Leave a booking you were added to",
+        "description": "The caller's place frees up; the booking stays the booker's. The booker cancels instead (409 `BOOKER_CANNOT_LEAVE`). Audited (`BOOKING_PLAYER_LEFT`). 204.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Left.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or was added to has this id: somebody else's, or none at all. Deliberately indistinguishable, so a stranger holding a booking id learns nothing (IDOR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`BOOKER_CANNOT_LEAVE` — the caller booked it; cancel it instead. `BOOKING_PLAYERS_CLOSED` — the booking has started, ended or been cancelled: who played is settled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/co-players": {
+      "get": {
+        "operationId": "listBookingCoPlayers",
+        "summary": "People you have played with, to add",
+        "description": "Up to 20 people the booker shared a booking with (their last 50 bookings, booked or joined), most recent first, not already on this one. PLAYER accounts only. Not paginated: `{\"data\": [ … ]}`.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The people.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoPlayerListEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it. Inviting and removing are the booker’s.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or was added to has this id: somebody else's, or none at all. Deliberately indistinguishable, so a stranger holding a booking id learns nothing (IDOR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/invite-links": {
+      "post": {
+        "operationId": "createBookingInviteLink",
+        "summary": "Make a link to share",
+        "description": "A link that adds whoever opens it and signs in, while the court has room, until the booking starts. The token is in this answer only (`Cache-Control: no-store`). Several may be live (at most 10); old ones keep working, so sharing again does not break a link already sent. Audited (`BOOKING_INVITE_LINK_CREATED`), without the token.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The link.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingInviteLinkEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it. Inviting and removing are the booker’s.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or was added to has this id: somebody else's, or none at all. Deliberately indistinguishable, so a stranger holding a booking id learns nothing (IDOR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`BOOKING_PLAYERS_CLOSED` — the booking has started, ended or been cancelled: who played is settled. `TOO_MANY_INVITE_LINKS` — 10 live already; stop them first. `BOOKING_FULL` — a court for one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "revokeBookingInviteLinks",
+        "summary": "Stop every live link",
+        "description": "Players already added stay. Answers how many links this stopped. Audited (`BOOKING_INVITE_LINK_REVOKED`).",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many were stopped.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedInviteLinksEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it. Inviting and removing are the booker’s.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or was added to has this id: somebody else's, or none at all. Deliberately indistinguishable, so a stranger holding a booking id learns nothing (IDOR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/invite-links/{linkId}": {
+      "delete": {
+        "operationId": "revokeBookingInviteLink",
+        "summary": "Stop one link",
+        "description": "1, or 0 if it was already stopped. Audited.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "linkId",
+            "in": "path",
+            "required": true,
+            "description": "`BookingInviteLink.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many were stopped.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedInviteLinksEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it. Inviting and removing are the booker’s.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — not your booking. `PLAYER_NOT_FOUND` — no such link on it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/booking-invites/preview": {
+      "post": {
+        "operationId": "previewBookingInvite",
+        "summary": "What an invite link is for",
+        "description": "PUBLIC: the person holding the link usually has no session yet. POST with the token in the body, so it never reaches a log line, a trace or a metric label, and so the rate limiter applies.",
+        "tags": ["Bookings"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingInviteTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The game.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingInvitePreviewEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — the body is not JSON, or fails the `.strict()` schema; `details.field` names the property at fault (an unknown property names itself).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`BOOKING_INVITE_NOT_USABLE` — malformed, unknown, stopped or expired, or its booking cancelled or started. One answer for all, so live tokens cannot be told from dead ones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: INVITE_REDEEM_LIMIT, 10 per minute per client IP, shared by the preview and the accept (scope `booking-invite`). The body omits `error.requestId`; the wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/booking-invites/accept": {
+      "post": {
+        "operationId": "acceptBookingInvite",
+        "summary": "Join the booking behind a link",
+        "description": "Adds the CALLER and nobody else, while the court has room. Audited (`BOOKING_PLAYER_JOINED`). After it, the booking is in `GET /me/bookings` with `viewerRole: PARTICIPANT`.",
+        "tags": ["Bookings"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingInviteTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Joined, or already on it.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingInviteAcceptedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — the body is not JSON, or fails the `.strict()` schema; `details.field` names the property at fault (an unknown property names itself).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club or coach account. `ACCOUNT_KIND_REQUIRED` — the account has not chosen player or coach yet: `POST /me/account-kind`, then retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`BOOKING_INVITE_NOT_USABLE` — malformed, unknown, stopped or expired, or its booking cancelled or started. One answer for all, so live tokens cannot be told from dead ones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`BOOKING_FULL` — every place is taken. Somebody leaving frees one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: INVITE_REDEEM_LIMIT, 10 per minute per client IP, shared by the preview and the accept (scope `booking-invite`). The body omits `error.requestId`; the wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/account-kind": {
+      "post": {
+        "operationId": "chooseAccountKind",
+        "summary": "Player or coach? Once.",
+        "description": "First sign-in (#360): a new account has `accountKind: null` and is asked before anything else. Set ONCE, by a compare-and-set on null; a second call is 409 `ACCOUNT_KIND_ALREADY_SET` whatever it asks for (#263, one account one kind). `PATCH /me` refuses `accountKind`, so this is the only write. Answers the account, as `GET /me`.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseAccountKindRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account, with its kind.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — the body is not JSON, or fails the `.strict()` schema; `details.field` names the property at fault (an unknown property names itself).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`ACCOUNT_KIND_ALREADY_SET` — chosen already; permanent. `ACCOUNT_KIND_NOT_ALLOWED` — an older account holding a role of the other kind.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6431,7 +7650,7 @@
       "MyBooking": {
         "type": "object",
         "title": "MyBooking",
-        "description": "One of the caller's own bookings, at any club: every field of `Booking`, plus the club it belongs to and where the caller stands on reviewing its venue. Produced by `toMyBookingDto` in `src/app/api/v1/_lib/dto.ts` — the same mapper the web page's server render is to use, so the two cannot drift. Flat rather than `allOf: [Booking, …]`, for the reason NOTES.md gives for `VenueDetail`.",
+        "description": "One of the caller's own bookings, at any club: every field of `Booking`, plus the club it belongs to and where the caller stands on reviewing its venue. Produced by `toMyBookingDto` in `src/app/api/v1/_lib/dto.ts` — the same mapper the web page's server render is to use, so the two cannot drift. Flat rather than `allOf: [Booking, …]`, for the reason NOTES.md gives for `VenueDetail`. Since #358 the list also holds bookings the caller was ADDED to (`viewerRole: PARTICIPANT`).",
         "required": [
           "id",
           "status",
@@ -6447,7 +7666,8 @@
           "venue",
           "clubSlug",
           "venueReview",
-          "canReview"
+          "canReview",
+          "viewerRole"
         ],
         "properties": {
           "id": {
@@ -6494,7 +7714,7 @@
           "cancellableUntil": {
             "type": ["string", "null"],
             "format": "date-time",
-            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds."
+            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds. Always `null` for a `PARTICIPANT`: only the booker cancels (#358)."
           },
           "resource": {
             "type": "object",
@@ -6571,6 +7791,11 @@
           "canReview": {
             "type": "boolean",
             "description": "Whether `POST /t/{clubSlug}/bookings/{id}/review` would be accepted now: the booking is COMPLETED and the venue has no review from the caller yet. Decided by the server so no client restates the rule."
+          },
+          "viewerRole": {
+            "type": "string",
+            "enum": ["BOOKER", "PARTICIPANT"],
+            "description": "The caller's side of the booking (#358): `BOOKER` made it; `PARTICIPANT` was added by the booker or an invite link. A participant cannot cancel it (`cancellableUntil` is null for them) and leaves with `DELETE /me/bookings/{id}/participation`. A closed enum: the two sides of a booking are the model, not a status that grows."
           }
         }
       },
@@ -6837,7 +8062,11 @@
           "venueReview",
           "canReview",
           "payAtClub",
-          "players"
+          "players",
+          "viewerRole",
+          "capacity",
+          "spotsLeft",
+          "playersOpen"
         ],
         "properties": {
           "id": {
@@ -6884,7 +8113,7 @@
           "cancellableUntil": {
             "type": ["string", "null"],
             "format": "date-time",
-            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds."
+            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds. Always `null` for a `PARTICIPANT`: only the booker cancels (#358)."
           },
           "resource": {
             "type": "object",
@@ -7004,29 +8233,27 @@
           },
           "players": {
             "type": "array",
-            "description": "The people on the booking, the booker (the caller) first. Display names and avatars only: no user ids and no emails. Until a booker can add players (#358) this is the caller alone.",
+            "description": "The people on the booking: the booker first, then players added by the booker or an invite link, by position (#358). Names and avatars only.",
             "items": {
-              "type": "object",
-              "required": ["name", "avatarUrl", "isBooker", "registered"],
-              "properties": {
-                "name": {
-                  "type": ["string", "null"],
-                  "description": "Display name. Null for a registered player who has not set one."
-                },
-                "avatarUrl": {
-                  "type": ["string", "null"],
-                  "description": "The sign-in provider's picture, or null."
-                },
-                "isBooker": {
-                  "type": "boolean",
-                  "description": "The person who made the booking: the caller."
-                },
-                "registered": {
-                  "type": "boolean",
-                  "description": "Has an account. False for a guest the booker named."
-                }
-              }
+              "$ref": "#/components/schemas/BookingPlayer"
             }
+          },
+          "viewerRole": {
+            "type": "string",
+            "enum": ["BOOKER", "PARTICIPANT"],
+            "description": "The caller's side of the booking (#358): `BOOKER` made it; `PARTICIPANT` was added by the booker or an invite link. A participant cannot cancel it (`cancellableUntil` is null for them) and leaves with `DELETE /me/bookings/{id}/participation`. A closed enum: the two sides of a booking are the model, not a status that grows."
+          },
+          "capacity": {
+            "type": "integer",
+            "description": "The court's capacity: the booker plus up to `capacity - 1` added players."
+          },
+          "spotsLeft": {
+            "type": "integer",
+            "description": "Places left for added players; 0 when full."
+          },
+          "playersOpen": {
+            "type": "boolean",
+            "description": "Whether players can be added, leave or be removed now: the booking holds its court (PENDING or CONFIRMED) and has not started."
           }
         }
       },
@@ -7680,6 +8907,305 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/BookingSeries"
+          }
+        }
+      },
+      "BookingPlayer": {
+        "type": "object",
+        "title": "BookingPlayer",
+        "description": "A person on a booking (#358). Display name and avatar ONLY: no user id, email or phone, for anybody, including to the other players.",
+        "required": ["participantId", "name", "avatarUrl", "isBooker", "isYou", "registered"],
+        "properties": {
+          "participantId": {
+            "type": ["string", "null"],
+            "description": "What the booker removes this player by (`DELETE /me/bookings/{id}/participants/{participantId}`). Null for the booker, who is not removable. Not a user id."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Display name. Null for a registered player who has not set one."
+          },
+          "avatarUrl": {
+            "type": ["string", "null"],
+            "description": "The sign-in provider's picture, or null."
+          },
+          "isBooker": {
+            "type": "boolean",
+            "description": "The person who made the booking (position 1)."
+          },
+          "isYou": {
+            "type": "boolean",
+            "description": "The caller."
+          },
+          "registered": {
+            "type": "boolean",
+            "description": "Has an account. False for a guest the booker named."
+          }
+        }
+      },
+      "BookingParticipants": {
+        "type": "object",
+        "title": "BookingParticipants",
+        "required": [
+          "viewerRole",
+          "capacity",
+          "spotsLeft",
+          "playersOpen",
+          "liveInviteLinks",
+          "players"
+        ],
+        "properties": {
+          "viewerRole": {
+            "type": "string",
+            "enum": ["BOOKER", "PARTICIPANT"],
+            "description": "The caller's side of the booking (#358): `BOOKER` made it; `PARTICIPANT` was added by the booker or an invite link. A participant cannot cancel it (`cancellableUntil` is null for them) and leaves with `DELETE /me/bookings/{id}/participation`. A closed enum: the two sides of a booking are the model, not a status that grows."
+          },
+          "capacity": {
+            "type": "integer",
+            "description": "The court's capacity: the booker plus up to `capacity - 1` added players."
+          },
+          "spotsLeft": {
+            "type": "integer",
+            "description": "Places left for added players; 0 when full."
+          },
+          "playersOpen": {
+            "type": "boolean",
+            "description": "Whether players can be added, leave or be removed now: the booking holds its court (PENDING or CONFIRMED) and has not started."
+          },
+          "liveInviteLinks": {
+            "type": ["integer", "null"],
+            "description": "How many invite links are live (unrevoked, before the start). For the booker; null for a participant, who cannot see links."
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingPlayer"
+            }
+          }
+        }
+      },
+      "BookingParticipantsEnvelope": {
+        "type": "object",
+        "title": "BookingParticipantsEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingParticipants"
+          }
+        }
+      },
+      "AddBookingParticipantRequest": {
+        "type": "object",
+        "title": "AddBookingParticipantRequest",
+        "additionalProperties": false,
+        "required": ["userId"],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "A `CoPlayer.userId` from `GET /me/bookings/{id}/co-players`. Any other id is 404."
+          }
+        }
+      },
+      "CoPlayer": {
+        "type": "object",
+        "title": "CoPlayer",
+        "required": ["userId", "name", "avatarUrl"],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "What `POST /me/bookings/{id}/participants` takes. Only ever somebody the caller has played with."
+          },
+          "name": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "CoPlayerListEnvelope": {
+        "type": "object",
+        "title": "CoPlayerListEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoPlayer"
+            }
+          }
+        }
+      },
+      "BookingInviteLink": {
+        "type": "object",
+        "title": "BookingInviteLink",
+        "required": ["id", "token", "url", "expiresAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "What `DELETE …/invite-links/{linkId}` takes."
+          },
+          "token": {
+            "type": "string",
+            "description": "32 random bytes, base64url (43 characters). Returned HERE ONLY: the server keeps an HMAC of it and nothing else, never logs it and never audits it, so it cannot be shown again. Treat it as a secret until shared."
+          },
+          "url": {
+            "type": "string",
+            "description": "The page to share: `{site}/invite/booking/{token}`. Hand this to the share sheet."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The booking's start: the link stops working then. RFC 3339 UTC, no fractional seconds."
+          }
+        }
+      },
+      "BookingInviteLinkEnvelope": {
+        "type": "object",
+        "title": "BookingInviteLinkEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingInviteLink"
+          }
+        }
+      },
+      "RevokedInviteLinksEnvelope": {
+        "type": "object",
+        "title": "RevokedInviteLinksEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["revoked"],
+            "properties": {
+              "revoked": {
+                "type": "integer",
+                "description": "How many links this call stopped; 0 is not an error."
+              }
+            }
+          }
+        }
+      },
+      "BookingInviteTokenRequest": {
+        "type": "object",
+        "title": "BookingInviteTokenRequest",
+        "additionalProperties": false,
+        "required": ["token"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The token from the link (`/invite/booking/{token}`). In the BODY, never the path: a path is written to the request log, the trace and the metrics label."
+          }
+        }
+      },
+      "BookingInvitePreview": {
+        "type": "object",
+        "title": "BookingInvitePreview",
+        "description": "What a link is for, before signing in. Nothing private: no surname, contact, price, other players or booking id.",
+        "required": [
+          "venue",
+          "resource",
+          "startTs",
+          "endTs",
+          "bookerFirstName",
+          "capacity",
+          "spotsLeft"
+        ],
+        "properties": {
+          "venue": {
+            "type": "object",
+            "required": ["name", "city", "timezone"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone; render the times in it."
+              }
+            }
+          },
+          "resource": {
+            "type": "object",
+            "required": ["name", "sport"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "sport": {
+                "type": "string"
+              }
+            }
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bookerFirstName": {
+            "type": ["string", "null"],
+            "description": "The first word of the booker's display name; null when they have none."
+          },
+          "capacity": {
+            "type": "integer"
+          },
+          "spotsLeft": {
+            "type": "integer"
+          }
+        }
+      },
+      "BookingInvitePreviewEnvelope": {
+        "type": "object",
+        "title": "BookingInvitePreviewEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingInvitePreview"
+          }
+        }
+      },
+      "BookingInviteAccepted": {
+        "type": "object",
+        "title": "BookingInviteAccepted",
+        "required": ["bookingId", "joined"],
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "description": "Open it with `GET /me/bookings/{bookingId}`."
+          },
+          "joined": {
+            "type": "boolean",
+            "description": "False when the caller was already on it (the booker included): a second tap is harmless."
+          }
+        }
+      },
+      "BookingInviteAcceptedEnvelope": {
+        "type": "object",
+        "title": "BookingInviteAcceptedEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingInviteAccepted"
+          }
+        }
+      },
+      "ChooseAccountKindRequest": {
+        "type": "object",
+        "title": "ChooseAccountKindRequest",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["PLAYER", "COACH"],
+            "description": "CLUB is never chosen: the owner creates club accounts."
           }
         }
       }

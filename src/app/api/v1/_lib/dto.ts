@@ -442,6 +442,12 @@ export interface MyBookingDto extends BookingDto {
    * (`canReview` in `usecases/my-bookings`) so no client restates the rule.
    */
   canReview: boolean;
+  /**
+   * The caller's side of it (#358): BOOKER made it; PARTICIPANT was added to
+   * it by the booker or an invite link. A participant cannot cancel it (its
+   * `cancellableUntil` is null) and may leave it instead.
+   */
+  viewerRole: 'BOOKER' | 'PARTICIPANT';
 }
 
 export function toMyBookingDto(
@@ -449,10 +455,16 @@ export function toMyBookingDto(
     clubSlug: string | null;
     venueReview: { id: string; bookingId: string | null; rating: number; status: string } | null;
     canReview: boolean;
+    viewerRole: 'BOOKER' | 'PARTICIPANT';
   },
 ): MyBookingDto {
+  const base = toBooking(b);
   return {
-    ...toBooking(b),
+    ...base,
+    // Cancelling is the booker's (`POST /t/{slug}/bookings/{id}/cancel` finds
+    // only their own); an added player is told there is nothing to cancel.
+    cancellableUntil: b.viewerRole === 'BOOKER' ? base.cancellableUntil : null,
+    viewerRole: b.viewerRole,
     clubSlug: b.clubSlug,
     // Rebuilt field by field rather than passed through, for the reason at the
     // top of this file: a spread publishes whatever the use case adds next.
@@ -492,16 +504,47 @@ export interface MyBookingDetailDto extends Omit<MyBookingDto, 'venue'> {
    */
   payAtClub: boolean;
   /**
-   * The people on the booking, the booker first. Display names and avatars
-   * only: no ids and no emails. `name` is null for a player with no name set.
-   * Until players can be added (#358) this is the booker alone.
+   * The people on the booking, the booker first, then added players by
+   * position (#358). Display names and avatars only: no user ids and no
+   * emails. `name` is null for a player with no name set.
    */
-  players: Array<{
-    name: string | null;
-    avatarUrl: string | null;
-    isBooker: boolean;
-    registered: boolean;
-  }>;
+  players: BookingPlayerDto[];
+  /** The court's capacity: the booker plus up to `capacity - 1` added players. */
+  capacity: number;
+  /** Places left for added players. */
+  spotsLeft: number;
+  /**
+   * Whether players can be added, leave or be removed now: the booking holds
+   * its court (PENDING or CONFIRMED) and has not started.
+   */
+  playersOpen: boolean;
+}
+
+/** A person on a booking (#358): what the detail and the participants list show. */
+export interface BookingPlayerDto {
+  /**
+   * What the booker removes them by (`DELETE …/participants/{participantId}`).
+   * Null for the booker, who is not removable. Not a user id.
+   */
+  participantId: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  isBooker: boolean;
+  /** The caller. */
+  isYou: boolean;
+  /** Has an account, as opposed to a guest named by the booker. */
+  registered: boolean;
+}
+
+export function toBookingPlayerDto(p: BookingPlayerDto): BookingPlayerDto {
+  return {
+    participantId: p.participantId,
+    name: p.name,
+    avatarUrl: p.avatarUrl,
+    isBooker: p.isBooker,
+    isYou: p.isYou,
+    registered: p.registered,
+  };
 }
 
 export function toMyBookingDetailDto(
@@ -517,12 +560,10 @@ export function toMyBookingDetailDto(
       };
     };
     payAtClub: boolean;
-    players: Array<{
-      name: string | null;
-      avatarUrl: string | null;
-      isBooker: boolean;
-      registered: boolean;
-    }>;
+    players: BookingPlayerDto[];
+    capacity: number;
+    spotsLeft: number;
+    playersOpen: boolean;
   },
 ): MyBookingDetailDto {
   const base = toMyBookingDto(b);
@@ -540,13 +581,92 @@ export function toMyBookingDetailDto(
       phone: v.phone,
     },
     payAtClub: b.payAtClub,
-    players: b.players.map((p) => ({
-      name: p.name,
-      avatarUrl: p.avatarUrl,
-      isBooker: p.isBooker,
-      registered: p.registered,
-    })),
+    players: b.players.map(toBookingPlayerDto),
+    capacity: b.capacity,
+    spotsLeft: b.spotsLeft,
+    playersOpen: b.playersOpen,
   };
+}
+
+/** `GET /me/bookings/{id}/participants` (#358). */
+export interface BookingParticipantsDto {
+  viewerRole: 'BOOKER' | 'PARTICIPANT';
+  capacity: number;
+  spotsLeft: number;
+  playersOpen: boolean;
+  /** How many invite links are live. The booker's; null for a participant. */
+  liveInviteLinks: number | null;
+  players: BookingPlayerDto[];
+}
+
+export function toBookingParticipantsDto(p: {
+  viewerRole: 'BOOKER' | 'PARTICIPANT';
+  capacity: number;
+  spotsLeft: number;
+  open: boolean;
+  liveInviteLinks: number | null;
+  players: BookingPlayerDto[];
+}): BookingParticipantsDto {
+  return {
+    viewerRole: p.viewerRole,
+    capacity: p.capacity,
+    spotsLeft: p.spotsLeft,
+    playersOpen: p.open,
+    liveInviteLinks: p.liveInviteLinks,
+    players: p.players.map(toBookingPlayerDto),
+  };
+}
+
+/** `POST /me/bookings/{id}/invite-links` (#358). The token is in this answer and nowhere else. */
+export interface BookingInviteLinkDto {
+  id: string;
+  token: string;
+  /** The page to share: `/invite/booking/{token}` on this site. */
+  url: string;
+  /** The booking's start: the link stops working then. */
+  expiresAt: string;
+}
+
+/** `POST /booking-invites/preview` (#358): nothing private. */
+export interface BookingInvitePreviewDto {
+  venue: { name: string; city: string; timezone: string };
+  resource: { name: string; sport: string };
+  startTs: string;
+  endTs: string;
+  bookerFirstName: string | null;
+  capacity: number;
+  spotsLeft: number;
+}
+
+export function toBookingInvitePreviewDto(p: {
+  venueName: string;
+  venueCity: string;
+  timezone: string;
+  courtName: string;
+  sport: string;
+  startTs: Date;
+  endTs: Date;
+  bookerFirstName: string | null;
+  capacity: number;
+  spotsLeft: number;
+}): BookingInvitePreviewDto {
+  return {
+    venue: { name: p.venueName, city: p.venueCity, timezone: p.timezone },
+    resource: { name: p.courtName, sport: p.sport },
+    startTs: rfc3339(p.startTs),
+    endTs: rfc3339(p.endTs),
+    bookerFirstName: p.bookerFirstName,
+    capacity: p.capacity,
+    spotsLeft: p.spotsLeft,
+  };
+}
+
+/** `GET /me/bookings/{id}/co-players` (#358). */
+export interface CoPlayerDto {
+  /** What `POST …/participants` takes. Only ever a person the caller has played with. */
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
 }
 
 export interface ReviewDto {

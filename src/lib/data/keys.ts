@@ -101,6 +101,11 @@ export const KEYS = {
     paged(`${BASE}/me/bookings`, params),
   /** One of the caller's own bookings in full (#359): the booking detail page. */
   meBooking: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}`,
+  /** Who plays a booking the caller is on (#358): names, avatars, places left. */
+  meBookingParticipants: (bookingId: string) =>
+    `${BASE}/me/bookings/${seg(bookingId)}/participants`,
+  /** People the booker has played with who are not on this booking yet (#358). */
+  meBookingCoPlayers: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/co-players`,
   /** The public venue index, by cursor. */
   venues: (params: VenueSearchParams = {}) => paged(`${BASE}/venues`, { ...params }),
   /**
@@ -148,6 +153,19 @@ export const V1 = {
   resolveCase: (caseId: string) => `${BASE}/platform/moderation/cases/${seg(caseId)}/resolve`,
   /** `PATCH`: the display name and the sports with their levels (#359). */
   updateAccount: () => `${BASE}/me`,
+  /** `POST` a new invite link; `DELETE` stops every live one (#358). */
+  bookingInviteLinks: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/invite-links`,
+  /** `POST { userId }`: the booker adds a co-player (#358). */
+  addBookingPlayer: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/participants`,
+  /** `DELETE`: the booker removes a player (#358). */
+  removeBookingPlayer: (bookingId: string, participantId: string) =>
+    `${BASE}/me/bookings/${seg(bookingId)}/participants/${seg(participantId)}`,
+  /** `DELETE`: an added player leaves (#358). */
+  leaveBooking: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/participation`,
+  /** `POST { token }`: join the booking behind an invite link (#358). */
+  acceptBookingInvite: () => `${BASE}/booking-invites/accept`,
+  /** `POST { kind }`: "Играч или треньор?", once (#360). */
+  chooseAccountKind: () => `${BASE}/me/account-kind`,
   mfaEnrol: () => `${BASE}/me/mfa/enrolment`,
   mfaConfirm: () => `${BASE}/me/mfa/enrolment/confirm`,
   mfaStepUp: () => `${BASE}/me/mfa/step-up`,

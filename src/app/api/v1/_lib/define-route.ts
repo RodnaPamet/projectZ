@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { withApiErrorHandling } from '@/lib/errors/api';
+import { type ApiWrapperOptions, withApiErrorHandling } from '@/lib/errors/api';
 import { getRequestId } from '@/lib/observability/context';
 import { logger } from '@/lib/observability/logger';
 
@@ -65,6 +65,12 @@ import { toV1ErrorResponse } from './errors';
  */
 export function defineV1Route<Context = unknown>(
   handler: (req: NextRequest, ctx: Context) => Promise<NextResponse | Response>,
+  /**
+   * Passed to the wrapper: only to make a mutating route STRICTER than the
+   * default, as the booking invite preview and accept are (#358). Omitted, a
+   * mutation gets API_MUTATION_LIMIT, as before.
+   */
+  options?: Pick<ApiWrapperOptions, 'rateLimit'>,
 ) {
   return withApiErrorHandling<Context>(async (req, ctx) => {
     try {
@@ -81,5 +87,5 @@ export function defineV1Route<Context = unknown>(
 
       return NextResponse.json(payload, { status });
     }
-  });
+  }, options);
 }

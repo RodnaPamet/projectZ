@@ -473,11 +473,21 @@ describe('an invitation is accepted only by an account of the right kind', () =>
     expect(await kindOf(fresh.id)).toBe('PLAYER');
   });
 
-  it('an undecided account accepts nothing until a person decides it', async () => {
+  it('an undecided account that holds something accepts nothing until a person decides it', async () => {
     const undecided = await account(null);
+    const academy = await seedTenant({ name: 'Academy' });
+    await hold(undecided.id, academy.tenantId, 'COACH');
     const token = await invite(undecided.email, 'STAFF');
 
     expect(await acceptAs(undecided.id, token)).toBe('ACCOUNT_KIND_UNDECIDED');
+  });
+
+  it('a brand-new account that has not chosen yet (#360) becomes a CLUB account by a staff invite', async () => {
+    const fresh = await account(null);
+    const token = await invite(fresh.email, 'STAFF');
+
+    expect(await acceptAs(fresh.id, token)).toBe('ACCEPTED');
+    expect(await kindOf(fresh.id)).toBe('CLUB');
   });
 
   it('the page asks the same question BEFORE offering the button', async () => {
@@ -664,10 +674,21 @@ describe('create-venue-org makes the owner a CLUB account of that club only', ()
 
   it('refuses an account the migration left undecided', async () => {
     const undecided = await account(null);
+    // What the migration left undecided holds something (here a coach role);
+    // an EMPTY undecided account is a new sign-in (#360), below.
+    const academy = await seedTenant({ name: 'Academy' });
+    await hold(undecided.id, academy.tenantId, 'COACH');
 
     const run = create('kind-undecided', undecided.email);
 
     expect(run.code).toBe(1);
     expect(run.out).toMatch(/could not decide/);
+  });
+
+  it('makes a new sign-in that has not chosen player or coach yet (#360) a CLUB account', async () => {
+    const fresh = await account(null);
+
+    expect(create('kind-unchosen', fresh.email).code).toBe(0);
+    expect(await kindOf(fresh.id)).toBe('CLUB');
   });
 });

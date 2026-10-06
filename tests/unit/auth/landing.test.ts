@@ -7,6 +7,7 @@ import {
   decideLanding,
   HOME,
   isClubRole,
+  KIND_CHOOSER_PATH,
   PLAYER_HOME,
   postSignInPath,
   safeCallbackPath,
@@ -108,7 +109,7 @@ describe('decideLanding — a membership that exists is not a role that is held'
 
   it('a role this file has never heard of earns no club landing', () => {
     const d = land(null, [membership({ role: 'ARCHDUKE' as Role })]);
-    expect(d).toEqual({ href: PLAYER_HOME, reason: 'undecided', club: null });
+    expect(d).toEqual({ href: KIND_CHOOSER_PATH, reason: 'undecided', club: null });
   });
 });
 
@@ -151,8 +152,10 @@ describe('decideLanding — an UNDECIDED account keeps #227’s default', () => 
     expect(land(null, [b, a]).club?.tenantSlug).toBe('a');
   });
 
-  it('with no live club role, the player UI', () => {
-    expect(land(null, [membership({ role: 'OWNER', status: 'SUSPENDED' })]).href).toBe(PLAYER_HOME);
+  it('with no live club role, the kind chooser (#360, U01), not an unexplained player UI', () => {
+    expect(land(null, [membership({ role: 'OWNER', status: 'SUSPENDED' })]).href).toBe(
+      KIND_CHOOSER_PATH,
+    );
   });
 });
 

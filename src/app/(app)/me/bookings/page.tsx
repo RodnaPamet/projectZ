@@ -5,7 +5,9 @@ import { listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
 import { toMyBookingDto } from '@/app/api/v1/_lib/dto';
 import { playerChrome } from '@/components/layout/SiteHeader';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
+import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
 
@@ -81,6 +83,11 @@ export default async function MyBookingsPage({
   // second query.
   const { kind, landing } = await playerChrome();
   if (kind === 'club' && landing) redirect(landing.href);
+  // An account that has not chosen player or coach (#360, audit U01) is asked
+  // first, rather than shown an empty list it has no reason to be on.
+  if (landing?.href === KIND_CHOOSER_PATH) redirect(KIND_CHOOSER_PATH);
+  // A coach has the player UI until the coach profile ships (#377), and is told so.
+  const coach = landing?.reason === 'coach';
 
   const [t, page] = await Promise.all([
     getTranslations('myBookings'),
@@ -101,6 +108,12 @@ export default async function MyBookingsPage({
         <Heading level={1} className="mb-section">
           {t('title')}
         </Heading>
+
+        {coach ? (
+          <InlineNotice variant="info" className="mb-section" data-testid="coach-notice">
+            {t('coachNotice')}
+          </InlineNotice>
+        ) : null}
 
         <ViewerScope viewerId={userId}>
           <MyBookingsTabs initialTab={tab} seed={seed} reviewMaxLength={REVIEW_MAX_LENGTH} />

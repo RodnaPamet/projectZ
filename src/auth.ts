@@ -269,12 +269,15 @@ export const authOptions: NextAuthOptions = {
             avatarUrl: typeof user.image === 'string' ? user.image : null,
             // The provider asserted it, and for Google we just checked it.
             emailVerified: new Date(),
-            // A first sign-in holds nothing, and an account that holds nothing
-            // is a player (#263). Stated rather than left to the column
-            // default, because it is a decision: this account becomes a CLUB
-            // account only by being made an owner or accepting a staff invite
-            // while still empty, and never by anything a sign-in does.
-            accountKind: 'PLAYER',
+            // A first sign-in holds nothing and has decided nothing: the
+            // person is asked "Играч или треньор?" before anything else
+            // (#360, Q13), and `/start` sends an undecided account to that
+            // question. Stated rather than left to the column default
+            // (PLAYER, which scripts and the previous image still rely on),
+            // because it is a decision. A staff invite or being made an owner
+            // still turns an EMPTY undecided account into a CLUB account
+            // (`account-kind.ts`), as it did an empty player.
+            accountKind: null,
           },
           update: {},
           select: { id: true },

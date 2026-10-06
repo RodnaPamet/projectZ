@@ -31,12 +31,13 @@ describe('toMyBookingDto', () => {
     clubSlug: 'slot-club-sofia',
     venueReview: null,
     canReview: true,
+    viewerRole: 'BOOKER' as const,
     // What the use case's row carries beyond the DTO. None of it may leak.
     tenantId: 't1',
     resourceId: 'r1',
   };
 
-  it('is BookingDto plus clubSlug, venueReview and canReview — and nothing else', () => {
+  it('is BookingDto plus clubSlug, venueReview, canReview and viewerRole — and nothing else', () => {
     expect(toMyBookingDto(row)).toEqual({
       id: 'b1',
       status: 'COMPLETED',
@@ -55,6 +56,7 @@ describe('toMyBookingDto', () => {
       clubSlug: 'slot-club-sofia',
       venueReview: null,
       canReview: true,
+      viewerRole: 'BOOKER',
     });
   });
 
@@ -62,6 +64,12 @@ describe('toMyBookingDto', () => {
     const dto = toMyBookingDto({ ...row, status: 'CONFIRMED' });
     expect(dto.cancellableUntil).toBe('2026-07-14T06:00:00Z');
     expect(dto.venue).toEqual({ id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' });
+  });
+
+  it('tells an added player there is nothing for them to cancel (#358)', () => {
+    const dto = toMyBookingDto({ ...row, status: 'CONFIRMED', viewerRole: 'PARTICIPANT' });
+    expect(dto.viewerRole).toBe('PARTICIPANT');
+    expect(dto.cancellableUntil).toBeNull();
   });
 
   it('rebuilds the review rather than passing the row through', () => {
