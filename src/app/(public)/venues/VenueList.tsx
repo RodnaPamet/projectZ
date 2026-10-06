@@ -47,12 +47,12 @@ const FILTER_NAMES = ['q', 'city', 'sport'] as const;
  * ═══ EACH CARD LINKS TO ITS VENUE PAGE (#355) ═══
  *
  * `/venues/{publicSlug}`: the venue's public address, unique across clubs
- * (P40). The name is the link and stretches over the card, so the whole card
+ * (P41). The name is the link and stretches over the card, so the whole card
  * is the target and a screen reader hears one link named after the venue.
  * Default (auto) prefetch, per docs/perf/navigation-policy.md: each card in the
  * viewport fetches the page's `loading.tsx` shell, so a tap paints the
  * skeleton at once. Full prefetch stays pinned to the two links T30 chose.
- * A venue without a public slug (none, after P40's backfill) stays plain text
+ * A venue without a public slug (none, after P41's backfill) stays plain text
  * rather than linking to a 404 (#267).
  */
 export function VenueList({

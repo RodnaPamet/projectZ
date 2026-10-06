@@ -6,7 +6,7 @@ model Venue {
   /// The venue's public address, `/venues/{publicSlug}` (#355), unique across
   /// every club — unlike `slug`, which is unique only within one. Filled by a
   /// database trigger on INSERT when the writer leaves it out, and never
-  /// changed after: see P40. Nullable only so the migration is additive.
+  /// changed after: see P41. Nullable only so the migration is additive.
   publicSlug  String? @unique
   name        String
   /// NOT encrypted and NOT sanitised. Author-written marketing copy, rendered

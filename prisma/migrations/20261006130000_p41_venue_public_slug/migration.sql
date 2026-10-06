@@ -1,4 +1,4 @@
--- P40: a public address for every venue, `/venues/{publicSlug}` (#355).
+-- P41: a public address for every venue, `/venues/{publicSlug}` (#355).
 --
 -- ═══ WHY A NEW COLUMN, NOT `venue.slug` ═══
 --
