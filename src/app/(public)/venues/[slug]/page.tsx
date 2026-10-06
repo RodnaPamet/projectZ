@@ -1,23 +1,18 @@
-import { cache } from 'react';
+import { cache, Suspense } from 'react';
 
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
-import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
-import { toAvailability } from '@/app/api/v1/_lib/dto';
-import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
-import { playerChrome } from '@/components/layout/SiteHeader';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
-import { ViewerScope } from '@/lib/data/provider';
 import { venuePath } from '@/lib/seo/sitemap';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { buildVenueJsonLd, serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
-import { bookingDays, isPublicSlug, parseInitialPick } from './booking-days';
-import { VenueBooking } from './VenueBooking';
+import { isPublicSlug } from './booking-days';
 import { VenueHeader } from './VenueHeader';
+import { VenueSlots, VenueSlotsSkeleton } from './VenueSlots';
 
 /**
  * The venue page, `/venues/{publicSlug}` (#355, audit A01): who the venue is,
@@ -30,18 +25,22 @@ import { VenueHeader } from './VenueHeader';
  * which is what a URL people share and search engines index wants. The v1 API
  * keeps addressing venues by id; this page reads them by `publicSlug` itself.
  *
- * ═══ THE HEADER AND THE FIRST DAY ARE SERVER-RENDERED ═══
+ * ═══ TWO STAGES: THE HEADER, THEN THE SLOTS (#403) ═══
  *
- * The first day's slots are computed here by `loadVenueAvailability` — the
- * loop `GET /api/v1/venues/{id}/availability` runs — and mapped by the same
- * `toAvailability`, for the window `?date=` resolves to. `VenueBooking` holds
- * them under that endpoint's SWR key and revalidates after paint, so a page
- * served from the router cache (up to 30 s old) is corrected on arrival; the
- * other 13 days are read through the same endpoint when picked. `loading.tsx`
- * paints the skeleton meanwhile (T12).
+ * The header (one venue row, `readVenue`) renders in the page's shell. The day
+ * picker and the first day's slots (`VenueSlots`, which computes them) wait
+ * behind their own Suspense boundary with their own skeleton, so a slow
+ * availability read never holds the venue's name back. `loading.tsx` still
+ * paints the whole page's skeleton on the tap (T12): it is what the cards'
+ * auto prefetch fetches.
  *
- * "The first day" is today at the club, or the `?day=` a sign-in round trip
- * came back with — so the visitor lands on the slot they picked, rendered.
+ * What this does NOT buy on a cold client-side navigation, measured (#403):
+ * the header still paints with the slots. Every part of it is a client
+ * component (the vendored Heading, Caption and StatusBadge, next/link), and
+ * Turbopack maps each of those references to the page's whole chunk list, so
+ * the header needs the page's JS chunk, which is requested only when the RSC
+ * answer arrives. And content that follows a skeleton is held by React's
+ * 300 ms reveal throttle (#290) anyway. docs/perf/README.md has the numbers.
  *
  * ═══ SIGNED OUT SEES EVERYTHING ═══
  *
@@ -158,49 +157,14 @@ export default async function VenuePage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  const { slug } = await params;
   const found = await readVenue(slug);
   if (!found) notFound();
 
   const { venue, clubSlug } = found;
-  const now = new Date();
-  const days = bookingDays(now, venue.timezone);
-  const pick = parseInitialPick(sp, days);
-
-  // The window `GET …/availability?date=` answers, resolved by the same
-  // function, so the seed is exactly what the SWR key below would fetch.
-  const { from, to } = resolveAvailabilityRange(
-    new URLSearchParams({ date: pick.day }),
-    venue.timezone,
-    now,
-  );
-  const publicVenue = { id: venue.id, name: venue.name, timezone: venue.timezone };
-
-  const [resources, { me, kind }] = await Promise.all([
-    runAsSuperuser((db) => loadVenueAvailability(db, { venue: publicVenue, from, to })),
-    playerChrome(),
-  ]);
-  const seed = toAvailability({ venue: publicVenue, from, to, resources });
+  const publicSlug = venue.publicSlug ?? slug;
   const sports = [...new Set(venue.resources.map((r) => r.sport))];
-  const jsonLd = await venueJsonLd(venue, sports, venuePath(venue.publicSlug ?? slug));
-
-  const booking = (
-    <VenueBooking
-      venue={{
-        id: venue.id,
-        name: venue.name,
-        publicSlug: venue.publicSlug ?? slug,
-        clubSlug,
-        timezone: venue.timezone,
-        cancellationCutoffHours: venue.cancellationCutoffHours,
-      }}
-      days={days}
-      seed={{ day: pick.day, availability: seed }}
-      initialPick={pick}
-      renderedAt={now.toISOString()}
-      viewer={kind === 'signed-out' ? 'signed-out' : kind}
-    />
-  );
+  const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug));
 
   // The header and the tab bar come from (public)/layout.tsx (T20).
   return (
@@ -220,10 +184,21 @@ export default async function VenuePage({
           city={venue.city}
           sports={sports}
         />
-        {/* ViewerScope sends the signed-in user's id with the booking, so a
-            tab left open across a switch to another account is refused 409
-            VIEWER_CHANGED rather than booking as that account (#263). */}
-        {me ? <ViewerScope viewerId={me.userId}>{booking}</ViewerScope> : booking}
+        {/* The second stage (#403): only the slots wait for the day's
+            availability; the header above is already on screen. */}
+        <Suspense fallback={<VenueSlotsSkeleton />}>
+          <VenueSlots
+            venue={{
+              id: venue.id,
+              name: venue.name,
+              publicSlug,
+              timezone: venue.timezone,
+              cancellationCutoffHours: venue.cancellationCutoffHours,
+            }}
+            clubSlug={clubSlug}
+            searchParams={searchParams}
+          />
+        </Suspense>
       </div>
     </main>
   );
