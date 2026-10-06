@@ -71,7 +71,10 @@ test.describe('the venue page, 1280 px', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText(label.slice(0, 5), { exact: false })).toBeVisible();
+    // The time row STARTS with it ("08:00–09:00"). A bare substring also
+    // matched the cancel deadline between midnight and 08:00 at the club
+    // ("…до сряда, 7 октомври в 08:00"), a strict-mode failure only at night.
+    await expect(dialog.getByText(new RegExp(`^${label.slice(0, 5)}–`))).toBeVisible();
     await confirmAndSeeIt(page, venue, label);
   });
 
