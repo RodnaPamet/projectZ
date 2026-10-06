@@ -44,6 +44,9 @@ import { dirname, join, normalize } from 'node:path';
 const ENTRY_POINTS = [
   ...globSync('src/app/**/route.ts').map((f) => f.toString()),
   ...globSync('src/app/**/page.tsx').map((f) => f.toString()),
+  // A layout renders on every request beneath it, as surely as its pages do:
+  // the club admin layout reads the club's public venue for its way out (#362).
+  ...globSync('src/app/**/layout.tsx').map((f) => f.toString()),
   // ═══ SERVER ACTIONS ARE ENTRY POINTS TOO ═══
   //
   // A `'use server'` module compiles to POST endpoints the client can call

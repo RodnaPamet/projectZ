@@ -5,6 +5,7 @@ import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
 import bg from '../../messages/bg.json';
 
 import { expect, test } from './fixtures';
+import { prisma } from './utils/create-isolated-tenant';
 
 /**
  * The club-admin shell at 1280 px, as the club's OWNER (T19).
@@ -73,6 +74,51 @@ test.describe('club admin shell — desktop', () => {
     const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
     await expect(menu.getByTestId('user-menu-public')).toHaveAttribute('href', '/venues');
     await expect(menu.getByTestId('user-menu-profile')).toHaveAttribute('href', '/me/profile');
+  });
+
+  test('"Публична страница" opens the club’s venue page once it has a live venue (#355)', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    // A live venue for this club; the database fills its publicSlug (P41).
+    const venue = await prisma().$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+      const v = await tx.venue.create({
+        data: {
+          tenantId: isolatedTenant.tenantId,
+          slug: `${isolatedTenant.tenantSlug}-venue`,
+          name: `E2E venue ${isolatedTenant.tenantSlug}`,
+          addressLine: 'ул. Корт 1',
+          city: 'Sofia',
+          lat: 42.6977,
+          lng: 23.3219,
+          email: `${isolatedTenant.tenantSlug}@playerz.test`,
+          timezone: 'Europe/Sofia',
+        },
+      });
+      return tx.venue.findUniqueOrThrow({
+        where: { id: v.id },
+        select: { id: true, publicSlug: true, name: true },
+      });
+    });
+
+    try {
+      await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+      const pub = page.getByTestId('admin-public-link');
+      await expect(pub).toHaveAttribute('href', `/venues/${venue.publicSlug}`);
+      await pub.click();
+      await expect(page).toHaveURL(new RegExp(`/venues/${venue.publicSlug}$`));
+      await expect(page.getByRole('heading', { level: 1, name: venue.name })).toBeVisible();
+      // And back: the club account's way home from its own venue page.
+      await page.getByTestId('site-header-admin').click();
+      await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
+    } finally {
+      // `venue.tenantId` is not a foreign key: the venue does not go with the club.
+      await prisma().$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+        await tx.venue.deleteMany({ where: { id: venue.id } });
+      });
+    }
   });
 
   test('staff: only the pages the role opens, and a closed one is a 404 in the shell (S01)', async ({
