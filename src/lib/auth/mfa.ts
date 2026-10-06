@@ -271,7 +271,8 @@ export async function startEnrolment(
       where: { id: userSessionId, userId: caller.userId, revokedAt: null },
       select: { createdAt: true, user: { select: { email: true } } },
     });
-    if (!session) throw new PlatformStepUpRequiredError();
+    // `!session.user`: deleted between Prisma's two selects (#419). No live session.
+    if (!session?.user) throw new PlatformStepUpRequiredError();
     if (now.getTime() - session.createdAt.getTime() > MFA_ENROL_FRESH_SIGN_IN_SECONDS * 1000) {
       throw new MfaReauthRequiredError();
     }
@@ -450,7 +451,8 @@ export async function regenerateRecoveryCodes(
       where: { id: userSessionId, userId: caller.userId, revokedAt: null, expiresAt: { gt: now } },
       select: { mfaVerifiedAt: true, user: { select: { mfaEnabledAt: true } } },
     });
-    if (!session?.user.mfaEnabledAt) throw new MfaEnrolmentRequiredError();
+    // `?.user?.`: a user deleted between Prisma's two selects reads as null (#419).
+    if (!session?.user?.mfaEnabledAt) throw new MfaEnrolmentRequiredError();
     if (!isStepUpFresh(session.mfaVerifiedAt, now)) throw new PlatformStepUpRequiredError();
 
     const recoveryCodes = await issueRecoveryCodes(db, caller.userId);

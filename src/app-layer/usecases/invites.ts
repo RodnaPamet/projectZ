@@ -240,7 +240,8 @@ export async function previewInvite(
       tenant: { select: { name: true, slug: true } },
     },
   });
-  if (!invite) return null;
+  // `!invite.tenant`: the club was deleted between Prisma's selects (#419).
+  if (!invite?.tenant) return null;
 
   return {
     inviteId: invite.id,

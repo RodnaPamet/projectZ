@@ -52,7 +52,10 @@ export async function assertFreshStepUp(
   // No such live session for this actor. Same answer as "not stepped up": the
   // remedy is the same, and naming the difference would describe our session
   // table to whoever is probing it.
-  if (!row) throw new PlatformStepUpRequiredError();
+  //
+  // `!row.user` is the same answer: the user was deleted between Prisma's two
+  // selects (see `checkSession`, #419), so there is no live session either.
+  if (!row?.user) throw new PlatformStepUpRequiredError();
   if (!row.user.mfaEnabledAt) throw new MfaEnrolmentRequiredError();
   if (!isStepUpFresh(row.mfaVerifiedAt, now)) throw new PlatformStepUpRequiredError();
 }

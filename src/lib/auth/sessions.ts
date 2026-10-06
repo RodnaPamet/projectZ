@@ -157,7 +157,14 @@ export async function checkSession(claims: SessionClaims): Promise<SessionCheck>
     }),
   );
 
-  if (!row) return { usable: false, reason: 'unknown' };
+  // `!row.user` is not dead code (#419). Prisma 7 loads a relation with a
+  // SECOND select, and inside a READ COMMITTED transaction the user can be
+  // deleted between the two — the cascade takes the session row with it, but
+  // the first select already returned it. Prisma then hands back `user: null`
+  // despite the relation being required, and reading `.sessionVersion` off it
+  // was a TypeError that turned a deleted account's request into a 500. A
+  // session whose user is gone is a session nobody can use.
+  if (!row?.user) return { usable: false, reason: 'unknown' };
   if (row.revokedAt) return { usable: false, reason: 'revoked' };
   if (row.expiresAt.getTime() <= Date.now()) return { usable: false, reason: 'expired' };
 
@@ -351,7 +358,9 @@ export async function rotateRefreshToken(input: {
       },
     });
 
-    if (!row) return { ok: false, reason: 'unknown' };
+    // `!row.user`: the user was deleted between Prisma's two selects. See
+    // `checkSession` (#419).
+    if (!row?.user) return { ok: false, reason: 'unknown' };
     if (row.revokedAt) return { ok: false, reason: 'revoked' };
     // THE refresh deadline. It is the row's own column, not a window measured
     // from this request, and nothing in this function moves it — which is why

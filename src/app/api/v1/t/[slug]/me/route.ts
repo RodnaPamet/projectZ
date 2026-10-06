@@ -87,7 +87,9 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ slug: string }
       )
     : null;
 
-  if (!found) {
+  // `!found.user` / `!found.tenant`: deleted between Prisma's selects, which
+  // returns a required relation as null (#419). Gone reads as not found.
+  if (!found?.user || !found.tenant) {
     // 404, not 403. "You are not a member" and "no such club" must be
     // indistinguishable, or this endpoint becomes a tenant-enumeration oracle.
     return NextResponse.json(

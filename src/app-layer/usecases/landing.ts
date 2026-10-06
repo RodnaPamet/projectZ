@@ -78,15 +78,23 @@ export async function readMemberships(
     });
   }
 
-  return rows.map((m) => ({
-    tenantId: m.tenant.id,
-    tenantSlug: m.tenant.slug,
-    tenantName: m.tenant.name,
-    role: m.role,
-    status: m.status,
-    tenantStatus: m.tenant.status,
-    createdAt: m.createdAt,
-  }));
+  // A club deleted between Prisma's two selects comes back as `tenant: null`
+  // despite the relation being required (#419). It is not a club to land in.
+  return rows.flatMap(({ tenant, role, status, createdAt }) =>
+    tenant
+      ? [
+          {
+            tenantId: tenant.id,
+            tenantSlug: tenant.slug,
+            tenantName: tenant.name,
+            role,
+            status,
+            tenantStatus: tenant.status,
+            createdAt,
+          },
+        ]
+      : [],
+  );
 }
 
 /**

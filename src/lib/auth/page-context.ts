@@ -177,7 +177,9 @@ export async function membershipContext(
       where: { userId, status: 'ACTIVE', tenant: { slug } },
       select: { tenantId: true, role: true, tenant: { select: { slug: true, name: true } } },
     });
-    if (!row) return null;
+    // `!row.tenant`: the club was deleted between Prisma's two selects, which
+    // returns a required relation as null (#419). No club, no member.
+    if (!row?.tenant) return null;
 
     // ═══ A GATED CLUB THIS SESSION HAS NOT CLEARED IS NOT ITS CLUB ═══
     //
