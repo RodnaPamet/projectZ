@@ -86,6 +86,8 @@ export const AUDIT_ACTIONS = {
   PLAYER_NO_SHOW_BLOCK_CLEARED: 'PLAYER_NO_SHOW_BLOCK_CLEARED',
   /// A club admin changed how long before the start a player may cancel.
   VENUE_CANCELLATION_CUTOFF_CHANGED: 'VENUE_CANCELLATION_CUTOFF_CHANGED',
+  /// A club admin changed how many upcoming online bookings one player may hold (#380).
+  CLUB_ONLINE_BOOKING_CAP_CHANGED: 'CLUB_ONLINE_BOOKING_CAP_CHANGED',
   /// MEMBER_ROLE_CHANGED and MEMBER_REMOVED already exist at the top of this
   /// list — the staff screen reuses them rather than minting near-duplicates.
   MEMBER_REINSTATED: 'MEMBER_REINSTATED',

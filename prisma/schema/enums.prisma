@@ -129,6 +129,15 @@ enum BookingStatus {
   NO_SHOW
 }
 
+/// How a booking was made (#380). `ONLINE` is a player in the app or on the
+/// web; `DESK` is the club booking on someone's behalf (#364), which is where a
+/// recurring series comes from too. Only ONLINE counts toward the club's cap on
+/// a player's upcoming online bookings.
+enum BookingChannel {
+  ONLINE
+  DESK
+}
+
 enum PaymentStatus {
   REQUIRES_ACTION
   PAID

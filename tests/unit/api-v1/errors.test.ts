@@ -15,6 +15,30 @@ describe('v1 domain error map', () => {
     expect(payload.error.code).toBe('INSUFFICIENT_CREDIT');
   });
 
+  it('BOOKING_LIMIT_REACHED is a 409 carrying the two numbers in details (#380)', () => {
+    // The code is agreed with the venue page (#355), which renders "3 of 3"
+    // from `details` rather than parsing the localised message.
+    const err = Object.assign(new Error('Достигнахте лимита…'), {
+      name: 'BookingLimitReachedError',
+      limit: 3,
+      upcoming: 3,
+    });
+    const { status, payload } = toV1ErrorResponse(err, 'req-1');
+
+    expect(status).toBe(409);
+    expect(payload.error).toEqual({
+      code: 'BOOKING_LIMIT_REACHED',
+      message: 'Достигнахте лимита…',
+      requestId: 'req-1',
+      details: { limit: 3, upcoming: 3 },
+    });
+  });
+
+  it('a mapping without a details reader sends no details', () => {
+    const { payload } = toV1ErrorResponse(new InsufficientCreditError(300, 1000));
+    expect(payload.error).not.toHaveProperty('details');
+  });
+
   it('leaves AppError subclasses to the canonical mapper', () => {
     // They already carry status and expose. Re-mapping them here would create
     // two sources of truth for the same error.

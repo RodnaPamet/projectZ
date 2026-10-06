@@ -20,9 +20,13 @@ model Booking {
   guestPhone     String?
   guestName      String?
 
-  status     BookingStatus @default(PENDING)
+  status     BookingStatus  @default(PENDING)
+  /// How it was made (#380). Every booking before this column existed came
+  /// through the player route, so the default backfills them as ONLINE —
+  /// which is also what the previous image keeps writing after a rollback.
+  channel    BookingChannel @default(ONLINE)
   totalCents Int
-  currency   String        @default("EUR")
+  currency   String         @default("EUR")
   /// NOT encrypted and NOT sanitised, and written straight from the request
   /// body with no length cap. Often holds access details — "ring the bell,
   /// gate code 4471" — which is why it was listed in the encrypted-field

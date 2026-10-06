@@ -2,6 +2,12 @@ import type { PrismaClient } from '@prisma/client';
 
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { MAX_CANCELLATION_CUTOFF_HOURS, playerCancellableUntil } from '@/lib/booking/cutoff';
+import {
+  DEFAULT_MAX_UPCOMING_ONLINE_BOOKINGS,
+  isValidOnlineBookingCap,
+  MAX_MAX_UPCOMING_ONLINE_BOOKINGS,
+  MIN_MAX_UPCOMING_ONLINE_BOOKINGS,
+} from '@/lib/booking/online-cap';
 import { translateFor } from '@/lib/i18n/server-messages';
 
 /**
@@ -354,6 +360,205 @@ export async function setVenueCancellationCutoff(
       summary: 'Changed how long before the start a player may cancel in the app',
       before: { cancellationCutoffHours: venue.cancellationCutoffHours },
       after: { cancellationCutoffHours: input.hours },
+    },
+  });
+}
+
+// ─── The cap on upcoming online bookings (#380) ─────────────────────
+
+/**
+ * The player already holds as many upcoming ONLINE bookings at this club as it
+ * allows.
+ *
+ * 409, not 403: the player may book here, and will be able to again as soon as
+ * one of those bookings is played or cancelled. The state of the world, not
+ * the caller's standing, is what refuses it — which is what 409 says.
+ * `limit` and `upcoming` ride to the client in `error.details`.
+ */
+export class BookingLimitReachedError extends Error {
+  constructor(
+    message: string,
+    readonly limit: number,
+    readonly upcoming: number,
+  ) {
+    super(message);
+    this.name = 'BookingLimitReachedError';
+  }
+}
+
+/**
+ * The club's cap: `VenueOrg.maxUpcomingOnlineBookings`.
+ *
+ * `venue_org` keys its row policy on its own id, so a handle bound to this
+ * tenant reads exactly this row. A missing row (it cannot be, inside a bound
+ * tenant) reads as the default rather than as "no cap".
+ */
+export async function clubOnlineBookingCap(db: PrismaClient, tenantId: string): Promise<number> {
+  const club = await db.venueOrg.findUnique({
+    where: { id: tenantId },
+    select: { maxUpcomingOnlineBookings: true },
+  });
+  return club?.maxUpcomingOnlineBookings ?? DEFAULT_MAX_UPCOMING_ONLINE_BOOKINGS;
+}
+
+/**
+ * How many upcoming ONLINE bookings this player holds at this club.
+ *
+ * Counted: CONFIRMED, and PENDING whose hold has not lapsed (the legacy online-
+ * payment flow; an expired hold the sweeper has not reached yet holds nothing),
+ * made through the ONLINE channel, starting after `now`.
+ *
+ * "Upcoming" is `startTs > now` on the absolute timeline — both are instants,
+ * so neither the server's zone nor the venue's enters into it. A booking under
+ * way has started and no longer counts; it is being played.
+ *
+ * Desk bookings and recurring series (`channel = DESK`) are never counted.
+ */
+export async function countUpcomingOnlineBookings(
+  db: PrismaClient,
+  tenantId: string,
+  playerUserId: string,
+  now: Date,
+): Promise<number> {
+  return db.booking.count({
+    where: {
+      tenantId,
+      bookedByUserId: playerUserId,
+      channel: 'ONLINE',
+      startTs: { gt: now },
+      OR: [
+        { status: 'CONFIRMED' },
+        { status: 'PENDING', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      ],
+    },
+  });
+}
+
+/**
+ * Serialise one player's online bookings at one club, until the caller's
+ * transaction ends.
+ *
+ * ═══ WHY A LOCK, AND WHY THIS ONE ═══
+ *
+ * The cap is a count followed by an INSERT, which is the check-then-insert
+ * shape `createBooking` warns about at length — and unlike the slot, there is
+ * no constraint that can arbitrate a COUNT. Two taps at two free slots both
+ * read "2 of 3", both insert, and the player holds 4.
+ *
+ * `pg_advisory_xact_lock` on a key derived from (club, player) makes the second
+ * request wait at this line until the first COMMITS, and since the count is the
+ * next statement under READ COMMITTED it takes a fresh snapshot that sees the
+ * first one's row. Chosen over SERIALIZABLE because:
+ *
+ *   - It only ever blocks the SAME player at the SAME club, which is a burst of
+ *     their own taps. SERIALIZABLE's predicate locks on `booking` would also
+ *     fail unrelated bookings that touch the same index pages, and every
+ *     failure needs a retry loop around the whole route transaction.
+ *   - Isolation can only be set on the OUTERMOST transaction (`inTenant` —
+ *     see rls-middleware), so SERIALIZABLE would have to be requested by the
+ *     route for every booking, cap or no cap.
+ *   - Transaction-scoped: it is released on COMMIT or ROLLBACK, so a thrown
+ *     error or a dropped connection can never leave it held.
+ *
+ * Deadlock-free: it is the only lock taken before the INSERT on this path, and
+ * a transaction holding it waits on nothing another holder of the same key
+ * holds. Bookings by OTHER players still meet at the EXCLUDE constraint only.
+ *
+ * The key is a 64-bit hash of a namespaced string. A collision between two
+ * (club, player) pairs would only make them queue behind each other, never
+ * let either past the cap.
+ *
+ * MUST run inside a transaction — outside one the lock is released at the end
+ * of its own statement and protects nothing. The route's `inTenant` is that
+ * transaction.
+ */
+export async function lockPlayerOnlineBookings(
+  db: PrismaClient,
+  tenantId: string,
+  playerUserId: string,
+): Promise<void> {
+  const key = `booking-cap:${tenantId}:${playerUserId}`;
+  // $executeRaw, not $queryRaw: the function returns `void`, which Prisma
+  // cannot deserialise as a column.
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+}
+
+/**
+ * Refuse a NEW online booking that would take the player past the club's cap,
+ * in their own language.
+ *
+ * Call with `lockPlayerOnlineBookings` already held, or the count is a guess.
+ */
+export async function assertUnderOnlineBookingCap(
+  db: PrismaClient,
+  tenantId: string,
+  playerUserId: string,
+  now: Date,
+): Promise<void> {
+  const limit = await clubOnlineBookingCap(db, tenantId);
+  const upcoming = await countUpcomingOnlineBookings(db, tenantId, playerUserId, now);
+  if (upcoming < limit) return;
+
+  const account = await db.user.findUnique({
+    where: { id: playerUserId },
+    select: { locale: true },
+  });
+  throw new BookingLimitReachedError(
+    await translateFor(account?.locale, 'bookingRules.onlineBookingLimitReached', {
+      limit,
+      upcoming,
+    }),
+    limit,
+    upcoming,
+  );
+}
+
+export class InvalidOnlineBookingCapError extends Error {
+  constructor() {
+    super(
+      `The cap on upcoming online bookings is a whole number from ` +
+        `${MIN_MAX_UPCOMING_ONLINE_BOOKINGS} to ${MAX_MAX_UPCOMING_ONLINE_BOOKINGS}.`,
+    );
+    this.name = 'InvalidOnlineBookingCapError';
+  }
+}
+
+/**
+ * A club admin sets the cap.
+ *
+ * The range is the database's CHECK, restated so a bad value is a message
+ * rather than a constraint error. Lowering it below what a player already holds
+ * cancels nothing: their bookings stand, and their next one is refused until
+ * they are back under it. Audited, with the value before and after.
+ */
+export async function setClubOnlineBookingCap(
+  db: PrismaClient,
+  tenantId: string,
+  input: { limit: number; actorUserId: string },
+): Promise<void> {
+  if (!isValidOnlineBookingCap(input.limit)) throw new InvalidOnlineBookingCapError();
+
+  const before = await clubOnlineBookingCap(db, tenantId);
+  if (before === input.limit) return;
+
+  await db.venueOrg.updateMany({
+    where: { id: tenantId },
+    data: { maxUpcomingOnlineBookings: input.limit },
+  });
+
+  await appendAuditEntry(db, {
+    tenantId,
+    actorUserId: input.actorUserId,
+    actorType: 'USER',
+    entity: 'VenueOrg',
+    entityId: tenantId,
+    action: AUDIT_ACTIONS.CLUB_ONLINE_BOOKING_CAP_CHANGED,
+    details: `Upcoming online bookings per player ${before} → ${input.limit}`,
+    detailsJson: {
+      category: 'venue',
+      summary: 'Changed how many upcoming online bookings one player may hold at the club',
+      before: { maxUpcomingOnlineBookings: before },
+      after: { maxUpcomingOnlineBookings: input.limit },
     },
   });
 }
