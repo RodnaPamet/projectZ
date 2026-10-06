@@ -39,6 +39,19 @@ describe('RouteSkeleton', () => {
 });
 
 const ROOT = path.resolve(__dirname, '../..');
+
+/**
+ * Skeletons that carry ONE real link, by design, and where it goes. The venue
+ * page's skeleton renders its real back link to /venues (#403): it is usable
+ * while the page loads, and it is the client reference that makes a card's
+ * auto prefetch fetch the page's JS chunk (VenueBackLink.tsx). No READY
+ * condition in the perf harness is a link to /venues, and the step that
+ * clicks one runs only after the venue page is ready, so the harness cannot
+ * mistake it for the page.
+ */
+const SKELETON_LINKS: Record<string, string> = {
+  'src/app/(public)/venues/[slug]/loading.tsx': '/venues',
+};
 const LOADING = globSync('src/app/**/loading.tsx', { cwd: ROOT })
   .map((f) => f.toString())
   .sort();
@@ -64,7 +77,12 @@ describe.each(LOADING)('%s', (file) => {
   it('has no heading, link or READY marker the harness could take for the page', () => {
     const { container } = render(withIntl(<Loading />));
     expect(screen.queryByRole('heading')).toBeNull();
-    expect(screen.queryByRole('link')).toBeNull();
+    const allowed = SKELETON_LINKS[file];
+    if (allowed) {
+      expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([allowed]);
+    } else {
+      expect(screen.queryByRole('link')).toBeNull();
+    }
     expect(container.querySelector('[data-perf-ready]')).toBeNull();
   });
 });
