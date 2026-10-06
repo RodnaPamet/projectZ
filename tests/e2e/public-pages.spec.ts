@@ -103,7 +103,11 @@ test.describe('public pages — desktop', () => {
 
     // #355: each card links to its venue page (#267 kept them plain text until
     // that page existed) — one link per card, named after the venue.
-    await expect(page.locator('main li a[href^="/venues/"]')).toHaveCount(await cards.count());
+    for (const text of ['Sofia Padel Club', 'Plovdiv Tennis Center']) {
+      await expect(
+        cards.filter({ hasText: text }).getByRole('link', { name: text }),
+      ).toHaveAttribute('href', /^\/venues\/[a-z0-9-]+$/);
+    }
   });
 
   test('/venues?city=…: the filter is in the read, and the seed is that city', async ({ page }) => {

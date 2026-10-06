@@ -77,7 +77,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const found = await readVenue(slug);
-  // The page answers 404 (notFound below); its not-found page names itself.
+  // The page renders the not-found page (notFound below), which names itself.
+  // Its status is 200, not 404: loading.tsx (T12) has started the stream
+  // before the venue is read, and a status cannot change mid-stream, so Next
+  // marks the page `noindex` instead (Next's streaming guide, "The HTTP
+  // contract"). An unknown slug is therefore never indexed.
   if (!found) return { robots: { index: false } };
   const t = await getTranslations('venue');
 

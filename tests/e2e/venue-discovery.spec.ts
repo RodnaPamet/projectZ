@@ -39,16 +39,18 @@ test.describe('venue discovery', () => {
    */
   test('every venue card links to its venue page, and the page answers', async ({ page }) => {
     await page.goto('/venues');
-    const cards = page.getByRole('main').getByRole('listitem');
-    await expect(cards.first()).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByRole('listitem').first()).toBeVisible();
 
-    const hrefs = await page
-      .locator('main li a[href^="/venues/"]')
-      .evaluateAll((as) => as.map((a) => a.getAttribute('href')!));
-    expect(hrefs.length).toBe(await cards.count());
-    for (const href of hrefs.slice(0, 3)) {
-      const res = await page.request.get(href);
-      expect(res.status(), href).toBe(200);
+    // The two seeded venues (scripts/seed.ts), by name: other specs add and
+    // remove their own venues in parallel, so a count of every card races.
+    for (const name of ['Sofia Padel Club', 'Plovdiv Tennis Center']) {
+      const card = main.getByRole('listitem').filter({ hasText: name });
+      await expect(card.getByRole('link')).toHaveCount(1);
+      const href = await card.getByRole('link', { name }).getAttribute('href');
+      expect(href).toMatch(/^\/venues\/[a-z0-9-]+$/);
+      const res = await page.request.get(href!);
+      expect(res.status(), href!).toBe(200);
     }
   });
 

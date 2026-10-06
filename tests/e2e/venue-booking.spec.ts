@@ -75,9 +75,12 @@ test.describe('the venue page, 1280 px', () => {
     await confirmAndSeeIt(page, venue, label);
   });
 
-  test('an unknown venue is a 404', async ({ page }) => {
-    const res = await page.goto('/venues/no-such-venue-anywhere');
-    expect(res?.status()).toBe(404);
+  test('an unknown venue is the not-found page, kept out of search', async ({ page }) => {
+    // Not a 404 status: loading.tsx (T12) starts the stream before the page
+    // knows, and Next then marks the page noindex instead (see page.tsx).
+    await page.goto('/venues/no-such-venue-anywhere');
+    await expect(page.getByRole('heading', { name: bg.notFound.title })).toBeVisible();
+    await expect(page.locator('meta[name="robots"][content="noindex"]').first()).toBeAttached();
   });
 
   test('has no critical or serious accessibility violations, sheet open too', async ({

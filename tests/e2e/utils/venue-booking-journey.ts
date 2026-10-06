@@ -53,8 +53,9 @@ export async function confirmAndSeeIt(page: Page, venue: BookableVenue, timeLabe
   await expect(page).toHaveURL(/\/me\/bookings$/);
   const main = page.getByRole('main');
   await expect(main.getByText(venue.venueName).first()).toBeVisible();
-  // The card shows the time the player picked.
-  await expect(main.getByText(timeLabel.slice(0, 5)).first()).toBeVisible();
+  // The card shows the time the player picked (it writes 8:00, not 08:00).
+  const hm = timeLabel.slice(0, 5).replace(/^0/, '');
+  await expect(main.getByText(new RegExp(`(^|\\D)${hm}\\b`)).first()).toBeVisible();
 
   const count = await prisma().$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
