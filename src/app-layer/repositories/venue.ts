@@ -1,4 +1,6 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, SportType } from '@prisma/client';
+
+import { canonicalCity, citiesMatching, citySpellings } from '@/lib/geo/cities';
 
 /**
  * Venue reads.
@@ -17,7 +19,8 @@ export const DEFAULT_PAGE_SIZE = 20;
 export interface VenueFilter {
   q?: string;
   city?: string;
-  sport?: Prisma.EnumSportTypeFilter['equals'];
+  /** Already checked against the enum by the caller (#334): see `sportParam`. */
+  sport?: SportType;
   indoor?: boolean;
   maxPriceCents?: number;
 }
@@ -46,14 +49,21 @@ export async function listVenues(
 ): Promise<Page<Prisma.VenueGetPayload<{ include: { resources: true } }>>> {
   const take = clampLimit(opts.limit);
 
+  // A known city matches every way it is spelled (#357): `?city=Sofia` finds a
+  // venue a club typed as `София`, and a search for "соф" finds `Sofia`. An
+  // unknown city is matched exactly as before. See src/lib/geo/cities.ts.
+  const qCities = filter.q ? citiesMatching(filter.q) : [];
   const where: Prisma.VenueWhereInput = {
     status: 'ACTIVE',
-    ...(filter.city ? { city: { equals: filter.city, mode: 'insensitive' } } : {}),
+    ...(filter.city ? { city: { in: citySpellings(filter.city), mode: 'insensitive' } } : {}),
     ...(filter.q
       ? {
           OR: [
             { name: { contains: filter.q, mode: 'insensitive' } },
             { city: { contains: filter.q, mode: 'insensitive' } },
+            ...(qCities.length > 0
+              ? [{ city: { in: qCities, mode: 'insensitive' as const } }]
+              : []),
           ],
         }
       : {}),
@@ -91,6 +101,48 @@ export async function listVenues(
   return {
     items,
     nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null,
+  };
+}
+
+/** The most cities and sports the /venues filters offer. */
+export const MAX_FACETS = 100;
+
+export interface VenueFacets {
+  /** Canonical spellings (what `?city=` carries), one per city, sorted. */
+  cities: string[];
+  sports: SportType[];
+}
+
+/**
+ * What the /venues filters offer (#357): the cities with a live venue, and
+ * the sports with a live court at a live venue. Offering every city in the
+ * country, or all sixteen sports, would mostly lead to the empty state.
+ *
+ * Cross-tenant like `listVenues`, with the same `status: ACTIVE` filters, so
+ * a choice offered here finds at least the venue that put it here.
+ */
+export async function listVenueFacets(db: PrismaClient): Promise<VenueFacets> {
+  // guardrail-allow: cross-tenant — the public index's filters span every
+  // club, as the index does. Only the distinct city and sport are read.
+  const cityRows = await db.venue.findMany({
+    where: { status: 'ACTIVE' },
+    select: { city: true },
+    distinct: ['city'],
+    orderBy: { city: 'asc' },
+    take: MAX_FACETS,
+  });
+  // guardrail-allow: cross-tenant — as above.
+  const sportRows = await db.resource.findMany({
+    where: { status: 'ACTIVE', venue: { status: 'ACTIVE' } },
+    select: { sport: true },
+    distinct: ['sport'],
+    orderBy: { sport: 'asc' },
+    take: MAX_FACETS,
+  });
+
+  return {
+    cities: [...new Set(cityRows.map((r) => canonicalCity(r.city)).filter(Boolean))].sort(),
+    sports: sportRows.map((r) => r.sport),
   };
 }
 
@@ -158,7 +210,7 @@ export async function getVenueByPublicSlug(db: PrismaClient, publicSlug: string)
 export async function listSitemapVenues(
   db: PrismaClient,
   limit: number,
-): Promise<Array<{ publicSlug: string; updatedAt: Date }>> {
+): Promise<Array<{ publicSlug: string; updatedAt: Date; tenantId: string }>> {
   // guardrail-allow: cross-tenant — the sitemap lists every club's public
   // venue pages, the same set the public index and venue pages show.
   const venues = await db.venue.findMany({
@@ -177,9 +229,42 @@ export async function listSitemapVenues(
   const activeIds = new Set(active.map((c) => c.id));
   return venues.flatMap((v) =>
     v.publicSlug && activeIds.has(v.tenantId)
-      ? [{ publicSlug: v.publicSlug, updatedAt: v.updatedAt }]
+      ? [{ publicSlug: v.publicSlug, updatedAt: v.updatedAt, tenantId: v.tenantId }]
       : [],
   );
+}
+
+/**
+ * Every club page a search engine should know about (#356): ACTIVE clubs with
+ * at least one venue on the sitemap. A club page with no venue is an empty
+ * shell — a "soft 404" to a crawler — so it waits until it has one.
+ *
+ * Built from `listSitemapVenues`' answer, so the two cannot disagree about
+ * which clubs are live, plus one lookup for the slugs. `lastModified` is the
+ * newer of the club row and its newest venue: the page shows both.
+ */
+export async function listSitemapClubs(
+  db: PrismaClient,
+  venues: ReadonlyArray<{ tenantId: string; updatedAt: Date }>,
+): Promise<Array<{ slug: string; updatedAt: Date }>> {
+  const newest = new Map<string, Date>();
+  for (const v of venues) {
+    const seen = newest.get(v.tenantId);
+    if (!seen || v.updatedAt > seen) newest.set(v.tenantId, v.updatedAt);
+  }
+  if (newest.size === 0) return [];
+  // guardrail-allow: cross-tenant — the sitemap lists every club's public
+  // page; only the slug and the date are read.
+  const clubs = await db.venueOrg.findMany({
+    where: { id: { in: [...newest.keys()] }, status: 'ACTIVE' },
+    select: { id: true, slug: true, updatedAt: true },
+    orderBy: { slug: 'asc' },
+    take: newest.size,
+  });
+  return clubs.map((c) => {
+    const venueDate = newest.get(c.id)!;
+    return { slug: c.slug, updatedAt: venueDate > c.updatedAt ? venueDate : c.updatedAt };
+  });
 }
 
 export async function getVenueBySlug(db: PrismaClient, tenantId: string, venueSlug: string) {

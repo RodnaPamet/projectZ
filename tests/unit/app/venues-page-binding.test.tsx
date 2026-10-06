@@ -7,7 +7,7 @@
  */
 import { isValidElement, type ReactNode } from 'react';
 
-import { listVenues } from '@/app-layer/repositories/venue';
+import { listVenueFacets, listVenues } from '@/app-layer/repositories/venue';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import VenuesPage from '@/app/(public)/venues/page';
 import { VenueList } from '@/app/(public)/venues/VenueList';
@@ -53,6 +53,7 @@ jest.mock('@/lib/db/rls-middleware', () => {
 
 jest.mock('@/app-layer/repositories/venue', () => ({
   listVenues: jest.fn(async () => ({ items: [], nextCursor: null })),
+  listVenueFacets: jest.fn(async () => ({ cities: ['Sofia'], sports: ['PADEL'] })),
 }));
 
 jest.mock('next-intl/server', () => ({
@@ -110,6 +111,20 @@ describe('public venues page database binding', () => {
     // obtained some other way: only the wrapper's handle carries this marker.
     const [db] = jest.mocked(listVenues).mock.calls[0]!;
     expect((db as unknown as { __boundAs?: string }).__boundAs).toBe('app_superuser');
+    // The filters' choices (#357) come off the same bound handle.
+    const [facetDb] = jest.mocked(listVenueFacets).mock.calls[0]!;
+    expect((facetDb as unknown as { __boundAs?: string }).__boundAs).toBe('app_superuser');
+  });
+
+  it('drops a sport outside the enum before it reaches the repository (#334)', async () => {
+    const tree = await VenuesPage({
+      searchParams: Promise.resolve({ sport: 'foo', city: ' Sofia ' }),
+    });
+
+    const [, filter] = jest.mocked(listVenues).mock.calls[0]!;
+    expect(filter).toEqual({ q: undefined, city: 'Sofia', sport: undefined });
+    // And the list is told the same, so it keys the read the server made.
+    expect(listProps(tree).initialFilters).toEqual({ city: 'Sofia' });
   });
 
   it('forwards the search filters to the repository', async () => {
@@ -167,6 +182,7 @@ describe('public venues page database binding', () => {
     expect(listProps(tree)).toEqual({
       seed: { items: [], nextCursor: null },
       initialFilters: {},
+      facets: { cities: ['Sofia'], sports: ['PADEL'] },
     });
   });
 });

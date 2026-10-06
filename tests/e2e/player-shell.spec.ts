@@ -112,7 +112,8 @@ test.describe('player shell — desktop', () => {
     const pub = page.getByTestId('admin-public-link');
     await expect(pub).toBeVisible();
     await pub.click();
-    await expect(page).toHaveURL(/\/venues$/);
+    // The club's own page (#356).
+    await expect(page).toHaveURL(new RegExp(`/clubs/${isolatedTenant.tenantSlug}$`));
     await expect(page.getByTestId('site-header-admin')).toBeVisible();
   });
 

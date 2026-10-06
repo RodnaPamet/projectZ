@@ -277,14 +277,17 @@ describe('/t/[slug] — a club’s front door, by the role held there', () => {
     expect(await visit(t.tenantSlug)).toBe(diary(t));
   });
 
-  it.each(['PLAYER', 'COACH'] as const)('a %s goes to the player UI', async (role) => {
-    const t = await seedTenant({});
-    const userId = await newUser(role.toLowerCase(), kindForRole(role));
-    await join(userId, t.tenantId, role);
-    await signIn(userId);
+  it.each(['PLAYER', 'COACH'] as const)(
+    'a %s goes to the club’s public page (#356), not the player UI',
+    async (role) => {
+      const t = await seedTenant({});
+      const userId = await newUser(role.toLowerCase(), kindForRole(role));
+      await join(userId, t.tenantId, role);
+      await signIn(userId);
 
-    expect(await visit(t.tenantSlug)).toBe(PLAYER_HOME);
-  });
+      expect(await visit(t.tenantSlug)).toBe(`/clubs/${t.tenantSlug}`);
+    },
+  );
 
   it('is a 404 for a club you are not in — the same as for a club that does not exist', async () => {
     const mine = await seedTenant({});
@@ -295,12 +298,10 @@ describe('/t/[slug] — a club’s front door, by the role held there', () => {
     expect(await visit('no-such-club-anywhere')).toBe('404');
   });
 
-  it('sends a signed-out visitor to sign in, and back here afterwards', async () => {
+  it('sends a signed-out visitor to the club’s public page, not a sign-in wall (#356, A03)', async () => {
     const t = await seedTenant({});
 
-    expect(await visit(t.tenantSlug)).toBe(
-      `/login?next=${encodeURIComponent(`/t/${t.tenantSlug}`)}`,
-    );
+    expect(await visit(t.tenantSlug)).toBe(`/clubs/${t.tenantSlug}`);
   });
 });
 

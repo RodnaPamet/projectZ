@@ -67,6 +67,9 @@ import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
  */
 const HEALTH_PATHS = new Set(['/api/health', '/api/ready']);
 
+/** `/t/{slug}` and nothing below it: a club's index, which the page routes by role. */
+const CLUB_INDEX = /^\/t\/([^/]+)\/?$/;
+
 /**
  * The canonical error envelope, hand-written.
  *
@@ -113,6 +116,15 @@ export async function middleware(req: NextRequest) {
     case 'unauthenticated': {
       if (pathname.startsWith('/api/')) {
         return apiError(401, 'UNAUTHORIZED', 'Authentication required');
+      }
+      // A club's bare address, signed out: its public page (#356, audit A03),
+      // not a sign-in wall. `/t/{slug}` was the URL people had for a club, and
+      // it only ever said "sign in". A redirect, not an opening: everything
+      // below `/t/{slug}/` still goes to sign-in, and the public page is its
+      // own route with its own ACTIVE checks.
+      const clubIndex = CLUB_INDEX.exec(pathname);
+      if (clubIndex) {
+        return NextResponse.redirect(new URL(`/clubs/${clubIndex[1]}`, req.url));
       }
       const login = new URL('/login', req.url);
       // The query string too: `/t/x/admin/calendar?day=2026-10-01` is a deep

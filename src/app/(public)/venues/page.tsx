@@ -1,12 +1,14 @@
+import type { SportType } from '@prisma/client';
 import { getTranslations } from 'next-intl/server';
 
-import { listVenues } from '@/app-layer/repositories/venue';
+import { listVenueFacets, listVenues } from '@/app-layer/repositories/venue';
 import { toVenueSummary, type VenueSummary } from '@/app/api/v1/_lib/dto';
 import { Heading } from '@/components/ui/typography';
 import type { V1Page } from '@/lib/data/keys';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
-import { VenueList, type VenueFilters } from './VenueList';
+import { filtersFromParams } from './filters';
+import { VenueList } from './VenueList';
 
 export async function generateMetadata() {
   const t = await getTranslations('venues');
@@ -52,12 +54,14 @@ export default async function VenuesPage({
 
   // Only what the key carries, and empty is absent — as `query()` in keys.ts
   // treats it. A filter the server applied that the key did not would serve
-  // one query's rows under another query's name.
-  const filters: VenueFilters = {};
-  for (const k of ['q', 'city', 'sport'] as const) {
-    const v = sp[k];
-    if (typeof v === 'string' && v !== '') filters[k] = v;
-  }
+  // one query's rows under another query's name. VenueList reads the URL with
+  // the same function, so the two agree; it drops an unknown sport (#334).
+  const filters = filtersFromParams({
+    get: (k) => {
+      const v = sp[k as keyof typeof sp];
+      return typeof v === 'string' ? v : null;
+    },
+  });
 
   // BYPASSRLS, not the raw singleton — the same binding /api/v1/venues uses,
   // and for the same reason. `venue` carries FORCE ROW LEVEL SECURITY keyed on
@@ -74,10 +78,11 @@ export default async function VenuesPage({
   //
   // `runAsSuperuser` directly rather than `asSuperuser` from the v1 bindings:
   // that helper takes a RequestContext, which a page does not have.
-  const seed: V1Page<VenueSummary> = await runAsSuperuser(async (db) => {
+  const { seed, facets } = await runAsSuperuser(async (db) => {
     const result = await listVenues(
       db,
-      { q: filters.q, city: filters.city, sport: filters.sport as never },
+      // `filtersFromParams` let only a Sport enum value through.
+      { q: filters.q, city: filters.city, sport: filters.sport as SportType | undefined },
       {},
     );
 
@@ -93,13 +98,17 @@ export default async function VenuesPage({
       : [];
     const slugs = new Map(clubs.map((c) => [c.id, c.slug]));
 
-    return {
+    const seed: V1Page<VenueSummary> = {
       items: result.items.flatMap((v) => {
         const clubSlug = slugs.get(v.tenantId);
         return clubSlug ? [toVenueSummary(v, clubSlug)] : [];
       }),
       nextCursor: result.nextCursor,
     };
+
+    // What the filters offer (#357): the cities and sports some live venue
+    // has. Two DISTINCT reads in the same transaction, for the same reason.
+    return { seed, facets: await listVenueFacets(db) };
   });
 
   // The site header and the tab bar come from (public)/layout.tsx (T20).
@@ -116,7 +125,7 @@ export default async function VenuesPage({
       <main className="bg-bg-page text-content-default safe-area-x">
         <div className="px-6 py-10">
           <Heading level={1}>{t('title')}</Heading>
-          <VenueList seed={seed} initialFilters={filters} />
+          <VenueList seed={seed} initialFilters={filters} facets={facets} />
         </div>
       </main>
     </>

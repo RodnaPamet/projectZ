@@ -149,7 +149,22 @@
       "title": "Няма обекти, отговарящи на търсенето",
       "description": "Опитайте с друг град или спорт."
     },
-    "priceFrom": "от {price} / час"
+    "priceFrom": "от {price} / час",
+    "filters": {
+      "label": "Филтри",
+      "search": "Търсене на обект",
+      "searchPlaceholder": "Име на обект или град",
+      "sport": "Спорт",
+      "allSports": "Всички",
+      "city": "Град",
+      "allCities": "Всички градове",
+      "citySearch": "Търсене на град",
+      "cityNone": "Няма такъв град"
+    },
+    "error": {
+      "title": "Обектите не се заредиха",
+      "description": "Проверете връзката и опитайте отново."
+    }
   },
   "venue": {
     "metaTitle": "{name} — резервирай корт | playerz.bg",
@@ -213,6 +228,46 @@
         "failed": "Опитайте отново. Ако връзката е прекъснала, повторният опит няма да създаде втора резервация."
       }
     }
+  },
+  "club": {
+    "metaTitle": "{name} — кортове и резервации | playerz.bg",
+    "metaDescription": "{name}: {count, plural, one {# обект} other {# обекта}}{city, select, none {} other { в {city}}}. Свободни часове и резервация онлайн с плащане на място.",
+    "back": "Към обектите",
+    "sportsLabel": "Спортове",
+    "contactLabel": "Контакти",
+    "phone": "Телефон: {phone}",
+    "venuesTitle": "Обекти",
+    "venuesCount": "{count, plural, one {# обект} other {# обекта}}",
+    "freeToday": "Свободно днес",
+    "freeMore": "+{count}",
+    "noneToday": "Няма свободни часове днес",
+    "freeError": "Свободните часове не се заредиха",
+    "noVenues": {
+      "title": "Клубът все още няма обекти",
+      "description": "Когато клубът добави обект, ще можете да резервирате тук."
+    }
+  },
+  "cities": {
+    "sofia": "София",
+    "plovdiv": "Пловдив",
+    "varna": "Варна",
+    "burgas": "Бургас",
+    "ruse": "Русе",
+    "staraZagora": "Стара Загора",
+    "pleven": "Плевен",
+    "sliven": "Сливен",
+    "dobrich": "Добрич",
+    "shumen": "Шумен",
+    "pernik": "Перник",
+    "haskovo": "Хасково",
+    "yambol": "Ямбол",
+    "pazardzhik": "Пазарджик",
+    "blagoevgrad": "Благоевград",
+    "velikoTarnovo": "Велико Търново",
+    "vratsa": "Враца",
+    "gabrovo": "Габрово",
+    "bansko": "Банско",
+    "samokov": "Самоков"
   },
   "offline": {
     "title": "Нямате връзка",

@@ -262,6 +262,16 @@ export function getSportConfig(key: SportType): SportConfig {
   return SPORTS[key];
 }
 
+/**
+ * Is `value` a value of the Sport enum? For a `?sport=` read off a URL anyone
+ * can write (#334): an unknown value must stop here, not reach Prisma as an
+ * invalid enum and come back as a 500. Own keys only, so `toString` or
+ * `__proto__` are not sports.
+ */
+export function isSportKey(value: unknown): value is SportType {
+  return typeof value === 'string' && Object.hasOwn(SPORTS, value);
+}
+
 export function allSports(): SportConfig[] {
   return Object.values(SPORTS);
 }

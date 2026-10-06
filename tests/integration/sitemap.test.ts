@@ -86,7 +86,35 @@ describe('sitemap.xml (#396)', () => {
       'https://playerz.example/venues',
     ]);
     for (const e of entries.slice(2)) {
-      expect(e.url).toMatch(/^https:\/\/playerz\.example\/venues\/[a-z0-9-]+$/);
+      expect(e.url).toMatch(/^https:\/\/playerz\.example\/(venues|clubs)\/[a-z0-9-]+$/);
+    }
+  });
+
+  it('lists the club page of every club with a listed venue, and no SUSPENDED or CLOSED club (#356)', async () => {
+    const open = await seedTenant();
+    const empty = await seedTenant();
+    const suspended = await seedTenant();
+    const closed = await seedTenant();
+
+    const listed = await venueFor(open.tenantId, 'smc-open');
+    await venueFor(suspended.tenantId, 'smc-suspended');
+    await venueFor(closed.tenantId, 'smc-closed');
+    await setClubStatus(suspended.tenantId, 'SUSPENDED');
+    await setClubStatus(closed.tenantId, 'CLOSED');
+
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+
+    const club = entries.find((e) => e.url === `https://playerz.example/clubs/${open.tenantSlug}`);
+    expect(club).toBeDefined();
+    // The newer of the club row and its newest venue.
+    expect(new Date(club!.lastModified!).getTime()).toBeGreaterThanOrEqual(
+      listed.updatedAt.getTime(),
+    );
+    // A club with no venue yet is an empty page: not offered to crawlers.
+    expect(urls).not.toContain(`https://playerz.example/clubs/${empty.tenantSlug}`);
+    for (const gone of [suspended, closed]) {
+      expect(urls).not.toContain(`https://playerz.example/clubs/${gone.tenantSlug}`);
     }
   });
 });

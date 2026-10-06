@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 import { InvalidCoordinateError, clampRadiusKm, nearVenues } from '@/app-layer/repositories/geo';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { isSportKey } from '@/lib/sports/registry';
 
 /**
  * "Venues near me". Public, unauthenticated.
@@ -11,6 +12,14 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
  */
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
+  // An unknown sport is a 400, not an invalid enum inside the query (#334).
+  const sport = sp.get('sport') || undefined;
+  if (sport !== undefined && !isSportKey(sport)) {
+    return NextResponse.json(
+      { error: { code: 'BAD_REQUEST', message: 'Invalid sport', details: { field: 'sport' } } },
+      { status: 400 },
+    );
+  }
 
   const lat = Number(sp.get('lat'));
   const lng = Number(sp.get('lng'));
@@ -23,7 +32,7 @@ export async function GET(req: NextRequest) {
         lat,
         lng,
         radiusKm,
-        sport: (sp.get('sport') as never) ?? undefined,
+        sport,
         limit: sp.has('limit') ? Number(sp.get('limit')) : undefined,
       }),
     );

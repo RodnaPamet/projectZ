@@ -248,8 +248,11 @@ test.describe('player shell — phone', () => {
     const drawer = page.getByRole('dialog', { name: n.menu });
     await expect(drawer).toBeVisible();
     await drawer.getByRole('link', { name: n.publicPage }).tap();
-    await expect(page).toHaveURL(/\/venues$/);
-    await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
+    // The club's own page (#356).
+    await expect(page).toHaveURL(new RegExp(`/clubs/${isolatedTenant.tenantSlug}$`));
+    await expect(
+      page.getByRole('heading', { level: 1, name: `E2E ${isolatedTenant.tenantSlug}` }),
+    ).toBeVisible();
   });
 
   for (const theme of ['light', 'dark'] as const) {

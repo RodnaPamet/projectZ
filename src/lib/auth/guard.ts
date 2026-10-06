@@ -73,6 +73,10 @@ export interface TokenClaims {
 const PUBLIC_PATTERNS: RegExp[] = [
   /^\/$/,
   /^\/venues(\/|$)/,
+  // A club's public page (#356). Not under `/t/`, which is the members'
+  // tenant namespace: `tenantSlugFromPath` finds no slug in `/clubs/x`, so
+  // this opens nothing that was gated.
+  /^\/clubs(\/|$)/,
   /^\/open-play(\/|$)/,
   /^\/coaches(\/|$)/,
   /^\/design-system(\/|$)/,

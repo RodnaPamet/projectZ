@@ -1,5 +1,5 @@
 import { buildRobots, ROBOTS_DISALLOW } from '@/lib/seo/robots';
-import { buildSitemap, venuePath } from '@/lib/seo/sitemap';
+import { buildSitemap, clubPath, venuePath } from '@/lib/seo/sitemap';
 import { absoluteUrl, resolveSiteUrl } from '@/lib/seo/site-url';
 
 describe('the canonical site URL (#396)', () => {
@@ -63,6 +63,23 @@ describe('buildSitemap (#396)', () => {
 
   it('encodes the slug into the path', () => {
     expect(venuePath('a b')).toBe('/venues/a%20b');
+    expect(clubPath('a b')).toBe('/clubs/a%20b');
+  });
+
+  it('lists each club page after the venues, with its own lastModified (#356)', () => {
+    const d = new Date('2026-10-03T09:00:00Z');
+    const map = buildSitemap(
+      origin,
+      [{ publicSlug: 'arena-sofia', updatedAt: d }],
+      [{ slug: 'alpha', updatedAt: d }],
+    );
+    expect(map.map((e) => e.url)).toEqual([
+      'https://playerz.bg/',
+      'https://playerz.bg/venues',
+      'https://playerz.bg/venues/arena-sofia',
+      'https://playerz.bg/clubs/alpha',
+    ]);
+    expect(map[3].lastModified).toBe(d);
   });
 });
 

@@ -201,4 +201,30 @@ describe('middleware sign-in redirect', () => {
       '/t/sofia-padel/admin/staff',
     );
   });
+
+  it.each(['/t/sofia-padel', '/t/sofia-padel/'])(
+    'a club’s bare address, signed out, is its public page, not sign-in (#356, A03): %s',
+    async (path) => {
+      mockedGetToken.mockResolvedValue(null);
+
+      const res = await get(path);
+
+      expect(res.status).toBe(307);
+      expect(new URL(res.headers.get('location')!).pathname).toBe('/clubs/sofia-padel');
+    },
+  );
+
+  it('everything below the bare address still goes to sign-in', async () => {
+    mockedGetToken.mockResolvedValue(null);
+
+    const res = await get('/t/sofia-padel/admin');
+
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/login');
+  });
+
+  it('the public club page itself needs no session', async () => {
+    mockedGetToken.mockResolvedValue(null);
+
+    expect(passedThrough(await get('/clubs/sofia-padel'))).toBe(true);
+  });
 });
