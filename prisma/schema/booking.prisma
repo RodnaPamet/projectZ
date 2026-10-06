@@ -53,6 +53,11 @@ model Booking {
   cancelledAt            DateTime?
   cancellationReasonJson Json?
 
+  /// When the 3-hour reminder was claimed (#367). Set once, by an UPDATE that
+  /// also requires CONFIRMED, so the reminder goes out at most once and never
+  /// after a cancel that committed first.
+  reminderSentAt DateTime? @db.Timestamptz(3)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -79,6 +84,9 @@ model Booking {
   /// skip scan, and without this every run is a sequential scan of every
   /// booking ever made. Same reasoning as `expiresAt` for the expiry sweep.
   @@index([status, endTs])
+  /// The reminder cron (#367): CONFIRMED bookings starting in about 3 hours,
+  /// across every club. `status` leads for the reason `[status, endTs]` does.
+  @@index([status, startTs])
   /// A series' occurrences, for its detail and for "cancel the rest".
   @@index([seriesId, startTs])
   @@map("booking")

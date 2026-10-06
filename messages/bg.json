@@ -102,7 +102,10 @@
       "messages": "Съобщения",
       "notifications": "Известия",
       "notificationsEmpty": "Нямате известия",
-      "notificationsEmptyBody": "Тук ще виждате напомняния за игрите си и промени по резервациите."
+      "notificationsEmptyBody": "Тук ще виждате напомняния за игрите си и промени по резервациите.",
+      "notificationsUnread": "Известия, {count} непрочетени",
+      "notificationsError": "Известията не се заредиха.",
+      "notificationsRetry": "Опитай пак"
     }
   },
   "nav": {
@@ -284,6 +287,49 @@
     "bookingConfirmed": {
       "title": "Резервацията е потвърдена",
       "body": "Кортът е запазен. Получено плащане {amount}."
+    },
+    "booking": {
+      "someone": "Играч",
+      "confirmed": {
+        "title": "Резервацията е потвърдена",
+        "body": "{venue}, {court} · {when}"
+      },
+      "reminder": {
+        "title": "Играете след 3 часа",
+        "body": "{venue}, {court} · {when}"
+      },
+      "cancelledByClub": {
+        "title": "Клубът отмени резервацията ви",
+        "body": "{venue}, {court} · {when}"
+      },
+      "cancelledByBooker": {
+        "title": "Играта е отменена",
+        "body": "{venue}, {court} · {when}"
+      },
+      "seriesCreated": {
+        "title": "Клубът запази седмичен час за вас",
+        "body": "{venue}, {court} · първата игра е {when}"
+      },
+      "seriesCancelled": {
+        "title": "Клубът отмени седмичните ви игри",
+        "body": "{venue}, {court} · от {date} нататък"
+      },
+      "playerJoined": {
+        "title": "{name} се включи в играта",
+        "body": "{venue} · {when}"
+      },
+      "playerLeft": {
+        "title": "{name} напусна играта",
+        "body": "{venue} · {when}"
+      },
+      "playerAdded": {
+        "title": "{name} ви добави в игра",
+        "body": "{venue} · {when}"
+      },
+      "playerRemoved": {
+        "title": "Вече не сте в тази игра",
+        "body": "{venue} · {when}"
+      }
     }
   },
   "notFound": {
@@ -1076,6 +1122,17 @@
       "save": "Запази",
       "cancel": "Отказ",
       "failed": "Спортовете не бяха запазени. Опитайте отново."
+    },
+    "notifications": {
+      "row": "Известия",
+      "summary": "Имейли: {on} от {total}",
+      "sheetDescription": "Камбанката в приложението винаги показва всичко. Тук избирате кои имейли да получавате.",
+      "confirmation": "Потвърждение на резервация",
+      "reminder": "Напомняне 3 часа преди игра",
+      "clubChanges": "Отмяна от клуба",
+      "saveFailed": "Настройката не беше запазена. Опитайте отново.",
+      "edit": "Промени",
+      "editLabel": "Промени известията"
     }
   },
   "bookingInvite": {
@@ -1124,6 +1181,43 @@
         "NOT_ALLOWED": "Този профил не може да е от този вид. Свържете се с нас.",
         "FAILED": "Изборът не беше запазен. Опитайте отново."
       }
+    }
+  },
+  "emails": {
+    "booking": {
+      "confirmed": {
+        "subject": "Резервацията е потвърдена: {venue}, {date}",
+        "intro": "Резервацията ви е потвърдена."
+      },
+      "reminder": {
+        "subject": "След 3 часа играете: {venue}, {time}",
+        "intro": "Напомняме ви, че играете след около 3 часа."
+      },
+      "cancelledByClub": {
+        "subject": "Клубът отмени резервацията ви: {venue}, {date}",
+        "intro": "Клубът отмени резервацията ви. Ако имате въпроси, свържете се с клуба."
+      },
+      "seriesCreated": {
+        "subject": "Седмичен час за вас: {venue}",
+        "intro": "Клубът запази седмичен час за вас. Първата игра е:"
+      },
+      "seriesCancelled": {
+        "subject": "Клубът отмени седмичните ви игри: {venue}",
+        "intro": "Клубът отмени седмичните ви игри от {date} нататък. Отменени игри: {count}. Ако имате въпроси, свържете се с клуба."
+      }
+    },
+    "labels": {
+      "venue": "Място",
+      "court": "Корт",
+      "when": "Кога",
+      "zone": "Часова зона",
+      "payment": "Плащане",
+      "paymentAtClub": "на място в клуба",
+      "cancelUntil": "Можете да отмените до",
+      "cancelPassed": "срокът за отмяна изтече; свържете се с клуба",
+      "link": "Резервацията",
+      "footer": "Получавате този имейл, защото имате резервация в playerz.bg.",
+      "settings": "Кои имейли да получавате, избирате от Профил → Известия: {url}"
     }
   }
 }

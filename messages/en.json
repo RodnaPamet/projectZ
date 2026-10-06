@@ -102,7 +102,10 @@
       "messages": "Messages",
       "notifications": "Notifications",
       "notificationsEmpty": "You have no notifications",
-      "notificationsEmptyBody": "Reminders about your games and changes to your bookings will show up here."
+      "notificationsEmptyBody": "Reminders about your games and changes to your bookings will show up here.",
+      "notificationsUnread": "Notifications, {count} unread",
+      "notificationsError": "Notifications could not be loaded.",
+      "notificationsRetry": "Try again"
     }
   },
   "nav": {
@@ -284,6 +287,49 @@
     "bookingConfirmed": {
       "title": "Booking confirmed",
       "body": "Your court is booked. Payment of {amount} received."
+    },
+    "booking": {
+      "someone": "A player",
+      "confirmed": {
+        "title": "Booking confirmed",
+        "body": "{venue}, {court} · {when}"
+      },
+      "reminder": {
+        "title": "You play in 3 hours",
+        "body": "{venue}, {court} · {when}"
+      },
+      "cancelledByClub": {
+        "title": "The club cancelled your booking",
+        "body": "{venue}, {court} · {when}"
+      },
+      "cancelledByBooker": {
+        "title": "The game was cancelled",
+        "body": "{venue}, {court} · {when}"
+      },
+      "seriesCreated": {
+        "title": "The club booked a weekly slot for you",
+        "body": "{venue}, {court} · first game {when}"
+      },
+      "seriesCancelled": {
+        "title": "The club cancelled your weekly games",
+        "body": "{venue}, {court} · from {date} on"
+      },
+      "playerJoined": {
+        "title": "{name} joined the game",
+        "body": "{venue} · {when}"
+      },
+      "playerLeft": {
+        "title": "{name} left the game",
+        "body": "{venue} · {when}"
+      },
+      "playerAdded": {
+        "title": "{name} added you to a game",
+        "body": "{venue} · {when}"
+      },
+      "playerRemoved": {
+        "title": "You are no longer in this game",
+        "body": "{venue} · {when}"
+      }
     }
   },
   "notFound": {
@@ -1076,6 +1122,17 @@
       "save": "Save",
       "cancel": "Cancel",
       "failed": "Your sports were not saved. Try again."
+    },
+    "notifications": {
+      "row": "Notifications",
+      "summary": "Emails: {on} of {total}",
+      "sheetDescription": "The bell in the app always shows everything. Here you choose which emails you get.",
+      "confirmation": "Booking confirmation",
+      "reminder": "Reminder 3 hours before a game",
+      "clubChanges": "Cancelled by the club",
+      "saveFailed": "The setting was not saved. Please try again.",
+      "edit": "Change",
+      "editLabel": "Change notifications"
     }
   },
   "bookingInvite": {
@@ -1124,6 +1181,43 @@
         "NOT_ALLOWED": "This account cannot be that type. Please contact us.",
         "FAILED": "Your choice was not saved. Try again."
       }
+    }
+  },
+  "emails": {
+    "booking": {
+      "confirmed": {
+        "subject": "Booking confirmed: {venue}, {date}",
+        "intro": "Your booking is confirmed."
+      },
+      "reminder": {
+        "subject": "You play in 3 hours: {venue}, {time}",
+        "intro": "A reminder that you play in about 3 hours."
+      },
+      "cancelledByClub": {
+        "subject": "The club cancelled your booking: {venue}, {date}",
+        "intro": "The club cancelled your booking. If you have questions, please contact the club."
+      },
+      "seriesCreated": {
+        "subject": "A weekly slot for you: {venue}",
+        "intro": "The club booked a weekly slot for you. The first game is:"
+      },
+      "seriesCancelled": {
+        "subject": "The club cancelled your weekly games: {venue}",
+        "intro": "The club cancelled your weekly games from {date} on. Games cancelled: {count}. If you have questions, please contact the club."
+      }
+    },
+    "labels": {
+      "venue": "Venue",
+      "court": "Court",
+      "when": "When",
+      "zone": "Time zone",
+      "payment": "Payment",
+      "paymentAtClub": "at the club",
+      "cancelUntil": "You can cancel until",
+      "cancelPassed": "the cancellation deadline has passed; please contact the club",
+      "link": "Your booking",
+      "footer": "You are getting this email because you have a booking on playerz.bg.",
+      "settings": "Choose which emails you get in Profile → Notifications: {url}"
     }
   }
 }

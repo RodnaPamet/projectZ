@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 
 import type { Me } from '@/app-layer/usecases/me';
+import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/my-notifications';
 
 import { playerCancellableUntil } from '@/lib/booking/cutoff';
 
@@ -778,3 +779,38 @@ export function toModerationResolution(r: {
  * app layer.
  */
 export type MeDto = Me;
+
+// ─── The bell (#367) ────────────────────────────────────────────────────
+
+/** One bell row as the API answers it. */
+export interface NotificationDto {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  /** A path in the web app (`/me/bookings/{id}`); the iOS app maps `refType`/`refId`. */
+  href: string | null;
+  refType: string | null;
+  refId: string | null;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export function toNotificationDto(n: MyNotification): NotificationDto {
+  return {
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    href: n.href,
+    refType: n.refType,
+    refId: n.refId,
+    read: n.readAt !== null,
+    readAt: n.readAt?.toISOString() ?? null,
+    createdAt: n.createdAt.toISOString(),
+  };
+}
+
+/** `GET`/`PATCH /api/v1/me/notification-settings` (#367): the email switches. */
+export type NotificationSettingsDto = NotificationSettings;

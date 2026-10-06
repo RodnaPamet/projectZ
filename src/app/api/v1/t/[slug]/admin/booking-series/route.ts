@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server';
 
 import { createSeriesBodySchema } from '@/app-layer/schemas/desk';
 import { SlotTakenError } from '@/app-layer/usecases/booking';
+import { notifySeriesCreated } from '@/app-layer/usecases/booking-notifications';
 import {
   createSeries,
   getSeries,
@@ -65,6 +66,11 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ slug: s
   }
 
   if (!result.row) throw new NotFoundError('Series not found');
+
+  // After the commit (#367): one confirmation for the series, to the linked player.
+  if (!result.replay) {
+    await notifySeriesCreated({ tenantId: ctx.tenantId, seriesId: result.row.id });
+  }
   return ok(toBookingSeries(result.row), { status: result.replay ? 200 : 201 });
 }
 

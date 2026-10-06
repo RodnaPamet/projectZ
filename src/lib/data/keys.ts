@@ -88,6 +88,13 @@ export const KEYS = {
    * played with a level for each (#359). `PATCH` of the same URL writes it.
    */
   account: () => `${BASE}/me`,
+  /**
+   * The bell (#367): the caller's newest notifications and their unread
+   * count, in one read. The header polls it.
+   */
+  notifications: () => `${BASE}/me/notifications${query({ limit: 20 })}`,
+  /** Which emails the caller gets (#367). `PATCH` of the same URL writes it. */
+  notificationSettings: () => `${BASE}/me/notification-settings`,
   /** The caller's own bookings at a club, newest first, by cursor. */
   myBookings: (slug: string, params: { limit?: number } = {}) =>
     paged(`${BASE}/t/${seg(slug)}/bookings`, params),
@@ -153,6 +160,10 @@ export const V1 = {
   resolveCase: (caseId: string) => `${BASE}/platform/moderation/cases/${seg(caseId)}/resolve`,
   /** `PATCH`: the display name and the sports with their levels (#359). */
   updateAccount: () => `${BASE}/me`,
+  /** `POST { ids }`: the bell's rows the caller has now seen (#367). */
+  markNotificationsRead: () => `${BASE}/me/notifications/read`,
+  /** `PATCH { email: { … } }`: switch an email category (#367). */
+  updateNotificationSettings: () => `${BASE}/me/notification-settings`,
   /** `POST` a new invite link; `DELETE` stops every live one (#358). */
   bookingInviteLinks: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/invite-links`,
   /** `POST { userId }`: the booker adds a co-player (#358). */

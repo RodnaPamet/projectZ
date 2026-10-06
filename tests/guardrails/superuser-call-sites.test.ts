@@ -158,6 +158,20 @@ const ALLOWED: Record<string, string> = {
     "first name; for a live token only) and the caller's recent co-players (their own bookings, " +
     'by session id, bounded to 50, names and avatars). NOT asPlatformAdmin: nobody reaches into ' +
     'a club that is not theirs.',
+  'src/app-layer/usecases/booking-notifications.ts':
+    'who hears about a booking (#367). Runs AFTER the booking, cancel or join committed, with ' +
+    'no request to bind: reads the booking by the id the committed write produced (tenant-' +
+    "filtered whenever the caller knows it) and its players' locale, address and email " +
+    'settings on app_user. The reminder cron CLAIMS due bookings across every club in one ' +
+    'UPDATE … FOR UPDATE SKIP LOCKED: machine work with no human actor, the shape of the ' +
+    'completion sweep. Every write it makes goes through `deliver`, bound to the recipient ' +
+    '(runAsUserOnly). NOT asPlatformAdmin: no person reaches into a club.',
+  'src/app-layer/usecases/notification-outbox.ts':
+    'the email outbox drain (#367): claims due rows across every user with FOR UPDATE SKIP ' +
+    "LOCKED, re-reads each recipient's address and settings and the booking's status by the " +
+    'ids on the claimed rows, and records the outcome per row by id. Cron work with no ' +
+    'session, like the sweeps. The rows themselves are WRITTEN bound to the recipient ' +
+    '(runAsUserOnly, owner-only RLS); only the drain bypasses.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {

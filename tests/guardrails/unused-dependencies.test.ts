@@ -70,8 +70,9 @@ const CONFIG = [
  *
  * These were invisible for as long as the `package.json` escape hatch existed.
  * They are recorded rather than deleted because each is waiting on a feature
- * somebody intends to build: `resend` and `bullmq` are the transport and the
- * queue that several half-built features are documented as using.
+ * somebody intends to build: `bullmq` is the queue that several half-built
+ * features are documented as using. (`resend` came off by being USED: the
+ * notification outbox sends through it, #367.)
  *
  * Three came off the list by being REMOVED rather than explained — glicko2
  * (superseded by openskill), jsonwebtoken (APNs signs with node:crypto) and
@@ -88,7 +89,6 @@ const KNOWN_UNUSED: Record<string, string> = {
   'maplibre-gl': 'the venue map, unbuilt — geo search exists server-side only',
   'p-retry': 'no retry wrapper written',
   'react-map-gl': 'the React wrapper for the venue map, also unbuilt',
-  resend: 'the mailer for split payment links and booking email; no sender exists',
 };
 
 /**
@@ -236,8 +236,9 @@ describe('the KNOWN_UNUSED ratchet only shrinks', () => {
     // envelope made unnecessary. Both were removed, not explained. 7 → 5 at
     // T28 (#225): canvas-confetti and driver.js were inflect's celebration and
     // onboarding tour, which playerz never built, so they went with the rest of
-    // the deletion pass instead of waiting for a feature.
-    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(5);
+    // the deletion pass instead of waiting for a feature. 5 → 4 at #367:
+    // resend became the notification outbox's email provider.
+    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(4);
   });
 });
 

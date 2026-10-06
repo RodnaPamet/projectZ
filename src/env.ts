@@ -277,6 +277,19 @@ export const env = createEnv({
     // the From header of every invite.
     SMTP_FROM: z.string().default('noreply@playerz.bg'),
 
+    // ═══ NOTIFICATION EMAIL (#367) ═══
+    //
+    // The outbox drain picks ONE adapter (src/lib/email/provider.ts): Resend
+    // when RESEND_API_KEY is set, else SMTP when SMTP_HOST is, else a
+    // log-only adapter that sends nothing. All optional: production runs with
+    // none and the bell carries every notification until a key is added.
+    RESEND_API_KEY: z.string().min(1).optional(),
+    // The From header, e.g. `playerz.bg <noreply@playerz.bg>`. Falls back to
+    // SMTP_FROM. The domain must be verified with the provider (SPF/DKIM).
+    EMAIL_FROM: z.string().min(3).optional(),
+    // Staging (DEPLOY_ENV=staging) never emails anyone unless this is '1'.
+    EMAIL_ALLOW_ON_STAGING: z.enum(['0', '1']).optional(),
+
     // Web Push (VAPID). Optional: without them push is simply not sent, and the
     // notification CENTRE still has the row — the user sees it when they open
     // the app. Push is an enhancement, never the source of truth.
@@ -519,6 +532,9 @@ export const env = createEnv({
     SMTP_USER: process.env.SMTP_USER,
     SMTP_PASS: process.env.SMTP_PASS,
     SMTP_FROM: process.env.SMTP_FROM,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    EMAIL_ALLOW_ON_STAGING: process.env.EMAIL_ALLOW_ON_STAGING,
 
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
