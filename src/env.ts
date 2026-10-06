@@ -462,6 +462,37 @@ export const env = createEnv({
     // (`src/lib/seo/robots.ts`, `src/app/sitemap.ts`). Defaults to
     // `production`, so the production .env needs no change.
     DEPLOY_ENV: z.enum(['production', 'staging']).default('production'),
+
+    // ═══ MEDIA: VENUE PHOTOS (#366, docs/media-storage.md) ═══
+    //
+    // Where uploaded venue photos go. ALL OPTIONAL: unset, uploads are off and
+    // the admin says "Качването на снимки не е настроено" instead of failing
+    // (src/lib/media/storage.ts). Read on the server only.
+    //   MEDIA_STORAGE           `gcs` (production, staging) or `local` (dev,
+    //                           tests, CI: files under MEDIA_LOCAL_DIR, served
+    //                           by the `/media/...` route)
+    //   GCS_BUCKET              the bucket, for `gcs`
+    //   GCS_CREDENTIALS_BASE64  a service-account key, base64 JSON. Unset, the
+    //                           client uses Application Default Credentials. On
+    //                           the VM it must be set: the VM's own account has
+    //                           the read-only storage scope (see the doc).
+    //   MEDIA_PUBLIC_BASE_URL   where the objects are read from; defaults to
+    //                           https://storage.googleapis.com/{GCS_BUCKET},
+    //                           or `/media` for `local`
+    //   MEDIA_LOCAL_DIR         the directory for `local`; default `.media`
+    MEDIA_STORAGE: z.enum(['gcs', 'local']).optional(),
+    GCS_BUCKET: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$/, 'GCS_BUCKET must be a bucket name')
+      .optional(),
+    GCS_CREDENTIALS_BASE64: z.string().optional(),
+    MEDIA_PUBLIC_BASE_URL: z
+      .string()
+      .refine((v) => v.startsWith('/') || /^https?:\/\//.test(v), {
+        message: 'MEDIA_PUBLIC_BASE_URL must be an http(s) URL or a path starting with /',
+      })
+      .optional(),
+    MEDIA_LOCAL_DIR: z.string().optional(),
   },
 
   /**
@@ -579,6 +610,11 @@ export const env = createEnv({
     MODULE_OPEN_PLAY: process.env.MODULE_OPEN_PLAY,
     MODULE_MESSAGING: process.env.MODULE_MESSAGING,
     DEPLOY_ENV: process.env.DEPLOY_ENV,
+    MEDIA_STORAGE: process.env.MEDIA_STORAGE,
+    GCS_BUCKET: process.env.GCS_BUCKET,
+    GCS_CREDENTIALS_BASE64: process.env.GCS_CREDENTIALS_BASE64,
+    MEDIA_PUBLIC_BASE_URL: process.env.MEDIA_PUBLIC_BASE_URL,
+    MEDIA_LOCAL_DIR: process.env.MEDIA_LOCAL_DIR,
 
     NEXT_PUBLIC_NOTIFICATIONS_SSE: process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE,
   },

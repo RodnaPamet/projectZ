@@ -409,6 +409,9 @@ jobs:
       # before T19's admin-shell specs, so the job never needed it. Throwaway,
       # like NEXTAUTH_SECRET above and the perf harness's own.
       DATA_ENCRYPTION_KEY: 'ci-e2e-data-encryption-key-throwaway-0000000000' # pragma: allowlist secret
+      # Venue photos (#366) on the local disk, served by the app's /media
+      # route: the photo specs upload a cover and read it back on the pages.
+      MEDIA_STORAGE: local
     services:
       postgres:
         image: postgis/postgis:16-3.4

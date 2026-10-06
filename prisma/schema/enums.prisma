@@ -185,3 +185,10 @@ enum ApnsEnvironment {
   SANDBOX
   PRODUCTION
 }
+
+/// What a `VenuePhoto` is (#366). One COVER per venue (a partial unique index
+/// in P47); any number of GALLERY photos, capped by the use case.
+enum VenuePhotoKind {
+  COVER
+  GALLERY
+}

@@ -170,6 +170,7 @@ describe('public venues page database binding', () => {
           sports: ['PADEL', 'TENNIS'],
           fromPriceCents: 1800,
           coverPhotoUrl: null,
+          cover: null,
         },
       ],
       nextCursor: 'c1',

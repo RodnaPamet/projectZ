@@ -1,5 +1,7 @@
 import type { PrismaClient, SportType } from '@prisma/client';
 
+import { mediaBaseUrl, PHOTO_SELECT, toPhotoView, type PhotoView } from '@/lib/media/photo-view';
+
 /**
  * A club's public page, `/clubs/{slug}` (#356, Q42): who the club is and every
  * venue it runs, each linking to its own page at `/venues/{publicSlug}`.
@@ -41,6 +43,8 @@ export interface ClubPageVenue {
   phone: string | null;
   /** Distinct, in court-name order. */
   sports: SportType[];
+  /** The venue's cover photo (#366), or null. */
+  cover: PhotoView | null;
 }
 
 export interface ClubPage {
@@ -52,6 +56,11 @@ export interface ClubPage {
   phone: string | null;
   /** Oldest first: the first is the club's main venue, whose address the page shows. */
   venues: ClubPageVenue[];
+  /**
+   * The club page's cover (#366): the first venue's in that order that has one.
+   * A club has no photo of its own; its venues do.
+   */
+  cover: PhotoView | null;
 }
 
 export async function loadClubPublicPage(db: PrismaClient, slug: string): Promise<ClubPage | null> {
@@ -80,11 +89,13 @@ export async function loadClubPublicPage(db: PrismaClient, slug: string): Promis
         orderBy: { name: 'asc' },
         take: 50,
       },
+      photos: { where: { kind: 'COVER' }, select: PHOTO_SELECT, take: 1 },
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     take: MAX_CLUB_VENUES,
   });
 
+  const base = mediaBaseUrl();
   const venues = rows.flatMap((v) =>
     v.publicSlug
       ? [
@@ -98,6 +109,7 @@ export async function loadClubPublicPage(db: PrismaClient, slug: string): Promis
             timezone: v.timezone,
             phone: v.phone,
             sports: [...new Set(v.resources.map((r) => r.sport))],
+            cover: v.photos[0] ? toPhotoView(v.photos[0], base) : null,
           },
         ]
       : [],
@@ -110,5 +122,6 @@ export async function loadClubPublicPage(db: PrismaClient, slug: string): Promis
     logoUrl: club.logoUrl,
     phone: club.contactPhone || venues[0]?.phone || null,
     venues,
+    cover: venues.find((v) => v.cover)?.cover ?? null,
   };
 }

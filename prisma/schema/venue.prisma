@@ -195,14 +195,48 @@ model VenueAmenity {
   @@map("venue_amenity")
 }
 
+/// A club's photo of one venue (#366): its cover, or one picture of its
+/// gallery. Uploaded in the club admin, resized on upload to WebP renditions,
+/// and stored in object storage (src/lib/media) under
+/// `venues/{venueId}/{uuid}-{width}.webp`.
+///
+/// One row is ONE upload. `objectKey` is the stem the renditions share, and
+/// `widths` says which exist, so every URL is built from the current
+/// `MEDIA_PUBLIC_BASE_URL` at read time: moving the bucket behind a CDN is a
+/// config change, not a migration. `url` is the default rendition's URL at
+/// upload time, kept because the column was NOT NULL before P47; the readers
+/// use `objectKey`. A row from before P47 has no `objectKey` and is read as a
+/// single image at `url`.
+///
+/// "At most one COVER per venue" is a PARTIAL unique index, which Prisma
+/// cannot model — so it lives in P47's SQL and the migration-safety ratchet
+/// protects it:
+///
+///   CREATE UNIQUE INDEX venue_photo_one_cover_idx
+///     ON venue_photo ("venueId") WHERE kind = 'COVER';
 model VenuePhoto {
   id       String @id @default(cuid())
   tenantId String
   venueId  String
 
+  kind VenuePhotoKind @default(GALLERY)
+
   url      String
+  /// Required by the admin for every upload (Bulgarian first). Plain text:
+  /// React escapes it in HTML and serializeJsonLd in the structured data.
   alt      String?
+  /// Gallery order, 0-based. A cover is always 0.
   position Int     @default(0)
+
+  /// `venues/{venueId}/{uuid}`: the renditions are `{objectKey}-{w}.webp`.
+  objectKey   String? @unique
+  /// The rendition widths that exist, ascending. Never wider than the upload.
+  widths      Int[]   @default([])
+  /// The largest rendition's size, so a page can reserve the box (no CLS).
+  width       Int?
+  height      Int?
+  /// A ~16 px wide WebP as a data: URL, painted behind the image while it loads.
+  blurDataUrl String?
 
   createdAt DateTime @default(now())
 

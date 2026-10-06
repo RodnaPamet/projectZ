@@ -64,6 +64,7 @@ const LABELS = {
     calendar: 'Календар',
     courts: 'Кортове',
     pricing: 'Цени',
+    photos: 'Снимки',
     players: 'Играчи',
     staff: 'Персонал',
     sectionVenue: 'Обект',
@@ -73,6 +74,7 @@ const LABELS = {
     calendar: 'Calendar',
     courts: 'Courts',
     pricing: 'Pricing',
+    photos: 'Photos',
     players: 'Players',
     staff: 'Staff',
     sectionVenue: 'Venue',
@@ -92,6 +94,7 @@ describe.each(['bg', 'en'] as const)('club admin nav, in %s', (locale) => {
       [L.calendar, 'calendar'],
       [L.courts, 'courts'],
       [L.pricing, 'pricing'],
+      [L.photos, 'photos'],
       [L.players, 'players'],
       [L.staff, 'staff'],
     ] as const) {
@@ -100,7 +103,7 @@ describe.each(['bg', 'en'] as const)('club admin nav, in %s', (locale) => {
         `/t/${SLUG}/admin/${page}`,
       );
     }
-    expect(within(nav).getAllByRole('link')).toHaveLength(5);
+    expect(within(nav).getAllByRole('link')).toHaveLength(6);
     expect(nav).toHaveTextContent(L.sectionVenue);
     expect(nav).toHaveTextContent(L.sectionPeople);
   });
@@ -114,10 +117,10 @@ describe.each(['bg', 'en'] as const)('club admin nav, in %s', (locale) => {
 });
 
 describe('club admin nav, by role', () => {
-  it('hides what the role cannot open: a STAFF member has no pricing or staff screen', () => {
+  it('hides what the role cannot open: a STAFF member has no pricing, photos or staff screen', () => {
     const staff = getPermissionsForRole('STAFF');
     renderNav(visibleSections(clubAdminNav(SLUG), (i) => staff.includes(i.requires)));
-    for (const label of ['Цени', 'Персонал']) {
+    for (const label of ['Цени', 'Снимки', 'Персонал']) {
       expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument();
     }
   });

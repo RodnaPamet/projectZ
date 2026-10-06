@@ -507,6 +507,18 @@ export const INVITE_REDEEM_LIMIT: RateLimitConfig = {
   windowMs: 60 * 1000,
 };
 
+/**
+ * Venue photo uploads (#366): 30 per 10 minutes per (IP, userId).
+ *
+ * Each upload is up to 8 MB and a full decode and three re-encodes on a VM
+ * shared with another product. A club filling its gallery uploads 13 photos
+ * at most; the default 60/min would let one session keep the CPU busy.
+ */
+export const MEDIA_UPLOAD_LIMIT: RateLimitConfig = {
+  maxAttempts: 30,
+  windowMs: 10 * 60 * 1000,
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // Progressive rate limit — Epic A.3 auth brute-force protection
 // ═══════════════════════════════════════════════════════════════════

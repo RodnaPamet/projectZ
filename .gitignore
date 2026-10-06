@@ -38,3 +38,6 @@ public/engine/stockfish.js
 public/engine/stockfish.wasm
 public/engine/LICENSE
 
+
+# Venue photos written by the local media adapter (MEDIA_STORAGE=local, #366).
+.media/

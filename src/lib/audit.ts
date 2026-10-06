@@ -86,6 +86,12 @@ export const AUDIT_ACTIONS = {
   PLAYER_NO_SHOW_BLOCK_CLEARED: 'PLAYER_NO_SHOW_BLOCK_CLEARED',
   /// A club admin changed how long before the start a player may cancel.
   VENUE_CANCELLATION_CUTOFF_CHANGED: 'VENUE_CANCELLATION_CUTOFF_CHANGED',
+  /// Venue photos (#366). A cover upload that replaces one records the old
+  /// photo in `before`; removing the cover is VENUE_PHOTO_DELETED.
+  VENUE_PHOTO_ADDED: 'VENUE_PHOTO_ADDED',
+  VENUE_PHOTO_ALT_CHANGED: 'VENUE_PHOTO_ALT_CHANGED',
+  VENUE_PHOTO_MOVED: 'VENUE_PHOTO_MOVED',
+  VENUE_PHOTO_DELETED: 'VENUE_PHOTO_DELETED',
   /// A club admin changed how many upcoming online bookings one player may hold (#380).
   CLUB_ONLINE_BOOKING_CAP_CHANGED: 'CLUB_ONLINE_BOOKING_CAP_CHANGED',
   /// Staff entered a booking from the diary for a customer (#364). A desk

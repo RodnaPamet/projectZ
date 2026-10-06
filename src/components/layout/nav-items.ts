@@ -32,7 +32,7 @@ import type { Permission } from '@/lib/permissions';
 
 /** The glyph a row shows. A key, because a component cannot cross to the client as a prop. */
 export type NavIconKey =
-  'calendar' | 'courts' | 'pricing' | 'players' | 'staff' | 'moderation' | 'security';
+  'calendar' | 'courts' | 'pricing' | 'photos' | 'players' | 'staff' | 'moderation' | 'security';
 
 export interface NavItem {
   href: string;
@@ -97,7 +97,7 @@ export interface NavSection<T extends NavItem = NavItem> {
  * somebody the page would refuse (`route-permission-coverage`).
  *
  *   (no title)  Calendar — the diary, where staff spend the day
- *   Venue       Courts, Pricing
+ *   Venue       Courts, Pricing, Photos and info (#366)
  *   People      Players, Staff
  *
  * A COACH holds `players.view` and nothing else here, so a coach sees only
@@ -132,6 +132,17 @@ export function clubAdminNav(slug: string): NavSection<ClubNavItem>[] {
           labelKey: 'pricing',
           iconKey: 'pricing',
           requires: 'admin.pricing_manage',
+          prefetch: 'auto',
+        },
+        {
+          // "Снимки" (#366), the page "Снимки и информация": the drawer's long
+          // tail on a phone, never a tab. The full name was clipped by the
+          // vendored rail at 1280 px (audit C09's check), so the link is short
+          // and the page heading says it all. The page asks the same permission.
+          href: href('photos'),
+          labelKey: 'photos',
+          iconKey: 'photos',
+          requires: 'admin.venue_manage',
           prefetch: 'auto',
         },
       ],

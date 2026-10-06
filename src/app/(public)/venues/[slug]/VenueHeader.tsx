@@ -1,34 +1,54 @@
 import { getTranslations } from 'next-intl/server';
 
+import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { LocationPin } from '@/components/ui/icons/nucleo';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
+import { cn } from '@/lib/cn';
+import type { PhotoView } from '@/lib/media/photo-shape';
 
 import { VenueBackLink } from './VenueBackLink';
 
 /**
  * Who the venue is: the cover, the name, the address and the sports.
  *
- * The cover is a token-tinted band until clubs can upload photos (#366); it is
- * decorative and says nothing a screen reader needs. The back link is
- * VenueBackLink, which the skeleton renders too.
+ * The cover is the club's uploaded photo (#366), drawn as a responsive
+ * `<img>` with its blurred placeholder and the club's alt text, loaded at
+ * once (it is the page's largest paint). Without one it is a token-tinted
+ * band, decorative. The back link is VenueBackLink, which the skeleton
+ * renders too.
  */
 export async function VenueHeader({
   name,
   addressLine,
   city,
   sports,
+  cover = null,
 }: {
   name: string;
   addressLine: string;
   city: string;
   sports: string[];
+  cover?: PhotoView | null;
 }) {
   const [t, tSports] = await Promise.all([getTranslations('venue'), getTranslations('sports')]);
 
   return (
     <header className="flex flex-col gap-4">
-      <div className="bg-bg-success relative h-32 md:h-40 md:rounded-lg">
+      <div
+        className={cn(
+          'bg-bg-success relative overflow-hidden md:rounded-lg',
+          cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
+        )}
+      >
+        {cover && (
+          <VenuePhotoImg
+            photo={cover}
+            sizes="(min-width: 768px) 720px, 100vw"
+            className="absolute inset-0 size-full"
+            priority
+          />
+        )}
         <VenueBackLink />
       </div>
 
