@@ -115,6 +115,13 @@ fi
 # most confusing place for it to fail.
 cp -a "$ENVF" "$ENVF.bak.$(date +%s)"
 sed -i -E "s#^NEXTAUTH_URL=.*#NEXTAUTH_URL=https://$CANON#" "$ENVF"
+# SITE_URL is the canonical origin search engines are given (sitemap, robots,
+# canonical links, JSON-LD — #396). It names the same host, so it moves with it.
+if grep -q '^SITE_URL=' "$ENVF"; then
+  sed -i -E "s#^SITE_URL=.*#SITE_URL=https://$CANON#" "$ENVF"
+else
+  echo "SITE_URL=https://$CANON" >> "$ENVF"
+fi
 cd /opt/playerz && docker compose -f docker-compose.prod.yml up -d --force-recreate playerz-app
 
 echo "done — https://$CANON"

@@ -102,6 +102,17 @@ export const env = createEnv({
       (str) => (process.env.VERCEL_URL ? process.env.VERCEL_URL : str),
       process.env.VERCEL ? z.string().optional() : z.string().url(),
     ),
+    // The canonical public origin, e.g. `https://playerz.bg` (#396). Every
+    // absolute URL a search engine sees is built from it: the sitemap, the
+    // robots.txt `Sitemap:` line, `<link rel="canonical">`, Open Graph `url`
+    // and the venue page's JSON-LD. One setting, read in one place
+    // (src/lib/seo/site-url.ts), so the move from app.playerz.bg to
+    // playerz.bg (Q47) changes one line of .env and no code.
+    //
+    // Optional: unset, it falls back to NEXTAUTH_URL, which deploy/add-domain.sh
+    // already points at the canonical host — and which add-domain.sh now
+    // writes SITE_URL alongside, so the two cannot drift.
+    SITE_URL: z.string().url().optional(),
     // ═══ AUTH_URL, AUTH_SECRET, JWT_SECRET AND UPLOAD_DIR ARE GONE ═══
     //
     // All four were REQUIRED here and read by NOTHING — verified by grep over
@@ -444,6 +455,7 @@ export const env = createEnv({
     DATABASE_READ_URL: process.env.DATABASE_READ_URL,
     REDIS_URL: process.env.REDIS_URL,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    SITE_URL: process.env.SITE_URL,
 
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,

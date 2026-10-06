@@ -86,6 +86,10 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // redirects to /login, which denies. A redirect loop on the one page that
   // could fix it.
   /^\/login$/,
+  // What crawlers read before anything else (#396). Reached today through the
+  // `allow` default, like /login; named so tightening it cannot hide them.
+  /^\/robots\.txt$/,
+  /^\/sitemap\.xml$/,
   /^\/api\/venues(\/|$)/,
   // ═══ THE VERSIONED TWIN, WHICH WAS PUBLIC ONLY BY ACCIDENT ═══
   //

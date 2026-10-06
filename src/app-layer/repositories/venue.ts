@@ -142,6 +142,46 @@ export async function getVenueByPublicSlug(db: PrismaClient, publicSlug: string)
   });
 }
 
+/**
+ * Every venue page a search engine should know about (#396's sitemap):
+ * ACTIVE venues with a public slug, whose club is ACTIVE too.
+ *
+ * The club check is its own query because `venue.tenantId` is not a foreign
+ * key (no relation to join through). It is not optional: a SUSPENDED or
+ * CLOSED club's venues are still `status: ACTIVE` rows — the v1 detail route
+ * returns them (#298) — but the venue page 404s them, and a sitemap that
+ * lists 404s is one a crawler learns to distrust.
+ *
+ * Bounded by `limit` (the caller passes the sitemap's per-file cap) and
+ * ordered by slug, so a cut, if it ever happens, is stable between crawls.
+ */
+export async function listSitemapVenues(
+  db: PrismaClient,
+  limit: number,
+): Promise<Array<{ publicSlug: string; updatedAt: Date }>> {
+  // guardrail-allow: cross-tenant — the sitemap lists every club's public
+  // venue pages, the same set the public index and venue pages show.
+  const venues = await db.venue.findMany({
+    where: { status: 'ACTIVE', publicSlug: { not: null } },
+    select: { publicSlug: true, updatedAt: true, tenantId: true },
+    orderBy: { publicSlug: 'asc' },
+    take: limit,
+  });
+  const clubIds = [...new Set(venues.map((v) => v.tenantId))];
+  if (clubIds.length === 0) return [];
+  const active = await db.venueOrg.findMany({
+    where: { id: { in: clubIds }, status: 'ACTIVE' },
+    select: { id: true },
+    take: clubIds.length,
+  });
+  const activeIds = new Set(active.map((c) => c.id));
+  return venues.flatMap((v) =>
+    v.publicSlug && activeIds.has(v.tenantId)
+      ? [{ publicSlug: v.publicSlug, updatedAt: v.updatedAt }]
+      : [],
+  );
+}
+
 export async function getVenueBySlug(db: PrismaClient, tenantId: string, venueSlug: string) {
   return db.venue.findFirst({
     // tenantId is redundant under RLS — the policy adds it anyway. It is
