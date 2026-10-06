@@ -553,13 +553,19 @@ export const authOptions: NextAuthOptions = {
       //
       // The new value is READ FROM THE DATABASE, never taken from the request
       // body: an update can only make the token agree with the user's own row.
-      // Nothing else in the token changes here.
+      //
+      // The DISPLAY NAME rides the same refresh (#359): the header and the
+      // account menu read `token.name`, so a name set on /me/profile would
+      // otherwise show only after the next sign-in. Same rule: read from the
+      // user's own row, never from the request. Nothing else changes here.
       if (trigger === 'update' && !user && token.sub) {
-        token.locale = await runAsSuperuser((db) =>
-          db.user
-            .findUnique({ where: { id: token.sub }, select: { locale: true } })
-            .then((u) => u?.locale ?? token.locale),
+        const row = await runAsSuperuser((db) =>
+          db.user.findUnique({ where: { id: token.sub }, select: { locale: true, name: true } }),
         );
+        if (row) {
+          token.locale = row.locale;
+          token.name = row.name;
+        }
       }
 
       return token;

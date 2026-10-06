@@ -853,6 +853,46 @@
     "privacyData": "Privacy and data",
     "comingSoon": "Soon",
     "platformRow": "Platform: moderation and security",
-    "languageSaveFailed": "Your language was not saved. Please try again."
+    "languageSaveFailed": "Your language was not saved. Please try again.",
+    "personal": {
+      "title": "Personal details",
+      "name": "Name",
+      "noName": "Not set",
+      "add": "Add",
+      "edit": "Edit",
+      "prompt": "Add a name so other players recognise you on bookings.",
+      "sheetTitle": "Your name",
+      "sheetDescription": "This is how other players will see you.",
+      "hint": "Up to {max} characters. Your email and picture come from Google or Facebook.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "error": {
+        "TOO_SHORT": "The name must be at least {min} characters.",
+        "INVALID": "Use only letters, spaces, hyphens and apostrophes.",
+        "FAILED": "The name was not saved. Try again."
+      }
+    },
+    "sports": {
+      "title": "Sports and level",
+      "none": "You have not picked any sports yet.",
+      "pick": "Pick sports",
+      "edit": "Edit",
+      "sheetTitle": "Sports and level",
+      "sheetDescription": "Pick what you play and the level you think you are at, from 1 to 7. Rankings will refine it later.",
+      "levelLabel": "Level in {sport}",
+      "levelShort": "Level {level}",
+      "level": {
+        "1": "Just starting",
+        "2": "I know the rules and have just started playing",
+        "3": "I play now and then",
+        "4": "I play regularly and confidently",
+        "5": "I play tactically and rarely make mistakes",
+        "6": "I play amateur tournaments",
+        "7": "Competitor"
+      },
+      "save": "Save",
+      "cancel": "Cancel",
+      "failed": "Your sports were not saved. Try again."
+    }
   }
 }

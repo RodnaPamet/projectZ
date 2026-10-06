@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 
+import type { Me } from '@/app-layer/usecases/me';
+
 import { playerCancellableUntil } from '@/lib/booking/cutoff';
 
 /**
@@ -648,3 +650,11 @@ export function toModerationResolution(r: {
 }): ModerationResolutionDto {
   return { caseId: r.caseId, status: r.status, review: r.review, venue: r.venue };
 }
+
+/**
+ * `GET` and `PATCH /api/v1/me`: the account, as `getMe` reads it. Plain
+ * strings, numbers and nulls only (no dates), so the use case's shape is the
+ * wire shape; named here so client code types against the API, not the
+ * app layer.
+ */
+export type MeDto = Me;

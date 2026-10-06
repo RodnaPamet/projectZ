@@ -2918,6 +2918,103 @@
             }
           }
         }
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Set my name, and the sports I play with a level for each",
+        "description": "Writes the caller's own account (#359): the display name, and the sports they play, each with a self-declared level 1–7. Answers the whole account, as `GET /me` does, so a client replaces its copy rather than merging.\n\nThe account is the session's; there is no id to point elsewhere. Unknown properties are refused, not ignored. A CLUB account may set its name, and is refused `sports` with 403 `PLAYER_ACCOUNT_REQUIRED`: it does not play.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account, as stored.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — not JSON, empty, an invalid `name` or `sports`, or a property this route does not take. `details.field` names the first offender (`name`, `sports`, or the unknown key); `details.issues` lists them all. Nothing was written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded (a password change, \"sign out everywhere\"). The edge lets this path through, because it names no club, and the handler refuses it. Refresh, and sign in again if the refresh also fails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — a CLUB account sent `sports`. `error.message` is in the caller's stored language. Nothing was written, the name included.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's (another account signed in from another tab). Nothing was read. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/me/bookings": {
@@ -5232,7 +5329,16 @@
         "type": "object",
         "title": "Me",
         "description": "The signed-in account, from the database — never from token claims.",
-        "required": ["id", "name", "email", "locale", "accountKind", "landing"],
+        "required": [
+          "id",
+          "name",
+          "email",
+          "locale",
+          "accountKind",
+          "landing",
+          "avatarUrl",
+          "sports"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -5245,9 +5351,20 @@
           "email": {
             "type": "string"
           },
+          "avatarUrl": {
+            "type": ["string", "null"],
+            "description": "The sign-in provider's picture (Google, Facebook), or null. Not writable: it comes with the sign-in."
+          },
           "locale": {
             "type": "string",
             "description": "`bg` or `en`. An open string."
+          },
+          "sports": {
+            "type": "array",
+            "description": "The sports this person plays, each at the level they declared (#359). In a stable order (the sport enum's); empty until they pick some. Set with `PATCH /me`.",
+            "items": {
+              "$ref": "#/components/schemas/SportLevel"
+            }
           },
           "accountKind": {
             "$ref": "#/components/schemas/AccountKind"
@@ -5893,6 +6010,67 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MyBookingDetail"
+          }
+        }
+      },
+      "ProfileSport": {
+        "type": "string",
+        "title": "ProfileSport",
+        "description": "A sport a player can declare (#359): the bookable sports of the registry. On the RESPONSE side treat it as an open string, as `Booking.status`: a sport added later must not fail a shipped decoder. On the request side only these values are accepted.",
+        "enum": [
+          "TENNIS",
+          "PADEL",
+          "BADMINTON",
+          "TABLE_TENNIS",
+          "BEACH_TENNIS",
+          "PICKLEBALL",
+          "FOOTBALL",
+          "FOOTBALL5",
+          "BASKETBALL",
+          "VOLLEYBALL",
+          "BEACH_VOLLEYBALL",
+          "HANDBALL",
+          "CHESS",
+          "ESPORTS"
+        ]
+      },
+      "SportLevel": {
+        "type": "object",
+        "title": "SportLevel",
+        "description": "A sport the player plays, at the level they declared: 1 (\"just starting\") to 7 (\"competitor\"), Q37. Self-declared, not a rating; rankings (#378) take over from it.",
+        "required": ["sport", "level"],
+        "additionalProperties": false,
+        "properties": {
+          "sport": {
+            "$ref": "#/components/schemas/ProfileSport"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7
+          }
+        }
+      },
+      "UpdateMeRequest": {
+        "type": "object",
+        "title": "UpdateMeRequest",
+        "description": "At least one of the two. An absent field is left as it is. ANY other property is a 400 naming it (`details.field`), never ignored: this body writes the account row, which also holds the email, the kind and the language.",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 60,
+            "description": "The display name other players see. Trimmed and inner runs of spaces collapsed before the length is checked. Letters in any script, spaces, hyphens, apostrophes and dots; at least one letter. Cannot be cleared."
+          },
+          "sports": {
+            "type": "array",
+            "maxItems": 14,
+            "description": "The WHOLE list, replacing what is stored: a sport left out is removed, `[]` clears it. Each sport at most once.",
+            "items": {
+              "$ref": "#/components/schemas/SportLevel"
+            }
           }
         }
       }

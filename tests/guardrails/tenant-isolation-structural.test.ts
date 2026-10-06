@@ -52,6 +52,13 @@ const GLOBAL_MODELS = new Set([
   // column does not exist.
   'deviceToken',
   //
+  // ── P43 sport levels (#359) ────────────────────────────────────────
+  //
+  // `playerSportLevel` is a person's own statement about the sports they
+  // play, global like `playerProfile`: one level per sport, at every club.
+  // There is no tenantId column; RLS is owner-only on app.user_id.
+  'playerSportLevel',
+  //
   // `conversation.tenantId` is NULLABLE: a DM between two players who met at
   // different clubs belongs to no tenant. Its RLS policy is asymmetric (the
   // P04 UserSession shape) — readable when null, never writable into a tenant

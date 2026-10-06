@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { getMe } from '@/app-layer/usecases/me';
 import { playerChrome } from '@/components/layout/SiteHeader';
 import { requireSignedIn } from '@/lib/auth/page-context';
+import { ViewerScope } from '@/lib/data/provider';
 
 import { ProfileView } from './ProfileView';
 
@@ -19,19 +21,34 @@ export async function generateMetadata() {
  * From `md` the account menu links here, and keeps the theme and sign-out
  * itself (see `ProfileView`).
  *
- * A minimal first page by design. #359 adds the sports and levels, in the
- * place `ProfileView` marks for them.
+ * #359 adds the display name and the sports with their levels, between the
+ * identity and the settings.
  *
  * Who is asking comes from `playerChrome`, the header's own request-cached
- * read, so this page adds no query of its own. The platform row is shown only
+ * read. The one query this page adds is `getMe`, in parallel: the account the
+ * #359 sections edit, as `GET /api/v1/me` answers it. The platform row is shown only
  * when that read found a live grant; `/platform` authorises for itself.
  */
 export default async function ProfilePage() {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/profile');
 
-  const { me, account } = await playerChrome();
-  if (!me || !account) redirect('/login?next=/me/profile');
+  const [{ me, account }, mine] = await Promise.all([playerChrome(), getMe(userId)]);
+  if (!me || !account || !mine) redirect('/login?next=/me/profile');
 
-  return <ProfileView name={me.name} email={me.email} platformHref={account.platformHref} />;
+  // #359's sections read and write `GET`/`PATCH /api/v1/me`; this is their
+  // seed, from the same use case, so the first paint is the account and not a
+  // skeleton. ViewerScope sends this page's user id with every read and write
+  // (409 VIEWER_CHANGED if the tab outlives a switch of account).
+  return (
+    <ViewerScope viewerId={userId}>
+      <ProfileView
+        name={me.name}
+        email={me.email}
+        platformHref={account.platformHref}
+        account={mine}
+        showSports={mine.accountKind !== 'CLUB'}
+      />
+    </ViewerScope>
+  );
 }
