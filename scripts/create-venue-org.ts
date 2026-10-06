@@ -1,13 +1,25 @@
 import { parseArgs } from 'node:util';
 
-import { PrismaPg } from '@prisma/adapter-pg';
-import { CourtSurface, PrismaClient, SportType } from '@prisma/client';
+import { CourtSurface, type PrismaClient, SportType } from '@prisma/client';
 
-import { readAccountStanding } from '@/app-layer/repositories/account';
-import { decideOwnerAssignment } from '@/lib/auth/account-kind';
+import {
+  assertOwnerRole,
+  assignOwner,
+  decideOwner,
+  die,
+  HHMM,
+  ownerConnection,
+  timeOfDay,
+} from './lib/onboarding-common';
 
 /**
- * Create a real club, its venue and its courts. THE ONLY WRITER.
+ * Create a real club, its venue and its courts.
+ *
+ * One club, one venue, N identical courts, from flags. For a real pilot club
+ * — several venues, courts with their own grids and hours — use
+ * `scripts/onboard-club.ts` and a JSON spec (docs/onboarding/runbook.md). The
+ * two share the owner connection and the owner rule (`lib/onboarding-common`),
+ * so neither can accept an owner the other refuses.
  *
  * ═══ WHY THIS EXISTS AT ALL ═══
  *
@@ -45,7 +57,7 @@ import { decideOwnerAssignment } from '@/lib/auth/account-kind';
  * ═══ IT CREATES NO CREDENTIAL ═══
  *
  * Unlike the seed, the owner is created with NO passwordHash. Web sign-in is
- * Google or Microsoft only, so a password here would be an unusable secret
+ * Google or Facebook only, so a password here would be an unusable secret
  * sitting in a real user row — and the seed's one is a known constant.
  *
  * The owner does not have to exist yet. They are matched by email, so the row
@@ -78,19 +90,6 @@ import { decideOwnerAssignment } from '@/lib/auth/account-kind';
  * — that is a deliberate refusal to let a create script silently become an
  * edit script.
  */
-
-const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-/** A `@db.Time(0)` column. Prisma wants a Date; only the clock part is stored. */
-function timeOfDay(hhmm: string): Date {
-  const [h, m] = hhmm.split(':').map(Number);
-  return new Date(Date.UTC(1970, 0, 1, h!, m!, 0));
-}
-
-function die(message: string): never {
-  console.error(`\n${message}\n`);
-  process.exit(1);
-}
 
 const { values } = parseArgs({
   options: {
@@ -178,31 +177,10 @@ const close = values.close!;
 if (!HHMM.test(open) || !HHMM.test(close)) die(`--open and --close must be HH:MM (24h)`);
 if (timeOfDay(open) >= timeOfDay(close)) die(`--open must be before --close`);
 
-const url = process.env.DIRECT_DATABASE_URL;
-if (!url) {
-  die(
-    'DIRECT_DATABASE_URL is not set.\n\n' +
-      'This needs the OWNER connection. The runtime role `playerz_app` owns no\n' +
-      'table (P24) and there is no tenant to bind RLS to before the tenant\n' +
-      'exists, so DATABASE_URL cannot do this — it would fail with "permission\n' +
-      'denied for table venue_org", which does not tell you which URL was wrong.',
-  );
-}
-
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
+const prisma = ownerConnection();
 
 async function main(): Promise<void> {
-  const [{ current_user: role, rolsuper }] = await prisma.$queryRawUnsafe<
-    { current_user: string; rolsuper: boolean }[]
-  >(`SELECT current_user, (SELECT rolsuper FROM pg_roles WHERE rolname = current_user)`);
-
-  if (!rolsuper) {
-    die(
-      `Connected as "${role}", which is not the owner.\n\n` +
-        'DIRECT_DATABASE_URL is pointing at the runtime role. Point it at the\n' +
-        'role that owns the tables.',
-    );
-  }
+  await assertOwnerRole(prisma);
 
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.venueOrg.upsert({
@@ -219,70 +197,13 @@ async function main(): Promise<void> {
       select: { id: true, name: true },
     });
 
-    const ownerEmail = values['owner-email']!.trim().toLowerCase();
-
-    // ═══ THE OWNER MUST BE A CLUB ACCOUNT WITH NO OTHER CLUB (#263) ═══
-    //
-    // One account, one kind, and a club account belongs to one club. An
-    // address that already belongs to somebody who plays, or who runs another
-    // club, is refused rather than quietly converted: making a player an owner
-    // would end their player memberships, and the operator typing this command
-    // is not the person who should decide that. Refused BEFORE anything is
-    // written — the transaction rolls back, so the club is not created either.
-    //
-    // A brand-new address, or an account that holds nothing yet, becomes a
-    // CLUB account here.
-    const existing = await tx.user.findUnique({
-      where: { email: ownerEmail },
-      select: { id: true },
-    });
-    const standing = existing
-      ? await readAccountStanding(tx as unknown as PrismaClient, existing.id)
-      : null;
-    const assignment = standing
-      ? decideOwnerAssignment(standing, org.id)
-      : { ok: true as const, becomes: 'CLUB' as const };
-
-    if (!assignment.ok) {
-      throw new Error(
-        {
-          PLAYER_ACCOUNT:
-            `${ownerEmail} is a PLAYER account that already plays at a club. One account is one ` +
-            'kind (#263): the club needs a separate account for its owner — use another address.',
-          COACH_ACCOUNT: `${ownerEmail} is a COACH account. A club's owner needs a club account of its own — use another address.`,
-          CLUB_ACCOUNT_TAKEN:
-            `${ownerEmail} is the club account of another club, and a club account belongs to one ` +
-            'club. Use another address for this one.',
-          UNDECIDED:
-            `${ownerEmail} is an account the #263 migration could not decide — it held roles at ` +
-            'more than one club, or a coach role. Settle it first: npm run report:undecided-accounts',
-        }[assignment.refusal],
-      );
-    }
-
-    const owner = await tx.user.upsert({
-      where: { email: ownerEmail },
-      update: assignment.becomes ? { accountKind: assignment.becomes } : {},
-      create: {
-        email: ownerEmail,
-        name: values['owner-name'] ?? null,
-        // No passwordHash, on purpose — see the header.
-        accountKind: 'CLUB',
-      },
-      select: { id: true },
-    });
-
-    await tx.tenantMembership.upsert({
-      where: { userId_tenantId: { userId: owner.id, tenantId: org.id } },
-      update: { role: 'OWNER', status: 'ACTIVE' },
-      create: {
-        userId: owner.id,
-        tenantId: org.id,
-        role: 'OWNER',
-        status: 'ACTIVE',
-        acceptedAt: new Date(),
-      },
-    });
+    // The owner rule (#263), shared with onboard-club: refused BEFORE anything
+    // else is written, and the transaction rolls back, so the club is not
+    // created either. See `decideOwner`.
+    const db = tx as unknown as PrismaClient;
+    const decision = await decideOwner(db, values['owner-email']!, org.id);
+    await assignOwner(db, decision, org.id, values['owner-name'] ?? null);
+    const ownerEmail = decision.email;
 
     const venue = await tx.venue.upsert({
       where: { tenantId_slug: { tenantId: org.id, slug } },
