@@ -527,7 +527,14 @@ describe('an invitation is accepted only by an account of the right kind', () =>
       ),
     );
 
-    expect(outcomes.sort()).toEqual(['ACCEPTED', 'CLUB_ACCOUNT_TAKEN']);
+    // Exactly one wins. The loser's REASON depends on what it read before the
+    // winner committed: it either sees the account already holding a club
+    // (CLUB_ACCOUNT_TAKEN) or still holding player history from the other
+    // invite's half-way state (SEPARATE_ACCOUNT_REQUIRED). Both refuse; the
+    // invariant that matters is the single ACTIVE membership below.
+    const [won, lost] = [...outcomes].sort();
+    expect(won).toBe('ACCEPTED');
+    expect(['CLUB_ACCOUNT_TAKEN', 'SEPARATE_ACCOUNT_REQUIRED']).toContain(lost);
     expect((await membershipsOf(fresh.id)).filter((m) => m.status === 'ACTIVE')).toHaveLength(1);
   });
 });
