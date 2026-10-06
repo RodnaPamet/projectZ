@@ -84,8 +84,10 @@ const ALLOWED: Record<string, string> = {
   'src/app/sitemap.ts':
     "sitemap.xml lists every club's public venue pages; it selects only slug and date (#396)",
   'src/app/(public)/venues/[slug]/page.tsx':
-    'the public venue page (#355): one venue by its public slug, from any club, with its ' +
-    'first day of slots, as the public availability route reads them',
+    'the public venue page (#355): one venue by its public slug, from any club',
+  'src/app/(public)/venues/[slug]/VenueSlots.tsx':
+    "the public venue page's second stage (#403): the first day of slots, as the public " +
+    'availability route reads them',
   'src/app/(public)/clubs/[slug]/page.tsx':
     'the public club page (#356): one ACTIVE club by its unique slug, its ACTIVE venues, ' +
     'and each venue’s free times today as the public availability route reads them',
