@@ -19,7 +19,75 @@ npm run perf:budget -- .perf/after.json                     # the latency budget
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
 ```
 
-## The current baseline: `da4342f` (T29, the end of the port), 3 October 2026
+## The current baseline: `7738122` (#397, the venue page), 6 October 2026
+
+`docs/perf/baseline-7738122.json` holds two runs of the harness at `7738122`, merged. The
+app code is `73a9820` (main after #396, the venue page's SEO). The branch changes only the
+harness and its seed check. `docs/perf/budget.json` is reset from it under T29's rule
+(10% / 30 ms): the 92 existing rows plus 28 new ones.
+
+**Measured under concurrent load.** Other agents were working on the same machine (10
+cores), and the owner accepted noisier runs so as not to block them. Load average (1 min)
+per sample:
+
+| Run                          | Sofia time  | Heavy lock        | Load min / median / max | Used         |
+| ---------------------------- | ----------- | ----------------- | ----------------------- | ------------ |
+| 1, app `72b6b40`             | 10:31–10:50 | whole run         | 0.86 / 1.42 / 2.83      | cross-check  |
+| 2, app `72b6b40`             | 10:51–11:10 | whole run         | 1.03 / 1.69 / 3.01      | cross-check  |
+| 3                            | 11:11–      | whole run         | —                       | stopped      |
+| 4, app `73a9820`             | 11:30–11:49 | `next build` only | 0.98 / 1.65 / 5.59      | the baseline |
+| 5, app `73a9820` (4's build) | 11:49–12:09 | none              | 0.77 / 1.43 / 3.19      | the baseline |
+
+Run 3 was stopped part-way to free the lock. Runs 4 and 5 serve one `next build`
+(`PERF_SKIP_BUILD=1`), taken under the lock just before run 4. Runs 1 and 2 measured the
+tree before #396; `perf:compare` pools only runs of one commit, so they are a
+cross-check, not part of the baseline. Against them, runs 4 and 5 are within noise on
+every row, venue rows included. Runs 4 and 5 differ by at most 12.7 ms on any row (median
+2.1 ms), and no settle timed out. The baseline includes the noisiest run (4), so its
+ceilings are not tighter than a quiet machine's would be. All of these rows should be
+re-baselined on a quiet machine at the next milestone (#402).
+
+The existing rows were measured before #362 (navigation per account kind) and #359 (the
+player area) landed. A one-context check after rebasing onto them passed every journey.
+
+Against T29's baseline below, the existing rows are within noise except
+`players → staff`, which PRs merged since T29 made faster: phone cold 505 → 394 ms, phone
+warm 213 → 73 ms, desktop warm 53 → 29 ms. The budget now holds them there.
+
+**The new journeys, `public-venue` and `player-venue`** (see _Journeys_): a full load of
+`/venues`, then → the Sofia Padel Club venue page, → its next day, → back to `/venues`.
+Medians of 20, signed out / signed in:
+
+| Step                | Phone cold | Phone warm | Desktop cold | Desktop warm |
+| ------------------- | ---------- | ---------- | ------------ | ------------ |
+| load /venues (full) | 476 / 476  | —          | 76 / 82      | —            |
+| venues → venue      | 425 / 427  | 52 / 55    | 336 / 340    | 25 / 27      |
+| venue → next day    | 230 / 230  | 34 / 30    | 48 / 49      | 14 / 13      |
+| venue → venues      | 60 / 62    | 41 / 44    | 26 / 25      | 23 / 24      |
+
+- **The cards prefetch as the policy says** (`navigation-policy.md`, auto). Before the
+  tap, `/venues` has made 12 route prefetches on the phone (21 KB) and 20 on the desktop
+  (45 KB). That is one per card in the viewport, each fetching down to the venue page's
+  `loading.tsx`. The tap paints that skeleton at 66 ms on the phone and 35 ms on the
+  desktop.
+- **A first visit is held by the reveal throttle (#290).** The page's RSC (4.9 KB wire,
+  28 KB decoded) is complete at 197 ms on the phone and 44 ms on the desktop. The content
+  still paints at the skeleton's time plus 300 ms: 340 ms on the desktop, and 425 ms on
+  the phone, where the page's JS chunks and the ×4 CPU add about 60 ms. That is the same
+  cost as a club admin first visit, which the owner accepted on 1 October 2026.
+  Removing it would take a full prefetch of every card: a third `PublicPrefetchLink` site,
+  12–20 dynamic pages that each compute a day's availability, kept up to 180 s. That is a
+  policy decision, not a one-line alignment (#403).
+- **Warm, the venue page renders from the router cache**: no request, no skeleton,
+  25–55 ms. The step back to `/venues` is a cache hit both cold and warm, because the
+  entry load seeded it.
+- **The next day is one SWR read** (`GET /api/v1/venues/{id}/availability?date=`,
+  16.5 KB). On the phone that is one round trip, 230 ms. Warm, SWR already holds the day.
+- **The confirm sheet is not timed.** It is not a navigation: it makes no request and
+  has no URL of its own. The pick it opens on is mirrored into a time-dependent
+  `?start=`, and the harness keys every ready condition by URL.
+
+## T29's baseline: `da4342f` (the end of the port), 3 October 2026
 
 `docs/perf/baseline-da4342f.json` holds T29's two branch runs, merged, and
 `docs/perf/budget.json` is set from it under the tightened rule (10% / 30 ms). The four
@@ -384,12 +452,13 @@ bytes, which do not vary at all.
 Each journey is a loop of real clicks (taps, on the phone) that ends where it began.
 The entry page is the only `goto`.
 
-| Journey | Account                             | Entry                                   | Steps                                                                                                                                                                  |
-| ------- | ----------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| public  | anonymous                           | `/`                                     | → venues (the call to action), → home (the wordmark), → login (tab bar / header), back                                                                                 |
-| player  | `player@perf.playerz.test`          | `/`                                     | → my bookings (tab bar / header), → home, → venues, → home                                                                                                             |
-| staff   | `owner@sofia.bg`, OWNER of one club | `/t/sofia-padel-club` (307 → the diary) | the club nav: → courts → pricing → players → staff; the back button; → calendar (nav); the diary's "next day" link; its "today" link                                   |
-| landing | player, then staff                  | `/start`                                | the post-sign-in redirect chain as a full load: what Google or Microsoft's callback lands on (#227). There is no web sign-in form to click, so this is the one `goto`. |
+| Journey                           | Account                             | Entry                                   | Steps                                                                                                                                                                  |
+| --------------------------------- | ----------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| public                            | anonymous                           | `/`                                     | → venues (the call to action), → home (the wordmark), → login (tab bar / header), back                                                                                 |
+| player                            | `player@perf.playerz.test`          | `/`                                     | → my bookings (tab bar / header), → home, → venues, → home                                                                                                             |
+| public-venue, player-venue (#397) | anonymous; the player               | `/venues`                               | → the Sofia Padel Club venue (its card), → next day (the day picker's "Утре", an SWR read, not a router navigation), → `/venues` (the page's back link)                |
+| staff                             | `owner@sofia.bg`, OWNER of one club | `/t/sofia-padel-club` (307 → the diary) | the club nav: → courts → pricing → players → staff; the back button; → calendar (nav); the diary's "next day" link; its "today" link                                   |
+| landing                           | player, then staff                  | `/start`                                | the post-sign-in redirect chain as a full load: what Google or Microsoft's callback lands on (#227). There is no web sign-in form to click, so this is the one `goto`. |
 
 Since T20 the player chrome differs by width, so `→ login` and `→ my bookings` are
 tapped on the bottom tab bar on the phone and clicked in the header on the desktop:
@@ -455,16 +524,17 @@ Each is the page's heading, taken from `messages/bg.json` as the e2e specs do, p
 the page's **READY marker**: the element carrying `data-perf-ready`, with the seeded
 text it must contain where there is one.
 
-| Destination    | Ready when                                                                                                      |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `/`            | `main h1` "playerz.bg" and `[data-perf-ready]` (the venues call to action)                                      |
-| `/venues`      | `main h1` "Играй" and `[data-perf-ready]` (the venue card list)                                                 |
-| `/login`       | `main h1` "Вход"                                                                                                |
-| `/me/bookings` | `main h1` "Моите резервации" and `[data-perf-ready]` (the booking list)                                         |
-| diary, any day | `main h1` "Календар", that day's own "next day" link (unique per day), and `[data-perf-ready]` "Court 1" (grid) |
-| courts         | `main h1` "Кортове" and `[data-perf-ready]` "Court 1" (the court cards)                                         |
-| pricing        | `main h1` "Ценообразуване" and `[data-perf-ready]` "Weekend peak" (the board)                                   |
-| players, staff | `main h1` "Играчи" / "Персонал" and `[data-perf-ready]` (the list)                                              |
+| Destination         | Ready when                                                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                 | `main h1` "playerz.bg" and `[data-perf-ready]` (the venues call to action)                                                                                                                                                                                          |
+| `/venues`           | `main h1` "Играй" and `[data-perf-ready]` (the venue card list)                                                                                                                                                                                                     |
+| `/login`            | `main h1` "Вход"                                                                                                                                                                                                                                                    |
+| `/me/bookings`      | `main h1` "Моите резервации" and `[data-perf-ready]` (the booking list)                                                                                                                                                                                             |
+| venue page, any day | `main h1` "Sofia Padel Club", the day picker's checked option ("Днес" / "Утре"), and `[data-perf-ready]` "Court 1" (the court list); tomorrow also a free time's button. Keyed `/venues/sofia-padel-club?day=…`: the page mirrors the day into the URL as it mounts |
+| diary, any day      | `main h1` "Календар", that day's own "next day" link (unique per day), and `[data-perf-ready]` "Court 1" (grid)                                                                                                                                                     |
+| courts              | `main h1` "Кортове" and `[data-perf-ready]` "Court 1" (the court cards)                                                                                                                                                                                             |
+| pricing             | `main h1` "Ценообразуване" and `[data-perf-ready]` "Weekend peak" (the board)                                                                                                                                                                                       |
+| players, staff      | `main h1` "Играчи" / "Персонал" and `[data-perf-ready]` (the list)                                                                                                                                                                                                  |
 
 #### READY markers: later PRs keep them
 
@@ -572,6 +642,8 @@ and relative to the club's today:
   bookings, 57 of them in today's diary.
 - Plovdiv: 6 courts and 61 players.
 - 8 more clubs, so `/venues` lists 11 venues.
+- Sofia's main venue has the public slug `sofia-padel-club` (P41's trigger names it; the
+  fixture fails if it does not), so its card links to `/venues/sofia-padel-club`.
 - The player has 24 bookings at both clubs: played, upcoming and cancelled. One venue
   is reviewed, so the first page of `/me/bookings` is full.
 
@@ -777,7 +849,9 @@ Two more cautions:
 | `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                  |
 | `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables               |
 | `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                      |
-| `docs/perf/baseline-7d7d27d.json` | T30's merged "after", the current baseline; the budget is set from it               |
+| `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                |
+| `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                          |
+| `docs/perf/baseline-7738122.json` | #397's, the current baseline; the budget is set from it                             |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)    |
 | `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)  |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                       |
