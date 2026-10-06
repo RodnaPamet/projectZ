@@ -6,6 +6,7 @@ import {
   FEEDBACK_SELECTOR,
   installPerfAgent,
   type EntryRecord,
+  type FirstTable,
   type PerfAgent,
   type ReadyTable,
   type StepRecord,
@@ -308,6 +309,11 @@ export interface Sample {
   tUrl: number | null;
   tLoadingUi: number | null;
   loadingUiWhat: string | null;
+  /**
+   * The destination's first content is painted (agent.ts `firstAt`): only for
+   * a soft navigation to a page with a FirstTable entry, else null.
+   */
+  tFirst: number | null;
   /** The destination's key content is painted. null for a write, which is not timed. */
   tReady: number | null;
 
@@ -408,6 +414,7 @@ export class PerfSession {
     journey: string;
     run: number;
     table: ReadyTable;
+    first?: FirstTable;
   }): Promise<PerfSession> {
     const { browser, profile, persona } = opts;
     // A FRESH context: empty HTTP cache, no router cache, no JS in memory.
@@ -423,6 +430,7 @@ export class PerfSession {
     const page = await context.newPage();
     await page.addInitScript(installPerfAgent, {
       table: opts.table,
+      first: opts.first ?? {},
       feedback: FEEDBACK_SELECTOR,
     });
 
@@ -668,6 +676,7 @@ export class PerfSession {
       tUrl: html?.ttfb != null ? html.ttfb - t0 : null,
       tLoadingUi: null,
       loadingUiWhat: null,
+      tFirst: null,
       tReady: readyAt,
       requests: upToReady.length,
       bytes: sum(upToReady),
@@ -841,6 +850,7 @@ export class PerfSession {
       tUrl,
       tLoadingUi,
       loadingUiWhat: s.loadingUiWhat,
+      tFirst: rel(s.firstAt),
       tReady: s.readyAt! - s.t0,
       requests: blocking.length,
       bytes: sum(blocking),
@@ -966,6 +976,7 @@ export class PerfSession {
       tUrl: null,
       tLoadingUi: null,
       loadingUiWhat: null,
+      tFirst: null,
       tReady: null,
       requests: all.length,
       bytes: sum(all),

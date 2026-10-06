@@ -21,6 +21,10 @@
  *   urlAt       the Navigation API's `currententrychange`, which fires on the
  *               router's pushState.
  *   loadingUiAt the first NEW visible element matching FEEDBACK_SELECTOR.
+ *   firstAt     the destination's FIRST CONTENT is painted: the part of the
+ *               page that can show before its slowest data (the venue page's
+ *               header, before its slots; #403). Optional per destination
+ *               (FirstTable), and timed after the next paint like readyAt.
  *   readyAt     the destination's ready conditions all hold. The time is
  *               taken after the NEXT PAINT (a task posted from rAF runs after
  *               that frame's rendering), because "visible" means painted and
@@ -41,6 +45,14 @@ export interface ReadyCondition {
 /** Destination → what "its key content is visible" means. Keyed by pathname + search. */
 export type ReadyTable = Record<string, ReadyCondition[]>;
 
+/**
+ * Destination → what "its first content is visible" means, for a page that
+ * paints in two stages. Keyed by PATHNAME only: the venue page mirrors its day
+ * into the query string as its booking panel mounts, which is after the header
+ * it is timing has painted.
+ */
+export type FirstTable = Record<string, ReadyCondition[]>;
+
 export interface StepRecord {
   key: string;
   from: string;
@@ -49,6 +61,7 @@ export interface StepRecord {
   urlAt: number | null;
   loadingUiAt: number | null;
   loadingUiWhat: string | null;
+  firstAt: number | null;
   readyDomAt: number | null;
   readyAt: number | null;
   timeOrigin: number;
@@ -107,11 +120,15 @@ export const FEEDBACK_SELECTOR = [
   '[data-perf-feedback]',
 ].join(',');
 
-export function installPerfAgent(args: { table: ReadyTable; feedback: string }): void {
+export function installPerfAgent(args: {
+  table: ReadyTable;
+  first: FirstTable;
+  feedback: string;
+}): void {
   const w = window as unknown as { __perf?: PerfAgent };
   if (w.__perf) return;
 
-  const { table, feedback } = args;
+  const { table, first, feedback } = args;
   const now = () => performance.now();
   // The harness reads Resource Timing for sizes CDP leaves open, and a whole
   // loop of navigations outgrows the default buffer of 250 entries.
@@ -166,6 +183,7 @@ export function installPerfAgent(args: { table: ReadyTable; feedback: string }):
   }
 
   let loadingUiPending = false;
+  let firstPending = false;
   let stepReadyPending = false;
   let entryReadyPending = false;
   let pre = new WeakSet<Element>();
@@ -190,6 +208,7 @@ export function installPerfAgent(args: { table: ReadyTable; feedback: string }):
       }
       pre = new WeakSet(Array.from(document.querySelectorAll(feedback)).filter(visible));
       loadingUiPending = false;
+      firstPending = false;
       stepReadyPending = false;
       agent.step = {
         key,
@@ -199,6 +218,7 @@ export function installPerfAgent(args: { table: ReadyTable; feedback: string }):
         urlAt: null,
         loadingUiAt: null,
         loadingUiWhat: null,
+        firstAt: null,
         readyDomAt: null,
         readyAt: null,
         timeOrigin: performance.timeOrigin,
@@ -249,6 +269,18 @@ export function installPerfAgent(args: { table: ReadyTable; feedback: string }):
           });
           break;
         }
+      }
+    }
+
+    // Before the ready check: when both hold in the same frame, both are timed.
+    if (!firstPending) {
+      const path = s.key.split('?')[0]!;
+      const conds = first[path];
+      if (conds && location.pathname === path && satisfied(conds)) {
+        firstPending = true;
+        afterNextPaint((t) => {
+          s.firstAt = t;
+        });
       }
     }
 

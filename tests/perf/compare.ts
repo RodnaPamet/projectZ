@@ -10,6 +10,7 @@ import {
   readyTable,
   rowKey,
   stringify,
+  firstTable,
   writeTable,
   type BaselineDoc,
   type Row,
@@ -215,6 +216,8 @@ function tables(path: string) {
   const d = load(path);
   const rows = rowsOf(d);
   process.stdout.write(`${readyTable(rows)}\n\n${networkTable(rows)}\n\n`);
+  const firsts = firstTable(rows);
+  if (firsts) process.stdout.write(`${firsts}\n\n`);
   const writes = writeTable(rows);
   if (writes) process.stdout.write(`${writes}\n\n`);
   const fl = runsOf(d)[0]?.firstLoadJs ?? [];
