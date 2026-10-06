@@ -19,7 +19,56 @@ npm run perf:budget -- .perf/after.json                     # the latency budget
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
 ```
 
-## The current baseline: `7738122` (#397, the venue page), 6 October 2026
+## The current baseline: `c72cb8a` (#403, the venue page's first paint), 6 October 2026
+
+`docs/perf/baseline-c72cb8a.json` holds two runs of #403's branch, merged, interleaved with
+two runs of main (`5cee77b`) in one session, 15:04–16:23 Sofia time. Both sides ran the
+same harness (main plus #403's harness commit), each on its own `next build` taken under
+the heavy lock; the runs themselves held only the perf lock. `docs/perf/budget.json` is
+reset from it under T29's rule. The First Load JS budget is unchanged: `/venues/[slug]` is
+300.4 KB, 300.3 on main.
+
+**Measured under concurrent load**, as the owner accepts. Load average (1 min) per
+sample, min / median / max: main 1.17 / 1.86 / 4.07 and 1.28 / 3.01 / 7.97; branch
+2.01 / 2.83 / 6.59 and 1.00 / 1.57 / 2.56.
+
+`perf:compare` finds **1 row faster, 0 slower** beyond noise. `venues → venue`, cold,
+medians of 20 (public / player):
+
+| Profile | Skeleton   | Header painted (`tFirst`)     | RSC complete | Ready: main → #403       |
+| ------- | ---------- | ----------------------------- | ------------ | ------------------------ |
+| phone   | 69 / 66 ms | 378 / 379 ms (main 430 / 419) | 200 / 198 ms | 430 → 378 / 422 → 379 ms |
+| desktop | 36 / 36 ms | 41 / 45 ms (main 335 / 337)   | 46 / 44 ms   | 335 → 345 / 337 → 341 ms |
+
+The player row's −42 ms is just inside its noise band. Every other row is within noise.
+
+- **On the phone the wait was the page's JS chunk, not only the throttle.** The tap's
+  RSC answer was complete at ~200 ms, but it named a 12 KB chunk (`VenueBooking` and
+  the rest of the page) that only then was requested, landing at ~375 ms, after the
+  throttle had released at ~365. Every part of the header is a client component (the
+  vendored `Heading`, `Caption` and `StatusBadge`, and `next/link`), and Turbopack maps
+  every client reference in a route to the route's whole chunk list, so no
+  restructure could paint the header before that chunk. #403 measured three shapes,
+  3 contexts each, phone cold (header / ready):
+  - header outside Suspense, slots inside, `loading.tsx` kept: 442 / 443 (main 429);
+  - the same without the route's `loading.tsx` (and `/venues` in a route group so its
+    skeleton stops wrapping the venue page): 444 / 444, with **nothing** on screen until
+    ~410 ms, because without a loading boundary nothing is prefetched and the
+    transition waits for the chunk. Desktop header at 50 ms;
+  - the first, plus the real back link in the skeleton: 379 / 379. That is what
+    shipped. The link is a client reference, so a card's auto prefetch of the skeleton
+    also fetches the page's chunk (one immutable 12 KB fetch for every card; no route
+    or server work), and the tap waits for 1 request instead of 3. The owner approved
+    the fetch; `navigation-policy.md` records it.
+- **What is left on the phone is the throttle**: skeleton at ~66 ms plus 300 ms. Content
+  that follows a skeleton cannot paint sooner without fully prefetching the page, which
+  the owner declined (#403, options 2 and 3).
+- **On the desktop the header now paints with the RSC answer** (~41 ms), and the slots
+  follow their own skeleton under the throttle, as before (~345 ms).
+- **Two-stage pages print a table of their own**: skeleton, first content, RSC
+  complete, ready (`tFirst`, see _When a navigation starts, and when it is done_).
+
+## #397's baseline: `7738122` (the venue page), 6 October 2026
 
 `docs/perf/baseline-7738122.json` holds two runs of the harness at `7738122`, merged. The
 app code is `73a9820` (main after #396, the venue page's SEO). The branch changes only the
@@ -513,6 +562,9 @@ All timestamps are taken in the page with `performance.now()`, by the agent that
   a button is excluded because it is invisible.
 - **t_feedback** is the earlier of t_url and t_loading_ui. For a full load it is the
   first contentful paint.
+- **t_first** (#403), for a destination in the spec's `FIRST` table, is the moment its
+  first content is painted: the venue page's header (its h1) before its slots. Keyed by
+  pathname, and left empty for a step that never leaves the page (the next day).
 - **t_ready** is the moment the destination's ready conditions (below) all hold,
   timestamped after the next paint: a task posted from `requestAnimationFrame` runs
   after that frame is rendered. For a full load, it is the later of that and first
@@ -851,7 +903,8 @@ Two more cautions:
 | `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                      |
 | `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                |
 | `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                          |
-| `docs/perf/baseline-7738122.json` | #397's, the current baseline; the budget is set from it                             |
+| `docs/perf/baseline-7738122.json` | #397's, the venue page's first measurement                                          |
+| `docs/perf/baseline-c72cb8a.json` | #403's, the current baseline; the budget is set from it                             |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)    |
 | `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)  |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                       |
