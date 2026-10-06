@@ -49,6 +49,8 @@ describe('DayGrid: marking a no-show', () => {
     priceLabel: '€24.00',
     expiresLabel: null,
     canMarkNoShow: true,
+    desk: false,
+    seriesId: null,
     ...over,
   });
 
@@ -64,7 +66,16 @@ describe('DayGrid: marking a no-show', () => {
             nextDay: '2026-09-30',
             isToday: true,
             dayLabel: 'Tuesday',
-            courts: [{ id: 'r1', name: 'Court 1', venueName: null }],
+            courts: [
+              {
+                id: 'r1',
+                name: 'Court 1',
+                venueName: null,
+                durations: [60],
+                slotStepMinutes: 60,
+                bookable: true,
+              },
+            ],
             bookings,
             firstHour: 8,
             lastHour: 22,

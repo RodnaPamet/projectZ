@@ -42,6 +42,7 @@ filter:
   tags:
     - Auth
     - Bookings
+    - Desk
     - Devices
     - Me
     - Payments

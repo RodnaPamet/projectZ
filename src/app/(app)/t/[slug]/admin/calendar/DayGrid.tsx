@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -15,10 +16,19 @@ import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
+import { V1 } from '@/lib/data/keys';
+import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 
 import { markNoShowAction } from './actions';
+import type { DeskCancelRequest } from './DeskBookingDetails';
+import type { DeskDraft } from './DeskBookingSheet';
 import type { DiaryDay } from './diary-day';
 import { useFreshDiaryDay } from './use-fresh-diary-day';
+
+// The desk's two sheets (#364) load when first opened: the diary's first load
+// is the grid, and most visits only look.
+const DeskBookingSheet = dynamic(() => import('./DeskBookingSheet'));
+const DeskBookingDetails = dynamic(() => import('./DeskBookingDetails'));
 
 /**
  * One day, every court, side by side — the front-desk view.
@@ -72,6 +82,16 @@ import { useFreshDiaryDay } from './use-fresh-diary-day';
  * offers a Button per court that scrolls it into view, and blurs the edge
  * that has courts behind it (the vendored ProgressiveBlur); the hour ruler stays pinned on the left while the
  * courts scroll, so a court scrolled into view still has its hours.
+ *
+ * ═══ THE DESK (#364) ═══
+ *
+ * "+ Резервация", or a tap on a free hour of a court, opens the desk sheet:
+ * a booking for a customer by name and phone, once or every week. A desk
+ * booking is drawn in the info tokens rather than the success ones, a week of
+ * a series carries a "Серия" mark, and tapping either opens its detail —
+ * change the customer, cancel it, cancel the rest of its series, or mark a
+ * no-show once it has started. Writes go to /api/v1; the grid then re-reads
+ * its day through the same action its stale refresh uses, never the router.
  */
 
 export interface DayBooking {
@@ -89,6 +109,10 @@ export interface DayBooking {
   expiresLabel: string | null;
   /** Started, and CONFIRMED or COMPLETED. The use case re-checks it. */
   canMarkNoShow: boolean;
+  /** Entered at the desk (#364): drawn in its own colour, and opens its detail. */
+  desk: boolean;
+  /** One week of a weekly series, or null. */
+  seriesId: string | null;
 }
 
 export interface GridCourt {
@@ -96,6 +120,12 @@ export interface GridCourt {
   name: string;
   /** Set only when the club has more than one site; null otherwise. */
   venueName: string | null;
+  /** The lengths a booking here can be, in minutes, shortest first. */
+  durations: number[];
+  /** The grid start times sit on. */
+  slotStepMinutes: number;
+  /** ACTIVE: an archived court keeps its bookings but takes no new ones. */
+  bookable: boolean;
 }
 
 const ROW_HEIGHT = 56;
@@ -151,11 +181,30 @@ export function DayGrid({
   day: DiaryDay;
 }) {
   const t = useTranslations('admin.calendar');
+  const td = useTranslations('admin.calendar.desk');
+  const { day: fresh, refresh } = useFreshDiaryDay(slug, requestedDay, day);
   const { isoDay, prevDay, nextDay, isToday, dayLabel, courts, bookings, firstHour, lastHour } =
-    useFreshDiaryDay(slug, requestedDay, day);
+    fresh;
   const [noShowTarget, setNoShowTarget] = useState<DayBooking | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+
+  // ── The desk (#364) ──────────────────────────────────────────────
+  const [draft, setDraft] = useState<DeskDraft | null>(null);
+  const [detail, setDetail] = useState<DayBooking | null>(null);
+  const [cancelRequest, setCancelRequest] = useState<DeskCancelRequest | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deskError, setDeskError] = useState(false);
+  const cancelOne = useV1Mutation<string, unknown>({
+    url: (id) => V1.cancelBooking(slug, id),
+  });
+  const cancelRest = useV1Mutation<{ seriesId: string; fromDate: string }, unknown>({
+    url: (a) => V1.cancelSeries(slug, a.seriesId),
+    body: (a) => ({ fromDate: a.fromDate }),
+  });
+  const bookableCourts = courts.filter((c) => c.bookable);
+  const openNew = (courtId: string, hour: number) =>
+    setDraft({ courtId, date: isoDay, time: `${String(hour).padStart(2, '0')}:00` });
 
   const router = useRouter();
   const ids = useId();
@@ -293,6 +342,15 @@ export function DayGrid({
             onChange={(e) => goToDay(e.target.value)}
           />
         </div>
+        {bookableCourts.length > 0 && (
+          <Button
+            type="button"
+            onClick={() => openNew(bookableCourts[0]!.id, Math.max(firstHour, 8))}
+            data-desk-new
+          >
+            {td('new')}
+          </Button>
+        )}
       </div>
 
       <div className="gap-tight grid">
@@ -309,13 +367,25 @@ export function DayGrid({
           >
             {t('legend.pending')}
           </StatusBadge>
+          <StatusBadge variant="info" tone="solid" icon={null}>
+            {t('legend.desk')}
+          </StatusBadge>
+          <StatusBadge variant="info" icon={null} className="border-border-info border">
+            {t('legend.series')}
+          </StatusBadge>
         </div>
         <Caption>{t('noShow.hint')}</Caption>
+        {bookableCourts.length > 0 && <Caption>{td('hint')}</Caption>}
       </div>
 
       {refusal && (
         <InlineNotice variant="error" onDismiss={() => setRefusal(null)}>
           {t(`noShow.error.${refusal}` as never)}
+        </InlineNotice>
+      )}
+      {deskError && (
+        <InlineNotice variant="error" onDismiss={() => setDeskError(false)}>
+          {td('detail.actionError')}
         </InlineNotice>
       )}
 
@@ -395,13 +465,34 @@ export function DayGrid({
                     </div>
 
                     <div className="relative" style={{ height: hours.length * ROW_HEIGHT }}>
-                      {hours.map((h, row) => (
-                        <div
-                          key={h}
-                          className={cn(row > 0 && 'border-border-subtle border-t')}
-                          style={{ height: ROW_HEIGHT }}
-                        />
-                      ))}
+                      {hours.map((h, row) =>
+                        // A free hour is the way in to a desk booking there
+                        // (#364). Blocks are drawn over it, so a taken hour's
+                        // tap lands on its booking, not here.
+                        court.bookable && h < 24 ? (
+                          <button
+                            key={h}
+                            type="button"
+                            className={cn(
+                              'hover:bg-bg-subtle focus-visible:ring-focus-ring block w-full cursor-pointer focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset',
+                              row > 0 && 'border-border-subtle border-t',
+                            )}
+                            style={{ height: ROW_HEIGHT }}
+                            aria-label={td('newAt', {
+                              court: court.name,
+                              time: `${String(h).padStart(2, '0')}:00`,
+                            })}
+                            data-desk-slot={`${court.id}@${h}`}
+                            onClick={() => openNew(court.id, h)}
+                          />
+                        ) : (
+                          <div
+                            key={h}
+                            className={cn(row > 0 && 'border-border-subtle border-t')}
+                            style={{ height: ROW_HEIGHT }}
+                          />
+                        ),
+                      )}
 
                       {(byCourt.get(court.id) ?? []).map((b) => (
                         <BookingBlock
@@ -411,6 +502,10 @@ export function DayGrid({
                             setRefusal(null);
                             setNoShowTarget(b);
                             setConfirmOpen(true);
+                          }}
+                          onOpenDesk={() => {
+                            setDeskError(false);
+                            setDetail(b);
                           }}
                         />
                       ))}
@@ -453,6 +548,81 @@ export function DayGrid({
         <StatusBadge variant="neutral">{t('tz.badge')}</StatusBadge> {t('tz.note')}
       </Caption>
 
+      {draft && (
+        <DeskBookingSheet
+          slug={slug}
+          courts={courts}
+          draft={draft}
+          onClose={() => setDraft(null)}
+          onSaved={(date) => {
+            setDraft(null);
+            if (date === isoDay) refresh();
+            else router.push(`/t/${slug}/admin/calendar?day=${date}`);
+          }}
+        />
+      )}
+
+      {detail && (
+        <DeskBookingDetails
+          slug={slug}
+          bookingId={detail.id}
+          canMarkNoShow={detail.canMarkNoShow}
+          onClose={() => setDetail(null)}
+          onChanged={refresh}
+          onMarkNoShow={() => {
+            const b = detail;
+            setDetail(null);
+            setRefusal(null);
+            setNoShowTarget(b);
+            setConfirmOpen(true);
+          }}
+          onCancel={(request) => {
+            setDetail(null);
+            setCancelRequest(request);
+            setCancelOpen(true);
+          }}
+        />
+      )}
+
+      {cancelRequest && (
+        <ConfirmDialog
+          showModal={cancelOpen}
+          setShowModal={setCancelOpen}
+          tone="danger"
+          title={
+            cancelRequest.kind === 'one' ? td('detail.cancelTitle') : td('detail.cancelRestTitle')
+          }
+          description={
+            cancelRequest.kind === 'one'
+              ? td('detail.cancelBody', {
+                  who: cancelRequest.booking.customer.name ?? '',
+                  date: cancelRequest.booking.date,
+                  start: cancelRequest.booking.startTime,
+                  end: cancelRequest.booking.endTime,
+                })
+              : td('detail.cancelRestBody', {
+                  count: cancelRequest.booking.series?.remaining ?? 0,
+                  date: cancelRequest.booking.date,
+                })
+          }
+          confirmLabel={
+            cancelRequest.kind === 'one' ? td('detail.cancelBooking') : td('detail.cancelRest')
+          }
+          onConfirm={async () => {
+            const b = cancelRequest.booking;
+            try {
+              if (cancelRequest.kind === 'one') await cancelOne.trigger(b.id);
+              else await cancelRest.trigger({ seriesId: b.series!.id, fromDate: b.date });
+            } catch {
+              // Closed either way; the refusal is shown above the grid, and
+              // the day is re-read so what is on screen is the truth.
+              setDeskError(true);
+            }
+            refresh();
+          }}
+        />
+      )}
+
       {noShowTarget && (
         <ConfirmDialog
           showModal={confirmOpen}
@@ -487,9 +657,12 @@ export function DayGrid({
 function BookingBlock({
   booking: b,
   onMarkNoShow,
+  onOpenDesk,
 }: {
   booking: DayBooking;
   onMarkNoShow: () => void;
+  /** A desk booking opens its detail instead (#364); the no-show is in there. */
+  onOpenDesk: () => void;
 }) {
   const t = useTranslations('admin.calendar');
   const pending = b.status === 'PENDING';
@@ -497,7 +670,10 @@ function BookingBlock({
     'absolute inset-x-1 overflow-hidden rounded-md px-2 py-1 text-xs',
     pending
       ? 'border-border-strong text-content-muted border border-dashed'
-      : 'bg-bg-success text-content-success',
+      : b.desk
+        ? 'bg-bg-info text-content-info'
+        : 'bg-bg-success text-content-success',
+    b.seriesId && 'border-border-info border',
   );
   const style = {
     top: (b.startOffsetMinutes / 60) * ROW_HEIGHT,
@@ -517,8 +693,38 @@ function BookingBlock({
           {t('expiresAt', { time: b.expiresLabel })}
         </StatusBadge>
       )}
+      {b.seriesId && (
+        <StatusBadge
+          size="sm"
+          variant="info"
+          icon={null}
+          className="ml-1 align-middle"
+          data-desk-series-mark
+        >
+          {t('desk.seriesMark')}
+        </StatusBadge>
+      )}
     </>
   );
+
+  if (b.desk) {
+    return (
+      <button
+        type="button"
+        className={cn(
+          className,
+          'focus-visible:ring-focus-ring cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none',
+        )}
+        style={style}
+        data-booking-status={b.status}
+        data-booking-desk
+        aria-label={t('desk.open', { who: b.who, start: b.startLabel, end: b.endLabel })}
+        onClick={onOpenDesk}
+      >
+        {content}
+      </button>
+    );
+  }
 
   if (!b.canMarkNoShow) {
     return (

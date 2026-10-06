@@ -20,6 +20,11 @@ model Booking {
   guestPhone     String?
   guestName      String?
 
+  /// The weekly series this booking is one occurrence of (#364, P44), or
+  /// null. Each occurrence is an ordinary booking — the EXCLUDE constraint,
+  /// the diary and a single cancel treat it exactly like any other.
+  seriesId String?
+
   status     BookingStatus  @default(PENDING)
   /// How it was made (#380). Every booking before this column existed came
   /// through the player route, so the default backfills them as ONLINE —
@@ -59,6 +64,7 @@ model Booking {
   cancellation  Cancellation?
   session       OpenPlaySession?     @relation("SessionBooking")
   bookingSplits BookingSplit[]
+  series        BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, resourceId, startTs])
@@ -72,7 +78,70 @@ model Booking {
   /// skip scan, and without this every run is a sequential scan of every
   /// booking ever made. Same reasoning as `expiresAt` for the expiry sweep.
   @@index([status, endTs])
+  /// A series' occurrences, for its detail and for "cancel the rest".
+  @@index([seriesId, startTs])
   @@map("booking")
+}
+
+/// A weekly recurring booking a club enters for a regular customer (#364, Q41).
+///
+/// The series is the RULE — this court, this weekday, this wall-clock time, this
+/// long, from `firstDate` to `lastDate` — and the customer it is for. The
+/// occurrences are ordinary `Booking` rows pointing back at it with
+/// `seriesId`, each written through `createBooking` and held by the same
+/// `booking_no_overlap` constraint, each cancellable on its own.
+///
+/// The time is a WALL-CLOCK time in `timezone`, not an instant: "Tuesdays at
+/// 19:00" is 17:00Z in October and 16:00Z in November, because Sofia leaves
+/// summer time in between. Every occurrence's instant is resolved from its own
+/// date, so the customer plays at 19:00 on both sides of the change.
+///
+/// Players cannot create one in v1 (owner decision): every writer is staff
+/// holding `bookings.view_all`, and every write is audited.
+model BookingSeries {
+  id         String @id @default(cuid())
+  tenantId   String
+  resourceId String
+
+  /// "HH:mm" on the club's clock, and the zone it was entered in.
+  startTime       String
+  durationMinutes Int
+  timezone        String
+
+  /// The first and the last occurrence's calendar date at the club.
+  firstDate DateTime @db.Date
+  lastDate  DateTime @db.Date
+
+  /// Who it is for: the name and phone the desk took, and — optionally — the
+  /// playerz account it is linked to, which puts every occurrence in that
+  /// player's Резервации.
+  customerName   String
+  customerPhone  String
+  customerUserId String?
+
+  /// The price staff set for every occurrence, or null for "the server's quote
+  /// per occurrence". An override is audited.
+  priceCents Int?
+  notes      String?
+
+  createdByUserId String?
+  /// "Cancel the rest from this date" — the date it was cut at, or null.
+  cancelledFrom   DateTime? @db.Date
+
+  /// The desk's retry key, as `Booking.idempotencyKey`: a repeated create
+  /// returns the series it made.
+  idempotencyKey String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resource Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, resourceId])
+  @@index([resourceId])
+  @@map("booking_series")
 }
 
 model BookingParticipant {

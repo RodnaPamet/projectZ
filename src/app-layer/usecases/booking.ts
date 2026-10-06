@@ -113,7 +113,14 @@ export interface CreateBookingInput {
   totalCents: number;
   idempotencyKey: string;
   bookedByUserId?: string | null;
-  guestContact?: { name: string; email: string; phone?: string } | null;
+  /**
+   * Who the booking is for when it is not (only) an account. A desk booking
+   * (#364) always carries the name and phone the desk took, linked or not;
+   * the email is optional there, because nobody asks a walk-in for one.
+   */
+  guestContact?: { name: string; email?: string | null; phone?: string | null } | null;
+  /** The weekly series this is an occurrence of (#364), set by `createSeries`. */
+  seriesId?: string | null;
   notes?: string | null;
   /**
    * The club takes payment ONLINE (`VenueOrg.onlinePaymentEnabled`). Then the
@@ -259,6 +266,7 @@ export async function createBooking(
         guestEmail: input.guestContact?.email ?? null,
         guestPhone: input.guestContact?.phone ?? null,
         notes: input.notes ?? null,
+        seriesId: input.seriesId ?? null,
         expiresAt,
       },
     });

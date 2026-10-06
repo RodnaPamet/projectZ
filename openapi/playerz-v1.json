@@ -30,6 +30,10 @@
       "description": "A club's bookings, scoped to the caller's membership in that club."
     },
     {
+      "name": "Desk",
+      "description": "The club's front desk (#364): bookings for walk-in and phone customers, weekly series for regulars, and the player lookup behind linking one. Staff holding `bookings.view_all` only."
+    },
+    {
       "name": "Devices",
       "description": "APNs device registration for push. A device belongs to a person, not a club."
     },
@@ -3663,6 +3667,1029 @@
           }
         }
       }
+    },
+    "/t/{slug}/admin/customers": {
+      "get": {
+        "operationId": "findDeskCustomers",
+        "summary": "Find one of the club's players to link a desk booking to",
+        "description": "Matches `q` against the club's players: a phone number in any common form (`0888 123 456`, `+359…`, `00359…`), or part of a name or email. At most 20.\n\n**Only this club's players, ever.** A phone is compared with the club's players' own phone and with earlier desk bookings the club linked to an account — never with every playerz account — so no club's staff can learn whether a number belongs to somebody on playerz. The phone is never returned.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "A phone number, or part of a name or email. At most 80 characters; empty gives an empty list.",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matches, best first.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskCustomerMatchListEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`: `q` longer than 80 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `VIEWER_CHANGED`: the web page that sent this was rendered for another account (`x-playerz-viewer`). A native client never sends that header and never gets it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/desk-bookings/preview": {
+      "get": {
+        "operationId": "previewDeskBooking",
+        "summary": "Quote a desk booking or each week of a series, and show what clashes",
+        "description": "Resolves each week's instants in the venue's timezone, prices it with the same quote the player route uses, and says whether the court is `free`, `taken` or `unavailable`. Writes nothing and promises nothing: creating decides again, and a week taken in between is a 409 then. Without `weeks` or `until` it is one occurrence: the single desk booking's quote.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": true,
+            "description": "The court.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "description": "The club-local date of the (first) booking, `YYYY-MM-DD`.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": true,
+            "description": "The club-local start, `HH:mm`, 24-hour.",
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+            }
+          },
+          {
+            "name": "durationMinutes",
+            "in": "query",
+            "required": true,
+            "description": "15 to 720.",
+            "schema": {
+              "type": "integer",
+              "minimum": 15,
+              "maximum": 720
+            }
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "required": false,
+            "description": "For a series: this many weeks (1–52). Not with `until`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 52
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "description": "For a series: every week up to and including this date. Not with `weeks`.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One entry per week, in date order.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskPreviewEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST` (a parameter fails validation; `details.field` names it, e.g. `weeks`) or `INVALID_SERIES`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`: no such ACTIVE court at this club.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `VIEWER_CHANGED`: the web page that sent this was rendered for another account (`x-playerz-viewer`). A native client never sends that header and never gets it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/desk-bookings": {
+      "post": {
+        "operationId": "createDeskBooking",
+        "summary": "Book a court at the desk for a customer",
+        "description": "Staff book a court for a customer known by name and phone, optionally linked to one of the club's players (it then appears in that player's `GET /me/bookings`).\n\n`channel` is `DESK`: the club's cap on a player's upcoming online bookings, the no-show block and the \"already started\" refusal do not apply (a walk-in may be for the hour under way). Paid at the club, so `status` is CONFIRMED. The usual rules do: the court must be open then, on its booking grid, and free — the same EXCLUDE constraint an online booking meets, so 409 `SLOT_TAKEN` if it is not.\n\nThe price is the server's quote unless `priceCents` overrides it; an override is audited with both numbers. Cancel with the ordinary `POST /t/{slug}/bookings/{id}/cancel`.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "A UUID per desk action, reused on every retry of that action. A retry returns what the first call made (200, not 201). At most 128 characters.",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDeskBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An idempotent replay: the booking this key already made, as it is now.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskBookingEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Booked.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskBookingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST` (validation, a missing `Idempotency-Key`, unknown properties) or `SLOT_NOT_BOOKABLE` (closed then, off the grid, or a time the clocks skip that day).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND` (no such ACTIVE court at this club) or `PLAYER_NOT_FOUND` (`customer.userId` is not one of the club's players).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `SLOT_TAKEN`: another booking holds the court. Or `IDEMPOTENCY_RACE` (retry), or `VIEWER_CHANGED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The shared mutation limit (60 / 60 s per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/desk-bookings/{id}": {
+      "get": {
+        "operationId": "getDeskBooking",
+        "summary": "A desk booking, with its customer and series",
+        "description": "The diary's detail sheet. 404 for an id that is not a DESK booking at this club — another club's booking and an online one look the same.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The booking id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskBookingEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `VIEWER_CHANGED`: the web page that sent this was rendered for another account (`x-playerz-viewer`). A native client never sends that header and never gets it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateDeskBooking",
+        "summary": "Change a desk booking's customer or notes",
+        "description": "Replaces the customer (name, phone, link) and/or the notes. With `applyToSeries`, an occurrence's later live weeks and the series change too. Only a PENDING or CONFIRMED booking: re-pointing a played one at another account would give that account a visit it never made. Audited as `DESK_BOOKING_UPDATED`.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The booking id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDeskBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The booking as it now is.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskBookingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`: validation, unknown properties, or nothing to change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`, or `PLAYER_NOT_FOUND` for a link to somebody who is not the club's player.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `NOT_A_DESK_BOOKING` (an online booking: its customer is an account), `BOOKING_NOT_EDITABLE` (cancelled, played or a no-show), or `VIEWER_CHANGED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The shared mutation limit (60 / 60 s per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/booking-series": {
+      "post": {
+        "operationId": "createBookingSeries",
+        "summary": "Book the same court every week for a regular customer",
+        "description": "Creates the series and one ordinary DESK booking per week — the same court, weekday, club-local time and length — for `repeat.weeks` weeks or until `repeat.until`, minus `skipDates`. Players cannot create a series in v1.\n\n**All or nothing.** Every week is inserted in one transaction and the overlap constraint arbitrates each. A week another booking holds (or the club does not offer) fails the whole request with 409 `SERIES_CLASH` and `details.clashes = [{\"date\": \"2026-10-27\", \"reason\": \"taken\" | \"unavailable\"}]`; nothing is written. Preview first (`POST …/desk-bookings/preview` with the same `repeat`), skip the clashing weeks, and send it again. Two desks racing for the same weeks: one wins, the other gets the 409 with the weeks it lost — never half a series.\n\n**DST.** The time is resolved per date in the venue's zone, so 19:00 stays 19:00 at the club across the end of summer time (16:00Z before, 17:00Z after in Sofia).",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "A UUID per desk action, reused on every retry of that action. A retry returns what the first call made (200, not 201). At most 128 characters.",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingSeriesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An idempotent replay: the series this key already made.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSeriesEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created, with every week.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSeriesEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST` (validation, unknown properties, missing `Idempotency-Key`) or `INVALID_SERIES` (ends before it starts, longer than 52 weeks, every week skipped).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND` (court) or `PLAYER_NOT_FOUND` (link).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `SERIES_CLASH` with `details.clashes`, as above. `SLOT_TAKEN` if a week was taken and freed again while this ran (retry). `VIEWER_CHANGED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The shared mutation limit (60 / 60 s per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/booking-series/{id}": {
+      "get": {
+        "operationId": "getBookingSeries",
+        "summary": "A weekly series and every week of it",
+        "description": "Every booked week, cancelled ones included, oldest first.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The series id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The series.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSeriesEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`. Another club's series looks the same.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `VIEWER_CHANGED`: the web page that sent this was rendered for another account (`x-playerz-viewer`). A native client never sends that header and never gets it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/booking-series/{id}/cancel": {
+      "post": {
+        "operationId": "cancelBookingSeries",
+        "summary": "Cancel the rest of a series from a date",
+        "description": "Cancels every PENDING or CONFIRMED week starting on or after `fromDate` at the club, each as an ordinary staff cancel (its own receipt and audit row), and records the cut on the series. Weeks already played or cancelled are left alone, so repeating the call is harmless. One week alone is `POST /t/{slug}/bookings/{id}/cancel`.",
+        "tags": ["Desk"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `bookings.view_all` (OWNER, MANAGER, STAFF), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The series id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingSeriesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The series as it now is.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, currently `2026-04-29`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSeriesEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`. No ACTIVE membership at `{slug}` (also the answer for a club that does not exist), or a member whose role lacks `bookings.view_all` — then `details.requiredPermission = \"bookings.view_all\"`. A PLAYER or COACH membership always gets this: players cannot make desk bookings or series in v1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Code `BOOKING_NOT_CANCELLABLE` when a week moved under the cancel (retry), or `VIEWER_CHANGED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. The shared mutation limit (60 / 60 s per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6071,6 +7098,588 @@
             "items": {
               "$ref": "#/components/schemas/SportLevel"
             }
+          }
+        }
+      },
+      "DeskCustomer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "phone"],
+        "description": "Who a desk booking is for. The name and phone are what the desk took; the phone is normalised to E.164 (`0888 123 456` → `+359888123456`, `00…` → `+…`) and anything that is not a phone number is a 400. `userId` links one of the CLUB'S players (find one with `GET /t/{slug}/admin/customers`); the booking then appears in that player's own bookings. Another club's player and an unknown id are the same 404 `PLAYER_NOT_FOUND`.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "userId": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "SeriesRepeat": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Every week, for `weeks` weeks, or until `until` inclusive. Exactly one of the two; at most 52 weeks (400 `INVALID_SERIES` past that, or for an `until` before `date`).",
+        "properties": {
+          "weeks": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 52
+          },
+          "until": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          }
+        }
+      },
+      "CreateDeskBookingRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceId", "date", "startTime", "durationMinutes", "customer"],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "The court."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "startTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "The club-local start, `HH:mm`, 24-hour. Resolved in the venue's timezone for each date, so a weekly series keeps its wall-clock time across a DST change."
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 15,
+            "maximum": 720
+          },
+          "customer": {
+            "$ref": "#/components/schemas/DeskCustomer"
+          },
+          "priceCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 1000000,
+            "description": "Staff's price in cents. Absent or null: the server's quote. An override is audited (`DESK_PRICE_OVERRIDDEN`, with the quote)."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "maxLength": 500,
+            "description": "The club's own note. Never shown to the linked player."
+          }
+        }
+      },
+      "CreateBookingSeriesRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceId", "date", "startTime", "durationMinutes", "repeat", "customer"],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "The court."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "startTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "The club-local start, `HH:mm`, 24-hour. Resolved in the venue's timezone for each date, so a weekly series keeps its wall-clock time across a DST change."
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 15,
+            "maximum": 720
+          },
+          "repeat": {
+            "$ref": "#/components/schemas/SeriesRepeat"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/DeskCustomer"
+          },
+          "priceCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 1000000,
+            "description": "Staff's price for EVERY week, in cents. Absent or null: each week's own quote."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "maxLength": 500,
+            "description": "The club's own note. Never shown to the linked player."
+          },
+          "skipDates": {
+            "type": "array",
+            "maxItems": 52,
+            "items": {
+              "type": "string",
+              "format": "date",
+              "description": "A club-local calendar date, `YYYY-MM-DD`."
+            },
+            "description": "Weeks to leave out — the clashes the preview showed. A date that is not one of the series' weeks is ignored. Skipping every week is 400 `INVALID_SERIES`."
+          }
+        }
+      },
+      "UpdateDeskBookingRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "At least one of `customer` and `notes`.",
+        "properties": {
+          "customer": {
+            "$ref": "#/components/schemas/DeskCustomer"
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "maxLength": 500,
+            "description": "The club's own note. Never shown to the linked player."
+          },
+          "applyToSeries": {
+            "type": "boolean",
+            "description": "For an occurrence of a series: also change every LATER live occurrence, and the series itself. Ignored for a booking with no series."
+          }
+        }
+      },
+      "CancelBookingSeriesRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fromDate"],
+        "properties": {
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "description": "The first club-local day to cancel. Every PENDING or CONFIRMED occurrence starting on or after it is cancelled."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "DeskPreviewOccurrence": {
+        "type": "object",
+        "required": ["date", "startTs", "endTs", "quotedCents", "status"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "quotedCents": {
+            "type": ["integer", "null"],
+            "description": "The server's quote; null when `unavailable`."
+          },
+          "status": {
+            "type": "string",
+            "description": "`free`, `taken` (another booking holds the court) or `unavailable` (the club is closed then, the span is off its booking grid, or the time does not exist that day because the clocks skip it). Open string."
+          }
+        }
+      },
+      "DeskPreview": {
+        "type": "object",
+        "required": ["resource", "timezone", "occurrences"],
+        "properties": {
+          "resource": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "timezone": {
+            "type": "string",
+            "description": "The venue's IANA zone, e.g. `Europe/Sofia`."
+          },
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeskPreviewOccurrence"
+            }
+          }
+        }
+      },
+      "DeskPreviewEnvelope": {
+        "type": "object",
+        "title": "DeskPreviewEnvelope",
+        "description": "The success envelope for a desk preview.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeskPreview"
+          }
+        }
+      },
+      "DeskCustomerMatch": {
+        "type": "object",
+        "required": ["userId", "name", "email", "matchedBy"],
+        "description": "One of the club's players. Never their phone number.",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": ["string", "null"]
+          },
+          "email": {
+            "type": "string"
+          },
+          "matchedBy": {
+            "type": "string",
+            "description": "`phone` or `name`. Open string."
+          }
+        }
+      },
+      "DeskCustomerMatchListEnvelope": {
+        "type": "object",
+        "title": "DeskCustomerMatchListEnvelope",
+        "description": "The success envelope for a customer lookup.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeskCustomerMatch"
+            }
+          }
+        }
+      },
+      "DeskBooking": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "channel",
+          "startTs",
+          "endTs",
+          "date",
+          "startTime",
+          "endTime",
+          "totalCents",
+          "currency",
+          "notes",
+          "customer",
+          "player",
+          "resource",
+          "venue",
+          "series",
+          "cancelledAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "Open string, as `Booking.status`. A desk booking is CONFIRMED when made."
+          },
+          "channel": {
+            "type": "string",
+            "description": "Always `DESK` here. Open string."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "startTime": {
+            "type": "string",
+            "description": "Club-local `HH:mm`."
+          },
+          "endTime": {
+            "type": "string",
+            "description": "Club-local `HH:mm`."
+          },
+          "totalCents": {
+            "type": "integer",
+            "description": "Paid at the club."
+          },
+          "currency": {
+            "type": "string"
+          },
+          "notes": {
+            "type": ["string", "null"]
+          },
+          "customer": {
+            "type": "object",
+            "required": ["name", "phone"],
+            "properties": {
+              "name": {
+                "type": ["string", "null"]
+              },
+              "phone": {
+                "type": ["string", "null"],
+                "description": "E.164."
+              }
+            }
+          },
+          "player": {
+            "type": ["object", "null"],
+            "required": ["id", "name", "email"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": ["string", "null"]
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "description": "The linked account, or null."
+          },
+          "resource": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "name", "timezone"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string"
+              }
+            }
+          },
+          "series": {
+            "type": ["object", "null"],
+            "required": [
+              "id",
+              "startTime",
+              "durationMinutes",
+              "firstDate",
+              "lastDate",
+              "cancelledFrom",
+              "remaining"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "startTime": {
+                "type": "string"
+              },
+              "durationMinutes": {
+                "type": "integer"
+              },
+              "firstDate": {
+                "type": "string",
+                "format": "date",
+                "description": "A club-local calendar date, `YYYY-MM-DD`."
+              },
+              "lastDate": {
+                "type": "string",
+                "format": "date",
+                "description": "A club-local calendar date, `YYYY-MM-DD`."
+              },
+              "cancelledFrom": {
+                "type": ["string", "null"],
+                "format": "date"
+              },
+              "remaining": {
+                "type": "integer",
+                "description": "Live occurrences from this one on, this one included."
+              }
+            },
+            "description": "The weekly series this booking is one week of, or null."
+          },
+          "cancelledAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeskBookingEnvelope": {
+        "type": "object",
+        "title": "DeskBookingEnvelope",
+        "description": "The success envelope for a desk booking.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeskBooking"
+          }
+        }
+      },
+      "BookingSeriesOccurrence": {
+        "type": "object",
+        "required": ["bookingId", "date", "startTs", "endTs", "status", "totalCents"],
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "description": "An ordinary booking: cancel one week with `POST /t/{slug}/bookings/{id}/cancel`."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "Open string."
+          },
+          "totalCents": {
+            "type": "integer"
+          }
+        }
+      },
+      "BookingSeries": {
+        "type": "object",
+        "required": [
+          "id",
+          "resource",
+          "startTime",
+          "durationMinutes",
+          "timezone",
+          "firstDate",
+          "lastDate",
+          "customer",
+          "priceCents",
+          "notes",
+          "cancelledFrom",
+          "createdAt",
+          "occurrences"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "startTime": {
+            "type": "string",
+            "description": "Club-local `HH:mm`, every week."
+          },
+          "durationMinutes": {
+            "type": "integer"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "firstDate": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "lastDate": {
+            "type": "string",
+            "format": "date",
+            "description": "A club-local calendar date, `YYYY-MM-DD`."
+          },
+          "customer": {
+            "type": "object",
+            "required": ["name", "phone", "userId"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "userId": {
+                "type": ["string", "null"]
+              }
+            }
+          },
+          "priceCents": {
+            "type": ["integer", "null"],
+            "description": "Staff's price for every week, or null for each week's quote."
+          },
+          "notes": {
+            "type": ["string", "null"]
+          },
+          "cancelledFrom": {
+            "type": ["string", "null"],
+            "format": "date"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingSeriesOccurrence"
+            },
+            "description": "Every week that was booked, oldest first, cancelled ones included. Skipped weeks were never booked and are absent."
+          }
+        }
+      },
+      "BookingSeriesEnvelope": {
+        "type": "object",
+        "title": "BookingSeriesEnvelope",
+        "description": "The success envelope for a weekly series.",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingSeries"
           }
         }
       }

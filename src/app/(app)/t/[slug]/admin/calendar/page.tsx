@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
+import { ViewerScope } from '@/lib/data/provider';
 
 import { DayGrid } from './DayGrid';
 import { loadDiaryDay } from './diary-day';
@@ -55,7 +56,14 @@ export default async function CalendarPage({
         old) carries this same value, and re-fetches the day once it is older
         than 10 s.
       */}
-      <DayGrid slug={slug} requestedDay={requestedDay} day={day} />
+      {/*
+        ViewerScope: the desk's writes go to /api/v1 (#364) carrying the user
+        this page was rendered for, so a tab left open after another account
+        signed in is refused (409 VIEWER_CHANGED) instead of booking as them.
+      */}
+      <ViewerScope viewerId={ctx.userId}>
+        <DayGrid slug={slug} requestedDay={requestedDay} day={day} />
+      </ViewerScope>
     </section>
   );
 }

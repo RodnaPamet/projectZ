@@ -118,6 +118,7 @@ model Resource {
   availability  ResourceAvailability[]
   pricingRules  PricingRule[]
   bookings      Booking[]
+  bookingSeries BookingSeries[]
   sessions      OpenPlaySession[]
   coachBookings CoachBooking[]
 

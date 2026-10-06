@@ -88,6 +88,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   EmptyMessageError: { status: 400, code: 'EMPTY_MESSAGE' },
   UnsupportedCapabilityError: { status: 400, code: 'UNSUPPORTED_CAPABILITY' },
   GuestContactRequiredError: { status: 400, code: 'GUEST_CONTACT_REQUIRED' },
+  // A weekly series that runs backwards, past a year, or skips every week (#364).
+  InvalidSeriesError: { status: 400, code: 'INVALID_SERIES' },
   PasswordBreachedError: { status: 400, code: 'PASSWORD_BREACHED' },
   WebhookSignatureError: { status: 400, code: 'WEBHOOK_SIGNATURE_INVALID' },
   // A rating that is not a whole number from 1 to 5. The review route passes
@@ -224,6 +226,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   ModerationCaseNotFoundError: { status: 404, code: 'CASE_NOT_FOUND' },
   MappingNotFoundError: { status: 404, code: 'MAPPING_NOT_FOUND' },
   WearableNotConnectedError: { status: 404, code: 'WEARABLE_NOT_CONNECTED' },
+  // The account a desk booking would link is not one of the club's players —
+  // or does not exist. One answer for both: the link is not a probe (#364).
+  DeskPlayerNotFoundError: { status: 404, code: 'PLAYER_NOT_FOUND' },
 
   // ── 409: the world moved; the request was fine ────────────────────
   //
@@ -237,6 +242,17 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // The expiry sweeper (or another tab) moved the booking out of a cancellable
   // state between our read and our write. Refetch and the client will see why.
   BookingNotCancellableError: { status: 409, code: 'BOOKING_NOT_CANCELLABLE' },
+  // Desk bookings (#364): an online booking's customer is an account, not the
+  // desk's to edit; a cancelled or played one is history.
+  NotADeskBookingError: { status: 409, code: 'NOT_A_DESK_BOOKING' },
+  DeskBookingNotEditableError: { status: 409, code: 'BOOKING_NOT_EDITABLE' },
+  // Weeks of a series another booking holds, or the club does not offer.
+  // Nothing was written; `details.clashes` names each week and why.
+  SeriesClashError: {
+    status: 409,
+    code: 'SERIES_CLASH',
+    details: (e) => ({ clashes: (e as Error & { clashes: unknown }).clashes }),
+  },
   DuplicateGroupMappingError: { status: 409, code: 'DUPLICATE_GROUP_MAPPING' },
   // One review per venue per person. Not "try again" like its neighbours —
   // retrying cannot succeed — but a conflict with a row that exists, which is
