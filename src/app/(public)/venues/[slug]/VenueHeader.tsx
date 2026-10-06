@@ -1,18 +1,17 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-import { buttonVariants } from '@/components/ui/button-variants';
-import { ArrowLeft, LocationPin } from '@/components/ui/icons/nucleo';
+import { LocationPin } from '@/components/ui/icons/nucleo';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
-import { cn } from '@/lib/cn';
+
+import { VenueBackLink } from './VenueBackLink';
 
 /**
  * Who the venue is: the cover, the name, the address and the sports.
  *
  * The cover is a token-tinted band until clubs can upload photos (#366); it is
- * decorative and says nothing a screen reader needs. The back link is the
- * page's own way to the index, not navigation chrome (#362 owns that).
+ * decorative and says nothing a screen reader needs. The back link is
+ * VenueBackLink, which the skeleton renders too.
  */
 export async function VenueHeader({
   name,
@@ -30,16 +29,7 @@ export async function VenueHeader({
   return (
     <header className="flex flex-col gap-4">
       <div className="bg-bg-success relative h-32 md:h-40 md:rounded-lg">
-        <Link
-          href="/venues"
-          aria-label={t('back')}
-          className={cn(
-            buttonVariants({ variant: 'secondary', size: 'icon' }),
-            'absolute top-3 left-4 md:left-3',
-          )}
-        >
-          <ArrowLeft aria-hidden="true" />
-        </Link>
+        <VenueBackLink />
       </div>
 
       <div className="flex flex-col gap-2 px-6 md:px-0">

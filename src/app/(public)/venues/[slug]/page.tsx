@@ -34,13 +34,15 @@ import { VenueSlots, VenueSlotsSkeleton } from './VenueSlots';
  * paints the whole page's skeleton on the tap (T12): it is what the cards'
  * auto prefetch fetches.
  *
- * What this does NOT buy on a cold client-side navigation, measured (#403):
- * the header still paints with the slots. Every part of it is a client
- * component (the vendored Heading, Caption and StatusBadge, next/link), and
- * Turbopack maps each of those references to the page's whole chunk list, so
- * the header needs the page's JS chunk, which is requested only when the RSC
- * answer arrives. And content that follows a skeleton is held by React's
- * 300 ms reveal throttle (#290) anyway. docs/perf/README.md has the numbers.
+ * On a cold client-side navigation from a venue card the header still paints
+ * with the slots, measured (#403). Every part of it is a client component
+ * (the vendored Heading, Caption and StatusBadge, next/link), and Turbopack
+ * maps each such reference to the page's whole chunk list, so the header
+ * needs the page's JS chunk; and content that follows a skeleton is held by
+ * React's 300 ms reveal throttle (#290). The chunk was the longer wait on the
+ * phone profile, so the skeleton now preloads it (VenueBackLink). The split
+ * pays off where the slots are slow: the shell of a full page load, and a
+ * slow availability read, never hold the venue's name back.
  *
  * ═══ SIGNED OUT SEES EVERYTHING ═══
  *
