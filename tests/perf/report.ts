@@ -59,6 +59,7 @@ export function summarize(values: Array<number | null | undefined>): Stat | null
 /** The per-sample metrics a row keeps, as parallel arrays. */
 export const METRICS = [
   'tReady',
+  'tFirst',
   'tFeedback',
   'tUrl',
   'tLoadingUi',
@@ -480,6 +481,31 @@ export function networkTable(rows: Row[], profile = 'phone', mode = 'cold'): str
     );
   }
   return out.join('\n');
+}
+
+/**
+ * Pages that paint in two stages (nav-latency.spec.ts FIRST, #403): when the
+ * skeleton, the first content and the whole content were painted, and when
+ * the RSC payload was complete, as medians in ms from the click. Empty when no
+ * row has a first-content time.
+ */
+export function firstTable(rows: Row[]): string {
+  const out = [
+    '| Journey · step | Profile · mode | Skeleton | First content | RSC complete | Ready |',
+    '| --- | --- | ---: | ---: | ---: | ---: |',
+  ];
+  for (const l of labels(rows)) {
+    for (const profile of ['phone', 'desktop']) {
+      for (const mode of ['cold', 'warm']) {
+        const s = find(rows, l.journey, l.step, profile, mode)?.stats;
+        if (!s?.tFirst) continue;
+        out.push(
+          `| ${label(l)} | ${profile} ${mode} | ${fmtMs(s.tLoadingUi?.median)} | ${fmtMs(s.tFirst.median)} | ${fmtMs(s.payloadEnd?.median)} | ${fmtMs(s.tReady?.median)} |`,
+        );
+      }
+    }
+  }
+  return out.length > 2 ? out.join('\n') : '';
 }
 
 /**

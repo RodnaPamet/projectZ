@@ -3,7 +3,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 import bg from '../../messages/bg.json';
 
-import type { ReadyTable } from './agent';
+import type { FirstTable, ReadyTable } from './agent';
 import {
   CLUB_SLUG,
   CLUB_TIMEZONE,
@@ -179,6 +179,19 @@ const READY: ReadyTable = {
     { selector: 'main h1', text: bg.admin.staff.title },
     { selector: 'main [data-perf-ready]' },
   ],
+};
+
+/**
+ * FIRST CONTENT (#403): for a page that paints in two stages, what the first
+ * stage is. Timed as `tFirst`, alongside `tReady`, which still waits for the
+ * whole of READY above. Keyed by pathname: the venue page writes `?day=` into
+ * the URL only as its booking panel mounts, after the header has painted.
+ *
+ * The venue page's header (its h1, the venue's name) needs one row read, and
+ * paints before the day's slots, which wait behind their own Suspense boundary.
+ */
+const FIRST: FirstTable = {
+  [VENUE]: [{ selector: 'main h1', text: VENUE_NAME }],
 };
 
 /**
@@ -430,6 +443,7 @@ for (let run = 1; run <= PERF_RUNS; run++) {
         journey: j.id,
         run,
         table: READY,
+        first: FIRST,
       });
       try {
         await s.enter({
