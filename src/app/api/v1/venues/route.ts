@@ -31,7 +31,7 @@ import { sportParam } from '../_lib/sport-param';
  * is exempt from row security. Point it at the least-privileged role from P24
  * and that route returns an empty list, silently, in production.
  *
- * So the BYPASSRLS binding is the correct one here, and `status: ACTIVE` plus
+ * So the BYPASSRLS binding is the correct one here, and `publicVenueFilter` (#298) plus
  * the hand-written DTO are what keep it safe rather than the tenant policy.
  */
 async function handler(req: NextRequest) {

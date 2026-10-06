@@ -111,6 +111,8 @@ export async function listReviewCases(
 
   const [venues, clubs] = await Promise.all([
     // guardrail-allow: cross-tenant — the venues those reviews are about, by id.
+    // public-venue-filter: not a public read — the platform moderation queue
+    // names the venue a reported review is about, whatever its club's status.
     db.venue.findMany({
       where: { id: { in: venueIds } },
       select: { id: true, name: true },

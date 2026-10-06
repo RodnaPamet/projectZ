@@ -2,6 +2,8 @@ import type { Prisma, PrismaClient, SportType } from '@prisma/client';
 
 import { canonicalCity, citiesMatching, citySpellings } from '@/lib/geo/cities';
 
+import { publicVenueFilter } from './public-venue';
+
 /**
  * Venue reads.
  *
@@ -40,7 +42,8 @@ export function clampLimit(requested?: number): number {
  *
  * A player looking for a padel court in Sofia does not know or care which
  * club owns it. This is the one read that must span tenants, so it runs
- * outside the RLS-bound path and filters on `status` explicitly.
+ * outside the RLS-bound path and filters through `publicVenueFilter`: the
+ * venue ACTIVE and its club ACTIVE (#298).
  */
 export async function listVenues(
   db: PrismaClient,
@@ -48,13 +51,13 @@ export async function listVenues(
   opts: { cursor?: string; limit?: number } = {},
 ): Promise<Page<Prisma.VenueGetPayload<{ include: { resources: true } }>>> {
   const take = clampLimit(opts.limit);
+  const publicVenue = await publicVenueFilter(db);
 
   // A known city matches every way it is spelled (#357): `?city=Sofia` finds a
   // venue a club typed as `София`, and a search for "соф" finds `Sofia`. An
   // unknown city is matched exactly as before. See src/lib/geo/cities.ts.
   const qCities = filter.q ? citiesMatching(filter.q) : [];
-  const where: Prisma.VenueWhereInput = {
-    status: 'ACTIVE',
+  const filters: Prisma.VenueWhereInput = {
     ...(filter.city ? { city: { in: citySpellings(filter.city), mode: 'insensitive' } } : {}),
     ...(filter.q
       ? {
@@ -83,10 +86,10 @@ export async function listVenues(
 
   // guardrail-allow: cross-tenant — public venue search is intentionally
   // unscoped. A player hunting a padel court in Sofia does not know or care
-  // which club owns it. `status: ACTIVE` is the only filter, and an
+  // which club owns it. `publicVenue.where` is what keeps it public, and an
   // integration test asserts this did not weaken RLS for anything else.
   const rows = await db.venue.findMany({
-    where,
+    where: { AND: [publicVenue.where, filters] },
     include: { resources: { where: { status: 'ACTIVE' }, take: 20 } },
     orderBy: { id: 'asc' },
     // take + 1 so we can tell "there is a next page" WITHOUT a second
@@ -118,14 +121,16 @@ export interface VenueFacets {
  * the sports with a live court at a live venue. Offering every city in the
  * country, or all sixteen sports, would mostly lead to the empty state.
  *
- * Cross-tenant like `listVenues`, with the same `status: ACTIVE` filters, so
- * a choice offered here finds at least the venue that put it here.
+ * Cross-tenant like `listVenues`, through the same `publicVenueFilter`, so a
+ * choice offered here finds at least the venue that put it here — and a
+ * suspended club's city is not offered to lead to nothing (#298).
  */
 export async function listVenueFacets(db: PrismaClient): Promise<VenueFacets> {
+  const publicVenue = await publicVenueFilter(db);
   // guardrail-allow: cross-tenant — the public index's filters span every
   // club, as the index does. Only the distinct city and sport are read.
   const cityRows = await db.venue.findMany({
-    where: { status: 'ACTIVE' },
+    where: publicVenue.where,
     select: { city: true },
     distinct: ['city'],
     orderBy: { city: 'asc' },
@@ -133,7 +138,7 @@ export async function listVenueFacets(db: PrismaClient): Promise<VenueFacets> {
   });
   // guardrail-allow: cross-tenant — as above.
   const sportRows = await db.resource.findMany({
-    where: { status: 'ACTIVE', venue: { status: 'ACTIVE' } },
+    where: { status: 'ACTIVE', venue: publicVenue.where },
     select: { sport: true },
     distinct: ['sport'],
     orderBy: { sport: 'asc' },
@@ -159,11 +164,12 @@ export async function listVenueFacets(db: PrismaClient): Promise<VenueFacets> {
  * client-facing identifier.
  */
 export async function getVenueById(db: PrismaClient, venueId: string) {
+  const publicVenue = await publicVenueFilter(db);
   // guardrail-allow: cross-tenant — the public detail read, reached from the
   // public index. Same rationale as listVenues: a player opening a venue card
-  // does not know which club owns it. `status: ACTIVE` is the only filter.
+  // does not know which club owns it. A suspended club's venue is a 404 (#298).
   return db.venue.findFirst({
-    where: { id: venueId, status: 'ACTIVE' },
+    where: { AND: [{ id: venueId }, publicVenue.where] },
     include: {
       resources: { where: { status: 'ACTIVE' }, orderBy: { name: 'asc' }, take: 50 },
       photos: { orderBy: { position: 'asc' }, take: 20 },
@@ -181,11 +187,11 @@ export async function getVenueById(db: PrismaClient, venueId: string) {
  * Resources carry what the venue page needs to offer durations (Q16).
  */
 export async function getVenueByPublicSlug(db: PrismaClient, publicSlug: string) {
+  const publicVenue = await publicVenueFilter(db);
   // guardrail-allow: cross-tenant — the public venue page, reached from the
-  // public index. Same rationale as getVenueById. `status: ACTIVE` is the only
-  // filter.
+  // public index. Same rationale as getVenueById, and the same predicate.
   return db.venue.findFirst({
-    where: { publicSlug, status: 'ACTIVE' },
+    where: { AND: [{ publicSlug }, publicVenue.where] },
     include: {
       resources: { where: { status: 'ACTIVE' }, orderBy: { name: 'asc' }, take: 50 },
       photos: { orderBy: { position: 'asc' }, take: 20 },
@@ -195,14 +201,13 @@ export async function getVenueByPublicSlug(db: PrismaClient, publicSlug: string)
 }
 
 /**
- * Every venue page a search engine should know about (#396's sitemap):
- * ACTIVE venues with a public slug, whose club is ACTIVE too.
+ * Every venue page a search engine should know about (#396's sitemap): the
+ * public venues (`publicVenueFilter`: the venue ACTIVE, its club ACTIVE) that
+ * have a public slug. A sitemap that lists 404s is one a crawler learns to
+ * distrust.
  *
- * The club check is its own query because `venue.tenantId` is not a foreign
- * key (no relation to join through). It is not optional: a SUSPENDED or
- * CLOSED club's venues are still `status: ACTIVE` rows — the v1 detail route
- * returns them (#298) — but the venue page 404s them, and a sitemap that
- * lists 404s is one a crawler learns to distrust.
+ * The club lookup after it drops a venue whose club row is gone:
+ * `venue.tenantId` is not a foreign key, and the venue page 404s those too.
  *
  * Bounded by `limit` (the caller passes the sitemap's per-file cap) and
  * ordered by slug, so a cut, if it ever happens, is stable between crawls.
@@ -211,24 +216,25 @@ export async function listSitemapVenues(
   db: PrismaClient,
   limit: number,
 ): Promise<Array<{ publicSlug: string; updatedAt: Date; tenantId: string }>> {
+  const publicVenue = await publicVenueFilter(db);
   // guardrail-allow: cross-tenant — the sitemap lists every club's public
   // venue pages, the same set the public index and venue pages show.
   const venues = await db.venue.findMany({
-    where: { status: 'ACTIVE', publicSlug: { not: null } },
+    where: { AND: [{ publicSlug: { not: null } }, publicVenue.where] },
     select: { publicSlug: true, updatedAt: true, tenantId: true },
     orderBy: { publicSlug: 'asc' },
     take: limit,
   });
   const clubIds = [...new Set(venues.map((v) => v.tenantId))];
   if (clubIds.length === 0) return [];
-  const active = await db.venueOrg.findMany({
-    where: { id: { in: clubIds }, status: 'ACTIVE' },
+  const existing = await db.venueOrg.findMany({
+    where: { id: { in: clubIds } },
     select: { id: true },
     take: clubIds.length,
   });
-  const activeIds = new Set(active.map((c) => c.id));
+  const existingIds = new Set(existing.map((c) => c.id));
   return venues.flatMap((v) =>
-    v.publicSlug && activeIds.has(v.tenantId)
+    v.publicSlug && existingIds.has(v.tenantId)
       ? [{ publicSlug: v.publicSlug, updatedAt: v.updatedAt, tenantId: v.tenantId }]
       : [],
   );

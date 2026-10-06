@@ -35,7 +35,7 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
 
   // BYPASSRLS, for the same reason as the index: a public read has no tenant to
-  // bind to, and `venue` has FORCE RLS. `status: ACTIVE` and the hand-written
+  // bind to, and `venue` has FORCE RLS. `publicVenueFilter` and the hand-written
   // DTO are what make that safe, not the tenant policy.
   //
   // The club's slug comes from a second read in the same transaction: `Venue`

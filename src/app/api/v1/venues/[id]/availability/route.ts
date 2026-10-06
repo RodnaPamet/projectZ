@@ -22,7 +22,7 @@ import { getRequestId } from '@/lib/observability/context';
  * makes booking at a new club impossible, and this is a marketplace.
  *
  * So it sits beside `/api/v1/venues/{id}`, which is public for the same
- * reason, and carries the same protections: BYPASSRLS with `status: ACTIVE` as
+ * reason, and carries the same protections: BYPASSRLS with `publicVenueFilter` as
  * the filter, and a hand-written DTO. What leaks is what a club publishes —
  * opening hours, prices, and which slots are taken. Never WHO took them: the
  * booking query selects three columns and the booker is not among them.

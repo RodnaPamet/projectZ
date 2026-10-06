@@ -2,6 +2,8 @@ import type { PrismaClient } from '@prisma/client';
 
 import { InternalError } from '@/lib/errors/types';
 
+import { publicVenueFilter } from './public-venue';
+
 /**
  * Everything needed to materialise slots, in a fixed number of queries.
  *
@@ -82,11 +84,12 @@ export async function getPublicVenue(
   db: PrismaClient,
   venueId: string,
 ): Promise<PublicVenue | null> {
+  const publicVenue = await publicVenueFilter(db);
   // guardrail-allow: cross-tenant — public availability, reached from the
-  // public venue detail. `status: ACTIVE` is the only filter, exactly as in
-  // getVenueById.
+  // public venue detail. The same predicate as getVenueById: a suspended
+  // club's venue has no public slots (#298).
   return db.venue.findFirst({
-    where: { id: venueId, status: 'ACTIVE' },
+    where: { AND: [{ id: venueId }, publicVenue.where] },
     select: { id: true, name: true, timezone: true },
   });
 }
