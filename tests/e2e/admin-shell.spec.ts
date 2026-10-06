@@ -107,7 +107,10 @@ test.describe('club admin shell — desktop', () => {
       const pub = page.getByTestId('admin-public-link');
       await expect(pub).toHaveAttribute('href', `/venues/${venue.publicSlug}`);
       await pub.click();
-      await expect(page).toHaveURL(new RegExp(`/venues/${venue.publicSlug}$`));
+      // The page mirrors its day into the query string as its booking panel
+      // mounts (#355), which can happen before this first check, so `?day=` is
+      // allowed, as in venue-booking.spec.ts.
+      await expect(page).toHaveURL(new RegExp(`/venues/${venue.publicSlug}(\\?|$)`));
       await expect(page.getByRole('heading', { level: 1, name: venue.name })).toBeVisible();
       // And back: the club account's way home from its own venue page.
       await page.getByTestId('site-header-admin').click();
