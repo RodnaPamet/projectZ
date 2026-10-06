@@ -161,7 +161,7 @@ Owner decision Q44: every merge goes to **staging**; **production** gets a relea
 
 `DEPLOY_ENV=staging` makes robots.txt disallow everything and the sitemap empty, so the copy is never indexed.
 
-Staging sends no email (no SMTP in `.env.staging`). Google sign-in needs the staging callback URL (`https://<staging host>/api/auth/callback/google`) registered on the OAuth client.
+Staging sends no email: `DEPLOY_ENV=staging` forces the notification outbox's log-only adapter even if a provider key is set (#367), unless `EMAIL_ALLOW_ON_STAGING=1` is set on purpose. Google sign-in needs the staging callback URL (`https://<staging host>/api/auth/callback/google`) registered on the OAuth client.
 
 ```bash
 # Staging, after a merge: build main once, tag it, migrate staging, recreate.
@@ -230,7 +230,7 @@ two hostnames serving the same app means two cookie jars.
 
 ## Scheduled jobs
 
-Three routes under `/api/cron` do work nothing else triggers, and each refuses
+Five routes under `/api/cron` do work nothing else triggers, and each refuses
 to run (503) until `CRON_SECRET` is set:
 
 | Route                           | Cadence | Without it                                                                 |
@@ -238,8 +238,10 @@ to run (503) until `CRON_SECRET` is set:
 | `release-expired-bookings`      | 60 s    | an abandoned checkout holds its court for ever, and keeps the credit spent |
 | `complete-ended-bookings`       | 60 s    | no booking ever becomes COMPLETED, so nobody can ever leave a review       |
 | `warn-expiring-platform-grants` | daily   | a platform grant lapses mid-incident with no warning                       |
+| `send-booking-reminders` (#367) | 5 min   | nobody is reminded 3 hours before a game (bell or email)                   |
+| `drain-email-outbox` (#367)     | 60 s    | confirmation and club-cancellation emails wait in `email_outbox` for ever  |
 
-`ops/sweep.compose.yml` runs all three as small `alpine` loops. It is an
+`ops/sweep.compose.yml` runs all five as small `alpine` loops. It is an
 overlay on `docker-compose.prod.yml`, so copy it beside that file and name
 both:
 
@@ -266,6 +268,50 @@ sudo docker exec playerz-booking-complete sh -c \
   'wget -S -q -O- --post-data="" http://playerz-app:3000/api/cron/complete-ended-bookings 2>&1 | grep HTTP/'
 # → HTTP/1.1 401 Unauthorized
 ```
+
+### Notification email (#367)
+
+The bell needs nothing. EMAIL needs a provider, and production runs without one
+until the owner adds it: the outbox drain then uses its log-only adapter, marks
+each row SENT by `log`, and sends nothing. To start sending, add ONE of these to
+`/opt/playerz/.env` and recreate `playerz-app`:
+
+```bash
+# Resend (preferred): an API key with "sending access" for the domain below.
+RESEND_API_KEY=re_...
+EMAIL_FROM="playerz.bg <noreply@playerz.bg>"
+
+# or SMTP (any provider): 587 uses STARTTLS, 465 implicit TLS.
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+EMAIL_FROM="playerz.bg <noreply@playerz.bg>"
+```
+
+`SITE_URL` must be the public origin (`https://playerz.bg`): every link in an
+email is built on it. The sending domain must be verified with the provider
+before anything is accepted: in Resend, add the domain `playerz.bg` and create
+the DNS records it lists (an SPF `TXT` on the `send` subdomain, the DKIM
+`resend._domainkey` `TXT`, and its MX for bounces), then a DMARC record on
+`_dmarc.playerz.bg` (`v=DMARC1; p=none; rua=mailto:<owner>` to start). An
+unverified domain is refused as `invalid_from_address`; the drain retries it
+with backoff (1 min, 5 min, 15 min, 1 h, 3 h) and dead-letters after 6 attempts,
+so verify before adding the key.
+
+The two loops are `booking-reminders` and `email-outbox` in
+`ops/sweep.compose.yml`; copy the file beside `docker-compose.prod.yml` again
+and `up -d` as above. Check a run from inside a container:
+
+```bash
+sudo docker exec playerz-email-outbox sh -c \
+  'wget -q -O- --post-data="" --header="x-cron-secret: $CRON_SECRET" http://playerz-app:3000/api/cron/drain-email-outbox'
+# → {"provider":"log","claimed":0,"sent":0,"retried":0,"dead":0,"skipped":0}
+```
+
+`provider` says which adapter the app picked (`resend`, `smtp` or `log`). Rows
+that failed for good are `status = 'DEAD'` in `email_outbox`, with `lastError`
+(never the address or the body).
 
 ## Backups
 

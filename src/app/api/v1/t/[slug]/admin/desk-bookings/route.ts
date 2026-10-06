@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 
 import { createDeskBookingBodySchema } from '@/app-layer/schemas/desk';
+import { notifyBookingConfirmed } from '@/app-layer/usecases/booking-notifications';
 import { createDeskBooking, getDeskBooking } from '@/app-layer/usecases/desk-bookings';
 import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -51,6 +52,12 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ slug: s
   });
 
   if (!result.row) throw new NotFoundError('Booking not found');
+
+  // After the commit (#367): a booking linked to a player is that player's
+  // booking, and they are told as if they had made it. Unlinked: nobody to tell.
+  if (!result.replay) {
+    await notifyBookingConfirmed({ tenantId: ctx.tenantId, bookingId: result.row.id });
+  }
   return ok(toDeskBooking(result.row), { status: result.replay ? 200 : 201 });
 }
 

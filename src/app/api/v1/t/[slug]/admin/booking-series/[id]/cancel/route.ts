@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 
 import { cancelSeriesBodySchema } from '@/app-layer/schemas/desk';
+import { notifySeriesCancelled } from '@/app-layer/usecases/booking-notifications';
 import { cancelSeriesFrom, getSeries } from '@/app-layer/usecases/desk-bookings';
 import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -31,7 +32,7 @@ async function handler(
 
   const body = await parseDeskBody(req, cancelSeriesBodySchema);
 
-  const row = await inTenant(
+  const out = await inTenant(
     ctx,
     async (db) => {
       const done = await cancelSeriesFrom(
@@ -40,12 +41,23 @@ async function handler(
         id,
         body,
       );
-      return done ? getSeries(db, ctx.tenantId, id) : null;
+      return done ? { row: await getSeries(db, ctx.tenantId, id), done } : null;
     },
     { isolationLevel: 'Serializable' },
   );
 
-  if (!row) throw new NotFoundError('Series not found');
+  const row = out?.row;
+  if (!out || !row) throw new NotFoundError('Series not found');
+
+  // After the commit (#367): one notification per player for the whole cancel,
+  // by email too (a club-side change). A repeat cancels nothing and says nothing.
+  await notifySeriesCancelled({
+    tenantId: ctx.tenantId,
+    seriesId: id,
+    fromDate: body.fromDate,
+    cancelledBookingIds: out.done.cancelledBookingIds,
+    actorUserId: ctx.userId,
+  });
   return ok(toBookingSeries(row));
 }
 

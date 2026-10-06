@@ -222,3 +222,75 @@ services:
             || echo "grant-expiry: request FAILED -> $$body"
           sleep "$${WARN_INTERVAL_SECONDS}"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  Notifications (#367): the 3-hour reminder and the email outbox.
+  #
+  #  booking-reminders claims each CONFIRMED booking starting in 2–3 hours
+  #  (once per booking, DST-safe: absolute time), writes the bell row and the
+  #  reminder email, then drains the outbox once. Every 5 minutes, so a
+  #  reminder lands 3 h to 2 h 55 min before the start.
+  #
+  #  email-outbox sends what the booking, cancel and desk routes queued:
+  #  confirmations and club cancellations. Every minute. With no
+  #  RESEND_API_KEY / SMTP_HOST in the app's .env it is log-only and sends
+  #  nothing (rows are marked SENT by `log`); the bell works either way.
+  #  On staging it is ALWAYS log-only unless EMAIL_ALLOW_ON_STAGING=1.
+  #
+  #  Same shape as booking-sweep: busybox wget, `--post-data=""`, `$$`.
+  # ═══════════════════════════════════════════════════════════════════
+  booking-reminders:
+    image: alpine:3
+    container_name: playerz-booking-reminders
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the booking reminders}
+      REMIND_URL: ${REMIND_URL:-http://playerz-app:3000/api/cron/send-booking-reminders}
+      REMIND_INTERVAL_SECONDS: ${REMIND_INTERVAL_SECONDS:-300}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "reminders: every $${REMIND_INTERVAL_SECONDS}s -> $${REMIND_URL}"
+        while true; do
+          sleep "$${REMIND_INTERVAL_SECONDS}"
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${REMIND_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"claimed":0'*) : ;;   # nothing due — stay quiet
+                 *) echo "reminders: $$body" ;;
+               esac \
+            || echo "reminders: request FAILED -> $$body"
+        done
+
+  email-outbox:
+    image: alpine:3
+    container_name: playerz-email-outbox
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the email outbox}
+      OUTBOX_URL: ${OUTBOX_URL:-http://playerz-app:3000/api/cron/drain-email-outbox}
+      OUTBOX_INTERVAL_SECONDS: ${OUTBOX_INTERVAL_SECONDS:-60}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "outbox: every $${OUTBOX_INTERVAL_SECONDS}s -> $${OUTBOX_URL}"
+        while true; do
+          sleep "$${OUTBOX_INTERVAL_SECONDS}"
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${OUTBOX_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"claimed":0'*) : ;;   # nothing queued — stay quiet
+                 *) echo "outbox: $$body" ;;
+               esac \
+            || echo "outbox: request FAILED -> $$body"
+        done

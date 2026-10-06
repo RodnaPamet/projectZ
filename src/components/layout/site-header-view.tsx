@@ -22,7 +22,7 @@ export function SiteHeaderView({
   messaging,
 }: {
   links: { href: string; label: string }[];
-  identity: { name: string | null; email: string | null } | null;
+  identity: { name: string | null; email: string | null; userId?: string } | null;
   /** The account rows, decided on the server; `null` when signed out. */
   account: AccountLinks | null;
   /** `modules.messaging`: the messages icon waits for module 1 (#375). */
@@ -87,7 +87,7 @@ export function SiteHeaderView({
                 {tNav('backToAdmin')}
               </Link>
             ) : null}
-            <HeaderActions messaging={messaging} />
+            <HeaderActions messaging={messaging} viewerId={identity.userId ?? null} />
             <div className="hidden md:flex">
               <PlayerUserMenu name={identity.name} email={identity.email} links={account} />
             </div>

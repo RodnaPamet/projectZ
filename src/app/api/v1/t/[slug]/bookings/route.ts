@@ -9,6 +9,7 @@ import {
 import { createBookingBodySchema } from '@/app-layer/schemas/booking';
 import { quoteBooking } from '@/app-layer/usecases/availability';
 import { createBooking } from '@/app-layer/usecases/booking';
+import { notifyBookingConfirmed } from '@/app-layer/usecases/booking-notifications';
 import { clubTakesOnlinePayment } from '@/app-layer/usecases/booking-rules';
 import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import { minutesFromTimeColumn } from '@/app-layer/repositories/availability';
@@ -221,6 +222,13 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
   });
 
   if (!created.row) throw new NotFoundError('Booking not found');
+
+  // After the commit (#367): the bell, and the confirmation email through the
+  // outbox. Only a genuine create; a replay was announced the first time, and
+  // the dedupe key would refuse a second one anyway. Never throws.
+  if (!created.replay) {
+    await notifyBookingConfirmed({ tenantId, bookingId: created.row.id });
+  }
 
   // 200 on an idempotent replay, 201 on a genuine create. A client that
   // retried is not told it created something twice, and one that genuinely

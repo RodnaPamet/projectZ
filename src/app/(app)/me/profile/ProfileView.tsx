@@ -6,8 +6,9 @@ import { getCsrfToken, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
-import type { MeDto } from '@/app/api/v1/_lib/dto';
+import type { MeDto, NotificationSettingsDto } from '@/app/api/v1/_lib/dto';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
+import { NotificationSettingsRow } from '@/components/profile/NotificationSettingsRow';
 import { PersonalDataSection } from '@/components/profile/PersonalDataSection';
 import { SportLevelsSection } from '@/components/profile/SportLevelsSection';
 import { useAccount } from '@/components/profile/use-account';
@@ -87,6 +88,7 @@ export function ProfileView({
   platformHref,
   account: seed,
   showSports,
+  notificationSettings,
 }: {
   name: string | null;
   email: string | null;
@@ -95,6 +97,8 @@ export function ProfileView({
   account: MeDto;
   /** Sports and levels are a player's; a CLUB account does not play (#263). */
   showSports: boolean;
+  /** Which emails the account gets (#367); the bell has no switch. */
+  notificationSettings: NotificationSettingsDto;
 }) {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
@@ -152,6 +156,7 @@ export function ProfileView({
             }}
           />
         </div>
+        <NotificationSettingsRow seed={notificationSettings} />
         <div className={`${ROW} md:hidden`} data-testid="profile-theme-row">
           <span className="text-content-default text-sm">{tCommon('theme')}</span>
           <ThemeToggle id="profile-theme-toggle" />

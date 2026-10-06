@@ -27,7 +27,9 @@ test.describe('player profile — phone', () => {
 
   test('axe: the sports sheet with a level open', async ({ playerPage: page }) => {
     await page.goto('/me/profile');
-    await page.getByTestId('profile-sports-edit').click();
+    // Scoped to the visible <main>: while the page streams, Next keeps a
+    // hidden copy of it in the document, and a bare test id matches both.
+    await page.getByRole('main').getByTestId('profile-sports-edit').click();
     await page.getByTestId('profile-sport-pick-PADEL').getByRole('checkbox').click();
     await expect(page.getByTestId('profile-sport-pick-PADEL-meaning')).toBeVisible();
     await expectAxeClean(page);

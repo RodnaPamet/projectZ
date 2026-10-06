@@ -15,6 +15,25 @@ enum NotificationKind {
   TOURNAMENT_ROUND
   PAYMENT_RECEIVED
   SPLIT_REQUESTED
+  /// #367/#416: who is playing changed. Bell only, never email.
+  BOOKING_PLAYER_JOINED
+  BOOKING_PLAYER_LEFT
+  BOOKING_PLAYER_ADDED
+  BOOKING_PLAYER_REMOVED
+}
+
+/// Where an email stands in the outbox (#367).
+enum EmailOutboxStatus {
+  /// Waiting for its first send, or for its next retry at `nextAttemptAt`.
+  PENDING
+  /// Accepted by the provider (or written to the log by the log-only adapter).
+  SENT
+  /// Not sent, on purpose: the booking was cancelled or has started, the
+  /// person turned the category off or has no address, or it expired.
+  SKIPPED
+  /// Failed `EMAIL_MAX_ATTEMPTS` times, or refused permanently. Kept for a
+  /// person to look at; nothing retries it.
+  DEAD
 }
 
 /// A browser's push endpoint.
@@ -71,11 +90,78 @@ model Notification {
 
   readAt DateTime?
 
+  /// The event this is about, for this recipient (#367): `booking:<id>:confirmed`,
+  /// `booking:<id>:reminder`. Unique per user, so a retried hook or a second
+  /// cron run writes nothing. NULL for rows from before P46.
+  dedupeKey String?
+
   createdAt DateTime @default(now())
 
-  /// The list query, exactly: one user's unread notifications, newest first.
+  /// One event, one row per recipient.
+  @@unique([userId, dedupeKey])
+  /// The bell's page: one user's notifications, newest first, keyset on id.
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  /// The unread count.
   @@index([userId, readAt, createdAt])
   @@index([tenantId])
   @@index([refType, refId])
   @@map("notification")
+}
+
+/// An email waiting to go out (#367): the OUTBOX.
+///
+/// Written in the same transaction as the bell's `notification` row, after the
+/// booking (or cancel, or join) has committed. A cron drains it through the
+/// provider adapter (`src/lib/email/provider.ts`): Resend, SMTP, or the
+/// log-only adapter when neither is configured or this is staging.
+///
+/// The copy is rendered when the row is written, in the RECIPIENT's language,
+/// so a retry sends exactly what the first attempt would have. The ADDRESS is
+/// not stored: it is read from `user.email` at send time, so a changed address
+/// is honoured and a deleted account gets nothing.
+///
+/// Owner-only under RLS (`app.user_id`), like `notification`; the drain is
+/// machine work and binds BYPASSRLS.
+model EmailOutbox {
+  id        String           @id @default(cuid())
+  userId    String
+  kind      NotificationKind
+  /// The settings category it is sent under: `confirmation`, `reminder` or
+  /// `clubChanges` (and later `messages`). Re-checked at send time.
+  category  String
+  /// Same discipline as `notification.dedupeKey`: once per event per person.
+  /// Messages (#375) will use `message:<conversation>:<day>` for the
+  /// once-a-day cap.
+  dedupeKey String
+  locale    Locale
+
+  subject String
+  /// Plain text only: no HTML, so no tracking pixel and nothing to inject into.
+  text    String
+
+  refType String?
+  refId   String?
+
+  status        EmailOutboxStatus @default(PENDING)
+  attempts      Int               @default(0)
+  /// When the drain may next pick it up. Also the LEASE: a drain that claims
+  /// the row pushes this forward, so a crashed send is retried, not lost.
+  nextAttemptAt DateTime          @default(now()) @db.Timestamptz(3)
+  /// After this it is SKIPPED rather than sent (a reminder after the start).
+  expiresAt     DateTime?         @db.Timestamptz(3)
+  lastError     String?
+  provider      String?
+  sentAt        DateTime?         @db.Timestamptz(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Deleting an account deletes its unsent mail (and the copy it carries).
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  /// The drain: what is due, oldest first.
+  @@index([status, nextAttemptAt])
+  @@index([refType, refId])
+  @@map("email_outbox")
 }

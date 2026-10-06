@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 
 import { readBookingPlayers, type BookingPlayer } from '@/app-layer/repositories/booking';
+import { notifyBookingPlayersChanged } from '@/app-layer/usecases/booking-notifications';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
@@ -157,20 +158,37 @@ export class BookingPlayerNotFoundError extends Error {
 
 // ─── The notification hook (#367) ───────────────────────────────────────
 
-/** Something that changed who is playing. */
+/**
+ * Something that changed who is playing. `participantId` is the row that was
+ * added or deleted: it makes each event's notification unique (#367), so
+ * leaving and joining again is two events, and a repeated hook is one.
+ */
 export type BookingPlayersEvent =
-  | { type: 'joined'; tenantId: string; bookingId: string; userId: string; via: 'link' | 'booker' }
-  | { type: 'left'; tenantId: string; bookingId: string; userId: string }
-  | { type: 'removed'; tenantId: string; bookingId: string; userId: string; byUserId: string };
+  | {
+      type: 'joined';
+      tenantId: string;
+      bookingId: string;
+      userId: string;
+      participantId: string;
+      via: 'link' | 'booker';
+    }
+  | { type: 'left'; tenantId: string; bookingId: string; userId: string; participantId: string }
+  | {
+      type: 'removed';
+      tenantId: string;
+      bookingId: string;
+      userId: string;
+      participantId: string;
+      byUserId: string;
+    };
 
 /**
- * ═══ #367 PLUGS IN HERE ═══
- *
  * Called after the transaction that made the change has COMMITTED, never
  * inside it, so a failing mail server cannot undo a join, and a rolled-back
- * join never sends "you are in". Notifications (email + bell) are #367; until
- * it lands this records the event and nothing else. It carries ids only, never
- * a token or a name.
+ * join never sends "you are in". It carries ids only, never a token or a
+ * name, and hands them to the bell (#367, #416): a join by link or a leave is
+ * news to the booker; an add or a removal by the booker is news to that
+ * player. Never throws.
  */
 export async function onBookingPlayersChanged(event: BookingPlayersEvent): Promise<void> {
   logger.info('booking players changed', {
@@ -178,6 +196,7 @@ export async function onBookingPlayersChanged(event: BookingPlayersEvent): Promi
     event: event.type,
     bookingId: event.bookingId,
   });
+  await notifyBookingPlayersChanged(event);
 }
 
 // ─── Phase one: which club ──────────────────────────────────────────────
@@ -673,15 +692,16 @@ export async function acceptBookingInvite(input: {
         detailsJson: { category: 'booking', bookingId: b.id, via: 'link', linkId: link.id },
       });
     }
-    return { joined: added.joined };
+    return { joined: added.joined, participantId: added.participantId };
   });
 
-  if (result.joined) {
+  if (result.joined && result.participantId) {
     await onBookingPlayersChanged({
       type: 'joined',
       tenantId: link.tenantId,
       bookingId: link.bookingId,
       userId: input.userId,
+      participantId: result.participantId,
       via: 'link',
     });
   }
@@ -703,7 +723,7 @@ export async function leaveBooking(input: {
   if (at.role === 'BOOKER') throw new BookerCannotLeaveError();
   const now = input.now ?? new Date();
 
-  await runInTenantContext(at.tenantId, async (tx) => {
+  const participantId = await runInTenantContext(at.tenantId, async (tx) => {
     const b = await lockBooking(tx, at.tenantId, input.bookingId);
     const mine = b?.participants.find((p) => p.userId === input.userId);
     if (!b || !mine) throw new BookingNotFoundForPlayersError();
@@ -719,6 +739,7 @@ export async function leaveBooking(input: {
       details: `Left booking ${b.id}`,
       detailsJson: { category: 'booking', bookingId: b.id, position: mine.position },
     });
+    return mine.id;
   });
 
   await onBookingPlayersChanged({
@@ -726,6 +747,7 @@ export async function leaveBooking(input: {
     tenantId: at.tenantId,
     bookingId: input.bookingId,
     userId: input.userId,
+    participantId,
   });
 }
 
@@ -768,15 +790,16 @@ export async function removeBookingPlayer(input: {
         position: row.position,
       },
     });
-    return row.userId;
+    return { userId: row.userId, participantId: row.id };
   });
 
-  if (removed) {
+  if (removed.userId) {
     await onBookingPlayersChanged({
       type: 'removed',
       tenantId,
       bookingId: input.bookingId,
-      userId: removed,
+      userId: removed.userId,
+      participantId: removed.participantId,
       byUserId: input.userId,
     });
   }
@@ -902,12 +925,13 @@ export async function addCoPlayer(input: {
     return added;
   });
 
-  if (result.joined) {
+  if (result.joined && result.participantId) {
     await onBookingPlayersChanged({
       type: 'joined',
       tenantId,
       bookingId: input.bookingId,
       userId: input.playerUserId,
+      participantId: result.participantId,
       via: 'booker',
     });
   }

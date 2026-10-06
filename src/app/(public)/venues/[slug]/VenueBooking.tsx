@@ -184,8 +184,13 @@ export function VenueBooking({
   const booking = useV1Mutation<Selection, BookingDto>({
     url: () => V1.createBooking(venue.clubSlug),
     body: (s) => ({ resourceId: s.resourceId, startTs: s.startTs, endTs: s.endTs }),
-    // The cross-club list /me/bookings renders, so the new booking is on it.
-    related: { infinite: [KEYS.meBookings()] },
+    // The cross-club list /me/bookings renders, so the new booking is on it;
+    // and the bell (#367), so "Резервацията е потвърдена" is counted at once
+    // rather than at the next minute's poll.
+    related: {
+      infinite: [KEYS.meBookings()],
+      keys: (key) => key === KEYS.notifications(),
+    },
   });
 
   const dayOptions = useMemo(

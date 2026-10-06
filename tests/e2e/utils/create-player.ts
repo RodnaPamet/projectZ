@@ -44,6 +44,8 @@ export async function destroyPlayer(userId: string): Promise<void> {
   try {
     await prisma().$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+      // The bell's rows name a person, not a foreign key (#367): clear them too.
+      await tx.notification.deleteMany({ where: { userId } });
       await tx.user.deleteMany({ where: { id: userId } });
     });
   } catch (err) {

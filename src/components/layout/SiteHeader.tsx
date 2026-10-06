@@ -129,7 +129,7 @@ export async function SiteHeader() {
   return (
     <SiteHeaderView
       links={playerTopLinks(kind, modules).map((l) => ({ href: l.href, label: tNav(l.labelKey) }))}
-      identity={me ? { name: me.name, email: me.email } : null}
+      identity={me ? { name: me.name, email: me.email, userId: me.userId } : null}
       account={account}
       messaging={modules.messaging}
     />

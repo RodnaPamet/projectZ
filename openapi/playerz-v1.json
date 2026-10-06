@@ -43,7 +43,7 @@
     },
     {
       "name": "Me",
-      "description": "The signed-in person, across every club: their account kind and landing reason, and their own bookings everywhere. Addresses no club, so no slug and no permission — only a session."
+      "description": "The signed-in person, across every club: their account kind and landing reason, and their own bookings everywhere. Addresses no club, so no slug and no permission — only a session. Also their notifications (the bell) and which emails they get."
     },
     {
       "name": "Payments",
@@ -5919,6 +5919,383 @@
           }
         }
       }
+    },
+    "/me/notifications": {
+      "get": {
+        "operationId": "listMyNotifications",
+        "summary": "My notifications (the bell), newest first",
+        "description": "The caller's own notifications (#367): booking confirmed, the 3-hour reminder, a cancellation, a weekly series created or cancelled by the club, and players joining, leaving, being added or removed. Newest first, read or not. Each item's `title` and `body` are already in the RECIPIENT's language (`User.locale`) as of when it was written.\n\n`href` is a web path (`/me/bookings/{id}`); a native client maps `refType` (`booking`) and `refId` to a screen instead. `unreadCount` is the caller's unread total, for the badge, so one read serves both.\n\nKEYSET pagination on (`createdAt`, `id`). Pass `nextCursor` back verbatim as `cursor`. Scoped to the session's user under owner-only row security; nothing in the request can point it at anyone else.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size. Clamped: absent, non-numeric or below 1 becomes 20; above 50 becomes 50. Never rejected.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` of the previous page (a notification id). A cursor that is malformed or names no notification of the caller's is 400 `BAD_REQUEST` with `details.field: \"cursor\"`, never an empty page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of the caller's notifications, and the unread count.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — the cursor is malformed or is not one of the caller's notifications. `details.field` is `cursor`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/notifications/read": {
+      "post": {
+        "operationId": "markMyNotificationsRead",
+        "summary": "Mark my notifications read",
+        "description": "`{\"ids\": [...]}` (1–100 ids) or `{\"all\": true}`. Idempotent: a notification already read keeps its first `readAt`, and nothing is ever un-read. Answers how many changed and the unread count after.\n\nIf ANY id is not one of the caller's — someone else's, or none at all — the whole call is 404 and nothing is marked; the two cases cannot be told apart. Unknown properties are 400.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkNotificationsReadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What changed.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkNotificationsReadEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — not JSON, neither shape, an empty or oversized `ids`, a malformed id, or an unknown property. `details.field` names it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — an id is not one of the caller's notifications. Nothing was marked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/notification-settings": {
+      "get": {
+        "operationId": "getMyNotificationSettings",
+        "summary": "Which emails I get",
+        "description": "The caller's email settings (#367, Q22), one switch per category: `confirmation` (a booking is confirmed, or the club books a weekly slot for you), `reminder` (3 hours before a game) and `clubChanges` (the club cancels a booking or a series). All on by default. The bell has no switch: it always shows everything.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The settings.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettingsEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateMyNotificationSettings",
+        "summary": "Turn email categories on or off",
+        "description": "`{\"email\": {\"reminder\": false}}`: any of the three categories, at least one. Unknown properties are 400. Answers the settings as stored. Emails already waiting to be sent are re-checked against these settings when they go out.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The settings, as stored.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettingsEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — not JSON, no category, a non-boolean, or an unknown property. `details.field` names it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -9216,6 +9593,221 @@
             "type": "string",
             "enum": ["PLAYER", "COACH"],
             "description": "CLUB is never chosen: the owner creates club accounts."
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "title": "Notification",
+        "description": "One bell row. Copy is already in the recipient's language.",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "body",
+          "href",
+          "refType",
+          "refId",
+          "read",
+          "readAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "BOOKING_CONFIRMED",
+              "BOOKING_REMINDER",
+              "BOOKING_CANCELLED",
+              "SESSION_FULL",
+              "MESSAGE_RECEIVED",
+              "MATCH_RESULT",
+              "ACHIEVEMENT_UNLOCKED",
+              "TOURNAMENT_ROUND",
+              "PAYMENT_RECEIVED",
+              "SPLIT_REQUESTED",
+              "BOOKING_PLAYER_JOINED",
+              "BOOKING_PLAYER_LEFT",
+              "BOOKING_PLAYER_ADDED",
+              "BOOKING_PLAYER_REMOVED"
+            ],
+            "description": "Treat an unknown value as a generic notification: kinds are added over time."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "href": {
+            "type": ["string", "null"],
+            "description": "A web path, e.g. `/me/bookings/{id}`."
+          },
+          "refType": {
+            "type": ["string", "null"],
+            "description": "What it is about: `booking` today."
+          },
+          "refId": {
+            "type": ["string", "null"]
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "readAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NotificationPage": {
+        "type": "object",
+        "title": "NotificationPage",
+        "required": ["items", "nextCursor", "unreadCount"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "Null on the last page."
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "NotificationPageEnvelope": {
+        "type": "object",
+        "title": "NotificationPageEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/NotificationPage"
+          }
+        }
+      },
+      "MarkNotificationsReadRequest": {
+        "title": "MarkNotificationsReadRequest",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ids"],
+            "properties": {
+              "ids": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["all"],
+            "properties": {
+              "all": {
+                "type": "boolean",
+                "enum": [true]
+              }
+            }
+          }
+        ]
+      },
+      "MarkNotificationsRead": {
+        "type": "object",
+        "title": "MarkNotificationsRead",
+        "required": ["marked", "unreadCount"],
+        "properties": {
+          "marked": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "MarkNotificationsReadEnvelope": {
+        "type": "object",
+        "title": "MarkNotificationsReadEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarkNotificationsRead"
+          }
+        }
+      },
+      "NotificationSettings": {
+        "type": "object",
+        "title": "NotificationSettings",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "object",
+            "required": ["confirmation", "reminder", "clubChanges"],
+            "properties": {
+              "confirmation": {
+                "type": "boolean"
+              },
+              "reminder": {
+                "type": "boolean"
+              },
+              "clubChanges": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "NotificationSettingsEnvelope": {
+        "type": "object",
+        "title": "NotificationSettingsEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/NotificationSettings"
+          }
+        }
+      },
+      "UpdateNotificationSettingsRequest": {
+        "type": "object",
+        "title": "UpdateNotificationSettingsRequest",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "confirmation": {
+                "type": "boolean"
+              },
+              "reminder": {
+                "type": "boolean"
+              },
+              "clubChanges": {
+                "type": "boolean"
+              }
+            }
           }
         }
       }

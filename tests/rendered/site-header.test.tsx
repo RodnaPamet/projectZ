@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import type { ChromeModules } from '@/components/layout/nav-items';
@@ -7,6 +8,7 @@ import { HOME, PLAYER_HOME, type LandingDecision } from '@/lib/auth/landing';
 
 import bg from '../../messages/bg.json';
 import { withIntl } from '../helpers/intl';
+import { installFakeFetch, ok } from '../unit/data/fake-v1';
 
 /**
  * SIGNING IN HAS TO BE VISIBLE, AND EACH KIND SEES ITS OWN WAY ON (#362).
@@ -84,8 +86,15 @@ function desktopViewport() {
 }
 
 // The app mounts a TooltipProvider in Providers; the menu's theme row needs one.
+// A fresh SWR cache per render: the bell (#367) reads /api/v1/me/notifications.
 const renderHeader = async () =>
-  render(withIntl(<TooltipProvider>{await SiteHeader()}</TooltipProvider>));
+  render(
+    withIntl(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <TooltipProvider>{await SiteHeader()}</TooltipProvider>
+      </SWRConfig>,
+    ),
+  );
 
 const IVO = { userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' };
 const PLAYER: LandingDecision = { href: PLAYER_HOME, reason: 'player', club: null };
@@ -114,6 +123,8 @@ function openMenu(name = 'Ivo') {
 }
 
 beforeEach(() => {
+  // The bell reads its page on mount; an empty one unless a test says otherwise.
+  installFakeFetch(() => ok({ items: [], nextCursor: null, unreadCount: 0 }));
   pathname = '/venues';
   modules = { openPlay: false, messaging: false };
   desktopViewport();
@@ -320,18 +331,24 @@ describe('SiteHeader — modules hide what has not shipped', () => {
   });
 });
 
-describe('SiteHeader — the bell (#367 brings the list)', () => {
-  it('opens an empty state, "Нямате известия", and fakes no count', async () => {
+describe('SiteHeader — the bell (#367)', () => {
+  it('reads the bell as the signed-in viewer, and with nothing unread shows no count', async () => {
+    const calls = installFakeFetch(() => ok({ items: [], nextCursor: null, unreadCount: 0 }));
     signedInIdentity.mockResolvedValue(IVO);
     await renderHeader();
 
     const bell = screen.getByRole('button', { name: n.notifications });
     expect(bell).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]!.url).toBe('/api/v1/me/notifications?limit=20');
+    expect(calls[0]!.headers['x-playerz-viewer']).toBe('u1');
     expect(bell.textContent).toBe('');
-    fireEvent.click(bell);
 
+    fireEvent.click(bell);
     expect(bell).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByTestId('notifications-empty')).toHaveTextContent(n.notificationsEmpty);
+    expect(await screen.findByTestId('notifications-empty')).toHaveTextContent(
+      n.notificationsEmpty,
+    );
   });
 });
 

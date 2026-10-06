@@ -115,6 +115,12 @@ model User {
   avatarUrl     String?
   locale        Locale    @default(bg)
 
+  /// Which emails this person wants (#367, Q22). The bell always gets
+  /// everything; these switch only the email. On by default.
+  emailBookingConfirmations Boolean @default(true)
+  emailBookingReminders     Boolean @default(true)
+  emailClubChanges          Boolean @default(true)
+
   /// Bumped to invalidate every issued session (password change, forced
   /// logout). A JWT carrying a stale version is rejected.
   sessionVersion Int @default(0)
@@ -166,6 +172,7 @@ model User {
   resetTokens PasswordResetToken[]
   invitesSent Invite[]             @relation("InvitedBy")
   apiKeys     ApiKey[]
+  emailOutbox EmailOutbox[]
   invitedBy   TenantMembership[]   @relation("MembershipInvitedBy")
 
   mfaRecoveryCodes MfaRecoveryCode[]

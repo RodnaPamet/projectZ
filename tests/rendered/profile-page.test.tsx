@@ -74,6 +74,9 @@ function renderProfile(
             platformHref={platformHref}
             account={seed}
             showSports={opts.showSports ?? true}
+            notificationSettings={{
+              email: { confirmation: true, reminder: true, clubChanges: true },
+            }}
           />
         </TooltipProvider>
       </SWRConfig>,

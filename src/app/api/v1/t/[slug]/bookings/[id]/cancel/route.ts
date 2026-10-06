@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server';
 
 import { getBookingById, getOwnBooking } from '@/app-layer/repositories/booking';
 import { cancelBooking } from '@/app-layer/usecases/booking';
+import { notifyBookingCancelled } from '@/app-layer/usecases/booking-notifications';
 import { hasPermission } from '@/app-layer/types';
 import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -111,6 +112,15 @@ async function handler(
     },
     { isolationLevel: 'Serializable' },
   );
+
+  // After the commit (#367). Cancelled by the club: everyone on the booking
+  // hears, by email too. By the booker: the players they added, in the bell.
+  await notifyBookingCancelled({
+    tenantId: ctx.tenantId!,
+    bookingId: result.bookingId,
+    by: asStaff ? 'CLUB' : 'BOOKER',
+    actorUserId: ctx.userId,
+  });
 
   return ok(result);
 }
