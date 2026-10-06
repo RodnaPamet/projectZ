@@ -12,6 +12,8 @@ import {
   PERF_RUNS,
   PERF_WARM_PASSES,
   PROFILES,
+  VENUE_NAME,
+  VENUE_PUBLIC_SLUG,
   type PersonaId,
 } from './config';
 import { PerfSession, type WriteSpec } from './harness';
@@ -81,6 +83,17 @@ const tomorrow = shiftDay(today, 1);
 const diaryDay = (isoDay: string) => `${club('calendar')}?day=${isoDay}`;
 
 /**
+ * The venue page (#355, #397). It mirrors the day on screen into the URL with
+ * `replaceState` as it mounts (VenueBooking), so a tap on a card lands on
+ * `/venues/{slug}?day={today}` and the day picker's "Утре" turns it into
+ * `?day={tomorrow}`. Its days are the venue's, in its zone: the same Sofia
+ * calendar as the diary's.
+ */
+const VENUE = `/venues/${VENUE_PUBLIC_SLUG}`;
+const venueDay = (isoDay: string) => `${VENUE}?day=${isoDay}`;
+const DAY_PICKER = `main [role="radiogroup"][aria-label="${bg.venue.day.label}"]`;
+
+/**
  * One stable definition per destination of "its key content is visible". Each
  * uses the page's heading, taken from the catalogue (as the e2e specs do, so
  * rewording a heading is not a failure), plus the page's `[data-perf-ready]`
@@ -117,6 +130,28 @@ const READY: ReadyTable = {
   '/me/bookings': [
     { selector: 'main h1', text: bg.myBookings.title },
     { selector: 'main [data-perf-ready]' },
+  ],
+  // The venue page, on each day the journeys show. The name is the venue's
+  // own h1; the day picker's checked option tells today from tomorrow, as the
+  // diary's "next day" link does; `[data-perf-ready]` is the court list,
+  // which VenueBooking renders only once that day's slots are in (the day
+  // switch shows a skeleton while it fetches: `keepPreviousData` is off).
+  // Tomorrow must also show a bookable time, a slot button inside a court's
+  // time group: the seed leaves it about half free. Today is not asked for
+  // one, because late in the evening every one of today's slots has started.
+  [venueDay(today)]: [
+    { selector: 'main h1', text: VENUE_NAME },
+    { selector: `${DAY_PICKER} [role="radio"][aria-checked="true"]`, text: bg.venue.day.today },
+    { selector: 'main [data-perf-ready]', text: 'Court 1' },
+  ],
+  [venueDay(tomorrow)]: [
+    { selector: 'main h1', text: VENUE_NAME },
+    {
+      selector: `${DAY_PICKER} [role="radio"][aria-checked="true"]`,
+      text: bg.venue.day.tomorrow,
+    },
+    { selector: 'main [data-perf-ready]', text: 'Court 1' },
+    { selector: 'main [data-perf-ready] [role="group"] button' },
   ],
   [club('calendar')]: [
     { selector: 'main h1', text: bg.admin.calendar.title },
@@ -186,14 +221,54 @@ interface Journey {
   /** Where the entry lands after redirects. */
   lands: string;
   steps: Step[];
+  /**
+   * Needs the perf seed (a known venue's public slug), so it is never run
+   * against a server the harness did not seed (PERF_BASE_URL).
+   */
+  seeded?: true;
+}
+
+/**
+ * /venues → a venue's page → its next day → back to /venues (#397), the way a
+ * player finds a court. The step that matters is the first: the cards keep
+ * the default (auto) prefetch (navigation-policy.md), so a tap paints the
+ * page's `loading.tsx` skeleton at once and the page arrives with the tap's
+ * own round trip. "next day" is not a router navigation: it is the day
+ * picker, which reads the day through SWR (`GET /api/v1/venues/{id}/
+ * availability?date=`) and mirrors it into the URL with `replaceState`, so it
+ * is timed from the tap to that day's slots on the glass. The way back is the
+ * page's own back link to the index.
+ *
+ * A journey of its own, entered at /venues, rather than steps inserted into
+ * the public and player loops: the existing loops' rows are judged against
+ * budgets whose warm rows are router-cache hits inside a 30 s window
+ * (`staleTimes.dynamic`), and three more steps in the same loop would move
+ * them by lengthening it. The entry is a full load of /venues, as a shared or
+ * searched link to it is.
+ */
+function venueSteps(): Step[] {
+  return [
+    {
+      id: 'venues → venue',
+      to: venueDay(today),
+      click: `main a[href="${VENUE}"]`,
+    },
+    {
+      id: 'venue → next day',
+      to: venueDay(tomorrow),
+      // The picker's second option is tomorrow (VenueBooking's dayOptions).
+      click: `${DAY_PICKER} [role="radio"]:nth-child(2)`,
+    },
+    { id: 'venue → venues', to: '/venues', click: 'main a[href="/venues"]' },
+  ];
 }
 
 /**
  * Only links to pages that exist are timed: a 404 is not a navigation. The
  * club nav's `open-play`, `coaches` and `my-bookings` were dead (#260) until
- * T19 removed them. The venue cards linked to `/venues/{slug}` too, until
- * #267 made them plain text; when the venue page (#224) exists,
- * `venues → venue` belongs in the public and player journeys.
+ * T19 removed them. The venue cards were plain text from #267 until the venue
+ * page existed (#355); `venues → venue` is timed by the venue journeys below
+ * (#397), anonymous and signed in.
  *
  * The staff steps keep their ids across T19, so their budget rows still
  * apply: on a phone each nav step now opens the drawer first, untimed.
@@ -222,6 +297,24 @@ const JOURNEYS: Journey[] = [
       { id: 'home → venues', to: '/venues', click: 'main a[href="/venues"]' },
       { id: 'venues → home', to: '/', click: 'header a[href="/"]' },
     ],
+  },
+  {
+    id: 'public-venue',
+    persona: null,
+    entry: '/venues',
+    lands: '/venues',
+    steps: venueSteps(),
+    seeded: true,
+  },
+  {
+    // Signed in, the page also renders the player chrome and wraps the slots
+    // in the viewer's scope; the steps are the same.
+    id: 'player-venue',
+    persona: 'player',
+    entry: '/venues',
+    lands: '/venues',
+    steps: venueSteps(),
+    seeded: true,
   },
   {
     // /t/{slug} redirects a club role to the diary; then every admin screen,
@@ -314,9 +407,10 @@ const LANDINGS: Array<{ id: string; persona: PersonaId; lands: string }> = [
  * Against a server the harness did not start (PERF_BASE_URL, e.g. production),
  * only the anonymous, read-only journeys exist. The signed-in ones need the
  * perf seed's accounts, and staff-write renames a court: neither belongs on a
- * live server, so they are never registered there.
+ * live server, so they are never registered there. Nor is `public-venue`,
+ * which opens the perf seed's venue by its slug.
  */
-const journeys = PERF_REMOTE ? JOURNEYS.filter((j) => j.persona === null) : JOURNEYS;
+const journeys = PERF_REMOTE ? JOURNEYS.filter((j) => j.persona === null && !j.seeded) : JOURNEYS;
 const landings = PERF_REMOTE ? [] : LANDINGS;
 
 if (PERF_PAUSE_MS > 0) {

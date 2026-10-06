@@ -9,6 +9,7 @@ import {
   PERF_BASE_URL,
   PERF_PASSWORD,
   PERSONAS,
+  VENUE_PUBLIC_SLUG,
   type PersonaId,
 } from './config';
 
@@ -50,8 +51,8 @@ import {
  * and as an RSC payload, since the two render paths differ.
  */
 const WARM_UP: Record<'anonymous' | PersonaId, string[]> = {
-  anonymous: ['/', '/venues', '/login'],
-  player: ['/', '/venues', '/me/bookings', '/start'],
+  anonymous: ['/', '/venues', `/venues/${VENUE_PUBLIC_SLUG}`, '/login'],
+  player: ['/', '/venues', `/venues/${VENUE_PUBLIC_SLUG}`, '/me/bookings', '/start'],
   staff: [
     `/t/${CLUB_SLUG}`,
     ...['calendar', 'courts', 'pricing', 'players', 'staff'].map(

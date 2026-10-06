@@ -142,13 +142,15 @@ function classify(type: string | undefined, method: string, headers: Record<stri
  *
  * ═══ WHY NOT PLAYWRIGHT'S request/requestfinished ═══
  *
- * Because some requests never finish. Every venue card on /venues links to
- * `/venues/{slug}`, a page that does not exist. Next prefetches each card as
- * it scrolls into view, the server answers 404 in 2 ms, and Chrome then never
- * reports the request as finished or failed: measured, not one of the eleven
- * got `loadingFinished` in eight seconds. Presumably the router holds the
- * response and never reads its body. "Wait until nothing is in flight" then
- * waited twenty seconds after every visit to /venues.
+ * Because some requests never finish. When this was written, every venue
+ * card on /venues linked to `/venues/{slug}`, a page that did not exist yet
+ * (#267; the page arrived in #355, and the venue journeys now time it). Next
+ * prefetched each card as it scrolled into view, the server answered 404 in
+ * 2 ms, and Chrome then never reported the request as finished or failed:
+ * measured, not one of the eleven got `loadingFinished` in eight seconds.
+ * Presumably the router holds a 404 response and never reads its body. "Wait
+ * until nothing is in flight" then waited twenty seconds after every visit to
+ * /venues. Any future link to a missing page does the same.
  *
  * So "quiet" means no request is still waiting for its response headers, and
  * nothing at all has happened on the network for QUIET_MS. A response whose
