@@ -466,6 +466,87 @@ export function toMyBookingDto(
   };
 }
 
+/**
+ * One of the caller's own bookings in full: `GET /api/v1/me/bookings/{id}`
+ * (#359), and the web's booking detail page through the same mapper.
+ *
+ * `MyBookingDto`, with the venue block widened to what "how do I get there"
+ * needs, how it is paid, and who is playing. The list keeps the narrow venue
+ * block: a page of twenty bookings has no use for twenty addresses.
+ */
+export interface MyBookingDetailDto extends Omit<MyBookingDto, 'venue'> {
+  venue: BookingDto['venue'] & {
+    /** `/venues/{publicSlug}` on the web; null for a venue that has none. */
+    publicSlug: string | null;
+    addressLine: string;
+    city: string;
+    lat: number;
+    lng: number;
+    phone: string | null;
+  };
+  /**
+   * True when the price is paid at the club, not online (#354): every pilot
+   * club. `totalCents` is then what the club will charge on the day.
+   */
+  payAtClub: boolean;
+  /**
+   * The people on the booking, the booker first. Display names and avatars
+   * only: no ids and no emails. `name` is null for a player with no name set.
+   * Until players can be added (#358) this is the booker alone.
+   */
+  players: Array<{
+    name: string | null;
+    avatarUrl: string | null;
+    isBooker: boolean;
+    registered: boolean;
+  }>;
+}
+
+export function toMyBookingDetailDto(
+  b: Parameters<typeof toMyBookingDto>[0] & {
+    resource: {
+      venue: {
+        publicSlug: string | null;
+        addressLine: string;
+        city: string;
+        lat: unknown;
+        lng: unknown;
+        phone: string | null;
+      };
+    };
+    payAtClub: boolean;
+    players: Array<{
+      name: string | null;
+      avatarUrl: string | null;
+      isBooker: boolean;
+      registered: boolean;
+    }>;
+  },
+): MyBookingDetailDto {
+  const base = toMyBookingDto(b);
+  const v = b.resource.venue;
+  return {
+    ...base,
+    venue: {
+      ...base.venue,
+      publicSlug: v.publicSlug,
+      addressLine: v.addressLine,
+      city: v.city,
+      // Decimal(10,7): a string on the wire without Number() (see the top).
+      lat: Number(v.lat),
+      lng: Number(v.lng),
+      phone: v.phone,
+    },
+    payAtClub: b.payAtClub,
+    players: b.players.map((p) => ({
+      name: p.name,
+      avatarUrl: p.avatarUrl,
+      isBooker: p.isBooker,
+      registered: p.registered,
+    })),
+  };
+}
+
 export interface ReviewDto {
   id: string;
   bookingId: string;

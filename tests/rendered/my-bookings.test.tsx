@@ -7,6 +7,7 @@ import {
   reviewErrorKey,
   withPendingReview,
 } from '@/app/(app)/me/bookings/MyBookingsList';
+import type { BookingTab } from '@/app/(app)/me/bookings/tabs';
 import type { MyBookingDto } from '@/app/api/v1/_lib/dto';
 import { __resetSessionExpiryForTests } from '@/lib/auth/session-expiry';
 import { ApiClientError } from '@/lib/data/errors';
@@ -73,13 +74,17 @@ function serve(
   });
 }
 
-function mount(seed: V1Page<MyBookingDto> = SEED, config: SWRConfiguration = {}) {
+function mount(
+  seed: V1Page<MyBookingDto> = SEED,
+  config: SWRConfiguration = {},
+  when: BookingTab = 'past',
+) {
   return render(
     withIntl(
       <DataProvider>
         <SWRConfig value={{ provider: () => new Map(), ...config }}>
           <ViewerScope viewerId="usr_player">
-            <MyBookingsList seed={seed} reviewMaxLength={2000} />
+            <MyBookingsList when={when} seed={seed} reviewMaxLength={2000} />
           </ViewerScope>
         </SWRConfig>
       </DataProvider>,
@@ -127,7 +132,7 @@ describe('the server seed', () => {
     expect(screen.getByRole('list')).toHaveAttribute('data-perf-ready');
 
     await waitFor(() => expect(gets(calls)).toHaveLength(1));
-    expect(calls[0]!.url).toBe('/api/v1/me/bookings');
+    expect(calls[0]!.url).toBe('/api/v1/me/bookings?when=past');
     expect(calls[0]!.headers['x-playerz-viewer']).toBe('usr_player');
 
     await act(tick);
@@ -179,9 +184,9 @@ describe('the server seed', () => {
 
   it('with no bookings, offers the venues — a client-side link, not a full reload', () => {
     serve({ list: () => ok(page([])) });
-    mount(page([]));
+    mount(page([]), {}, 'upcoming');
 
-    expect(screen.getByText(mb.empty.title)).toBeInTheDocument();
+    expect(screen.getByText(mb.empty.upcoming.title)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: mb.browse })).toHaveAttribute('href', '/venues');
     expect(document.querySelector('[data-perf-ready]')).not.toBeNull();
   });
@@ -200,7 +205,9 @@ describe('load more', () => {
 
     expect(await screen.findByText('По-стара')).toBeInTheDocument();
     expect(screen.getByText('Алфа Кортове')).toBeInTheDocument();
-    expect(gets(calls).some((c) => c.url === '/api/v1/me/bookings?cursor=bk1')).toBe(true);
+    expect(gets(calls).some((c) => c.url === '/api/v1/me/bookings?cursor=bk1&when=past')).toBe(
+      true,
+    );
     expect(screen.queryByRole('button', { name: mb.loadMore })).not.toBeInTheDocument();
   });
 

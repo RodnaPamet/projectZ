@@ -81,7 +81,7 @@ export interface VenueSearchParams {
 
 /** Reads: SWR keys. */
 export const KEYS = {
-  /** The caller's standing at a club. There is no club-less `/me` in v1 yet. */
+  /** The caller's standing at a club. */
   me: (slug: string) => `${BASE}/t/${seg(slug)}/me`,
   /** The caller's own bookings at a club, newest first, by cursor. */
   myBookings: (slug: string, params: { limit?: number } = {}) =>
@@ -92,7 +92,10 @@ export const KEYS = {
    * per-club `myBookings(slug)` above cannot be it — a person's list spans
    * clubs, and a native token does not carry the list of them.
    */
-  meBookings: (params: { limit?: number } = {}) => paged(`${BASE}/me/bookings`, params),
+  meBookings: (params: { limit?: number; when?: 'upcoming' | 'past' } = {}) =>
+    paged(`${BASE}/me/bookings`, params),
+  /** One of the caller's own bookings in full (#359): the booking detail page. */
+  meBooking: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}`,
   /** The public venue index, by cursor. */
   venues: (params: VenueSearchParams = {}) => paged(`${BASE}/venues`, { ...params }),
   /**

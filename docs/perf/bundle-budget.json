@@ -3,5 +3,5 @@
   "source": "next build, Next 16.3.6, da4342f",
   "unit": "gzip KB",
   "rule": "measured First Load JS + 5%, rounded up to 0.1 KB",
-  "routes": { "/": 294.8, "/design-system": 332.2, "/invite/[token]": 301.9, "/login": 301.1, "/me/bookings": 315.6, "/me/profile": 309.0, "/offline": 201.5, "/platform": 305.6, "/platform/moderation": 314.6, "/platform/security": 315.0, "/t/[slug]": 203.6, "/t/[slug]/admin": 303.3, "/t/[slug]/admin/calendar": 311.3, "/t/[slug]/admin/courts": 310.3, "/t/[slug]/admin/players": 346.9, "/t/[slug]/admin/pricing": 327.4, "/t/[slug]/admin/staff": 351.9, "/venues": 308.4, "/venues/[slug]": 314.5 }
+  "routes": { "/": 294.8, "/design-system": 332.2, "/invite/[token]": 301.9, "/login": 301.1, "/me/bookings": 315.6, "/me/bookings/[id]": 321.8, "/me/profile": 309.0, "/offline": 201.5, "/platform": 305.6, "/platform/moderation": 314.6, "/platform/security": 315.0, "/t/[slug]": 203.6, "/t/[slug]/admin": 303.3, "/t/[slug]/admin/calendar": 311.3, "/t/[slug]/admin/courts": 310.3, "/t/[slug]/admin/players": 346.9, "/t/[slug]/admin/pricing": 327.4, "/t/[slug]/admin/staff": 351.9, "/venues": 308.4, "/venues/[slug]": 314.5 }
 }

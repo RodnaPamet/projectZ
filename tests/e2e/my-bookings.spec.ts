@@ -68,22 +68,27 @@ test.describe('my bookings — desktop', () => {
 
     await expect(page.getByRole('heading', { level: 1, name: mb.title })).toBeVisible();
     const cards = page.locator('[data-perf-ready] > li');
-    await expect(cards).toHaveCount(2);
+    // Предстоящи (#359): tomorrow's confirmed booking alone.
+    await expect(page.getByRole('radio', { name: mb.tabs.upcoming })).toBeChecked();
+    await expect(cards).toHaveCount(1);
     await expect(cards.first()).toContainText(club.venueName);
-    // Newest first: tomorrow's confirmed booking, then yesterday's played one.
     await expect(cards.first()).toContainText(mb.status.CONFIRMED);
-    await expect(cards.nth(1)).toContainText(mb.status.COMPLETED);
-    await expect(cards.nth(1)).toContainText(sofiaTime());
-
     expect((await read).status()).toBe(200);
+
+    // Минали: yesterday's played one, in Sofia's time; the address follows.
+    await page.getByRole('radio', { name: mb.tabs.past }).click();
+    await expect(page).toHaveURL(/\/me\/bookings\?tab=past$/);
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText(mb.status.COMPLETED);
+    await expect(cards.first()).toContainText(sofiaTime());
   });
 
   test('a review shows at once, is POSTed to the v1 route, and settles as stored', async ({
     playerPage: page,
     club,
   }) => {
-    await page.goto('/me/bookings');
-    const played = page.locator('[data-perf-ready] > li').nth(1);
+    await page.goto('/me/bookings?tab=past');
+    const played = page.locator('[data-perf-ready] > li').first();
 
     await played.getByRole('button', { name: mb.review.rate }).click();
     await played.getByRole('radio').nth(4).click();
@@ -101,7 +106,7 @@ test.describe('my bookings — desktop', () => {
 
     // And it is stored: a fresh document load shows it from the server seed.
     await page.reload();
-    await expect(page.locator('[data-perf-ready] > li').nth(1)).toContainText(yours(5));
+    await expect(page.locator('[data-perf-ready] > li').first()).toContainText(yours(5));
   });
 
   test('a refusal rolls back and says why', async ({ playerPage: page, club }) => {
@@ -111,8 +116,8 @@ test.describe('my bookings — desktop', () => {
         json: { error: { code: 'NO_PROOF_OF_VISIT', message: 'x', requestId: 'req_e2e' } },
       }),
     );
-    await page.goto('/me/bookings');
-    const played = page.locator('[data-perf-ready] > li').nth(1);
+    await page.goto('/me/bookings?tab=past');
+    const played = page.locator('[data-perf-ready] > li').first();
 
     await played.getByRole('button', { name: mb.review.rate }).click();
     await played.getByRole('radio').nth(2).click();
@@ -131,10 +136,13 @@ test.describe('my bookings — desktop', () => {
       baseURL,
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
-      await page.goto('/me/bookings');
+      await page.goto('/me/bookings?tab=past');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await page.getByRole('button', { name: mb.review.rate }).click();
-      await expect(page.getByRole('radio')).toHaveCount(5);
+      // The review's five stars; the Предстоящи / Минали toggle is a radiogroup too.
+      await expect(page.locator('[data-perf-ready] > li').first().getByRole('radio')).toHaveCount(
+        5,
+      );
       await expectAxeClean(page);
     });
   }
@@ -146,7 +154,7 @@ test.describe('my bookings — desktop', () => {
     // Inside <main>: under the 300 ms reveal throttle a streamed page can sit
     // in a hidden copy beside the shown one, and an unscoped text query finds both.
     const main = page.getByRole('main');
-    await expect(main.getByText(mb.empty.title)).toBeVisible();
+    await expect(main.getByText(mb.empty.upcoming.title)).toBeVisible();
     await main.getByRole('link', { name: mb.browse }).click();
     await expect(page).toHaveURL(/\/venues$/);
   });

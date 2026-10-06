@@ -1,5 +1,6 @@
 import { RouteSkeleton } from '@/components/loading/route-skeleton';
 import { CardListSkeleton, PageTitleSkeleton } from '@/components/loading/shapes';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * /me/bookings: the title, then a list of booking cards, in the page's own
@@ -17,6 +18,8 @@ export default function Loading() {
     <RouteSkeleton className="bg-bg-page safe-area-x flex-1">
       <div className="px-6 py-10">
         <PageTitleSkeleton size="md" subtitle={false} className="mb-section" />
+        {/* The Предстоящи / Минали toggle (#359): two 44 px options. */}
+        <Skeleton className="mb-section h-12 w-52 rounded-lg" />
         <CardListSkeleton rows={4} lines={3} className="gap-compact" />
       </div>
     </RouteSkeleton>

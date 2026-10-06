@@ -58,11 +58,18 @@ test.describe('my bookings — phone', () => {
   }) => {
     await page.goto('/me/bookings');
     const cards = page.locator('[data-perf-ready] > li');
-    await expect(cards).toHaveCount(2);
+    // Предстоящи, then Минали (#359): one booking each, the tabs under the thumb.
+    await expect(cards).toHaveCount(1);
     await expect(cards.first()).toContainText(club.venueName);
+    await expect(cards.first()).toContainText(mb.status.CONFIRMED);
+    const pastTab = page.getByRole('radio', { name: mb.tabs.past });
+    await expectTarget(pastTab);
     await expectNoDrift(page);
+    await pastTab.click();
+    await expect(cards.first()).toContainText(mb.status.COMPLETED);
+    await expect(cards).toHaveCount(1);
 
-    const played = cards.nth(1);
+    const played = cards.first();
     const rate = played.getByRole('button', { name: mb.review.rate });
     await expectTarget(rate);
     await rate.click();
@@ -87,8 +94,8 @@ test.describe('my bookings — phone', () => {
         json: { error: { code: 'ALREADY_REVIEWED', message: 'x', requestId: 'req_e2e' } },
       }),
     );
-    await page.goto('/me/bookings');
-    const played = page.locator('[data-perf-ready] > li').nth(1);
+    await page.goto('/me/bookings?tab=past');
+    const played = page.locator('[data-perf-ready] > li').first();
 
     await played.getByRole('button', { name: mb.review.rate }).click();
     await played.getByRole('radio').nth(0).click();
@@ -106,10 +113,13 @@ test.describe('my bookings — phone', () => {
       baseURL,
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
-      await page.goto('/me/bookings');
+      await page.goto('/me/bookings?tab=past');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await page.getByRole('button', { name: mb.review.rate }).click();
-      await expect(page.getByRole('radio')).toHaveCount(5);
+      // The review's five stars; the Предстоящи / Минали toggle is a radiogroup too.
+      await expect(page.locator('[data-perf-ready] > li').first().getByRole('radio')).toHaveCount(
+        5,
+      );
       await expectAxeClean(page);
     });
   }

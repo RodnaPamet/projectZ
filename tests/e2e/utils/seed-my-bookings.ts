@@ -18,6 +18,9 @@ export interface PlayedClub {
   venueName: string;
   completedId: string;
   confirmedId: string;
+  /** The venue and its one court, for a spec that books more or changes the cutoff. */
+  venueId: string;
+  resourceId: string;
 }
 
 const HOUR = 3_600_000;
@@ -96,6 +99,8 @@ export async function seedPlayedClub(userId: string): Promise<PlayedClub> {
       venueName,
       completedId: completed.id,
       confirmedId: confirmed.id,
+      venueId: venue.id,
+      resourceId: court.id,
     };
   });
 }

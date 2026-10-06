@@ -585,12 +585,27 @@
     "metaTitle": "My bookings — playerz.bg",
     "title": "My bookings",
     "empty": {
-      "title": "You have no bookings",
-      "description": "Pick a court and reserve a time."
+      "upcoming": {
+        "title": "You have no upcoming bookings",
+        "description": "Pick a court and reserve a time."
+      },
+      "past": {
+        "title": "No past bookings yet",
+        "description": "Bookings you have played or cancelled will show here."
+      }
+    },
+    "tabs": {
+      "label": "Which bookings",
+      "upcoming": "Upcoming",
+      "past": "Past"
     },
     "browse": "Browse venues",
     "loadMore": "Load more",
     "loadMoreError": "The next bookings did not load. Try again.",
+    "listError": {
+      "title": "Your bookings did not load",
+      "description": "Check your connection and try again."
+    },
     "status": {
       "PENDING": "Awaiting payment",
       "CONFIRMED": "Confirmed",
@@ -620,6 +635,39 @@
         "ALREADY_REVIEWED": "You have already reviewed this venue.",
         "NOT_ALLOWED": "You can no longer review bookings at this club.",
         "FAILED": "The review was not sent. Try again."
+      }
+    },
+    "detail": {
+      "metaTitle": "Booking — playerz.bg",
+      "back": "Bookings",
+      "when": "When",
+      "court": "Court",
+      "price": "Price",
+      "payAtClub": "Pay at the club",
+      "address": "Address",
+      "directions": "Directions",
+      "opensInNewTab": "(opens in a new tab)",
+      "venuePage": "Venue page",
+      "players": "Players",
+      "you": "You",
+      "booker": "organiser",
+      "guest": "guest",
+      "unnamed": "Player",
+      "cancel": "Cancel booking",
+      "cancelUntil": "You can cancel until {deadline}.",
+      "cutoffPassed": "The cancellation deadline passed on {deadline}.",
+      "cutoffPassedNoDate": "The cancellation deadline has passed.",
+      "callClub": "To change it, call the club: {phone}",
+      "contactClub": "To change it, contact the club.",
+      "cancelError": {
+        "NOT_CANCELLABLE": "This booking can no longer be cancelled.",
+        "FAILED": "The booking was not cancelled. Try again."
+      },
+      "confirm": {
+        "title": "Cancel this booking?",
+        "description": "{venue}, {date} at {time}. The court will be freed for other players.",
+        "yes": "Cancel booking",
+        "no": "Back"
       }
     }
   },
