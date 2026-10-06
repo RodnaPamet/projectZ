@@ -1,76 +1,72 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type ComponentType, type SVGProps } from 'react';
+import type { ComponentType, SVGProps } from 'react';
 
-import { useIsBelowMd } from '@/components/ui/hooks/use-is-below-md';
-import { CalendarDays, CircleUser, Magnifier, UserArrowRight } from '@/components/ui/icons/nucleo';
-import { cn } from '@/lib/cn';
+import {
+  CalendarDays,
+  CircleUser,
+  Gear,
+  Magnifier,
+  UserArrowRight,
+  Users2,
+} from '@/components/ui/icons/nucleo';
 
-import { playerTabs, type PlayerChromeKind, type PlayerTabIconKey } from './nav-items';
-import { PlayerUserMenu } from './player-user-menu';
+import {
+  playerTabs,
+  type ChromeModules,
+  type PlayerChromeKind,
+  type PlayerTabIconKey,
+} from './nav-items';
 import { useSaveData } from './PublicPrefetchLink';
+import { TabBar, TabBarLink } from './tab-bar';
 
 /**
- * The player's bottom tab bar, below `md` (T20; owner decision 3).
+ * The player's bottom tab bar, below `md` (T20; #362).
  *
- *   signed out          Discover · Sign in
- *   player, coach, —    Discover · My bookings · Account
- *   club account        Discover · Account
+ *   signed out          Играй · Вход
+ *   player, coach, —    Играй · (Игри) · Резервации · Профил
+ *   club account        Играй · Админ · Профил
  *
  * The tabs come from `nav-items.ts` (`playerTabs`), so `nav-hrefs-resolve`
- * follows every one to a page. Upstream's sidebar shell is the club admin's;
- * a player on a phone gets what a native app gives them, a row under the
- * thumb, and the iOS client (/api/v1) has the same three.
+ * follows every one to a page. Игри is there only when `modules.openPlay` is
+ * on (`src/lib/modules.ts`). The bar itself is the shared `TabBar`, the same
+ * one the club admin's renders.
  *
- * ═══ GEOMETRY ═══
+ * ═══ EVERY TAB IS A PAGE ═══
  *
- * Each tab is at least 44 x 44 px (WCAG 2.5.5; the bar is 56 px tall), and
- * the bar pads itself by `env(safe-area-inset-bottom)` so the home indicator
- * never sits on a label. It is fixed, so an in-flow spacer of the same height
- * keeps the last row of a page from hiding under it, and it publishes that
- * height as `--app-bottom-inset` on <html> while it is showing: the Toaster
- * (providers.tsx) and ScrollToTop lift themselves by it.
+ * Профил was the Account tab, which opened the account menu as a bottom sheet
+ * over whatever page you were on. It is now `/me/profile`: identity, language,
+ * theme, and sign-out. From `md` the avatar keeps the account menu, which links
+ * to the same page.
  *
  * ═══ WHERE IT IS NOT ═══
  *
  * /login, /invite/* and /offline: a page whose whole job is one form or one
- * decision, where a Discover tab is a way to lose it.
+ * decision, where a Play tab is a way to lose it.
  *
  * ═══ PREFETCH ═══
  *
- * Full (`prefetch={true}`), the one place docs/perf/navigation-policy.md
- * allows it (tests/guardrails/router-cache-policy.test.ts allow-lists this
- * file): the bar is always on screen, a tap on it is the commonest navigation
- * a phone makes, and a fully prefetched tab renders from the router cache
- * without React's 300 ms reveal throttle (#290). Under Save-Data it falls back
- * to the default, and the server render assumes Save-Data, so such a browser
- * never starts a full prefetch.
- *
- * ═══ THE ACCOUNT TAB ═══
- *
- * Not a page: it opens the vendored `UserMenu`, controlled, which presents as
- * the phone bottom sheet. The vendored menu brings its own avatar trigger and
- * has no slot for another, so the trigger is kept, `inert` and invisible,
- * over this tab: it anchors the dropdown the menu becomes from 640 px, and it
- * is never a second, nameless tab stop. Focus comes back to the tab on close.
+ * Full, the one place docs/perf/navigation-policy.md allows it: the bar is
+ * always on screen, a tap on it is the commonest navigation a phone makes, and
+ * a fully prefetched tab renders from the router cache without React's 300 ms
+ * reveal throttle (#290). The Админ tab is the exception: it leads into the
+ * club admin, whose links stay on the default. Under Save-Data every tab falls
+ * back to the default, and
+ * the server render assumes Save-Data, so such a browser never starts a full
+ * prefetch. `router-cache-policy` pins `fullPrefetch` to this file.
  */
 const HIDDEN_ON = [/^\/login(?:\/|$)/, /^\/invite\//, /^\/offline(?:\/|$)/];
 
-/** 56 px of bar, plus the home indicator. Published as `--app-bottom-inset`. */
-const BAR_HEIGHT = 'calc(3.5rem + env(safe-area-inset-bottom))';
-
 const ICONS: Record<PlayerTabIconKey, ComponentType<SVGProps<SVGSVGElement>>> = {
   discover: Magnifier,
+  games: Users2,
   bookings: CalendarDays,
   signIn: UserArrowRight,
-  account: CircleUser,
+  profile: CircleUser,
+  admin: Gear,
 };
-
-const TAB_CLASS =
-  'flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-[11px] leading-tight font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none';
 
 export function isTabBarHidden(pathname: string): boolean {
   return HIDDEN_ON.some((re) => re.test(pathname));
@@ -82,124 +78,35 @@ function isCurrent(pathname: string, href: string): boolean {
 
 export function BottomTabBar({
   kind,
-  identity,
+  modules,
+  adminHref,
 }: {
   kind: PlayerChromeKind;
-  identity: { name: string | null; email: string | null } | null;
+  modules: ChromeModules;
+  /** A CLUB account's way into its admin (`landing.href`); none for anyone else. */
+  adminHref: string | null;
 }) {
   const t = useTranslations('common.nav');
   const pathname = usePathname() ?? '/';
   const saveData = useSaveData();
-  const belowMd = useIsBelowMd();
-  const hidden = isTabBarHidden(pathname);
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const accountRef = useRef<HTMLButtonElement>(null);
-  // Whether the menu was open when the pointer went down on the tab. A
-  // non-modal dropdown (640-767 px) closes itself on that pointerdown, as an
-  // outside press, so by the click `menuOpen` is already false and a toggle
-  // would open it again.
-  const openAtPress = useRef(false);
-
-  useEffect(() => {
-    if (hidden || !belowMd) return;
-    const root = document.documentElement;
-    root.style.setProperty('--app-bottom-inset', BAR_HEIGHT);
-    return () => {
-      root.style.removeProperty('--app-bottom-inset');
-    };
-  }, [hidden, belowMd]);
-
-  if (hidden) return null;
-
-  const setOpen = (next: boolean) => {
-    setMenuOpen(next);
-    // The real trigger is inert, so the menu cannot hand focus back to it.
-    if (!next) requestAnimationFrame(() => accountRef.current?.focus());
-  };
+  if (isTabBarHidden(pathname)) return null;
 
   return (
-    <>
-      {/* Holds the page's last row clear of the fixed bar. */}
-      <div aria-hidden="true" className="shrink-0 md:hidden" style={{ height: BAR_HEIGHT }} />
-      <nav
-        aria-label={t('tabBar')}
-        data-testid="bottom-tab-bar"
-        className="border-border-subtle bg-bg-page/95 fixed inset-x-0 bottom-0 z-30 flex border-t pr-[max(0.5rem,env(safe-area-inset-right))] pb-[env(safe-area-inset-bottom)] pl-[max(0.5rem,env(safe-area-inset-left))] backdrop-blur-sm md:hidden"
-      >
-        <ul className="flex h-14 w-full items-stretch gap-1 py-1.5">
-          {playerTabs(kind).map((tab) => {
-            const Icon = ICONS[tab.iconKey];
-            if (tab.type === 'link') {
-              const current = isCurrent(pathname, tab.href);
-              return (
-                <li key={tab.href} className="flex flex-1">
-                  <Link
-                    href={tab.href}
-                    prefetch={saveData ? null : true}
-                    aria-current={current ? 'page' : undefined}
-                    className={cn(
-                      TAB_CLASS,
-                      current
-                        ? 'text-content-emphasis'
-                        : 'text-content-muted hover:text-content-default',
-                    )}
-                  >
-                    <Icon className="size-5" aria-hidden="true" />
-                    <span>{t(tab.labelKey)}</span>
-                  </Link>
-                </li>
-              );
-            }
-
-            return (
-              <li key="account" className="relative flex flex-1">
-                <button
-                  ref={accountRef}
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  data-testid="bottom-tab-account"
-                  onPointerDown={() => {
-                    openAtPress.current = menuOpen;
-                  }}
-                  onClick={(e) => {
-                    // A keyboard click has no pointerdown before it.
-                    const wasOpen = e.detail === 0 ? menuOpen : openAtPress.current;
-                    openAtPress.current = false;
-                    setOpen(!wasOpen);
-                  }}
-                  className={cn(
-                    TAB_CLASS,
-                    menuOpen
-                      ? 'text-content-emphasis'
-                      : 'text-content-muted hover:text-content-default',
-                  )}
-                >
-                  <Icon className="size-5" aria-hidden="true" />
-                  <span>{t(tab.labelKey)}</span>
-                </button>
-                {identity ? (
-                  // `inert` alone: it removes the trigger from the tab order
-                  // AND the accessibility tree. An `aria-hidden` over a
-                  // focusable button is what axe's aria-hidden-focus flags.
-                  <div
-                    inert
-                    className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0"
-                  >
-                    <PlayerUserMenu
-                      name={identity.name}
-                      email={identity.email}
-                      open={menuOpen}
-                      onOpenChange={setOpen}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </>
+    <TabBar label={t('tabBar')}>
+      {playerTabs(kind, { modules, adminHref }).map((tab) => (
+        <TabBarLink
+          key={tab.href}
+          href={tab.href}
+          // Not the Админ tab: it opens the club's live diary, and an admin
+          // page is never fully prefetched (docs/perf/navigation-policy.md).
+          fullPrefetch={!saveData && tab.iconKey !== 'admin'}
+          icon={ICONS[tab.iconKey]}
+          label={t(tab.labelKey)}
+          current={isCurrent(pathname, tab.href)}
+          testId={`bottom-tab-${tab.iconKey}`}
+        />
+      ))}
+    </TabBar>
   );
 }

@@ -50,3 +50,45 @@ export async function destroyPlayer(userId: string): Promise<void> {
     console.warn(`e2e: could not delete player ${userId}: ${(err as Error).message}`);
   }
 }
+
+/**
+ * A CLUB account holding STAFF at `tenantId` (#362): the front desk. It opens
+ * the diary and the players, and the admin's own filter hides the rest.
+ */
+export async function createStaff(tenantId: string): Promise<E2EPlayer> {
+  const id = `e2e-staff-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const email = `${id}@playerz.test`;
+  const name = 'E2E Staff';
+  const passwordHash = await bcrypt.hash(E2E_PASSWORD, 4);
+
+  const user = await prisma().$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    const u = await tx.user.create({ data: { email, name, accountKind: 'CLUB', passwordHash } });
+    await tx.tenantMembership.create({
+      data: { tenantId, userId: u.id, role: 'STAFF', status: 'ACTIVE' },
+    });
+    return u;
+  });
+
+  return { userId: user.id, email, password: E2E_PASSWORD, name };
+}
+
+/**
+ * A live platform grant for `userId` (#345), issued by `grantedBy`: the
+ * database refuses a self-grant. `REVIEW_MODERATE` makes a moderator.
+ */
+export async function grantModerator(userId: string, grantedBy: string): Promise<void> {
+  const id = `cg${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36)}`;
+  await prisma().$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    await tx.$executeRawUnsafe(
+      `INSERT INTO platform_admin_grant
+         (id,"userId","grantedByUserId",reason,capabilities,"expiresAt")
+       VALUES ($1,$2,$3,'e2e #362 navigation check',
+               '{REVIEW_MODERATE}'::"PlatformCapability"[], now() + interval '1 day')`,
+      id,
+      userId,
+      grantedBy,
+    );
+  });
+}

@@ -45,11 +45,56 @@ test.describe('club admin shell — desktop', () => {
     );
     expect(clipped).toEqual([]);
 
-    // #263: one account, one club. The club's name is a label, not a picker.
+    // #263: one account, one club. The club's name is not a picker; since #347
+    // it is the link back to the admin's start, and nothing to switch.
     const name = page.getByTestId('admin-context-name');
     await expect(name).toHaveText(`E2E ${isolatedTenant.tenantSlug}`);
-    expect(await name.evaluate((el) => el.tagName)).toBe('SPAN');
+    await expect(name).toHaveAttribute('href', `/t/${isolatedTenant.tenantSlug}/admin`);
     await expect(page.getByRole('combobox')).toHaveCount(0);
+  });
+
+  test('the way out (#347): the wordmark and "Публична страница" reach the public site', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await expect(page.getByTestId('admin-wordmark')).toHaveAttribute('href', '/');
+    // No bottom bar on a desktop.
+    await expect(page.locator(`nav[aria-label="${bg.common.nav.tabBar}"]`)).toBeHidden();
+
+    const pub = page.getByTestId('admin-public-link');
+    await expect(pub).toHaveText(bg.common.nav.publicPage);
+    await pub.click();
+    await expect(page).toHaveURL(/\/venues$/);
+
+    // And the menu offers the same, with the profile.
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await page.getByTestId('top-chrome-user-menu').click();
+    const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
+    await expect(menu.getByTestId('user-menu-public')).toHaveAttribute('href', '/venues');
+    await expect(menu.getByTestId('user-menu-profile')).toHaveAttribute('href', '/me/profile');
+  });
+
+  test('staff: only the pages the role opens, and a closed one is a 404 in the shell (S01)', async ({
+    staffPage: page,
+    isolatedTenant,
+  }) => {
+    const slug = isolatedTenant.tenantSlug;
+    await page.goto(`/t/${slug}/admin`);
+    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
+    const nav = page.locator(MAIN_NAV);
+    await expect(nav.getByRole('link')).toHaveCount(2);
+    await expect(nav.locator(`a[href="/t/${slug}/admin/calendar"]`)).toBeVisible();
+    await expect(nav.locator(`a[href="/t/${slug}/admin/players"]`)).toBeVisible();
+
+    // By URL: the app's not-found, INSIDE the admin shell, not a bare page.
+    await page.goto(`/t/${slug}/admin/courts`);
+    await expect(page.getByTestId('shell-not-found')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: bg.notFound.title })).toBeAttached();
+    await expect(page.locator(MAIN_NAV)).toBeVisible();
+    await expect(page.locator('main')).toHaveCount(1);
+    await page.getByRole('link', { name: bg.notFound.backToAdmin }).click();
+    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
   });
 
   test('/t/{slug}/admin opens the first page the role may see (audit C10)', async ({

@@ -1,13 +1,15 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
+import type { ChromeModules } from '@/components/layout/nav-items';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { HOME, PLAYER_HOME, type LandingDecision } from '@/lib/auth/landing';
 
 import bg from '../../messages/bg.json';
 import { withIntl } from '../helpers/intl';
 
 /**
- * SIGNING IN HAS TO BE VISIBLE.
+ * SIGNING IN HAS TO BE VISIBLE, AND EACH KIND SEES ITS OWN WAY ON (#362).
  *
  * Before this header, the homepage read no session at all: a successful Google
  * round trip returned you to a page identical to the one you left. It was
@@ -15,14 +17,12 @@ import { withIntl } from '../helpers/intl';
  * time a real defect (#223), the second time a sign-in that had worked
  * perfectly with nothing on screen to say so.
  *
- * An app with no observable difference between signed in and signed out cannot
- * be tested by a human either, which is why these assert on what is RENDERED
- * rather than on the session helper's return value.
- *
- * Since T20 the header sits on inflect's vendored NavBar slots, its links show
- * from `md` (the bottom tab bar has them below), and the name and sign-out
- * live in the vendored account menu. jsdom applies no media queries, so every
- * width's markup is here at once; the phone half is the tab bar's test and
+ * Since #362 the header also carries each account kind's way on: a CLUB
+ * account's "← Към админ" (#346), the bell, the messages icon behind its
+ * module, and an account menu whose rows depend on the kind: Профил for all,
+ * "Админ на клуба" for a club account, "Платформа" for a holder of a live
+ * platform grant (#345). jsdom applies no media queries, so every width's
+ * markup is here at once; the phone half is the tab bar's test and
  * tests/e2e/mobile/player-shell.spec.ts.
  */
 jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
@@ -38,13 +38,20 @@ jest.mock('@/lib/auth/page-context', () => ({
   signedInIdentity: () => signedInIdentity(),
 }));
 
-// Where `/start` would land the person — the header links a club account back
-// to it. It reaches Prisma, which has no business loading under jsdom; what it
-// returns is the input here.
+// Both reach Prisma, which has no business loading under jsdom; what they
+// return is the input here.
 const resolveLanding = jest.fn();
 jest.mock('@/app-layer/usecases/landing', () => ({
   resolveLanding: (...args: unknown[]) => resolveLanding(...args),
 }));
+const resolvePlatformAuthority = jest.fn();
+jest.mock('@/lib/auth/platform-admin', () => ({
+  resolvePlatformAuthority: (...args: unknown[]) => resolvePlatformAuthority(...args),
+}));
+
+// The flags are environment reads (src/lib/modules.ts); the test sets them.
+let modules: ChromeModules = { openPlay: false, messaging: false };
+jest.mock('@/lib/modules', () => ({ readModules: () => modules }));
 
 jest.mock('next-intl/server', () => ({
   getTranslations: async (ns: string) => {
@@ -62,41 +69,76 @@ jest.mock('next-intl/server', () => ({
   },
 }));
 
-const renderHeader = async () => render(withIntl(await SiteHeader()));
+/** Wide enough that the vendored Popover is a dropdown jsdom can open. */
+function desktopViewport() {
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes('1024px') || query.includes('640px'),
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })) as unknown as typeof window.matchMedia;
+}
+
+// The app mounts a TooltipProvider in Providers; the menu's theme row needs one.
+const renderHeader = async () =>
+  render(withIntl(<TooltipProvider>{await SiteHeader()}</TooltipProvider>));
 
 const IVO = { userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' };
 const PLAYER: LandingDecision = { href: PLAYER_HOME, reason: 'player', club: null };
+const COACH: LandingDecision = { href: PLAYER_HOME, reason: 'coach', club: null };
 const CLUB: LandingDecision = {
   href: '/t/sofia-padel/admin/calendar',
   reason: 'club',
   club: { tenantId: 'csofia', tenantSlug: 'sofia-padel', tenantName: 'Sofia Padel' },
 };
+const NO_GRANT = { grantId: null, capabilities: [] };
+const MODERATOR = { grantId: 'g1', capabilities: ['REVIEW_MODERATE'] };
 
-const PLAY = bg.common.nav.play;
-const MINE = bg.common.nav.myBookings;
+const n = bg.common.nav;
 const SIGN_IN = bg.login.title;
 const accountMenu = (name: string) => bg.nav.accountMenuFor.replace('{name}', name);
 const topNav = () => screen.getByRole('navigation', { name: bg.common.ui.mainNav });
 
+/** Open the avatar's menu and list its rows, as the person reads them. */
+function openMenu(name = 'Ivo') {
+  fireEvent.click(screen.getByRole('button', { name: accountMenu(name) }));
+  const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
+  const rows = [...within(menu).queryAllByRole('link'), ...within(menu).queryAllByRole('button')]
+    .filter((el) => el.closest('[data-testid="user-menu-theme-row"]') === null)
+    .map((el) => [el.textContent, el.getAttribute('href')]);
+  return { menu, rows };
+}
+
 beforeEach(() => {
   pathname = '/venues';
+  modules = { openPlay: false, messaging: false };
+  desktopViewport();
   signedInIdentity.mockReset();
   resolveLanding.mockReset();
   resolveLanding.mockResolvedValue(PLAYER);
+  resolvePlatformAuthority.mockReset();
+  resolvePlatformAuthority.mockResolvedValue(NO_GRANT);
 });
 
 describe('SiteHeader — signed out', () => {
-  it('offers sign-in and Discover, and no account', async () => {
+  it('offers sign-in and Играй, and no account, bell or admin', async () => {
     signedInIdentity.mockResolvedValue(null);
     await renderHeader();
 
     expect(screen.getByRole('link', { name: SIGN_IN })).toHaveAttribute('href', '/login');
-    expect(within(topNav()).getByRole('link', { name: PLAY })).toHaveAttribute('href', '/venues');
-    // "My bookings" to a stranger is a link to a redirect.
-    expect(screen.queryByRole('link', { name: MINE })).not.toBeInTheDocument();
+    expect(within(topNav()).getByRole('link', { name: n.play })).toHaveAttribute('href', '/venues');
+    // "Резервации" to a stranger is a link to a redirect.
+    expect(screen.queryByRole('link', { name: n.bookings })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Меню на акаунта/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: n.notifications })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-admin')).not.toBeInTheDocument();
     // …and a stranger has no account to read, so nothing asks.
     expect(resolveLanding).not.toHaveBeenCalled();
+    expect(resolvePlatformAuthority).not.toHaveBeenCalled();
   });
 
   it('does not link /login to itself (#319)', async () => {
@@ -105,7 +147,7 @@ describe('SiteHeader — signed out', () => {
     await renderHeader();
 
     expect(screen.queryByRole('link', { name: SIGN_IN })).not.toBeInTheDocument();
-    expect(within(topNav()).getByRole('link', { name: PLAY })).toBeInTheDocument();
+    expect(within(topNav()).getByRole('link', { name: n.play })).toBeInTheDocument();
   });
 
   it('keeps the wordmark charcoal, linking home (owner decision)', async () => {
@@ -119,20 +161,37 @@ describe('SiteHeader — signed out', () => {
   });
 });
 
-describe('SiteHeader — per landing reason', () => {
-  it('player: Discover and My bookings, an account menu that names them, no club', async () => {
+describe('SiteHeader — PLAYER', () => {
+  it('Играй and Резервации, the bell, an account menu that names them, no admin', async () => {
     signedInIdentity.mockResolvedValue(IVO);
     await renderHeader();
 
     const nav = topNav();
-    expect(within(nav).getByRole('link', { name: PLAY })).toHaveAttribute('href', '/venues');
-    // The link that makes /me/bookings reachable from a desktop (#224).
-    expect(within(nav).getByRole('link', { name: MINE })).toHaveAttribute('href', '/me/bookings');
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('href')),
+    ).toEqual(['/venues', '/me/bookings']);
+    expect(screen.getByRole('button', { name: n.notifications })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
-    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-admin')).not.toBeInTheDocument();
     // No sign-in link while signed in — offering one implies it did not work.
     expect(screen.queryByRole('link', { name: SIGN_IN })).not.toBeInTheDocument();
     expect(resolveLanding).toHaveBeenCalledWith('u1');
+  });
+
+  it('menu: Профил, then Изход; no admin, no platform, no language row', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    await renderHeader();
+
+    const { menu, rows } = openMenu();
+    expect(rows).toEqual([
+      [n.profile, '/me/profile'],
+      [bg.common.signOut, null],
+    ]);
+    // Theme stays in the menu (built in); language lives on the profile page.
+    expect(within(menu).getByTestId('user-menu-theme-row')).toBeInTheDocument();
+    expect(within(menu).queryByTestId('user-menu-language-row')).not.toBeInTheDocument();
   });
 
   it('names the account by its email when the provider gave no name', async () => {
@@ -142,50 +201,137 @@ describe('SiteHeader — per landing reason', () => {
 
     expect(screen.getByRole('button', { name: accountMenu('ivo@example.bg') })).toBeInTheDocument();
   });
+});
 
-  it('club: the way back to its one club, and no My bookings (#263)', async () => {
+describe('SiteHeader — COACH', () => {
+  it('a player’s links and menu: Профил, Изход; no admin', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    resolveLanding.mockResolvedValue(COACH);
+    await renderHeader();
+
+    expect(within(topNav()).getByRole('link', { name: n.bookings })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-admin')).not.toBeInTheDocument();
+    expect(openMenu().rows).toEqual([
+      [n.profile, '/me/profile'],
+      [bg.common.signOut, null],
+    ]);
+  });
+});
+
+describe('SiteHeader — CLUB (owner or staff)', () => {
+  it('"← Към админ" as a primary button to its admin, at every width (#346)', async () => {
     signedInIdentity.mockResolvedValue(IVO);
     resolveLanding.mockResolvedValue(CLUB);
     await renderHeader();
 
-    expect(screen.getByRole('link', { name: 'Sofia Padel' })).toHaveAttribute(
-      'href',
-      '/t/sofia-padel/admin/calendar',
-    );
-    expect(screen.queryByRole('link', { name: MINE })).not.toBeInTheDocument();
-    expect(within(topNav()).getByRole('link', { name: PLAY })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
+    const admin = screen.getByTestId('site-header-admin');
+    expect(admin).toHaveAttribute('href', '/t/sofia-padel/admin/calendar');
+    expect(admin).toHaveTextContent(n.backToAdmin);
+    // The vendored primary button's own recipe, not text styled as a link.
+    expect(admin.className).toMatch(/text-content-inverted/);
+    expect(admin.closest('.hidden')).toBeNull();
+    // A club account cannot book: no Резервации.
+    expect(screen.queryByRole('link', { name: n.bookings })).not.toBeInTheDocument();
+    expect(within(topNav()).getByRole('link', { name: n.play })).toBeInTheDocument();
     // One account, one kind: no switcher, no picker.
-    expect(screen.queryByRole('button', { name: /Смяна на ролята/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('club-unavailable: neither a club nor My bookings, still a way out', async () => {
+  it('menu: Админ на клуба, Профил, Изход', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    resolveLanding.mockResolvedValue(CLUB);
+    await renderHeader();
+
+    expect(openMenu().rows).toEqual([
+      [n.clubAdmin, '/t/sofia-padel/admin/calendar'],
+      [n.profile, '/me/profile'],
+      [bg.common.signOut, null],
+    ]);
+  });
+
+  it('club-unavailable: no admin button and no admin row, still a way out', async () => {
     signedInIdentity.mockResolvedValue(IVO);
     resolveLanding.mockResolvedValue({ href: HOME, reason: 'club-unavailable', club: null });
     await renderHeader();
 
-    expect(screen.queryByRole('link', { name: MINE })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-admin')).not.toBeInTheDocument();
+    expect(openMenu().rows).toEqual([
+      [n.profile, '/me/profile'],
+      [bg.common.signOut, null],
+    ]);
   });
+});
 
-  it('undecided, with no club to land on: a player’s links', async () => {
+describe('SiteHeader — moderator (a live platform grant, #345)', () => {
+  it('menu: Профил, Платформа, Изход, from the same grant read the platform uses', async () => {
     signedInIdentity.mockResolvedValue(IVO);
-    resolveLanding.mockResolvedValue({ href: PLAYER_HOME, reason: 'undecided', club: null });
+    resolvePlatformAuthority.mockResolvedValue(MODERATOR);
     await renderHeader();
 
-    expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
-    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    expect(openMenu().rows).toEqual([
+      [n.profile, '/me/profile'],
+      [n.platform, '/platform'],
+      [bg.common.signOut, null],
+    ]);
+    expect(resolvePlatformAuthority).toHaveBeenCalledWith('u1');
   });
 
-  it('coach: a player’s links', async () => {
+  it('a lapsed grant (no capabilities) shows no Платформа', async () => {
     signedInIdentity.mockResolvedValue(IVO);
-    resolveLanding.mockResolvedValue({ href: PLAYER_HOME, reason: 'coach', club: null });
+    resolvePlatformAuthority.mockResolvedValue(NO_GRANT);
     await renderHeader();
 
-    expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
-    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    expect(openMenu().rows.map(([label]) => label)).not.toContain(n.platform);
+  });
+});
+
+describe('SiteHeader — modules hide what has not shipped', () => {
+  it('modules off: no messages icon, no Игри', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    await renderHeader();
+
+    expect(screen.queryByRole('link', { name: n.messages })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: n.games })).not.toBeInTheDocument();
+  });
+
+  it('modules.messaging on: the messages icon, before the bell', async () => {
+    modules = { openPlay: false, messaging: true };
+    signedInIdentity.mockResolvedValue(IVO);
+    await renderHeader();
+
+    const messages = screen.getByRole('link', { name: n.messages });
+    expect(messages).toHaveAttribute('href', '/messages');
+    expect(
+      messages.compareDocumentPosition(screen.getByRole('button', { name: n.notifications })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('modules.openPlay on: Игри between Играй and Резервации', async () => {
+    modules = { openPlay: true, messaging: false };
+    signedInIdentity.mockResolvedValue(IVO);
+    await renderHeader();
+
+    expect(
+      within(topNav())
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('href')),
+    ).toEqual(['/venues', '/games', '/me/bookings']);
+  });
+});
+
+describe('SiteHeader — the bell (#367 brings the list)', () => {
+  it('opens an empty state, "Нямате известия", and fakes no count', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    await renderHeader();
+
+    const bell = screen.getByRole('button', { name: n.notifications });
+    expect(bell).toHaveAttribute('aria-expanded', 'false');
+    expect(bell.textContent).toBe('');
+    fireEvent.click(bell);
+
+    expect(bell).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('notifications-empty')).toHaveTextContent(n.notificationsEmpty);
   });
 });
 
@@ -199,13 +345,13 @@ describe('SiteHeader — a failed read does not break the page (#319)', () => {
     expect(resolveLanding).not.toHaveBeenCalled();
   });
 
-  it('landing unreadable: a player’s links and no club link', async () => {
+  it('landing unreadable: a player’s links and no admin button', async () => {
     signedInIdentity.mockResolvedValue(IVO);
     resolveLanding.mockRejectedValue(new Error('database down'));
     await renderHeader();
 
-    expect(within(topNav()).getByRole('link', { name: MINE })).toBeInTheDocument();
-    expect(screen.queryByTestId('site-header-club')).not.toBeInTheDocument();
+    expect(within(topNav()).getByRole('link', { name: n.bookings })).toBeInTheDocument();
+    expect(screen.queryByTestId('site-header-admin')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: accountMenu('Ivo') })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
-import { existsSync, globSync } from 'node:fs';
+import { existsSync, globSync, readFileSync } from 'node:fs';
 
 import {
+  MODULE_HREFS,
   clubAdminNav,
   platformNav,
   playerChromeHrefs,
@@ -74,4 +75,32 @@ describe('nav hrefs resolve to pages', () => {
     expect(existsSync('src/app/(app)/t/[slug]/admin/calendar/page.tsx')).toBe(true);
     expect(PATTERNS.some((p) => p.re.test(`/t/${SAMPLE_SLUG}/admin/calendar`))).toBe(true);
   });
+});
+
+/**
+ * #362. A module's entry (the Игри tab, the messages icon) is drawn only when
+ * its flag is on, so its href may have no page yet. That is safe exactly as
+ * long as the flag defaults OFF: a default of '1' with no page would put a
+ * link to a 404 in every player's chrome. Once the module's page exists the
+ * default is the module's business.
+ */
+describe('module entries stay dark until their page exists', () => {
+  const ENV_VAR: Record<keyof typeof MODULE_HREFS, string> = {
+    openPlay: 'MODULE_OPEN_PLAY',
+    messaging: 'MODULE_MESSAGING',
+  };
+  const envSrc = readFileSync('src/env.ts', 'utf8');
+
+  it.each(Object.entries(MODULE_HREFS))(
+    '%s (%s): a page, or a flag that defaults off',
+    (mod, href) => {
+      const served = PATTERNS.some((p) => p.re.test(href));
+      const defaultsOff = new RegExp(
+        `\\b${ENV_VAR[mod as keyof typeof MODULE_HREFS]}:\\s*z\\.enum\\(\\['0', '1'\\]\\)\\.default\\('0'\\)`,
+      ).test(envSrc);
+      expect({ href, served, defaultsOff }).toEqual(
+        served ? { href, served, defaultsOff } : { href, served: false, defaultsOff: true },
+      );
+    },
+  );
 });

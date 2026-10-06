@@ -5,7 +5,7 @@ import {
   destroyTenant,
   type IsolatedTenant,
 } from './utils/create-isolated-tenant';
-import { createPlayer, destroyPlayer, type E2EPlayer } from './utils/create-player';
+import { createPlayer, createStaff, destroyPlayer, type E2EPlayer } from './utils/create-player';
 
 /**
  * The E2E fixture spine.
@@ -24,6 +24,10 @@ interface Fixtures {
   player: E2EPlayer;
   /** `page`, signed in as `player`. */
   playerPage: import('@playwright/test').Page;
+  /** A CLUB account holding STAFF at `isolatedTenant` (#362): front-desk pages only. */
+  staff: E2EPlayer;
+  /** `page`, signed in as `staff`. */
+  staffPage: import('@playwright/test').Page;
 }
 
 export const test = base.extend<Fixtures>({
@@ -52,6 +56,18 @@ export const test = base.extend<Fixtures>({
 
   playerPage: async ({ page, player }, use) => {
     await signIn(page, player);
+    await use(page);
+  },
+
+  staff: async ({ isolatedTenant }, use) => {
+    const staff = await createStaff(isolatedTenant.tenantId);
+    await use(staff);
+    // The membership goes with the tenant; the account goes here.
+    await destroyPlayer(staff.userId);
+  },
+
+  staffPage: async ({ page, staff }, use) => {
+    await signIn(page, staff);
     await use(page);
   },
 });

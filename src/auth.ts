@@ -288,7 +288,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger }) {
       if (user?.id) {
         const rows = await runAsSuperuser((db) =>
           db.tenantMembership.findMany({
@@ -540,6 +540,26 @@ export const authOptions: NextAuthOptions = {
         token.userSessionId = created.userSessionId;
         token.sessionVersion = created.sessionVersion;
         token.sessionSecret = sessionSecret;
+      }
+
+      // ═══ A LANGUAGE CHANGE REACHES THE TOKEN (#362) ═══
+      //
+      // The middleware re-seeds the locale cookie from `token.locale` whenever
+      // the two differ, and the token was minted at sign-in. So a language the
+      // profile page saved to `User.locale` would be flipped straight back on
+      // the next request, by a token that still carried the old one. After
+      // saving, the page POSTs to /api/auth/session (next-auth's CSRF-checked
+      // update), which arrives here as `trigger: 'update'`.
+      //
+      // The new value is READ FROM THE DATABASE, never taken from the request
+      // body: an update can only make the token agree with the user's own row.
+      // Nothing else in the token changes here.
+      if (trigger === 'update' && !user && token.sub) {
+        token.locale = await runAsSuperuser((db) =>
+          db.user
+            .findUnique({ where: { id: token.sub }, select: { locale: true } })
+            .then((u) => u?.locale ?? token.locale),
+        );
       }
 
       return token;
