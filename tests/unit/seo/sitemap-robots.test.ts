@@ -133,3 +133,16 @@ describe('buildRobots (#396)', () => {
     expect(blocked(path)).toBe(false);
   });
 });
+
+describe('robots.txt on staging (#373)', () => {
+  it('disallows everything and names no sitemap', () => {
+    const robots = buildRobots(new URL('https://staging.example.test'), 'staging');
+    expect(robots.rules).toEqual([{ userAgent: '*', disallow: '/' }]);
+    expect(robots.sitemap).toBeUndefined();
+  });
+
+  it('is unchanged in production, which stays the default', () => {
+    const origin = new URL('https://playerz.bg');
+    expect(buildRobots(origin, 'production')).toEqual(buildRobots(origin));
+  });
+});

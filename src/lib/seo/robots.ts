@@ -33,7 +33,18 @@ export const ROBOTS_DISALLOW = [
   '/offline',
 ] as const;
 
-export function buildRobots(origin: URL): MetadataRoute.Robots {
+/**
+ * Staging (#373) is a full copy of the site on another host. Nothing on it may
+ * be indexed, or search results would split between the two hosts: disallow
+ * everything, and name no sitemap.
+ */
+export function buildRobots(
+  origin: URL,
+  deployEnv: 'production' | 'staging' = 'production',
+): MetadataRoute.Robots {
+  if (deployEnv === 'staging') {
+    return { rules: [{ userAgent: '*', disallow: '/' }] };
+  }
   return {
     rules: [{ userAgent: '*', allow: '/', disallow: [...ROBOTS_DISALLOW] }],
     sitemap: absoluteUrl('/sitemap.xml', origin),
