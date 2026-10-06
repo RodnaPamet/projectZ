@@ -143,8 +143,11 @@ test.describe('my bookings — desktop', () => {
     playerPage: page,
   }) => {
     await page.goto('/me/bookings');
-    await expect(page.getByText(mb.empty.title)).toBeVisible();
-    await page.getByRole('link', { name: mb.browse }).click();
+    // Inside <main>: under the 300 ms reveal throttle a streamed page can sit
+    // in a hidden copy beside the shown one, and an unscoped text query finds both.
+    const main = page.getByRole('main');
+    await expect(main.getByText(mb.empty.title)).toBeVisible();
+    await main.getByRole('link', { name: mb.browse }).click();
     await expect(page).toHaveURL(/\/venues$/);
   });
 });
