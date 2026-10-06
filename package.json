@@ -38,6 +38,7 @@
     "prepare": "husky",
     "grant:platform-admin": "tsx scripts/grant-platform-admin.ts",
     "create:venue-org": "tsx scripts/create-venue-org.ts",
+    "onboard:club": "tsx scripts/onboard-club.ts",
     "report:undecided-accounts": "tsx scripts/report-undecided-accounts.ts"
   },
   "dependencies": {

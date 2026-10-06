@@ -118,6 +118,12 @@ export const AUDIT_ACTIONS = {
   BOOKING_PLAYER_LEFT: 'BOOKING_PLAYER_LEFT',
   /// The booker took a player off; actor: the booker.
   BOOKING_PLAYER_REMOVED: 'BOOKING_PLAYER_REMOVED',
+  /// `scripts/onboard-club.ts` (#365) created a club, venue, court, owner or
+  /// base pricing rule. actorType SYSTEM; the operator is in `detailsJson`.
+  CLUB_ONBOARDING_CREATED: 'CLUB_ONBOARDING_CREATED',
+  /// The same script changed an existing row, only ever with `--update`.
+  /// `detailsJson.diffs` holds each field's before and after.
+  CLUB_ONBOARDING_UPDATED: 'CLUB_ONBOARDING_UPDATED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
