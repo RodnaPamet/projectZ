@@ -440,6 +440,15 @@ export const env = createEnv({
     // a default of '1' for a module whose page is missing.
     MODULE_OPEN_PLAY: z.enum(['0', '1']).default('0'),
     MODULE_MESSAGING: z.enum(['0', '1']).default('0'),
+
+    // ═══ WHICH DEPLOYMENT THIS IS (#373) ═══
+    //
+    // `staging` is the copy on the same VM that gets every merge before the
+    // weekly production release (owner decision Q44). It must never be
+    // indexed: robots.txt disallows everything and the sitemap is empty
+    // (`src/lib/seo/robots.ts`, `src/app/sitemap.ts`). Defaults to
+    // `production`, so the production .env needs no change.
+    DEPLOY_ENV: z.enum(['production', 'staging']).default('production'),
   },
 
   /**
@@ -553,6 +562,7 @@ export const env = createEnv({
     NOTIFICATIONS_TZ: process.env.NOTIFICATIONS_TZ,
     MODULE_OPEN_PLAY: process.env.MODULE_OPEN_PLAY,
     MODULE_MESSAGING: process.env.MODULE_MESSAGING,
+    DEPLOY_ENV: process.env.DEPLOY_ENV,
 
     NEXT_PUBLIC_NOTIFICATIONS_SSE: process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE,
   },

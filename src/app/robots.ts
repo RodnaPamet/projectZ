@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { env } from '@/env';
 import { buildRobots } from '@/lib/seo/robots';
 import { siteUrl } from '@/lib/seo/site-url';
 
@@ -11,5 +12,5 @@ import { siteUrl } from '@/lib/seo/site-url';
 export const dynamic = 'force-dynamic';
 
 export default function robots(): MetadataRoute.Robots {
-  return buildRobots(siteUrl());
+  return buildRobots(siteUrl(), env.DEPLOY_ENV);
 }

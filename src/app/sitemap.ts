@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { env } from '@/env';
 import { listSitemapVenues } from '@/app-layer/repositories/venue';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { buildSitemap, SITEMAP_MAX_VENUES } from '@/lib/seo/sitemap';
@@ -21,6 +22,8 @@ import { siteUrl } from '@/lib/seo/site-url';
 export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Staging (#373) lists nothing: robots.txt already disallows the whole host.
+  if (env.DEPLOY_ENV === 'staging') return [];
   const venues = await runAsSuperuser((db) => listSitemapVenues(db, SITEMAP_MAX_VENUES));
   return buildSitemap(siteUrl(), venues);
 }

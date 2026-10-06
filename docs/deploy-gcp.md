@@ -146,6 +146,43 @@ nothing that matters is lost. Leave the rest of p37 in place.
 module to collect metadata, and `src/env.ts` would refuse at import time for
 want of secrets that belong in the runtime environment, not the image.
 
+## Staging and the weekly release (#373)
+
+Owner decision Q44: every merge goes to **staging**; **production** gets a release once a week, plus urgent fixes any time. Pilot clubs are not surprised mid-shift.
+
+|           | Staging                                                                                | Production                                       |
+| --------- | -------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Container | `playerz-staging-app` (`deploy/docker-compose.staging.yml`, project `playerz-staging`) | `playerz-app`                                    |
+| Image tag | `playerz:staging`, rebuilt from `main` after each merge                                | `playerz:local`, rebuilt from the release SHA    |
+| Database  | `playerz_staging` on `playerz-db`, direct (no pgbouncer)                               | `playerz_production` through `playerz-pgbouncer` |
+| Redis     | `playerz-redis`, its own db index                                                      | `playerz-redis`, db 0                            |
+| Env file  | `/opt/playerz/.env.staging` (`DEPLOY_ENV=staging`)                                     | `/opt/playerz/.env`                              |
+| Host      | `staging.35-187-80-26.sslip.io` (`staging.playerz.bg` once its DNS A record exists)    | `app.playerz.bg`                                 |
+
+`DEPLOY_ENV=staging` makes robots.txt disallow everything and the sitemap empty, so the copy is never indexed.
+
+Staging sends no email (no SMTP in `.env.staging`). Google sign-in needs the staging callback URL (`https://<staging host>/api/auth/callback/google`) registered on the OAuth client.
+
+```bash
+# Staging, after a merge: build main once, tag it, migrate staging, recreate.
+cd /opt/playerz/repo && sudo git fetch -q --all && sudo git reset -q --hard origin/main
+sudo nice -n 10 docker build -q --build-arg SKIP_ENV_VALIDATION=1 -t playerz:staging .
+sudo docker build -q --target builder -t playerz-migrator:staging .
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env.staging -w /app \
+  playerz-migrator:staging npx prisma migrate deploy
+cd /opt/playerz && sudo docker compose -f docker-compose.staging.yml up -d --force-recreate
+
+# Weekly release: promote what staging has been running, unchanged.
+sudo docker tag playerz:local playerz:rollback-$(date +%s)
+sudo docker tag playerz:staging playerz:local
+sudo docker tag playerz-migrator:staging playerz-migrator:local
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
+  playerz-migrator:local npx prisma migrate deploy
+cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml up -d --force-recreate playerz-app
+```
+
+Promoting the staging image, instead of rebuilding, means production runs exactly the bytes that were tested on staging. An urgent fix is the same promotion done mid-week.
+
 ## Caddy
 
 agrent's `Caddyfile` at `/opt/agrent/Caddyfile` is bind-mounted into

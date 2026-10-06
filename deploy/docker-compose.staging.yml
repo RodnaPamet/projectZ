@@ -1,0 +1,40 @@
+# Staging (#373): the app only, beside production on the same VM.
+#
+# It reuses production's database SERVER and Redis SERVER (playerz-db,
+# playerz-redis) with its OWN database (playerz_staging) and its own Redis db
+# index, so nothing it writes can reach production rows or keys. It talks to
+# playerz-db directly, not through playerz-pgbouncer: that pooler is pinned to
+# playerz_production, and staging's traffic doesn't need pooling.
+#
+# Every container name is unique on the host and every hostname is a container
+# name (docs/deploy-gcp.md, "EVERY HOSTNAME IS A CONTAINER NAME").
+#
+#   cd /opt/playerz && sudo docker compose -f docker-compose.staging.yml up -d
+#
+# The image is built from main on every merge and tagged playerz:staging;
+# production keeps playerz:local and moves only on the weekly release.
+name: playerz-staging
+
+services:
+  playerz-staging-app:
+    image: ${PLAYERZ_STAGING_IMAGE:-playerz:staging}
+    container_name: playerz-staging-app
+    restart: always
+    env_file: .env.staging
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Staging must not starve production on a shared 16 GB box.
+    mem_limit: 1g
+    networks:
+      - playerz_internal
+      - agrent_internal
+
+networks:
+  playerz_internal:
+    external: true
+  agrent_internal:
+    external: true
