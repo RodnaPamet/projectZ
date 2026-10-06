@@ -190,8 +190,11 @@ test.describe('player shell — phone', () => {
     await page.goto('/venues');
     const bell = page.getByTestId('header-notifications');
     await expect(bell).toHaveAccessibleName(n.notifications);
-    const box = (await bell.boundingBox())!;
-    expect(box.width).toBeGreaterThanOrEqual(44);
+    // Polled: the vendored Popover picks its phone sheet after hydration and
+    // re-mounts the trigger, so for a moment there is no box to measure.
+    await expect
+      .poll(async () => (await bell.boundingBox())?.width ?? 0)
+      .toBeGreaterThanOrEqual(44);
     await bell.tap();
     await expect(page.getByTestId('notifications-empty')).toContainText(n.notificationsEmpty);
   });
