@@ -119,6 +119,23 @@ export const KEYS = {
     paged(`${BASE}/platform/moderation/cases`, params),
   /** The caller's second factor, and THIS session's step-up (#262). */
   mfaStatus: () => `${BASE}/me/mfa`,
+  /** The club's players matching a phone, name or email — the desk's "link to a player" (#364). */
+  deskCustomers: (slug: string, q: string) =>
+    `${BASE}/t/${seg(slug)}/admin/customers${query({ q })}`,
+  /** A desk booking or series' quote and clashes (#364). */
+  deskPreview: (
+    slug: string,
+    params: {
+      resourceId: string;
+      date: string;
+      startTime: string;
+      durationMinutes: number;
+      weeks?: number;
+      until?: string;
+    },
+  ) => `${BASE}/t/${seg(slug)}/admin/desk-bookings/preview${query({ ...params })}`,
+  deskBooking: (slug: string, bookingId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/desk-bookings/${seg(bookingId)}`,
 } as const;
 
 /** Writes: the URLs `useV1Mutation` posts to. */
@@ -135,6 +152,12 @@ export const V1 = {
   mfaConfirm: () => `${BASE}/me/mfa/enrolment/confirm`,
   mfaStepUp: () => `${BASE}/me/mfa/step-up`,
   mfaRecoveryCodes: () => `${BASE}/me/mfa/recovery-codes`,
+  createDeskBooking: (slug: string) => `${BASE}/t/${seg(slug)}/admin/desk-bookings`,
+  updateDeskBooking: (slug: string, bookingId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/desk-bookings/${seg(bookingId)}`,
+  createSeries: (slug: string) => `${BASE}/t/${seg(slug)}/admin/booking-series`,
+  cancelSeries: (slug: string, seriesId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/booking-series/${seg(seriesId)}/cancel`,
 } as const;
 
 /**

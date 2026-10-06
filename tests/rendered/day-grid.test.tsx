@@ -53,8 +53,13 @@ const booking = (over: Partial<DayBooking> = {}): DayBooking => ({
   priceLabel: '24,00 €',
   expiresLabel: null,
   canMarkNoShow: true,
+  desk: false,
+  seriesId: null,
   ...over,
 });
+
+/** What a court carries for the desk (#364). */
+const DESK = { durations: [60, 120], slotStepMinutes: 60, bookable: true };
 
 let stamp = Date.now();
 const dayOf = (over: Partial<DiaryDay> = {}): DiaryDay => ({
@@ -64,8 +69,8 @@ const dayOf = (over: Partial<DiaryDay> = {}): DiaryDay => ({
   isToday: false,
   dayLabel: 'вторник, 29 септември 2026 г.',
   courts: [
-    { id: 'r1', name: 'Корт 1', venueName: null },
-    { id: 'r2', name: 'Корт 2', venueName: null },
+    { id: 'r1', name: 'Корт 1', venueName: null, ...DESK },
+    { id: 'r2', name: 'Корт 2', venueName: null, ...DESK },
   ],
   bookings: [booking()],
   firstHour: 8,
@@ -280,6 +285,7 @@ describe('getting around the diary (audit C07, C08)', () => {
           id: `r${i}`,
           name: `Корт ${i}`,
           venueName: null,
+          ...DESK,
         })),
       });
 
@@ -302,5 +308,39 @@ describe('getting around the diary (audit C07, C08)', () => {
       fireEvent.click(chips[3]!);
       expect(scrollTo).toHaveBeenCalled();
     });
+  });
+});
+
+describe('the desk in the diary (#364)', () => {
+  const d = bg.admin.calendar.desk;
+
+  it('every free hour of a bookable court is a button to book it; an archived court has none', () => {
+    const day = dayOf({
+      courts: [
+        { id: 'r1', name: 'Корт 1', venueName: null, ...DESK },
+        { id: 'r2', name: 'Корт 2', venueName: null, ...DESK, bookable: false },
+      ],
+      bookings: [],
+    });
+    grid(nextClub(), day);
+
+    const one = within(screen.getByRole('region', { name: 'Корт 1' }));
+    const at18 = d.newAt.replace('{court}', 'Корт 1').replace('{time}', '18:00');
+    expect(one.getByRole('button', { name: at18 })).toBeInTheDocument();
+    const two = within(screen.getByRole('region', { name: 'Корт 2' }));
+    expect(two.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: d.new })).toBeInTheDocument();
+  });
+
+  it('a desk booking is drawn in the info tokens, a series week is marked, and it opens its detail', () => {
+    grid(
+      nextClub(),
+      dayOf({ bookings: [booking({ desk: true, seriesId: 's1', canMarkNoShow: false })] }),
+    );
+    const block = screen.getByRole('button', { name: /Иван, 18:00–19:00/ });
+    expect(block.className).toMatch(/bg-bg-info/);
+    expect(block).toHaveAttribute('data-booking-desk');
+    expect(within(block).getByText(d.seriesMark)).toBeInTheDocument();
+    expect(screen.getByText(bg.admin.calendar.legend.desk)).toBeInTheDocument();
   });
 });

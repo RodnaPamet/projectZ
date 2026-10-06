@@ -44,6 +44,9 @@ function remember(key: string, day: DiaryDay) {
  * nothing (actions.ts, `refreshDiaryDayAction`), leaves the router cache
  * alone: the other screens stay warm, and only the grid's data is replaced.
  *
+ * The grid also calls the returned `refresh` after a desk booking or a cancel
+ * (#364), which go through /api/v1 and leave the router none the wiser.
+ *
  * Newer always wins, by the server's `renderedAt`: a write that revalidates
  * the diary (a no-show) sends a fresh server payload, which then beats any
  * copy fetched before it. A refresh that fails keeps what is on screen; the
@@ -53,7 +56,7 @@ export function useFreshDiaryDay(
   slug: string,
   requestedDay: string | null,
   serverDay: DiaryDay,
-): DiaryDay {
+): { day: DiaryDay; refresh: () => void } {
   const key = keyOf(slug, requestedDay);
   const [fetched, setFetched] = useState<{ key: string; day: DiaryDay } | null>(null);
 
@@ -79,5 +82,8 @@ export function useFreshDiaryDay(
   };
 
   useRefreshWhenStale(newest.renderedAt, refresh);
-  return newest;
+  // `refresh` is also the grid's own after a desk write (#364): the write goes
+  // to /api/v1, which the router cannot see, so the day is fetched again the
+  // same way a stale one is — the router cache stays intact.
+  return { day: newest, refresh };
 }

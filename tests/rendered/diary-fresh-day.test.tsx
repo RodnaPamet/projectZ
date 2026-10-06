@@ -42,6 +42,8 @@ const booking = (id: string, who: string): DayBooking => ({
   priceLabel: '€24.00',
   expiresLabel: null,
   canMarkNoShow: false,
+  desk: false,
+  seriesId: null,
 });
 
 const dayOf = (renderedAt: number, ...who: string[]): DiaryDay => ({
@@ -50,7 +52,16 @@ const dayOf = (renderedAt: number, ...who: string[]): DiaryDay => ({
   nextDay: '2026-09-30',
   isToday: true,
   dayLabel: 'Tuesday',
-  courts: [{ id: 'r1', name: 'Court 1', venueName: null }],
+  courts: [
+    {
+      id: 'r1',
+      name: 'Court 1',
+      venueName: null,
+      durations: [60],
+      slotStepMinutes: 60,
+      bookable: true,
+    },
+  ],
   bookings: who.map((w, i) => booking(`b${i}`, w)),
   firstHour: 8,
   lastHour: 22,

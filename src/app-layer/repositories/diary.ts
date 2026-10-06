@@ -45,6 +45,10 @@ export interface DiaryEntry {
   bookedByUserId: string | null;
   guestName: string | null;
   expiresAt: Date | null;
+  /** DESK: entered by the club for a customer (#364). */
+  channel: 'ONLINE' | 'DESK';
+  /** The weekly series this is one week of, or null (#364). */
+  seriesId: string | null;
 }
 
 /**
@@ -93,6 +97,8 @@ export async function listDayBookings(
       bookedByUserId: true,
       guestName: true,
       expiresAt: true,
+      channel: true,
+      seriesId: true,
     },
     orderBy: [{ startTs: 'asc' }, { id: 'asc' }],
     take: DIARY_LIMIT,

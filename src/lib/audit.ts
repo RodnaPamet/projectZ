@@ -88,6 +88,19 @@ export const AUDIT_ACTIONS = {
   VENUE_CANCELLATION_CUTOFF_CHANGED: 'VENUE_CANCELLATION_CUTOFF_CHANGED',
   /// A club admin changed how many upcoming online bookings one player may hold (#380).
   CLUB_ONLINE_BOOKING_CAP_CHANGED: 'CLUB_ONLINE_BOOKING_CAP_CHANGED',
+  /// Staff entered a booking from the diary for a customer (#364). A desk
+  /// cancel is BOOKING_CANCELLED with `actor: 'STAFF'`, as for any booking.
+  DESK_BOOKING_CREATED: 'DESK_BOOKING_CREATED',
+  /// Staff changed a desk booking's customer or notes (#364).
+  DESK_BOOKING_UPDATED: 'DESK_BOOKING_UPDATED',
+  /// Staff set a price other than the server's quote (#364): the quote and
+  /// the price are both in `detailsJson`, on the booking or the series.
+  DESK_PRICE_OVERRIDDEN: 'DESK_PRICE_OVERRIDDEN',
+  /// A weekly series and its occurrences were created (#364).
+  BOOKING_SERIES_CREATED: 'BOOKING_SERIES_CREATED',
+  /// "Cancel the rest": every live occurrence from a date on (#364). Each one
+  /// also gets its own BOOKING_CANCELLED.
+  BOOKING_SERIES_CANCELLED: 'BOOKING_SERIES_CANCELLED',
   /// MEMBER_ROLE_CHANGED and MEMBER_REMOVED already exist at the top of this
   /// list — the staff screen reuses them rather than minting near-duplicates.
   MEMBER_REINSTATED: 'MEMBER_REINSTATED',

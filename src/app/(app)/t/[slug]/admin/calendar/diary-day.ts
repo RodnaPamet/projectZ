@@ -48,6 +48,17 @@ function shiftDay(isoDay: string, delta: number): string {
 }
 
 /**
+ * The lengths a booking on a court can have: whole units of its minimum, up to
+ * its maximum — what `quoteBooking` will price. Never empty.
+ */
+function courtDurations(min: number, max: number): number[] {
+  const unit = Math.max(15, min);
+  const out: number[] = [];
+  for (let m = unit; m <= Math.max(unit, max) && out.length < 12; m += unit) out.push(m);
+  return out;
+}
+
+/**
  * The club's diary for one day.
  *
  * `requestedDay` is the `?day=` the URL asked for, unvalidated: anything that
@@ -185,9 +196,16 @@ export async function loadDiaryDay(
       // taller or shorter than the hours it actually covers on the ruler.
       durationMinutes: Math.max(endMin - startMin, 15),
       status: b.status,
-      who: b.bookedByUserId
-        ? (names.get(b.bookedByUserId) ?? labels.unknownPlayer)
-        : (b.guestName ?? labels.guest),
+      // A desk booking is the customer the desk named, linked or not (#364):
+      // that is who staff are expecting, and who they would ring.
+      who:
+        b.channel === 'DESK' && b.guestName
+          ? b.guestName
+          : b.bookedByUserId
+            ? (names.get(b.bookedByUserId) ?? labels.unknownPlayer)
+            : (b.guestName ?? labels.guest),
+      desk: b.channel === 'DESK',
+      seriesId: b.seriesId,
       priceLabel: money.format(b.totalCents / 100),
       expiresLabel: b.expiresAt ? hhmm(b.expiresAt) : null,
       // Mirrors markNoShow's own rules, minus the review check, which needs a
@@ -250,6 +268,11 @@ export async function loadDiaryDay(
       // "Court 1" at different venues are otherwise adjacent, identical
       // columns, and a front-desk operator cannot tell which is theirs.
       venueName: multiSite ? c.venue.name : null,
+      // What a desk booking on it may be (#364): the lengths the court sells,
+      // and the grid its start times sit on.
+      durations: courtDurations(c.minBookingMinutes, c.maxBookingMinutes),
+      slotStepMinutes: c.slotStepMinutes,
+      bookable: c.status === 'ACTIVE',
     })),
     bookings: shifted,
     firstHour,

@@ -45,6 +45,17 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'admin.pricing_manage',
   },
+  // The desk (#364): staff booking for a customer, weekly series, and the
+  // player lookup behind "link to a player". `bookings.view_all`, the
+  // permission the diary and the staff cancel already use — NOT
+  // `bookings.create`, which every PLAYER holds. The reads are checked in the
+  // handlers (`requireDesk`), since this table only gates writes.
+  {
+    pattern:
+      /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:desk-bookings|booking-series|customers)(?:\/|$)/,
+    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
+    permission: 'bookings.view_all',
+  },
   {
     pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/courts/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
