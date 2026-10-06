@@ -1,36 +1,50 @@
 import { cache } from 'react';
 
-import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { resolveLanding } from '@/app-layer/usecases/landing';
-import { HiddenOnSignIn } from '@/components/layout/HiddenOnSignIn';
-import { playerChromeKind, playerTopLinks } from '@/components/layout/nav-items';
-import { NavBar } from '@/components/layout/nav-bar';
-import { PlayerUserMenu } from '@/components/layout/player-user-menu';
-import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
+import type { AccountLinks } from '@/components/layout/account-links';
+import {
+  PLATFORM_HREF,
+  playerChromeKind,
+  playerTopLinks,
+  PROFILE_HREF,
+} from '@/components/layout/nav-items';
+import { SiteHeaderView } from '@/components/layout/site-header-view';
 import { signedInIdentity } from '@/lib/auth/page-context';
+import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
+import { readModules } from '@/lib/modules';
 import { logger } from '@/lib/observability/logger';
 
 /**
  * Who the player chrome is for, read once per request.
  *
- * The header and the bottom tab bar both need it (T20), and a layout cannot
- * pass props to a page, so it is `cache`d like `signedInIdentity` beneath it:
- * the session check and the landing read run once however many pieces of
- * chrome ask. `resolveLanding` is read from the database, not the token: the
- * token has neither club names nor club status.
+ * The header, the bottom tab bar and the profile page all need it (T20, #362),
+ * and a layout cannot pass props to a page, so it is `cache`d like
+ * `signedInIdentity` beneath it: the session check, the landing read and the
+ * grant read run once however many pieces of chrome ask. `resolveLanding` is
+ * read from the database, not the token: the token has neither club names nor
+ * club status.
  *
- * ═══ NEITHER READ MAY BREAK THE PAGE (#319) ═══
+ * ═══ WHAT EACH ACCOUNT CAN REACH (#362) ═══
+ *
+ * `account` is the account rows the menu and the profile page draw: the
+ * profile for everyone signed in, the club's admin for a CLUB account with a
+ * live club (#346), and `/platform` for a holder of a live platform grant
+ * (#345), from the same grant read the platform layout makes. Hiding only:
+ * the admin and the platform authorise every request themselves.
+ *
+ * ═══ NO READ MAY BREAK THE PAGE (#319) ═══
  *
  * This runs in the layouts of /login, /invite/*, /venues and the 404, above
  * their `error.tsx`, so a throw here (the session store or the database
  * unreachable) took the whole page down, sign-in included, where nothing
  * could catch it. Each read now falls back instead: no identity reads as
- * signed out, and no landing as a player with no club link. The page below
- * still checks its own session and answers for itself. Next's own control
- * flow (a dynamic-usage bail-out, a redirect) is rethrown, never swallowed.
+ * signed out, no landing as a player with no club link, and the grant read
+ * already degrades to "no grant" on its own. The page below still checks its
+ * own session and answers for itself. Next's own control flow (a
+ * dynamic-usage bail-out, a redirect) is rethrown, never swallowed.
  */
 export const playerChrome = cache(async () => {
   const me = await signedInIdentity().catch((err: unknown) => {
@@ -38,14 +52,33 @@ export const playerChrome = cache(async () => {
     chromeReadFailed('identity', err);
     return null;
   });
-  const landing = me
-    ? await resolveLanding(me.userId).catch((err: unknown) => {
-        unstable_rethrow(err);
-        chromeReadFailed('landing', err);
-        return null;
-      })
+  const [landing, grant] = me
+    ? await Promise.all([
+        resolveLanding(me.userId).catch((err: unknown) => {
+          unstable_rethrow(err);
+          chromeReadFailed('landing', err);
+          return null;
+        }),
+        resolvePlatformAuthority(me.userId),
+      ])
+    : [null, null];
+
+  const account: AccountLinks | null = me
+    ? {
+        profileHref: PROFILE_HREF,
+        clubAdmin: landing?.club ? { href: landing.href } : null,
+        platformHref: grant && grant.capabilities.length > 0 ? PLATFORM_HREF : null,
+        publicSite: null,
+      }
     : null;
-  return { me, landing, kind: playerChromeKind(me !== null, landing?.reason) };
+
+  return {
+    me,
+    landing,
+    account,
+    kind: playerChromeKind(me !== null, landing?.reason),
+    modules: readModules(),
+  };
 });
 
 function chromeReadFailed(read: 'identity' | 'landing', err: unknown) {
@@ -57,14 +90,15 @@ function chromeReadFailed(read: 'identity' | 'landing', err: unknown) {
 }
 
 /**
- * The public site header, on upstream's vendored `NavBar` slots (T20).
+ * The public site header, on upstream's vendored `NavBar` slots (T20, #362).
  *
- *   left   the charcoal wordmark · from md, Discover and (for a player) My bookings
- *   right  a CLUB account's link to its club · from md, the account menu or Sign in
+ *   left   the charcoal wordmark · from md, Играй, (Игри) and Резервации
+ *   right  a club account's "← Към админ" · (messages) · the bell ·
+ *          from md, the account menu or Вход
  *
- * Below `md` the bottom tab bar (`BottomTabBar.tsx`) carries the links, the
- * Sign in and the account menu, so the header there is the wordmark alone —
- * plus, for a CLUB account, its club.
+ * Below `md` the bottom tab bar carries the links and the profile, so the
+ * header there is the wordmark, the club's way back to its admin, and the
+ * icons. The markup is `SiteHeaderView`, from plain data.
  *
  * ═══ WHY THIS EXISTS ═══
  *
@@ -78,97 +112,26 @@ function chromeReadFailed(read: 'identity' | 'landing', err: unknown) {
  * the person, not a generic "Account": since #263 one person may well hold a
  * player account and a club account, and sign into the wrong one.
  *
- * ═══ AND THE WAY BACK TO YOUR CLUB (#263) ═══
+ * ═══ AND THE WAY BACK TO THE CLUB'S ADMIN (#263, #346) ═══
  *
  * One account is one kind, so there is no switcher. A club account browsing
- * the venues still needs a way back to its club without signing in again, so
- * it gets a link naming the club, to where `/start` would land it, at every
- * width. It is the only club reference in the player chrome: a PLAYER account
- * sees none.
+ * the venues needs a way back to its admin without signing in again. It was
+ * the club's name as plain header text, easy to miss on a phone (#346). It is
+ * now a primary button, "← Към админ", at every width, and "Админ на клуба" in
+ * the account menu. A PLAYER account sees neither.
  */
 export async function SiteHeader() {
-  const [t, tNav, tUi, tLogin, { me, landing, kind }] = await Promise.all([
-    getTranslations('common'),
+  const [tNav, { me, account, kind, modules }] = await Promise.all([
     getTranslations('common.nav'),
-    getTranslations('common.ui'),
-    getTranslations('login'),
     playerChrome(),
   ]);
-  const links = playerTopLinks(kind);
 
   return (
-    <NavBar
-      left={
-        <>
-          {/*
-            NOT `text-brand-600`. That is a FILL colour — `--brand-emphasis` —
-            and on the #f4f2ed page it is 4.48:1, which passes as 36px text
-            but misses 4.5:1 at 16px; axe caught it as a serious violation
-            (#233). No fixed brand shade passes as text in both themes, and
-            tests/guardrails/no-raw-brand-text.test.ts bans them as text.
-            `content-emphasis` is the headings token, theme-aware by
-            construction: 15.56:1 light, 17.06:1 dark (src/lib/design/contrast.ts).
-            The owner kept the wordmark charcoal.
-          */}
-          <Link
-            href="/"
-            className="text-content-emphasis shrink-0 rounded-sm font-semibold focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
-          >
-            {t('appName')}
-          </Link>
-
-          {/* From md. Below it these are tabs, and two rows of the same
-              links on one phone screen is one too many. Default (auto)
-              prefetch: docs/perf/navigation-policy.md keeps full prefetch to
-              the tab bar. */}
-          <nav aria-label={tUi('mainNav')} className="hidden min-w-0 items-center gap-4 md:flex">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="text-content-default text-sm whitespace-nowrap underline-offset-4 hover:underline"
-              >
-                {tNav(l.labelKey)}
-              </Link>
-            ))}
-          </nav>
-        </>
-      }
-      right={
-        me ? (
-          <>
-            {landing?.club ? (
-              // A club account's way back to its club, at every width:
-              // the club's name, to where `/start` lands it. `max-w` +
-              // truncate, because club names are long and this row must not
-              // push the page sideways on a 375 px phone.
-              <Link
-                href={landing.href}
-                className="text-content-default max-w-[10rem] truncate text-sm underline-offset-4 hover:underline sm:max-w-[16rem]"
-                data-testid="site-header-club"
-              >
-                {landing.club.tenantName}
-              </Link>
-            ) : null}
-            <div className="hidden md:flex">
-              <PlayerUserMenu name={me.name} email={me.email} />
-            </div>
-          </>
-        ) : (
-          // Fully prefetched (#290): anonymous only, the same 1.4 KB for
-          // everyone, and the first visit then skips the reveal throttle.
-          // From md; below it the tab bar's Sign in tab is the same link.
-          // Not on /login itself, where it would link to the page (#319).
-          <HiddenOnSignIn>
-            <PublicPrefetchLink
-              href="/login"
-              className="border-border-default hidden h-9 items-center rounded-md border px-3 text-sm font-medium md:inline-flex"
-            >
-              {tLogin('title')}
-            </PublicPrefetchLink>
-          </HiddenOnSignIn>
-        )
-      }
+    <SiteHeaderView
+      links={playerTopLinks(kind, modules).map((l) => ({ href: l.href, label: tNav(l.labelKey) }))}
+      identity={me ? { name: me.name, email: me.email } : null}
+      account={account}
+      messaging={modules.messaging}
     />
   );
 }

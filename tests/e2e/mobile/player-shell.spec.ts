@@ -2,28 +2,25 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
+import en from '../../../messages/en.json';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import { expect, test } from '../fixtures';
+import { grantModerator } from '../utils/create-player';
 
 /**
- * The player chrome on a 393 px phone (T20): a bottom tab bar under the
- * thumb, by account kind (#263), and a header that is only the wordmark (plus
- * a CLUB account's way back to its club).
+ * The player chrome on a 393 px phone (T20, #362): a bottom tab bar under the
+ * thumb, by account kind, and a header with the wordmark, a club account's
+ * way back to its admin, and the bell.
  *
- *   signed out   Discover · Sign in
- *   player       Discover · My bookings · Account
- *   club         Discover · Account
+ *   signed out   Играй · Вход
+ *   player       Играй · Резервации · Профил     (Игри waits for its module)
+ *   club         Играй · Админ · Профил
  *
  * Sideways scroll on these pages is horizontal-drift.spec.ts's job; this
  * checks the bar does not add any, at the width it exists for.
  */
 
 const TAB_BAR = `nav[aria-label="${bg.common.nav.tabBar}"]`;
-/**
- * The tabs themselves: each `li`'s own link or button. Not any button in the
- * bar, because the Account tab keeps the vendored menu's avatar trigger,
- * inert and invisible, as its anchor.
- */
 const TABS = `${TAB_BAR} li > a, ${TAB_BAR} li > button`;
 const n = bg.common.nav;
 
@@ -61,20 +58,34 @@ async function expectAxeClean(page: Page) {
   expect(blocking, `axe found ${blocking.length} blocking violation(s):\n${report}`).toEqual([]);
 }
 
+/** axe over the bar alone, every rule including best practice. */
+async function expectBarAxeClean(page: Page) {
+  const results = await new AxeBuilder({ page })
+    .include(TAB_BAR)
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+    .analyze();
+  const report = results.violations
+    .map((v) => `  [${v.impact}] ${v.id}: ${v.help}\n    ${v.nodes[0]?.target.join(' ')}`)
+    .join('\n');
+  expect(results.violations, `axe found on the tab bar:\n${report}`).toEqual([]);
+}
+
 async function tabNames(page: Page): Promise<string[]> {
-  return page.locator(TABS).allInnerTexts();
+  return (await page.locator(TABS).allInnerTexts()).map((s) => s.trim());
 }
 
 test.describe('player shell — phone', () => {
-  test('signed out: Discover and Sign in, under the thumb', async ({ page }) => {
+  test('signed out: Играй and Вход, under the thumb', async ({ page }) => {
     await page.goto('/venues');
     const bar = page.locator(TAB_BAR);
     await expect(bar).toBeVisible();
-    expect((await tabNames(page)).map((s) => s.trim())).toEqual([n.play, n.signIn]);
+    expect(await tabNames(page)).toEqual([n.play, n.signIn]);
     await expect(bar.getByRole('link', { name: n.play })).toHaveAttribute('aria-current', 'page');
 
     // The header's own links are the desktop's: one copy on a phone.
     await expect(page.getByRole('navigation', { name: bg.common.ui.mainNav })).toBeHidden();
+    // No account, so no bell.
+    await expect(page.getByTestId('header-notifications')).toHaveCount(0);
 
     // Fixed to the bottom of the viewport, and it lifts the toaster with it.
     const box = (await bar.boundingBox())!;
@@ -103,58 +114,139 @@ test.describe('player shell — phone', () => {
     await expect(page.locator(TAB_BAR)).toHaveCount(0);
   });
 
-  test('player: Discover, My bookings and Account — and no club anywhere', async ({
+  test('player: Играй, Резервации, Профил; no Игри or messages until their modules', async ({
     playerPage: page,
   }) => {
     await page.goto('/me/bookings');
     // By role, not `main h1`: under the 300 ms reveal throttle a streamed page
     // sits in a hidden copy beside the shown one, and `main h1` finds both.
     await expect(page.getByRole('heading', { level: 1, name: bg.myBookings.title })).toBeVisible();
-    expect((await tabNames(page)).map((s) => s.trim())).toEqual([n.play, n.myBookings, n.account]);
-    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.myBookings })).toHaveAttribute(
+    expect(await tabNames(page)).toEqual([n.play, n.bookings, n.profile]);
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.bookings })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await expect(page.getByTestId('site-header-club')).toHaveCount(0);
+    // The active tab carries the top accent bar, so it is never colour alone.
+    await expect(
+      page.locator(TAB_BAR).getByRole('link', { name: n.bookings }).locator('[data-tab-accent]'),
+    ).toBeVisible();
+
+    // Modules default off: no Игри tab, no messages icon. The bell is there.
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.games })).toHaveCount(0);
+    await expect(page.getByTestId('header-messages')).toHaveCount(0);
+    await expect(page.getByTestId('header-notifications')).toBeVisible();
+
+    await expect(page.getByTestId('site-header-admin')).toHaveCount(0);
     await expect(page.locator('a[href^="/t/"]')).toHaveCount(0);
 
     await expectTargets(page);
     await expectNoDrift(page);
   });
 
-  test('player: Account opens the account sheet, and Escape gives focus back', async ({
+  test('player: Профил is a page, with the language, the theme and a real Изход', async ({
     playerPage: page,
     player,
   }) => {
     await page.goto('/venues');
-    // By test id: once the sheet is open it hides the rest of the page from
-    // the accessibility tree, so a role query can no longer find the tab.
-    const account = page.getByTestId('bottom-tab-account');
-    await expect(account).toHaveAccessibleName(n.account);
-    await account.tap();
-    await expect(account).toHaveAttribute('aria-expanded', 'true');
+    await page.locator(TAB_BAR).getByRole('link', { name: n.profile }).tap();
+    await expect(page).toHaveURL(/\/me\/profile$/);
+    await expect(page.getByRole('heading', { level: 1, name: player.name })).toBeVisible();
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.profile })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(page.getByTestId('profile-language-row')).toBeVisible();
+    await expect(page.getByTestId('profile-theme-row')).toBeVisible();
+    await expect(page.getByTestId('profile-privacy-row')).toBeVisible();
+    // No grant, no platform.
+    await expect(page.getByTestId('profile-platform')).toHaveCount(0);
 
-    const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
-    await expect(menu).toBeVisible();
-    await expect(menu.getByTestId('user-menu-display-name')).toHaveText(player.name);
-    await expect(menu.getByTestId('user-menu-sign-out')).toBeVisible();
-
-    await page.keyboard.press('Escape');
-    await expect(menu).toBeHidden();
-    await expect(account).toBeFocused();
+    await page.getByTestId('profile-sign-out').tap();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.signIn })).toBeVisible();
   });
 
-  test('club account: Discover and Account, and its club in the header', async ({
+  test('player: the language is saved on the account and survives the next page', async ({
+    playerPage: page,
+  }) => {
+    await page.goto('/me/profile');
+    await page.getByTestId('profile-language-row').getByRole('radio', { name: 'English' }).tap();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    // By test id: the bar's own name is English now too.
+    const bar = page.getByTestId('bottom-tab-bar');
+    await expect(bar).toHaveAttribute('aria-label', en.common.nav.tabBar);
+    await expect(bar.getByRole('link', { name: en.common.nav.profile })).toBeVisible();
+
+    // A new request: the middleware re-seeds the cookie from the token, which
+    // now carries English too, so it does not flip back.
+    await bar.getByRole('link', { name: en.common.nav.play }).tap();
+    await expect(page).toHaveURL(/\/venues$/);
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { level: 1, name: en.venues.title })).toBeVisible();
+  });
+
+  test('the bell opens "Нямате известия" as a sheet', async ({ playerPage: page }) => {
+    await page.goto('/venues');
+    const bell = page.getByTestId('header-notifications');
+    await expect(bell).toHaveAccessibleName(n.notifications);
+    const box = (await bell.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    await bell.tap();
+    await expect(page.getByTestId('notifications-empty')).toContainText(n.notificationsEmpty);
+  });
+
+  test('moderator: Платформа on Профил leads into the platform', async ({
+    playerPage: page,
+    player,
+    isolatedTenant,
+  }) => {
+    await grantModerator(player.userId, isolatedTenant.userId);
+    await page.goto('/me/profile');
+    await page.getByTestId('profile-platform').tap();
+    await expect(page).toHaveURL(/\/platform\/moderation$/);
+    await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
+  });
+
+  test('club account: Играй, Админ, Профил, and "← Към админ" in the header', async ({
     authedPage: page,
     isolatedTenant,
   }) => {
     await page.goto('/venues');
-    expect((await tabNames(page)).map((s) => s.trim())).toEqual([n.play, n.account]);
-    const club = page.getByTestId('site-header-club');
-    await expect(club).toBeVisible();
-    await expect(club).toHaveText(`E2E ${isolatedTenant.tenantSlug}`);
-    await expect(page.locator(TAB_BAR).locator('a[href^="/t/"]')).toHaveCount(0);
+    expect(await tabNames(page)).toEqual([n.play, n.admin, n.profile]);
+    const admin = page.getByTestId('site-header-admin');
+    await expect(admin).toBeVisible();
+    await expect(admin).toHaveText(n.backToAdmin);
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.admin })).toHaveAttribute(
+      'href',
+      `/t/${isolatedTenant.tenantSlug}/admin/calendar`,
+    );
+    await expectTargets(page);
     await expectNoDrift(page);
+  });
+
+  test('club account: public → admin through "← Към админ", admin → public through Още', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await page.goto('/venues');
+    await page.getByTestId('site-header-admin').tap();
+    await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
+
+    // The admin's own bar: Календар is current.
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.calendar })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    const more = page.getByTestId('bottom-tab-more');
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await more.tap();
+    const drawer = page.getByRole('dialog', { name: n.menu });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole('link', { name: n.publicPage }).tap();
+    await expect(page).toHaveURL(/\/venues$/);
+    await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
   });
 
   for (const theme of ['light', 'dark'] as const) {
@@ -164,14 +256,25 @@ test.describe('player shell — phone', () => {
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       await expectAxeClean(page);
+      await expectBarAxeClean(page);
     });
 
-    test(`axe: player /me/bookings, ${theme}`, async ({ playerPage: page, baseURL }) => {
+    test(`axe: player /me/profile, ${theme}`, async ({ playerPage: page, baseURL }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
-      await page.goto('/me/bookings');
+      await page.goto('/me/profile');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       await expectAxeClean(page);
+      await expectBarAxeClean(page);
+    });
+
+    test(`axe: club account on /venues, ${theme}`, async ({ authedPage: page, baseURL }) => {
+      await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
+      await page.goto('/venues');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.getByTestId('site-header-admin')).toBeVisible();
+      await expectAxeClean(page);
+      await expectBarAxeClean(page);
     });
   }
 });

@@ -1,21 +1,26 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { forwardRef, type AnchorHTMLAttributes } from 'react';
 
 import { BottomTabBar, isTabBarHidden } from '@/components/layout/BottomTabBar';
-import type { PlayerChromeKind } from '@/components/layout/nav-items';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import {
+  MODULES_OFF,
+  type ChromeModules,
+  type PlayerChromeKind,
+} from '@/components/layout/nav-items';
 
 import bg from '../../messages/bg.json';
 import { withIntl } from '../helpers/intl';
 
 /**
- * The player's bottom tab bar (T20): what a phone gets instead of the header's
- * links. jsdom applies no media queries, so `md:hidden` is not tested here,
- * only what the bar is when it shows; tests/e2e/mobile/player-shell.spec.ts
- * measures it at 393 px in a real browser.
+ * The player's bottom tab bar (T20, #362): what a phone gets instead of the
+ * header's links. jsdom applies no media queries, so `md:hidden` is not tested
+ * here, only what the bar is when it shows; tests/e2e/mobile/player-shell.spec.ts
+ * measures it at 393 px in a real browser and runs axe over it.
+ *
+ *   signed out          Играй · Вход
+ *   PLAYER, COACH, —    Играй · (Игри) · Резервации · Профил
+ *   CLUB                Играй · Админ · Профил
  */
-jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
-
 let pathname = '/venues';
 jest.mock('next/navigation', () => ({ usePathname: () => pathname }));
 
@@ -31,7 +36,6 @@ jest.mock('next/link', () => ({
   }),
 }));
 
-/** Below md, and wide enough that the vendored menu is a dropdown jsdom can open. */
 function mockViewport(belowMd: boolean) {
   // Assigned, not redefined: rtl-setup defines it writable but not configurable.
   window.matchMedia = ((query: string) => ({
@@ -56,20 +60,29 @@ function setSaveData(saveData: boolean | undefined) {
   });
 }
 
-const IVO = { name: 'Ivo', email: 'ivo@example.bg' };
 const n = bg.common.nav;
+const ADMIN = '/t/sofia-padel/admin/calendar';
+const OPEN_PLAY: ChromeModules = { openPlay: true, messaging: false };
 
-// The app mounts a TooltipProvider in Providers; the menu's theme row needs one.
-const renderBar = (kind: PlayerChromeKind, identity: typeof IVO | null = IVO) =>
+const renderBar = (
+  kind: PlayerChromeKind,
+  opts: { modules?: ChromeModules; adminHref?: string | null } = {},
+) =>
   render(
     withIntl(
-      <TooltipProvider>
-        <BottomTabBar kind={kind} identity={kind === 'signed-out' ? null : identity} />
-      </TooltipProvider>,
+      <BottomTabBar
+        kind={kind}
+        modules={opts.modules ?? MODULES_OFF}
+        adminHref={opts.adminHref ?? null}
+      />,
     ),
   );
 
 const bar = () => screen.getByRole('navigation', { name: n.tabBar });
+const tabs = () =>
+  within(bar())
+    .getAllByRole('link')
+    .map((l) => [l.textContent, l.getAttribute('href')]);
 
 beforeEach(() => {
   pathname = '/venues';
@@ -78,85 +91,111 @@ beforeEach(() => {
   document.documentElement.style.removeProperty('--app-bottom-inset');
 });
 
-describe('BottomTabBar — tabs by account kind (#263)', () => {
-  it('signed out: Discover and Sign in', () => {
+describe('BottomTabBar — tabs by account kind (#362)', () => {
+  it('signed out: Играй and Вход', () => {
     renderBar('signed-out');
-    const links = within(bar()).getAllByRole('link');
-    expect(links.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+    expect(tabs()).toEqual([
       [n.play, '/venues'],
       [n.signIn, '/login'],
     ]);
-    expect(within(bar()).queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('player (and coach, and undecided): Discover, My bookings and Account', () => {
+  it('PLAYER (and COACH, and undecided): Играй, Резервации, Профил', () => {
     renderBar('player');
-    expect(
-      within(bar())
-        .getAllByRole('link')
-        .map((l) => l.getAttribute('href')),
-    ).toEqual(['/venues', '/me/bookings']);
-    const account = within(bar()).getByRole('button', { name: n.account });
-    expect(account).toHaveAttribute('aria-haspopup', 'menu');
-    expect(account).toHaveAttribute('aria-expanded', 'false');
+    expect(tabs()).toEqual([
+      [n.play, '/venues'],
+      [n.bookings, '/me/bookings'],
+      [n.profile, '/me/profile'],
+    ]);
   });
 
-  it('club: Discover and Account — no club tab, no My bookings', () => {
-    renderBar('club');
-    expect(
-      within(bar())
-        .getAllByRole('link')
-        .map((l) => l.getAttribute('href')),
-    ).toEqual(['/venues']);
-    expect(within(bar()).getByRole('button', { name: n.account })).toBeInTheDocument();
-    expect(within(bar()).queryByText(/\/t\//)).not.toBeInTheDocument();
+  it('CLUB: Играй, Админ (its own club), Профил; no Резервации', () => {
+    renderBar('club', { adminHref: ADMIN });
+    expect(tabs()).toEqual([
+      [n.play, '/venues'],
+      [n.admin, ADMIN],
+      [n.profile, '/me/profile'],
+    ]);
+  });
+
+  it('CLUB whose club is not live: no Админ tab to an admin that would refuse it', () => {
+    renderBar('club', { adminHref: null });
+    expect(tabs()).toEqual([
+      [n.play, '/venues'],
+      [n.profile, '/me/profile'],
+    ]);
+  });
+
+  it('a PLAYER is never offered an admin, even if handed one', () => {
+    renderBar('player', { adminHref: ADMIN });
+    expect(within(bar()).queryByRole('link', { name: n.admin })).not.toBeInTheDocument();
+  });
+
+  it('every tab is a page: no menu button on the bar any more', () => {
+    for (const kind of ['signed-out', 'player', 'club'] as const) {
+      const { unmount } = renderBar(kind, { adminHref: ADMIN });
+      expect(within(bar()).queryByRole('button')).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+});
+
+describe('BottomTabBar — the Игри tab waits for its module', () => {
+  it('modules off (the default): no Игри', () => {
+    renderBar('player');
+    expect(within(bar()).queryByRole('link', { name: n.games })).not.toBeInTheDocument();
+  });
+
+  it('modules.openPlay on: Игри, second', () => {
+    renderBar('player', { modules: OPEN_PLAY });
+    expect(tabs()).toEqual([
+      [n.play, '/venues'],
+      [n.games, '/games'],
+      [n.bookings, '/me/bookings'],
+      [n.profile, '/me/profile'],
+    ]);
+  });
+
+  it('a CLUB account gets no Игри tab even with the module on', () => {
+    renderBar('club', { modules: OPEN_PLAY, adminHref: ADMIN });
+    expect(within(bar()).queryByRole('link', { name: n.games })).not.toBeInTheDocument();
   });
 });
 
 describe('BottomTabBar — accessibility', () => {
-  it('marks the current tab, and only it', () => {
-    pathname = '/me/bookings';
+  it('marks the current tab, and only it, with aria-current AND the accent bar', () => {
+    pathname = '/me/profile';
     renderBar('player');
-    expect(within(bar()).getByRole('link', { name: n.myBookings })).toHaveAttribute(
+    const profile = within(bar()).getByRole('link', { name: n.profile });
+    expect(profile).toHaveAttribute('aria-current', 'page');
+    expect(profile.querySelector('[data-tab-accent]')).not.toBeNull();
+
+    const play = within(bar()).getByRole('link', { name: n.play });
+    expect(play).not.toHaveAttribute('aria-current');
+    expect(play.querySelector('[data-tab-accent]')).toBeNull();
+  });
+
+  it('a page below a tab keeps it current', () => {
+    pathname = '/me/bookings/abc';
+    renderBar('player');
+    expect(within(bar()).getByRole('link', { name: n.bookings })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(within(bar()).getByRole('link', { name: n.play })).not.toHaveAttribute('aria-current');
   });
 
-  it('every tab is a 44 px target, with its label as its name and the icon hidden', () => {
-    renderBar('player');
-    const targets = [
-      ...within(bar()).getAllByRole('link'),
-      within(bar()).getByRole('button', { name: n.account }),
-    ];
-    expect(targets).toHaveLength(3);
-    for (const t of targets) {
+  it('every tab is a 44 px target, named by its label, its icon hidden', () => {
+    renderBar('club', { adminHref: ADMIN });
+    for (const t of within(bar()).getAllByRole('link')) {
       expect(t).toHaveClass('min-h-11', 'min-w-11');
       expect(t.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     }
   });
 
-  it('pads itself clear of the home indicator', () => {
+  it('pads itself clear of the home indicator, and hides from md', () => {
     renderBar('player');
     expect(bar().className).toMatch(/pb-\[env\(safe-area-inset-bottom\)\]/);
-  });
-
-  it('the Account tab opens the vendored account menu, with sign-out', () => {
-    renderBar('player');
-    const account = within(bar()).getByRole('button', { name: n.account });
-    fireEvent.click(account);
-
-    expect(account).toHaveAttribute('aria-expanded', 'true');
-    const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
-    expect(within(menu).getByText('Ivo')).toBeInTheDocument();
-    expect(within(menu).getByRole('button', { name: bg.common.signOut })).toBeInTheDocument();
-  });
-
-  it('the vendored trigger it opens is inert: no second, nameless tab stop', () => {
-    renderBar('player');
-    const trigger = screen.getByTestId('top-chrome-user-menu');
-    expect(trigger.closest('[inert]')).not.toBeNull();
+    expect(bar()).toHaveClass('md:hidden');
   });
 });
 
@@ -167,7 +206,7 @@ describe('BottomTabBar — where it is not', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
-  it.each(['/', '/venues', '/me/bookings'])('shows on %s', (path) => {
+  it.each(['/', '/venues', '/me/bookings', '/me/profile'])('shows on %s', (path) => {
     expect(isTabBarHidden(path)).toBe(false);
   });
 
@@ -184,6 +223,19 @@ describe('BottomTabBar — prefetch and the bottom inset', () => {
     for (const l of within(bar()).getAllByRole('link')) {
       expect(l).toHaveAttribute('data-prefetch', 'true');
     }
+  });
+
+  it('never fully prefetches the Админ tab: it leads into the admin', () => {
+    setSaveData(false);
+    renderBar('club', { adminHref: ADMIN });
+    expect(within(bar()).getByRole('link', { name: n.admin })).toHaveAttribute(
+      'data-prefetch',
+      'null',
+    );
+    expect(within(bar()).getByRole('link', { name: n.play })).toHaveAttribute(
+      'data-prefetch',
+      'true',
+    );
   });
 
   it('falls back to the default prefetch under Save-Data', () => {

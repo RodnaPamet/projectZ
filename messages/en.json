@@ -84,11 +84,25 @@
       "sectionPeople": "People",
       "moderation": "Moderation",
       "play": "Play",
-      "myBookings": "My bookings",
       "signIn": "Sign in",
       "account": "Account",
       "tabBar": "Main tabs",
-      "security": "Security"
+      "security": "Security",
+      "games": "Games",
+      "bookings": "Bookings",
+      "profile": "Profile",
+      "admin": "Admin",
+      "clubAdmin": "Club admin",
+      "backToAdmin": "To admin",
+      "publicPage": "Public page",
+      "toSite": "To the site",
+      "platform": "Platform",
+      "more": "More",
+      "menu": "Menu",
+      "messages": "Messages",
+      "notifications": "Notifications",
+      "notificationsEmpty": "You have no notifications",
+      "notificationsEmptyBody": "Reminders about your games and changes to your bookings will show up here."
     }
   },
   "nav": {
@@ -222,7 +236,9 @@
     "body": "That address does not exist. The link may be out of date, or the page may not be built yet.",
     "backToVenues": "Browse venues",
     "backToClub": "Back to {club}",
-    "home": "Go to the start"
+    "home": "Go to the start",
+    "backToAdmin": "Back to the club admin",
+    "backToPlatform": "Back to the platform"
   },
   "admin": {
     "courts": {
@@ -781,5 +797,14 @@
     "cancellationCutoffPassed": "This booking can no longer be cancelled in the app: the club accepts cancellations up to {hours} hours before the start. Contact the club to cancel.",
     "cancellationStarted": "This booking has already started and can no longer be cancelled in the app. Contact the club.",
     "onlineBookingLimitReached": "You have reached this club's limit on upcoming online bookings (limit: {limit}, yours: {upcoming}). Cancel one of them, or contact the club."
+  },
+  "profile": {
+    "metaTitle": "Profile",
+    "settings": "Settings",
+    "privacy": "Privacy",
+    "privacyData": "Privacy and data",
+    "comingSoon": "Soon",
+    "platformRow": "Platform: moderation and security",
+    "languageSaveFailed": "Your language was not saved. Please try again."
   }
 }

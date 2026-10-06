@@ -3,8 +3,10 @@ import { getTranslations } from 'next-intl/server';
 
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
 import {
+  PLATFORM_HREF,
   platformItemAllowed,
   platformNav,
+  PROFILE_HREF,
   toShellSections,
   visibleSections,
 } from '@/components/layout/nav-items';
@@ -29,12 +31,19 @@ import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
  *
  * The page below stays signed-in-only on its own: a layout and its page
  * render concurrently, so the page cannot assume this ran.
+ *
+ * ═══ THE WAY OUT (#347) ═══
+ *
+ * "Към сайта" in the top bar from `sm`, first in the account menu and at the
+ * foot of the drawer, to the public home page. The wordmark goes there too;
+ * the shell's name leads back to `/platform`, which redirects to the first
+ * page the grant opens.
  */
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const me = await signedInIdentity();
   if (!me) redirect('/login?next=/platform/moderation');
 
-  const [{ capabilities }, tNav, tCommon] = await Promise.all([
+  const [{ capabilities }, tNav, tPlatform] = await Promise.all([
     resolvePlatformAuthority(me.userId),
     getTranslations('common.nav'),
     getTranslations('platform'),
@@ -48,9 +57,16 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   return (
     <ClubAdminShell
       sections={toShellSections(sections, tNav)}
-      homeHref={sections[0]!.items[0]!.href}
-      contextName={tCommon('name')}
+      homeHref={PLATFORM_HREF}
+      contextName={tPlatform('name')}
       user={{ name: me.name, email: me.email }}
+      account={{
+        profileHref: PROFILE_HREF,
+        clubAdmin: null,
+        // Already in it: the menu does not offer the shell it is in.
+        platformHref: null,
+        publicSite: { href: '/', label: tNav('toSite') },
+      }}
     >
       {children}
     </ClubAdminShell>

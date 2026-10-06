@@ -428,6 +428,18 @@ export const env = createEnv({
         },
         { message: 'NOTIFICATIONS_TZ must be a valid IANA timezone' },
       ),
+
+    // ═══ PRODUCT MODULES (#362, roadmap #379 phase 2) ═══
+    //
+    // Each module's entry in the player chrome stays HIDDEN until its module
+    // ships, and is switched on here, without a code change. Read on the
+    // server only (`src/lib/modules.ts`); the client is handed the result.
+    //   MODULE_OPEN_PLAY  the Игри tab and top link (module 2, #376)
+    //   MODULE_MESSAGING  the messages icon in the header (module 1, #375)
+    // Off by default: neither route exists yet, and nav-hrefs-resolve fails
+    // a default of '1' for a module whose page is missing.
+    MODULE_OPEN_PLAY: z.enum(['0', '1']).default('0'),
+    MODULE_MESSAGING: z.enum(['0', '1']).default('0'),
   },
 
   /**
@@ -539,6 +551,8 @@ export const env = createEnv({
     NVD_SYNC_ENABLED: process.env.NVD_SYNC_ENABLED,
     NVD_API_KEY: process.env.NVD_API_KEY,
     NOTIFICATIONS_TZ: process.env.NOTIFICATIONS_TZ,
+    MODULE_OPEN_PLAY: process.env.MODULE_OPEN_PLAY,
+    MODULE_MESSAGING: process.env.MODULE_MESSAGING,
 
     NEXT_PUBLIC_NOTIFICATIONS_SSE: process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE,
   },
