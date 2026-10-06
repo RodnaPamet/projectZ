@@ -33,3 +33,11 @@ export const createBookingBodySchema = z.object({
 });
 
 export type CreateBookingBody = z.infer<typeof createBookingBodySchema>;
+
+/**
+ * `when` on `GET /api/v1/me/bookings` (#359): the Предстоящи and Минали tabs.
+ * Absent means every booking, newest first, as the list was before the tabs;
+ * anything else is a 400 naming the field, not a silent fallback that would
+ * show a past game under "upcoming".
+ */
+export const bookingWhenSchema = z.enum(['upcoming', 'past']).optional();

@@ -2924,7 +2924,7 @@
       "get": {
         "operationId": "listMyBookings",
         "summary": "My bookings at every club",
-        "description": "The caller's OWN bookings across every club — the list the web `/me/bookings` page renders, through the same use case. `GET /t/{slug}/bookings` lists one club's; this needs no slug and no list of clubs, which a native token does not carry.\n\nScoped to the session's user in the SQL `WHERE` (`bookedByUserId`); nothing in the request can point it at anybody else. Each item carries its `clubSlug`, which is what the per-club booking actions take.\n\nKEYSET pagination, newest `startTs` first. `nextCursor` is opaque; pass it back verbatim as `cursor`. Not rate-limited (GETs never are), so there is no 429.",
+        "description": "The caller's OWN bookings across every club — the list the web `/me/bookings` page renders, through the same use case. `GET /t/{slug}/bookings` lists one club's; this needs no slug and no list of clubs, which a native token does not carry.\n\nScoped to the session's user in the SQL `WHERE` (`bookedByUserId`); nothing in the request can point it at anybody else. Each item carries its `clubSlug`, which is what the per-club booking actions take.\n\nKEYSET pagination, newest `startTs` first (soonest first with `when=upcoming`). `nextCursor` is opaque; pass it back verbatim as `cursor`. Not rate-limited (GETs never are), so there is no 429.",
         "tags": ["Me"],
         "security": [
           {
@@ -2951,6 +2951,16 @@
             "description": "Opaque keyset cursor — the `nextCursor` from the previous page, passed back verbatim. Omit for the first page. A cursor that no longer resolves to a row yields an empty page rather than an error.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "description": "Which bookings (#359): `upcoming` is PENDING or CONFIRMED and not yet over (`endTs` after now), SOONEST first, so the next game is on top; `past` is every other booking (ended, cancelled, completed, no-show), newest first. The two never overlap. Omit it for every booking, newest first, as before. Any other value is 400 `BAD_REQUEST` with `details.field: \"when\"`.",
+            "schema": {
+              "type": "string",
+              "enum": ["upcoming", "past"]
             }
           }
         ],
@@ -2979,8 +2989,108 @@
               }
             }
           },
+          "400": {
+            "description": "`BAD_REQUEST` — `when` is neither `upcoming` nor `past`. `details.field` is `when`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
             "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded (a password change, \"sign out everywhere\"). The edge lets this path through, because it names no club, and the handler refuses it. Refresh, and sign in again if the refresh also fails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's (another account signed in from another tab). Nothing was read. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}": {
+      "get": {
+        "operationId": "getMyBooking",
+        "summary": "One of my bookings, in full",
+        "description": "One of the caller's OWN bookings, at any club (#359): the booking detail screen. Everything `MyBooking` carries, plus the venue's address and coordinates (directions), whether it is paid at the club, and the people on it.\n\nScoped to the session's user in the SQL `WHERE` (`bookedByUserId`). Another player's booking is 404 `NOT_FOUND`, the same answer as an id that never existed, so ids cannot be probed.\n\nTo cancel, `POST /t/{clubSlug}/bookings/{id}/cancel`, while `cancellableUntil` is in the future; after it the answer is 403 `CANCELLATION_CUTOFF_PASSED`.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyBookingDetailEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded (a password change, \"sign out everywhere\"). The edge lets this path through, because it names no club, and the handler refuses it. Refresh, and sign in again if the refresh also fails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking of the caller's has this id: somebody else's, or none at all. Deliberately indistinguishable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5188,6 +5298,7 @@
           "expiresAt",
           "cancelledAt",
           "createdAt",
+          "cancellableUntil",
           "resource",
           "venue",
           "clubSlug",
@@ -5235,6 +5346,11 @@
             "type": "string",
             "format": "date-time",
             "description": "When the booking was created. RFC 3339 UTC, no fractional seconds."
+          },
+          "cancellableUntil": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds."
           },
           "resource": {
             "type": "object",
@@ -5553,6 +5669,230 @@
           "priceCents": {
             "type": "integer",
             "description": "Integer CENTS for the whole span, in the resource's `currency`."
+          }
+        }
+      },
+      "MyBookingDetail": {
+        "type": "object",
+        "title": "MyBookingDetail",
+        "description": "One of the caller's own bookings in full (#359): every field of `MyBooking`, with the venue block widened to what getting there needs, how it is paid, and who is playing. Produced by `toMyBookingDetailDto` in `src/app/api/v1/_lib/dto.ts`, the mapper the web's booking detail page renders through. Flat, like `MyBooking`.",
+        "required": [
+          "id",
+          "status",
+          "startTs",
+          "endTs",
+          "totalCents",
+          "currency",
+          "expiresAt",
+          "cancelledAt",
+          "createdAt",
+          "cancellableUntil",
+          "resource",
+          "venue",
+          "clubSlug",
+          "venueReview",
+          "canReview",
+          "payAtClub",
+          "players"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Booking id. Also the value used as a pagination cursor."
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle state. Known values: `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `NO_SHOW`. Deliberately typed as an open string rather than a closed enum — a shipped iOS binary decoding a closed enum would fail outright on a status added later, and this codebase cannot hotfix a binary for a week. Treat an unrecognised value as \"unknown\" rather than failing the decode."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start instant, RFC 3339 in UTC with NO fractional seconds (e.g. `2026-09-24T09:00:00Z`). Swift's default `.iso8601` strategy REJECTS fractional seconds, which is why the server strips them."
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End instant, RFC 3339 UTC with no fractional seconds."
+          },
+          "totalCents": {
+            "type": "integer",
+            "description": "The full booking price in integer CENTS of `currency`. Never a float, never a string. Computed server-side at creation and written down; it does not change afterwards."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code for `totalCents`, e.g. `EUR` (the column default). Upper-case."
+          },
+          "expiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When a PENDING booking stops holding its slot — 15 minutes after creation. `null` once the booking is no longer merely held (confirmed, cancelled). A client should count down against this and stop offering payment when it passes."
+          },
+          "cancelledAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the booking was cancelled, or `null` if it was not."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the booking was created. RFC 3339 UTC, no fractional seconds."
+          },
+          "cancellableUntil": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds."
+          },
+          "resource": {
+            "type": "object",
+            "description": "The court/pitch/table booked. Trimmed deliberately: no price, no status, no tenant id.",
+            "required": ["id", "name", "sport"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Resource id — the same value passed as `resourceId` when creating a booking."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name, e.g. `Court 1`."
+              },
+              "sport": {
+                "type": "string",
+                "description": "Sport code for the resource."
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "description": "The venue, with its address and coordinates for directions. `MyBooking`'s three fields plus the rest.",
+            "required": [
+              "id",
+              "name",
+              "timezone",
+              "publicSlug",
+              "addressLine",
+              "city",
+              "lat",
+              "lng",
+              "phone"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Venue id."
+              },
+              "name": {
+                "type": "string",
+                "description": "Venue display name."
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone, e.g. `Europe/Sofia`. The client needs it to render `startTs` as local wall-clock time rather than doing UTC arithmetic."
+              },
+              "publicSlug": {
+                "type": ["string", "null"],
+                "description": "The venue's web address, `/venues/{publicSlug}` (#355). Null only for a venue P41's backfill missed."
+              },
+              "addressLine": {
+                "type": "string",
+                "description": "Street address, as the club wrote it."
+              },
+              "city": {
+                "type": "string",
+                "description": "City, as the club wrote it."
+              },
+              "lat": {
+                "type": "number",
+                "format": "double",
+                "description": "Latitude, WGS 84. A number, never a string (see NOTES.md on Decimal)."
+              },
+              "lng": {
+                "type": "number",
+                "format": "double",
+                "description": "Longitude, WGS 84."
+              },
+              "phone": {
+                "type": ["string", "null"],
+                "description": "The venue's phone, for the player to call when the cancellation cutoff has passed. Null when the club gave none."
+              }
+            }
+          },
+          "clubSlug": {
+            "type": ["string", "null"],
+            "description": "The club's slug — what `POST /t/{slug}/bookings/{id}/cancel`, `/checkout` and `/review` take for this booking. Null only if the club row is gone; such a booking can be shown and not acted on."
+          },
+          "venueReview": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["id", "bookingId", "rating", "status"],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "bookingId": {
+                    "type": ["string", "null"],
+                    "description": "The booking it was left against — at most one review per venue, so it may be ANOTHER of the caller's bookings there."
+                  },
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "`PUBLISHED`, `PENDING_REVIEW` or `REJECTED`. An open string."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caller's own review of this booking's VENUE, or null if they have not written one."
+          },
+          "canReview": {
+            "type": "boolean",
+            "description": "Whether `POST /t/{clubSlug}/bookings/{id}/review` would be accepted now: the booking is COMPLETED and the venue has no review from the caller yet. Decided by the server so no client restates the rule."
+          },
+          "payAtClub": {
+            "type": "boolean",
+            "description": "True when the price is paid at the club rather than online (#354), which is every pilot club. `totalCents` is then what the club charges on the day; show it as 'paid at the club'."
+          },
+          "players": {
+            "type": "array",
+            "description": "The people on the booking, the booker (the caller) first. Display names and avatars only: no user ids and no emails. Until a booker can add players (#358) this is the caller alone.",
+            "items": {
+              "type": "object",
+              "required": ["name", "avatarUrl", "isBooker", "registered"],
+              "properties": {
+                "name": {
+                  "type": ["string", "null"],
+                  "description": "Display name. Null for a registered player who has not set one."
+                },
+                "avatarUrl": {
+                  "type": ["string", "null"],
+                  "description": "The sign-in provider's picture, or null."
+                },
+                "isBooker": {
+                  "type": "boolean",
+                  "description": "The person who made the booking: the caller."
+                },
+                "registered": {
+                  "type": "boolean",
+                  "description": "Has an account. False for a guest the booker named."
+                }
+              }
+            }
+          }
+        }
+      },
+      "MyBookingDetailEnvelope": {
+        "type": "object",
+        "title": "MyBookingDetailEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MyBookingDetail"
           }
         }
       }

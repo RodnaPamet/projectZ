@@ -157,6 +157,27 @@ export async function listOwnBookings(
   };
 }
 
+/** Which of a person's bookings a list shows (#359): still to be played, or not. */
+export type BookingWhen = 'upcoming' | 'past';
+
+/**
+ * UPCOMING is a booking that still holds its court: PENDING or CONFIRMED, and
+ * not over yet. A game in progress stays upcoming until its end, so a player
+ * checking the court number mid-match still finds it on top. PAST is
+ * everything else (ended, cancelled, completed, no-show), so a booking
+ * cancelled for next week moves to Минали at once, labelled Отменена, and the
+ * upcoming list only shows games that will happen.
+ *
+ * One definition for both tabs: `past` is `NOT upcoming`, so no booking can be
+ * in both lists, or in neither.
+ */
+function upcomingWhere(now: Date) {
+  return {
+    status: { in: ['PENDING' as const, 'CONFIRMED' as const] },
+    endTs: { gt: now },
+  };
+}
+
 /**
  * Every booking this person holds, at EVERY club.
  *
@@ -185,19 +206,37 @@ export async function listOwnBookings(
  */
 export async function listBookingsForUserAcrossClubs(
   db: PrismaClient,
-  input: { userId: string; cursor?: string | null; limit?: number },
+  input: {
+    userId: string;
+    cursor?: string | null;
+    limit?: number;
+    /** Omitted: every booking, newest first, as before #359. */
+    when?: BookingWhen;
+    /** The instant that splits upcoming from past. Defaults to the clock. */
+    now?: Date;
+  },
 ): Promise<{
   items: Array<Awaited<ReturnType<typeof getOwnBooking>> & { tenantId: string }>;
   nextCursor: string | null;
 }> {
   const take = clampBookingLimit(input.limit);
+  const now = input.now ?? new Date();
 
   // guardrail-allow: cross-tenant — a person's own bookings span every club,
   // and the filter is their session-derived id, not a request parameter.
   const rows = await db.booking.findMany({
-    where: { bookedByUserId: input.userId },
+    where: {
+      bookedByUserId: input.userId,
+      ...(input.when === 'upcoming' ? upcomingWhere(now) : {}),
+      ...(input.when === 'past' ? { NOT: upcomingWhere(now) } : {}),
+    },
     select: { ...BOOKING_FIELDS, tenantId: true },
-    orderBy: [{ startTs: 'desc' }, { id: 'desc' }],
+    // Upcoming reads soonest first, so the next game is on top (audit P05).
+    // Everything else reads newest first.
+    orderBy:
+      input.when === 'upcoming'
+        ? [{ startTs: 'asc' }, { id: 'asc' }]
+        : [{ startTs: 'desc' }, { id: 'desc' }],
     take: take + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
@@ -209,4 +248,52 @@ export async function listBookingsForUserAcrossClubs(
     items: items as Array<Awaited<ReturnType<typeof getOwnBooking>> & { tenantId: string }>,
     nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
   };
+}
+
+/**
+ * ONE of this person's bookings, at any club, with what its detail page shows
+ * (#359): the venue's address and coordinates for directions, its public slug
+ * for a link back, and the people on the booking.
+ *
+ * Cross-tenant for `listBookingsForUserAcrossClubs`'s reason, and scoped the
+ * same way: `bookedByUserId` is in the WHERE, from a verified session. Another
+ * player's booking id finds nothing, which the route answers 404, the same
+ * answer as an id that never existed, so ids cannot be probed.
+ *
+ * Participants are ids and guest names only. Their emails are not selected at
+ * all, rather than selected here and dropped by the mapper.
+ */
+export async function getBookingForUserAcrossClubs(
+  db: PrismaClient,
+  input: { userId: string; bookingId: string },
+) {
+  // guardrail-allow: cross-tenant — a person's own booking, at whichever club
+  // it is; the filter is their session-derived id, not a request parameter.
+  return db.booking.findFirst({
+    where: { id: input.bookingId, bookedByUserId: input.userId },
+    select: {
+      ...BOOKING_FIELDS,
+      tenantId: true,
+      resource: {
+        select: {
+          ...BOOKING_FIELDS.resource.select,
+          venue: {
+            select: {
+              ...BOOKING_FIELDS.resource.select.venue.select,
+              publicSlug: true,
+              addressLine: true,
+              city: true,
+              lat: true,
+              lng: true,
+              phone: true,
+            },
+          },
+        },
+      },
+      participants: {
+        select: { userId: true, guestName: true, position: true },
+        orderBy: { position: 'asc' },
+      },
+    },
+  });
 }

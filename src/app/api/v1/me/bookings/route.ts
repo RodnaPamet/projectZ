@@ -1,11 +1,12 @@
 import { type NextRequest } from 'next/server';
 
+import { bookingWhenSchema } from '@/app-layer/schemas/booking';
 import { listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { toMyBookingDto } from '@/app/api/v1/_lib/dto';
 import { page } from '@/app/api/v1/_lib/envelope';
-import { UnauthorizedError } from '@/lib/errors/types';
+import { UnauthorizedError, ValidationError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
 
 /**
@@ -26,6 +27,11 @@ import { getRequestId } from '@/lib/observability/context';
  * Paging is the repository's keyset: newest `startTs` first, the cursor is
  * the last booking's id, and `limit` is clamped to 1..100 (default 20) rather
  * than refused.
+ *
+ * `when=upcoming|past` (#359) splits the list for the Предстоящи and Минали
+ * tabs: upcoming is PENDING or CONFIRMED and not yet over, soonest first; past
+ * is everything else, newest first. Without it the list is every booking,
+ * newest first, as a client built before the tabs expects.
  */
 async function handler(req: NextRequest) {
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
@@ -33,8 +39,14 @@ async function handler(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
 
+  const when = bookingWhenSchema.safeParse(sp.get('when') ?? undefined);
+  if (!when.success) {
+    throw new ValidationError('`when` must be "upcoming" or "past"', { field: 'when' });
+  }
+
   const { items, nextCursor } = await listMyBookings({
     userId: ctx.userId,
+    when: when.data,
     cursor: sp.get('cursor') || null,
     // `limit=abc` is NaN and `limit=` is 0; `clampBookingLimit` turns both
     // into the default (`!requested`), so neither needs refusing here.

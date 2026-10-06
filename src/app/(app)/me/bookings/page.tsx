@@ -9,7 +9,8 @@ import { Heading } from '@/components/ui/typography';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
 
-import { MyBookingsList } from './MyBookingsList';
+import { MyBookingsTabs } from './MyBookingsTabs';
+import { bookingTabFrom } from './tabs';
 
 export async function generateMetadata() {
   const t = await getTranslations('myBookings');
@@ -60,9 +61,16 @@ export async function generateMetadata() {
  * `(app)/me/layout.tsx` since T20: without a header a player landed on a page
  * with no sign-out.
  */
-export default async function MyBookingsPage() {
+export default async function MyBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/bookings');
+
+  // Предстоящи or Минали (#359). Only the open tab is seeded; see MyBookingsTabs.
+  const tab = bookingTabFrom((await searchParams).tab);
 
   // ═══ NOT A PAGE FOR A CLUB ACCOUNT (#263, audit C12) ═══
   //
@@ -77,8 +85,8 @@ export default async function MyBookingsPage() {
   const [t, page] = await Promise.all([
     getTranslations('myBookings'),
     // No cursor and no limit: the endpoint's own defaults, so the seed is
-    // exactly what the key below, `/api/v1/me/bookings`, answers.
-    listMyBookings({ userId }),
+    // exactly what the tab's key, `/api/v1/me/bookings?when=…`, answers.
+    listMyBookings({ userId, when: tab }),
   ]);
 
   const seed = { items: page.items.map((b) => toMyBookingDto(b)), nextCursor: page.nextCursor };
@@ -95,7 +103,7 @@ export default async function MyBookingsPage() {
         </Heading>
 
         <ViewerScope viewerId={userId}>
-          <MyBookingsList seed={seed} reviewMaxLength={REVIEW_MAX_LENGTH} />
+          <MyBookingsTabs initialTab={tab} seed={seed} reviewMaxLength={REVIEW_MAX_LENGTH} />
         </ViewerScope>
       </main>
     </div>

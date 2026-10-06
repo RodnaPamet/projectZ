@@ -8,16 +8,20 @@ import type { MyBookingDto } from '@/app/api/v1/_lib/dto';
 import { PullToRefresh } from '@/components/mobile/PullToRefresh';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { CardListSkeleton } from '@/components/loading/shapes';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { ChevronRight } from '@/components/ui/icons/nucleo';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge, type StatusBadgeVariant } from '@/components/ui/status-badge';
 import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type InfiniteKey, type V1Page } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
-import { useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
 
 import { EMPTY_DRAFT, ReviewForm, type ReviewDraft, type ReviewErrorKey } from './ReviewForm';
+import type { BookingTab } from './tabs';
 
 /**
  * A player's own bookings, at every club, on `GET /api/v1/me/bookings`.
@@ -56,11 +60,18 @@ import { EMPTY_DRAFT, ReviewForm, type ReviewDraft, type ReviewErrorKey } from '
 type Item = MyBookingDto;
 type Pages = V1Page<Item>[];
 
-/** Stable: the key function is the list's identity (`unstable_serialize`). */
-const GET_KEY = KEYS.meBookings();
+/**
+ * Stable: a key function is its list's identity (`unstable_serialize`), so each
+ * tab's is built once, here. The booking detail page refreshes both after a
+ * cancel, by these same functions.
+ */
+export const BOOKING_LIST_KEYS: Record<BookingTab, InfiniteKey<Item>> = {
+  upcoming: KEYS.meBookings({ when: 'upcoming' }),
+  past: KEYS.meBookings({ when: 'past' }),
+};
 
 /** `StatusBadge` tone per booking status. An unknown (newer) status reads as neutral. */
-const STATUS_TONE: Record<string, StatusBadgeVariant> = {
+export const STATUS_TONE: Record<string, StatusBadgeVariant> = {
   PENDING: 'warning',
   CONFIRMED: 'success',
   COMPLETED: 'info',
@@ -131,41 +142,70 @@ export function reviewErrorKey(e: unknown): ReviewErrorKey {
   }
 }
 
+const EMPTY_PAGE: V1Page<Item> = { items: [], nextCursor: null };
+
 export function MyBookingsList({
+  when,
   seed,
   reviewMaxLength,
 }: {
-  seed: V1Page<Item>;
+  when: BookingTab;
+  /**
+   * Page one from the server, for the tab the page was opened on. The other
+   * tab has none: it is read on first switch, behind a skeleton.
+   */
+  seed?: V1Page<Item>;
   reviewMaxLength: number;
 }) {
   const t = useTranslations('myBookings');
   const [drafts, setDrafts] = useState<Record<string, ReviewDraft>>({});
   const [errors, setErrors] = useState<Record<string, ReviewErrorKey>>({});
+  const getKey = BOOKING_LIST_KEYS[when];
 
-  const { data, error, size, setSize, mutate, isValidating } = useV1SWRInfinite<Item>(GET_KEY, {
-    fallbackData: [seed],
-  });
+  const { data, error, size, setSize, mutate, isValidating, isLoading } = useV1SWRInfinite<Item>(
+    getKey,
+    seed ? { fallbackData: [seed] } : {},
+  );
 
   const review = useV1Mutation<ReviewArg, unknown, Pages>({
     url: ({ slug, bookingId }) => V1.review(slug, bookingId),
     // An empty text is a star-only review, sent as no text at all.
     body: ({ rating, body }) => ({ rating, body: body.trim() === '' ? null : body }),
-    target: { infinite: mutate, getKey: GET_KEY as InfiniteKey<unknown> },
+    target: { infinite: mutate, getKey: getKey as InfiniteKey<unknown> },
     update: (pages, arg, { id }) => withPendingReview(pages, arg, id),
-    fallback: [seed],
+    fallback: [seed ?? EMPTY_PAGE],
   });
-
-  const pages = data ?? [seed];
-  const items = pages.flatMap((p) => p.items);
-  const nextCursor = pages[pages.length - 1]?.nextCursor ?? null;
-  // A page was asked for and has not arrived: in flight, or it failed.
-  const loadingMore = size > pages.length;
-  const loadMoreFailed = loadingMore && !!error && !isValidating;
 
   const setDraft = useCallback(
     (id: string, draft: ReviewDraft) => setDrafts((prev) => ({ ...prev, [id]: draft })),
     [],
   );
+
+  // T15: a skeleton only while there is nothing at all to show; the seeded
+  // tab never has one.
+  if (needsSkeleton({ isLoading, data }) && !seed) {
+    return (
+      <div data-testid="my-bookings-skeleton">
+        <CardListSkeleton rows={3} lines={3} className="gap-compact" />
+      </div>
+    );
+  }
+  if (!data && !seed && error) {
+    return (
+      <ErrorState
+        title={t('listError.title')}
+        description={t('listError.description')}
+        onRetry={() => void mutate()}
+      />
+    );
+  }
+
+  const pages = data ?? [seed ?? EMPTY_PAGE];
+  const items = pages.flatMap((p) => p.items);
+  const nextCursor = pages[pages.length - 1]?.nextCursor ?? null;
+  // A page was asked for and has not arrived: in flight, or it failed.
+  const loadingMore = size > pages.length;
+  const loadMoreFailed = loadingMore && !!error && !isValidating;
 
   async function submit(b: Item, draft: ReviewDraft) {
     if (!b.clubSlug) return;
@@ -193,7 +233,7 @@ export function MyBookingsList({
       // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
       <div data-perf-ready>
         <PullToRefresh onRefresh={() => mutate()} />
-        <EmptyState title={t('empty.title')} description={t('empty.description')}>
+        <EmptyState title={t(`empty.${when}.title`)} description={t(`empty.${when}.description`)}>
           {/* next/link, not EmptyState's own `href` action: that is a plain
               <a>, a full document load, and the tab bar keeps the chrome
               mounted for a client navigation to /venues. */}
@@ -280,22 +320,35 @@ function BookingCard({
 
   return (
     <Card as="li" elevation="flat" density="compact" className="bg-bg-default">
-      <div className="gap-compact flex items-start justify-between">
-        <div className="min-w-0">
-          <p className="text-content-emphasis font-medium">{b.venue.name}</p>
-          <p className="text-content-muted text-sm">
-            {b.resource.name} · {tSports(b.resource.sport as never)}
-          </p>
+      {/* The booking itself opens its detail page (#359, audit P04). Only this
+          block is the link: the review form below has controls of its own,
+          and a form nested in a link is a click target nobody can predict.
+          Default prefetch (T30): the detail page's loading.tsx shell. */}
+      <Link
+        href={`/me/bookings/${encodeURIComponent(b.id)}`}
+        data-testid="booking-card-link"
+        className="hover:bg-bg-muted -m-2 block rounded-md p-2 transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+      >
+        <div className="gap-compact flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="text-content-emphasis font-medium">{b.venue.name}</p>
+            <p className="text-content-muted text-sm">
+              {b.resource.name} · {tSports(b.resource.sport as never)}
+            </p>
+          </div>
+          <div className="gap-tight flex shrink-0 items-center">
+            <StatusBadge variant={STATUS_TONE[b.status] ?? 'neutral'}>
+              {t(`status.${b.status}` as never)}
+            </StatusBadge>
+            <ChevronRight className="text-content-muted size-4" aria-hidden="true" />
+          </div>
         </div>
-        <StatusBadge variant={STATUS_TONE[b.status] ?? 'neutral'} className="shrink-0">
-          {t(`status.${b.status}` as never)}
-        </StatusBadge>
-      </div>
 
-      <p className="text-content-default mt-2 text-sm">
-        {when} – {until}
-      </p>
-      <p className="text-content-muted mt-1 text-sm">{price}</p>
+        <p className="text-content-default mt-2 text-sm">
+          {when} – {until}
+        </p>
+        <p className="text-content-muted mt-1 text-sm">{price}</p>
+      </Link>
 
       {b.venueReview?.bookingId === b.id ? (
         <p className="text-content-default mt-compact text-sm">
