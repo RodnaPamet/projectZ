@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
+import { SWRConfig } from 'swr';
+
 import { ProfileView } from '@/app/(app)/me/profile/ProfileView';
+import type { MeDto } from '@/app/api/v1/_lib/dto';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LOCALE_COOKIE } from '@/lib/locale-constants';
 
@@ -39,12 +42,41 @@ const fetchMock = jest.fn();
 
 const p = bg.profile;
 
-function renderProfile(platformHref: string | null = null) {
+/** `GET /api/v1/me` as the page seeds it (#359's sections). */
+const account = (over: Partial<MeDto> = {}): MeDto => ({
+  id: 'usr_ivo',
+  name: 'Ivo',
+  email: 'ivo@example.bg',
+  avatarUrl: null,
+  locale: 'bg',
+  sports: [],
+  accountKind: 'PLAYER',
+  landing: { reason: 'player', club: null },
+  ...over,
+});
+
+function renderProfile(
+  platformHref: string | null = null,
+  opts: { account?: MeDto; showSports?: boolean } = {},
+) {
+  const seed = opts.account ?? account();
   return render(
     withIntl(
-      <TooltipProvider>
-        <ProfileView name="Ivo" email="ivo@example.bg" platformHref={platformHref} />
-      </TooltipProvider>,
+      // No revalidation: the seed is what is under test, and the fetch mock
+      // below counts only the language switch's calls.
+      <SWRConfig
+        value={{ provider: () => new Map(), revalidateOnMount: false, revalidateOnFocus: false }}
+      >
+        <TooltipProvider>
+          <ProfileView
+            name={seed.name}
+            email="ivo@example.bg"
+            platformHref={platformHref}
+            account={seed}
+            showSports={opts.showSports ?? true}
+          />
+        </TooltipProvider>
+      </SWRConfig>,
     ),
   );
 }
@@ -147,5 +179,61 @@ describe('Профил — the language is the user’s', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
     expect(document.cookie).not.toContain(`${LOCALE_COOKIE}=en`);
+  });
+});
+
+describe('#359: the player sections, between the identity and the settings', () => {
+  const after = (a: Element, b: Element) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it('a player sees Лични данни and Спортове и ниво, in that order, before Настройки', () => {
+    renderProfile();
+    const personal = screen.getByTestId('profile-personal');
+    const sports = screen.getByTestId('profile-sports');
+    expect(after(personal, sports)).toBe(true);
+    expect(after(sports, screen.getByTestId('profile-language-row'))).toBe(true);
+  });
+
+  it('a CLUB account sets its name and has no sports section', () => {
+    renderProfile(null, { account: account({ accountKind: 'CLUB' }), showSports: false });
+    expect(screen.getByTestId('profile-personal')).toBeInTheDocument();
+    expect(screen.queryByTestId('profile-sports')).not.toBeInTheDocument();
+  });
+
+  it('N01: a new account is named by its email ONCE, and is asked for a name', () => {
+    renderProfile(null, { account: account({ name: null }) });
+    expect(screen.getByRole('heading', { level: 1, name: 'ivo@example.bg' })).toBeInTheDocument();
+    expect(screen.queryByTestId('profile-email')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-name-prompt')).toHaveTextContent(p.personal.prompt);
+  });
+
+  it('a saved name is in the header at once, then the token is refreshed and the page re-read', async () => {
+    const answer = (body: string) => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      text: async () => body,
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/v1/me' && init?.method === 'PATCH'
+        ? answer(JSON.stringify({ data: account({ name: 'Иво Иванов' }) }))
+        : answer(''),
+    );
+    renderProfile();
+
+    fireEvent.click(screen.getByRole('button', { name: p.personal.edit }));
+    fireEvent.change(await screen.findByLabelText(p.personal.name), {
+      target: { value: 'Иво Иванов' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: p.personal.save }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Иво Иванов' }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+    // The token is refreshed only after the server stored the name.
+    expect(urls.indexOf('/api/auth/session')).toBeGreaterThan(urls.indexOf('/api/v1/me'));
+    expect(urls.indexOf('/api/v1/me')).toBeGreaterThanOrEqual(0);
   });
 });

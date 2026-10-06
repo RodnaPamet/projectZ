@@ -1,4 +1,4 @@
-import type { AccountKind, Locale, Role } from '@prisma/client';
+import type { AccountKind, Locale, Role, SportType } from '@prisma/client';
 
 import { readMemberships } from '@/app-layer/usecases/landing';
 import { decideLanding, type LandingMembership, type LandingReason } from '@/lib/auth/landing';
@@ -44,7 +44,14 @@ export interface Me {
   id: string;
   name: string | null;
   email: string;
+  /** The sign-in provider's picture (Google, Facebook), or null. */
+  avatarUrl: string | null;
   locale: Locale;
+  /**
+   * The sports this person plays, each at the level they declared, 1–7
+   * (#359, Q37). In the sport enum's order; empty until they pick some.
+   */
+  sports: Array<{ sport: SportType; level: number }>;
   /** Null = undecided: an account #263's migration would not decide by rule. */
   accountKind: AccountKind | null;
   landing: {
@@ -59,7 +66,17 @@ export async function getMe(userId: string): Promise<Me | null> {
   return runAsSuperuser(async (db) => {
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, locale: true, accountKind: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        locale: true,
+        accountKind: true,
+        // The person's own levels (#359), by the session-derived id like
+        // everything else here; the enum's order, so the list is stable.
+        sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
+      },
     });
     if (!user) return null;
 
@@ -81,7 +98,9 @@ export async function getMe(userId: string): Promise<Me | null> {
       id: user.id,
       name: user.name,
       email: user.email,
+      avatarUrl: user.avatarUrl,
       locale: user.locale,
+      sports: user.sportLevels.map((s) => ({ sport: s.sport, level: s.level })),
       accountKind: user.accountKind,
       landing: {
         reason: decision.reason,

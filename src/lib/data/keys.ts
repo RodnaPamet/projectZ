@@ -83,6 +83,11 @@ export interface VenueSearchParams {
 export const KEYS = {
   /** The caller's standing at a club. */
   me: (slug: string) => `${BASE}/t/${seg(slug)}/me`,
+  /**
+   * The caller's account, at no club (T16): name, avatar, kind, and the sports
+   * played with a level for each (#359). `PATCH` of the same URL writes it.
+   */
+  account: () => `${BASE}/me`,
   /** The caller's own bookings at a club, newest first, by cursor. */
   myBookings: (slug: string, params: { limit?: number } = {}) =>
     paged(`${BASE}/t/${seg(slug)}/bookings`, params),
@@ -124,6 +129,8 @@ export const V1 = {
   review: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/bookings/${seg(bookingId)}/review`,
   resolveCase: (caseId: string) => `${BASE}/platform/moderation/cases/${seg(caseId)}/resolve`,
+  /** `PATCH`: the display name and the sports with their levels (#359). */
+  updateAccount: () => `${BASE}/me`,
   mfaEnrol: () => `${BASE}/me/mfa/enrolment`,
   mfaConfirm: () => `${BASE}/me/mfa/enrolment/confirm`,
   mfaStepUp: () => `${BASE}/me/mfa/step-up`,

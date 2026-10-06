@@ -1,11 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getCsrfToken, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
+import type { MeDto } from '@/app/api/v1/_lib/dto';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
+import { PersonalDataSection } from '@/components/profile/PersonalDataSection';
+import { SportLevelsSection } from '@/components/profile/SportLevelsSection';
+import { useAccount } from '@/components/profile/use-account';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -47,6 +52,14 @@ const ROW = 'flex min-h-14 items-center justify-between gap-3 px-4 py-2';
 async function persistLocale(locale: string) {
   const saved = await saveMyLocaleAction(locale);
   if (!saved.ok) throw new Error('locale not saved');
+  await refreshSession();
+}
+
+/**
+ * next-auth's CSRF-checked session update: `auth.ts` re-reads the locale and
+ * the display name (#359) from the user's own row into the token.
+ */
+async function refreshSession() {
   const csrfToken = await getCsrfToken();
   const res = await fetch('/api/auth/session', {
     method: 'POST',
@@ -72,21 +85,31 @@ export function ProfileView({
   name,
   email,
   platformHref,
+  account: seed,
+  showSports,
 }: {
   name: string | null;
   email: string | null;
   platformHref: string | null;
+  /** `GET /api/v1/me`, read by the page: what #359's sections edit. */
+  account: MeDto;
+  /** Sports and levels are a player's; a CLUB account does not play (#263). */
+  showSports: boolean;
 }) {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
   const tNav = useTranslations('common.nav');
+  const router = useRouter();
   const [saveFailed, setSaveFailed] = useState(false);
-  const display = name?.trim() || email || tNav('account');
+  // The live account (#359): a name saved below shows in the header at once.
+  const { account } = useAccount(seed);
+  const display = account.name?.trim() || name?.trim() || email || tNav('account');
 
   return (
     <main className="gap-section mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10">
       <div className="flex items-center gap-4">
-        <InitialsAvatar value={display} size="lg" />
+        {/* The sign-in provider's picture when there is one (#359). */}
+        <InitialsAvatar value={display} size="lg" imageUrl={account.avatarUrl} />
         <div className="min-w-0">
           <Heading level={1} className="truncate">
             {display}
@@ -100,10 +123,19 @@ export function ProfileView({
       </div>
 
       {/*
-        #359 adds the player's sports and a self-declared 1–7 level for each
-        HERE, between the identity and the settings, as its own <Section>
-        ("Спортове и ниво"). Nothing is drawn for it until then.
+        #359, between the identity and the settings: the display name (N01),
+        then the sports with a self-declared 1–7 level for each (Q37). A new
+        name goes into the session's token and the header is re-rendered, so
+        the account menu says it too.
       */}
+      <PersonalDataSection
+        seed={seed}
+        onNameSaved={async () => {
+          await refreshSession();
+          router.refresh();
+        }}
+      />
+      {showSports ? <SportLevelsSection seed={seed} /> : null}
 
       <Section title={t('settings')}>
         <div className={ROW} data-testid="profile-language-row">

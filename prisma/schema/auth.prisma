@@ -174,7 +174,37 @@ model User {
   /// why this is a grant row rather than a value in `enum Role` or a flag here.
   platformGrants PlatformAdminGrant[] @relation("PlatformGrantHolder")
 
+  /// The sports this person plays, each at a level they declared (#359).
+  sportLevels PlayerSportLevel[]
+
   @@map("app_user")
+}
+
+/// A sport a player plays, at the level they say they play it (#359, Q37).
+///
+/// SELF-DECLARED, 1 to 7: 1 is "just starting", 7 is "competitor". It is the
+/// starting point the rankings module (#378) will take over from, not a rating:
+/// `PlayerProfile.skillRatingsJson` holds what matches prove. The range is a
+/// CHECK in the database (`player_sport_level_range`, P43), so a write that
+/// skipped the zod schema still cannot store an 8.
+///
+/// OWN ROWS ONLY, by RLS keyed on `app.user_id` (P43), as push subscriptions
+/// are: written and read through `runAsUserOnly`. Keyed to the USER, not to
+/// `PlayerProfile`, because a profile row needs a display name and most
+/// accounts have none; a person can say they play padel before they have
+/// told us what to call them.
+model PlayerSportLevel {
+  userId String
+  sport  SportType
+  level  Int       @db.SmallInt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, sport])
+  @@map("player_sport_level")
 }
 
 /// GLOBAL, 1:1 with User. A player's rating follows the player, not the club.
