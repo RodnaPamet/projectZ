@@ -1,12 +1,14 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { clubOnlineBookingCap } from '@/app-layer/usecases/booking-rules';
 import { loadPricingScreen } from '@/app-layer/usecases/pricing-rules';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
 import { CancellationCutoffForm, type CutoffVenue } from './CancellationCutoffForm';
+import { OnlineBookingCapForm } from './OnlineBookingCapForm';
 import { PricingBoard, type CourtOption } from './PricingBoard';
 import { toPricingRuleView, type PricingRuleView } from './rule-view';
 
@@ -59,18 +61,24 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
   // the prices by whoever holds `admin.venue_manage`.
   const canSetCutoff = ctx.permissions.includes('admin.venue_manage');
 
-  const { courts, rulesByCourt, venues } = await runInTenantContext(ctx.tenantId, async (db) => {
-    const screen = await loadPricingScreen(db, ctx.tenantId);
-    const venues: CutoffVenue[] = canSetCutoff
-      ? await db.venue.findMany({
-          where: { tenantId: ctx.tenantId, status: 'ACTIVE' },
-          select: { id: true, name: true, cancellationCutoffHours: true },
-          orderBy: { name: 'asc' },
-          take: 50,
-        })
-      : [];
-    return { ...screen, venues };
-  });
+  // So is the club's cap on a player's upcoming online bookings (#380), which
+  // is one number for the whole club.
+  const { courts, rulesByCourt, venues, bookingCap } = await runInTenantContext(
+    ctx.tenantId,
+    async (db) => {
+      const screen = await loadPricingScreen(db, ctx.tenantId);
+      const venues: CutoffVenue[] = canSetCutoff
+        ? await db.venue.findMany({
+            where: { tenantId: ctx.tenantId, status: 'ACTIVE' },
+            select: { id: true, name: true, cancellationCutoffHours: true },
+            orderBy: { name: 'asc' },
+            take: 50,
+          })
+        : [];
+      const bookingCap = canSetCutoff ? await clubOnlineBookingCap(db, ctx.tenantId) : null;
+      return { ...screen, venues, bookingCap };
+    },
+  );
 
   const byCourt: Record<string, PricingRuleView[]> = {};
   for (const [courtId, rules] of rulesByCourt) {
@@ -95,6 +103,8 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
       </header>
 
       <CancellationCutoffForm slug={slug} venues={venues} />
+
+      {bookingCap !== null && <OnlineBookingCapForm slug={slug} limit={bookingCap} />}
 
       <PricingBoard slug={slug} courts={options} rulesByCourt={byCourt} />
     </section>

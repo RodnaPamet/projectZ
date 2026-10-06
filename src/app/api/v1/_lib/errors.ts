@@ -53,6 +53,12 @@ export interface ErrorMapping {
    * rate-limiting topology for anyone willing to trip it".
    */
   clientMessage?: string;
+  /**
+   * Structured, client-safe facts to send as `error.details`, read off the
+   * error instance. Only for numbers the client renders — never anything
+   * internal — and only where the class carries them as fields.
+   */
+  details?: (error: Error) => Record<string, unknown>;
 }
 
 /**
@@ -246,6 +252,19 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   VenueNotPayableError: { status: 409, code: 'VENUE_NOT_PAYABLE' },
   // The club takes payment at the club, not online (#354, the Sofia pilot).
   // Its bookings are CONFIRMED when made; there is nothing to check out.
+  // The player already holds the club's cap of upcoming ONLINE bookings (#380).
+  // Not "you may not": one of them being played or cancelled frees a place.
+  // The message is in the caller's own language; `details` carries the two
+  // numbers so a client can say "3 of 3" without parsing it. The code is agreed
+  // with the venue page (#355) — do not rename it.
+  BookingLimitReachedError: {
+    status: 409,
+    code: 'BOOKING_LIMIT_REACHED',
+    details: (e) => {
+      const { limit, upcoming } = e as Error & { limit: number; upcoming: number };
+      return { limit, upcoming };
+    },
+  },
   OnlinePaymentDisabledError: {
     status: 409,
     code: 'ONLINE_PAYMENT_DISABLED',
@@ -291,6 +310,7 @@ export function toV1ErrorResponse(
         // The mapping's own wording wins when it has one — see ErrorMapping.
         message: mapped.clientMessage ?? (error as Error).message,
         requestId,
+        ...(mapped.details ? { details: mapped.details(error as Error) } : {}),
       },
     },
   };

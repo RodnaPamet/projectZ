@@ -64,6 +64,12 @@ model VenueOrg {
   /// deleted. Nothing in the app sets it; it is an operator's decision.
   onlinePaymentEnabled Boolean @default(false)
 
+  /// The most upcoming ONLINE bookings one player may hold at this club at
+  /// once (#380). Default 3; 1..50 by CHECK (`venue_org_max_upcoming_online_
+  /// bookings_range`). Desk bookings and recurring series are not counted and
+  /// never limited. Set by an OWNER or MANAGER on the pricing screen, audited.
+  maxUpcomingOnlineBookings Int @default(3)
+
   // The venue's OWN subscription to us (Stripe Billing), which sets planTier
   // and therefore the commission bps. Distinct from stripeAccountId, which is
   // the connected account we pay OUT to.

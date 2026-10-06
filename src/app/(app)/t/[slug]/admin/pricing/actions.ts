@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { pricingRuleWriteSchema } from '@/app-layer/schemas/pricing';
 import {
   InvalidCancellationCutoffError,
+  InvalidOnlineBookingCapError,
+  setClubOnlineBookingCap,
   setVenueCancellationCutoff,
 } from '@/app-layer/usecases/booking-rules';
 import {
@@ -152,6 +154,37 @@ export async function setCancellationCutoffAction(
     );
   } catch (err) {
     if (err instanceof InvalidCancellationCutoffError) return { ok: false, error: 'INVALID' };
+    throw err;
+  }
+
+  revalidatePath(`/t/${slug}/admin/pricing`);
+  return { ok: true };
+}
+
+/**
+ * How many upcoming ONLINE bookings one player may hold at this club (#380).
+ *
+ * A club term, on `VenueOrg`, so there is one field rather than one per venue.
+ * `admin.venue_manage`, as the cutoff beside it: OWNER and MANAGER. Audited by
+ * the use case.
+ */
+export async function setOnlineBookingCapAction(
+  slug: string,
+  _prev: { ok: true } | { ok: false; error: 'INVALID' } | null,
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: 'INVALID' }> {
+  const ctx = await requireTenantAction(slug, 'admin.venue_manage');
+
+  const raw = form.get('limit');
+  // `Number('')` is 0: an empty field is refused, not read as zero.
+  const limit = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN;
+
+  try {
+    await runInTenantContext(ctx.tenantId, (db) =>
+      setClubOnlineBookingCap(db, ctx.tenantId, { limit, actorUserId: ctx.userId }),
+    );
+  } catch (err) {
+    if (err instanceof InvalidOnlineBookingCapError) return { ok: false, error: 'INVALID' };
     throw err;
   }
 

@@ -7,7 +7,12 @@ import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { playerMayCancel } from '@/lib/booking/cutoff';
 
 import { SlotNotBookableError } from './availability';
-import { assertMayBookOnline, cancellationCutoffError } from './booking-rules';
+import {
+  assertMayBookOnline,
+  assertUnderOnlineBookingCap,
+  cancellationCutoffError,
+  lockPlayerOnlineBookings,
+} from './booking-rules';
 import { computeRefundAmount, hoursUntil, parsePolicy, type RefundQuote } from './refund';
 import { appendEntry } from './wallet';
 
@@ -124,7 +129,9 @@ export interface CreateBookingInput {
    * web, and is held to the pilot's rules (#354): the slot must not have
    * started, and three recent no-shows at the club refuse it. `DESK` is the
    * club booking on someone's behalf (#364) — the block is on ONLINE booking,
-   * and a walk-in may well be for the hour already under way.
+   * and a walk-in may well be for the hour already under way. Only ONLINE
+   * counts toward, and is held to, the club's cap on upcoming online bookings
+   * (#380). Written to `Booking.channel`.
    */
   channel?: 'ONLINE' | 'DESK';
   /** "Now", for the start check and the no-show window. Tests pin it. */
@@ -195,7 +202,8 @@ export async function createBooking(
   // booking, which is what an idempotency key promises — even if the slot has
   // started by the time the retry lands, or the player has been blocked since.
   // Only a NEW booking is refused.
-  if ((input.channel ?? 'ONLINE') === 'ONLINE') {
+  const channel = input.channel ?? 'ONLINE';
+  if (channel === 'ONLINE') {
     // NOT IN THE PAST. With instant confirmation a booking for a slot already
     // under way would be CONFIRMED, then COMPLETED by the sweep at its end —
     // and a COMPLETED booking is the proof of visit a review needs. Booking
@@ -207,6 +215,31 @@ export async function createBooking(
     // THE NO-SHOW BLOCK. A guest booking has no player to count against.
     if (input.bookedByUserId) {
       await assertMayBookOnline(db, tenantId, input.bookedByUserId, createdAt);
+
+      // THE CAP ON UPCOMING ONLINE BOOKINGS (#380). A count and an INSERT, so
+      // it is serialised per (club, player) by a transaction-scoped advisory
+      // lock — see `lockPlayerOnlineBookings` — held until the route's
+      // transaction commits this booking. A guest booking has no player to
+      // count; a DESK booking or series is never capped.
+      await lockPlayerOnlineBookings(db, tenantId, input.bookedByUserId);
+
+      // The replay check again, now under the lock. A concurrent request with
+      // the SAME key that committed while we waited is this request's own
+      // booking: return it, rather than counting it against the cap and
+      // refusing the player the booking they just made.
+      const raced = await db.booking.findUnique({
+        where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: input.idempotencyKey } },
+      });
+      if (raced) {
+        return {
+          bookingId: raced.id,
+          status: raced.status,
+          expiresAt: raced.expiresAt,
+          idempotentReplay: true,
+        };
+      }
+
+      await assertUnderOnlineBookingCap(db, tenantId, input.bookedByUserId, createdAt);
     }
   }
 
@@ -218,6 +251,7 @@ export async function createBooking(
         startTs: input.startTs,
         endTs: input.endTs,
         status,
+        channel,
         totalCents: input.totalCents,
         idempotencyKey: input.idempotencyKey,
         bookedByUserId: input.bookedByUserId ?? null,

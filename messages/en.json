@@ -284,6 +284,14 @@
         "save": "Save",
         "saved": "Saved.",
         "invalid": "Enter a whole number of hours from 0 to {max}."
+      },
+      "bookingCap": {
+        "title": "Online bookings per player",
+        "description": "How many upcoming bookings one player may hold at your club through the app or the website. Bookings you make at the desk, and recurring series, are not counted.",
+        "label": "Upcoming online bookings per player",
+        "save": "Save",
+        "saved": "Saved.",
+        "invalid": "Enter a whole number from {min} to {max}."
       }
     },
     "players": {
@@ -708,6 +716,7 @@
   "bookingRules": {
     "noShowBlocked": "You can't book online at this club: you have {count} no-shows in the last {days} days. Contact the club to have the block lifted.",
     "cancellationCutoffPassed": "This booking can no longer be cancelled in the app: the club accepts cancellations up to {hours} hours before the start. Contact the club to cancel.",
-    "cancellationStarted": "This booking has already started and can no longer be cancelled in the app. Contact the club."
+    "cancellationStarted": "This booking has already started and can no longer be cancelled in the app. Contact the club.",
+    "onlineBookingLimitReached": "You have reached this club's limit on upcoming online bookings (limit: {limit}, yours: {upcoming}). Cancel one of them, or contact the club."
   }
 }
