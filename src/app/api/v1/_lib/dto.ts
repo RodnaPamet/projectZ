@@ -48,7 +48,7 @@ export interface VenueSummary {
   /**
    * The venue's public address on the web, `/venues/{publicSlug}` (#355):
    * unique across every club, unlike `slug`. Null only for a venue written
-   * before P40's trigger existed and missed by its backfill, which should be
+   * before P41's trigger existed and missed by its backfill, which should be
    * none; such a venue is listed and not linked.
    */
   publicSlug: string | null;

@@ -12,7 +12,7 @@ import { asAppSuperuser } from '../helpers/rls';
 
 /**
  * The venue page's data path (#355), against a real database: the public slug
- * P40 writes, the slot lengths availability now offers (Q16), and the round
+ * P41 writes, the slot lengths availability now offers (Q16), and the round
  * trip the page makes — read the day, book one of its offers, find it in the
  * player's bookings.
  */
@@ -124,7 +124,7 @@ describe('the venue page (#355)', () => {
     };
   };
 
-  describe('publicSlug (P40)', () => {
+  describe('publicSlug (P41)', () => {
     it('is filled on insert, and is unique across clubs where `slug` is not', async () => {
       const other = await seedTenant({});
       // Another club names its venue the same — allowed, `slug` is per club.

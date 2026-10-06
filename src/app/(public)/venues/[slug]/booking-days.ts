@@ -32,7 +32,7 @@ export function bookingDays(now: Date, timezone: string): string[] {
   return out;
 }
 
-/** A `publicSlug` as P40 writes them; anything else is a 404 before a query. */
+/** A `publicSlug` as P41 writes them; anything else is a 404 before a query. */
 export function isPublicSlug(raw: string): boolean {
   return raw.length > 0 && raw.length <= 200 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(raw);
 }

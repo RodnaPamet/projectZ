@@ -23,7 +23,7 @@ import { VenueHeader } from './VenueHeader';
  * ═══ ADDRESSED BY `publicSlug`, NOT `slug` OR `id` ═══
  *
  * `venue.slug` is unique only within its club, so `/venues/central-courts`
- * could name two venues. `publicSlug` (P40) is unique everywhere and readable,
+ * could name two venues. `publicSlug` (P41) is unique everywhere and readable,
  * which is what a URL people share and search engines index wants. The v1 API
  * keeps addressing venues by id; this page reads them by `publicSlug` itself.
  *

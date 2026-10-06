@@ -3623,7 +3623,7 @@
           },
           "publicSlug": {
             "type": ["string", "null"],
-            "description": "The venue's public web address, `/venues/{publicSlug}` (#355). Unique across EVERY club, unlike `slug`; filled by a database trigger when a venue is created and never changed after (P40), so a shared link keeps working. Null only for a venue the backfill missed, which should be none; the web lists such a venue without linking it. Native clients keep addressing venues by `id`.",
+            "description": "The venue's public web address, `/venues/{publicSlug}` (#355). Unique across EVERY club, unlike `slug`; filled by a database trigger when a venue is created and never changed after (P41), so a shared link keeps working. Null only for a venue the backfill missed, which should be none; the web lists such a venue without linking it. Native clients keep addressing venues by `id`.",
             "examples": ["slot-club-sofia"]
           },
           "name": {
@@ -3726,7 +3726,7 @@
           },
           "publicSlug": {
             "type": ["string", "null"],
-            "description": "The venue's public web address, `/venues/{publicSlug}` (#355). Unique across EVERY club, unlike `slug`; filled by a database trigger when a venue is created and never changed after (P40), so a shared link keeps working. Null only for a venue the backfill missed, which should be none; the web lists such a venue without linking it. Native clients keep addressing venues by `id`.",
+            "description": "The venue's public web address, `/venues/{publicSlug}` (#355). Unique across EVERY club, unlike `slug`; filled by a database trigger when a venue is created and never changed after (P41), so a shared link keeps working. Null only for a venue the backfill missed, which should be none; the web lists such a venue without linking it. Native clients keep addressing venues by `id`.",
             "examples": ["slot-club-sofia"]
           },
           "name": {

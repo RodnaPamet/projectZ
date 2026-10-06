@@ -122,7 +122,7 @@ export async function getVenueById(db: PrismaClient, venueId: string) {
 
 /**
  * Public venue detail by its PUBLIC slug (#355), cross-tenant like
- * `getVenueById`. `publicSlug` is unique across every club (P40), so — unlike
+ * `getVenueById`. `publicSlug` is unique across every club (P41), so — unlike
  * `slug` — it names exactly one venue, and `/venues/{publicSlug}` can be a
  * readable URL.
  *
