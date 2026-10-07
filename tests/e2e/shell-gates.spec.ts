@@ -18,7 +18,13 @@ import { prisma } from './utils/create-isolated-tenant';
  * offers. `nav-config.test.tsx` covers `visibleSections` as a function; this
  * covers the layouts that call it. Pages and APIs still authorise themselves,
  * so a regression here shows a shell, not data.
+ *
+ * Since #362 the 404 itself wears the VIEWER's own frame (a signed-in account
+ * wears the AppShell everywhere): a player's rail, a club account's own
+ * club's. What must never be drawn is the refused shell: the club's admin
+ * pages for its PLAYER member, the platform's pages for a club owner.
  */
+const RAIL = `aside nav[aria-label="${bg.common.ui.mainNav}"]`;
 
 const ADMIN_PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff', 'reports'] as const;
 
@@ -61,15 +67,21 @@ test.describe('shell gates', () => {
         status: await status(page, `/t/${isolatedTenant.tenantSlug}/admin/${p}`),
       }).toEqual({ page: p, status: 404 });
     }
-    // And no shell was drawn around the 404.
-    await expect(page.locator('aside[data-collapsed]')).toHaveCount(0);
+    // The 404 wears the player's own frame, and nothing of the club's admin.
+    await expect(page.locator(RAIL).getByRole('link', { name: bg.common.nav.play })).toBeVisible();
+    await expect(page.locator(`a[href^="/t/${isolatedTenant.tenantSlug}/admin"]`)).toHaveCount(0);
   });
 
   test('/platform/moderation is a 404 without a grant: a club owner', async ({
     authedPage: page,
+    isolatedTenant,
   }) => {
     expect(await status(page, '/platform/moderation')).toBe(404);
-    await expect(page.locator('aside[data-collapsed]')).toHaveCount(0);
+    // Its own club's frame around the 404, and no platform page in it.
+    await expect(
+      page.locator(RAIL).locator(`a[href="/t/${isolatedTenant.tenantSlug}/admin/calendar"]`),
+    ).toBeVisible();
+    await expect(page.locator('a[href^="/platform/"]')).toHaveCount(0);
   });
 
   test('/platform/moderation is a 404 without a grant: a player', async ({ playerPage: page }) => {
