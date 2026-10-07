@@ -22,7 +22,7 @@ import {
 test.use({ viewport: { width: 1280, height: 800 } });
 
 const MAIN_NAV = `aside nav[aria-label="${bg.common.ui.mainNav}"]`;
-const PAGES = ['calendar', 'courts', 'pricing', 'photos', 'players', 'staff'] as const;
+const PAGES = ['calendar', 'courts', 'pricing', 'photos', 'players', 'staff', 'reports'] as const;
 const COLLAPSE_KEY = `${UI_STORAGE_PREFIX}:sidebar-collapsed`;
 
 test.describe('club admin shell — desktop', () => {

@@ -20,7 +20,7 @@ import { prisma } from './utils/create-isolated-tenant';
  * so a regression here shows a shell, not data.
  */
 
-const ADMIN_PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff'] as const;
+const ADMIN_PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff', 'reports'] as const;
 
 async function status(page: Page, path: string): Promise<number | undefined> {
   return (await page.goto(path))?.status();
