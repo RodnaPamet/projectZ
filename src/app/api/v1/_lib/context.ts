@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 
 import type { RequestContext } from '@/app-layer/types';
 import type { PlatformCapability } from '@/lib/platform/capabilities';
-import { groupGateClearedFrom } from '@/lib/auth/group-gate';
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
 import { membershipContext } from '@/lib/auth/page-context';
 import { checkSession } from '@/lib/auth/sessions';
@@ -51,9 +50,7 @@ import { assertOwnOriginForCookieWrites, assertViewer } from './request-guard';
  * or demoted, and its claims used to be believed here for all of them.
  *
  * Cost: one indexed query per tenant request, beside the session check that
- * already runs — two for a member who is not the OWNER, whose club's Entra
- * provider row is read for the group gate (`@@unique([tenantId, type])`). It is
- * the price of an answer that is right.
+ * already runs. It is the price of an answer that is right.
  *
  * ═══ AND IT ENFORCES THE PERMISSION TABLE, BECAUSE THE EDGE MAY NOT HAVE ═══
  *
@@ -206,7 +203,6 @@ export async function contextFromRequest(
     tenantSlug: null,
     role: null,
     permissions: [],
-    groupGateCleared: [],
     userSessionId: null,
   };
 
@@ -258,11 +254,6 @@ export async function contextFromRequest(
   // viewer change. See request-guard.ts.
   assertViewer(req, raw.sub);
 
-  // Which Entra-gated clubs this sign-in proved it may reach. Read once, and
-  // carried on every signed-in branch: it only ever lifts the gate where the
-  // database also says yes. See `@/lib/auth/group-gate`.
-  const groupGateCleared = groupGateClearedFrom(raw);
-
   // Usable, so this id is authentic: `checkSession` matched the token's
   // embedded secret against this row. The platform binding reads the
   // second-factor step-up from it (#262).
@@ -286,7 +277,6 @@ export async function contextFromRequest(
       tenantSlug: null,
       role: null,
       permissions: [],
-      groupGateCleared,
       userSessionId,
     };
   }
@@ -296,11 +286,7 @@ export async function contextFromRequest(
   // Not from `raw.memberships`, whatever it says. A native token lists no
   // clubs, a web token lists the ones it was signed in with, and either can
   // list a club whose membership has since been suspended. See the header.
-  //
-  // The group gate is applied inside: a membership at an Entra-gated club this
-  // session has not cleared comes back as "not a member". Before #250 the
-  // edge enforced that gate, by the token not listing the club.
-  const membership = await membershipContext(raw.sub, slug, { groupGateCleared });
+  const membership = await membershipContext(raw.sub, slug);
 
   if (membership.kind !== 'ok') {
     // No ACTIVE membership here, or no club called this: one answer for both.
@@ -316,7 +302,6 @@ export async function contextFromRequest(
       tenantSlug: null,
       role: null,
       permissions: [],
-      groupGateCleared,
       userSessionId,
     };
   }
@@ -336,7 +321,6 @@ export async function contextFromRequest(
     tenantSlug: held.tenantSlug,
     role: held.role,
     permissions: held.permissions,
-    groupGateCleared,
     userSessionId,
   };
 }

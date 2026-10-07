@@ -1,3 +1,5 @@
+import { passwordSignInEnabled } from './password-sign-in';
+
 /**
  * Which ways in are actually configured.
  *
@@ -16,40 +18,59 @@
  * So this reports it, next to `pushChannels()` on `/api/ready`, for the same
  * reason and in the same shape.
  *
- * `configured` means the credentials are PRESENT. Whether Google accepts them
- * is between Google and the deployment; no readiness probe can answer that
- * without attempting a sign-in.
+ * `configured` means the credentials are PRESENT. Whether Google or Meta
+ * accepts them is between the provider and the deployment; no readiness probe
+ * can answer that without attempting a sign-in.
+ *
+ * ═══ ONE ANSWER, READ BY BOTH ═══
+ *
+ * `src/auth.ts` registers providers with `googleConfigured`,
+ * `facebookConfigured` and `passwordSignInEnabled`, and the login page decides
+ * its buttons from `signInMethods()`, which reads the same three. A page that
+ * offered a button for a provider auth.ts had not registered would send people
+ * to next-auth's error page; one predicate per provider makes that impossible
+ * to write.
  */
 export type MethodState = 'configured' | 'disabled';
 
 export interface SignInMethods {
   /** Google OAuth. */
   google: MethodState;
-  /** Microsoft Entra (registered under next-auth v4's `azure-ad` id). */
-  microsoft: MethodState;
+  /** Facebook Login (#361), provider id `facebook`. */
+  facebook: MethodState;
   /**
    * Email and password.
    *
-   * Always on today, and deliberately reported anyway: it is the only method
-   * the NATIVE client can use — `POST /api/v1/auth/token` is email/password —
-   * so anyone considering turning it off needs to see that it is load-bearing
-   * for more than the web login form.
+   * `disabled` in every deployment: it exists for the test suites, which set
+   * `TEST_PASSWORD_SIGN_IN=1` with `DEPLOY_ENV=test` (#361). Reported anyway,
+   * because it is also the only grant `POST /api/v1/auth/token` has — a
+   * native client looking at this sees why that endpoint refuses.
    */
   credentials: MethodState;
 }
 
+type Env = Readonly<Record<string, string | undefined>>;
+
+// Both halves, because a provider registered with half a credential pair is
+// exactly the broken button this is here to prevent. An empty string is
+// absent: `GOOGLE_CLIENT_ID=` in a .env sets one.
+const pair = (id: string | undefined, secret: string | undefined): boolean =>
+  Boolean(id) && Boolean(secret);
+
+export function googleConfigured(env: Env = process.env): boolean {
+  return pair(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET);
+}
+
+export function facebookConfigured(env: Env = process.env): boolean {
+  return pair(env.FACEBOOK_CLIENT_ID, env.FACEBOOK_CLIENT_SECRET);
+}
+
 const state = (present: boolean): MethodState => (present ? 'configured' : 'disabled');
 
-export function signInMethods(): SignInMethods {
+export function signInMethods(env: Env = process.env): SignInMethods {
   return {
-    // Both halves, because a provider registered with half a credential pair is
-    // exactly the broken button this is here to prevent.
-    google: state(
-      Boolean(process.env.GOOGLE_CLIENT_ID) && Boolean(process.env.GOOGLE_CLIENT_SECRET),
-    ),
-    microsoft: state(
-      Boolean(process.env.MICROSOFT_CLIENT_ID) && Boolean(process.env.MICROSOFT_CLIENT_SECRET),
-    ),
-    credentials: 'configured',
+    google: state(googleConfigured(env)),
+    facebook: state(facebookConfigured(env)),
+    credentials: state(passwordSignInEnabled(env)),
   };
 }

@@ -28,6 +28,12 @@ import { getClientIp } from '@/lib/security/rate-limit-middleware';
  *
  * ═══ POST /api/auth/callback/credentials IS A BCRYPT ORACLE ═══
  *
+ * Where it exists. Since #361 the credentials provider is registered for the
+ * test suites only (`@/lib/auth/password-sign-in`); in a deployment next-auth
+ * has no such provider and answers this path with a 400, checking nothing.
+ * The throttle below stays, for the test runs that do have it and in case
+ * that ever changes.
+ *
  * `authorize()` burns equal bcrypt time on every failure path, which defeats
  * user ENUMERATION. Nothing defeats BRUTE FORCE: without a limiter an attacker
  * may submit passwords as fast as the server will hash them, forever.

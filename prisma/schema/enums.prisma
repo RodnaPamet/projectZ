@@ -179,7 +179,8 @@ enum AuditActorType {
 /// enum value — so adding it speculatively is a one-way door. If that decision
 /// is revisited, adding it then is a one-line migration.
 
-/// External identity providers a club can federate with.
+/// External identity providers a club could federate with. Retired with
+/// Entra sign-in (#361); dropped with its tables by #443.
 enum IdentityProviderType {
   ENTRA_ID
 }

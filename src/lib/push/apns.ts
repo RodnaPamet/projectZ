@@ -7,8 +7,8 @@ import { sign } from 'node:crypto';
  * ═══ WHY THIS DOES NOT USE fetch ═══
  *
  * APNs is HTTP/2 only, and Node's built-in `fetch` (undici) speaks HTTP/1.1.
- * So the pattern used for Stripe and Microsoft Graph does not transfer — this
- * talks to `node:http2` directly rather than pulling in a dependency for it.
+ * So the fetch-based pattern used for Stripe does not transfer — this talks to
+ * `node:http2` directly rather than pulling in a dependency for it.
  *
  * ═══ THE PROVIDER TOKEN IS CACHED, AND THAT IS NOT AN OPTIMISATION ═══
  *

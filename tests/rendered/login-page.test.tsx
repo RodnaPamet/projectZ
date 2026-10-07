@@ -24,7 +24,7 @@ import { withIntl } from '../helpers/intl';
  */
 jest.mock('next-auth/react', () => ({ signIn: jest.fn() }));
 jest.mock('@/lib/auth/sign-in-methods', () => ({
-  signInMethods: () => ({ google: 'configured', microsoft: 'configured' }),
+  signInMethods: () => ({ google: 'configured', facebook: 'configured', credentials: 'disabled' }),
 }));
 
 const ORIGIN = 'https://app.playerz.bg';
@@ -102,6 +102,38 @@ describe('/login — where the sign-in ends', () => {
     // The error notice, in its own token colour — it used to be a bare <p>
     // in `text-destructive`, a class this theme does not define.
     expect(screen.getByRole('alert')).toHaveClass('text-content-error');
+  });
+
+  it('sends Facebook the same destination as Google', async () => {
+    render(
+      withIntl(await LoginPage({ searchParams: Promise.resolve({ next: '/invite/abc123' }) })),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Facebook/ }));
+
+    expect(signIn).toHaveBeenCalledWith('facebook', { callbackUrl: '/invite/abc123' }, undefined);
+  });
+
+  it('keeps the deep link through a Facebook refusal, so trying again lands there (#361)', async () => {
+    // The sign-in callback refuses through /api/auth/signin, which next-auth
+    // answers with this page, the refusal code and the callback URL from its
+    // cookie — absolute, on this origin. Retrying must not drop the invitation.
+    render(
+      withIntl(
+        await LoginPage({
+          searchParams: Promise.resolve({
+            error: 'FacebookEmailRequired',
+            callbackUrl: `${ORIGIN}/invite/abc123`,
+          }),
+        }),
+      ),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Facebook/ }));
+
+    expect(signIn).toHaveBeenCalledWith(
+      'facebook',
+      { callbackUrl: '/invite/abc123' },
+      { auth_type: 'rerequest' },
+    );
   });
 
   it('is one landmark with one level-one heading', async () => {

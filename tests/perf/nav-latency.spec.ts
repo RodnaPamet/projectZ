@@ -408,7 +408,7 @@ const JOURNEYS: Journey[] = [
 ];
 
 /**
- * After Google or Microsoft hands back, next-auth redirects to `/start`, which
+ * After Google or Facebook hands back, next-auth redirects to `/start`, which
  * redirects again by role (#227). That is a full page load through two hops,
  * and it is the first thing every signed-in session waits for. COLD is a
  * fresh context; WARM is the same context landing a second time, with its

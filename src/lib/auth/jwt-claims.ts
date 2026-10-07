@@ -37,16 +37,6 @@ export interface PlayerzJWT {
    */
   membershipsTruncated: boolean;
   /**
-   * Tenant ids whose Entra group gate this session PASSED at sign-in.
-   *
-   * Only an Entra sign-in can prove directory-group membership, so only that
-   * path writes it; a password, Google or native sign-in carries none, and a
-   * gated club refuses them (OWNER excepted). It is an allow-list on purpose —
-   * see `@/lib/auth/group-gate` for why the deny-list it replaces failed open.
-   * Absent on tokens minted before #250, which reads as "cleared nothing".
-   */
-  groupGateCleared?: string[];
-  /**
    * Snapshot of `User.sessionVersion` when this token was minted.
    *
    * A password change increments the user's counter, and every token carrying

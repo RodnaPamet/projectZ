@@ -36,11 +36,12 @@ export const ROBOTS_DISALLOW = [
 /**
  * Staging (#373) is a full copy of the site on another host. Nothing on it may
  * be indexed, or search results would split between the two hosts: disallow
- * everything, and name no sitemap.
+ * everything, and name no sitemap. A test run (`DEPLOY_ENV=test`, #361) is
+ * answered as production is: the suites exercise the production behaviour.
  */
 export function buildRobots(
   origin: URL,
-  deployEnv: 'production' | 'staging' = 'production',
+  deployEnv: 'production' | 'staging' | 'test' = 'production',
 ): MetadataRoute.Robots {
   if (deployEnv === 'staging') {
     return { rules: [{ userAgent: '*', disallow: '/' }] };

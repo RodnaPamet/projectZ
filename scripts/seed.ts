@@ -231,7 +231,12 @@ async function main() {
     console.log('  ✓ admin@playerz.bg (platform)');
   });
 
-  console.log(`\nSeeded. Password for every account: ${DEV_PASSWORD}`);
+  // Passwords are for test runs only (#361): a server answers them only with
+  // TEST_PASSWORD_SIGN_IN=1 and DEPLOY_ENV=test (src/lib/auth/password-sign-in.ts).
+  console.log(
+    `\nSeeded. Password for every account: ${DEV_PASSWORD}` +
+      `\n(Password sign-in needs TEST_PASSWORD_SIGN_IN=1 and DEPLOY_ENV=test on the server.)`,
+  );
 }
 
 main()

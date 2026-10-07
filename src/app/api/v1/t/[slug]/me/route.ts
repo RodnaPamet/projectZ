@@ -35,8 +35,8 @@ import { getRequestId } from '@/lib/observability/context';
  * been told it was not a member, by the one endpoint it would ask.
  *
  * Since #250 `contextFromRequest` resolves the membership from the database
- * for every tenant route, the Entra group gate included, so this reads its
- * answer from there and fetches only what it adds: names, and when.
+ * for every tenant route, so this reads its answer from there and fetches only
+ * what it adds: names, and when.
  *
  * ═══ tokenStale, AFTER #250 ═══
  *

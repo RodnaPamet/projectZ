@@ -1,10 +1,22 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import AzureADProvider from 'next-auth/providers/azure-ad';
+import FacebookProvider from 'next-auth/providers/facebook';
 import GoogleProvider from 'next-auth/providers/google';
 
+import {
+  FACEBOOK_AUTHORIZATION_URL,
+  FACEBOOK_EMAIL_REQUIRED_REDIRECT,
+  FACEBOOK_SCOPE,
+  FACEBOOK_TOKEN_URL,
+  FACEBOOK_USERINFO_FIELDS,
+  FACEBOOK_USERINFO_URL,
+  facebookPictureFrom,
+  facebookRefreshesAvatar,
+} from '@/lib/auth/facebook';
 import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-claims';
+import { passwordSignInEnabled } from '@/lib/auth/password-sign-in';
 import { createUserSession, newSessionSecret, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
+import { facebookConfigured, googleConfigured } from '@/lib/auth/sign-in-methods';
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -19,8 +31,8 @@ import { logger } from '@/lib/observability/logger';
  * would return zero rows and look exactly like "wrong password".
  */
 // Defined in lib/auth/sessions so that reading it does not pull the whole of
-// authOptions — providers, callbacks, Graph sync — into a bundle. Re-exported
-// because callers expect it here.
+// authOptions — providers and callbacks — into a bundle. Re-exported because
+// callers expect it here.
 export { SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
 
 /**
@@ -86,113 +98,93 @@ export const authOptions: NextAuthOptions = {
    *
    * So: no credentials, no button. `signInMethods()` reports which are live,
    * for the same reason `pushChannels()` exists — "it is off" should be an
-   * observation, not a discovery.
+   * observation, not a discovery. Both read the same predicates.
+   *
+   * ═══ GOOGLE AND FACEBOOK, AND NOTHING ELSE IN A DEPLOYMENT (#361) ═══
+   *
+   * Everyone — players, coaches, club staff, admins — signs in with one of the
+   * two (owner decisions Q15/Q21). Microsoft Entra and its club group sync
+   * (#114) were removed with that decision; the credentials provider below is
+   * registered for the test suites only. The `production-sign-in-providers`
+   * guardrail pins the list a production process builds.
    */
   providers: [
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(googleConfigured()
       ? [
           GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
           }),
         ]
       : []),
 
     /**
-     * Microsoft Entra ID.
+     * Facebook Login. Provider id `facebook`, so the redirect URI registered
+     * with Meta is `${NEXTAUTH_URL}/api/auth/callback/facebook`, exactly.
      *
-     * ═══ THE PROVIDER ID IS `azure-ad`, NOT `microsoft-entra-id` ═══
+     * All three endpoints are overridden: next-auth 4.24 still sends people to
+     * Graph v11.0, retired in 2023 — see `@/lib/auth/facebook`.
      *
-     * next-auth v4 ships this as `providers/azure-ad` with id `azure-ad`.
-     * `microsoft-entra-id` is the Auth.js **v5** name, and it appears in
-     * comments elsewhere in this repo that were written against v5. Anything
-     * keyed on that literal — a provider check, a metric label, a callback URL
-     * — silently never matches, which is the worst kind of wrong: no error,
-     * just a feature that never runs.
-     *
-     * The callback URL is therefore /api/auth/callback/azure-ad, and that is
-     * what goes in the app registration.
-     *
-     * ═══ THE SCOPE BUYS THE OVERAGE PATH, NOT THE CLAIM ═══
-     *
-     * `GroupMember.Read.All` lets us ask Graph for the group list when Entra
-     * omits it for size. It does NOT cause the `groups` claim to be issued —
-     * that is governed by the customer's own app-registration token
-     * configuration. A club that has not configured it gets no claim, and
-     * asking for a broader scope will not change that.
+     * `profile()` is overridden too. next-auth's reads
+     * `profile.picture.data.url` without a guard, and a throw there is
+     * swallowed by next-auth and turns into a silent bounce back to /login.
      */
-    ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
+    ...(facebookConfigured()
       ? [
-          AzureADProvider({
-            clientId: process.env.MICROSOFT_CLIENT_ID,
-            clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-            tenantId: process.env.MICROSOFT_TENANT_ID ?? 'common',
+          FacebookProvider({
+            clientId: process.env.FACEBOOK_CLIENT_ID ?? '',
+            clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? '',
             authorization: {
-              params: {
-                scope:
-                  'openid email profile offline_access https://graph.microsoft.com/GroupMember.Read.All',
-              },
+              url: FACEBOOK_AUTHORIZATION_URL,
+              params: { scope: FACEBOOK_SCOPE },
             },
-
-            /**
-             * ═══ THIS OVERRIDE EXISTS TO REMOVE A GRAPH CALL, NOT TO ADD ONE ═══
-             *
-             * next-auth v4's default `profile()` for this provider fetches the
-             * user's avatar from `graph.microsoft.com/v1.0/me/photos/...` with NO
-             * timeout, NO abort signal, and no catch around the fetch itself — its
-             * only try/catch sits inside the `response.ok` branch, so a rejected
-             * fetch propagates straight out.
-             *
-             * That call runs during the OAuth callback, in `getProfile`, BEFORE the
-             * jwt callback. So every bound in `entra-graph.ts` — the request
-             * timeout, the total budget, the retries — is irrelevant to it. Two
-             * consequences, both verified against the installed package:
-             *
-             *   - if Graph is unreachable, next-auth swallows the rejection and
-             *     returns no profile, and the user is redirected back to /login with
-             *     NO error code. Silently, on every attempt, for as long as the
-             *     outage lasts.
-             *   - if Graph hangs, node's fetch waits on its default headers timeout,
-             *     which is five minutes.
-             *
-             * An avatar is not worth making Microsoft Graph a hard dependency of
-             * authentication. If profile pictures are wanted later they belong in a
-             * background job, where being slow or failing costs nobody a login.
-             */
+            token: FACEBOOK_TOKEN_URL,
+            userinfo: {
+              url: FACEBOOK_USERINFO_URL,
+              params: { fields: FACEBOOK_USERINFO_FIELDS },
+            },
             profile(profile: Record<string, unknown>) {
-              // `email` is absent for some B2B guest accounts; `preferred_username`
-              // carries it there. `upn` is deliberately not used — it is a directory
-              // identifier that is not always routable as an address.
-              const email =
-                (typeof profile.email === 'string' && profile.email) ||
-                (typeof profile.preferred_username === 'string' && profile.preferred_username) ||
-                null;
-
               return {
-                id: String(profile.sub ?? profile.oid ?? ''),
+                id: String(profile.id ?? ''),
                 name: typeof profile.name === 'string' ? profile.name : null,
-                email,
-                image: null,
+                // Absent when the person declined the permission or has no
+                // usable address. The sign-in callback refuses that, and says
+                // why: see FACEBOOK_EMAIL_REQUIRED.
+                email: typeof profile.email === 'string' ? profile.email : null,
+                image: facebookPictureFrom(profile),
               };
             },
           }),
         ]
       : []),
 
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
+    /**
+     * Email and password: the TEST SUITES ONLY (#361).
+     *
+     * Registered when `TEST_PASSWORD_SIGN_IN=1` and `DEPLOY_ENV=test`, which
+     * the E2E, perf and Jest harnesses set; never in a deployment, whatever
+     * the flag says, and a deployment carrying the flag refuses to start. See
+     * `@/lib/auth/password-sign-in`. Unregistered, next-auth answers a POST to
+     * /api/auth/callback/credentials with a 400 and checks nothing.
+     */
+    ...(passwordSignInEnabled()
+      ? [
+          CredentialsProvider({
+            name: 'credentials',
+            credentials: {
+              email: { label: 'Email', type: 'email' },
+              password: { label: 'Password', type: 'password' },
+            },
 
-      async authorize(credentials) {
-        // Shared with the native token endpoint, deliberately. The
-        // enumeration defence (equal bcrypt time on every failure path) lives
-        // in ONE place; two copies is how one of them loses it.
-        return verifyCredentials(credentials?.email, credentials?.password);
-      },
-    }),
+            async authorize(credentials) {
+              // Shared with the native token endpoint, deliberately. The
+              // enumeration defence (equal bcrypt time on every failure path)
+              // lives in ONE place; two copies is how one of them loses it.
+              return verifyCredentials(credentials?.email, credentials?.password);
+            },
+          }),
+        ]
+      : []),
   ],
 
   callbacks: {
@@ -248,7 +240,18 @@ export const authOptions: NextAuthOptions = {
           component: 'auth',
           provider: account.provider,
         });
-        return false;
+        // ═══ NO EMAIL, NO ACCOUNT ═══
+        //
+        // Accounts are found by email, so a sign-in without one has nothing to
+        // sign into, and an account created without one could never be found
+        // again: the next sign-in would make another. Nothing is written.
+        //
+        // Facebook is the provider that does this in practice — it leaves the
+        // address out when the person unticked it on the consent screen, or
+        // when the account has none it will share. That person is told so on
+        // the sign-in page, with a button that asks Facebook again and the
+        // Google button beside it, rather than a generic "unavailable".
+        return account.provider === 'facebook' ? FACEBOOK_EMAIL_REQUIRED_REDIRECT : false;
       }
 
       // ═══ AN UNVERIFIED EMAIL IS AN ACCOUNT TAKEOVER ═══
@@ -268,6 +271,22 @@ export const authOptions: NextAuthOptions = {
         });
         return false;
       }
+
+      // ═══ FACEBOOK SENDS NO email_verified, SO THERE IS NOTHING TO CHECK ═══
+      //
+      // Graph's `/me` carries the address and no claim about it. Meta documents
+      // only that `email` "will not be returned if no valid email address is
+      // available". Linking by it relies on Facebook releasing an address only
+      // once its owner has confirmed it with Facebook — so a present address is
+      // taken as proved, the standard `email_verified: true` sets for Google.
+      //
+      // That is TRUST in Meta, not a check made here, and it is the trade #361
+      // accepted: were Facebook ever to release an unconfirmed address, its
+      // holder would be linked to the existing account with that address. Not
+      // linking Facebook to existing accounts would close that, and would break
+      // what `scripts/onboard-club.ts` tells every club owner — that the account
+      // made for them is "linked when they first sign in with Google or
+      // Facebook as this address".
 
       // Upsert, not find-then-create: two tabs racing a first sign-in would
       // otherwise both miss and one would die on the unique constraint.
@@ -295,9 +314,35 @@ export const authOptions: NextAuthOptions = {
             accountKind: null,
           },
           update: {},
-          select: { id: true },
+          select: { id: true, avatarUrl: true },
         }),
       );
+
+      // ═══ A FACEBOOK PICTURE IS RE-READ AT EVERY FACEBOOK SIGN-IN ═══
+      //
+      // `update: {}` keeps what the account's first sign-in wrote, and a
+      // Facebook picture cannot be kept like that: it is a signed URL that
+      // expires (`@/lib/auth/facebook`). So a Facebook sign-in replaces a
+      // stored Facebook picture, or nothing, with the one it just brought —
+      // never a picture from anywhere else. Between sign-ins an expired one
+      // fails to load, and `InitialsAvatar` shows the initials underneath.
+      //
+      // Contained: an avatar is not worth failing a sign-in over.
+      if (account.provider === 'facebook') {
+        const fresh = typeof user.image === 'string' ? user.image : null;
+        if (fresh !== row.avatarUrl && facebookRefreshesAvatar(row.avatarUrl)) {
+          try {
+            await runAsSuperuser((db) =>
+              db.user.update({ where: { id: row.id }, data: { avatarUrl: fresh } }),
+            );
+          } catch (error) {
+            logger.warn('facebook sign-in: the picture was not refreshed', {
+              component: 'auth',
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      }
 
       // The rest of the chain reads this object: `token.sub`, the membership
       // lookup, and the user_session foreign key all come from it.
@@ -306,7 +351,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async jwt({ token, user, account, profile, trigger }) {
+    async jwt({ token, user, trigger }) {
       if (user?.id) {
         const rows = await runAsSuperuser((db) =>
           db.tenantMembership.findMany({
@@ -316,189 +361,9 @@ export const authOptions: NextAuthOptions = {
           }),
         );
 
-        let all: MembershipClaim[] = membershipClaimsFrom(rows);
-
-        // ═══ ENTRA GROUP SYNC ═══
-        //
-        // Only on an Entra sign-in. Gating on the provider matters: without
-        // it, a Google or password sign-in would also reach for Microsoft
-        // Graph, making Graph availability a dependency of logins that have
-        // nothing to do with Microsoft.
-        //
-        // The provider id is `azure-ad` because this is next-auth v4.
-        // `microsoft-entra-id` is the Auth.js v5 name and appears in older
-        // comments in this repo; a check against that literal would never
-        // match and the whole feature would silently never run.
-        if (account?.provider === 'azure-ad' && all.length > 0) {
-          // ═══ EVERYTHING HERE IS CONTAINED ═══
-          //
-          // Role sync is advisory: it decides what role you hold, never
-          // whether you may sign in. Letting a Prisma error, a Graph hiccup or
-          // a bad config row escape into this callback would fail the LOGIN —
-          // turning an optional convenience into a hard dependency, and
-          // producing a blank redirect back to /login with no explanation.
-          //
-          // The failure mode on catch is "you signed in with the role you
-          // already had", which is exactly the state the user was in a moment
-          // ago.
-          try {
-            const { syncEntraMembershipRole } = await import('@/lib/auth/entra-group-sync');
-
-            // Which of this user's clubs actually federate with Entra?
-            //
-            // Derived from PROVIDER rows, not from mappings. Deriving it from
-            // mappings meant a gated club with zero mappings was never
-            // evaluated at all — the gate silently stopped applying at the
-            // moment somebody deleted the last mapping.
-            const configured = await runAsSuperuser((db) =>
-              db.tenantIdentityProvider.findMany({
-                where: {
-                  tenantId: { in: all.map((m) => m.tenantId) },
-                  type: 'ENTRA_ID',
-                  enabled: true,
-                },
-                select: { tenantId: true },
-                orderBy: { tenantId: 'asc' },
-                take: 50,
-              }),
-            );
-
-            // Graph is consulted only if some club will actually use the
-            // answer. Resolving claims first meant a user whose clubs do not
-            // federate still paid for a paginated, retrying Graph fetch whose
-            // result was then discarded.
-            if (configured.length > 0) {
-              const { resolveEntraGroupClaims } = await import('@/lib/auth/entra-group-claims');
-
-              const claims = await resolveEntraGroupClaims({
-                profile,
-                accessToken: account.access_token,
-              });
-
-              const denied = new Set<string>();
-              let anyChanged = false;
-
-              for (const { tenantId } of configured) {
-                const result = await runAsSuperuser((db) =>
-                  syncEntraMembershipRole(db, { userId: user.id, tenantId, claims }),
-                );
-                if (result.gateDenied) denied.add(tenantId);
-                if (result.changed) anyChanged = true;
-              }
-
-              // A role was written, so the rows read a moment ago are stale.
-              // Minting the token from them would hand the user their OLD role
-              // for the whole session — the promotion would appear to have
-              // done nothing.
-              if (anyChanged) {
-                const fresh = await runAsSuperuser((db) =>
-                  db.tenantMembership.findMany({
-                    where: { userId: user.id, status: 'ACTIVE' },
-                    include: { tenant: { select: { id: true, slug: true } } },
-                    orderBy: { createdAt: 'asc' },
-                  }),
-                );
-                all = membershipClaimsFrom(fresh);
-              }
-
-              // The gate denies ACCESS. The database row is untouched — the
-              // person is still a member, they simply hold no session for it —
-              // so the decision has to travel with the session.
-              //
-              // It used to travel ONLY as an absence: the club dropped from the
-              // claim list, which the edge read as "not a member". Since #250
-              // an absent claim is resolved against the database, which would
-              // say "member". So what this sign-in PROVED is written down as
-              // well, and `groupGateAdmits` refuses a gated club that is not
-              // on it — see `@/lib/auth/group-gate`. Dropping the claim is kept
-              // for the list's other readers: the edge's fast path and the UI.
-              if (denied.size > 0) {
-                all = all.filter((m) => !denied.has(m.tenantId));
-              }
-
-              token.groupGateCleared = configured
-                .map((c) => c.tenantId)
-                .filter((tenantId) => !denied.has(tenantId));
-
-              token.aadGroupsOverage = claims.overage;
-            }
-          } catch (error) {
-            // "Signing in with existing roles" includes the clubs the gate
-            // would have refused: the filter above never ran, so every club
-            // stays in the list, and before #250 that list WAS the access.
-            // Recorded as cleared so the outage behaves exactly as it did —
-            // a Graph failure is not allowed to become a lockout here, which
-            // is this block's whole stated purpose. Changing that is a
-            // decision about the gate, not a side effect of moving it.
-            token.groupGateCleared = all.map((m) => m.tenantId);
-
-            logger.error('Entra group sync failed; signing in with existing roles', {
-              userId: user.id,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        } else if (all.length > 0) {
-          // ═══ THE GATE MUST NOT BE BYPASSABLE BY CHOOSING ANOTHER BUTTON ═══
-          //
-          // `enforceGroupGate` says "you must be in a mapped Entra group to
-          // reach this club". Evaluating it only on the Entra path made it
-          // trivially avoidable: sign in with a password, or with Google, and
-          // the gate never runs. A club that switched it on believed access
-          // was restricted, and it was not — which is worse than not having
-          // the control, because somebody is relying on it.
-          //
-          // So at a gated club, a sign-in that cannot prove group membership
-          // does not get that club. There is no way to prove it here: the
-          // group claim only exists on an Entra token.
-          //
-          // OWNER is exempt, for the same reason it is exempt in the sync — a
-          // configuration mistake must not leave a club with nobody able to
-          // get in and correct it.
-          //
-          // Since #250 this filter shapes the claim list only. The refusal
-          // itself is `groupGateAdmits`, on every request: this path writes
-          // no `groupGateCleared`, so every gated club refuses this session
-          // whatever the list says — including a club it joins after signing
-          // in, which this filter never saw.
-          try {
-            const { readGroupGateFlag } = await import('@/app-layer/schemas/entra-provider');
-
-            const gated = await runAsSuperuser((db) =>
-              db.tenantIdentityProvider.findMany({
-                where: {
-                  tenantId: { in: all.map((m) => m.tenantId) },
-                  type: 'ENTRA_ID',
-                  enabled: true,
-                },
-                select: { tenantId: true, configJson: true },
-                orderBy: { tenantId: 'asc' },
-                take: 50,
-              }),
-            );
-
-            const enforcing = new Set(
-              gated.filter((g) => readGroupGateFlag(g.configJson)).map((g) => g.tenantId),
-            );
-
-            if (enforcing.size > 0) {
-              all = all.filter((m) => m.role === 'OWNER' || !enforcing.has(m.tenantId));
-            }
-          } catch (error) {
-            // Contained like the branch above. Before #250 a failure here
-            // meant the gate was NOT applied for this session, because this
-            // filter was the gate. It is not any more: the claim list keeps a
-            // gated club, and `groupGateAdmits` still refuses it per request,
-            // reading the flag with `readGroupGateFlag`, which one bad config
-            // row cannot turn off. So this now costs a stale list, not the
-            // gate. Logged all the same.
-            logger.error('Entra group gate check failed; claim list left unfiltered', {
-              userId: user.id,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
-
-        const { memberships, membershipsTruncated } = buildMembershipClaims(all);
+        const { memberships, membershipsTruncated } = buildMembershipClaims(
+          membershipClaimsFrom(rows),
+        );
 
         token.sub = user.id;
         token.memberships = memberships;

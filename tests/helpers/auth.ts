@@ -27,7 +27,7 @@ export async function signInAs(
   input: {
     userId: string;
     memberships: Array<{ tenantId: string; tenantSlug: string; role: string }>;
-    /** Any other claim the sign-in would have written, e.g. `groupGateCleared`. */
+    /** Any other claim the sign-in would have written. */
     claims?: Record<string, unknown>;
   },
 ): Promise<TestIdentity> {

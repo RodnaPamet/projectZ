@@ -80,10 +80,7 @@ async function handler(
     });
   }
 
-  const standing = await resolvePlayerTenant(ctx.userId, slug, {
-    createIfAbsent: false,
-    groupGateCleared: ctx.groupGateCleared,
-  });
+  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: false });
   if (!standing) throw new NotFoundError('Booking not found');
 
   const tenantCtx = { ...ctx, tenantId: standing.tenantId };

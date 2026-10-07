@@ -157,8 +157,13 @@
     "title": "Sign in",
     "subtitle": "Sign in to book a court.",
     "withGoogle": "Sign in with Google",
-    "withMicrosoft": "Sign in with Microsoft",
-    "invalid": "Wrong email or password.",
+    "withFacebook": "Log in with Facebook",
+    "facebookEmail": {
+      "title": "Facebook did not share your email address",
+      "body": "A playerz.bg account is tied to an email address, so you cannot sign in without one. Try again, and this time allow access to your email.",
+      "googleHint": "If your Facebook account has no email address, sign in with Google instead.",
+      "retry": "Try again with Facebook"
+    },
     "unavailable": "Sign-in is temporarily unavailable.",
     "noProviders": "Sign-in is not configured. Please contact an administrator.",
     "metaTitle": "Sign in — playerz.bg"
@@ -1026,11 +1031,11 @@
     "refusal": {
       "SEPARATE_ACCOUNT_REQUIRED": {
         "title": "Accept this with a separate account",
-        "description": "You are signed in with a player or coach account, and running a club takes an account of its own. Sign out, sign in with a different Google or Microsoft account, and open this link again."
+        "description": "You are signed in with a player or coach account, and running a club takes an account of its own. Sign out, sign in with a different Google or Facebook account, and open this link again."
       },
       "CLUB_ACCOUNT_TAKEN": {
         "title": "Your club account already belongs to a club",
-        "description": "A club account belongs to one club. To help run this one as well, accept with a separate account: sign out, sign in with a different Google or Microsoft account, and open this link again."
+        "description": "A club account belongs to one club. To help run this one as well, accept with a separate account: sign out, sign in with a different Google or Facebook account, and open this link again."
       },
       "PLAYER_ACCOUNT_REQUIRED": {
         "title": "Accept this with your player account",

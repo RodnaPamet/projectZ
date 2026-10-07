@@ -317,16 +317,17 @@ the spec is invalid, the owner is refused, or a change needs `--update`.
 The script creates the owner's account with **no password**, marked as a club
 account and owner of this club. The account waits for them.
 
-The first time they sign in **with Google** (or Facebook, once #361 ships)
-using that **same email address**, sign-in matches the existing account by
-email and they land in their club's admin. Nothing needs to be sent to them.
-Tell them:
+The first time they sign in **with Google or Facebook** (#361) using that
+**same email address**, sign-in matches the existing account by email and they
+land in their club's admin. Nothing needs to be sent to them. Tell them:
 
-- "Sign in at playerz.bg with Google, using _owner@…_."
+- "Sign in at playerz.bg with Google or Facebook, using _owner@…_."
 - The address must be exactly the email of the Google account (a Gmail
   address, or a Google Workspace address on a verified domain; Google sign-in
-  refuses an unverified email). For Facebook, it is the email on the Facebook
-  account, and a Facebook account with no email cannot be matched.
+  refuses an unverified email), or the email on the Facebook account. Facebook
+  has to be allowed to share it: a person who unticks "email" on Facebook's
+  screen is told so and asked again, and a Facebook account with no email
+  address cannot be matched at all — they use Google.
 
 If they sign in with a different address, they get a new, separate account
 that is **not** the club's. Fix it by re-running the spec with the right

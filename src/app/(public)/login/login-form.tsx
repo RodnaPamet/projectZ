@@ -5,52 +5,74 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+// By module path, not the `icons` barrel: the barrel re-exports every brand
+// mark in the directory, and the sign-in page needs two.
+import { Facebook } from '@/components/ui/icons/facebook';
+import { Google } from '@/components/ui/icons/google';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
+import { FACEBOOK_EMAIL_REQUIRED, FACEBOOK_REREQUEST } from '@/lib/auth/facebook';
+
+type Provider = 'google' | 'facebook';
 
 /**
- * Sign-in, on the web, is Google or Microsoft.
+ * Sign-in, on the web, is Google or Facebook (#361, Q15/Q21).
  *
- * ═══ WHY THE EMAIL/PASSWORD FORM IS GONE ═══
+ * ═══ WHY THERE IS NO EMAIL/PASSWORD FORM ═══
  *
- * Owner's decision: the web offers federated sign-in only. Fewer passwords for
- * this app to hold, and account recovery, MFA and revocation become the
- * identity provider's problem rather than ours.
- *
- * The credentials PROVIDER is still registered in `src/auth.ts`, deliberately.
- * It is what `POST /api/v1/auth/token` uses, and that is the native client's
- * only way in until the iOS app has an ASWebAuthenticationSession flow (#167).
- * Removing the provider would break the app; removing the FORM does not.
- *
- * So `?error=CredentialsSignin` is still mapped below. Nothing on this page can
- * produce it any more, but the endpoint that can is still live, and a stray
- * code rendered raw is worse than one line of dead mapping.
+ * Owner's decision: everyone — players, coaches, club staff, admins — signs in
+ * with Google or Facebook. Fewer passwords for this app to hold, and account
+ * recovery, MFA and revocation are the identity provider's problem rather than
+ * ours. Email and password survive for the test suites only, which sign in
+ * programmatically and never through this page (`@/lib/auth/password-sign-in`).
  *
  * ═══ WHY A BUTTON CAN BE ABSENT ═══
  *
  * `src/auth.ts` registers a provider only when its credentials are present, so
  * an unconfigured provider has no route to send anyone to. The page decides
  * which buttons exist; this component only renders them.
+ *
+ * ═══ THE BUTTONS FOLLOW EACH PROVIDER'S OWN RULES ═══
+ *
+ * Meta's Login button guidelines: the unmodified "f" logo in Facebook blue
+ * #1877F2, a white (or, where blue cannot be, black-and-white) button, the
+ * call to action inside it, "Log in with Facebook" — "Вход с Facebook". Meta's
+ * logo rules put the digital minimum at 16px wide, and the button ladder sizes
+ * icons at 15px, so both marks are raised to 16px here. Google's rules ask for
+ * its "G" on the same neutral button, so both providers look like what they
+ * are and neither is styled as this app's own primary action.
+ *
+ * ═══ NO EMAIL FROM FACEBOOK ═══
+ *
+ * `?error=FacebookEmailRequired` is the sign-in callback's refusal when
+ * Facebook sent no address (`src/auth.ts`). It is explained in words, and the
+ * Facebook button becomes "try again" — which asks Meta to show the declined
+ * permission again (`auth_type=rerequest`); without that the dialog does not
+ * offer it a second time. Google stays beside it for an account that has no
+ * address to give. Every other code gets the one generic message, so a raw
+ * next-auth code never reaches the screen.
  */
 export function LoginForm({
   error,
   callbackUrl,
   google,
-  microsoft,
+  facebook,
 }: {
   error: string | null;
   callbackUrl: string;
   google: boolean;
-  microsoft: boolean;
+  facebook: boolean;
 }) {
   const t = useTranslations('login');
-  const [pending, setPending] = useState<string | null>(null);
+  const [pending, setPending] = useState<Provider | null>(null);
 
-  const message = error ? (error === 'CredentialsSignin' ? t('invalid') : t('unavailable')) : null;
+  // Only while Facebook is still on offer: the explanation ends in "try again".
+  const facebookNoEmail = facebook && error === FACEBOOK_EMAIL_REQUIRED;
+  const message = error && !facebookNoEmail ? t('unavailable') : null;
 
-  function start(provider: 'google' | 'azure-ad') {
+  function start(provider: Provider, authorizationParams?: Record<string, string>) {
     setPending(provider);
-    void signIn(provider, { callbackUrl });
+    void signIn(provider, { callbackUrl }, authorizationParams);
   }
 
   return (
@@ -68,12 +90,24 @@ export function LoginForm({
           message is still announced the moment it renders. */}
       {message ? <InlineNotice variant="error">{message}</InlineNotice> : null}
 
+      {facebookNoEmail ? (
+        <InlineNotice
+          variant="error"
+          title={t('facebookEmail.title')}
+          data-testid="login-facebook-email-required"
+        >
+          <p>{t('facebookEmail.body')}</p>
+          {google ? <p className="mt-1">{t('facebookEmail.googleHint')}</p> : null}
+        </InlineNotice>
+      ) : null}
+
       <div className="space-y-3">
         {google ? (
           <Button
             type="button"
             variant="secondary"
-            className="w-full"
+            className="w-full [&_svg]:size-4"
+            icon={<Google />}
             loading={pending === 'google'}
             disabled={pending !== null}
             onClick={() => start('google')}
@@ -81,22 +115,24 @@ export function LoginForm({
           />
         ) : null}
 
-        {microsoft ? (
+        {facebook ? (
           <Button
             type="button"
             variant="secondary"
-            className="w-full"
-            loading={pending === 'azure-ad'}
+            className="w-full [&_svg]:size-4"
+            icon={<Facebook fill="#1877F2" />}
+            loading={pending === 'facebook'}
             disabled={pending !== null}
-            // `azure-ad`, not `microsoft-entra-id`. That is next-auth v4's id
-            // for this provider and the callback URL registered in Azure is
-            // /api/auth/callback/azure-ad. The v5 name would 404 here.
-            onClick={() => start('azure-ad')}
-            text={t('withMicrosoft')}
+            // The provider id is `facebook`: next-auth builds the redirect URI
+            // Meta checks from it, /api/auth/callback/facebook.
+            onClick={() =>
+              facebookNoEmail ? start('facebook', FACEBOOK_REREQUEST) : start('facebook')
+            }
+            text={facebookNoEmail ? t('facebookEmail.retry') : t('withFacebook')}
           />
         ) : null}
 
-        {!google && !microsoft ? (
+        {!google && !facebook ? (
           // Better than an empty card. This is a deployment that registered no
           // identity provider, and saying so beats leaving the user to wonder
           // where the buttons went.

@@ -62,10 +62,6 @@
       "description": "Centrifugo connection tokens and channel authorisation."
     },
     {
-      "name": "SSO",
-      "description": "Microsoft Entra group → role mapping, administered per club."
-    },
-    {
       "name": "Tenant",
       "description": "Who the caller is inside one club: membership, role, permissions."
     },
@@ -82,9 +78,9 @@
     "/auth/token": {
       "post": {
         "operationId": "authSignIn",
-        "summary": "Sign in with email and password (native)",
+        "summary": "Sign in with email and password (test runs only)",
         "tags": ["Auth"],
-        "description": "Exchanges email + password for an access/refresh token pair. This is the native-client equivalent of the web credentials sign-in; both share one throttle bucket keyed `login:<ip>` (10 attempts / 15 min, 15 min lockout), so attempts here draw down the same allowance as the web form — and a SUCCESSFUL sign-in still consumes one attempt (the bucket is never reset).\n\nThe throttle runs BEFORE the body is parsed, so a 429 tells you nothing about the credentials.\n\nThere is no validation error on this endpoint: a missing, malformed or non-JSON body leaves email/password undefined, which falls through to the same opaque 401 as a wrong password. The 401 is deliberately identical for \"no such account\" and \"wrong password\" (and the server burns equal bcrypt time on both), so a client must not try to distinguish them.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
+        "description": "**Has no grant in production or staging (#361).** Everyone signs in with Google or Facebook; email + password exists for the test suites only (`TEST_PASSWORD_SIGN_IN=1` with `DEPLOY_ENV=test`). In every deployment this endpoint answers `403 PASSWORD_SIGN_IN_DISABLED` to every request, before the throttle and before reading the body. The native client's way in will be a Google or Facebook token exchange (#444); until then there is none.\n\nIn a test run: exchanges email + password for an access/refresh token pair. This is the native-client equivalent of the web credentials sign-in; both share one throttle bucket keyed `login:<ip>` (10 attempts / 15 min, 15 min lockout), so attempts here draw down the same allowance as the web form — and a SUCCESSFUL sign-in still consumes one attempt (the bucket is never reset).\n\nThe throttle runs BEFORE the body is parsed, so a 429 tells you nothing about the credentials.\n\nThere is no validation error on this endpoint: a missing, malformed or non-JSON body leaves email/password undefined, which falls through to the same opaque 401 as a wrong password. The 401 is deliberately identical for \"no such account\" and \"wrong password\" (and the server burns equal bcrypt time on both), so a client must not try to distinguish them.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -123,6 +119,16 @@
           },
           "401": {
             "description": "`INVALID_CREDENTIALS` — wrong password, unknown account, or a missing/unparseable body. One message for all cases, by design. NOTE: this body is written inline by the handler and carries NO `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PASSWORD_SIGN_IN_DISABLED` — every request, in production and on staging (#361): password sign-in exists for the test suites only, and this endpoint has no other grant yet (#444). Written inline before anything else runs: no throttle is drawn, the body is not read, and the body carries NO `requestId`. Not retryable; there is nothing to fix on the client side.",
             "content": {
               "application/json": {
                 "schema": {
@@ -830,7 +836,7 @@
       "get": {
         "operationId": "listBookings",
         "summary": "List my bookings at this club",
-        "description": "The caller's OWN bookings at `{slug}`, newest first (ordered by `startTs` descending, then `id` descending).\n\nOwnership is enforced in the SQL `WHERE` clause (`bookedByUserId = ctx.userId`), not filtered after the read. Staff permissions do NOT widen this route — `bookings.view_all` has no effect here; a club admin wanting every booking needs a different route.\n\nPagination is KEYSET, not offset. `nextCursor` is the `id` of the last item on the page; pass it back verbatim as `cursor` and never parse it. `nextCursor` is `null` on the last page.\n\nResponse is WRAPPED twice: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nThis route is NOT rate-limited (the wrapper only limits POST/PUT/PATCH/DELETE), so there is no 429 here.\n\nA caller who holds NO membership at `{slug}` gets **200 with an empty list**, not a 403 — whether you belong to a club is not something this endpoint should confirm, and the answer is identical to that of a member with no bookings. Listing never creates a membership.\n\nMembership is resolved against the DATABASE, not the session token. A native token carries no membership list at all, and a web token only the clubs it was signed in with, so a player who joined a club since — by booking there — still sees their bookings at it. A club that is not ACTIVE, or whose Entra group gate this session has not cleared, lists nothing, the same as a club you do not belong to.",
+        "description": "The caller's OWN bookings at `{slug}`, newest first (ordered by `startTs` descending, then `id` descending).\n\nOwnership is enforced in the SQL `WHERE` clause (`bookedByUserId = ctx.userId`), not filtered after the read. Staff permissions do NOT widen this route — `bookings.view_all` has no effect here; a club admin wanting every booking needs a different route.\n\nPagination is KEYSET, not offset. `nextCursor` is the `id` of the last item on the page; pass it back verbatim as `cursor` and never parse it. `nextCursor` is `null` on the last page.\n\nResponse is WRAPPED twice: `{\"data\":{\"items\":[...],\"nextCursor\":...}}`.\n\nThis route is NOT rate-limited (the wrapper only limits POST/PUT/PATCH/DELETE), so there is no 429 here.\n\nA caller who holds NO membership at `{slug}` gets **200 with an empty list**, not a 403 — whether you belong to a club is not something this endpoint should confirm, and the answer is identical to that of a member with no bookings. Listing never creates a membership.\n\nMembership is resolved against the DATABASE, not the session token. A native token carries no membership list at all, and a web token only the clubs it was signed in with, so a player who joined a club since — by booking there — still sees their bookings at it. A club that is not ACTIVE lists nothing, the same as a club you do not belong to.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -919,7 +925,7 @@
       "post": {
         "operationId": "createBooking",
         "summary": "Create a booking (confirmed at once, paid at the club)",
-        "description": "Creates a booking that is **CONFIRMED at once and paid at the club** (#354, the Sofia pilot): `status` is `CONFIRMED`, `expiresAt` is `null`, and there is nothing to pay in the app — do NOT call checkout, which answers 409 `ONLINE_PAYMENT_DISABLED`. `cancellableUntil` says until when the player may cancel it themselves.\n\nOnly at a club that takes payment online (`VenueOrg.onlinePaymentEnabled`, off for every pilot club and not settable from the app) is the booking instead a PENDING hold for 15 minutes (`expiresAt`) that `POST /t/{slug}/bookings/{id}/checkout` confirms. Branch on `status`, not on an assumption.\n\n**Three no-shows in 90 days block online booking at that club** until its staff lift the block: `403 NO_SHOW_BLOCKED`, with `error.message` in the caller's own language telling them to contact the club. Checked after the idempotent replay, so a retry of a booking made before the block still returns it.\n\n**Each club caps a player's upcoming ONLINE bookings there** (#380; `VenueOrg.maxUpcomingOnlineBookings`, default 3, 1–50, set by the club). A new booking that would exceed it is `409 BOOKING_LIMIT_REACHED` with `details.limit` and `details.upcoming`. Counted: this caller's CONFIRMED (and unexpired PENDING) bookings at this club, made online, whose start is still in the future. Bookings the club made at the desk and recurring series never count, and a booking that has started no longer does. Cancelling one frees a place. Checked after the idempotent replay, so a retry of a booking already made still returns it with 200; parallel requests from one player are serialised, so a burst cannot exceed the cap.\n\n**The start must be in the future.** A span that has already started is 400 `SLOT_NOT_BOOKABLE`.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, a start that is not on a whole minute, or an ambiguous wall-clock time on a DST fall-back day) and which retrying unchanged can never fix.\n\n**Booking needs a PLAYER account (#263).** One account is one kind — a player, a club account (one club), or a coach — and booking a court is playing. A club or coach account, or one still waiting for a decision about its kind, is refused with `403 PLAYER_ACCOUNT_REQUIRED` at every slug alike, its own club included: an owner who wants to play books with their player account. The check is on the CALLER, made before the club is looked up, so it says nothing about which clubs exist. `error.message` is already in the caller's own language (their stored `User.locale`); switch on `error.code`.\n\n**Any signed-in player may book at any ACTIVE club — no invitation needed.** If the caller holds no membership at `{slug}`, an ACTIVE `PLAYER` membership is created as part of the booking: you booked a court here, so you are a player here. An EXISTING membership is never modified, so a club OWNER booking their own court is not demoted.\n\nA club that is not ACTIVE, a caller whose membership is SUSPENDED, and a club whose Entra group gate this session has not cleared (a gated club is not joinable by booking) all get the same **404** as an unknown court. Distinguishing them would turn this endpoint into a probe for other clubs, and a suspended member must not be able to undo a moderation decision by booking a court.",
+        "description": "Creates a booking that is **CONFIRMED at once and paid at the club** (#354, the Sofia pilot): `status` is `CONFIRMED`, `expiresAt` is `null`, and there is nothing to pay in the app — do NOT call checkout, which answers 409 `ONLINE_PAYMENT_DISABLED`. `cancellableUntil` says until when the player may cancel it themselves.\n\nOnly at a club that takes payment online (`VenueOrg.onlinePaymentEnabled`, off for every pilot club and not settable from the app) is the booking instead a PENDING hold for 15 minutes (`expiresAt`) that `POST /t/{slug}/bookings/{id}/checkout` confirms. Branch on `status`, not on an assumption.\n\n**Three no-shows in 90 days block online booking at that club** until its staff lift the block: `403 NO_SHOW_BLOCKED`, with `error.message` in the caller's own language telling them to contact the club. Checked after the idempotent replay, so a retry of a booking made before the block still returns it.\n\n**Each club caps a player's upcoming ONLINE bookings there** (#380; `VenueOrg.maxUpcomingOnlineBookings`, default 3, 1–50, set by the club). A new booking that would exceed it is `409 BOOKING_LIMIT_REACHED` with `details.limit` and `details.upcoming`. Counted: this caller's CONFIRMED (and unexpired PENDING) bookings at this club, made online, whose start is still in the future. Bookings the club made at the desk and recurring series never count, and a booking that has started no longer does. Cancelling one frees a place. Checked after the idempotent replay, so a retry of a booking already made still returns it with 200; parallel requests from one player are serialised, so a burst cannot exceed the cap.\n\n**The start must be in the future.** A span that has already started is 400 `SLOT_NOT_BOOKABLE`.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, a start that is not on a whole minute, or an ambiguous wall-clock time on a DST fall-back day) and which retrying unchanged can never fix.\n\n**Booking needs a PLAYER account (#263).** One account is one kind — a player, a club account (one club), or a coach — and booking a court is playing. A club or coach account, or one still waiting for a decision about its kind, is refused with `403 PLAYER_ACCOUNT_REQUIRED` at every slug alike, its own club included: an owner who wants to play books with their player account. The check is on the CALLER, made before the club is looked up, so it says nothing about which clubs exist. `error.message` is already in the caller's own language (their stored `User.locale`); switch on `error.code`.\n\n**Any signed-in player may book at any ACTIVE club — no invitation needed.** If the caller holds no membership at `{slug}`, an ACTIVE `PLAYER` membership is created as part of the booking: you booked a court here, so you are a player here. An EXISTING membership is never modified, so a club OWNER booking their own court is not demoted.\n\nA club that is not ACTIVE and a caller whose membership is SUSPENDED both get the same **404** as an unknown court. Distinguishing them would turn this endpoint into a probe for other clubs, and a suspended member must not be able to undo a moderation decision by booking a court.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -1184,7 +1190,7 @@
             }
           },
           "403": {
-            "description": "Code `CANCELLATION_CUTOFF_PASSED` (#354) — the caller is the PLAYER and the venue's cutoff has passed, or the booking has started. `error.message` is in their stored language and tells them to contact the club; the booking is unchanged. Not retryable by the player.\n\nCode `FORBIDDEN`, message `Forbidden`. The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A MEMBER lacking `bookings.cancel` gets the same code with `details.requiredPermission = \"bookings.cancel\"` (from the edge when the token lists the club with that role, with no `requestId`). Cancelling SOMEONE ELSE'S booking is a 404, not a 403.",
+            "description": "Code `CANCELLATION_CUTOFF_PASSED` (#354) — the caller is the PLAYER and the venue's cutoff has passed, or the booking has started. `error.message` is in their stored language and tells them to contact the club; the booking is unchanged. Not retryable by the player.\n\nCode `FORBIDDEN`, message `Forbidden`. The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist: the two are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A MEMBER lacking `bookings.cancel` gets the same code with `details.requiredPermission = \"bookings.cancel\"` (from the edge when the token lists the club with that role, with no `requestId`). Cancelling SOMEONE ELSE'S booking is a 404, not a 403.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1340,7 +1346,7 @@
             }
           },
           "403": {
-            "description": "Code `FORBIDDEN`, message `Forbidden`. The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A MEMBER lacking `bookings.create` gets `details.requiredPermission = \"bookings.create\"`. Paying for someone else's booking is a 404, not a 403.",
+            "description": "Code `FORBIDDEN`, message `Forbidden`. The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist: the two are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A MEMBER lacking `bookings.create` gets `details.requiredPermission = \"bookings.create\"`. Paying for someone else's booking is a 404, not a 403.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1505,7 +1511,7 @@
             }
           },
           "403": {
-            "description": "`FORBIDDEN`, message `Forbidden` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A suspended member is refused the same way: a SUSPENDED membership is not an ACTIVE one. `NO_PROOF_OF_VISIT` — the booking is not the caller's, is not at this club, or is not COMPLETED (including one marked NO_SHOW). Those cases are deliberately indistinguishable.",
+            "description": "`FORBIDDEN`, message `Forbidden` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist: the two are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership. A suspended member is refused the same way: a SUSPENDED membership is not an ACTIVE one. `NO_PROOF_OF_VISIT` — the booking is not the caller's, is not at this club, or is not COMPLETED (including one marked NO_SHOW). Those cases are deliberately indistinguishable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1588,7 +1594,7 @@
         "operationId": "getTenantMe",
         "summary": "Who am I at this club",
         "tags": ["Tenant"],
-        "description": "Resolves the caller's identity **and their membership of the club addressed by `{slug}`**, reading the membership authoritatively from the database rather than from the bearer token's claims — as every tenant route does since #250.\n\n**`tokenStale`.** `true` only when the token LISTS this club with a tenant id or role the database disagrees with: a web session signed in before a promotion or a demotion. That is the one disagreement with a consequence — the edge middleware still refuses, from the listed role, a mutation the new role would allow. It is **not** an error, and the rest of the payload is correct. A native access token lists no clubs, so for the native client it is always `false`: the edge defers every club it does not list to the database, and there is nothing to refresh. (Before #250 it was `true` on every native call, and no refresh could clear it.)\n\n**404, not 403.** When the caller holds no `ACTIVE` membership for this slug the handler answers `404 NOT_FOUND` with the message `Not found.`, deliberately making \"no such club\", \"you are not a member of it\" and \"it is behind an Entra group gate this session has not cleared\" indistinguishable, so the endpoint cannot be used to enumerate tenants. The edge middleware no longer answers 403 for a non-member: it cannot tell one from a member whose token does not list the club.\n\nMemberships whose status is not `ACTIVE` (`INVITED`, `SUSPENDED`, `EXPIRED`) are filtered out and therefore also produce a 404.\n\nRead-only; no rate limit applies (the shared wrapper rate-limits mutating methods only).",
+        "description": "Resolves the caller's identity **and their membership of the club addressed by `{slug}`**, reading the membership authoritatively from the database rather than from the bearer token's claims — as every tenant route does since #250.\n\n**`tokenStale`.** `true` only when the token LISTS this club with a tenant id or role the database disagrees with: a web session signed in before a promotion or a demotion. That is the one disagreement with a consequence — the edge middleware still refuses, from the listed role, a mutation the new role would allow. It is **not** an error, and the rest of the payload is correct. A native access token lists no clubs, so for the native client it is always `false`: the edge defers every club it does not list to the database, and there is nothing to refresh. (Before #250 it was `true` on every native call, and no refresh could clear it.)\n\n**404, not 403.** When the caller holds no `ACTIVE` membership for this slug the handler answers `404 NOT_FOUND` with the message `Not found.`, deliberately making \"no such club\" and \"you are not a member of it\" indistinguishable, so the endpoint cannot be used to enumerate tenants. The edge middleware no longer answers 403 for a non-member: it cannot tell one from a member whose token does not list the club.\n\nMemberships whose status is not `ACTIVE` (`INVITED`, `SUSPENDED`, `EXPIRED`) are filtered out and therefore also produce a 404.\n\nRead-only; no rate limit applies (the shared wrapper rate-limits mutating methods only).",
         "security": [
           {
             "bearerAuth": []
@@ -1642,7 +1648,7 @@
             }
           },
           "404": {
-            "description": "No `ACTIVE` membership for this user at this slug — which also covers \"no such club\" and \"a club behind an Entra group gate this session has not cleared\", deliberately indistinguishable. Code `NOT_FOUND`, message `Not found.`; the body carries no `requestId` (the `x-request-id` response header is still set).",
+            "description": "No `ACTIVE` membership for this user at this slug — which also covers \"no such club\", deliberately indistinguishable. Code `NOT_FOUND`, message `Not found.`; the body carries no `requestId` (the `x-request-id` response header is still set).",
             "headers": {
               "X-API-Version": {
                 "schema": {
@@ -1745,7 +1751,7 @@
             }
           },
           "403": {
-            "description": "Not allowed to manage payouts at this club. Code `FORBIDDEN`, message `Forbidden`. For a MEMBER without `admin.billing_manage` — a `STAFF`, `COACH` or `PLAYER` — `details` is `{\"requiredPermission\": \"admin.billing_manage\"}`; that comes from the edge (no `requestId`) when the token lists the club with that role, and from the route otherwise. For a non-member there are no `details`: The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
+            "description": "Not allowed to manage payouts at this club. Code `FORBIDDEN`, message `Forbidden`. For a MEMBER without `admin.billing_manage` — a `STAFF`, `COACH` or `PLAYER` — `details` is `{\"requiredPermission\": \"admin.billing_manage\"}`; that comes from the edge (no `requestId`) when the token lists the club with that role, and from the route otherwise. For a non-member there are no `details`: The caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist: the two are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1835,465 +1841,6 @@
                 }
               }
             },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/t/{slug}/sso/entra/group-mappings": {
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "description": "The club's tenant slug. A slug the caller holds no ACTIVE membership for is 403 — never 404, because \"no such club\" and \"not a member of it\" must be indistinguishable or this becomes a tenant-enumeration oracle.",
-          "schema": {
-            "type": "string"
-          },
-          "examples": {
-            "club": {
-              "value": "slot-club-sofia"
-            }
-          }
-        }
-      ],
-      "get": {
-        "operationId": "listEntraGroupMappings",
-        "summary": "List Entra group → role mappings",
-        "tags": ["SSO"],
-        "description": "Every Entra security group mapped to a role at this club, ordered by `priority` DESC then `createdAt` ASC.\n\nRequires `sso.manage`, which only OWNER holds (MANAGER deliberately does not: a MANAGER could otherwise map a directory group they administer to MANAGER and mint peers at will).\n\nENFORCEMENT NOTE: the permission table does NOT cover this read — `requiredPermission()` returns null for non-mutating methods — so the permission is checked in the handler (`requireSsoManage`), against the role the database holds at this slug. The list is sensitive not because it holds secrets but because it is reconnaissance: it is a map of which directory groups confer administrative access to this club.\n\nThe response is the `ok()` envelope wrapping a BARE ARRAY (`{\"data\": [ ... ]}`), not the `page()` shape. The underlying query takes at most 200 rows and there is no cursor.\n\nNot rate-limited: the wrapper only rate-limits POST/PUT/PATCH/DELETE.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The club's mappings. May be an empty array.",
-            "headers": {
-              "X-API-Version": {
-                "description": "Contract version marker, set on every wrapped v1 response (currently `2026-04-29`). Informational — the server does not branch on a request version.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EntraGroupMappingListEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No usable session. Code `UNAUTHORIZED`. Produced by the edge middleware for an anonymous caller on any `/api/v1/t/{slug}/**` path, and by the handler (`UnauthorizedError`) when the token verified but its session was revoked — `contextFromRequest` degrades a revoked session to anonymous. The edge variant carries no `requestId`.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Code `FORBIDDEN`, message `Managing SSO group mappings requires the club owner`, from the handler, with a `requestId`. The same answer for a member without `sso.manage` and for a caller with no ACTIVE membership at `slug` — an unknown club, or one behind a group gate this session has not cleared, looks identical.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Code `INTERNAL`, generic message. Database or infrastructure failure; nothing on this path is classified in DOMAIN_ERROR_MAP as a 5xx.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "createEntraGroupMapping",
-        "summary": "Map an Entra group to a role",
-        "tags": ["SSO"],
-        "description": "Create one mapping: everyone in the named Entra security group is granted `role` at this club from their next sign-in, subject to `priority` when several mapped groups match.\n\nRequires `sso.manage` (OWNER only). ROUTE_PERMISSIONS is enforced by the request context against the role the database holds (and at the edge too, when the token lists the club), and again in the handler.\n\nThe write and its audit entry share one transaction, so a mapping cannot exist without its audit record.\n\nDuplicate detection is arbitrated by the `@@unique([tenantId, aadGroupId])` index, not by a read-then-write, so two admins adding the same group concurrently produce exactly one row and one 409.\n\nRate-limited: mutating verbs go through the wrapper's default `API_MUTATION_LIMIT`.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EntraGroupMappingCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created. The body is the `ok()` envelope around the stored row — read `aadGroupId` back from it, since it has been lower-cased. No `Location` header is set.",
-            "headers": {
-              "X-API-Version": {
-                "description": "Contract version marker set on every wrapped v1 response.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EntraGroupMappingEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Code `BAD_REQUEST`. Either the body was not JSON (`Body must be JSON`) or it failed validation (`Invalid group mapping`), in which case `details` is `{\"issues\": [ ... ]}` — the raw Zod issue array, each entry carrying `path`, `code` and `message`.\n\nThis is what `\"role\": \"OWNER\"` returns: the Zod enum rejects it before the use case is reached, so the code is `BAD_REQUEST`, NOT `ROLE_NOT_MAPPABLE`.\n\nCode `ROLE_NOT_MAPPABLE` (also 400) is defined in DOMAIN_ERROR_MAP for `RoleNotMappableError`, thrown by `assertMappable()` in the use case. That guard exists for callers that bypass this schema (seed scripts, jobs, a future admin tool) and is unreachable through this HTTP route today. A generated client should still handle it: it means the role can never be granted by a directory group, so retrying the same body cannot succeed.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No usable session. Code `UNAUTHORIZED`.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Code `FORBIDDEN`, message `Forbidden`. A member without `sso.manage` (OWNER only) gets `details: {\"requiredPermission\": \"sso.manage\"}`; a non-member gets no `details` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Code `DUPLICATE_GROUP_MAPPING` — that Entra group is already mapped at this club (one mapping per group per club; two rows would make the winner depend on scan order). Edit or delete the existing mapping instead. NOTE: if the SQLSTATE cannot be recovered from the driver error, the same collision surfaces with the generic code `CONFLICT`; a client should treat both 409 codes as \"already mapped\".",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Code `RATE_LIMITED`. The mutation budget for this caller/IP is exhausted. The error object carries `code` and `message` only, with no `requestId`; the wait is in the `Retry-After` header.",
-            "headers": {
-              "Retry-After": {
-                "description": "Integer seconds to wait before retrying.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Limit": {
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Remaining": {
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Reset": {
-                "description": "Unix epoch seconds at which the budget resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Code `INTERNAL`, generic message. Database or audit-write failure; the transaction is rolled back, so no mapping is created.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/t/{slug}/sso/entra/group-mappings/{mappingId}": {
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "description": "The club's tenant slug. A slug the caller holds no ACTIVE membership for is 403, never 404.",
-          "schema": {
-            "type": "string"
-          },
-          "examples": {
-            "club": {
-              "value": "slot-club-sofia"
-            }
-          }
-        },
-        {
-          "name": "mappingId",
-          "in": "path",
-          "required": true,
-          "description": "The mapping's `id` as returned by the list or create operation — a cuid, NOT a UUID. The lookup is scoped to the tenant, so an id belonging to another club is 404 `MAPPING_NOT_FOUND`, indistinguishable from an id that never existed.",
-          "schema": {
-            "type": "string"
-          },
-          "examples": {
-            "mapping": {
-              "value": "clz3k9q1p0001s601f8m2h7xa"
-            }
-          }
-        }
-      ],
-      "patch": {
-        "operationId": "updateEntraGroupMapping",
-        "summary": "Update a group mapping",
-        "tags": ["SSO"],
-        "description": "Partially update one mapping. Only `aadGroupName`, `role` and `priority` can change; `aadGroupId` is immutable through this API.\n\nRequires `sso.manage` (OWNER only), enforced by the request context against the role the database holds (and at the edge when the token lists the club), and again in the handler.\n\nThe row is read before it is written so the audit entry can record the BEFORE state (role and priority), not just the new value — an entry that records only what it is now answers a question anyone can answer by looking.\n\nThere is no 409 on this operation: since `aadGroupId` cannot be changed, there is no unique-constraint path to collide on.\n\nRate-limited by the wrapper's default mutation limit.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EntraGroupMappingUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Updated. The body is the `ok()` envelope around the full row after the write, with a refreshed `updatedAt`.",
-            "headers": {
-              "X-API-Version": {
-                "description": "Contract version marker set on every wrapped v1 response.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EntraGroupMappingEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Code `BAD_REQUEST`. The body was not JSON (`Body must be JSON`), or validation failed (`Invalid group mapping`) with `details` = `{\"issues\": [ ... ]}`. Empty objects, bodies whose only keys are unknown (including `aadGroupId`), `\"role\": \"OWNER\"`, a `priority` outside [0, 1000] or non-integer, and an explicit `null` name all land here.\n\nCode `ROLE_NOT_MAPPABLE` (400) is mapped for `RoleNotMappableError` from the use case's `assertMappable()`, but the Zod enum rejects OWNER first, so it is unreachable through this route today.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No usable session. Code `UNAUTHORIZED`.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Code `FORBIDDEN`, message `Forbidden`. A member without `sso.manage` (OWNER only) gets `details: {\"requiredPermission\": \"sso.manage\"}`; a non-member gets no `details` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Code `MAPPING_NOT_FOUND`, message `No such group mapping.` — no mapping with that id exists at this club. The lookup is `findFirst({ id, tenantId })`, so another club's mapping id is reported identically. Authorisation is checked before the lookup, so this cannot be used to probe ids without `sso.manage`.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Code `RATE_LIMITED`. The error object carries `code` and `message` only, with no `requestId`; the wait is in the `Retry-After` header.",
-            "headers": {
-              "Retry-After": {
-                "description": "Integer seconds to wait before retrying.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Limit": {
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Remaining": {
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Reset": {
-                "description": "Unix epoch seconds at which the budget resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Code `INTERNAL`, generic message. Database or audit-write failure.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "deleteEntraGroupMapping",
-        "summary": "Delete a group mapping",
-        "tags": ["SSO"],
-        "description": "Remove one mapping. Everyone whose role came from this group stops being granted it at their next sign-in — a silent mass revocation that tends to present as \"SSO is broken\" rather than as a change somebody made, which is why DELETE is gated exactly as hard as POST and why the audit entry carries the FULL before-state (`aadGroupId`, `aadGroupName`, `role`, `priority`): once the row is gone, that entry is the only remaining evidence the group ever granted anything.\n\nRequires `sso.manage` (OWNER only), enforced by the request context against the role the database holds (and at the edge when the token lists the club), and again in the handler.\n\nNot idempotent in the usual REST sense: a second DELETE of the same id returns 404, not 204.\n\nRate-limited by the wrapper's default mutation limit.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Deleted. NO BODY — `noContent()` returns a bare 204, so there is no envelope to decode. A generated client must not attempt to parse a response body here.",
-            "headers": {
-              "X-API-Version": {
-                "description": "Contract version marker set on every wrapped v1 response, 204 included.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No usable session. Code `UNAUTHORIZED`.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Code `FORBIDDEN`, message `Forbidden`. A member without `sso.manage` (OWNER only) gets `details: {\"requiredPermission\": \"sso.manage\"}`; a non-member gets no `details` — the caller holds no ACTIVE membership at `{slug}` — which is also the answer for a club that does not exist, and for a club whose Entra group gate this session has not cleared: all three are deliberately indistinguishable, so this cannot be used to enumerate tenants. Since #250 this comes from the ROUTE (the request context, before the handler body runs), so it carries a `requestId` and the `x-request-id` header; the edge middleware no longer decides membership.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Code `MAPPING_NOT_FOUND`, message `No such group mapping.` — no mapping with that id exists at this club, or it was already deleted. Another club's mapping id is reported identically.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Code `RATE_LIMITED`. The error object carries `code` and `message` only, with no `requestId`; the wait is in the `Retry-After` header.",
-            "headers": {
-              "Retry-After": {
-                "description": "Integer seconds to wait before retrying.",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Limit": {
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Remaining": {
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "X-RateLimit-Reset": {
-                "description": "Unix epoch seconds at which the budget resets.",
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Code `INTERNAL`, generic message. Database or audit-write failure.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8121,7 +7668,7 @@
           },
           "permissions": {
             "type": "array",
-            "description": "Dotted permission strings derived server-side from `role` at this club. Not an open set in practice, but treat unknown values as opaque strings rather than failing to decode: permissions are added over time. Known values today: admin.venue_manage, admin.staff_manage, admin.pricing_manage, admin.billing_manage, admin.owner_management, admin.tenant_lifecycle, sso.manage, bookings.create, bookings.cancel, bookings.refund, bookings.view_all, courts.manage, availability.manage, coaches.list, coaches.manage_own_calendar, coaches.book, openplay.host, openplay.join, openplay.moderate, players.view, players.credit_adjust, payments.refund, payments.view.",
+            "description": "Dotted permission strings derived server-side from `role` at this club. Not an open set in practice, but treat unknown values as opaque strings rather than failing to decode: permissions are added over time. Known values today: admin.venue_manage, admin.staff_manage, admin.pricing_manage, admin.billing_manage, admin.owner_management, admin.tenant_lifecycle, bookings.create, bookings.cancel, bookings.refund, bookings.view_all, courts.manage, availability.manage, coaches.list, coaches.manage_own_calendar, coaches.book, openplay.host, openplay.join, openplay.moderate, players.view, players.credit_adjust, payments.refund, payments.view.",
             "items": {
               "type": "string"
             },
@@ -8174,138 +7721,6 @@
           "created": {
             "type": "boolean",
             "description": "True when this call created the Stripe connected account; false when it reused an existing one and only minted a new link."
-          }
-        }
-      },
-      "EntraMappableRole": {
-        "type": "string",
-        "enum": ["MANAGER", "COACH", "STAFF", "PLAYER"],
-        "description": "A club role an Entra security group may be mapped to.\n\nOWNER is deliberately absent (ENTRA_MAPPABLE_ROLES in src/app-layer/schemas/entra-group-mapping.ts is `every Role except OWNER`). OWNER carries `admin.tenant_lifecycle` (suspend or close the club) and `admin.owner_management` (change who owns it); a mapping that granted it would make club ownership transferable by editing an Active Directory group, by directory administrators outside this application who have no way of knowing what the role means here.\n\nThe refusal is repeated four times: this Zod enum, `assertMappable` in the use case, the sync's OWNER-immunity check, and a CHECK constraint in migration P27. Sending `\"OWNER\"` to this API is rejected by the Zod enum FIRST, so the response is 400 with code `BAD_REQUEST` (not `ROLE_NOT_MAPPABLE`) — see the 400 response description."
-      },
-      "EntraGroupMapping": {
-        "type": "object",
-        "description": "One Entra group → role mapping, as produced by `toGroupMapping` in src/app/api/v1/_lib/dto.ts. Every property is always present; `aadGroupName` is nullable rather than omitted.",
-        "required": [
-          "id",
-          "aadGroupId",
-          "aadGroupName",
-          "role",
-          "priority",
-          "createdAt",
-          "updatedAt"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Server-generated identifier (Prisma `@default(cuid())`) — a cuid, NOT a UUID. Treat it as an opaque string.",
-            "examples": ["clz3k9q1p0001s601f8m2h7xa"]
-          },
-          "aadGroupId": {
-            "type": "string",
-            "description": "The Entra security-group object id. Always LOWER CASE here: the create schema lower-cases on the way in, so this can differ from the string the client sent (an admin pasting an upper-cased GUID from a portal gets it back lower-cased). Compare case-insensitively, or re-read this value after a write.",
-            "examples": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
-          },
-          "aadGroupName": {
-            "type": ["string", "null"],
-            "description": "Cached Microsoft Graph display name. Cosmetics only — the sync never matches on it, because a group can be renamed in the directory at any time and this copy would then be a lie that looks authoritative. Null when never supplied.",
-            "examples": ["Coaching staff"]
-          },
-          "role": {
-            "$ref": "#/components/schemas/EntraMappableRole"
-          },
-          "priority": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 1000,
-            "description": "Higher wins when a user is in several mapped groups. Admin-set, never derived from role seniority: a club may deliberately want a narrow group to beat a broad one (\"everyone\" → PLAYER at 0, \"coaching staff\" → COACH at 100)."
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "RFC 3339, UTC, with NO fractional seconds (`rfc3339()` strips the milliseconds `toISOString()` emits, because Swift's `.iso8601` decoding strategy rejects them).",
-            "examples": ["2026-09-24T09:00:00Z"]
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "RFC 3339, UTC, no fractional seconds. Maintained by Prisma `@updatedAt`.",
-            "examples": ["2026-09-24T09:00:00Z"]
-          }
-        }
-      },
-      "EntraGroupMappingEnvelope": {
-        "type": "object",
-        "description": "The v1 success envelope around a single mapping: `ok(data)` emits `{\"data\": <T>}`. There is no top-level bare object on any v1 route.",
-        "required": ["data"],
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/EntraGroupMapping"
-          }
-        }
-      },
-      "EntraGroupMappingListEnvelope": {
-        "type": "object",
-        "description": "The list response. NOTE: this route calls `ok(array)`, not `page()` — `data` is a bare ARRAY, with no `items`/`nextCursor` object. Do not generate a paginated decoder for it.",
-        "required": ["data"],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EntraGroupMapping"
-            },
-            "description": "Ordered by `priority` DESC, then `createdAt` ASC. Hard-capped server-side at 200 rows with no cursor and no indication of truncation — deliberate: a club with more mapped groups than that has a configuration problem, not a pagination problem."
-          }
-        }
-      },
-      "EntraGroupMappingCreate": {
-        "type": "object",
-        "description": "Request body for creating a mapping (`EntraGroupMappingCreateSchema`). Unknown properties are stripped, not rejected.",
-        "required": ["aadGroupId", "role"],
-        "properties": {
-          "aadGroupId": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "description": "The Entra security-group OBJECT ID — a GUID, never a display name. Validated with Zod 4 `z.string().uuid()`, which is RFC 9562-strict: the version nibble must be 1–8 and the variant nibble 8/9/a/b (the nil and max UUIDs are also accepted). A display name here would silently never match any `groups` claim and the mapping would look configured while doing nothing, which is why this is validated rather than accepted as free text.\n\nAccepted in any case and STORED LOWER-CASED; the response echoes the lower-cased form.",
-            "examples": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
-          },
-          "aadGroupName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "description": "Optional cached Graph display name. Trimmed first, then length-checked, so a whitespace-only string is a 400. Must be a string or omitted — explicit `null` is rejected (400). Omitted stores null.",
-            "examples": ["Coaching staff"]
-          },
-          "role": {
-            "$ref": "#/components/schemas/EntraMappableRole"
-          },
-          "priority": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 1000,
-            "default": 0,
-            "description": "Optional; defaults to 0. Must be an integer in [0, 1000] — a float or a numeric string is a 400."
-          }
-        }
-      },
-      "EntraGroupMappingUpdate": {
-        "type": "object",
-        "minProperties": 1,
-        "description": "Request body for a partial update (`EntraGroupMappingUpdateSchema`). At least one of the three properties must be present: an empty object is rejected with 400 (\"At least one field must be provided\") rather than returning 200 having changed nothing, because an empty PATCH is a client bug that would otherwise read as success.\n\n`aadGroupId` is NOT updatable — it is absent from the update schema, so unknown keys are stripped and a body containing only `aadGroupId` parses to `{}` and fails the same 400. Re-point a group by deleting the mapping and creating a new one.",
-        "properties": {
-          "aadGroupName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "description": "Trimmed, then length-checked. There is NO way to clear a name back to null through this API: `null` is rejected by the schema, and an omitted property leaves the stored value untouched."
-          },
-          "role": {
-            "$ref": "#/components/schemas/EntraMappableRole"
-          },
-          "priority": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 1000
           }
         }
       },

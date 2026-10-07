@@ -18,9 +18,6 @@ import { runInTenantContext } from '@/lib/db/rls-middleware';
 import { prismaTestClient, resetDatabase, seedTenant } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
 
-/** A session that cleared no Entra group gate — every non-Entra sign-in. */
-const NO_GATE_CLEARED = { groupGateCleared: [] as string[] };
-
 /**
  * WHO RUNS A CLUB, AND THE WAYS THAT CAN GO WRONG.
  *
@@ -122,7 +119,7 @@ describe('admin staff', () => {
     ).rejects.toThrow(LastOwnerError);
 
     // Still an owner, and still able to administer.
-    const ctx = await membershipContext(ownerRow.userId, t.tenantSlug, NO_GATE_CLEARED);
+    const ctx = await membershipContext(ownerRow.userId, t.tenantSlug);
     expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('OWNER');
   });
 
@@ -283,19 +280,17 @@ describe('admin staff', () => {
     const t = await seedTenant({}, db);
     const coach = await member(t.tenantId, 'coach', 'COACH');
 
-    expect((await membershipContext(coach.userId, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe('ok');
+    expect((await membershipContext(coach.userId, t.tenantSlug)).kind).toBe('ok');
 
     await runInTenantContext(t.tenantId, (c) =>
       setMemberSuspended(c, t.tenantId, owner(t.userId), coach.membershipId, true),
     );
-    expect((await membershipContext(coach.userId, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
-      'not-a-member',
-    );
+    expect((await membershipContext(coach.userId, t.tenantSlug)).kind).toBe('not-a-member');
 
     await runInTenantContext(t.tenantId, (c) =>
       setMemberSuspended(c, t.tenantId, owner(t.userId), coach.membershipId, false),
     );
-    expect((await membershipContext(coach.userId, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe('ok');
+    expect((await membershipContext(coach.userId, t.tenantSlug)).kind).toBe('ok');
   });
 
   it('cannot touch a membership at another club', async () => {

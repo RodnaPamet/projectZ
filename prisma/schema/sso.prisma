@@ -1,3 +1,12 @@
+// ═══ RETIRED (#361) — KEPT ONLY UNTIL #443 DROPS IT ═══
+//
+// Microsoft Entra sign-in and the club group sync (#113, #114) were removed by
+// #361: nothing in the application reads or writes these two tables any more.
+// They stay in the schema, with their P27 migration, for one release cycle so
+// that the image before #361 still runs against the database if the release is
+// rolled back. #443 drops both tables, their RLS policies and CHECKs, and the
+// `IdentityProviderType` enum. Do not build on them.
+
 /// A tenant's external identity provider.
 ///
 /// One row per club per provider type. `configJson` carries the provider's own

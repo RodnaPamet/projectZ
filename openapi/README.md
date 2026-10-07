@@ -49,7 +49,6 @@ filter:
     - Payments
     - Payouts
     - Realtime
-    - SSO
     - Tenant
     - Venues
 ```

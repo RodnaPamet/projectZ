@@ -8,6 +8,7 @@ import {
   type NativeTokens,
 } from '@/app/api/v1/_lib/native-token';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
+import { passwordSignInEnabled } from '@/lib/auth/password-sign-in';
 import { createUserSession, newSessionSecret, setRefreshToken } from '@/lib/auth/sessions';
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { checkRateLimit, LOGIN_LIMIT } from '@/lib/security/rate-limit';
@@ -16,7 +17,19 @@ import { getClientIp } from '@/lib/security/rate-limit-middleware';
 /**
  * POST /api/v1/auth/token — sign in from a native client.
  *
- * ═══ THE THROTTLE IS THE FIRST THING, AND SHARES THE WEB'S BUDGET ═══
+ * ═══ ITS ONLY GRANT IS EMAIL + PASSWORD, AND THAT IS FOR TESTS (#361) ═══
+ *
+ * Everyone signs in with Google or Facebook (owner decisions Q15/Q21), and
+ * email+password exists for the test suites only. This endpoint has no other
+ * grant, so in every deployment it refuses everything with 403
+ * `PASSWORD_SIGN_IN_DISABLED` — before the throttle, before reading the body,
+ * and without spending a bcrypt. The native client's way in is a Google or
+ * Facebook token exchange that does not exist yet (#444).
+ *
+ * The integration suites still drive it, with `TEST_PASSWORD_SIGN_IN=1` and
+ * `DEPLOY_ENV=test` (`@/lib/auth/password-sign-in`).
+ *
+ * ═══ THEN THE THROTTLE, BEFORE THE BODY, ON THE WEB'S BUDGET ═══
  *
  * This is the SECOND password endpoint in the app. #95 wired LOGIN_LIMIT to
  * POST /api/auth/callback/credentials, keyed `login:<ip>`.
@@ -41,6 +54,18 @@ import { getClientIp } from '@/lib/security/rate-limit-middleware';
  * keeps the equal-bcrypt-time enumeration defence in one place.
  */
 async function handler(req: NextRequest) {
+  if (!passwordSignInEnabled()) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PASSWORD_SIGN_IN_DISABLED',
+          message: 'Password sign-in is not available. Sign in with Google or Facebook.',
+        },
+      },
+      { status: 403 },
+    );
+  }
+
   const ip = getClientIp(req);
 
   // Before reading the body: an attacker should not get to spend our parsing

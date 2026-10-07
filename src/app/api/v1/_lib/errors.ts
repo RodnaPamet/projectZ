@@ -76,9 +76,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   InvalidChannelIdError: { status: 400, code: 'INVALID_CHANNEL_ID' },
   InvalidCoordinateError: { status: 400, code: 'INVALID_COORDINATES' },
   RangeTooWideError: { status: 400, code: 'RANGE_TOO_WIDE' },
-  // 400: the club asked for a role an Entra group may never grant. Retrying
-  // with the same body cannot succeed.
-  RoleNotMappableError: { status: 400, code: 'ROLE_NOT_MAPPABLE' },
   // 400, not 409. The club never offered that time — outside opening hours,
   // off the step grid, or not a whole number of billable units. Retrying
   // unchanged will never succeed, which is exactly what separates this from
@@ -224,7 +221,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // Only reachable from the platform moderation route, whose caller holds
   // REVIEW_MODERATE — so saying "no such case" discloses nothing to a stranger.
   ModerationCaseNotFoundError: { status: 404, code: 'CASE_NOT_FOUND' },
-  MappingNotFoundError: { status: 404, code: 'MAPPING_NOT_FOUND' },
   WearableNotConnectedError: { status: 404, code: 'WEARABLE_NOT_CONNECTED' },
   // The account a desk booking would link is not one of the club's players —
   // or does not exist. One answer for both: the link is not a probe (#364).
@@ -253,7 +249,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     code: 'SERIES_CLASH',
     details: (e) => ({ clashes: (e as Error & { clashes: unknown }).clashes }),
   },
-  DuplicateGroupMappingError: { status: 409, code: 'DUPLICATE_GROUP_MAPPING' },
   // One review per venue per person. Not "try again" like its neighbours —
   // retrying cannot succeed — but a conflict with a row that exists, which is
   // what 409 says. The client shows the review they already left.
