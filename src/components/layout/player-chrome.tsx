@@ -88,7 +88,10 @@ export const playerChrome = cache(async () => {
   };
 });
 
-function chromeReadFailed(read: 'identity' | 'landing' | 'membership', err: unknown) {
+function chromeReadFailed(
+  read: 'identity' | 'landing' | 'membership' | 'resource-nouns',
+  err: unknown,
+) {
   logger.warn('player chrome read failed; rendering the fallback', {
     component: 'player-chrome',
     read,
@@ -183,9 +186,10 @@ export async function PlayerChrome({
 /**
  * A CLUB account's frame, off its admin: the same `clubShell` its admin layout
  * draws, from the membership `resolveTenantPageContext` reads for that club
- * (request-cached, so the admin layout asking too is one query). `null` when
- * there is no live club to draw: its club suspended or closed, or the
- * membership gone. The account still wears the club frame, with no admin
+ * (request-cached, so the admin layout asking too is one query), with the
+ * courts screen named after what the club plays on (`clubResourceNouns`).
+ * `null` when there is no live club to draw: its club suspended or closed, or
+ * the membership gone. The account still wears the club frame, with no admin
  * pages in it, never a player's.
  */
 async function clubFrame(
@@ -204,7 +208,7 @@ async function clubFrame(
   // club); unreadable, it reads as courts rather than taking the frame down.
   const nouns = await clubResourceNouns(result.ctx.tenantId).catch((err: unknown) => {
     unstable_rethrow(err);
-    chromeReadFailed('membership', err);
+    chromeReadFailed('resource-nouns', err);
     return 'court' as const;
   });
   return clubShell(result.ctx, { platform, t, nouns });
