@@ -19,4 +19,14 @@ describe('harness sanity', () => {
     // failure this guardrail exists to catch.
     expect(() => require('@/lib/does-not-exist-yet')).toThrow(/mapped as:[\s\S]*\/src\//);
   });
+
+  it('resolves @inflect/ui/<path> onto the same src/ module as @/<path>', () => {
+    // Vendored files that upstream left in its src/ import the modules it
+    // moved into its @inflect/ui package by that name (inflect #3046), and
+    // playerz keeps those copies in src/ (scripts/ui-sync/inflect-package.mjs).
+    // Same module, not a second instance: a jest.mock of either specifier
+    // applies to both.
+    expect(require('@inflect/ui/lib/cn')).toBe(require('@/lib/cn'));
+    expect(() => require('@inflect/ui/lib/does-not-exist-yet')).toThrow(/mapped as:[\s\S]*\/src\//);
+  });
 });

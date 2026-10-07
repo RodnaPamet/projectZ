@@ -12,6 +12,7 @@ import {
   sha256,
   strayManifestFiles,
 } from '../../scripts/ui-sync/manifest.mjs';
+import { playerzPath } from '../../scripts/ui-sync/inflect-package.mjs';
 import { checkRows } from '../../scripts/ui-sync/portable-rules.mjs';
 
 /**
@@ -36,7 +37,8 @@ import { checkRows } from '../../scripts/ui-sync/portable-rules.mjs';
  *   - 'pending' and 'vendored' files hash to the recorded sha256;
  *   - every playerz file at a path inflect also has (docs/ui-sync/inflect-paths.txt,
  *     read here because CI has no inflect clone) has a row, so a file copied
- *     by hand cannot pass as playerz's own;
+ *     by hand cannot pass as playerz's own. An inflect path in its @inflect/ui
+ *     package, packages/ui/src/<p>, is the playerz file src/<p>;
  *   - a 'local-diff' row, the only escape hatch, says why and links the
  *     upstream PR or issue that will remove it;
  *   - every 'vendored' file passes check-portable's rules (portable-rules.mjs),
@@ -79,10 +81,13 @@ function tampered(rows: Row[], read: (path: string) => Buffer | null): string[] 
     .map((r) => r.path);
 }
 
-/** Playerz files that sit at an inflect path and have no row. */
+/**
+ * Playerz files that sit at an inflect path and have no row. inflect keeps
+ * packages/ui/src/<p> where playerz keeps src/<p>, so that is the file looked for.
+ */
 function unrowed(inflectPaths: string[], rows: Row[], exists: (path: string) => boolean): string[] {
   const rowed = new Set(rows.map((r) => r.path));
-  return inflectPaths.filter((p) => exists(p) && !rowed.has(p));
+  return [...new Set(inflectPaths.map(playerzPath))].filter((p) => exists(p) && !rowed.has(p));
 }
 
 describe('the manifest is readable, and the scan is not vacuous', () => {
@@ -239,6 +244,16 @@ describe('the checks fire on the defects they exist for', () => {
     expect(
       unrowed(inflectPaths, [row(), row({ path: 'src/components/ui/card.tsx' })], has),
     ).toEqual([]);
+  });
+
+  it('a file inflect moved into packages/ui is looked for at src/, where playerz keeps it', () => {
+    // inflect #3046: the icons now live at packages/ui/src/components/ui/icons/.
+    // Read literally, no playerz file is ever at that path and the check passes
+    // whatever was copied by hand.
+    const moved = ['packages/ui/src/components/ui/icons/copy.tsx'];
+    const has = (p: string) => p === 'src/components/ui/icons/copy.tsx';
+    expect(unrowed(moved, [], has)).toEqual(['src/components/ui/icons/copy.tsx']);
+    expect(unrowed(moved, [row({ path: 'src/components/ui/icons/copy.tsx' })], has)).toEqual([]);
   });
 
   it('a compliance word in a vendored file is caught; in a pending one it is not', () => {

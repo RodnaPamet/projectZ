@@ -23,7 +23,12 @@ const FIXTURE: Record<string, string> = {
     "// import { Commented } from '@/components/ui/commented';",
     'export default function Page() { return [A, Everything, Lazy] as unknown as T; }',
   ].join('\n'),
-  'src/middleware.ts': "import { mw } from '@/components/ui/mw';\nexport const m = mw;",
+  'src/middleware.ts': [
+    "import { mw } from '@/components/ui/mw';",
+    // A vendored file's import of a module upstream moved into its package.
+    "import { moved } from '@inflect/ui/components/ui/moved';",
+    'export const m = [mw, moved];',
+  ].join('\n'),
   'scripts/tool.ts':
     "import { tool } from '../src/components/ui/script-only';\nexport default tool;",
   'src/components/ui/index.ts': [
@@ -43,6 +48,7 @@ const FIXTURE: Record<string, string> = {
   'src/components/ui/lazy.tsx': 'export default 1;',
   'src/components/ui/commented.ts': 'export const Commented = 1;',
   'src/components/ui/mw.ts': 'export const mw = 1;',
+  'src/components/ui/moved.ts': 'export const moved = 1;',
   'src/components/ui/script-only.ts': 'export const tool = 1;',
   'src/components/ui/guard-only.ts': 'export const g = 1;',
   'src/components/ui/__tests__/a.test.tsx': "import { A } from '../a';\ntest('a', () => A);",
@@ -88,6 +94,12 @@ describe('analyseReachability', () => {
     expect(unreachable).not.toContain('src/components/ui/mw.ts');
     expect(unreachable).not.toContain('src/components/ui/script-only.ts');
     expect(unreachable).toContain('src/components/ui/commented.ts');
+  });
+
+  it('follows @inflect/ui/<path> to src/<path>, as tsconfig does', () => {
+    const r = analyseReachability({ root });
+    expect(r.unreachable).not.toContain('src/components/ui/moved.ts');
+    expect(r.unresolvedSymbols).toEqual([]);
   });
 
   it('adds roots on request: a module only a guardrail imports stays', () => {

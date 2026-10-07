@@ -1,6 +1,7 @@
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 
+import { aliasTarget } from '../../scripts/ui-sync/inflect-package.mjs';
 import { treeFiles } from '../helpers/scan-floor';
 
 /**
@@ -53,12 +54,14 @@ function directiveOf(source: string): 'client' | 'server' | null {
 
 const isTestFile = (f: string) => /(?:\/__tests__\/|\.(?:test|spec)\.tsx?$)/.test(f);
 
-/** `@/x` → `src/x`; `./y` against the importer. Packages are not ours. */
+/**
+ * `@/x` and `@inflect/ui/x` → `src/x` (tsconfig.json maps both); `./y` against
+ * the importer. Packages are not ours.
+ */
 function resolveImport(spec: string, fromFile: string): string | null {
-  let base: string;
-  if (spec.startsWith('@/')) base = join('src', spec.slice(2));
-  else if (spec.startsWith('.')) base = normalize(join(dirname(fromFile), spec));
-  else return null;
+  let base = aliasTarget(spec);
+  if (base === null && spec.startsWith('.')) base = normalize(join(dirname(fromFile), spec));
+  if (base === null) return null;
 
   for (const candidate of [
     `${base}.ts`,

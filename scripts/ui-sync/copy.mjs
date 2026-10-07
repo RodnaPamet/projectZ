@@ -13,6 +13,12 @@
  * A directory copies every code file beneath it (ts, tsx, js, mjs, css, json)
  * and never inflect's docs: its GUIDE.md files describe compliance pages.
  *
+ * A path names the file in either of inflect's layouts (inflect-package.mjs):
+ * src/<p>, or packages/ui/src/<p> once inflect #3046 has moved it into the
+ * @inflect/ui package. Both are copied to src/<p> here, and the row records
+ * where inflect had it at --ref. A directory is read in both layouts, because
+ * inflect moves a directory's files into the package over several PRs.
+ *
  * It then lists the imports playerz still cannot resolve, because a copied
  * file that imports a module playerz lacks fails the typecheck, not the copy.
  *
@@ -22,6 +28,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
+import { PACKAGE_SRC, inflectLocations, playerzPath } from './inflect-package.mjs';
 import {
   REPO_ROOT,
   UsageError,
@@ -66,23 +73,44 @@ async function main() {
   const files = [];
   for (const arg of positionals) {
     const p = arg.replace(/^\.\//, '').replace(/\/+$/, '');
-    const listed = listFiles(dir, sha, [p]);
-    if (listed.length === 0) throw new UsageError(`${p} does not exist in inflect at ${short}.`);
-    files.push(
-      ...(listed.length === 1 && listed[0] === p ? listed : listed.filter((f) => COPYABLE.test(f))),
-    );
+    const locations = inflectLocations(p);
+    const listed = listFiles(dir, sha, locations);
+    if (listed.length === 0) {
+      const others = locations.filter((at) => at !== p);
+      throw new UsageError(
+        `${p} does not exist in inflect at ${short}${others.length ? `, nor does ${others.join(', ')}` : ''}.`,
+      );
+    }
+    // The path names a file (in one layout or both): that file, whatever its
+    // extension. Otherwise it is a directory: the code files under it.
+    const named = locations.filter((at) => listed.includes(at));
+    files.push(...(named.length ? named.slice(0, 1) : listed.filter((f) => COPYABLE.test(f))));
+  }
+
+  // One inflect file per playerz path. Both layouts at once is a file inflect
+  // keeps twice; the package's is the one that moved, so it wins.
+  const byTarget = new Map();
+  for (const f of files) {
+    const target = playerzPath(f);
+    const held = byTarget.get(target);
+    if (held && held !== f) {
+      console.log(`inflect has both ${held} and ${f} at ${short}; copying the package's.`);
+    }
+    if (!held || f.startsWith(PACKAGE_SRC)) byTarget.set(target, f);
   }
 
   const manifests = new Map(MANIFEST_NAMES.map((name) => [name, readManifest(root, name)]));
+  // Keyed by the src/ form of inflectPath, so a row still finds its file after
+  // inflect moves it into the package, and before its inflectPath is re-pointed.
   const byInflectPath = new Map();
   for (const [name, rows] of manifests)
-    for (const row of rows) byInflectPath.set(row.inflectPath, { name, row });
+    for (const row of rows) byInflectPath.set(playerzPath(row.inflectPath), { name, row });
 
   // Every target is checked before anything is written: a refusal halfway
   // through would leave files copied under rows that still describe the old ones.
-  const plan = [...new Set(files)].map((inflectPath) => {
-    const existing = byInflectPath.get(inflectPath);
-    const path = existing?.row.path ?? inflectPath;
+  const plan = [...byTarget.values()].map((inflectPath) => {
+    const existing = byInflectPath.get(playerzPath(inflectPath));
+    const path = existing?.row.path ?? playerzPath(inflectPath);
     const name = manifestFor(path);
     if (!name) {
       throw new UsageError(
@@ -121,10 +149,15 @@ async function main() {
     touched.add(name);
 
     const verb = before === null ? 'new      ' : before === text ? 'unchanged' : 'changed  ';
-    const was =
-      existing?.row.status === 'local-diff'
-        ? `  (replaces a local-diff: ${existing.row.reason})`
-        : '';
+    const was = [
+      existing?.row.status === 'local-diff' ? `replaces a local-diff: ${existing.row.reason}` : '',
+      existing && existing.row.inflectPath !== inflectPath
+        ? `inflect has it at ${inflectPath}`
+        : '',
+    ]
+      .filter(Boolean)
+      .map((w) => `  (${w})`)
+      .join('');
     report.push(`  ${verb} ${path}${was}`);
   }
   for (const name of touched) writeManifest(root, name, manifests.get(name));

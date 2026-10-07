@@ -29,10 +29,12 @@
  *   motion           motion-safety            inline durations, infinite animations
  *   brand-text       no-raw-brand-text        text-brand-NNN, text- + arbitrary var(--brand-<name>)
  *
- * Pure apart from `typescript` (already a devDependency), so the unit tests can
- * load it under jest.
+ * Pure apart from `typescript` (already a devDependency) and the equally pure
+ * inflect-package.mjs, so the unit tests can load it under jest.
  */
 import ts from 'typescript';
+
+import { playerzPath } from './inflect-package.mjs';
 
 /** no-raw-tokens.test.ts, verbatim. */
 const RAW_COLOR_SCALES =
@@ -487,7 +489,9 @@ export function checkSpokenCopy(path, text) {
 
 /**
  * Every finding in one file. `path` is repo-relative (it decides the overlay
- * exemption and the parser), `text` is the file.
+ * exemption and the parser), `text` is the file. An inflect path in the
+ * @inflect/ui package counts as the playerz path it is copied to, so
+ * packages/ui/src/components/ui/modal.tsx keeps modal.tsx's exemption.
  */
 export function checkSource(path, text) {
   const findings = [];
@@ -529,7 +533,7 @@ export function checkSource(path, text) {
 
     const code = withoutComments(text).split('\n');
     const codeText = code.join('\n');
-    if (!OVERLAY_PRIMITIVES.has(path)) {
+    if (!OVERLAY_PRIMITIVES.has(playerzPath(path))) {
       code.forEach((line, i) => {
         if (CLICK_AWAY.test(line) && !isTestFile(path))
           add('hand-rolled-menu', i + 1, 'fixed inset-0 click-away layer');
