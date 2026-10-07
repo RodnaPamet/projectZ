@@ -504,17 +504,22 @@ The entry page is the only `goto`.
 | Journey                           | Account                             | Entry                                   | Steps                                                                                                                                                                  |
 | --------------------------------- | ----------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | public                            | anonymous                           | `/`                                     | → venues (the call to action), → home (the wordmark), → login (tab bar / header), back                                                                                 |
-| player                            | `player@perf.playerz.test`          | `/`                                     | → my bookings (tab bar / header), → home, → venues, → home                                                                                                             |
+| player                            | `player@perf.playerz.test`          | `/` (307 → `/venues`, #362)             | → my bookings, → profile, → venues: the bottom tab bar on the phone, the AppShell's left rail on the desktop                                                           |
 | public-venue, player-venue (#397) | anonymous; the player               | `/venues`                               | → the Sofia Padel Club venue (its card), → next day (the day picker's "Утре", an SWR read, not a router navigation), → `/venues` (the page's back link)                |
 | staff                             | `owner@sofia.bg`, OWNER of one club | `/t/sofia-padel-club` (307 → the diary) | the club nav: → courts → pricing → players → staff; the back button; → calendar (nav); the diary's "next day" link; its "today" link                                   |
 | landing                           | player, then staff                  | `/start`                                | the post-sign-in redirect chain as a full load: what Google or Facebook's callback lands on (#227). There is no web sign-in form to click, so this is the only `goto`. |
 
-Since T20 the player chrome differs by width, so `→ login` and `→ my bookings` are
-tapped on the bottom tab bar on the phone and clicked in the header on the desktop:
-each profile uses the control a person on it would see. The step ids did not change,
-so their budget rows still apply. Both are fully prefetched either way (the tab bar,
-and the header's `PublicPrefetchLink` to `/login`), except the desktop's header link
-to `/me/bookings`, which keeps the default.
+The chrome differs by width and by who is asking, so each profile uses the control a
+person on it would see. On the phone every tab step is a tap on the bottom tab bar. On
+the desktop a visitor's `→ login` is the public header's link, and since #362 a
+signed-in player's steps are the AppShell's left rail (`aside nav`), its navigation on
+every page. The tab bar and the header's `PublicPrefetchLink` to `/login` are fully
+prefetched; the rail's links keep the default (auto), as every rail does.
+
+#362 rewrote the player journey. Signed in, `/` is Играй: the entry is still the typed
+address, which the home page's layout sends on to `/venues` with a 307, so `load /`
+times that redirect too, and the loop is the player's three places instead of the
+landing page it no longer sees.
 
 Left out on purpose:
 
@@ -582,6 +587,7 @@ text it must contain where there is one.
 | `/venues`           | `main h1` "Играй" and `[data-perf-ready]` (the venue card list)                                                                                                                                                                                                     |
 | `/login`            | `main h1` "Вход"                                                                                                                                                                                                                                                    |
 | `/me/bookings`      | `main h1` "Моите резервации" and `[data-perf-ready]` (the booking list)                                                                                                                                                                                             |
+| `/me/profile`       | `main h1`, the account's own name (the seed's "Георги Петров"; #362)                                                                                                                                                                                                |
 | venue page, any day | `main h1` "Sofia Padel Club", the day picker's checked option ("Днес" / "Утре"), and `[data-perf-ready]` "Court 1" (the court list); tomorrow also a free time's button. Keyed `/venues/sofia-padel-club?day=…`: the page mirrors the day into the URL as it mounts |
 | diary, any day      | `main h1` "Календар", that day's own "next day" link (unique per day), and `[data-perf-ready]` "Court 1" (grid)                                                                                                                                                     |
 | courts              | `main h1` "Кортове" and `[data-perf-ready]` "Court 1" (the court cards)                                                                                                                                                                                             |
@@ -599,7 +605,7 @@ That changed how content is found, not when it counts as ready.
 
 **A PR that rewrites one of these pages or boards keeps `data-perf-ready` on its
 primary content**, or moves this table with it. The markers live in
-`src/app/(home)/page.tsx`, `(public)/venues/page.tsx`, `(app)/me/bookings/page.tsx`,
+`src/app/(home)/page.tsx`, `(public)/venues/page.tsx`, `(public)/me/bookings/page.tsx`,
 and the calendar's `DayGrid` and the courts, pricing, players and staff boards.
 A loading skeleton must never carry one, or `main h1`: it would be timed as the
 content.
