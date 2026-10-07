@@ -45,7 +45,7 @@
  *   - <ErrorState> (full-pane error surface)
  */
 
-import { cn } from '@/lib/cn';
+import { cn } from '@inflect/ui/lib/cn';
 import { AlertTriangle, CheckCircle, Info, X, XCircle, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type PropsWithChildren, type ReactNode } from 'react';

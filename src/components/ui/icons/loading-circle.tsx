@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '../../../lib/cn';
 
 /**
  * The ring-and-arc spinner.
