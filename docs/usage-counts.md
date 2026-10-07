@@ -47,7 +47,9 @@ bucket so slot taps never spend the booking POST's budget.
 Its cost on the venue page, measured with two production builds of the same tree with and without
 it: First Load JS 303.4 → 303.5 KB gzip (+0.1 KB). The helper is a dozen lines and `keys.ts` is
 already in the page for the booking. No other public page gains client JS: every other event is
-counted on the server. `/platform/usage` is a new route, budgeted at its measured 337.4 KB + 5%.
+counted on the server. `/platform/usage` is a new route, budgeted at its measured 337.1 KB + 5%.
+The card on "Отчети и такса" is a server component and ships no JS of its own: the page measures
+340.7 KB with it, inside #372's 357.9 KB budget.
 
 ## The online share (Q40)
 
@@ -79,8 +81,9 @@ a long series typed in once does not keep a club that stopped using playerz look
   month and last, trend, bookings this month, the last 8 weeks, weeks since the club started, active
   or not) and the funnel for the whole site and per venue, with the conversion at each step.
 - **"Онлайн резервации"** (`src/components/reports/online-share-card.tsx`) on the club admin's
-  "Отчети и такса" page (#372): this month's share and a 6-month trend, from `loadClubOnlineShare`
-  under the club's tenant binding.
+  "Отчети и такса" page (#372), mounted by its `UsageCardSlot`: the online share of the month the page
+  shows (this month by default) and of the five months before it, from `loadClubOnlineShare` under
+  the club's tenant binding. If that read fails the statement still renders, without the card.
 
 ## Retention
 

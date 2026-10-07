@@ -18,6 +18,7 @@ import { expectAxeClean, expectNoDrift } from './club-page-journey';
 const r = bg.admin.reports;
 const s = bg.billing.statement;
 const nav = bg.common.nav;
+const share = bg.admin.onlineShare;
 
 /** A past month the statement is read for, whatever day the suite runs on. */
 export const FEE_MONTH = '2026-09';
@@ -160,6 +161,12 @@ export async function readStatementAndDownload(page: Page, club: FeeClub, phone:
   );
 
   // The lines: in the table at 1280 px, as cards on a phone; both carry the courts.
+  // "Онлайн резервации" (#371) between the totals and the lines, for the month
+  // shown: September's three bookings were all made online.
+  const card = page.getByRole('region', { name: share.title });
+  await expect(card).toContainText('100');
+  await expect(card).toContainText('3 от 3 резервации за септември 2026 г. са направени онлайн');
+
   const lines = page.getByTestId('statement-lines').filter({ visible: true });
   await expect(lines).toContainText('Корт 1');
   await expect(lines).toContainText('Корт 2');
@@ -211,5 +218,9 @@ export async function switchToThisMonth(page: Page, club: FeeClub) {
 
   await expect(page).toHaveURL(new RegExp(`/admin/reports\\?month=${thisMonth}$`));
   await expect(page.getByText(s.empty.title).filter({ visible: true })).toBeVisible();
+  // The online share card follows the month picker: nothing booked this month.
+  await expect(page.getByRole('region', { name: share.title })).toContainText(
+    share.empty.replace('{month}', label),
+  );
   await expectNoDrift(page);
 }

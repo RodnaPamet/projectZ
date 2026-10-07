@@ -4,9 +4,11 @@ import { type BookingChannel, type BookingStatus, PlatformCapability } from '@pr
 import { encode } from 'next-auth/jwt';
 import { NextRequest } from 'next/server';
 
+import { UsageCardSlot } from '@/app/(app)/t/[slug]/admin/reports/UsageCardSlot';
 import { GET as usageRoute } from '@/app/api/v1/platform/usage/route';
 import {
   ACTIVE_WINDOW_DAYS,
+  type ClubOnlineShare,
   countBookingsByChannel,
   isClubActive,
   loadClubOnlineShare,
@@ -17,6 +19,7 @@ import { runInTenantContext } from '@/lib/db/rls-middleware';
 import { recordUsage } from '@/lib/usage/record';
 
 import { prismaTestClient, seedTenant, seedVenue } from '../helpers/db';
+import { captureLogs } from '../helpers/capture-logs';
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
@@ -154,7 +157,7 @@ describe('usage report', () => {
       });
 
       const card = await runInTenantContext(mine.tenantId, (tx) =>
-        loadClubOnlineShare(tx, mine.tenantId, NOW),
+        loadClubOnlineShare(tx, mine.tenantId, { now: NOW }),
       );
       expect(card.months.map((m) => [m.month, m.online, m.desk, m.share])).toEqual([
         ['2026-05', 0, 0, null],
@@ -164,6 +167,62 @@ describe('usage report', () => {
         ['2026-09', 0, 0, null],
         ['2026-10', 1, 0, 1],
       ]);
+
+      // The month the reports page shows: the card ends there, across a year end.
+      const august = await runInTenantContext(mine.tenantId, (tx) =>
+        loadClubOnlineShare(tx, mine.tenantId, { month: '2026-08', now: NOW }),
+      );
+      expect(august.months.map((m) => m.month)).toEqual([
+        '2026-03',
+        '2026-04',
+        '2026-05',
+        '2026-06',
+        '2026-07',
+        '2026-08',
+      ]);
+      expect(august.months.at(-1)).toMatchObject({ online: 0, desk: 1, share: 0 });
+      const february = await runInTenantContext(mine.tenantId, (tx) =>
+        loadClubOnlineShare(tx, mine.tenantId, { month: '2027-02' }),
+      );
+      expect(february.months[0]!.month).toBe('2026-09');
+      // A malformed month is this month, never a query on nonsense.
+      const fallback = await runInTenantContext(mine.tenantId, (tx) =>
+        loadClubOnlineShare(tx, mine.tenantId, { month: '2026-13', now: NOW }),
+      );
+      expect(fallback.months.at(-1)!.month).toBe('2026-10');
+    });
+  });
+
+  describe('the slot on "Отчети и такса" (#372)', () => {
+    it('renders the card for the month the page shows', async () => {
+      const club = await seedTenant({});
+      const { resourceId } = await seedVenue(club.tenantId);
+      await book(club.tenantId, resourceId, {
+        startTs: '2026-09-15T08:00:00Z',
+        status: 'COMPLETED',
+        channel: 'ONLINE',
+      });
+
+      const el = await UsageCardSlot({
+        tenantId: club.tenantId,
+        slug: club.tenantSlug,
+        month: '2026-09',
+      });
+      const data = (el as { props: { data: ClubOnlineShare } } | null)?.props.data;
+      expect(data?.months.at(-1)).toEqual({ month: '2026-09', online: 1, desk: 0, share: 1 });
+      expect(data?.months).toHaveLength(6);
+    });
+
+    it('a failed read leaves the statement standing: no card, and a warning', async () => {
+      const logs = captureLogs();
+      try {
+        // A tenant id the binding refuses: a real failure inside the read.
+        const el = await UsageCardSlot({ tenantId: 'not-a-club', slug: 'x', month: '2026-09' });
+        expect(el).toBeNull();
+      } finally {
+        logs.restore();
+      }
+      expect(logs.lines.some((l) => l.includes('online share card not rendered'))).toBe(true);
     });
   });
 

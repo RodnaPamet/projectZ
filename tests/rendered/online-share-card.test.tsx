@@ -38,7 +38,7 @@ describe('OnlineShareCard', () => {
     expect(screen.getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument();
     expect(screen.getByText(/60\s?%/)).toBeInTheDocument();
     expect(
-      screen.getByText('6 от 10 резервации този месец са направени онлайн'),
+      screen.getByText('6 от 10 резервации за октомври 2026 г. са направени онлайн'),
     ).toBeInTheDocument();
     expect(screen.getByText(t.trend.up!)).toBeInTheDocument();
   });
@@ -60,7 +60,7 @@ describe('OnlineShareCard', () => {
     };
     render(withIntl(<OnlineShareCard data={quiet} />));
 
-    expect(screen.getByText(t.empty)).toBeInTheDocument();
+    expect(screen.getByText('Няма резервации за октомври 2026 г.')).toBeInTheDocument();
     expect(document.querySelector('[data-trend]')).toBeNull();
   });
 
@@ -74,6 +74,8 @@ describe('OnlineShareCard', () => {
       .onlineShare;
     expect(screen.getByRole('heading', { name: en.title })).toBeInTheDocument();
     expect(document.querySelector('[data-trend]')).toHaveAttribute('data-trend', 'down');
-    expect(screen.getByText('1 of 2 bookings this month were made online')).toBeInTheDocument();
+    expect(
+      screen.getByText('1 of 2 bookings in October 2026 were made online'),
+    ).toBeInTheDocument();
   });
 });

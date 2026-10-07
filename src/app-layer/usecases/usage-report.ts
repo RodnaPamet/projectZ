@@ -126,11 +126,16 @@ async function recentBookingByClub(db: PrismaClient, now: Date): Promise<Map<str
 
 // ─── Calendar arithmetic, in Sofia ──────────────────────────────────
 
+/** `YYYY-MM` moved by `delta` months. */
+function shiftMonthKey(key: string, delta: number): string {
+  const [y, m] = key.split('-').map(Number);
+  const index = y! * 12 + (m! - 1) + delta;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
 /** `YYYY-MM` of `now` moved by `offset` months, in Sofia. */
 export function monthKey(now: Date, offset = 0): string {
-  const [y, m] = formatInTimeZone(now, REPORT_TIME_ZONE, 'yyyy-MM').split('-').map(Number);
-  const index = y! * 12 + (m! - 1) + offset;
-  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+  return shiftMonthKey(formatInTimeZone(now, REPORT_TIME_ZONE, 'yyyy-MM'), offset);
 }
 
 /** The instant a Sofia month (`YYYY-MM`) begins. */
@@ -163,25 +168,31 @@ export interface MonthShare extends ChannelCounts {
 }
 
 export interface ClubOnlineShare {
-  /** Oldest first; the last entry is this month. */
+  /** Oldest first; the last entry is the month asked for. */
   months: MonthShare[];
 }
 
+const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 /**
- * "Онлайн резервации" on a club's reports page: this month's online share and
- * the five months before it. Pass the club's TENANT binding.
+ * "Онлайн резервации" on a club's reports page: the online share of `month`
+ * (`YYYY-MM` in Sofia; this month when absent or malformed) and of the five
+ * months before it, so the card follows the month the statement shows. Pass
+ * the club's TENANT binding.
  */
 export async function loadClubOnlineShare(
   db: PrismaClient,
   tenantId: string,
-  now: Date = new Date(),
+  opts: { month?: string; now?: Date } = {},
 ): Promise<ClubOnlineShare> {
+  const last =
+    opts.month && MONTH_KEY.test(opts.month) ? opts.month : monthKey(opts.now ?? new Date());
   const keys = Array.from({ length: CLUB_TREND_MONTHS }, (_, i) =>
-    monthKey(now, i - (CLUB_TREND_MONTHS - 1)),
+    shiftMonthKey(last, i - (CLUB_TREND_MONTHS - 1)),
   );
   const rows = await countBookingsByChannel(db, {
     from: monthStart(keys[0]!),
-    to: monthStart(monthKey(now, 1)),
+    to: monthStart(shiftMonthKey(last, 1)),
     bucket: 'month',
     tenantId,
   });

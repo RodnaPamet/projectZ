@@ -5,8 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 /**
  * "Отчети и такса" in its final layout (#372): the title and subtitle, the
  * month picker, the totals heading with the CSV button beside it, the four
- * totals (two columns on a phone, four from lg), the terms line, and the line
- * items. Same gaps as the page, so nothing jumps when it streams in.
+ * totals (two columns on a phone, four from lg), the terms line, the online
+ * share card (#371), and the line items. Same gaps as the page, so nothing jumps when it streams in.
  */
 export default function Loading() {
   return (
@@ -31,6 +31,12 @@ export default function Loading() {
             ))}
           </div>
           <Skeleton className="h-4 w-64 max-w-full" />
+        </div>
+        {/* "Онлайн резервации" (#371): the title, the share, six bars. */}
+        <div className="border-border-subtle grid gap-4 rounded-lg border p-6">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-16 w-full" />
         </div>
         <div className="gap-compact grid">
           <Skeleton className="h-6 w-32" />
