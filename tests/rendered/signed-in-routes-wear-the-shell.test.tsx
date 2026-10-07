@@ -15,6 +15,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import type { LandingDecision } from '@/lib/auth/landing';
 import { KeyboardShortcutProvider } from '@/lib/hooks/use-keyboard-shortcut';
 import { getPermissionsForRole } from '@/lib/permissions';
+import type { ResourceNouns } from '@/lib/sports/resource-kinds';
 
 import bg from '../../messages/bg.json';
 import { withIntl } from '../helpers/intl';
@@ -177,7 +178,11 @@ jest.mock('@/lib/auth/platform-admin', () => ({
   resolvePlatformAuthority: (...a: unknown[]) => resolvePlatformAuthority(...a),
 }));
 jest.mock('@/lib/modules', () => ({ readModules: () => ({ openPlay: false, messaging: false }) }));
-jest.mock('@/app-layer/usecases/club-nouns', () => ({ clubResourceNouns: async () => 'court' }));
+// What the club plays on (P51): courts, unless a test says tracks.
+const clubResourceNouns = jest.fn<Promise<ResourceNouns>, [string]>();
+jest.mock('@/app-layer/usecases/club-nouns', () => ({
+  clubResourceNouns: (tenantId: string) => clubResourceNouns(tenantId),
+}));
 
 jest.mock('next-intl/server', () => ({
   getTranslations: async (ns: string) => {
@@ -306,6 +311,8 @@ function renderTree(tree: ReactNode) {
 beforeEach(() => {
   installFakeFetch(() => ok({ items: [], nextCursor: null, unreadCount: 0 }));
   signedInIdentity.mockResolvedValue(ME);
+  clubResourceNouns.mockReset();
+  clubResourceNouns.mockResolvedValue('court');
 });
 
 describe.each(Object.keys(LAYOUTS))('%s', (layout) => {
@@ -347,6 +354,29 @@ describe.each(Object.keys(LAYOUTS))('%s', (layout) => {
       expect(screen.queryByTestId('the-page') !== null).toBe(!refused);
     },
   );
+});
+
+describe('a karting club’s account names its courts screen "Писти" in both of its frames (P51)', () => {
+  it.each(['(public)/layout.tsx', '(app)/t/[slug]/admin/layout.tsx'])('%s', async (layout) => {
+    const kind = KINDS.club;
+    resolveLanding.mockResolvedValue(kind.landing);
+    resolvePlatformAuthority.mockResolvedValue({ grantId: null, capabilities: [] });
+    resolveTenantPageContext.mockResolvedValue(kind.membership);
+    clubResourceNouns.mockResolvedValue('track');
+
+    const { tree } = await frameFor(layout);
+    renderTree(tree);
+
+    const rail = screen.getByRole('complementary');
+    const nav = within(rail).getByRole('navigation', { name: bg.common.ui.mainNav });
+    expect(within(nav).getByRole('link', { name: bg.common.nav.track.courts })).toHaveAttribute(
+      'href',
+      `/t/${SLUG}/admin/courts`,
+    );
+    expect(within(nav).queryByRole('link', { name: bg.common.nav.courts })).toBeNull();
+    // Read for the club the membership names, and no other.
+    expect(new Set(clubResourceNouns.mock.calls.map(([id]) => id))).toEqual(new Set(['c1']));
+  });
 });
 
 describe('the one route with no frame of its own for a signed-in account: `/`', () => {
