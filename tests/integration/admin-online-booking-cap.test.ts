@@ -17,7 +17,6 @@ import { asAppSuperuser } from '../helpers/rls';
  */
 
 let signedInAs = '';
-const NO_GATE_CLEARED = { groupGateCleared: [] as string[] };
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn(), revalidateTag: jest.fn() }));
 jest.mock('@/lib/auth/page-context', () => {
@@ -25,7 +24,7 @@ jest.mock('@/lib/auth/page-context', () => {
   return {
     ...actual,
     requireTenantAction: async (slug: string, permission: string) => {
-      const res = await actual.membershipContext(signedInAs, slug, NO_GATE_CLEARED);
+      const res = await actual.membershipContext(signedInAs, slug);
       if (res.kind !== 'ok' || !res.ctx.permissions.includes(permission)) {
         throw new actual.TenantActionDeniedError(slug, permission);
       }

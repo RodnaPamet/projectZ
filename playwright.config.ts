@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { E2E_FACEBOOK_APP_ID, E2E_FACEBOOK_APP_SECRET } from './tests/e2e/utils/e2e-facebook';
+
 const PORT = 3000;
 const baseURL = `http://localhost:${PORT}`;
 
@@ -90,5 +92,28 @@ export default defineConfig({
     // before this was caught. Always rebuild; correctness beats the ~30s.
     reuseExistingServer: false,
     timeout: 180_000,
+    /**
+     * ═══ THE SERVER UNDER TEST SAYS IT IS A TEST RUN (#361) ═══
+     *
+     * Merged over the shell's environment by Playwright.
+     *
+     * The authed fixtures sign in with email and password, which exists for
+     * the test suites only: `TEST_PASSWORD_SIGN_IN=1`, honoured only with
+     * `DEPLOY_ENV=test` (src/lib/auth/password-sign-in.ts). Without the pair
+     * the credentials provider is not registered and every authed spec fails
+     * at its sign-in fixture.
+     *
+     * Facebook is configured with a placeholder app, so /login offers its
+     * button and facebook-sign-in.spec.ts can check what the app sends to
+     * Meta — intercepted, never loaded. Google is left unconfigured: its
+     * provider discovers Google's endpoints over the network on every sign-in,
+     * which a spec cannot intercept from the browser.
+     */
+    env: {
+      TEST_PASSWORD_SIGN_IN: '1',
+      DEPLOY_ENV: 'test',
+      FACEBOOK_CLIENT_ID: E2E_FACEBOOK_APP_ID,
+      FACEBOOK_CLIENT_SECRET: E2E_FACEBOOK_APP_SECRET,
+    },
   },
 });

@@ -1,6 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
 
-import { groupGateAdmits } from '@/lib/auth/group-gate';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { translateFor } from '@/lib/i18n/server-messages';
 import { logger } from '@/lib/observability/logger';
@@ -111,26 +110,11 @@ export class PlayerAccountRequiredError extends Error {
  *
  * Reading, reviewing and cancelling are not refused: those are about bookings
  * an account already has, and the migration kept a club account's old ones.
- *
- * ═══ THE ENTRA GROUP GATE APPLIES HERE TOO (#250) ═══
- *
- * A club that enforces its group gate admits only sessions that proved
- * directory-group membership at sign-in (`@/lib/auth/group-gate`). Until #250
- * the edge enforced that, and it also happened to make joining impossible for
- * everyone. Now that joining works, a gated club must refuse a join the gate
- * would refuse — otherwise any stranger could enrol in a closed club by
- * booking one of its courts, and would then be refused on every request after
- * the one that enrolled them. An existing membership the gate refuses reads as
- * no standing, like a suspended one.
  */
 export async function resolvePlayerTenant(
   userId: string,
   slug: string,
-  opts: {
-    createIfAbsent: boolean;
-    /** The session's `groupGateCleared` — `ctx.groupGateCleared` at a route. */
-    groupGateCleared: readonly string[];
-  },
+  opts: { createIfAbsent: boolean },
 ): Promise<PlayerTenant | null> {
   return runAsSuperuser(async (db: PrismaClient) => {
     if (opts.createIfAbsent) {
@@ -156,7 +140,7 @@ export async function resolvePlayerTenant(
 
     const existing = await db.tenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: club.id } },
-      select: { status: true, role: true },
+      select: { status: true },
     });
 
     if (existing) {
@@ -165,28 +149,10 @@ export async function resolvePlayerTenant(
       // standing here" rather than being upgraded.
       if (existing.status !== 'ACTIVE') return null;
 
-      const admitted = await groupGateAdmits(db, {
-        tenantId: club.id,
-        role: existing.role,
-        cleared: opts.groupGateCleared,
-      });
-      if (!admitted) return null;
-
       return { tenantId: club.id, joined: false };
     }
 
     if (!opts.createIfAbsent) return null;
-
-    // Judged as the PLAYER this would create. Only an Entra sign-in that was
-    // already a member when it signed in can have cleared a gate, so in
-    // practice a gated club is not joinable by booking at all — it admits
-    // members by invitation, and the gate decides which of them may come in.
-    const joinable = await groupGateAdmits(db, {
-      tenantId: club.id,
-      role: 'PLAYER',
-      cleared: opts.groupGateCleared,
-    });
-    if (!joinable) return null;
 
     // `create`, not `upsert`: the findUnique above already handled the found
     // case, and a race between two first bookings is resolved by the

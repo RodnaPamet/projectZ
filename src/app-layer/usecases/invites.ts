@@ -25,8 +25,8 @@ import { hashForLookup } from '@/lib/security/encryption';
  * ═══ AN INVITE CANNOT MAKE AN OWNER ═══
  *
  * `invite.role` has no CHECK constraint — the `role <> 'OWNER'` one from P27 is
- * on `tenant_entra_group_mapping` alone — so nothing in the database stops an
- * invite naming OWNER. That matters more here than for a role change: an
+ * on `tenant_entra_group_mapping` alone, retired with the Entra sync (#361) —
+ * so nothing in the database stops an invite naming OWNER. That matters more here than for a role change: an
  * invite is accepted by whoever holds the link, and the two-party protection
  * around ownership would be defeated by a single email.
  *

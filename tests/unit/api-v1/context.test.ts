@@ -82,7 +82,7 @@ describe('contextFromRequest', () => {
       slug: 'club-b',
     });
 
-    expect(mockMembership).toHaveBeenCalledWith('usr_1', 'club-b', { groupGateCleared: [] });
+    expect(mockMembership).toHaveBeenCalledWith('usr_1', 'club-b');
     expect(ctx.tenantId).toBe('tnt_b');
     expect(ctx.role).toBe('PLAYER');
     expect(ctx.permissions).not.toContain('admin.venue_manage');
@@ -273,23 +273,6 @@ describe('contextFromRequest', () => {
     });
   });
 
-  it("carries the token's group-gate clearances to the resolver, and nothing else from it", async () => {
-    // The Entra gate is decided per SESSION; see @/lib/auth/group-gate.
-    mockToken.mockResolvedValue({ ...nativeToken, groupGateCleared: ['tnt_b', 42, null] });
-    holds('STAFF', 'tnt_b', 'club-b', ['bookings.view_all']);
-
-    const ctx = await contextFromRequest(request('/api/v1/t/club-b/me'), {
-      ...BASE,
-      slug: 'club-b',
-    });
-
-    // Anything that is not a string clears nothing.
-    expect(mockMembership).toHaveBeenCalledWith('usr_1', 'club-b', {
-      groupGateCleared: ['tnt_b'],
-    });
-    expect(ctx.groupGateCleared).toEqual(['tnt_b']);
-  });
-
   it('a signed-in request with NO slug is tenant-less, not tenant-guessed', async () => {
     // /me/** — notifications, account. Person-scoped, belongs to no club.
     mockToken.mockResolvedValue(twoClubs);
@@ -314,7 +297,6 @@ describe('contextFromRequest', () => {
     expect(ctx.userId).toBeNull();
     expect(ctx.tenantId).toBeNull();
     expect(ctx.permissions).toEqual([]);
-    expect(ctx.groupGateCleared).toEqual([]);
   });
 
   it('carries the requestId and defaults locale to bg', async () => {

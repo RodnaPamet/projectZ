@@ -20,7 +20,9 @@ export async function generateMetadata() {
  *
  * That routing means this page is also the error surface, so it reads
  * `?error=` and maps it to a message rather than leaving next-auth's raw code
- * (`CredentialsSignin`, `OAuthSignin`) on screen.
+ * (`OAuthSignin`, `AccessDenied`) on screen. One code is explained rather than
+ * just mapped: `FacebookEmailRequired`, when Facebook sent no email address
+ * (#361) — see the form.
  *
  * ═══ WHICH BUTTONS APPEAR IS DECIDED HERE, NOT IN THE FORM ═══
  *
@@ -63,7 +65,7 @@ export default async function LoginPage({
         // URLs from, so it is the only origin one of them may carry.
         callbackUrl={postSignInPath({ next, callbackUrl }, process.env.NEXTAUTH_URL)}
         google={methods.google === 'configured'}
-        microsoft={methods.microsoft === 'configured'}
+        facebook={methods.facebook === 'configured'}
       />
     </main>
   );

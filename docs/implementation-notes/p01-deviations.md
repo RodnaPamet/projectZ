@@ -53,7 +53,8 @@ is 9.1.1, so clearing all ten means leaving 7.x, and 10.0.10 has none.
 But `next-auth@4.24.15` declares `peerOptional nodemailer@^7.0.7`, and 4.24.15
 is the last of v4 — there is no newer 4.x that widens it. The peer is inert
 here: `next-auth/providers/email` is the only thing that loads nodemailer, and
-this app registers Credentials, AzureAD and Google. So the override pins
+this app registers Google, Facebook and, in test runs only, Credentials
+(AzureAD until #361). So the override pins
 next-auth's peer to the root's version rather than holding a HIGH advisory to
 satisfy a provider that is never imported.
 

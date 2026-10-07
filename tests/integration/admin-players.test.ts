@@ -84,10 +84,7 @@ describe('admin players', () => {
       userId: string,
       hoursFromNow: number,
     ) {
-      await resolvePlayerTenant(userId, t.tenantSlug, {
-        createIfAbsent: true,
-        groupGateCleared: [],
-      });
+      await resolvePlayerTenant(userId, t.tenantSlug, { createIfAbsent: true });
       const start = new Date(Date.now() + hoursFromNow * HOUR);
       return runInTenantContext(t.tenantId, (c) =>
         createBooking(c, t.tenantId, {

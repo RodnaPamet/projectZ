@@ -78,8 +78,7 @@ export class MfaCodeRejectedError extends Error {
  * The first enrolment is trust-on-first-use: whoever enrols first owns the
  * second factor. Requiring a sign-in from the last few minutes means a cookie
  * stolen days ago cannot enrol the thief's phone on an admin who had not yet
- * got round to it — they would need the password (or the Google / Microsoft
- * account) as well.
+ * got round to it — they would need the Google or Facebook account as well.
  */
 export class MfaReauthRequiredError extends Error {
   constructor() {

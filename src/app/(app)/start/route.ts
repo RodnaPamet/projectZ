@@ -8,7 +8,7 @@ import { requireSignedIn } from '@/lib/auth/page-context';
  *
  * `/login` hands this path to next-auth as the `callbackUrl` whenever the
  * visitor brought no destination of their own, so a successful Google or
- * Microsoft round trip ends here and is sent on by the KIND of account: a
+ * Facebook round trip ends here and is sent on by the KIND of account: a
  * player to the player UI, a club account to its one club's diary, a coach to
  * the coach UI (the player UI until there is one). The rule is `decideLanding`
  * in `@/lib/auth/landing`; this file only asks and redirects.

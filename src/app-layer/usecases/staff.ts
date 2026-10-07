@@ -26,8 +26,9 @@ import { accountKindViolation, type AccountKindRule } from '@/lib/db/pg-errors';
  * covers everything below that line.
  *
  * Note what does NOT protect this: the `role <> 'OWNER'` CHECK from P27 is on
- * `tenant_entra_group_mapping` only. Nothing at the database level stops a
- * membership becoming OWNER, so this is the whole control.
+ * `tenant_entra_group_mapping` only, a table nothing has written since #361
+ * removed the Entra sync. Nothing at the database level stops a membership
+ * becoming OWNER, so this is the whole control.
  *
  * ═══ AND ONE ABOUT THE ACCOUNT (#263) ═══
  *

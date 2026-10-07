@@ -89,16 +89,20 @@ async function main() {
     NEXTAUTH_URL: PERF_BASE_URL,
     NEXTAUTH_SECRET: PERF_NEXTAUTH_SECRET,
     DATA_ENCRYPTION_KEY: PERF_DATA_ENCRYPTION_KEY,
+    // Sign-in is by the credentials provider (see global-setup.ts), which
+    // exists for test runs only and says so with both of these (#361,
+    // src/lib/auth/password-sign-in.ts).
+    TEST_PASSWORD_SIGN_IN: '1',
+    DEPLOY_ENV: 'test',
   };
   // The runtime never needs the owner, and must not be able to find it.
   delete runtimeEnv.DIRECT_DATABASE_URL;
-  // No OAuth: sign-in is by the credentials provider (see global-setup.ts), and
-  // a configured provider would only add buttons nobody presses.
+  // No OAuth: a configured provider would only add buttons nobody presses.
   for (const k of [
     'GOOGLE_CLIENT_ID',
     'GOOGLE_CLIENT_SECRET',
-    'MICROSOFT_CLIENT_ID',
-    'MICROSOFT_CLIENT_SECRET',
+    'FACEBOOK_CLIENT_ID',
+    'FACEBOOK_CLIENT_SECRET',
   ]) {
     delete runtimeEnv[k];
   }

@@ -51,17 +51,6 @@
  *     `outcome` label is `register | resend` so the dashboard can
  *     pivot per-flow.
  *
- * ── ENTRA ID GROUP-RESOLUTION METRICS (EI-4) ──
- *   auth.entra.group_resolution    — Counter   (source, outcome)
- *   auth.entra.group_count         — Histogram (source)
- *   auth.entra.graph_fetch.duration— Histogram (outcome) [ms]
- *     One record per `microsoft-entra-id` sign-in (from
- *     `resolveEntraGroupClaims`). `source=token` vs `graph_overage`
- *     splits the in-token claim from the > ~200-group Graph fallback;
- *     `source=graph_overage, outcome=empty` is the Graph-outage alert
- *     signal (the Graph helper fails open to `[]`). graph_fetch.duration
- *     is recorded only on the overage path.
- *
  * ── SCIM AUTH METRICS (EI-4) ──
  *   scim.auth.count                — Counter   (outcome, reason)
  *     One record per `authenticateScimRequest` call. `reason` is a
@@ -69,14 +58,6 @@
  *     not_found / revoked). A `not_found` spike is the brute-force /
  *     stale-connector signal; `revoked` rising means an IdP is still
  *     pushing with a rotated token.
- *
- * ── ENTRA ROLE-SYNC METRICS (EI-3) ──
- *   auth.entra.role_sync           — Counter   (outcome)
- *     One record per entra-id sign-in that reaches `syncEntraMembershipRole`.
- *     `outcome` ∈ synced / unchanged / gate_denied / no_membership /
- *     owner_immune / no_match / no_mappings. A `gate_denied` spike means a
- *     tenant's `enforceGroupGate` is locking users out (often a misconfigured
- *     mapping).
  *
  * CARDINALITY SAFETY:
  *   Route labels are normalized via `normalizeRoute()` to collapse dynamic
@@ -564,80 +545,6 @@ export function recordVerificationEmailDelivery(attrs: {
   }
 }
 
-// ── Entra ID group-resolution metrics (EI-4) ──────────────────────────
-
-let _entraGroupResolution: ReturnType<ReturnType<typeof getMeter>['createCounter']> | null = null;
-let _entraGroupCount: ReturnType<ReturnType<typeof getMeter>['createHistogram']> | null = null;
-let _entraGraphFetchDuration: ReturnType<ReturnType<typeof getMeter>['createHistogram']> | null =
-  null;
-
-function getEntraGroupResolution() {
-  if (!_entraGroupResolution) {
-    _entraGroupResolution = getMeter().createCounter('auth.entra.group_resolution', {
-      description: 'Entra ID sign-ins by how the AAD group list was resolved',
-      unit: '1',
-    });
-  }
-  return _entraGroupResolution;
-}
-
-function getEntraGroupCount() {
-  if (!_entraGroupCount) {
-    _entraGroupCount = getMeter().createHistogram('auth.entra.group_count', {
-      description: 'Number of AAD security groups resolved for a user at sign-in',
-      unit: '1',
-    });
-  }
-  return _entraGroupCount;
-}
-
-function getEntraGraphFetchDuration() {
-  if (!_entraGraphFetchDuration) {
-    _entraGraphFetchDuration = getMeter().createHistogram('auth.entra.graph_fetch.duration', {
-      description: 'Latency of the Graph /me/memberOf overage fetch in milliseconds',
-      unit: 'ms',
-    });
-  }
-  return _entraGraphFetchDuration;
-}
-
-/**
- * Record one Entra ID group-claim resolution at sign-in — called once per
- * `microsoft-entra-id` sign-in by `resolveEntraGroupClaims`.
- *
- * `source`:
- *   - `token`         — the `groups` claim was present in the ID token (the
- *                       common case, ≤ ~200 groups).
- *   - `graph_overage` — the user is in > ~200 groups, so Entra omitted the
- *                       claim and we fetched the full list from Graph.
- * `outcome`:
- *   - `resolved`      — at least one group came back.
- *   - `empty`         — zero groups. On `token` that's a user genuinely in no
- *                       groups; on `graph_overage` it almost always means the
- *                       Graph call failed (the helper fails open to `[]`), so
- *                       `source=graph_overage, outcome=empty` is the operator's
- *                       alert signal for a Graph outage degrading group-driven
- *                       role assignment.
- *
- * No tenantId / userId label — group resolution is per-user but the metric is
- * a fleet-health signal; per-user debugging uses the structured log line in
- * the same code path.
- */
-export function recordEntraGroupResolution(attrs: {
-  source: 'token' | 'graph_overage';
-  outcome: 'resolved' | 'empty';
-  groupCount: number;
-  graphFetchDurationMs?: number;
-}): void {
-  getEntraGroupResolution().add(1, { source: attrs.source, outcome: attrs.outcome });
-  getEntraGroupCount().record(attrs.groupCount, { source: attrs.source });
-  if (attrs.source === 'graph_overage' && attrs.graphFetchDurationMs !== undefined) {
-    getEntraGraphFetchDuration().record(attrs.graphFetchDurationMs, {
-      outcome: attrs.outcome,
-    });
-  }
-}
-
 // ── SCIM token-auth metrics (EI-4) ────────────────────────────────────
 
 let _scimAuth: ReturnType<ReturnType<typeof getMeter>['createCounter']> | null = null;
@@ -672,63 +579,6 @@ export function recordScimAuth(attrs: {
   reason: 'ok' | 'missing_header' | 'empty_token' | 'not_found' | 'revoked';
 }): void {
   getScimAuth().add(1, { outcome: attrs.outcome, reason: attrs.reason });
-}
-
-// ── Entra group → role sync metrics (EI-3) ────────────────────────────
-
-let _entraRoleSync: ReturnType<ReturnType<typeof getMeter>['createCounter']> | null = null;
-
-function getEntraRoleSync() {
-  if (!_entraRoleSync) {
-    _entraRoleSync = getMeter().createCounter('auth.entra.role_sync', {
-      description: 'Entra group → IC-role sync decisions at sign-in, by outcome',
-      unit: '1',
-    });
-  }
-  return _entraRoleSync;
-}
-
-/**
- * Record one Entra group → role sync decision — called once per
- * `microsoft-entra-id` sign-in that reaches `syncEntraMembershipRole`.
- *
- * `outcome`:
- *   - `synced`        — the member's role was changed to the mapped role.
- *   - `unchanged`     — a mapping matched but the role already matched.
- *   - `gate_denied`   — `enforceGroupGate` on + no mapped group → access denied.
- *   - `no_membership` — a role mapped but the user has no ACTIVE membership to
- *                       sync (membership creation stays on the Epic 1 paths).
- *   - `owner_immune`  — the member is an OWNER; sync + gate are skipped so a
- *                       misconfigured mapping can never demote / lock out an owner.
- *   - `no_match`      — mappings exist but none matched the user's groups (gate off).
- *   - `no_mappings`   — the tenant has no group mappings configured.
- *   - `kind_mismatch` — a mapping matched a role of another account kind
- *                       (#263): a PLAYER mapped to STAFF, say. Not applied —
- *                       player, club and coach are separate accounts.
- *
- * A `gate_denied` spike means a tenant's gate is denying logins (often a
- * misconfigured mapping). No tenantId/userId label — fleet-health signal;
- * per-tenant detail lives in the audit row written on `synced`.
- */
-export function recordEntraRoleSync(attrs: {
-  outcome:
-    | 'synced'
-    | 'unchanged'
-    | 'gate_denied'
-    | 'no_membership'
-    | 'owner_immune'
-    | 'no_match'
-    | 'no_mappings'
-    // Added on wiring: the group list could not be established (Graph
-    // unreachable, or truncated). Distinct from 'no_match', which means we
-    // looked and the user is in none of them. Conflating the two is how a
-    // Microsoft outage becomes a club-wide lockout.
-    | 'unresolved'
-    // #263: the mapped role belongs to another kind of account than the one
-    // holding the membership, so it is not applied.
-    | 'kind_mismatch';
-}): void {
-  getEntraRoleSync().add(1, { outcome: attrs.outcome });
 }
 
 let _auditStreamBufferGaugeStarted = false;

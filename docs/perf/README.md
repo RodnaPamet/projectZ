@@ -507,7 +507,7 @@ The entry page is the only `goto`.
 | player                            | `player@perf.playerz.test`          | `/`                                     | → my bookings (tab bar / header), → home, → venues, → home                                                                                                             |
 | public-venue, player-venue (#397) | anonymous; the player               | `/venues`                               | → the Sofia Padel Club venue (its card), → next day (the day picker's "Утре", an SWR read, not a router navigation), → `/venues` (the page's back link)                |
 | staff                             | `owner@sofia.bg`, OWNER of one club | `/t/sofia-padel-club` (307 → the diary) | the club nav: → courts → pricing → players → staff; the back button; → calendar (nav); the diary's "next day" link; its "today" link                                   |
-| landing                           | player, then staff                  | `/start`                                | the post-sign-in redirect chain as a full load: what Google or Microsoft's callback lands on (#227). There is no web sign-in form to click, so this is the one `goto`. |
+| landing                           | player, then staff                  | `/start`                                | the post-sign-in redirect chain as a full load: what Google or Facebook's callback lands on (#227). There is no web sign-in form to click, so this is the only `goto`. |
 
 Since T20 the player chrome differs by width, so `→ login` and `→ my bookings` are
 tapped on the bottom tab bar on the phone and clicked in the header on the desktop:

@@ -13,8 +13,8 @@ import { readFileSync, globSync } from 'node:fs';
  *
  * The override is safe for exactly ONE reason: nothing loads next-auth's email
  * provider. `next-auth/providers/email` is the only module in that package that
- * requires nodemailer, and this app registers Credentials, AzureAD and Google.
- * Overriding a peer nobody exercises costs nothing.
+ * requires nodemailer, and this app registers Google, Facebook and (in test
+ * runs) Credentials. Overriding a peer nobody exercises costs nothing.
  *
  * Add an Email provider and that stops being true the moment it is imported:
  * next-auth's code would run against a nodemailer three majors ahead of what it

@@ -77,10 +77,7 @@ async function listHandler(req: NextRequest, { params }: { params: Promise<{ slu
   // now does too (#250). This resolver is used rather than `ctx.tenantId`
   // because it also answers "is the club ACTIVE", which the context does not.
   // `createIfAbsent: false`: listing must never join.
-  const standing = await resolvePlayerTenant(ctx.userId, slug, {
-    createIfAbsent: false,
-    groupGateCleared: ctx.groupGateCleared,
-  });
+  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: false });
 
   // No standing, no bookings. An empty page rather than a 403: whether you are
   // a member of a club is not something this endpoint should confirm, and the
@@ -148,14 +145,11 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
   // The membership is created rather than bypassed. Binding a tenant the
   // caller has no membership for would put a hole in the one mechanism that
   // stops a stale membership becoming authority at the wrong club.
-  const standing = await resolvePlayerTenant(ctx.userId, slug, {
-    createIfAbsent: true,
-    groupGateCleared: ctx.groupGateCleared,
-  });
+  const standing = await resolvePlayerTenant(ctx.userId, slug, { createIfAbsent: true });
 
   // Same 404 as an unknown court, and for the same reason: distinguishing
-  // "no such club" from "suspended", "you are banned here" or "behind a group
-  // gate you have not cleared" turns this into a probe.
+  // "no such club" from "suspended" or "you are banned here" turns this into
+  // a probe.
   if (!standing) throw new NotFoundError('Resource not found');
 
   const tenantId = standing.tenantId;

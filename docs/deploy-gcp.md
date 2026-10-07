@@ -192,18 +192,18 @@ want of secrets that belong in the runtime environment, not the image.
 
 Owner decision Q44: every merge goes to **staging**; **production** gets a release once a week, plus urgent fixes any time. Pilot clubs are not surprised mid-shift.
 
-|           | Staging                                                                                | Production                                       |
-| --------- | -------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Container | `playerz-staging-app` (`deploy/docker-compose.staging.yml`, project `playerz-staging`) | `playerz-app`                                    |
-| Image tag | `playerz:staging`, rebuilt from `main` after each merge                                | `playerz:local`, rebuilt from the release SHA    |
-| Database  | `playerz_staging` on `playerz-db`, direct (no pgbouncer)                               | `playerz_production` through `playerz-pgbouncer` |
-| Redis     | `playerz-redis`, its own db index                                                      | `playerz-redis`, db 0                            |
-| Env file  | `/opt/playerz/.env.staging` (`DEPLOY_ENV=staging`)                                     | `/opt/playerz/.env`                              |
+|           | Staging                                                                                   | Production                                       |
+| --------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Container | `playerz-staging-app` (`deploy/docker-compose.staging.yml`, project `playerz-staging`)    | `playerz-app`                                    |
+| Image tag | `playerz:staging`, rebuilt from `main` after each merge                                   | `playerz:local`, rebuilt from the release SHA    |
+| Database  | `playerz_staging` on `playerz-db`, direct (no pgbouncer)                                  | `playerz_production` through `playerz-pgbouncer` |
+| Redis     | `playerz-redis`, its own db index                                                         | `playerz-redis`, db 0                            |
+| Env file  | `/opt/playerz/.env.staging` (`DEPLOY_ENV=staging`)                                        | `/opt/playerz/.env`                              |
 | Host      | `staging.playerz.bg` since 2026-10-07 (the old `staging.35-187-80-26.sslip.io` redirects) | `playerz.bg` (app.playerz.bg and www redirect)   |
 
 `DEPLOY_ENV=staging` makes robots.txt disallow everything and the sitemap empty, so the copy is never indexed.
 
-Staging sends no email: `DEPLOY_ENV=staging` forces the notification outbox's log-only adapter even if a provider key is set (#367), unless `EMAIL_ALLOW_ON_STAGING=1` is set on purpose. Google sign-in needs the staging callback URL (`https://staging.playerz.bg/api/auth/callback/google`) registered on the OAuth client. Both staging blocks are in `deploy/Caddyfile.playerz`.
+Staging sends no email: `DEPLOY_ENV=staging` forces the notification outbox's log-only adapter even if a provider key is set (#367), unless `EMAIL_ALLOW_ON_STAGING=1` is set on purpose. Sign-in needs the staging callback URLs (`https://staging.playerz.bg/api/auth/callback/google` and `…/facebook`) registered with each provider — see [Sign-in](#sign-in-361). Both staging blocks are in `deploy/Caddyfile.playerz`.
 
 ```bash
 # Before anything: the disk is shared with agrent and both databases. Stop if it is tight.
@@ -237,6 +237,40 @@ df -h /
 **Disk hygiene is not optional.** Each image is about 2.5 GB, and a staging build plus a promotion adds two. On 2026-10-07 sixteen kept rollback images and 20 GB of build cache filled the 79 GB disk to 100%. `playerz-db` PANICked on a checkpoint write and restarted itself through WAL recovery, with no data lost, and agrent's Redis failed its background saves until space was freed. Keep two rollback tags at most: the image staging is about to promote is the newest known-good state anyway. `docker image prune -f` only removes dangling images, so agrent's tagged images are never touched by it.
 
 Promoting the staging image, instead of rebuilding, means production runs exactly the bytes that were tested on staging. An urgent fix is the same promotion done mid-week.
+
+## Sign-in (#361)
+
+Everyone signs in with **Google or Facebook**. There is no password sign-in in
+any deployment, and Microsoft Entra is gone (owner decisions Q15/Q21). Each
+provider is registered only when both of its variables are set, and its button
+appears only then; `/api/ready` reports which are live
+(`.features.signIn`). Creating the apps: `docs/oauth-setup.md`.
+
+| Variable                                       | Production and staging                    | What it does                                                                                                                                                                                         |
+| ---------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`     | optional — set both                       | Google sign-in. Live in production.                                                                                                                                                                  |
+| `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET` | optional — set both                       | Facebook sign-in: the Meta app's App ID and App secret.                                                                                                                                              |
+| `TEST_PASSWORD_SIGN_IN`                        | **never set**                             | Email + password, for the test suites only, honoured only with `DEPLOY_ENV=test`. A deployment whose environment carries it — any value — **refuses to start** (`src/lib/auth/password-sign-in.ts`). |
+| `DEPLOY_ENV`                                   | `staging` on staging; unset on production | Unset means production. `test` is for the E2E, perf and Jest harnesses only, never a deployment.                                                                                                     |
+| `MICROSOFT_*`                                  | remove                                    | Read by nothing since #361.                                                                                                                                                                          |
+
+The redirect URIs each provider must have registered, exactly. The host is
+`NEXTAUTH_URL`'s — `https://playerz.bg` in production, `https://staging.playerz.bg`
+on staging — and the path is fixed by the provider id. Both providers also keep
+the `app.playerz.bg` one while that host redirects.
+
+| Provider | Production                                      | Staging                                                 |
+| -------- | ----------------------------------------------- | ------------------------------------------------------- |
+| Google   | `https://playerz.bg/api/auth/callback/google`   | `https://staging.playerz.bg/api/auth/callback/google`   |
+| Facebook | `https://playerz.bg/api/auth/callback/facebook` | `https://staging.playerz.bg/api/auth/callback/facebook` |
+
+On 2026-10-07 both pairs of variables are set in `/opt/playerz/.env` and
+`/opt/playerz/.env.staging`; the registrations, and which of them are verified,
+are in `docs/oauth-setup.md`. The Meta app registers redirect URIs in strict
+mode: a host missing from its list fails at Facebook, after the person has
+agreed. Until the app is **Live**, only people with a role on it can sign in
+with Facebook; going Live needs a privacy policy URL (#370) and a data-deletion
+URL (#445).
 
 ## Caddy
 
@@ -526,17 +560,9 @@ actually configured.
 
 ## Not done yet
 
-- **Microsoft sign-in not configured.** `/api/ready` reports
-  `google: configured, microsoft: disabled` (2026-09-29). To enable it, set
-  `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` and register the callback:
-
-  | Provider        | Callback                                        |
-  | --------------- | ----------------------------------------------- |
-  | Google (live)   | `https://playerz.bg/api/auth/callback/google`   |
-  | Microsoft Entra | `https://playerz.bg/api/auth/callback/azure-ad` |
-
-  `azure-ad`, not `microsoft-entra-id` — this is next-auth **v4**, and the
-  provider id is what the callback path is built from.
+- **The Facebook app is in Development mode.** Only people with a role on it
+  can sign in with Facebook until it goes Live, which needs a privacy policy URL
+  (#370) and a data-deletion URL (#445). See [Sign-in](#sign-in-361).
 
 - **Almost no data.** As of 2026-09-29: one club (`demo-sofia`), two accounts,
   zero bookings.

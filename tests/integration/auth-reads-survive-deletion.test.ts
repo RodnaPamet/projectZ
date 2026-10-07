@@ -159,8 +159,8 @@ describe('auth reads when the row is deleted mid-read (#419)', () => {
       await asAppSuperuser(db, (tx) => tx.venueOrg.delete({ where: { id: t.tenantId } }));
     });
 
-    await expect(
-      membershipContext(t.userId, t.tenantSlug, { groupGateCleared: [] }),
-    ).resolves.toEqual({ kind: 'not-a-member' });
+    await expect(membershipContext(t.userId, t.tenantSlug)).resolves.toEqual({
+      kind: 'not-a-member',
+    });
   });
 });

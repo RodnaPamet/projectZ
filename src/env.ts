@@ -140,11 +140,23 @@ export const env = createEnv({
     // Absent credentials therefore mean "that button is not offered", not "the
     // app is broken". `/api/ready` reports which methods are live, the same way
     // it does for push.
+    //
+    // Google and Facebook are the only two (#361, Q15/Q21). Microsoft Entra
+    // and its MICROSOFT_* variables were removed with its group sync.
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
-    MICROSOFT_CLIENT_ID: z.string().optional(),
-    MICROSOFT_CLIENT_SECRET: z.string().optional(),
-    MICROSOFT_TENANT_ID: z.string().default('common'),
+    // The Meta app's App ID and App Secret (#361). Redirect URI to register:
+    // <NEXTAUTH_URL>/api/auth/callback/facebook — docs/oauth-setup.md.
+    FACEBOOK_CLIENT_ID: z.string().optional(),
+    FACEBOOK_CLIENT_SECRET: z.string().optional(),
+
+    // ═══ EMAIL + PASSWORD: THE TEST SUITES ONLY (#361) ═══
+    //
+    // `1` registers the credentials provider and opens the native password
+    // grant — honoured only with DEPLOY_ENV=test. A deployment that carries it
+    // refuses to start (src/lib/auth/password-sign-in.ts). Never set it in
+    // production or staging.
+    TEST_PASSWORD_SIGN_IN: z.enum(['0', '1']).optional(),
 
     // Rate Limiting
     RATE_LIMIT_ENABLED: z.enum(['0', '1']).optional(),
@@ -466,7 +478,13 @@ export const env = createEnv({
     // indexed: robots.txt disallows everything and the sitemap is empty
     // (`src/lib/seo/robots.ts`, `src/app/sitemap.ts`). Defaults to
     // `production`, so the production .env needs no change.
-    DEPLOY_ENV: z.enum(['production', 'staging']).default('production'),
+    //
+    // `test` is not a deployment: the E2E, perf and Jest harnesses (and a
+    // local server run with test accounts). It behaves as production in every
+    // respect but one — it is the only value under which TEST_PASSWORD_SIGN_IN
+    // is honoured (#361). Unset means production, deliberately: a deployment
+    // that forgot to say what it is gets the strict answer.
+    DEPLOY_ENV: z.enum(['production', 'staging', 'test']).default('production'),
 
     // ═══ MEDIA: VENUE PHOTOS (#366, docs/media-storage.md) ═══
     //
@@ -529,9 +547,9 @@ export const env = createEnv({
 
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID,
-    MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET,
-    MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID,
+    FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
+    FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET,
+    TEST_PASSWORD_SIGN_IN: process.env.TEST_PASSWORD_SIGN_IN,
 
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
     RATE_LIMIT_MODE: process.env.RATE_LIMIT_MODE,

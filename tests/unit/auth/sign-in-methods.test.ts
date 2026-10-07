@@ -18,8 +18,10 @@ import { signInMethods } from '@/lib/auth/sign-in-methods';
 const OAUTH = [
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
-  'MICROSOFT_CLIENT_ID',
-  'MICROSOFT_CLIENT_SECRET',
+  'FACEBOOK_CLIENT_ID',
+  'FACEBOOK_CLIENT_SECRET',
+  'TEST_PASSWORD_SIGN_IN',
+  'DEPLOY_ENV',
 ] as const;
 
 describe('signInMethods', () => {
@@ -40,35 +42,36 @@ describe('signInMethods', () => {
     saved.clear();
   });
 
-  it('reports both OAuth providers disabled when nothing is configured', () => {
+  it('reports everything disabled when nothing is configured', () => {
+    // DEPLOY_ENV unset is production, so there is no password sign-in either.
     expect(signInMethods()).toEqual({
       google: 'disabled',
-      microsoft: 'disabled',
-      credentials: 'configured',
+      facebook: 'disabled',
+      credentials: 'disabled',
     });
   });
 
   it.each([
     ['google', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
-    ['microsoft', 'MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'],
+    ['facebook', 'FACEBOOK_CLIENT_ID', 'FACEBOOK_CLIENT_SECRET'],
   ])('%s needs BOTH halves of the pair', (method, idVar, secretVar) => {
     // Half a pair is the broken-button case: enough to register a provider,
     // not enough for it to work, and the failure happens at the provider.
     process.env[idVar] = 'an-id';
-    expect(signInMethods()[method as 'google' | 'microsoft']).toBe('disabled');
+    expect(signInMethods()[method as 'google' | 'facebook']).toBe('disabled');
 
     process.env[secretVar] = 'a-secret'; // pragma: allowlist secret
-    expect(signInMethods()[method as 'google' | 'microsoft']).toBe('configured');
+    expect(signInMethods()[method as 'google' | 'facebook']).toBe('configured');
   });
 
   it('reports the two providers independently', () => {
-    process.env.GOOGLE_CLIENT_ID = 'gid';
-    process.env.GOOGLE_CLIENT_SECRET = 'gsecret'; // pragma: allowlist secret
+    process.env.FACEBOOK_CLIENT_ID = 'fid';
+    process.env.FACEBOOK_CLIENT_SECRET = 'fsecret'; // pragma: allowlist secret
 
     expect(signInMethods()).toEqual({
-      google: 'configured',
-      microsoft: 'disabled',
-      credentials: 'configured',
+      google: 'disabled',
+      facebook: 'configured',
+      credentials: 'disabled',
     });
   });
 
@@ -77,7 +80,42 @@ describe('signInMethods', () => {
     // truthiness, so it would skip the provider while this claimed otherwise.
     process.env.GOOGLE_CLIENT_ID = '';
     process.env.GOOGLE_CLIENT_SECRET = '';
+    process.env.FACEBOOK_CLIENT_ID = '';
+    process.env.FACEBOOK_CLIENT_SECRET = '';
     expect(signInMethods().google).toBe('disabled');
+    expect(signInMethods().facebook).toBe('disabled');
+  });
+
+  it.each([
+    ['production, DEPLOY_ENV unset', undefined],
+    ['production', 'production'],
+    ['staging', 'staging'],
+  ])('reports credentials disabled in %s, even with the test flag set (#361)', (_label, deploy) => {
+    process.env.TEST_PASSWORD_SIGN_IN = '1';
+    if (deploy) process.env.DEPLOY_ENV = deploy;
+
+    expect(signInMethods().credentials).toBe('disabled');
+  });
+
+  it('reports credentials configured only in a test run that asked for it', () => {
+    process.env.DEPLOY_ENV = 'test';
+    expect(signInMethods().credentials).toBe('disabled');
+
+    process.env.TEST_PASSWORD_SIGN_IN = '1';
+    expect(signInMethods().credentials).toBe('configured');
+  });
+
+  it('reads the environment it is given, so a probe can be asked about another', () => {
+    expect(
+      signInMethods({
+        GOOGLE_CLIENT_ID: 'g',
+        GOOGLE_CLIENT_SECRET: 'gs', // pragma: allowlist secret
+        FACEBOOK_CLIENT_ID: 'f',
+        FACEBOOK_CLIENT_SECRET: 'fs', // pragma: allowlist secret
+        TEST_PASSWORD_SIGN_IN: '1',
+        DEPLOY_ENV: 'test',
+      }),
+    ).toEqual({ google: 'configured', facebook: 'configured', credentials: 'configured' });
   });
 });
 

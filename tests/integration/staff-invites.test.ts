@@ -14,9 +14,6 @@ import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 import { prismaTestClient, resetDatabase, seedTenant } from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
 
-/** A session that cleared no Entra group gate — every non-Entra sign-in. */
-const NO_GATE_CLEARED = { groupGateCleared: [] as string[] };
-
 /**
  * THE INVITE FLOW, WHICH DID NOT EXIST.
  *
@@ -75,15 +72,13 @@ describe('staff invites', () => {
     expect(preview).toMatchObject({ tenantSlug: t.tenantSlug, role: 'STAFF' });
 
     // Before: not a member.
-    expect((await membershipContext(joiner.id, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
-      'not-a-member',
-    );
+    expect((await membershipContext(joiner.id, t.tenantSlug)).kind).toBe('not-a-member');
 
     const result = await accept(token, joiner.id);
     expect(result).toMatchObject({ tenantSlug: t.tenantSlug, role: 'STAFF' });
 
     // After: a member, at the invited role, resolvable by the real resolver.
-    const ctx = await membershipContext(joiner.id, t.tenantSlug, NO_GATE_CLEARED);
+    const ctx = await membershipContext(joiner.id, t.tenantSlug);
     expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('STAFF');
 
     // …and a brand-new account that accepts a staff invite IS a club account
@@ -120,9 +115,7 @@ describe('staff invites', () => {
     // Same link, forwarded to somebody else.
     await expect(accept(token, b.id)).rejects.toThrow(InviteNotUsableError);
 
-    expect((await membershipContext(b.id, t.tenantSlug, NO_GATE_CLEARED)).kind).toBe(
-      'not-a-member',
-    );
+    expect((await membershipContext(b.id, t.tenantSlug)).kind).toBe('not-a-member');
   });
 
   it('REFUSES to invite an OWNER', async () => {
@@ -211,7 +204,7 @@ describe('staff invites', () => {
     const { token } = await invite(t, m.email, 'STAFF');
     await accept(token, m.id);
 
-    const ctx = await membershipContext(m.id, t.tenantSlug, NO_GATE_CLEARED);
+    const ctx = await membershipContext(m.id, t.tenantSlug);
     expect(ctx.kind === 'ok' && ctx.ctx.role).toBe('MANAGER');
   });
 

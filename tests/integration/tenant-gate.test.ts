@@ -8,7 +8,6 @@ import { POST as checkout } from '@/app/api/v1/t/[slug]/bookings/[id]/checkout/r
 import { GET as listBookings, POST as createBooking } from '@/app/api/v1/t/[slug]/bookings/route';
 import { POST as connectOnboarding } from '@/app/api/v1/t/[slug]/connect/onboarding/route';
 import { GET as me } from '@/app/api/v1/t/[slug]/me/route';
-import { POST as createMapping } from '@/app/api/v1/t/[slug]/sso/entra/group-mappings/route';
 import { hashPassword } from '@/lib/auth/passwords';
 import { config as middlewareConfig, middleware } from '@/middleware';
 
@@ -607,14 +606,6 @@ describe('a mutation that needs a permission the caller lacks', () => {
       `/api/v1/t/${clubA.tenantSlug}/connect/onboarding`,
       native,
     );
-    const sso = await send(
-      createMapping as Handler,
-      { slug: clubA.tenantSlug },
-      'POST',
-      `/api/v1/t/${clubA.tenantSlug}/sso/entra/group-mappings`,
-      native,
-      { aadGroupId: '0f8fad5b-d9cb-469f-a165-70867728950e', role: 'MANAGER' },
-    );
     const venues = await send(
       adminVenues as Handler,
       { slug: clubA.tenantSlug },
@@ -631,10 +622,6 @@ describe('a mutation that needs a permission the caller lacks', () => {
         message: 'Forbidden',
         details: { requiredPermission: 'admin.billing_manage' },
       },
-    });
-    expect(sso).toMatchObject({ status: 403, by: 'route' });
-    expect((sso.body as { error: { details: unknown } }).error.details).toEqual({
-      requiredPermission: 'sso.manage',
     });
     // The legacy stub trusted the edge outright. It checks for itself now.
     expect(venues).toMatchObject({ status: 403, by: 'route' });

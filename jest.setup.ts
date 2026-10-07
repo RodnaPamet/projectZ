@@ -25,6 +25,15 @@ Object.assign(process.env, {
   // and EVERY review would be queued — the tests would pass for entirely the
   // wrong reason, proving only that our outage path works.
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? 'sk-ant-test-dummy', // pragma: allowlist secret
+
+  // Email + password exists for the test suites only (#361): the native-auth
+  // and tenant-gate suites sign in through `/api/v1/auth/token`. Both halves,
+  // because the flag is ignored anywhere DEPLOY_ENV does not say `test`
+  // (src/lib/auth/password-sign-in.ts). Unconditional: a run is a test run
+  // whatever the shell it was started from says. A test of the gate itself
+  // passes its own environment instead.
+  TEST_PASSWORD_SIGN_IN: '1',
+  DEPLOY_ENV: 'test',
 });
 
 /**

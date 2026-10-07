@@ -3,7 +3,6 @@ import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import { getToken } from 'next-auth/jwt';
 
-import { groupGateAdmits, groupGateClearedFrom } from '@/lib/auth/group-gate';
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
 import { checkSession } from '@/lib/auth/sessions';
 import { getPermissionsForRole, type Permission } from '@/lib/permissions';
@@ -59,9 +58,7 @@ import type { Role } from '@prisma/client';
  * read that as "not a member".
  *
  * The read is narrow by construction: one row, by `(userId, tenantSlug)`, both
- * supplied by the caller's own session, and — for a member who is not the
- * OWNER — that one club's Entra provider flag, for the group gate. It cannot
- * enumerate. `src/auth.ts` and `/t/[slug]/me` reach for the same binding for
+ * supplied by the caller's own session. It cannot enumerate. `src/auth.ts` and `/t/[slug]/me` reach for the same binding for
  * the same reason, and are already pinned in `superuser-call-sites`.
  */
 
@@ -136,19 +133,7 @@ async function _resolveTenantPageContext(slug: string): Promise<TenantPageResult
   });
   if (!session.usable) return { kind: 'unauthenticated' };
 
-  return membershipContext(token.sub, slug, { groupGateCleared: groupGateClearedFrom(token) });
-}
-
-/**
- * What the SESSION brings to the question, beyond who it is.
- *
- * Required, not optional, because the one field in it can only ever make the
- * answer stricter when it is empty: a caller that forgot it would still pass
- * type-checking with a default, and would open every Entra-gated club.
- */
-export interface MembershipSession {
-  /** The token's `groupGateCleared`, via `groupGateClearedFrom`. */
-  groupGateCleared: readonly string[];
+  return membershipContext(token.sub, slug);
 }
 
 /**
@@ -157,17 +142,12 @@ export interface MembershipSession {
  * `next/headers` throws outside one, so a test of the whole function would have
  * to mock the session reader and would then be testing the mock. This is the
  * part with the interesting failure modes — the ACTIVE filter, the slug join,
- * the group gate, and permissions coming from the matched membership rather
- * than the token.
+ * and permissions coming from the matched membership rather than the token.
  *
  * Shared with `contextFromRequest` (#250): every tenant API request resolves
  * its membership here too. A change to what counts as a member changes both.
  */
-export async function membershipContext(
-  userId: string,
-  slug: string,
-  session: MembershipSession,
-): Promise<TenantPageResult> {
+export async function membershipContext(userId: string, slug: string): Promise<TenantPageResult> {
   const membership = await runAsSuperuser(async (db) => {
     const row = await db.tenantMembership.findFirst({
       // `status: ACTIVE` is load-bearing. INVITED means they were asked and
@@ -179,19 +159,7 @@ export async function membershipContext(
     });
     // `!row.tenant`: the club was deleted between Prisma's two selects, which
     // returns a required relation as null (#419). No club, no member.
-    if (!row?.tenant) return null;
-
-    // ═══ A GATED CLUB THIS SESSION HAS NOT CLEARED IS NOT ITS CLUB ═══
-    //
-    // The row exists and the gate refuses anyway: that is the gate. Reported
-    // as "not a member", the answer a stranger gets, so a page cannot be used
-    // to learn which clubs are gated or that you belong to one.
-    const admitted = await groupGateAdmits(db, {
-      tenantId: row.tenantId,
-      role: row.role,
-      cleared: session.groupGateCleared,
-    });
-    return admitted ? row : null;
+    return row?.tenant ? row : null;
   });
 
   if (!membership) return { kind: 'not-a-member' };
