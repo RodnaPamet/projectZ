@@ -2,6 +2,7 @@ import { readFileSync, globSync } from 'node:fs';
 
 import ts from 'typescript';
 
+import { checkSpokenCopy } from '../../scripts/ui-sync/portable-rules.mjs';
 import { treeFiles } from '../helpers/scan-floor';
 
 /**
@@ -289,6 +290,54 @@ describe('no hardcoded user-facing copy', () => {
           `can reach it, because both only read the catalogue.`,
       );
     }
+  });
+});
+
+/**
+ * ═══ WHAT A SCREEN READER READS ═══
+ *
+ * COPY_ATTRS names the `aria-label` ATTRIBUTE, not the camelCase PROP a
+ * primitive takes for it. `<ToggleGroup ariaLabel="Language">` passed this
+ * file and the ui-sync scanner alike, shipped in the vendored LocaleSwitcher,
+ * and was read out in English on every Bulgarian page with the switch (#431,
+ * inflect #3201). Nor does the scan above read `aria-label="close"` (a
+ * lowercase word) or the words of `` aria-label={`Remove ${name}`} ``.
+ *
+ * The scanner's a11y-copy rule (scripts/ui-sync/portable-rules.mjs) reads
+ * every name for that text, every value the file gives it, and a template's
+ * words. ui-sync-manifest.test.ts runs it over the vendored files; this runs
+ * it over the rest, so the hole is closed through both doors.
+ */
+describe('no hardcoded screen-reader text', () => {
+  interface Spoken {
+    path: string;
+    line: number;
+    text: string;
+  }
+
+  it('no component hard-codes what a screen reader reads', () => {
+    const findings = FILES.flatMap((f) => checkSpokenCopy(f, readFileSync(f, 'utf8')) as Spoken[]);
+    if (findings.length > 0) {
+      throw new Error(
+        `${findings.length} hardcoded string(s) a screen reader would read in English:\n\n` +
+          findings.map((f) => `  ${f.path}:${f.line}\n    ${f.text}`).join('\n') +
+          `\n\nThe accessible name is copy like any other: put it in messages/bg.json and\n` +
+          `messages/en.json and pass t('…'). A vendored file is fixed upstream (see\n` +
+          `docs/ui-sync/README.md).`,
+      );
+    }
+  });
+
+  it('the detector fires on the shape that shipped, and not on its fix', () => {
+    const shipped = `export const S = () => <ToggleGroup ariaLabel="Language" />;`;
+    expect(checkSpokenCopy('s.tsx', shipped)).toEqual([
+      { path: 's.tsx', line: 1, rule: 'a11y-copy', text: 'ariaLabel="Language"' },
+    ]);
+    // The scan above misses it: `ariaLabel` is not in COPY_ATTRS.
+    expect(copyLiterals('s.tsx', shipped)).toEqual([]);
+    expect(
+      checkSpokenCopy('s.tsx', `export const S = () => <ToggleGroup ariaLabel={t('language')} />;`),
+    ).toEqual([]);
   });
 });
 

@@ -69,11 +69,25 @@ describe('english-copy (i18n-no-hardcoded-copy)', () => {
   });
 
   it('flags the fallbacks the guardrail cannot see: ??, ternaries, {"…"} children', () => {
-    expect(rules(`<svg aria-label={label ?? 'Line chart'} />`)).toEqual(['english-copy']);
-    expect(rules(`<b aria-label={open ? 'Hide password' : 'Show password'} />`)).toEqual([
+    expect(rules(`<Field placeholder={hint ?? 'Search venues'} />`)).toEqual(['english-copy']);
+    expect(rules(`<Field label={busy ? 'Saving changes' : 'Save changes'} />`)).toEqual([
       'english-copy',
     ]);
     expect(rules(`<span>{children ?? 'Filter'}</span>`)).toEqual(['english-copy']);
+  });
+
+  it('leaves the accessibility props to a11y-copy, so a string is reported once', () => {
+    expect(check(`<svg aria-label={label ?? 'Line chart'} />`)).toEqual([
+      'a11y-copy:1:aria-label="Line chart"',
+    ]);
+    expect(check(`<img alt="Club logo" />`)).toEqual(['a11y-copy:1:alt="Club logo"']);
+    expect(check(`export function P({ ariaLabel = 'Progress' }) { return null; }`)).toEqual([
+      "a11y-copy:1:ariaLabel = 'Progress'",
+    ]);
+    // A component's own `title` is a visible heading: still english-copy's.
+    expect(check(`<Card title="Club overview" />`)).toEqual([
+      'english-copy:1:title="Club overview"',
+    ]);
   });
 
   it('flags a copy parameter default, in a signature or a destructured prop', () => {
@@ -93,6 +107,120 @@ describe('english-copy (i18n-no-hardcoded-copy)', () => {
     );
     // A destructured default outside a parameter list is not a parameter default.
     expect(check(`const { label = 'Save changes' } = props;`)).toEqual([]);
+  });
+});
+
+describe('a11y-copy (what a screen reader reads, #3201)', () => {
+  it("flags the vendored LocaleSwitcher's ariaLabel, the camelCase prop english-copy missed", () => {
+    const src = [
+      'export function LocaleSwitcher() {',
+      '  return <ToggleGroup options={OPTIONS} ariaLabel="Language" />;',
+      '}',
+    ].join('\n');
+    expect(check(src)).toEqual(['a11y-copy:2:ariaLabel="Language"']);
+  });
+
+  it.each([
+    `<nav aria-label="Main" />`,
+    `<p aria-description="Opens in a new tab" />`,
+    `<section aria-roledescription="slide" />`,
+    `<div role="slider" aria-valuetext="3 of 5" />`,
+    `<div role="textbox" aria-placeholder="Search" />`,
+    `<Slider ariaValueText="Medium" />`,
+    `<Stepper incrementAriaLabel="Increase" decrementAriaLabel="Decrease" />`,
+    `<Upload accessibilityLabel="File upload" />`,
+    `<Icon srLabel="Loading" />`,
+    `<Cover imageAlt="Court photo" />`,
+  ])('flags %s', (src) => {
+    expect(rules(src)).toEqual(['a11y-copy']);
+  });
+
+  it('flags a single lowercase word, which english-copy takes for a key', () => {
+    expect(check(`<button aria-label="close" />`)).toEqual(['a11y-copy:1:aria-label="close"']);
+    expect(check(`<img alt="logo" />`)).toEqual(['a11y-copy:1:alt="logo"']);
+    expect(check(`<a href={u} title="docs" />`)).toEqual(['a11y-copy:1:title="docs"']);
+  });
+
+  it("flags a template's own words, and concatenation", () => {
+    expect(check('<button aria-label={`Remove ${name} from list`} />')).toEqual([
+      'a11y-copy:1:aria-label="Remove ${…} from list"',
+    ]);
+    expect(check('<span aria-label={`${count} of total`} />')).toEqual([
+      'a11y-copy:1:aria-label="${…} of total"',
+    ]);
+    expect(check(`<button aria-label={'Remove ' + name} />`)).toEqual([
+      'a11y-copy:1:aria-label="Remove "',
+    ]);
+  });
+
+  it('reads both arms, ?? and ||, the right of &&, and through a type assertion', () => {
+    expect(check(`<Toggle ariaLabel={open ? 'Hide' : 'Show'} />`)).toEqual([
+      'a11y-copy:1:ariaLabel="Hide"',
+      'a11y-copy:1:ariaLabel="Show"',
+    ]);
+    expect(rules(`<Toggle ariaLabel={label || 'Language'} />`)).toEqual(['a11y-copy']);
+    expect(rules(`<Toggle ariaLabel={'Language' as string} />`)).toEqual(['a11y-copy']);
+    expect(check(`<button aria-label={open && 'Close menu'} />`)).toEqual([
+      'a11y-copy:1:aria-label="Close menu"',
+    ]);
+  });
+
+  it('never reads a condition as the value', () => {
+    expect(check(`<button aria-label={state === 'open' && t('close')} />`)).toEqual([]);
+    expect(check(`<a title={mode === 'edit' ? t('edit') : t('view')} />`)).toEqual([]);
+  });
+
+  it('flags title on an element a screen reader takes it from', () => {
+    expect(rules(`<span title="Last synced" />`)).toEqual(['a11y-copy']);
+    expect(rules(`<motion.button title="Undo" />`)).toEqual(['a11y-copy']);
+    expect(rules(`<IconButton title="Edit court" />`)).toEqual(['a11y-copy']);
+    expect(rules(`<PrefetchLink title="Open the venue" />`)).toEqual(['a11y-copy']);
+    expect(rules(`<Row onClick={open} title="Open booking" />`)).toEqual(['a11y-copy']);
+  });
+
+  it('flags props spread or handed over as an object, setAttribute, and a default', () => {
+    expect(check(`<button {...{ 'aria-label': 'Close' }} />`)).toEqual([
+      "a11y-copy:1:aria-label: 'Close'",
+    ]);
+    expect(check(`const OPTIONS = [{ value: 'grid', ariaLabel: 'Grid view' }];`)).toEqual([
+      "a11y-copy:1:ariaLabel: 'Grid view'",
+    ]);
+    expect(check(`el.setAttribute('aria-label', 'Close');`)).toEqual([
+      "a11y-copy:1:setAttribute('aria-label', 'Close')",
+    ]);
+    expect(check(`export const S = ({ ariaLabel = 'slider' }) => null;`)).toEqual([
+      "a11y-copy:1:ariaLabel = 'slider'",
+    ]);
+  });
+
+  it('does not flag a translated value, an empty alt, or a value only the caller fills', () => {
+    expect(check(`<ToggleGroup ariaLabel={t('language')} />`)).toEqual([]);
+    expect(check(`<nav aria-label={tNav('menu')} title={t('nav.title')} />`)).toEqual([]);
+    expect(check(`<img alt="" src={src} />`)).toEqual([]);
+    expect(check('<rect aria-label={`${court}: ${from} → ${to}`} />')).toEqual([]);
+    expect(check('<div title={`${label}: ${value} (${pct}%)`} />')).toEqual([]);
+    expect(check(`<Toggle ariaLabel={label} />`)).toEqual([]);
+  });
+
+  it('does not flag ids, tokens, data-* or the not-copy shapes', () => {
+    expect(
+      check(
+        `<div aria-labelledby="title-id" aria-describedby="hint" aria-controls="menu" ` +
+          `aria-live="polite" aria-current="page" aria-haspopup="menu" role="radiogroup" />`,
+      ),
+    ).toEqual([]);
+    expect(check(`<div data-aria-label="close" data-title="row" />`)).toEqual([]);
+    expect(check(`<a aria-label="playerz.bg" />`)).toEqual([]);
+    expect(check(`<img alt="EN" />`)).toEqual([]);
+    expect(check(`<span aria-label="1/2" />`)).toEqual([]);
+    expect(check(`<button aria-label="x" />`)).toEqual([]);
+  });
+
+  it('leaves a non-interactive component title and data objects alone', () => {
+    // A lowercase word in a heading prop is english-copy's to judge, and it lets it through.
+    expect(check(`<Card title="overview" />`)).toEqual([]);
+    expect(check(`const row = { title: 'Ranked match', alt: true };`)).toEqual([]);
+    expect(check(`<Sheet title={t('filters')} />`)).toEqual([]);
   });
 });
 
