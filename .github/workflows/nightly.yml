@@ -16,6 +16,15 @@ env:
   # Throwaway value so NextAuth can boot in CI. Authenticates nothing.
   NEXTAUTH_SECRET: 'ci-test-secret-not-a-real-key' # pragma: allowlist secret
   NEXTAUTH_URL: 'http://localhost:3000'
+  # The rest of ci.yml's workflow env, so the app here boots exactly as it does
+  # per-PR. tests/guardrails/test-infra-integrity.test.ts enforces the parity.
+  MEILISEARCH_HOST: 'http://localhost:7700'
+  MEILISEARCH_MASTER_KEY: 'test-master-key' # pragma: allowlist secret
+  CENTRIFUGO_API_URL: 'http://localhost:8000/api'
+  CENTRIFUGO_API_KEY: 'test-api-key' # pragma: allowlist secret
+  CENTRIFUGO_TOKEN_SECRET: 'test-token-secret' # pragma: allowlist secret
+  STRIPE_PRICE_ID_PRO: 'price_test_pro'
+  STRIPE_PRICE_ID_CLUB: 'price_test_club'
 
 jobs:
   # Full cross-browser E2E — chromium runs per-PR, firefox only here,
@@ -35,6 +44,11 @@ jobs:
     env:
       DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
       DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
+      # Same as ci.yml's E2E job. Without the key every sign-in 500s in production
+      # mode ("DATA_ENCRYPTION_KEY is required"), which is what failed Nightly
+      # every night from 2026-10-03 (#338). Throwaway values.
+      DATA_ENCRYPTION_KEY: 'ci-e2e-data-encryption-key-throwaway-0000000000' # pragma: allowlist secret
+      MEDIA_STORAGE: local
     services:
       # postgis/postgis, NOT postgres:16. `prisma migrate deploy` runs
       # `CREATE EXTENSION postgis` and plain Postgres answers `extension
@@ -112,6 +126,11 @@ jobs:
     env:
       DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
       DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
+      # Same as ci.yml's E2E job. Without the key every sign-in 500s in production
+      # mode ("DATA_ENCRYPTION_KEY is required"), which is what failed Nightly
+      # every night from 2026-10-03 (#338). Throwaway values.
+      DATA_ENCRYPTION_KEY: 'ci-e2e-data-encryption-key-throwaway-0000000000' # pragma: allowlist secret
+      MEDIA_STORAGE: local
     # This job declared no services, so it could never have passed: the
     # Playwright globalSetup runs `prisma migrate deploy` + the seed before
     # any spec, and its webServer boots the real app. Without a database
