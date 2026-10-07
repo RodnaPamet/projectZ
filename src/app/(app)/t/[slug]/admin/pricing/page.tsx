@@ -6,6 +6,7 @@ import { loadPricingScreen } from '@/app-layer/usecases/pricing-rules';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { CancellationCutoffForm, type CutoffVenue } from './CancellationCutoffForm';
 import { OnlineBookingCapForm } from './OnlineBookingCapForm';
@@ -88,6 +89,7 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
   const options = courts.map((c): CourtOption => ({
     id: c.id,
     name: c.name,
+    noun: resourceNoun(c.resourceType),
     basePriceCents: c.basePriceCents,
     // The preview must price per BLOCK, as quoteBooking does. Without this the
     // island cannot decompose the span and shows the price of a single unit

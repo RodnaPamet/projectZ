@@ -18,6 +18,7 @@ import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type InfiniteKey } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { BOOKING_LIST_KEYS, STATUS_TONE } from '../MyBookingsList';
 import { BookingPlayers } from './BookingPlayers';
@@ -151,6 +152,8 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
     : null;
 
   const state = cancelState(b, now);
+  // A karting track is a "писта", in the row label and the cancel dialog (P51).
+  const track = resourceNoun(b.resource.resourceType) === 'track';
   const passed = state === 'passed' || cancelError === 'CUTOFF_PASSED';
 
   async function confirmCancel() {
@@ -201,7 +204,7 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
             {from} – {to}
           </span>
         </Row>
-        <Row label={td('court')}>
+        <Row label={td(track ? 'track.court' : 'court')}>
           {b.resource.name} · {tSports(b.resource.sport as never)}
         </Row>
         <Row label={td('price')}>
@@ -287,7 +290,11 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
           setShowModal={setConfirming}
           tone="danger"
           title={td('confirm.title')}
-          description={td('confirm.description', { venue: b.venue.name, date, time: from })}
+          description={td(track ? 'track.confirm.description' : 'confirm.description', {
+            venue: b.venue.name,
+            date,
+            time: from,
+          })}
           confirmLabel={td('confirm.yes')}
           cancelLabel={td('confirm.no')}
           // Returns nothing, so the dialog closes at once and the badge turns

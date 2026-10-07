@@ -209,3 +209,82 @@ describe('archive, optimistically', () => {
     expect(badge(card)).toHaveAttribute('data-court-status', 'ACTIVE');
   });
 });
+
+describe('squash and karting on the courts screen (P51)', () => {
+  const badge = (card: HTMLElement) => card.querySelector('[data-court-status]');
+  const track = (over: Partial<CourtRow> = {}) =>
+    court({ id: 'track-1', name: 'Писта 1', sport: 'KARTING', resourceType: 'TRACK', ...over });
+
+  it('the sport choice offers both, by their Bulgarian names', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CourtForm slug="club" venues={VENUES} />));
+
+    await user.click(
+      screen.getByRole('combobox', { name: `${c.field.sport}, ${bg.sports.PADEL}` }),
+    );
+    expect(await screen.findByRole('option', { name: 'Скуош' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Картинг' })).toBeInTheDocument();
+  });
+
+  it('picking karting makes it a track before it is saved: "Закрита", "Добавяне на писта"', async () => {
+    const user = userEvent.setup();
+    const { container } = render(withIntl(<CourtForm slug="club" venues={VENUES} />));
+    const form = container.querySelector('form')!;
+    expect(within(form).getByRole('button', { name: c.action.add })).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('combobox', { name: `${c.field.sport}, ${bg.sports.PADEL}` }),
+    );
+    await user.click(await screen.findByRole('option', { name: 'Картинг' }));
+
+    // The form posts the sport only; the server makes it a TRACK.
+    expect(hidden(form, 'sport')).toBe('KARTING');
+    expect(hidden(form, 'resourceType')).toBeUndefined();
+    expect(c.track.action.add).toBe('Добавяне на писта');
+    expect(within(form).getByRole('button', { name: c.track.action.add })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: c.track.setting.indoor })).toBeInTheDocument();
+    expect(form.textContent).not.toMatch(/корт/i);
+
+    // And back: squash is a court.
+    await user.click(screen.getByRole('combobox', { name: `${c.field.sport}, Картинг` }));
+    await user.click(await screen.findByRole('option', { name: 'Скуош' }));
+    expect(hidden(form, 'sport')).toBe('SQUASH');
+    expect(within(form).getByRole('button', { name: c.action.add })).toBeInTheDocument();
+  });
+
+  it('a track card agrees with "писта": badge, setting, the archive dialog and its failure', async () => {
+    const pending = deferred<{ ok: false; error: string }>();
+    archiveCourtAction.mockReturnValue(pending.promise);
+    board([track({ isIndoor: true, upcomingBookings: 2 })]);
+    const card = screen.getByRole('listitem');
+
+    expect(badge(card)).toHaveTextContent('Активна');
+    expect(card).toHaveTextContent('Закрита');
+    expect(card.textContent).not.toMatch(/корт/i);
+
+    fireEvent.click(within(card).getByRole('button', { name: c.action.archive }));
+    const dialog = await screen.findByRole('dialog', { name: 'Архивиране на пистата?' });
+    expect(dialog).toHaveTextContent(
+      'Тази писта има 2 предстоящи резервации. Архивирането не ги отменя. Продължавате?',
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: c.action.archive }));
+
+    await waitFor(() => expect(badge(card)).toHaveAttribute('data-court-status', 'CLOSED'));
+    expect(badge(card)).toHaveTextContent(c.track.status.CLOSED);
+    await act(async () => pending.resolve({ ok: false, error: 'nope' }));
+    expect(await within(card).findByRole('alert')).toHaveTextContent(c.track.archive.failed);
+  });
+
+  it('the add button names what the club has: tracks, or courts and tracks', () => {
+    const { unmount } = board([track()]);
+    expect(screen.getByRole('button', { name: 'Добавяне на писта' })).toBeInTheDocument();
+    unmount();
+
+    board([court(), track()]);
+    expect(screen.getByRole('button', { name: c.mixed.action.add })).toBeInTheDocument();
+    // Each card still speaks for itself.
+    const [padel, karting] = screen.getAllByRole('listitem');
+    expect(badge(padel!)).toHaveTextContent(c.status.ACTIVE);
+    expect(badge(karting!)).toHaveTextContent(c.track.status.ACTIVE);
+  });
+});

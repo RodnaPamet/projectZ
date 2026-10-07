@@ -129,6 +129,8 @@ export interface VenueDetail extends VenueSummary {
     id: string;
     name: string;
     sport: string;
+    /** `ResourceType` (P51); see `ResourceSlotsDto.resourceType`. */
+    resourceType: string;
     surface: string | null;
     isIndoor: boolean;
     basePriceCents: number;
@@ -168,6 +170,7 @@ export function toVenueDetail(v: VenueFull, clubSlug: string): VenueDetail {
       id: r.id,
       name: r.name,
       sport: r.sport,
+      resourceType: r.resourceType,
       surface: r.surface,
       isIndoor: r.isIndoor,
       basePriceCents: r.basePriceCents,
@@ -232,6 +235,11 @@ export interface ResourceSlotsDto {
   resourceId: string;
   name: string;
   sport: string;
+  /**
+   * `ResourceType` (P51): COURT, FIELD, TRACK… Booked and priced alike; a
+   * TRACK (karting, hired whole) is called a "писта" rather than a "корт".
+   */
+  resourceType: string;
   currency: string;
   minBookingMinutes: number;
   /** The longest booking this resource takes, in minutes (Q16). */
@@ -267,6 +275,7 @@ export function toAvailability(args: {
       id: string;
       name: string;
       sport: string;
+      resourceType: string;
       currency: string;
       minBookingMinutes: number;
       maxBookingMinutes: number;
@@ -292,6 +301,7 @@ export function toAvailability(args: {
       resourceId: resource.id,
       name: resource.name,
       sport: resource.sport,
+      resourceType: resource.resourceType,
       currency: resource.currency,
       minBookingMinutes: resource.minBookingMinutes,
       maxBookingMinutes: resource.maxBookingMinutes,
@@ -370,6 +380,8 @@ export interface BookingDto {
     id: string;
     name: string;
     sport: string;
+    /** `ResourceType` (P51); see `ResourceSlotsDto.resourceType`. */
+    resourceType: string;
   };
   venue: {
     id: string;
@@ -392,6 +404,7 @@ type BookingRow = {
     id: string;
     name: string;
     sport: string;
+    resourceType: string;
     venue: { id: string; name: string; timezone: string; cancellationCutoffHours: number };
   };
 };
@@ -419,7 +432,12 @@ export function toBooking(b: BookingRow): BookingDto {
       b.status === 'PENDING' || b.status === 'CONFIRMED'
         ? rfc3339(playerCancellableUntil(b.startTs, b.resource.venue.cancellationCutoffHours))
         : null,
-    resource: { id: b.resource.id, name: b.resource.name, sport: b.resource.sport },
+    resource: {
+      id: b.resource.id,
+      name: b.resource.name,
+      sport: b.resource.sport,
+      resourceType: b.resource.resourceType,
+    },
     // Rebuilt, not passed through: the cutoff is on the row for the line
     // above, and a venue block that grew a field with every select would be a
     // wire shape nobody decided.
@@ -658,7 +676,8 @@ export interface BookingInviteLinkDto {
 /** `POST /booking-invites/preview` (#358): nothing private. */
 export interface BookingInvitePreviewDto {
   venue: { name: string; city: string; timezone: string };
-  resource: { name: string; sport: string };
+  /** `resourceType` (P51): see `ResourceSlotsDto.resourceType`. */
+  resource: { name: string; sport: string; resourceType: string };
   startTs: string;
   endTs: string;
   bookerFirstName: string | null;
@@ -672,6 +691,7 @@ export function toBookingInvitePreviewDto(p: {
   timezone: string;
   courtName: string;
   sport: string;
+  resourceType: string;
   startTs: Date;
   endTs: Date;
   bookerFirstName: string | null;
@@ -680,7 +700,7 @@ export function toBookingInvitePreviewDto(p: {
 }): BookingInvitePreviewDto {
   return {
     venue: { name: p.venueName, city: p.venueCity, timezone: p.timezone },
-    resource: { name: p.courtName, sport: p.sport },
+    resource: { name: p.courtName, sport: p.sport, resourceType: p.resourceType },
     startTs: rfc3339(p.startTs),
     endTs: rfc3339(p.endTs),
     bookerFirstName: p.bookerFirstName,

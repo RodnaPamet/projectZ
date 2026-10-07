@@ -70,6 +70,7 @@ describe('DayGrid: marking a no-show', () => {
               {
                 id: 'r1',
                 name: 'Court 1',
+                noun: 'court',
                 venueName: null,
                 durations: [60],
                 slotStepMinutes: 60,

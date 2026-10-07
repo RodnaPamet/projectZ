@@ -21,6 +21,7 @@ import type { ApiClientError } from '@/lib/data/errors';
 import { KEYS, V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
+import { combineNouns } from '@/lib/sports/resource-kinds';
 
 import type { GridCourt } from './DayGrid';
 import { customerBody, DeskCustomerFields, type DeskCustomerValue } from './DeskCustomerFields';
@@ -93,6 +94,13 @@ export default function DeskBookingSheet({
 
   const [courtId, setCourtId] = useState(draft.courtId);
   const court = bookable.find((c) => c.id === courtId) ?? bookable[0];
+  // P51: the picker is "Писта" at a karting club, "Корт или писта" at one with
+  // both; what is said about the chosen one follows its own noun.
+  const pickerNouns = combineNouns(bookable.map((c) => c.noun));
+  const courtLabel = t(
+    pickerNouns === 'track' ? 'track.court' : pickerNouns === 'mixed' ? 'mixed.court' : 'court',
+  );
+  const track = court?.noun === 'track';
   const durations = court?.durations ?? [60];
   const [chosenDuration, setDuration] = useState<number | null>(null);
   const duration =
@@ -217,7 +225,7 @@ export default function DeskBookingSheet({
     >
       <Sheet.Header title={t('title')} description={t('description')} />
       <Sheet.Body className="gap-default grid content-start" data-desk-sheet>
-        <FormField label={t('court')}>
+        <FormField label={courtLabel}>
           <Combobox
             id={`${ids}-court`}
             options={courtOptions}
@@ -229,7 +237,7 @@ export default function DeskBookingSheet({
             caret
             buttonProps={{
               className: 'w-full',
-              'aria-label': selectedCourt ? `${t('court')}, ${selectedCourt.label}` : t('court'),
+              'aria-label': selectedCourt ? `${courtLabel}, ${selectedCourt.label}` : courtLabel,
             }}
           />
         </FormField>
@@ -354,7 +362,9 @@ export default function DeskBookingSheet({
         {previewKey && !preview.data && preview.isLoading && <Caption>{t('checking')}</Caption>}
 
         {!repeat && occurrences[0]?.status === 'unavailable' && (
-          <InlineNotice variant="warning">{t('unavailable')}</InlineNotice>
+          <InlineNotice variant="warning">
+            {t(track ? 'track.unavailable' : 'unavailable')}
+          </InlineNotice>
         )}
         {!repeat && occurrences[0]?.status === 'taken' && (
           <InlineNotice variant="warning">{t('error.SLOT_TAKEN')}</InlineNotice>
@@ -395,7 +405,12 @@ export default function DeskBookingSheet({
 
         {error && (
           <InlineNotice variant="error" onDismiss={() => setError(null)}>
-            {t(`error.${error}` as never)}
+            {/* The one refusal that names the court says "Пистата" for a track. */}
+            {t(
+              (track && error === 'SLOT_NOT_BOOKABLE'
+                ? 'track.error.SLOT_NOT_BOOKABLE'
+                : `error.${error}`) as never,
+            )}
           </InlineNotice>
         )}
       </Sheet.Body>

@@ -62,6 +62,7 @@ const availability = (overrides: Partial<AvailabilityDto> = {}): AvailabilityDto
       resourceId: 'c1',
       name: 'Корт 1',
       sport: 'PADEL',
+      resourceType: 'COURT',
       currency: 'EUR',
       minBookingMinutes: 60,
       maxBookingMinutes: 120,
@@ -89,11 +90,13 @@ function mount({
   pick = NO_PICK,
   renderedAt = '2036-07-15T12:00:00Z',
   cutoffHours = 24,
+  seedAvailability = availability(),
 }: {
   viewer?: Viewer;
   pick?: InitialPick;
   renderedAt?: string;
   cutoffHours?: number;
+  seedAvailability?: AvailabilityDto;
 } = {}) {
   const ui = (
     <VenueBooking
@@ -106,7 +109,7 @@ function mount({
         cancellationCutoffHours: cutoffHours,
       }}
       days={DAYS}
-      seed={{ day: DAYS[0]!, availability: availability() }}
+      seed={{ day: DAYS[0]!, availability: seedAvailability }}
       initialPick={pick}
       renderedAt={renderedAt}
       viewer={viewer}
@@ -126,12 +129,15 @@ function mount({
 }
 
 /** A fake v1: availability always answers; the booking POST answers `booking()`. */
-function api(booking: () => FakeAnswer | Promise<FakeAnswer>) {
+function api(
+  booking: () => FakeAnswer | Promise<FakeAnswer>,
+  answer: AvailabilityDto = availability(),
+) {
   return installFakeFetch((call) => {
     // The funnel beacon (#371) answers 204 and is never the booking.
     if (isBeacon(call)) return { status: 204 };
     if (call.method === 'POST') return booking();
-    return ok(availability());
+    return ok(answer);
   });
 }
 
@@ -248,6 +254,23 @@ describe('the confirmation sheet', () => {
     expect(within(dialog).getByText(s.cancelUntilTitle)).toBeInTheDocument();
     // 24 h before 09:00 on the 16th, at the club.
     expect(within(dialog).getByText(/до вторник, 15 юли.*09:00/)).toBeInTheDocument();
+  });
+
+  it('names a karting track a "Писта", not a "Корт" (P51)', async () => {
+    const court = availability().resources[0]!;
+    const track = availability({
+      resources: [
+        { ...court, resourceId: 'k1', name: 'Писта 1', sport: 'KARTING', resourceType: 'TRACK' },
+      ],
+    });
+    api(() => ok({}), track);
+    mount({ renderedAt: '2036-07-14T12:00:00Z', seedAvailability: track });
+    const dialog = await openSheet();
+
+    expect(s.track.court).toBe('Писта');
+    expect(within(dialog).getByText(s.track.court)).toBeInTheDocument();
+    expect(within(dialog).getByText('Писта 1')).toBeInTheDocument();
+    expect(within(dialog).queryByText(s.court)).toBeNull();
   });
 
   it('says plainly when the slot is inside the club’s cutoff', async () => {

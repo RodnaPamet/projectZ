@@ -7,6 +7,7 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { resourceNouns } from '@/lib/sports/resource-kinds';
 
 import { CourtsBoard, type CourtRow } from './CourtsBoard';
 
@@ -75,6 +76,7 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
     id: c.id,
     name: c.name,
     sport: c.sport,
+    resourceType: c.resourceType,
     surface: c.surface,
     isIndoor: c.isIndoor,
     capacity: c.capacity,
@@ -87,11 +89,25 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
     upcomingBookings: upcoming.get(c.id) ?? 0,
   }));
 
+  // "Писти" at a karting club, "Кортове и писти" at one with both (P51). The
+  // tab title stays "Кортове", as the club nav names the screen.
+  const nouns = resourceNouns(rows.map((r) => r.resourceType));
+
   return (
     <section>
       <header className="mb-section">
-        <Heading level={1}>{t('title')}</Heading>
-        <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
+        <Heading level={1}>
+          {t(nouns === 'track' ? 'track.title' : nouns === 'mixed' ? 'mixed.title' : 'title')}
+        </Heading>
+        <p className="text-content-muted mt-1 text-sm">
+          {t(
+            nouns === 'track'
+              ? 'track.subtitle'
+              : nouns === 'mixed'
+                ? 'mixed.subtitle'
+                : 'subtitle',
+          )}
+        </p>
       </header>
 
       {courtsWereTruncated(rows) && (
@@ -99,7 +115,14 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
         // route was redesigned to avoid. Saying so is cheaper than paging a
         // screen no real club needs paged.
         <InlineNotice variant="info" className="mb-default">
-          {t('truncated', { limit: COURT_LIST_LIMIT })}
+          {t(
+            nouns === 'track'
+              ? 'track.truncated'
+              : nouns === 'mixed'
+                ? 'mixed.truncated'
+                : 'truncated',
+            { limit: COURT_LIST_LIMIT },
+          )}
         </InlineNotice>
       )}
 

@@ -22,8 +22,13 @@ export const MIN_NAME_LENGTH = 2;
 export const MAX_NAME_LENGTH = 60;
 
 /**
- * The sports a player can pick: the registry's bookable ones (the pilot is
- * every court sport; running and cycling are not booked). Derived, never
- * hand-listed, for the reason `sportSchema` in schemas/common.ts gives.
+ * The sports a player can pick: the registry's bookable ones that take a
+ * self-declared level (`selfDeclaredLevel`). The pilot is every court sport;
+ * running and cycling are not booked, and karting is booked but has no level
+ * (the registry says why). Derived, never hand-listed, for the reason
+ * `sportSchema` in schemas/common.ts gives — so `PATCH /me` refuses KARTING
+ * with the same list the profile sheet offers.
  */
-export const PROFILE_SPORTS: readonly SportType[] = bookableSports().map((s) => s.key);
+export const PROFILE_SPORTS: readonly SportType[] = bookableSports()
+  .filter((s) => s.selfDeclaredLevel)
+  .map((s) => s.key);

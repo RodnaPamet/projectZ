@@ -7,7 +7,7 @@ import type { SportCapability, SportConfig, SportFamily } from './types';
  *
  * The alternative is `if (sport === 'CHESS')` scattered through use cases,
  * repositories and components. That looks harmless with three sports and is
- * unmaintainable with sixteen: adding a seventeenth means finding every
+ * unmaintainable with eighteen: adding a nineteenth means finding every
  * branch, and the one you miss does not fail — it just silently treats the
  * new sport like tennis.
  *
@@ -31,6 +31,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'SETS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'BOTH',
   },
@@ -44,6 +45,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'SETS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 90,
     indoorOutdoor: 'BOTH',
   },
@@ -57,6 +59,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'POINTS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'INDOOR',
   },
@@ -70,6 +73,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'POINTS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 45,
     indoorOutdoor: 'INDOOR',
   },
@@ -83,6 +87,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'SETS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'OUTDOOR',
   },
@@ -96,8 +101,26 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'POINTS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'BOTH',
+  },
+  SQUASH: {
+    key: 'SQUASH',
+    family: 'RACKET',
+    label: { bg: 'Скуош', en: 'Squash' },
+    // Neither icon set has a racket; the ball, as for the other racket sports.
+    icon: 'Circle',
+    resourceType: 'COURT',
+    // Singles. Doubles squash needs a wider court than any pilot club has.
+    teamSize: { min: 2, max: 2, perSide: 1 },
+    // Games to 11, best of five: points, as badminton and table tennis.
+    scoring: 'POINTS',
+    ratingEngine: 'OPENSKILL',
+    bookable: true,
+    selfDeclaredLevel: true,
+    defaultDurationMinutes: 45,
+    indoorOutdoor: 'INDOOR',
   },
 
   // ── Team ball ─────────────────────────────────────────────────────
@@ -111,6 +134,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'GOALS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 90,
     indoorOutdoor: 'OUTDOOR',
   },
@@ -124,6 +148,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'GOALS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'BOTH',
   },
@@ -131,12 +156,16 @@ export const SPORTS: Record<SportType, SportConfig> = {
     key: 'BASKETBALL',
     family: 'TEAM_BALL',
     label: { bg: 'Баскетбол', en: 'Basketball' },
-    icon: 'Dribbble',
+    // Was 'Dribbble', which lucide-react 1.x dropped with its brand icons:
+    // the name pointed at nothing, and nothing noticed until the registry
+    // test started checking that every icon exists.
+    icon: 'Circle',
     resourceType: 'COURT',
     teamSize: { min: 6, max: 10, perSide: 5 },
     scoring: 'POINTS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'BOTH',
   },
@@ -150,6 +179,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'SETS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 90,
     indoorOutdoor: 'BOTH',
   },
@@ -163,6 +193,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'SETS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'OUTDOOR',
   },
@@ -176,6 +207,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'GOALS',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'INDOOR',
   },
@@ -195,6 +227,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     // has.
     ratingEngine: 'GLICKO2',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'INDOOR',
   },
@@ -210,8 +243,41 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'CUSTOM',
     ratingEngine: 'OPENSKILL',
     bookable: true,
+    selfDeclaredLevel: true,
     defaultDurationMinutes: 120,
     indoorOutdoor: 'INDOOR',
+  },
+
+  // ── Motorsport ────────────────────────────────────────────────────
+  //
+  // Booked as EXCLUSIVE HIRE OF THE WHOLE TRACK, in steps, like a court (owner,
+  // 2026-10-07): the booking holds the track, and the EXCLUDE constraint keeps
+  // a second group off it. Laps and arrive-and-drive sessions are the club's
+  // own sales and never touch playerz. So nothing here is per driver.
+  KARTING: {
+    key: 'KARTING',
+    family: 'MOTORSPORT',
+    label: { bg: 'Картинг', en: 'Karting' },
+    // The vendored nucleo set (upstream's icons) has no car or chequered flag;
+    // its speed gauge is the closest thing it does have.
+    icon: 'Gauge6',
+    // A TRACK is exclusive: karting is always on one, and nothing else is.
+    resourceType: 'TRACK',
+    // Whoever hired the track: one driver, or a group up to the track's own
+    // capacity (Sofia Karting Ring: 10). No sides.
+    teamSize: { min: 1, max: 10 },
+    // Lap timing is the club's own system. playerz keeps no score, so no
+    // live score either (`supportsCapability('liveScore')`).
+    scoring: 'CUSTOM',
+    ratingEngine: 'OPENSKILL',
+    bookable: true,
+    // No 1–7 level on the profile: playerz neither ranks karting (it has no lap
+    // times) nor matches drivers (the whole track is hired by one group), so a
+    // level would seed nothing; and the seven level sentences describe playing
+    // a game against an opponent, not driving.
+    selfDeclaredLevel: false,
+    defaultDurationMinutes: 15,
+    indoorOutdoor: 'BOTH',
   },
 
   // ── Endurance ─────────────────────────────────────────────────────
@@ -230,6 +296,8 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'TIME_DISTANCE',
     ratingEngine: 'OPENSKILL',
     bookable: false,
+    // The profile's sports are the ones a player books here (#359).
+    selfDeclaredLevel: false,
     defaultDurationMinutes: 60,
     indoorOutdoor: 'OUTDOOR',
   },
@@ -243,6 +311,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     scoring: 'TIME_DISTANCE',
     ratingEngine: 'OPENSKILL',
     bookable: false,
+    selfDeclaredLevel: false,
     defaultDurationMinutes: 120,
     indoorOutdoor: 'OUTDOOR',
   },

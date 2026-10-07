@@ -18,6 +18,7 @@ import { Caption, Heading } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
+import { combineNouns, type ResourceNoun } from '@/lib/sports/resource-kinds';
 
 import { markNoShowAction } from './actions';
 import type { DeskCancelRequest } from './DeskBookingDetails';
@@ -118,6 +119,8 @@ export interface DayBooking {
 export interface GridCourt {
   id: string;
   name: string;
+  /** What the copy calls it (P51): a karting track is a "писта". */
+  noun: ResourceNoun;
   /** Set only when the club has more than one site; null otherwise. */
   venueName: string | null;
   /** The lengths a booking here can be, in minutes, shortest first. */
@@ -185,6 +188,8 @@ export function DayGrid({
   const { day: fresh, refresh } = useFreshDiaryDay(slug, requestedDay, day);
   const { isoDay, prevDay, nextDay, isToday, dayLabel, courts, bookings, firstHour, lastHour } =
     fresh;
+  // "4 писти" at a karting club, "4 корта и писти" at one with both (P51).
+  const nouns = combineNouns(courts.map((c) => c.noun));
   const [noShowTarget, setNoShowTarget] = useState<DayBooking | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -400,10 +405,25 @@ export function DayGrid({
         <div className="gap-tight grid min-w-0">
           {edges.overflow && (
             <div className="gap-tight flex flex-wrap items-center" data-diary-courts-hint>
-              <Caption>{t('scroll.hint', { count: courts.length })}</Caption>
+              <Caption>
+                {t(
+                  nouns === 'track'
+                    ? 'track.scroll.hint'
+                    : nouns === 'mixed'
+                      ? 'mixed.scroll.hint'
+                      : 'scroll.hint',
+                  { count: courts.length },
+                )}
+              </Caption>
               <div
                 role="group"
-                aria-label={t('scroll.jumpTo')}
+                aria-label={t(
+                  nouns === 'track'
+                    ? 'track.scroll.jumpTo'
+                    : nouns === 'mixed'
+                      ? 'mixed.scroll.jumpTo'
+                      : 'scroll.jumpTo',
+                )}
                 className="gap-tight flex flex-wrap"
               >
                 {courts.map((court) => (
@@ -566,6 +586,7 @@ export function DayGrid({
         <DeskBookingDetails
           slug={slug}
           bookingId={detail.id}
+          noun={courts.find((c) => c.id === detail.resourceId)?.noun ?? 'court'}
           canMarkNoShow={detail.canMarkNoShow}
           onClose={() => setDetail(null)}
           onChanged={refresh}

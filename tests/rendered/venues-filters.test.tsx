@@ -145,6 +145,40 @@ describe('/venues — the sport filter (#357)', () => {
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]!.url).toBe('/api/v1/venues');
   });
+
+  it('squash and karting, once a live venue has them, read in Bulgarian and filter (P51)', async () => {
+    const both = venue({ name: 'Малеева', sports: ['SQUASH', 'KARTING'] });
+    installFakeFetch(() => ok(page([both])));
+    render(
+      withIntl(
+        <DataProvider>
+          <SWRConfig value={{ provider: () => new Map() }}>
+            <VenueList
+              seed={page([both])}
+              initialFilters={{}}
+              facets={{ cities: ['Sofia'], sports: ['PADEL', 'SQUASH', 'KARTING'] }}
+            />
+          </SWRConfig>
+        </DataProvider>,
+      ),
+    );
+
+    // The owner's names, not the enum: Скуош and Картинг.
+    expect([messages.sports.SQUASH, messages.sports.KARTING]).toEqual(['Скуош', 'Картинг']);
+    const group = screen.getByRole('radiogroup', { name: f.sport });
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((r) => r.textContent),
+    ).toEqual([f.allSports, messages.sports.PADEL, 'Скуош', 'Картинг']);
+    // The card's sport badges say the same.
+    expect(within(cards()[0]!).getByText('Скуош')).toBeInTheDocument();
+    expect(within(cards()[0]!).getByText('Картинг')).toBeInTheDocument();
+
+    fireEvent.click(within(group).getByRole('radio', { name: 'Картинг' }));
+    expect(push).toHaveBeenLastCalledWith(null, '', '?sport=KARTING');
+    await act(tick);
+  });
 });
 
 describe('/venues — the city filter and the city names (#357, A07)', () => {

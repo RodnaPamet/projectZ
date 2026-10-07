@@ -59,7 +59,7 @@ const booking = (over: Partial<DayBooking> = {}): DayBooking => ({
 });
 
 /** What a court carries for the desk (#364). */
-const DESK = { durations: [60, 120], slotStepMinutes: 60, bookable: true };
+const DESK = { noun: 'court' as const, durations: [60, 120], slotStepMinutes: 60, bookable: true };
 
 let stamp = Date.now();
 const dayOf = (over: Partial<DiaryDay> = {}): DiaryDay => ({
@@ -307,6 +307,22 @@ describe('getting around the diary (audit C07, C08)', () => {
       expect(chips.map((b) => b.textContent)).toEqual(['Корт 1', 'Корт 2', 'Корт 3', 'Корт 4']);
       fireEvent.click(chips[3]!);
       expect(scrollTo).toHaveBeenCalled();
+    });
+
+    it('at a karting club the tracks are "писти", and at a mixed one both are named (P51)', () => {
+      const tracks = four();
+      tracks.courts = tracks.courts.map((court) => ({ ...court, noun: 'track' as const }));
+      const { unmount } = grid(nextClub(), tracks);
+      expect(
+        screen.getByText('4 писти: превъртете настрани или изберете писта.'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: c.track.scroll.jumpTo })).toBeInTheDocument();
+      unmount();
+
+      const mixed = four();
+      mixed.courts[3] = { ...mixed.courts[3]!, noun: 'track' };
+      grid(nextClub(), mixed);
+      expect(screen.getByText(c.mixed.scroll.hint.replace('{count}', '4'))).toBeInTheDocument();
     });
   });
 });

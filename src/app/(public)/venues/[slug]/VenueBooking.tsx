@@ -17,6 +17,7 @@ import { KEYS, V1 } from '@/lib/data/keys';
 import { sendUsageBeacon } from '@/lib/data/usage-beacon';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { venuePagePath, type InitialPick } from './booking-days';
 import { BookingSheet, type Selection } from './BookingSheet';
@@ -104,6 +105,7 @@ function initialSelection(pick: InitialPick, seed: AvailabilityDto, now: number)
   return {
     resourceId: r.resourceId,
     courtName: r.name,
+    noun: resourceNoun(r.resourceType),
     currency: r.currency,
     ...offer,
   };
@@ -357,6 +359,7 @@ export function VenueBooking({
                               setSelection({
                                 resourceId: r.resourceId,
                                 courtName: r.name,
+                                noun: resourceNoun(r.resourceType),
                                 currency: r.currency,
                                 ...o,
                               });

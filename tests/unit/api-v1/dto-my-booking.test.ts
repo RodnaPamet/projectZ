@@ -21,6 +21,7 @@ describe('toMyBookingDto', () => {
       id: 'r1',
       name: 'Court 1',
       sport: 'PADEL',
+      resourceType: 'COURT',
       venue: {
         id: 'v1',
         name: 'Padel Palace',
@@ -51,7 +52,8 @@ describe('toMyBookingDto', () => {
       createdAt: '2026-07-01T10:11:12Z',
       // COMPLETED: not cancellable at all. The cutoff on the row is not published.
       cancellableUntil: null,
-      resource: { id: 'r1', name: 'Court 1', sport: 'PADEL' },
+      // `resourceType` (P51): what the copy calls it — a TRACK is a "писта".
+      resource: { id: 'r1', name: 'Court 1', sport: 'PADEL', resourceType: 'COURT' },
       venue: { id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' },
       clubSlug: 'slot-club-sofia',
       venueReview: null,

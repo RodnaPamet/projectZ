@@ -3,6 +3,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { listCourts } from '@/app-layer/repositories/court';
 import { dayWindow, listDayBookings } from '@/app-layer/repositories/diary';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import type { DayBooking, GridCourt } from './DayGrid';
 
@@ -264,6 +265,7 @@ export async function loadDiaryDay(
     courts: courts.map((c): GridCourt => ({
       id: c.id,
       name: c.name,
+      noun: resourceNoun(c.resourceType),
       // Only when the club has more than one site. Two courts named
       // "Court 1" at different venues are otherwise adjacent, identical
       // columns, and a front-desk operator cannot tell which is theirs.

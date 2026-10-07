@@ -37,8 +37,8 @@ const p = bg.admin.pricing;
 const day = bg.common.calendar.weekdayShort;
 
 const COURTS: CourtOption[] = [
-  { id: 'c1', name: 'Корт 1', basePriceCents: 2400, minBookingMinutes: 60 },
-  { id: 'c2', name: 'Корт 2', basePriceCents: 3000, minBookingMinutes: 60 },
+  { id: 'c1', name: 'Корт 1', noun: 'court', basePriceCents: 2400, minBookingMinutes: 60 },
+  { id: 'c2', name: 'Корт 2', noun: 'court', basePriceCents: 3000, minBookingMinutes: 60 },
 ];
 
 const PEAK: PricingRuleView = {

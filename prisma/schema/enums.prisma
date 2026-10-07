@@ -58,6 +58,7 @@ enum SportType {
   TABLE_TENNIS
   BEACH_TENNIS
   PICKLEBALL
+  SQUASH
 
   // ── Team ball ─────────────────────────────────────────────────────
   FOOTBALL5
@@ -72,6 +73,11 @@ enum SportType {
 
   // ── Esport ────────────────────────────────────────────────────────
   ESPORTS
+
+  // ── Motorsport ────────────────────────────────────────────────────
+  /// Exclusive hire of a whole TRACK, in steps like a court (P51). Laps and
+  /// arrive-and-drive sessions are the club's own sales, outside playerz.
+  KARTING
 
   // ── Endurance ─────────────────────────────────────────────────────
   RUNNING
@@ -89,6 +95,9 @@ enum ResourceType {
   BOARD_TABLE
   LOBBY
   ROUTE
+  /// A karting track (P51), hired whole. Booked and priced exactly like a
+  /// court; it exists so the copy can call it a "писта", not a "корт".
+  TRACK
 }
 
 enum CourtSurface {

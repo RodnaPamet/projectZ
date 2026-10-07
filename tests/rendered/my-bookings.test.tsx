@@ -50,7 +50,7 @@ const booking = (over: Partial<MyBookingDto> = {}): MyBookingDto => ({
   cancelledAt: null,
   createdAt: '2026-09-20T10:00:00.000Z',
   cancellableUntil: null,
-  resource: { id: 'r1', name: 'Корт 1', sport: 'PADEL' },
+  resource: { id: 'r1', name: 'Корт 1', sport: 'PADEL', resourceType: 'COURT' },
   venue: { id: 'v1', name: 'Алфа Кортове', timezone: 'Europe/Sofia' },
   clubSlug: 'alpha',
   venueReview: null,

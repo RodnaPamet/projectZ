@@ -140,6 +140,7 @@
     "TABLE_TENNIS": "Table tennis",
     "BEACH_TENNIS": "Beach tennis",
     "PICKLEBALL": "Pickleball",
+    "SQUASH": "Squash",
     "FOOTBALL": "Football",
     "FOOTBALL5": "Football 5-a-side",
     "BASKETBALL": "Basketball",
@@ -148,6 +149,7 @@
     "HANDBALL": "Handball",
     "CHESS": "Chess",
     "ESPORTS": "E-sports",
+    "KARTING": "Karting",
     "RUNNING": "Running",
     "CYCLING": "Cycling"
   },
@@ -218,6 +220,9 @@
     "sheet": {
       "title": "Confirm your booking",
       "court": "Court",
+      "track": {
+        "court": "Track"
+      },
       "date": "Date",
       "time": "Time",
       "duration": "Duration",
@@ -514,6 +519,36 @@
         "confirm": "{count, plural, one {This court has # upcoming booking. Archiving does not cancel it. Continue?} other {This court has # upcoming bookings. Archiving does not cancel them. Continue?}}",
         "title": "Archive this court?",
         "failed": "The court's status was not changed. Try again."
+      },
+      "track": {
+        "title": "Tracks",
+        "subtitle": "The club's tracks, their pricing and capacity.",
+        "truncated": "Showing the first {limit} tracks. This club has more.",
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CLOSED": "Closed"
+        },
+        "setting": {
+          "indoor": "Indoor",
+          "outdoor": "Outdoor"
+        },
+        "action": {
+          "add": "Add track"
+        },
+        "archive": {
+          "confirm": "{count, plural, one {This track has # upcoming booking. Archiving does not cancel it. Continue?} other {This track has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+          "title": "Archive this track?",
+          "failed": "The track's status was not changed. Try again."
+        }
+      },
+      "mixed": {
+        "title": "Courts and tracks",
+        "subtitle": "The club's courts and tracks, their pricing and capacity.",
+        "truncated": "Showing the first {limit} courts and tracks. This club has more.",
+        "action": {
+          "add": "Add a court or track"
+        }
       }
     },
     "onlineShare": {
@@ -604,6 +639,19 @@
         "save": "Save",
         "saved": "Saved.",
         "invalid": "Enter a whole number from {min} to {max}."
+      },
+      "track": {
+        "field": {
+          "court": "Track"
+        },
+        "empty": {
+          "title": "No rules for this track"
+        }
+      },
+      "mixed": {
+        "field": {
+          "court": "Court or track"
+        }
       }
     },
     "players": {
@@ -782,6 +830,13 @@
           "title": "New booking",
           "description": "For a walk-in or phone customer. Paid at the club.",
           "court": "Court",
+          "track": {
+            "court": "Track",
+            "unavailable": "The track cannot be booked then: it is closed, or the time is off its schedule.",
+            "error": {
+              "SLOT_NOT_BOOKABLE": "The track cannot be booked then."
+            }
+          },
           "date": "Date",
           "time": "Start time",
           "duration": "Length",
@@ -827,12 +882,18 @@
             "INVALID_SERIES": "A series is at most 52 weeks and cannot end before it starts.",
             "BAD_REQUEST": "Check the fields: the name and phone are required.",
             "generic": "Could not save. Try again."
+          },
+          "mixed": {
+            "court": "Court or track"
           }
         },
         "detail": {
           "title": "Desk booking",
           "when": "{date}, {start}–{end}",
           "court": "Court",
+          "track": {
+            "court": "Track"
+          },
           "phone": "Phone",
           "player": "playerz account",
           "noPlayer": "No account",
@@ -854,6 +915,20 @@
           "loadError": "The booking could not be loaded.",
           "actionError": "That did not work. Try again.",
           "markNoShow": "Mark no-show"
+        }
+      },
+      "track": {
+        "subtitle": "One day, every track. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} tracks: scroll sideways or pick a track.",
+          "jumpTo": "Show track"
+        }
+      },
+      "mixed": {
+        "subtitle": "One day, every court and track. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} courts and tracks: scroll sideways or pick one.",
+          "jumpTo": "Show court or track"
         }
       }
     },
@@ -1033,6 +1108,12 @@
       "back": "Bookings",
       "when": "When",
       "court": "Court",
+      "track": {
+        "court": "Track",
+        "confirm": {
+          "description": "{venue}, {date} at {time}. The track will be freed for other players."
+        }
+      },
       "price": "Price",
       "payAtClub": "Pay at the club",
       "address": "Address",
@@ -1066,6 +1147,9 @@
       "invite": "Invite players",
       "spotsLeft": "{count, plural, =0 {No places left} one {# place left} other {# places left}}",
       "full": "Every place on the court is taken.",
+      "track": {
+        "full": "Every place on the track is taken."
+      },
       "sheetTitle": "Invite players",
       "sheetDescription": "Add up to {count, plural, one {# player} other {# players}}. Payment stays at the club.",
       "share": "Share a link",
@@ -1518,6 +1602,9 @@
     "when": "When",
     "where": "Where",
     "court": "Court",
+    "track": {
+      "court": "Track"
+    },
     "payAtClub": "Payment is at the club.",
     "join": "Join",
     "signInToJoin": "Sign in to join",
@@ -1585,6 +1672,9 @@
     "labels": {
       "venue": "Venue",
       "court": "Court",
+      "track": {
+        "court": "Track"
+      },
       "when": "When",
       "zone": "Time zone",
       "payment": "Payment",
@@ -1639,6 +1729,16 @@
         "rate": "Fee %",
         "fee": "Fee"
       },
+      "track": {
+        "column": {
+          "court": "Track"
+        }
+      },
+      "mixed": {
+        "column": {
+          "court": "Court / track"
+        }
+      },
       "kind": {
         "CHARGE": "Played",
         "REVERSAL": "Correction"
@@ -1649,6 +1749,12 @@
       "time": "Time",
       "venue": "Venue",
       "court": "Court",
+      "track": {
+        "court": "Track"
+      },
+      "mixed": {
+        "court": "Court / track"
+      },
       "kind": "Type",
       "price": "Price ({currency})",
       "rate": "Fee %",

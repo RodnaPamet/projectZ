@@ -17,6 +17,8 @@ import {
   percentToBps,
 } from '@/lib/billing/club-fee';
 import { canonicalCity, CITY_SPELLINGS, cityKey } from '@/lib/geo/cities';
+import { allSports } from '@/lib/sports/registry';
+import { allowedResourceTypes, defaultResourceType } from '@/lib/sports/resources';
 
 import {
   assignOwner,
@@ -175,8 +177,12 @@ const court = z
   .strictObject({
     name: z.string().trim().min(1).max(80),
     sport: z.enum(SportType),
-    /** COURT unless said otherwise; a football pitch may be FIELD. */
-    resourceType: z.enum(ResourceType).default('COURT'),
+    /**
+     * What the booking holds (P51). Left out: COURT, or the sport's own
+     * EXCLUSIVE type — KARTING is always a TRACK, and a TRACK is only karting
+     * (src/lib/sports/resources.ts). A football pitch may be a FIELD.
+     */
+    resourceType: z.enum(ResourceType).optional(),
     surface: z.enum(CourtSurface),
     indoor: z.boolean(),
     /** Players on the court, the bound for adding players to a booking (#358). */
@@ -228,7 +234,31 @@ const court = z
         message: `${c.pricePerHourCents} cents/hour is not a whole number of cents per ${c.minBookingMinutes}-minute unit; the database prices units, and this will not round a club's price`,
       });
     }
-  });
+    // The resource type against the sport. A karting track stored as a COURT
+    // would read "корт" on every screen; a tennis court stored as a TRACK
+    // would read "писта".
+    const allowed = allowedResourceTypes(c.sport);
+    if (c.resourceType !== undefined && !allowed.includes(c.resourceType)) {
+      const own = defaultResourceType(c.sport);
+      ctx.addIssue({
+        code: 'custom',
+        path: ['resourceType'],
+        message:
+          allowed.length === 1
+            ? `${c.sport} is booked on a ${own}, and only on one: leave resourceType out, or write "${own}"`
+            : `a ${c.resourceType} is only for ${sportsOn(c.resourceType)}; a ${c.sport} court is one of ${allowed.join(', ')} (left out, it is ${own})`,
+      });
+    }
+  })
+  .transform((c) => ({ ...c, resourceType: c.resourceType ?? defaultResourceType(c.sport) }));
+
+/** The sports the registry puts on `type`, for an error message. */
+function sportsOn(type: ResourceType): string {
+  return allSports()
+    .filter((s) => s.resourceType === type)
+    .map((s) => s.key)
+    .join(', ');
+}
 
 const venue = z
   .strictObject({

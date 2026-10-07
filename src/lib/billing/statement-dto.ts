@@ -4,6 +4,7 @@ import type {
   StatementTotals,
 } from '@/app-layer/usecases/club-fees';
 import { bpsToPercent } from '@/lib/billing/club-fee';
+import type { ResourceNouns } from '@/lib/sports/resource-kinds';
 
 /**
  * A statement as it crosses a boundary (#372): the v1 JSON, and the props the
@@ -52,6 +53,8 @@ export interface ClubStatementDto {
   totals: StatementTotalsDto;
   lines: StatementLineDto[];
   linesTruncated: boolean;
+  /** The court column's noun (P51): `court`, `track` (a karting club) or `mixed`. */
+  courtNouns: ResourceNouns;
 }
 
 const totalsDto = (t: StatementTotals): StatementTotalsDto => ({ ...t });
@@ -82,6 +85,7 @@ export function toClubStatementDto(s: ClubStatement): ClubStatementDto {
       recordedAt: rfc3339(l.recordedAt),
     })),
     linesTruncated: s.linesTruncated,
+    courtNouns: s.courtNouns,
   };
 }
 

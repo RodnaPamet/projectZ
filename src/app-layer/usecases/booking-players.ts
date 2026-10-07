@@ -552,6 +552,8 @@ export interface BookingInvitePreview {
   venueName: string;
   venueCity: string;
   sport: string;
+  /** What the court is called (P51): a karting TRACK is a "писта". */
+  resourceType: string;
   courtName: string;
   startTs: Date;
   endTs: Date;
@@ -613,6 +615,7 @@ export async function previewBookingInvite(
           select: {
             name: true,
             sport: true,
+            resourceType: true,
             capacity: true,
             venue: { select: { name: true, city: true, timezone: true } },
           },
@@ -629,6 +632,7 @@ export async function previewBookingInvite(
       venueName: b.resource.venue.name,
       venueCity: b.resource.venue.city,
       sport: b.resource.sport,
+      resourceType: b.resource.resourceType,
       courtName: b.resource.name,
       startTs: b.startTs,
       endTs: b.endTs,

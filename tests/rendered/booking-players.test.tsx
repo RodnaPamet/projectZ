@@ -47,7 +47,7 @@ const booking = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => 
   cancelledAt: null,
   createdAt: '2026-10-01T10:00:00Z',
   cancellableUntil: '2026-10-19T16:00:00Z',
-  resource: { id: 'r1', name: 'Корт 1', sport: 'PADEL' },
+  resource: { id: 'r1', name: 'Корт 1', sport: 'PADEL', resourceType: 'COURT' },
   venue: {
     id: 'v1',
     name: 'Алфа Кортове',

@@ -15,6 +15,7 @@ import { Caption, Heading } from '@/components/ui/typography';
 import { KEYS, V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
+import type { ResourceNoun } from '@/lib/sports/resource-kinds';
 
 import { customerBody, DeskCustomerFields, type DeskCustomerValue } from './DeskCustomerFields';
 
@@ -36,6 +37,7 @@ export type DeskCancelRequest =
 export default function DeskBookingDetails({
   slug,
   bookingId,
+  noun,
   canMarkNoShow,
   onClose,
   onChanged,
@@ -44,6 +46,8 @@ export default function DeskBookingDetails({
 }: {
   slug: string;
   bookingId: string;
+  /** The booked court's noun (P51): a karting track is a "писта". */
+  noun: ResourceNoun;
   canMarkNoShow: boolean;
   onClose: () => void;
   /** The customer changed: the diary re-reads its day. */
@@ -125,7 +129,7 @@ export default function DeskBookingDetails({
 
         {b && !editing && (
           <dl className="gap-default grid grid-cols-[auto_1fr] gap-x-4">
-            <dt className="text-content-muted">{t('court')}</dt>
+            <dt className="text-content-muted">{t(noun === 'track' ? 'track.court' : 'court')}</dt>
             <dd>{b.resource.name}</dd>
 
             <dt className="text-content-muted">{t('phone')}</dt>

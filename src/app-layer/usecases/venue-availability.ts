@@ -28,6 +28,7 @@ export interface VenueAvailabilityResource {
     id: string;
     name: string;
     sport: string;
+    resourceType: string;
     currency: string;
     minBookingMinutes: number;
     maxBookingMinutes: number;

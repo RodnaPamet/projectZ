@@ -586,7 +586,8 @@ describe('spec validation', () => {
       (r) => (r.venues[0].courts[1].hours.sat = ['09:00', '10:00']),
       /sat 09:00–10:00 is shorter than the 90-minute minimum/,
     ],
-    ['an unknown sport', (r) => (r.venues[0].courts[0].sport = 'SQUASH'), /courts\[0\]\.sport/],
+    // SQUASH served here until P51 made it a sport.
+    ['an unknown sport', (r) => (r.venues[0].courts[0].sport = 'CURLING'), /courts\[0\]\.sport/],
     [
       'a typo in a key',
       (r) => (r.venues[0].courts[0].pricePerHour = 1),
