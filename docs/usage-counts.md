@@ -44,8 +44,10 @@ The two steps that happen only in the browser are sent by `sendUsageBeacon`
 session cookie is sent. The route always answers 204, sets no cookie, and has its own rate-limit
 bucket so slot taps never spend the booking POST's budget.
 
-Its cost on the venue page: the helper is a dozen lines in a chunk the page already loads
-(`keys.ts` is there for the booking), measured in the PR against `docs/perf/bundle-budget.json`.
+Its cost on the venue page, measured with two production builds of the same tree with and without
+it: First Load JS 303.4 → 303.5 KB gzip (+0.1 KB). The helper is a dozen lines and `keys.ts` is
+already in the page for the booking. No other public page gains client JS: every other event is
+counted on the server. `/platform/usage` is a new route, budgeted at its measured 337.4 KB + 5%.
 
 ## The online share (Q40)
 
