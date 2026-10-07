@@ -9,6 +9,13 @@ import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { z } from 'zod';
 
 import { appendAuditEntries, AUDIT_ACTIONS, type AuditInput } from '@/lib/audit';
+import {
+  bpsToPercent,
+  defaultFeeStartsOn,
+  effectiveFeeStartsOn,
+  isCalendarDate,
+  percentToBps,
+} from '@/lib/billing/club-fee';
 import { canonicalCity, CITY_SPELLINGS, cityKey } from '@/lib/geo/cities';
 
 import {
@@ -313,6 +320,26 @@ export const clubSpecSchema = z
       cancellationCutoffHours: z.int().min(0).max(168),
       /** Upcoming online bookings one player may hold at this club (#380). */
       maxUpcomingOnlineBookings: z.int().min(1).max(50),
+      /**
+       * The club fee (#372): a percentage of the court price on played online
+       * bookings, 0–30 with at most two decimals. A new club without it gets
+       * 0%; an existing club without it keeps what it has.
+       */
+      feePercent: z
+        .union([z.string(), z.number()])
+        .refine((v) => percentToBps(v) !== null, {
+          message: 'a percentage from 0 to 30 with at most two decimals, e.g. "10" or "12.5"',
+        })
+        .optional(),
+      /**
+       * The first day (at the club, YYYY-MM-DD) the fee is charged; the free
+       * period runs until the day before. A new club without it gets today
+       * plus two months; an existing club without it keeps what it has.
+       */
+      feeStartsOn: z
+        .string()
+        .refine(isCalendarDate, { message: 'a calendar date as YYYY-MM-DD' })
+        .optional(),
     }),
     venues: z.array(venue).min(1, 'a club needs at least one venue'),
   })
@@ -508,9 +535,19 @@ async function walk(db: PrismaClient, spec: ClubSpec, opts: WalkOptions): Promis
       contactEmail: true,
       contactPhone: true,
       maxUpcomingOnlineBookings: true,
+      feePercent: true,
+      feeStartsOn: true,
+      createdAt: true,
     },
   });
   let tenantId = org?.id ?? null;
+
+  // The fee (#372), as the spec states it or as a new club defaults: 0% and a
+  // free period of two months from today. Compared as basis points and as a
+  // date string, so "10" and "10.00" are the same fee.
+  const specBps = c.feePercent === undefined ? undefined : percentToBps(c.feePercent)!;
+  const newClubBps = specBps ?? 0;
+  const newClubStartsOn = c.feeStartsOn ?? defaultFeeStartsOn(opts.now);
   const firstVenue = spec.venues[0]!;
 
   if (!org) {
@@ -522,6 +559,7 @@ async function walk(db: PrismaClient, spec: ClubSpec, opts: WalkOptions): Promis
       details: [
         `contact ${c.email}${c.phone ? `, ${c.phone}` : ''}`,
         `cancellation cutoff ${c.cancellationCutoffHours}h; at most ${c.maxUpcomingOnlineBookings} upcoming online bookings per player`,
+        `club fee ${bpsToPercent(newClubBps)}% of the court price on played online bookings, charged from ${newClubStartsOn} (free before)`,
       ],
     });
     if (write) {
@@ -534,6 +572,8 @@ async function walk(db: PrismaClient, spec: ClubSpec, opts: WalkOptions): Promis
           addressLine: firstVenue.address,
           city: firstVenue.city,
           maxUpcomingOnlineBookings: c.maxUpcomingOnlineBookings,
+          feePercent: bpsToPercent(newClubBps),
+          feeStartsOn: new Date(`${newClubStartsOn}T00:00:00Z`),
         },
         select: { id: true },
       });
@@ -546,6 +586,12 @@ async function walk(db: PrismaClient, spec: ClubSpec, opts: WalkOptions): Promis
       ['email', org.contactEmail, c.email],
       ['phone', org.contactPhone, c.phone],
       ['maxUpcomingOnlineBookings', org.maxUpcomingOnlineBookings, c.maxUpcomingOnlineBookings],
+      [
+        'feePercent',
+        bpsToPercent(percentToBps(org.feePercent.toString()) ?? 0),
+        specBps === undefined ? undefined : bpsToPercent(specBps),
+      ],
+      ['feeStartsOn', effectiveFeeStartsOn(org.feeStartsOn, org.createdAt), c.feeStartsOn],
     ]);
     if (diffs.length > 0) {
       const label = `club ${org.name} (${c.slug})`;
@@ -558,6 +604,10 @@ async function walk(db: PrismaClient, spec: ClubSpec, opts: WalkOptions): Promis
             contactEmail: c.email,
             ...(c.phone !== undefined ? { contactPhone: c.phone } : {}),
             maxUpcomingOnlineBookings: c.maxUpcomingOnlineBookings,
+            ...(specBps !== undefined ? { feePercent: bpsToPercent(specBps) } : {}),
+            ...(c.feeStartsOn !== undefined
+              ? { feeStartsOn: new Date(`${c.feeStartsOn}T00:00:00Z`) }
+              : {}),
           },
         });
         audit('change', 'VenueOrg', org.id, label, { diffs });

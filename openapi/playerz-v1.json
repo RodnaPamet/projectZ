@@ -72,6 +72,10 @@
     {
       "name": "Venues",
       "description": "Public discovery. Spans every club by design and needs no membership."
+    },
+    {
+      "name": "Billing",
+      "description": "The club fee (#372): a club's monthly statement of playerz's fee on its played online bookings, as JSON and as a CSV. OWNER and MANAGER (`admin.billing_manage`) only."
     }
   ],
   "paths": {
@@ -6296,6 +6300,576 @@
           }
         }
       }
+    },
+    "/t/{slug}/admin/statements": {
+      "get": {
+        "operationId": "getClubStatement",
+        "summary": "The club's fee statement for one month",
+        "description": "Online bookings that ended COMPLETED, each with the fee charged on it, summed into the month's totals. Read from an append-only ledger written when each booking completed, so a month reads the same however often it is asked for, and a later change to the club's fee never rewrites it. A no-show marked after completion appears as a `REVERSAL` line in the month it was marked. Every amount is integer cents; each line's fee is rounded half-up to the cent and the totals are sums of the lines.\n\nA month with no lines is an empty statement, not a 404.",
+        "tags": ["Billing"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `admin.billing_manage` (OWNER, MANAGER), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "description": "The calendar month at the club (Europe/Sofia), `YYYY-MM`. Defaults to the current month there. A month is selected by the line's `statementMonth`, so a booking that starts at 00:30 on 1 November in Sofia (22:30Z on 31 October) is on November's statement.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The statement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubStatementEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`: `month` is not `YYYY-MM`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`: a member of this club whose role lacks `admin.billing_manage` (STAFF, COACH, PLAYER); `details.requiredPermission = \"admin.billing_manage\"`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`: no ACTIVE membership at `{slug}`, or no club by that slug. One answer for both, so the route does not confirm that a club exists to somebody outside it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/statements/csv": {
+      "get": {
+        "operationId": "downloadClubStatementCsv",
+        "summary": "The same statement as a CSV file",
+        "description": "UTF-8 with a byte-order mark (so Excel reads Cyrillic), semicolon-separated (the list separator of Bulgarian Excel, where the comma is the decimal separator), decimal commas, dates as `dd.MM.yyyy` and times as `HH:mm` at the club, CRLF line ends, Bulgarian headers. One row per line: date, time, venue, court, type (`Игра` or `Корекция`), price, fee %, free period (`Да`/`Не`), fee, booking id. Text cells that start with `=`, `+`, `-`, `@`, a tab or a carriage return are prefixed with `'` so a spreadsheet does not run them as formulas.\n\nErrors are the ordinary JSON envelope.",
+        "tags": ["Billing"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's tenant slug. The caller must hold an ACTIVE membership there whose role has `admin.billing_manage` (OWNER, MANAGER), checked against the database.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "description": "The calendar month at the club (Europe/Sofia), `YYYY-MM`. Defaults to the current month there. A month is selected by the line's `statementMonth`, so a booking that starts at 00:30 on 1 November in Sofia (22:30Z on 31 October) is on November's statement.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The CSV file.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Always `attachment; filename=\"playerz-{slug}-{YYYY-MM}.csv\"`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "Always `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "﻿Дата;Час;Обект;Корт;Вид;Цена (EUR);Такса %;Безплатен период;Такса (EUR);Резервация\r\n07.10.2026;19:00;Обект Изток;Корт 1;Игра;24,00;10,00;Не;2,40;cm1abc\r\n"
+              }
+            }
+          },
+          "400": {
+            "description": "Code `BAD_REQUEST`: `month` is not `YYYY-MM`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, or a revoked session. Code `UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Code `FORBIDDEN`: a member of this club whose role lacks `admin.billing_manage` (STAFF, COACH, PLAYER); `details.requiredPermission = \"admin.billing_manage\"`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code `NOT_FOUND`: no ACTIVE membership at `{slug}`, or no club by that slug. One answer for both, so the route does not confirm that a club exists to somebody outside it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fees": {
+      "get": {
+        "operationId": "listPlatformClubFees",
+        "summary": "Every club's fee for one month",
+        "tags": ["Platform"],
+        "description": "What the owner invoices from: each club with its fee terms today, how much of the month its free period covers, and the month's totals (online bookings played, their revenue, the fee due) summed from the ledger. Clubs with no lines are listed at zero. Up to 500 clubs, by name.\n\n**Needs `TENANT_READ`.** Audited as `PLATFORM_FEE_OVERVIEW_READ` with the stated reason.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to the append-only platform audit row.\n\n**Required, with no server-side default.**"
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "description": "The calendar month at the club (Europe/Sofia), `YYYY-MM`. Defaults to the current month there. A month is selected by the line's `statementMonth`, so a booking that starts at 00:30 on 1 November in Sofia (22:30Z on 31 October) is on November's statement.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every club, with its totals for the month.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformFeeOverviewEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` / `REASON_TOO_LONG` — `reason` is missing, shorter than 12 or longer than 500 characters; checked before authority. `BAD_REQUEST` — `month` is not `YYYY-MM`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant. `PLATFORM_CAPABILITY_REQUIRED` — a live grant without `TENANT_READ`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fees/{clubId}/statement": {
+      "get": {
+        "operationId": "getPlatformClubStatement",
+        "summary": "One club's statement, from the platform",
+        "tags": ["Platform"],
+        "description": "The statement the club reads at `GET /t/{slug}/admin/statements`.\n\n**Needs `TENANT_READ`.** Audited as `PLATFORM_FEE_STATEMENT_READ`, naming the club.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clubId",
+            "in": "path",
+            "required": true,
+            "description": "The club (`VenueOrg.id`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to the append-only platform audit row.\n\n**Required, with no server-side default.**"
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "description": "The calendar month at the club (Europe/Sofia), `YYYY-MM`. Defaults to the current month there. A month is selected by the line's `statementMonth`, so a booking that starts at 00:30 on 1 November in Sofia (22:30Z on 31 October) is on November's statement.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The statement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubStatementEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` / `REASON_TOO_LONG` — `reason` is missing, shorter than 12 or longer than 500 characters; checked before authority. `BAD_REQUEST` — `month` is not `YYYY-MM`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant. `PLATFORM_CAPABILITY_REQUIRED` — a live grant without `TENANT_READ`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no club with this id. The audit row rolls back with the refusal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fees/{clubId}/statement/csv": {
+      "get": {
+        "operationId": "downloadPlatformClubStatementCsv",
+        "summary": "One club's statement as a CSV file, from the platform",
+        "tags": ["Platform"],
+        "description": "The same file as `GET /t/{slug}/admin/statements/csv`.\n\n**Needs `TENANT_READ`.** Audited as `PLATFORM_FEE_STATEMENT_READ` with `format: csv`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clubId",
+            "in": "path",
+            "required": true,
+            "description": "The club (`VenueOrg.id`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to the append-only platform audit row.\n\n**Required, with no server-side default.**"
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "description": "The calendar month at the club (Europe/Sofia), `YYYY-MM`. Defaults to the current month there. A month is selected by the line's `statementMonth`, so a booking that starts at 00:30 on 1 November in Sofia (22:30Z on 31 October) is on November's statement.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The CSV file.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Always `attachment; filename=\"playerz-{slug}-{YYYY-MM}.csv\"`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "Always `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "﻿Дата;Час;Обект;Корт;Вид;Цена (EUR);Такса %;Безплатен период;Такса (EUR);Резервация\r\n07.10.2026;19:00;Обект Изток;Корт 1;Игра;24,00;10,00;Не;2,40;cm1abc\r\n"
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` / `REASON_TOO_LONG` — `reason` is missing, shorter than 12 or longer than 500 characters; checked before authority. `BAD_REQUEST` — `month` is not `YYYY-MM`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant. `PLATFORM_CAPABILITY_REQUIRED` — a live grant without `TENANT_READ`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no club with this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fees/{clubId}/terms": {
+      "put": {
+        "operationId": "setPlatformClubFeeTerms",
+        "summary": "Set a club's fee percentage and the end of its free period",
+        "tags": ["Platform"],
+        "description": "Sets the percentage of the court price charged on the club's played online bookings, and the first calendar day (at the club) on which it is charged; bookings played before that day are listed at 0, the free period. Applies to fee lines written from now on only: every line already in the ledger keeps the rate and free period it was charged with.\n\n**Needs `CLUB_FEE_MANAGE`, a write capability, and so a second-factor step-up on this session from the last 15 minutes.** Audited twice: the platform row (`PLATFORM_CLUB_FEE_TERMS_SET`, with the reason) and the club's own (`CLUB_FEE_TERMS_CHANGED`, with the terms before and after). Setting the same terms again changes and audits nothing club-side (`changed: false`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clubId",
+            "in": "path",
+            "required": true,
+            "description": "The club (`VenueOrg.id`).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetClubFeeTermsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The terms before and after.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubFeeTermsChangeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` / `REASON_TOO_LONG` — the body's `reason`. `BAD_REQUEST` — `feePercent` is not 0–30 with at most two decimals, or `feeStartsOn` is not a real `YYYY-MM-DD`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live grant. `PLATFORM_CAPABILITY_REQUIRED` — a live grant without `CLUB_FEE_MANAGE`. `STEP_UP_REQUIRED` — no step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the caller has no second factor. `CROSS_SITE_REQUEST` — a cookie-authenticated write from another site. All refused before the audit row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no club with this id. Nothing is written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — too many writes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -9892,6 +10466,334 @@
           "blurDataUrl": {
             "type": ["string", "null"],
             "description": "A ~16 px wide WebP as a `data:image/webp;base64,…` URL: a placeholder to draw (scaled up, blurred) while the image loads."
+          }
+        }
+      },
+      "StatementTotals": {
+        "type": "object",
+        "title": "StatementTotals",
+        "description": "Sums of the lines. Reversals count negative.",
+        "required": ["bookingsPlayed", "revenueCents", "feeCents", "lineCount"],
+        "properties": {
+          "bookingsPlayed": {
+            "type": "integer",
+            "description": "Charges minus reversals."
+          },
+          "revenueCents": {
+            "type": "integer",
+            "description": "The court price summed over the lines, integer cents."
+          },
+          "feeCents": {
+            "type": "integer",
+            "description": "The fee due: the lines' rounded fees summed, integer cents."
+          },
+          "lineCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "ClubStatementLine": {
+        "type": "object",
+        "title": "ClubStatementLine",
+        "required": [
+          "id",
+          "kind",
+          "bookingId",
+          "venueName",
+          "courtName",
+          "startsAt",
+          "priceCents",
+          "feePercent",
+          "freePeriod",
+          "feeCents",
+          "recordedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["CHARGE", "REVERSAL"],
+            "description": "`CHARGE`: the booking was played. `REVERSAL`: a charge undone (a no-show marked after completion); its amounts are negative."
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "venueName": {
+            "type": "string",
+            "description": "As it was when the line was written."
+          },
+          "courtName": {
+            "type": "string",
+            "description": "As it was when the line was written."
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the booking started."
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "The court price on the booking. Negative on a reversal."
+          },
+          "feePercent": {
+            "type": "string",
+            "description": "The rate the line was charged at, `\"12.50\"`."
+          },
+          "freePeriod": {
+            "type": "boolean",
+            "description": "Played inside the free period; the fee is 0."
+          },
+          "feeCents": {
+            "type": "integer",
+            "description": "Rounded half-up to the cent. Negative on a reversal."
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ClubStatement": {
+        "type": "object",
+        "title": "ClubStatement",
+        "required": [
+          "club",
+          "month",
+          "timeZone",
+          "periodStart",
+          "periodEnd",
+          "currency",
+          "feePercent",
+          "feeStartsOn",
+          "freePeriod",
+          "totals",
+          "lines",
+          "linesTruncated"
+        ],
+        "properties": {
+          "club": {
+            "type": "object",
+            "required": ["id", "slug", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "month": {
+            "type": "string",
+            "description": "`YYYY-MM`."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "Always `Europe/Sofia`."
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The month's first instant at the club."
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The next month's first instant (exclusive)."
+          },
+          "currency": {
+            "type": "string"
+          },
+          "feePercent": {
+            "type": "string",
+            "pattern": "^\\d{1,2}\\.\\d{2}$",
+            "description": "The club's rate today. Each line carries its own."
+          },
+          "feeStartsOn": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day the fee is charged, at the club. Bookings before it are in the free period."
+          },
+          "freePeriod": {
+            "type": "string",
+            "enum": ["all", "part", "none"],
+            "description": "How much of the month the free period covers, on the club's terms today."
+          },
+          "totals": {
+            "$ref": "#/components/schemas/StatementTotals"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClubStatementLine"
+            },
+            "description": "By booking start. At most 10 000; the totals are always whole."
+          },
+          "linesTruncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ClubStatementEnvelope": {
+        "type": "object",
+        "title": "ClubStatementEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ClubStatement"
+          }
+        }
+      },
+      "PlatformFeeOverviewRow": {
+        "type": "object",
+        "title": "PlatformFeeOverviewRow",
+        "required": ["club", "currency", "feePercent", "feeStartsOn", "freePeriod", "totals"],
+        "properties": {
+          "club": {
+            "type": "object",
+            "required": ["id", "slug", "name", "status"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["ACTIVE", "SUSPENDED", "CLOSED"]
+              }
+            }
+          },
+          "currency": {
+            "type": "string"
+          },
+          "feePercent": {
+            "type": "string",
+            "pattern": "^\\d{1,2}\\.\\d{2}$",
+            "description": "The percentage with two decimals, as a string: `\"12.50\"`."
+          },
+          "feeStartsOn": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day the fee is charged, at the club. Bookings before it are in the free period."
+          },
+          "freePeriod": {
+            "type": "string",
+            "enum": ["all", "part", "none"],
+            "description": "How much of the month the free period covers, on the club's terms today."
+          },
+          "totals": {
+            "$ref": "#/components/schemas/StatementTotals"
+          }
+        }
+      },
+      "PlatformFeeOverviewEnvelope": {
+        "type": "object",
+        "title": "PlatformFeeOverviewEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["month", "clubs", "truncated"],
+            "properties": {
+              "month": {
+                "type": "string"
+              },
+              "clubs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformFeeOverviewRow"
+                }
+              },
+              "truncated": {
+                "type": "boolean",
+                "description": "More than 500 clubs."
+              }
+            }
+          }
+        }
+      },
+      "SetClubFeeTermsRequest": {
+        "type": "object",
+        "title": "SetClubFeeTermsRequest",
+        "required": ["feePercent", "feeStartsOn", "reason"],
+        "properties": {
+          "feePercent": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "0–30 with at most two decimals. A string (`\"12.5\"`) is preferred: it never passes through a float."
+          },
+          "feeStartsOn": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day the fee is charged, at the club. Bookings before it are in the free period."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 500,
+            "description": "Recorded in both audit rows."
+          }
+        }
+      },
+      "ClubFeeTerms": {
+        "type": "object",
+        "title": "ClubFeeTerms",
+        "required": ["feeBps", "feePercent", "feeStartsOn"],
+        "properties": {
+          "feeBps": {
+            "type": "integer",
+            "description": "The rate in basis points: 12.50% is 1250."
+          },
+          "feePercent": {
+            "type": "string",
+            "pattern": "^\\d{1,2}\\.\\d{2}$",
+            "description": "The percentage with two decimals, as a string: `\"12.50\"`."
+          },
+          "feeStartsOn": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day the fee is charged, at the club. Bookings before it are in the free period."
+          }
+        }
+      },
+      "ClubFeeTermsChangeEnvelope": {
+        "type": "object",
+        "title": "ClubFeeTermsChangeEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["clubId", "changed", "before", "after"],
+            "properties": {
+              "clubId": {
+                "type": "string"
+              },
+              "changed": {
+                "type": "boolean"
+              },
+              "before": {
+                "$ref": "#/components/schemas/ClubFeeTerms"
+              },
+              "after": {
+                "$ref": "#/components/schemas/ClubFeeTerms"
+              }
+            }
           }
         }
       }

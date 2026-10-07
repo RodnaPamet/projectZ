@@ -140,19 +140,24 @@ describe('the capability list', () => {
 });
 
 describe('which writes the binding refuses', () => {
-  it('enables exactly one write, by name — REVIEW_MODERATE, behind a step-up', () => {
-    // Pinned so enabling a second cross-club write is an edit to THIS file as
-    // well as to the set, and a reviewer sees both. The terms REVIEW_MODERATE
-    // is enabled on are written beside STEP_UP_PLATFORM_WRITES.
-    expect([...STEP_UP_PLATFORM_WRITES]).toEqual([PlatformCapability.REVIEW_MODERATE]);
+  it('enables exactly two writes, by name — REVIEW_MODERATE and CLUB_FEE_MANAGE, behind a step-up', () => {
+    // Pinned so enabling another cross-club write is an edit to THIS file as
+    // well as to the set, and a reviewer sees both. The terms each is enabled
+    // on are written beside STEP_UP_PLATFORM_WRITES. CLUB_FEE_MANAGE (#372)
+    // sets one club's fee terms, which only affect fee lines written after it.
+    expect([...STEP_UP_PLATFORM_WRITES]).toEqual([
+      PlatformCapability.REVIEW_MODERATE,
+      PlatformCapability.CLUB_FEE_MANAGE,
+    ]);
   });
 
   it('still refuses TENANT_SUSPEND', () => {
     expect(isRefusedWrite(PlatformCapability.TENANT_SUSPEND)).toBe(true);
   });
 
-  it('refuses no read and not the enabled write', () => {
+  it('refuses no read and not the enabled writes', () => {
     expect(isRefusedWrite(PlatformCapability.REVIEW_MODERATE)).toBe(false);
+    expect(isRefusedWrite(PlatformCapability.CLUB_FEE_MANAGE)).toBe(false);
     for (const read of [
       PlatformCapability.TENANT_READ,
       PlatformCapability.AUDIT_READ,

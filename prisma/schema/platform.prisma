@@ -56,6 +56,11 @@ enum PlatformCapability {
   /// owner decision (#228), behind a step-up since #262; see
   /// STEP_UP_PLATFORM_WRITES for the terms.
   REVIEW_MODERATE
+  /// Set a club's fee: its percentage and the day its free period ends (#372).
+  /// A WRITE, enabled by name in STEP_UP_PLATFORM_WRITES, so it needs a
+  /// step-up; granted explicitly, never implied by another capability. Reading
+  /// the statements is TENANT_READ.
+  CLUB_FEE_MANAGE
 }
 
 /// One person's platform authority, for a bounded window.

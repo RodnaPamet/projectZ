@@ -27,6 +27,7 @@ export const PLATFORM_CAPABILITIES = [
   PlatformCapability.USER_READ,
   PlatformCapability.TENANT_SUSPEND,
   PlatformCapability.REVIEW_MODERATE,
+  PlatformCapability.CLUB_FEE_MANAGE,
 ] as const;
 
 /**
@@ -45,6 +46,7 @@ export const PLATFORM_CAPABILITIES = [
 export const PLATFORM_WRITE_CAPABILITIES: ReadonlySet<PlatformCapability> = new Set([
   PlatformCapability.TENANT_SUSPEND,
   PlatformCapability.REVIEW_MODERATE,
+  PlatformCapability.CLUB_FEE_MANAGE,
 ]);
 
 /**
@@ -74,6 +76,13 @@ export const PLATFORM_WRITE_CAPABILITIES: ReadonlySet<PlatformCapability> = new 
  */
 export const STEP_UP_PLATFORM_WRITES: ReadonlySet<PlatformCapability> = new Set([
   PlatformCapability.REVIEW_MODERATE,
+  // The club fee (#372): a club's percentage and the end of its free period,
+  // set by the owner per pilot deal. Its reach is one club's terms, which only
+  // affect fee lines written AFTER the change (the ledger keeps the old rate on
+  // every line already written), and every change is audited twice: the
+  // platform row, and the club's own with the values before and after. Granted
+  // only explicitly; no other capability implies it.
+  PlatformCapability.CLUB_FEE_MANAGE,
 ]);
 
 export function isWriteCapability(capability: PlatformCapability): boolean {

@@ -106,7 +106,10 @@
       "notificationsUnread": "Notifications, {count} unread",
       "notificationsError": "Notifications could not be loaded.",
       "notificationsRetry": "Try again",
-      "photos": "Photos"
+      "photos": "Photos",
+      "sectionFinance": "Finance",
+      "reports": "Reports and fee",
+      "fees": "Club fees"
     }
   },
   "nav": {
@@ -795,6 +798,12 @@
         "UNREADABLE": "The file cannot be read as a photo. If it is HEIC, save it as JPEG.",
         "generic": "Something went wrong. Try again."
       }
+    },
+    "reports": {
+      "metaTitle": "Reports and fee",
+      "title": "Reports and fee",
+      "subtitle": "The monthly statement of playerz's fee on the online bookings that were played.",
+      "month": "Month"
     }
   },
   "invite": {
@@ -1113,6 +1122,77 @@
         "MFA_CODE_REJECTED": "That code was not accepted. Wait for the next code in the app and try again.",
         "MFA_ENROLMENT_REQUIRED": "Turn on two-step verification first."
       }
+    },
+    "fees": {
+      "metaTitle": "Club fees",
+      "title": "Club fees",
+      "subtitle": "Each club's fee for the month, to invoice from. Every statement and CSV you open is recorded with the reason you give.",
+      "reasonLabel": "Reason",
+      "reasonHint": "For example “Invoicing for October”. Recorded with every read.",
+      "open": "Open",
+      "refresh": "Refresh",
+      "month": "Month",
+      "needReason": "Give a reason to see the fees.",
+      "clubsHeading": "Clubs",
+      "totalDue": "Total due: {amount}",
+      "truncated": "Showing the first 500 clubs.",
+      "empty": {
+        "title": "No clubs",
+        "description": "A club appears here once it is added."
+      },
+      "column": {
+        "club": "Club",
+        "rate": "Fee",
+        "free": "Free period",
+        "played": "Played online",
+        "revenue": "Revenue",
+        "fee": "Fee due",
+        "actions": "Actions"
+      },
+      "status": {
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed"
+      },
+      "chargedFrom": "from {date}",
+      "free": {
+        "all": "Whole month",
+        "part": "Part of the month",
+        "none": "No"
+      },
+      "statement": "Statement",
+      "csv": "CSV",
+      "edit": "Change the fee",
+      "terms": {
+        "title": "{club}'s fee",
+        "description": "New terms apply only to bookings played after you save. Lines already recorded keep their fee.",
+        "percent": "Fee (%)",
+        "percentHint": "0 to 30, at most two decimals.",
+        "startsOn": "Charged from",
+        "startsOnHint": "The first day the fee is charged. Before it is the free period.",
+        "reason": "Reason for the change",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "error": {
+        "PLATFORM_AUTHORITY_REQUIRED": "You have no active platform grant.",
+        "PLATFORM_CAPABILITY_REQUIRED": "Your grant does not include this.",
+        "REASON_REQUIRED": "Give a reason of at least 12 characters.",
+        "REASON_TOO_LONG": "The reason is too long — 500 characters at most.",
+        "BAD_REQUEST": "Check the values: the fee is 0 to 30% with at most two decimals, and the date is a real date.",
+        "NOT_FOUND": "This club no longer exists.",
+        "UNAUTHORIZED": "Your session has expired. Sign in again.",
+        "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+        "NETWORK": "The server cannot be reached.",
+        "VIEWER_CHANGED": "This tab is open for another account. Reload the page.",
+        "STEP_UP_REQUIRED": "Confirm with a code from your authenticator app, then save again.",
+        "MFA_ENROLMENT_REQUIRED": "Changing a fee needs two-step verification. Turn it on under “Security”.",
+        "UNKNOWN": "Something went wrong. Nothing was changed."
+      },
+      "statementMetaTitle": "Club statement",
+      "statementTitle": "Club statement",
+      "statementSubtitle": "The same statement the club sees in its admin.",
+      "statementHeading": "{club} — {month}",
+      "back": "← All clubs"
     }
   },
   "accountKind": {
@@ -1289,6 +1369,61 @@
       "link": "Your booking",
       "footer": "You are getting this email because you have a booking on playerz.bg.",
       "settings": "Choose which emails you get in Profile → Notifications: {url}"
+    }
+  },
+  "billing": {
+    "statement": {
+      "totalsHeading": "The month at a glance",
+      "downloadCsv": "Download CSV",
+      "total": {
+        "played": "Online bookings played",
+        "revenue": "Revenue on them",
+        "rate": "Fee",
+        "fee": "Fee due"
+      },
+      "terms": {
+        "charged": "The fee is charged from {date}."
+      },
+      "free": {
+        "allTitle": "Free period",
+        "partTitle": "The free period ends this month",
+        "body": "The fee is charged on bookings from {date} on. Earlier ones are on the statement at 0."
+      },
+      "freeBadge": "Free",
+      "linesHeading": "Bookings",
+      "linesTruncated": "This month has more lines than are shown here. The totals are complete; every line is in the CSV file.",
+      "empty": {
+        "title": "No online bookings played this month",
+        "description": "Each online booking that is played will appear here with its fee."
+      },
+      "column": {
+        "when": "Date and time",
+        "court": "Court",
+        "kind": "Type",
+        "price": "Price",
+        "rate": "Fee %",
+        "fee": "Fee"
+      },
+      "kind": {
+        "CHARGE": "Played",
+        "REVERSAL": "Correction"
+      }
+    },
+    "csv": {
+      "date": "Date",
+      "time": "Time",
+      "venue": "Venue",
+      "court": "Court",
+      "kind": "Type",
+      "price": "Price ({currency})",
+      "rate": "Fee %",
+      "freePeriod": "Free period",
+      "fee": "Fee ({currency})",
+      "booking": "Booking",
+      "charge": "Played",
+      "reversal": "Correction",
+      "yes": "Yes",
+      "no": "No"
     }
   }
 }

@@ -1,0 +1,76 @@
+/// ═══════════════════════════════════════════════════════════════════════
+///  THE CLUB FEE LEDGER (#372, P48)
+/// ═══════════════════════════════════════════════════════════════════════
+///
+/// The platform charges each club a percentage of the court price on its
+/// ONLINE bookings that were played (status COMPLETED). The owner invoices
+/// the club from a monthly statement, outside playerz.
+///
+/// ═══ A LEDGER, NOT A RECOMPUTE ═══
+///
+/// A statement summed live from `booking` would change under the owner's feet:
+/// a new fee percentage, a renamed court or a later status change would all
+/// rewrite a month that may already be on an invoice. So the fee is WRITTEN
+/// DOWN once, when the booking becomes COMPLETED, with everything the
+/// statement shows copied onto the line, and a database trigger refuses any
+/// UPDATE or DELETE.
+///
+/// ═══ A CORRECTION IS A NEW LINE ═══
+///
+/// A booking can stop being "played" after it was charged: staff mark a
+/// COMPLETED booking as a no-show. That writes a REVERSAL: the same booking,
+/// the charge's price and fee negated, in the statement month the correction
+/// was MADE. Never in the original month, which may be invoiced already; the
+/// next statement then carries the credit. A statement is the sum of its
+/// lines, so this needs no special case anywhere.
+///
+/// No foreign keys, on purpose: the ledger must outlive the booking, the
+/// court and the venue it names, as `audit_entry` outlives its actors.
+enum ClubFeeLineKind {
+  /// The booking was played: the fee on its price, or 0 in the free period.
+  CHARGE
+  /// The charge above, undone (a no-show marked after completion).
+  REVERSAL
+}
+
+model ClubFeeLine {
+  id       String @id @default(cuid())
+  tenantId String
+
+  bookingId String
+  kind      ClubFeeLineKind
+
+  /// What the statement shows, as it was when the line was written.
+  venueId        String
+  venueName      String
+  resourceId     String
+  courtName      String
+  bookingStartTs DateTime @db.Timestamptz(3)
+
+  /// `YYYY-MM` at the club (Europe/Sofia): the booking's start for a CHARGE,
+  /// the moment of the correction for a REVERSAL. A string, so a month is one
+  /// equality and the time-zone arithmetic happens once, in code, when the
+  /// line is written (src/lib/billing/club-fee.ts).
+  statementMonth String
+
+  /// The court price: the server quote stored on the booking. Negative on a REVERSAL.
+  priceCents Int
+  /// The rate in force when the line was written, in basis points (12.5% = 1250).
+  feeBps     Int
+  /// Whether the booking was played inside the club's free period; the fee is then 0.
+  freePeriod Boolean
+  /// Rounded half-up to the cent, per line. Negative on a REVERSAL.
+  feeCents   Int
+  currency   String
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  /// One charge and at most one reversal per booking: what makes writing a
+  /// line idempotent (INSERT … ON CONFLICT DO NOTHING).
+  @@unique([bookingId, kind])
+  /// A club's statement for a month.
+  @@index([tenantId, statementMonth])
+  /// The platform's overview: every club's lines for a month.
+  @@index([statementMonth])
+  @@map("club_fee_line")
+}

@@ -288,8 +288,10 @@ async function main() {
       `--capabilities is required. One or more of: ${Object.values(PlatformCapability).join(', ')}\n` +
         `  TENANT_SUSPEND is declared but REFUSED at the binding — cross-club writes need a\n` +
         `  second factor and there is none. Granting it buys nothing today.\n` +
-        `  REVIEW_MODERATE is the one write that is enabled: it works the review moderation\n` +
-        `  queue. Give moderators that alone.`,
+        `  REVIEW_MODERATE is an enabled write: it works the review moderation queue.\n` +
+        `  Give moderators that alone.\n` +
+        `  CLUB_FEE_MANAGE is an enabled write: it sets a club's fee and free period (#372).\n` +
+        `  Give it, with TENANT_READ, to whoever invoices the clubs.`,
     );
   }
 

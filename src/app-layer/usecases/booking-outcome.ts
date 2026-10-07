@@ -1,5 +1,10 @@
 import type { BookingStatus, PrismaClient } from '@prisma/client';
 
+import {
+  recordFeeCharges,
+  recordMissingFeeCharges,
+  reverseFeeCharge,
+} from '@/app-layer/usecases/club-fees';
 import { appendAuditEntries, appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 
 /**
@@ -36,6 +41,11 @@ export interface CompletionResult {
   completed: number;
   /** True when the cap was hit, so the caller knows more remain. */
   truncated: boolean;
+  /**
+   * Club fee lines written (#372): a CHARGE for each newly completed ONLINE
+   * booking, plus any the catch-up found missing.
+   */
+  feeLines: number;
 }
 
 /**
@@ -80,7 +90,10 @@ export async function completeEndedBookings(
     take: limit,
   });
 
-  if (ended.length === 0) return { scanned: 0, completed: 0, truncated: false };
+  if (ended.length === 0) {
+    const caught = await recordMissingFeeCharges(db, { now });
+    return { scanned: 0, completed: 0, truncated: false, feeLines: caught.written };
+  }
 
   // guardrail-allow: cross-tenant — the ids above, and only while still CONFIRMED.
   const completed = await db.booking.updateManyAndReturn({
@@ -113,10 +126,28 @@ export async function completeEndedBookings(
     })),
   );
 
+  // ═══ THE CLUB FEE (#372), IN THE SAME TRANSACTION ═══
+  //
+  // A CHARGE line for each booking THIS update completed — never for the ids
+  // read above, because a booking cancelled or marked a no-show in between was
+  // skipped by the predicate and must carry no fee. Online ones only; the use
+  // case drops desk bookings. If this throws, the completion rolls back with
+  // it, and the next run completes and charges together.
+  const charged = await recordFeeCharges(
+    db,
+    completed.map((b) => b.id),
+  );
+
+  // Then the catch-up: completed online bookings of the last week with no
+  // charge (completed by the previous image after a rollback, say). Idempotent
+  // with the line above, which it can never double.
+  const caught = await recordMissingFeeCharges(db, { now });
+
   return {
     scanned: ended.length,
     completed: completed.length,
     truncated: ended.length === limit,
+    feeLines: charged + caught.written,
   };
 }
 
@@ -213,6 +244,11 @@ export async function markNoShow(
     where: { id: row.id, tenantId, status: row.status },
     data: { status: 'NO_SHOW' },
   });
+
+  // Not played after all: a COMPLETED online booking was charged the club fee
+  // when it completed, and that charge is reversed by a new line in this
+  // month's statement (#372). Nothing to undo for a CONFIRMED one.
+  if (row.status === 'COMPLETED') await reverseFeeCharge(db, tenantId, row.id, now);
 
   // The club's running count, which the players screen already renders and
   // nothing has ever written. A guest booking has no player to count against.

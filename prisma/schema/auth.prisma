@@ -70,6 +70,22 @@ model VenueOrg {
   /// never limited. Set by an OWNER or MANAGER on the pricing screen, audited.
   maxUpcomingOnlineBookings Int @default(3)
 
+  /// The platform's fee on this club's played online bookings (#372, Q31):
+  /// a percentage of the court price, 0..30 with two decimals by CHECK
+  /// (`venue_org_fee_percent_range`, P48). Set per club because each pilot
+  /// club has its own deal: by the onboarding spec, or on /platform/fees by a
+  /// holder of CLUB_FEE_MANAGE behind a step-up, audited either way.
+  ///
+  /// Read only when a fee line is WRITTEN: each `club_fee_line` stores the
+  /// rate it was charged at, so changing this never rewrites a statement.
+  feePercent  Decimal   @default(0) @db.Decimal(4, 2)
+  /// The first calendar day (at the club, Europe/Sofia) on which the fee is
+  /// charged. Bookings played before it are listed on the statement at 0: the
+  /// free period (Q35). Null reads as `createdAt` + 2 months, so a row the
+  /// previous image inserts after a rollback still gets its free period; P48
+  /// filled it for every club that existed.
+  feeStartsOn DateTime? @db.Date
+
   // The venue's OWN subscription to us (Stripe Billing), which sets planTier
   // and therefore the commission bps. Distinct from stripeAccountId, which is
   // the connected account we pay OUT to.

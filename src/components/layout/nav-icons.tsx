@@ -2,6 +2,8 @@ import type { ComponentType, SVGProps } from 'react';
 
 import {
   CalendarIcon,
+  ChartLine,
+  InvoiceDollar,
   LocationPin,
   MoneyBill,
   NucleoPhoto,
@@ -29,6 +31,8 @@ export const NAV_ICONS: Record<NavIconKey, ComponentType<SVGProps<SVGSVGElement>
   photos: NucleoPhoto,
   players: Users,
   staff: UserCheck,
+  reports: ChartLine,
   moderation: ShieldCheck,
+  fees: InvoiceDollar,
   security: ShieldKeyhole,
 };

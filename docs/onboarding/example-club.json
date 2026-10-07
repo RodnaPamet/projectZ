@@ -6,7 +6,8 @@
     "phone": "+359 2 000 0000",
     "owner": { "email": "owner@example.com", "name": "Example Owner" },
     "cancellationCutoffHours": 24,
-    "maxUpcomingOnlineBookings": 3
+    "maxUpcomingOnlineBookings": 3,
+    "feePercent": "10"
   },
   "venues": [
     {

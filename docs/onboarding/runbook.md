@@ -19,19 +19,29 @@ opening hours, would end up as the price or hours of every club.
 
 **The club**
 
-| What                                                                                              | Spec field                       |
-| ------------------------------------------------------------------------------------------------- | -------------------------------- |
-| Name as players should see it                                                                     | `club.name`                      |
-| Short URL name, lower-case Latin with dashes (e.g. `sofia-padel`). Becomes `/clubs/{slug}`        | `club.slug`                      |
-| Contact email for players                                                                         | `club.email`                     |
-| Contact phone (optional)                                                                          | `club.phone`                     |
-| **Owner's sign-in email**: the address of the Google (or Facebook) account they will sign in with | `club.owner.email`               |
-| Owner's name (optional)                                                                           | `club.owner.name`                |
-| How many hours before the start a player may still cancel in the app (0–168)                      | `club.cancellationCutoffHours`   |
-| How many upcoming online bookings one player may hold at once (1–50; the app's default is 3)      | `club.maxUpcomingOnlineBookings` |
+| What                                                                                                   | Spec field                       |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Name as players should see it                                                                          | `club.name`                      |
+| Short URL name, lower-case Latin with dashes (e.g. `sofia-padel`). Becomes `/clubs/{slug}`             | `club.slug`                      |
+| Contact email for players                                                                              | `club.email`                     |
+| Contact phone (optional)                                                                               | `club.phone`                     |
+| **Owner's sign-in email**: the address of the Google (or Facebook) account they will sign in with      | `club.owner.email`               |
+| Owner's name (optional)                                                                                | `club.owner.name`                |
+| How many hours before the start a player may still cancel in the app (0–168)                           | `club.cancellationCutoffHours`   |
+| How many upcoming online bookings one player may hold at once (1–50; the app's default is 3)           | `club.maxUpcomingOnlineBookings` |
+| The club fee: % of the court price on played online bookings (0–30, two decimals; optional, default 0) | `club.feePercent`                |
+| The first day the fee is charged, `YYYY-MM-DD` at the club (optional; default today + 2 months)        | `club.feeStartsOn`               |
 
 The owner's email is the one thing worth checking twice. See
 [§5](#5-how-the-owner-gets-in).
+
+The fee (#372) is the pilot deal with this club. Bookings played before
+`feeStartsOn` are on the club's statement at 0: the free period. Left out on a
+new club, it is 0% from two months after today; left out on a re-run, the
+club keeps what it has. A changed fee on an existing club needs `--update`,
+like any other change, and only bookings played after the change are charged
+at the new rate. The platform page `/platform/fees` sets the same two values
+(with `CLUB_FEE_MANAGE` and a step-up).
 
 **Each venue.** A club can have several.
 
@@ -90,7 +100,9 @@ a 5-a-side pitch at a venue with a Monday lunch break. Copy it.
     "phone": "+359 2 000 0000",                  // optional
     "owner": { "email": "owner@example.com", "name": "Example Owner" },
     "cancellationCutoffHours": 24,
-    "maxUpcomingOnlineBookings": 3
+    "maxUpcomingOnlineBookings": 3,
+    "feePercent": "10",                          // optional, default 0
+    "feeStartsOn": "2027-01-01"                  // optional, default today + 2 months
   },
   "venues": [
     {
