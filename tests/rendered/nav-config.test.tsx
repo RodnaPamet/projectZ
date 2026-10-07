@@ -178,6 +178,19 @@ describe('platform nav', () => {
     );
     expect(screen.queryByRole('link', { name: 'Модерация' })).toBeNull();
   });
+
+  it('offers the pilot numbers (#371) to a TENANT_READ holder, and not to a moderator', () => {
+    const readOnly = visibleSections(platformNav(), (i) => platformItemAllowed(i, ['TENANT_READ']));
+    renderNav(readOnly);
+    expect(screen.getByRole('link', { name: 'Показатели' })).toHaveAttribute(
+      'href',
+      '/platform/usage',
+    );
+    const moderator = visibleSections(platformNav(), (i) =>
+      platformItemAllowed(i, ['REVIEW_MODERATE']),
+    );
+    expect(moderator.flatMap((s) => s.items).map((i) => i.href)).not.toContain('/platform/usage');
+  });
 });
 
 describe('prefetch policy (docs/perf/navigation-policy.md)', () => {

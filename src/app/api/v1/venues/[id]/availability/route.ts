@@ -10,6 +10,7 @@ import { ok } from '@/app/api/v1/_lib/envelope';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
 import { NotFoundError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
+import { countUsage } from '@/lib/usage/record';
 
 /**
  * Bookable slots for a venue. Cross-tenant, unauthenticated.
@@ -69,6 +70,10 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   const resources = await asSuperuser(ctx, (db) =>
     loadVenueAvailability(db, { venue, resourceId, from, to }),
   );
+
+  // A day's times read (#371): activity beside the funnel, not a step in it.
+  // Anonymous, crawlers skipped, written after the response.
+  countUsage('SLOTS_VIEW', { venueId: venue.id }, { userAgent: req.headers.get('user-agent') });
 
   return ok(toAvailability({ venue, from, to, resources }));
 }

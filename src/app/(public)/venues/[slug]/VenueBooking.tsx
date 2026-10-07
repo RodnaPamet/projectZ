@@ -14,6 +14,7 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Caption, Heading } from '@/components/ui/typography';
 import { KEYS, V1 } from '@/lib/data/keys';
+import { sendUsageBeacon } from '@/lib/data/usage-beacon';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 
@@ -258,6 +259,8 @@ export function VenueBooking({
     }
     booking.reset();
     setSheetOpen(true);
+    // A funnel step only the browser sees (#371): anonymous, after the tap.
+    sendUsageBeacon(venue.id, 'SHEET_OPENED');
   }
 
   const resources = data?.resources;
@@ -349,14 +352,17 @@ export function VenueBooking({
                             variant={selected ? 'primary' : 'secondary'}
                             aria-pressed={selected}
                             className="tabular-nums"
-                            onClick={() =>
+                            onClick={() => {
+                              if (selected) return;
                               setSelection({
                                 resourceId: r.resourceId,
                                 courtName: r.name,
                                 currency: r.currency,
                                 ...o,
-                              })
-                            }
+                              });
+                              // The funnel's "slot picked" (#371), once per pick.
+                              sendUsageBeacon(venue.id, 'SLOT_PICKED');
+                            }}
                           >
                             {time(o.startTs)} · {price(o.priceCents, r.currency)}
                           </Button>

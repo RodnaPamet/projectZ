@@ -41,6 +41,7 @@ export type NavIconKey =
   | 'reports'
   | 'moderation'
   | 'fees'
+  | 'usage'
   | 'security'
   | 'contactRequests';
 
@@ -225,6 +226,14 @@ export function platformNav(): NavSection<PlatformNavItem>[] {
           href: '/platform/fees',
           labelKey: 'fees',
           iconKey: 'fees',
+          requires: 'TENANT_READ',
+          prefetch: 'auto',
+        },
+        {
+          // The pilot's numbers (#371): a read, so TENANT_READ and no step-up.
+          href: '/platform/usage',
+          labelKey: 'usage',
+          iconKey: 'usage',
           requires: 'TENANT_READ',
           prefetch: 'auto',
         },

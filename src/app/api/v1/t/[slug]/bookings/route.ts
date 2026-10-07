@@ -20,6 +20,7 @@ import { toBooking } from '@/app/api/v1/_lib/dto';
 import { ok, page } from '@/app/api/v1/_lib/envelope';
 import { NotFoundError, UnauthorizedError, ValidationError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
+import { countUsage } from '@/lib/usage/record';
 
 /**
  * Bookings for one club.
@@ -218,7 +219,7 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
       userId: ctx.userId!,
     });
 
-    return { row, replay: result.idempotentReplay };
+    return { row, replay: result.idempotentReplay, venueId: resource.venue.id };
   });
 
   if (!created.row) throw new NotFoundError('Booking not found');
@@ -228,6 +229,12 @@ async function createHandler(req: NextRequest, { params }: { params: Promise<{ s
   // the dedupe key would refuse a second one anyway. Never throws.
   if (!created.replay) {
     await notifyBookingConfirmed({ tenantId, bookingId: created.row.id });
+    // The funnel's last step (#371): a count, no booking id, no booker.
+    countUsage(
+      'BOOKING_CREATED',
+      { venueId: created.venueId },
+      { userAgent: req.headers.get('user-agent') },
+    );
   }
 
   // 200 on an idempotent replay, 201 on a genuine create. A client that

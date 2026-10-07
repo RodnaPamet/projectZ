@@ -781,6 +781,51 @@
         }
       }
     },
+    "/venues/{id}/usage-events": {
+      "post": {
+        "operationId": "postVenueUsageEvent",
+        "summary": "Count a funnel step only the browser sees",
+        "description": "The venue page's one-line beacon (#371): `{\"event\": \"SLOT_PICKED\"}` when a time is picked, `{\"event\": \"SHEET_OPENED\"}` when the confirm sheet opens. Every other usage event is counted on the server where it already happens.\n\n**Anonymous by construction.** The body is the event's name and nothing else. The web client sends it with `credentials: 'omit'`, so not even the session cookie comes along; the route reads no cookie, sets none, and stores no user, IP address or user agent. The user agent is read only to skip crawlers. What is stored is a daily counter per venue (`usage_daily`, P49).\n\n**Always 204**, whatever the body and whether or not the venue exists or is public, so the answer reveals nothing; an unknown or hidden venue simply counts nothing. The count is written after the response.\n\nRate-limited per caller in its own bucket (`usage-beacon`), so picking many times never spends the budget a booking draws on.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The venue's cuid.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsageEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted, or ignored. Nothing to read."
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — too many beacons from this caller in a minute.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/t/{slug}/bookings": {
       "get": {
         "operationId": "listBookings",
@@ -2649,6 +2694,95 @@
           },
           "403": {
             "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry the capability this operation needs. Neither message names what is missing; the operator finds that in the log.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/usage": {
+      "get": {
+        "operationId": "getPlatformUsage",
+        "summary": "The pilot's numbers: online share per club and the booking funnel",
+        "description": "#371, owner decisions Q40 and Q48.\n\n**Online share** per club, from bookings themselves: `online / (online + desk)` over bookings that are `CONFIRMED` or `COMPLETED`, by `Booking.channel`, bucketed by the month (or ISO week) the booking STARTS in, in Europe/Sofia. Cancelled bookings, holds and no-shows are not counted. This month and last month, with a trend, and the last 8 weeks. `share` is null for a period with no bookings.\n\n**Active**: a club with a booking (CONFIRMED or COMPLETED, either channel) MADE in the last 14 days.\n\n**Funnel**, from the anonymous daily counters (`usage_daily`): `VENUES_VIEW` → `VENUE_VIEW` → `SLOT_PICKED` → `SHEET_OPENED` → `BOOKING_CREATED` for the whole site and per venue, over the last `days` days ending today in Sofia. `SLOTS_VIEW` (a day's times read) is activity, not a step. No counter names a person; crawlers are not counted.\n\nThe definitions are in `src/app-layer/usecases/usage-report.ts` and `docs/usage-counts.md`.\n\n**Needs `TENANT_READ`.** A read, so no step-up. Writes a `PLATFORM_USAGE_READ` audit row with the stated reason before it answers; `subjectTenantId` is null, as for the club list.",
+        "tags": ["Platform"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to the append-only platform audit log. Required, with no server-side default."
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [7, 30, 90],
+              "default": 30
+            },
+            "description": "The funnel's range in days, ending today (Sofia). Anything other than 7, 30 or 90 is a 400."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformUsageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` / `REASON_TOO_LONG` — as for `/platform/tenants`, checked before authority. `BAD_REQUEST` — `days` is not 7, 30 or 90.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant. `PLATFORM_CAPABILITY_REQUIRED` — a live grant without `TENANT_READ`. Neither names what is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10937,6 +11071,237 @@
               },
               "after": {
                 "$ref": "#/components/schemas/ClubFeeTerms"
+              }
+            }
+          }
+        }
+      },
+      "UsageEventRequest": {
+        "type": "object",
+        "required": ["event"],
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": ["SLOT_PICKED", "SHEET_OPENED"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "UsageChannelCounts": {
+        "type": "object",
+        "required": ["online", "desk", "share"],
+        "properties": {
+          "online": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "desk": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "share": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "online / (online + desk); null when there were no bookings."
+          }
+        }
+      },
+      "UsageFunnelCounts": {
+        "type": "object",
+        "description": "One count per usage event.",
+        "required": [
+          "VENUES_VIEW",
+          "VENUE_VIEW",
+          "SLOTS_VIEW",
+          "SLOT_PICKED",
+          "SHEET_OPENED",
+          "BOOKING_CREATED"
+        ],
+        "properties": {
+          "VENUES_VIEW": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "VENUE_VIEW": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "SLOTS_VIEW": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "SLOT_PICKED": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "SHEET_OPENED": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "BOOKING_CREATED": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PlatformUsageClub": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "status",
+          "startedAt",
+          "weeksSinceStart",
+          "active",
+          "lastBookingAt",
+          "thisMonth",
+          "lastMonth",
+          "trend",
+          "weeks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "SUSPENDED", "CLOSED"]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the club was created on playerz."
+          },
+          "weeksSinceStart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "active": {
+            "type": "boolean",
+            "description": "A booking made in the last 14 days."
+          },
+          "lastBookingAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "The newest qualifying booking's creation time within the 14-day window, or null."
+          },
+          "thisMonth": {
+            "$ref": "#/components/schemas/UsageChannelCounts"
+          },
+          "lastMonth": {
+            "$ref": "#/components/schemas/UsageChannelCounts"
+          },
+          "trend": {
+            "type": ["string", "null"],
+            "enum": ["up", "down", "flat", null],
+            "description": "This month's share against last month's (±0.5 percentage points is flat); null when either month had no bookings."
+          },
+          "weeks": {
+            "type": "array",
+            "description": "The last 8 ISO weeks, oldest first.",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/UsageChannelCounts"
+                },
+                {
+                  "type": "object",
+                  "required": ["week"],
+                  "properties": {
+                    "week": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "The week's Monday, in Sofia."
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "PlatformUsageVenue": {
+        "type": "object",
+        "required": ["venueId", "venueName", "clubId", "clubName", "counts"],
+        "properties": {
+          "venueId": {
+            "type": "string"
+          },
+          "venueName": {
+            "type": ["string", "null"],
+            "description": "Null when the venue has since been deleted."
+          },
+          "clubId": {
+            "type": ["string", "null"]
+          },
+          "clubName": {
+            "type": ["string", "null"]
+          },
+          "counts": {
+            "$ref": "#/components/schemas/UsageFunnelCounts"
+          }
+        }
+      },
+      "PlatformUsageEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["timeZone", "month", "previousMonth", "clubs", "funnel"],
+            "properties": {
+              "timeZone": {
+                "type": "string",
+                "description": "Always `Europe/Sofia`: every bucket is told in it."
+              },
+              "month": {
+                "type": "string",
+                "description": "`YYYY-MM`, this month."
+              },
+              "previousMonth": {
+                "type": "string",
+                "description": "`YYYY-MM`."
+              },
+              "clubs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformUsageClub"
+                }
+              },
+              "funnel": {
+                "type": "object",
+                "required": ["days", "from", "to", "site", "venues"],
+                "properties": {
+                  "days": {
+                    "type": "integer"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "site": {
+                    "$ref": "#/components/schemas/UsageFunnelCounts"
+                  },
+                  "venues": {
+                    "type": "array",
+                    "description": "Busiest venue page first.",
+                    "items": {
+                      "$ref": "#/components/schemas/PlatformUsageVenue"
+                    }
+                  }
+                }
               }
             }
           }

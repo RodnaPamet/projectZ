@@ -7,6 +7,7 @@ import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
 import { playerChrome } from '@/components/layout/SiteHeader';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
+import { countPageUsage } from '@/lib/usage/record';
 
 import { bookingDays, parseInitialPick } from './booking-days';
 import { VenueBooking } from './VenueBooking';
@@ -61,6 +62,13 @@ export async function VenueSlots({
     playerChrome(),
   ]);
   const seed = toAvailability({ venue: publicVenue, from, to, resources });
+
+  // A player back from sign-in with `?confirm=1` lands on the confirm sheet
+  // already open (VenueBooking), so the funnel's "sheet opened" (#371) is
+  // counted here, on the server, rather than by the island's beacon.
+  if (pick.confirm && kind === 'player') {
+    await countPageUsage('SHEET_OPENED', { venueId: venue.id });
+  }
 
   const booking = (
     <VenueBooking
