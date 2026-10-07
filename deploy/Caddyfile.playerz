@@ -15,6 +15,18 @@
 #   cert  CN = app.playerz.bg, Let's Encrypt, 2026-09-27 15:35 -> 2026-12-26
 #         `curl` verifies the chain (ssl_verify_result=0)
 #
+# ═══ playerz.bg IS THE PRIMARY HOST — SINCE 2026-10-07 (#369, Q47) ═══
+#
+# The app is served on playerz.bg; app.playerz.bg and www.playerz.bg redirect to
+# it. The redirect is a 302 on purpose while the move settles: a permanent one is
+# cached by browsers, and the old playerz.bg -> app.playerz.bg 301 that some
+# browsers still hold is exactly why (clear it, or use a private window, if a
+# browser reports "too many redirects"). Make it permanent once nothing needs
+# reversing. NEXTAUTH_URL and SITE_URL in /opt/playerz/.env are
+# https://playerz.bg; the Google OAuth client (project `playerzbg`) lists the
+# playerz.bg origin and callback, and keeps the app.playerz.bg ones until the
+# redirect is permanent.
+#
 # This header previously said "playerz.bg does not exist in DNS — no A record, no
 # NS, no SOA", and explained the sslip.io name as a consequence. That was true
 # when written and stopped being true the afternoon the zone was created; the
@@ -26,7 +38,7 @@
 # the registrar, so it still works if the zone is mis-edited or the domain
 # lapses, and it is the only way in if DNS is the thing that broke.
 
-app.playerz.bg, playerz.35-187-80-26.sslip.io {
+playerz.bg, playerz.35-187-80-26.sslip.io {
 	encode gzip zstd
 
 	# Matches agrent's. The booking API posts small JSON; the ceiling is here to
@@ -53,10 +65,6 @@ app.playerz.bg, playerz.35-187-80-26.sslip.io {
 	}
 }
 
-playerz.bg {
-	redir https://app.playerz.bg{uri} permanent
-}
-
-www.playerz.bg {
-	redir https://app.playerz.bg{uri} permanent
+app.playerz.bg, www.playerz.bg {
+	redir https://playerz.bg{uri} 302
 }

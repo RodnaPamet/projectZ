@@ -157,7 +157,7 @@ Owner decision Q44: every merge goes to **staging**; **production** gets a relea
 | Database  | `playerz_staging` on `playerz-db`, direct (no pgbouncer)                               | `playerz_production` through `playerz-pgbouncer` |
 | Redis     | `playerz-redis`, its own db index                                                      | `playerz-redis`, db 0                            |
 | Env file  | `/opt/playerz/.env.staging` (`DEPLOY_ENV=staging`)                                     | `/opt/playerz/.env`                              |
-| Host      | `staging.35-187-80-26.sslip.io` (`staging.playerz.bg` once its DNS A record exists)    | `app.playerz.bg`                                 |
+| Host      | `staging.35-187-80-26.sslip.io` (`staging.playerz.bg` once its DNS A record exists)    | `playerz.bg` (app.playerz.bg and www redirect)   |
 
 `DEPLOY_ENV=staging` makes robots.txt disallow everything and the sitemap empty, so the copy is never indexed.
 
@@ -203,7 +203,7 @@ If validate fails, restore the backup before doing anything else.
 
 ### The hostname
 
-Serving host: **`app.playerz.bg`** (`A 35.187.80.26`). As of 2026-09-29 it
+Serving host: **`playerz.bg`** since 2026-10-07 (`A 35.187.80.26`); `app.playerz.bg` and `www.playerz.bg` 302 to it (see `deploy/Caddyfile.playerz`). Before that it was **`app.playerz.bg`** (`A 35.187.80.26`). As of 2026-09-29 it
 serves `/api/ready` over HTTPS with a valid certificate — `curl` without `-k`
 succeeds. `playerz.35-187-80-26.sslip.io` stays in the site block as a way in if
 DNS ever goes wrong.
@@ -456,7 +456,7 @@ password as in "The database roles" after the restore.
 ## Verifying
 
 ```bash
-curl -s https://app.playerz.bg/api/ready
+curl -s https://playerz.bg/api/ready
 curl -s -o /dev/null -w '%{http_code}\n' https://35-187-80-26.sslip.io/   # agrent: must not change
 ```
 
@@ -475,10 +475,10 @@ actually configured.
   `google: configured, microsoft: disabled` (2026-09-29). To enable it, set
   `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` and register the callback:
 
-  | Provider        | Callback                                            |
-  | --------------- | --------------------------------------------------- |
-  | Google (live)   | `https://app.playerz.bg/api/auth/callback/google`   |
-  | Microsoft Entra | `https://app.playerz.bg/api/auth/callback/azure-ad` |
+  | Provider        | Callback                                        |
+  | --------------- | ----------------------------------------------- |
+  | Google (live)   | `https://playerz.bg/api/auth/callback/google`   |
+  | Microsoft Entra | `https://playerz.bg/api/auth/callback/azure-ad` |
 
   `azure-ad`, not `microsoft-entra-id` — this is next-auth **v4**, and the
   provider id is what the callback path is built from.

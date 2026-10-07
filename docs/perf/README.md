@@ -256,7 +256,7 @@ every soft row.
 ## Production: `6d8c525` on app.playerz.bg, 1 October 2026 (#290)
 
 ```sh
-npm run perf:nav:prod     # PERF_BASE_URL defaults to https://app.playerz.bg
+npm run perf:nav:prod     # PERF_BASE_URL defaults to https://playerz.bg (app.playerz.bg before 2026-10-07)
 ```
 
 `PERF_BASE_URL` points the harness at a server it did not start

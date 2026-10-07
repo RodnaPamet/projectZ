@@ -4,7 +4,7 @@ The web login page offers Google and Microsoft and **nothing else** — there is
 password form. Until both apps exist, nobody can sign in, and because no account
 can be created, no club and no venue can be created either.
 
-Current state: `curl -s https://app.playerz.bg/api/ready` reports
+Current state: `curl -s https://playerz.bg/api/ready` reports
 `"signIn":{"google":"disabled","microsoft":"disabled"}`. Each flips to
 `configured` when its two variables are present. That endpoint is the check —
 "it is off" should be an observation, not a discovery.
@@ -56,10 +56,10 @@ verification review. Verification is for sensitive and restricted scopes.
 <https://console.cloud.google.com/auth/clients> → **Create client** →
 **Web application**
 
-| Field                         | Value                                             |
-| ----------------------------- | ------------------------------------------------- |
-| Authorised JavaScript origins | `https://app.playerz.bg`                          |
-| Authorised redirect URIs      | `https://app.playerz.bg/api/auth/callback/google` |
+| Field                         | Value                                         |
+| ----------------------------- | --------------------------------------------- |
+| Authorised JavaScript origins | `https://playerz.bg`                          |
+| Authorised redirect URIs      | `https://playerz.bg/api/auth/callback/google` |
 
 The redirect URI must match **exactly** — scheme, host, path, no trailing
 slash. Google compares the string.
@@ -80,11 +80,11 @@ GOOGLE_CLIENT_SECRET=GOCSPX-...
 <https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade>
 → **New registration**
 
-| Field                   | Value                                                         |
-| ----------------------- | ------------------------------------------------------------- |
-| Name                    | playerz.bg                                                    |
-| Supported account types | see below                                                     |
-| Redirect URI            | **Web** → `https://app.playerz.bg/api/auth/callback/azure-ad` |
+| Field                   | Value                                                     |
+| ----------------------- | --------------------------------------------------------- |
+| Name                    | playerz.bg                                                |
+| Supported account types | see below                                                 |
+| Redirect URI            | **Web** → `https://playerz.bg/api/auth/callback/azure-ad` |
 
 **`azure-ad`, not `microsoft-entra-id`.** This is next-auth **v4**, whose
 provider id is `azure-ad`, and the callback path is built from that id.
@@ -179,7 +179,7 @@ MICROSOFT_TENANT_ID=
 They are appended to `/opt/playerz/.env` and the app is recreated. Then:
 
 ```bash
-curl -s https://app.playerz.bg/api/ready | jq .features.signIn
+curl -s https://playerz.bg/api/ready | jq .features.signIn
 # {"google":"configured","microsoft":"configured","credentials":"configured"}
 ```
 
@@ -197,7 +197,7 @@ and the two buttons appear on `/login`.
 | Personal Microsoft account rejected                                                    | expected; the Graph scope is work/school only                                                                                                                                     |
 
 The callback host comes from `NEXTAUTH_URL` in `/opt/playerz/.env`, currently
-`https://app.playerz.bg`. If that ever moves, both registrations move with it.
+`https://playerz.bg` (it moved from `https://app.playerz.bg` on 2026-10-07; the old origin and callback stay registered until the app.playerz.bg redirect is made permanent). If it moves again, both registrations move with it.
 
 ## Proving a provider works without a browser
 
@@ -206,9 +206,9 @@ handshake is actually built:
 
 ```bash
 J=$(mktemp)
-CSRF=$(curl -s -c "$J" https://app.playerz.bg/api/auth/csrf | jq -r .csrfToken)
+CSRF=$(curl -s -c "$J" https://playerz.bg/api/auth/csrf | jq -r .csrfToken)
 curl -s -b "$J" -X POST -d "csrfToken=$CSRF&json=true" \
-  https://app.playerz.bg/api/auth/signin/google | jq -r .url
+  https://playerz.bg/api/auth/signin/google | jq -r .url
 rm -f "$J"
 ```
 
@@ -216,5 +216,5 @@ A correct setup answers with the provider's authorize URL. The two fields worth
 reading are `redirect_uri` — which must equal what you registered, exactly — and
 `code_challenge_method=S256`.
 
-`curl https://app.playerz.bg/api/auth/providers` is the cheaper check: a provider
+`curl https://playerz.bg/api/auth/providers` is the cheaper check: a provider
 with no credentials is absent from that list entirely.
