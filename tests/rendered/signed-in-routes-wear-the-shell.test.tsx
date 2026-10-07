@@ -177,6 +177,7 @@ jest.mock('@/lib/auth/platform-admin', () => ({
   resolvePlatformAuthority: (...a: unknown[]) => resolvePlatformAuthority(...a),
 }));
 jest.mock('@/lib/modules', () => ({ readModules: () => ({ openPlay: false, messaging: false }) }));
+jest.mock('@/app-layer/usecases/club-nouns', () => ({ clubResourceNouns: async () => 'court' }));
 
 jest.mock('next-intl/server', () => ({
   getTranslations: async (ns: string) => {
@@ -186,7 +187,10 @@ jest.mock('next-intl/server', () => ({
       .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], messages) as
       Record<string, unknown> | undefined;
     return (key: string, values?: Record<string, string | number>) => {
-      const value = scope?.[key];
+      // A dotted key is a nested one, as next-intl reads it (`track.courts`).
+      const value = key
+        .split('.')
+        .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], scope);
       if (typeof value !== 'string') return `${ns}.${key}`;
       return Object.entries(values ?? {}).reduce(
         (s, [k, v]) => s.replace(`{${k}}`, String(v)),

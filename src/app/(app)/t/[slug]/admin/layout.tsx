@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
 // NOT from a 'use client' module: the server CALLS this, and every export of
 // a client module is a client reference that throws when called (#195-#227).
@@ -44,7 +45,9 @@ import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
  *
  * `clubShell` builds the sections and the rows. `PlayerChrome` calls the same
  * builder for a CLUB account on a public page, so the account wears one
- * sidebar everywhere (owner, 2026-10-07).
+ * sidebar everywhere (owner, 2026-10-07). The courts screen's item is named
+ * after what the club plays on, "Писти" at a karting club (`clubResourceNouns`,
+ * one small read in the club's own context).
  */
 export default async function ClubAdminLayout({
   children,
@@ -71,7 +74,8 @@ export default async function ClubAdminLayout({
   }
   if (result.kind === 'not-a-member') notFound();
 
-  const club = clubShell(result.ctx, { platform: grant?.capabilities ?? [], t });
+  const nouns = await clubResourceNouns(result.ctx.tenantId);
+  const club = clubShell(result.ctx, { platform: grant?.capabilities ?? [], t, nouns });
   if (club.sections.length === 0) notFound();
 
   return (

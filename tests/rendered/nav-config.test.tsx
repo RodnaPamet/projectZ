@@ -41,8 +41,13 @@ jest.mock('next/navigation', () => ({
 const SLUG = 'sofia-padel';
 
 type Catalogue = typeof bgMessages;
-const translator = (m: Catalogue) => (key: string) =>
-  (m.common.nav as Record<string, string>)[key] ?? `common.nav.${key}`;
+/** `common.nav`, as next-intl reads it: a dotted key is a nested one (`track.courts`). */
+const translator = (m: Catalogue) => (key: string) => {
+  const value = key
+    .split('.')
+    .reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], m.common.nav);
+  return typeof value === 'string' ? value : `common.nav.${key}`;
+};
 
 function renderNav(sections: NavSection[], locale: 'bg' | 'en' = 'bg') {
   const t = translator(locale === 'en' ? enMessages : bgMessages);
@@ -144,6 +149,31 @@ describe('club admin nav, by role', () => {
     const player = getPermissionsForRole('PLAYER');
     expect(visibleSections(clubAdminNav(SLUG), (i) => player.includes(i.requires))).toEqual([]);
   });
+
+  it.each([
+    ['court', 'Кортове', 'Courts'],
+    ['track', 'Писти', 'Tracks'],
+    ['mixed', 'Кортове и писти', 'Courts and tracks'],
+  ] as const)(
+    'names the courts screen after what the club plays on (%s): "%s" (P51, #362)',
+    (nouns, bgLabel, enLabel) => {
+      const owner = getPermissionsForRole('OWNER');
+      const sections = visibleSections(clubAdminNav(SLUG, nouns), (i) =>
+        owner.includes(i.requires),
+      );
+      const { unmount } = renderNav(sections);
+      expect(screen.getByRole('link', { name: bgLabel })).toHaveAttribute(
+        'href',
+        `/t/${SLUG}/admin/courts`,
+      );
+      unmount();
+      renderNav(sections, 'en');
+      expect(screen.getByRole('link', { name: enLabel })).toHaveAttribute(
+        'href',
+        `/t/${SLUG}/admin/courts`,
+      );
+    },
+  );
 
   it('marks the current page active', () => {
     renderNav(ownerSections());

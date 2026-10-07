@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { COURT_LIST_LIMIT, courtsWereTruncated } from '@/app-layer/repositories/court';
+import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { loadCourtsScreen } from '@/app-layer/usecases/courts';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
@@ -11,9 +12,23 @@ import { resourceNouns } from '@/lib/sports/resource-kinds';
 
 import { CourtsBoard, type CourtRow } from './CourtsBoard';
 
-export async function generateMetadata() {
-  const t = await getTranslations('admin.courts');
-  return { title: t('metaTitle') };
+/**
+ * The tab title says what the club plays on, as the screen's heading and its
+ * nav item do (P51, #362): "Писти" at a karting club, "Кортове и писти" at one
+ * with both. A visitor the page refuses gets the plain title; the page answers
+ * them with its 404.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const [t, result] = await Promise.all([
+    getTranslations('admin.courts'),
+    params.then(({ slug }) => resolveTenantPageContext(slug)),
+  ]);
+  const nouns = result.kind === 'ok' ? await clubResourceNouns(result.ctx.tenantId) : 'court';
+  return {
+    title: t(
+      nouns === 'track' ? 'track.metaTitle' : nouns === 'mixed' ? 'mixed.metaTitle' : 'metaTitle',
+    ),
+  };
 }
 
 /**
@@ -89,8 +104,8 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
     upcomingBookings: upcoming.get(c.id) ?? 0,
   }));
 
-  // "Писти" at a karting club, "Кортове и писти" at one with both (P51). The
-  // tab title stays "Кортове", as the club nav names the screen.
+  // "Писти" at a karting club, "Кортове и писти" at one with both (P51), as
+  // the tab title and the club nav name the screen (#362).
   const nouns = resourceNouns(rows.map((r) => r.resourceType));
 
   return (

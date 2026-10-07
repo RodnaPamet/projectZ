@@ -3,6 +3,7 @@ import { cache, type ReactNode } from 'react';
 import { unstable_rethrow } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { resolveLanding } from '@/app-layer/usecases/landing';
 import { resolveTenantPageContext, signedInIdentity } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
@@ -198,5 +199,13 @@ async function clubFrame(
     chromeReadFailed('membership', err);
     return null;
   });
-  return result?.kind === 'ok' ? clubShell(result.ctx, { platform, t }) : null;
+  if (result?.kind !== 'ok') return null;
+  // What the club plays on names its courts screen ("Писти" at a karting
+  // club); unreadable, it reads as courts rather than taking the frame down.
+  const nouns = await clubResourceNouns(result.ctx.tenantId).catch((err: unknown) => {
+    unstable_rethrow(err);
+    chromeReadFailed('membership', err);
+    return 'court' as const;
+  });
+  return clubShell(result.ctx, { platform, t, nouns });
 }
