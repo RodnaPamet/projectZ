@@ -176,7 +176,7 @@ test.describe('@mobile horizontal drift', () => {
  * admin shell's drawer. Each page is measured with the drawer closed, which
  * is how a page is read.
  */
-const CLUB_PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff'] as const;
+const CLUB_PAGES = ['calendar', 'courts', 'pricing', 'players', 'staff', 'reports'] as const;
 
 authedTest.describe('@mobile horizontal drift — club admin', () => {
   for (const p of CLUB_PAGES) {

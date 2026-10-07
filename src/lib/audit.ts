@@ -130,6 +130,10 @@ export const AUDIT_ACTIONS = {
   /// The same script changed an existing row, only ever with `--update`.
   /// `detailsJson.diffs` holds each field's before and after.
   CLUB_ONBOARDING_UPDATED: 'CLUB_ONBOARDING_UPDATED',
+  /// The platform set a club's fee percentage or the day its free period
+  /// ends (#372). The platform audit row records the request; this one gives
+  /// the club's own log the values before and after.
+  CLUB_FEE_TERMS_CHANGED: 'CLUB_FEE_TERMS_CHANGED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

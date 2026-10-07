@@ -32,7 +32,16 @@ import type { Permission } from '@/lib/permissions';
 
 /** The glyph a row shows. A key, because a component cannot cross to the client as a prop. */
 export type NavIconKey =
-  'calendar' | 'courts' | 'pricing' | 'photos' | 'players' | 'staff' | 'moderation' | 'security';
+  | 'calendar'
+  | 'courts'
+  | 'pricing'
+  | 'photos'
+  | 'players'
+  | 'staff'
+  | 'reports'
+  | 'moderation'
+  | 'fees'
+  | 'security';
 
 export interface NavItem {
   href: string;
@@ -99,6 +108,7 @@ export interface NavSection<T extends NavItem = NavItem> {
  *   (no title)  Calendar — the diary, where staff spend the day
  *   Venue       Courts, Pricing, Photos and info (#366)
  *   People      Players, Staff
+ *   Finance     Reports and fee (#372): OWNER and MANAGER only
  *
  * A COACH holds `players.view` and nothing else here, so a coach sees only
  * Players: today's permission-based view, kept until the coach UI decides.
@@ -166,6 +176,21 @@ export function clubAdminNav(slug: string): NavSection<ClubNavItem>[] {
         },
       ],
     },
+    {
+      titleKey: 'sectionFinance',
+      items: [
+        {
+          // "Отчети и такса" (#372): the monthly fee statement and its CSV.
+          // `admin.billing_manage` is OWNER and MANAGER; the page and the
+          // statement API ask the same, so STAFF never see the link.
+          href: href('reports'),
+          labelKey: 'reports',
+          iconKey: 'reports',
+          requires: 'admin.billing_manage',
+          prefetch: 'auto',
+        },
+      ],
+    },
   ];
 }
 
@@ -189,6 +214,17 @@ export function platformNav(): NavSection<PlatformNavItem>[] {
           labelKey: 'moderation',
           iconKey: 'moderation',
           requires: 'REVIEW_MODERATE',
+          prefetch: 'auto',
+        },
+        {
+          // Every club's fee for a month, to invoice from (#372). Reading is
+          // TENANT_READ; changing a club's terms on the page needs
+          // CLUB_FEE_MANAGE as well, and the page only shows that control to
+          // a grant that carries it.
+          href: '/platform/fees',
+          labelKey: 'fees',
+          iconKey: 'fees',
+          requires: 'TENANT_READ',
           prefetch: 'auto',
         },
         {

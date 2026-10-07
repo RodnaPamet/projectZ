@@ -148,6 +148,16 @@ export const KEYS = {
   ) => `${BASE}/t/${seg(slug)}/admin/desk-bookings/preview${query({ ...params })}`,
   deskBooking: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/admin/desk-bookings/${seg(bookingId)}`,
+  /**
+   * Every club's fee for a month (#372), for the owner to invoice from. The
+   * reason is in the key for the same reason as the moderation queue's: the
+   * server audits each read with it.
+   */
+  platformFees: (params: { month: string; reason: string }) =>
+    `${BASE}/platform/fees${query(params)}`,
+  /** One club's statement, from the platform (#372). */
+  platformClubStatement: (clubId: string, params: { month: string; reason: string }) =>
+    `${BASE}/platform/fees/${seg(clubId)}/statement${query(params)}`,
 } as const;
 
 /** Writes: the URLs `useV1Mutation` posts to. */
@@ -187,6 +197,17 @@ export const V1 = {
   createSeries: (slug: string) => `${BASE}/t/${seg(slug)}/admin/booking-series`,
   cancelSeries: (slug: string, seriesId: string) =>
     `${BASE}/t/${seg(slug)}/admin/booking-series/${seg(seriesId)}/cancel`,
+  /**
+   * A club's statement as a CSV file (#372): an `<a download>` href, not an
+   * SWR key, because the browser saves it rather than this app reading it.
+   */
+  clubStatementCsv: (slug: string, month: string) =>
+    `${BASE}/t/${seg(slug)}/admin/statements/csv${query({ month })}`,
+  /** The same file from the platform, which audits the download with `reason` (#372). */
+  platformClubStatementCsv: (clubId: string, params: { month: string; reason: string }) =>
+    `${BASE}/platform/fees/${seg(clubId)}/statement/csv${query(params)}`,
+  /** `PUT { feePercent, feeStartsOn, reason }`: a club's fee terms (#372). */
+  clubFeeTerms: (clubId: string) => `${BASE}/platform/fees/${seg(clubId)}/terms`,
 } as const;
 
 /**

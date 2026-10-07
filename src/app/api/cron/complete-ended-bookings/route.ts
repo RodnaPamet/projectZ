@@ -75,12 +75,13 @@ export async function POST(req: NextRequest) {
   // it against. Every row it writes is audited as SYSTEM instead.
   const result = await runAsSuperuser((db) => completeEndedBookings(db));
 
-  if (result.completed > 0 || result.truncated) {
+  if (result.completed > 0 || result.truncated || result.feeLines > 0) {
     logger.info('completed ended bookings', {
       component: 'cron',
       scanned: result.scanned,
       completed: result.completed,
       truncated: result.truncated,
+      feeLines: result.feeLines,
     });
   }
 

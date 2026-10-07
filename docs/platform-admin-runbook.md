@@ -68,13 +68,14 @@ bootstrap themselves.
 
 ### Capabilities
 
-| Capability        | Status                                                       |
-| ----------------- | ------------------------------------------------------------ |
-| `TENANT_READ`     | read any club's operational data                             |
-| `AUDIT_READ`      | read any club's audit log                                    |
-| `USER_READ`       | read user records across clubs                               |
-| `TENANT_SUSPEND`  | **declared, refused at the binding**                         |
-| `REVIEW_MODERATE` | work the review moderation queue — **the one enabled write** |
+| Capability        | Status                                                     |
+| ----------------- | ---------------------------------------------------------- |
+| `TENANT_READ`     | read any club's operational data                           |
+| `AUDIT_READ`      | read any club's audit log                                  |
+| `USER_READ`       | read user records across clubs                             |
+| `TENANT_SUSPEND`  | **declared, refused at the binding**                       |
+| `REVIEW_MODERATE` | work the review moderation queue — an enabled write        |
+| `CLUB_FEE_MANAGE` | set a club's fee and free period (#372) — an enabled write |
 
 **Every write needs a second factor (#262).** A write capability is usable only
 from a session that has stepped up with its holder's authenticator in the last
@@ -96,6 +97,52 @@ own note. Until #262 it was the one write admitted without a second factor; that
 exception has ended, and the "writes without MFA" list no longer exists at all.
 Every other write, present or future, is still refused unless it is added there
 too.
+
+### Club fees and invoicing (#372)
+
+The owner invoices each club monthly from `/platform/fees`, outside playerz. The
+page needs `TENANT_READ` to read, and `CLUB_FEE_MANAGE` to change a club's terms;
+grant both to whoever invoices:
+
+```bash
+npm run grant:platform-admin -- \
+  --user owner@playerz.bg \
+  --granted-by bob@playerz.bg \
+  --capabilities TENANT_READ,CLUB_FEE_MANAGE \
+  --expires 2026-12-31 \
+  --reason "monthly club fee invoicing Q4"
+```
+
+`CLUB_FEE_MANAGE` is a write: like `REVIEW_MODERATE`, it is enabled by name in
+`STEP_UP_PLATFORM_WRITES` and needs a step-up from the last 15 minutes. It sets
+two things per club, the fee percentage (0–30, two decimals) and the first day
+the fee is charged (the free period ends the day before). A change applies to
+bookings completed AFTER it; every fee line already written keeps its rate. It
+is audited twice, `PLATFORM_CLUB_FEE_TERMS_SET` here and
+`CLUB_FEE_TERMS_CHANGED` in the club's own log with the terms before and after.
+New clubs get the same two values from the onboarding spec
+(`docs/onboarding/runbook.md`).
+
+The page asks for a reason first, written with every read. For each club it shows
+the month's online bookings played, their revenue, the fee due and the free
+period, with a link to the statement as the club sees it and its CSV. The same
+over HTTP:
+
+```
+GET /api/v1/platform/fees?month=2026-10&reason=<why>
+GET /api/v1/platform/fees/{clubId}/statement?month=2026-10&reason=<why>
+GET /api/v1/platform/fees/{clubId}/statement/csv?month=2026-10&reason=<why>
+PUT /api/v1/platform/fees/{clubId}/terms   {"feePercent":"10","feeStartsOn":"2027-01-01","reason":"…"}
+```
+
+**After the first deploy of #372**, write the lines for bookings completed before
+it (the sweep repairs only the last 7 days by itself). It is idempotent; run the
+dry run first:
+
+```bash
+npm run backfill:club-fees -- --dry-run
+npm run backfill:club-fees
+```
 
 ### Moderating reviews
 

@@ -41,6 +41,7 @@ accessModifier: public
 filter:
   tags:
     - Auth
+    - Billing
     - Bookings
     - Desk
     - Devices
