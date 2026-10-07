@@ -62,6 +62,11 @@ const resolvePlatformAuthority = jest.fn();
 jest.mock('@/lib/auth/platform-admin', () => ({
   resolvePlatformAuthority: (...args: unknown[]) => resolvePlatformAuthority(...args),
 }));
+// What the club plays on (P51): the one read that names its courts screen.
+const clubResourceNouns = jest.fn();
+jest.mock('@/app-layer/usecases/club-nouns', () => ({
+  clubResourceNouns: (tenantId: string) => clubResourceNouns(tenantId),
+}));
 
 // The flags are environment reads (src/lib/modules.ts); the test sets them.
 let modules: ChromeModules = { openPlay: false, messaging: false };
@@ -77,7 +82,10 @@ jest.mock('next-intl/server', () => ({
       .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], messages) as
       Record<string, unknown> | undefined;
     return (key: string, values?: Record<string, string | number>) => {
-      const value = scope?.[key];
+      // A dotted key is a nested one, as next-intl reads it (`track.courts`).
+      const value = key
+        .split('.')
+        .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], scope);
       if (typeof value !== 'string') return `${ns}.${key}`;
       return Object.entries(values ?? {}).reduce(
         (s, [k, v]) => s.replace(`{${k}}`, String(v)),
@@ -200,6 +208,8 @@ beforeEach(() => {
   resolvePlatformAuthority.mockResolvedValue(NO_GRANT);
   resolveTenantPageContext.mockReset();
   resolveTenantPageContext.mockResolvedValue(membership('OWNER'));
+  clubResourceNouns.mockReset();
+  clubResourceNouns.mockResolvedValue('court');
 });
 
 describe('signed out: the public site’s header and footer', () => {
@@ -443,6 +453,38 @@ describe('a CLUB account on a public page: its club admin’s frame, never a pla
       [n.players, `/t/${SLUG}/admin/players`],
     ]);
     expect(within(bar()).getByRole('button', { name: n.more })).toBeInTheDocument();
+  });
+
+  it('a karting club: its courts screen is "Писти", in the rail and on the bar', async () => {
+    clubResourceNouns.mockResolvedValue('track');
+    await renderChrome();
+
+    // What it plays on is read for its own club, by the id its membership names.
+    expect(clubResourceNouns).toHaveBeenCalledWith('csofia');
+    expect(within(railNav()).getByRole('link', { name: n.track.courts })).toHaveAttribute(
+      'href',
+      `/t/${SLUG}/admin/courts`,
+    );
+    expect(within(railNav()).queryByRole('link', { name: n.courts })).not.toBeInTheDocument();
+    expect(barTabs()).toContainEqual([n.track.courts, `/t/${SLUG}/admin/courts`]);
+    expect(n.track.courts).toBe('Писти');
+  });
+
+  it('courts and a track: "Кортове и писти", the courts screen’s own wording', async () => {
+    clubResourceNouns.mockResolvedValue('mixed');
+    await renderChrome();
+
+    expect(within(railNav()).getByRole('link', { name: n.mixed.courts })).toHaveAttribute(
+      'href',
+      `/t/${SLUG}/admin/courts`,
+    );
+    expect(n.mixed.courts).toBe(bg.admin.courts.mixed.title);
+  });
+
+  it('what it plays on unreadable: "Кортове", and the frame stands', async () => {
+    clubResourceNouns.mockRejectedValue(new Error('database down'));
+    await renderChrome();
+    expect(railLinks()).toEqual(CLUB_ITEMS);
   });
 
   it('STAFF: only the pages the role opens', async () => {

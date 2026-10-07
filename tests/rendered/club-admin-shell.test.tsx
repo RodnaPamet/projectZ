@@ -59,7 +59,13 @@ function desktopViewport() {
 
 const SLUG = 'sofia-padel';
 const n = bg.common.nav;
-const t = (key: string) => (n as Record<string, string>)[key] ?? `common.nav.${key}`;
+/** `common.nav`, as next-intl reads it: a dotted key is a nested one (`track.courts`). */
+const t = (key: string) => {
+  const value = key
+    .split('.')
+    .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], n);
+  return typeof value === 'string' ? value : `common.nav.${key}`;
+};
 
 const roleSections = (role: Role) =>
   toShellSections(

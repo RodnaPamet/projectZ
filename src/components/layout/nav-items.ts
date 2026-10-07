@@ -1,6 +1,7 @@
 import { PLAY_PATH, type LandingDecision } from '@/lib/auth/landing';
 import type { PlatformCapability } from '@/lib/platform/capabilities';
 import type { Permission } from '@/lib/permissions';
+import type { ResourceNouns } from '@/lib/sports/resource-kinds';
 
 /**
  * What the signed-in shells and the public chrome link to — data, not a component.
@@ -113,6 +114,17 @@ export interface NavSection<T extends NavItem = NavItem> {
 }
 
 /**
+ * The courts screen's nav label by the club's resources (P51, #362), in the
+ * catalogue's noun layout: the court wording at the plain key, the track and
+ * mixed wordings under `track.` and `mixed.` (sport-exhaustiveness).
+ */
+const COURTS_LABEL: Record<ResourceNouns, string> = {
+  court: 'courts',
+  track: 'track.courts',
+  mixed: 'mixed.courts',
+};
+
+/**
  * The club-admin surface. Every item is permission-gated, and the gate is the
  * same permission the page itself demands, so a link is never shown to
  * somebody the page would refuse (`route-permission-coverage`).
@@ -124,8 +136,15 @@ export interface NavSection<T extends NavItem = NavItem> {
  *
  * A COACH holds `players.view` and nothing else here, so a coach sees only
  * Players: today's permission-based view, kept until the coach UI decides.
+ *
+ * `nouns` names the courts screen after what the club plays on (P51, #362):
+ * "Писти" at a club of tracks only, "Кортове и писти" at one with both, as
+ * the screen's own heading does (`clubResourceNouns`).
  */
-export function clubAdminNav(slug: string): NavSection<ClubNavItem>[] {
+export function clubAdminNav(
+  slug: string,
+  nouns: ResourceNouns = 'court',
+): NavSection<ClubNavItem>[] {
   const href = (page: string) => `/t/${slug}/admin/${page}`;
   return [
     {
@@ -144,7 +163,7 @@ export function clubAdminNav(slug: string): NavSection<ClubNavItem>[] {
       items: [
         {
           href: href('courts'),
-          labelKey: 'courts',
+          labelKey: COURTS_LABEL[nouns],
           iconKey: 'courts',
           requires: 'courts.manage',
           prefetch: 'auto',
@@ -548,14 +567,20 @@ export interface ClubShellData {
  * The sections are `clubAdminNav` kept to what the membership's role opens,
  * from the permissions `resolveTenantPageContext` read from the database for
  * THIS club (never the token's), translated, with no permission names left
- * in them. The account rows are the club's public page (#356), the profile,
- * and the platform for a holder of a live grant.
+ * in them, and the courts screen named after what the club plays on. The
+ * account rows are the club's public page (#356), the profile, and the
+ * platform for a holder of a live grant.
  */
 export function clubShell(
   ctx: { tenantSlug: string; tenantName: string; permissions: readonly Permission[] },
-  opts: { platform: readonly PlatformCapability[]; t: (key: string) => string },
+  opts: {
+    platform: readonly PlatformCapability[];
+    t: (key: string) => string;
+    /** What the club plays on, for the courts screen's label (`clubResourceNouns`). */
+    nouns?: ResourceNouns;
+  },
 ): ClubShellData {
-  const sections = visibleSections(clubAdminNav(ctx.tenantSlug), (item) =>
+  const sections = visibleSections(clubAdminNav(ctx.tenantSlug, opts.nouns), (item) =>
     ctx.permissions.includes(item.requires),
   );
   return {

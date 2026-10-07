@@ -77,6 +77,12 @@
     "nav": {
       "calendar": "Calendar",
       "courts": "Courts",
+      "track": {
+        "courts": "Tracks"
+      },
+      "mixed": {
+        "courts": "Courts and tracks"
+      },
       "pricing": "Pricing",
       "players": "Players",
       "staff": "Staff",
@@ -523,6 +529,7 @@
         "failed": "The court's status was not changed. Try again."
       },
       "track": {
+        "metaTitle": "Tracks",
         "title": "Tracks",
         "subtitle": "The club's tracks, their pricing and capacity.",
         "truncated": "Showing the first {limit} tracks. This club has more.",
@@ -545,6 +552,7 @@
         }
       },
       "mixed": {
+        "metaTitle": "Courts and tracks",
         "title": "Courts and tracks",
         "subtitle": "The club's courts and tracks, their pricing and capacity.",
         "truncated": "Showing the first {limit} courts and tracks. This club has more.",
