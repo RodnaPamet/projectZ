@@ -12,10 +12,10 @@
     {
       "path": "src/components/layout/LocaleSwitcher.tsx",
       "inflectPath": "src/components/layout/LocaleSwitcher.tsx",
-      "baseSha": "538fb0c6e45f092da3c6fd6f7f32fb0390e13285",
-      "sha": "538fb0c6e45f092da3c6fd6f7f32fb0390e13285",
+      "baseSha": "3e2ca47c6b921a0df54748c405ad593a5fce689e",
+      "sha": "3e2ca47c6b921a0df54748c405ad593a5fce689e",
       "status": "vendored",
-      "sha256": "270b90a1e12427737c6725f0aa4d3beb943eea56526dd55ccc40b4f3db2fcb2f"
+      "sha256": "3151e4274b59555b1e9ed0d79599048c8d71169c8eb6c6c925fb8e9ea16d893d"
     },
     {
       "path": "src/components/layout/MobileNavDrawer.tsx",

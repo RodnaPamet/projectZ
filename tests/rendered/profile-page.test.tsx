@@ -57,7 +57,7 @@ const account = (over: Partial<MeDto> = {}): MeDto => ({
 
 function renderProfile(
   platformHref: string | null = null,
-  opts: { account?: MeDto; showSports?: boolean } = {},
+  opts: { account?: MeDto; showSports?: boolean; locale?: 'bg' | 'en' } = {},
 ) {
   const seed = opts.account ?? account();
   return render(
@@ -80,6 +80,7 @@ function renderProfile(
           />
         </TooltipProvider>
       </SWRConfig>,
+      opts.locale,
     ),
   );
 }
@@ -143,6 +144,17 @@ describe('Профил — a moderator', () => {
 });
 
 describe('Профил — the language is the user’s', () => {
+  // #431, inflect #3201: the vendored switch named its group "Language" on
+  // every page. The name is the catalogue's `common.language` now.
+  it.each([
+    ['bg', 'Език'],
+    ['en', 'Language'],
+  ] as const)('%s: the switch is a radio group named "%s"', (locale, name) => {
+    renderProfile(null, { locale });
+    const row = screen.getByTestId('profile-language-row');
+    expect(within(row).getByRole('radiogroup')).toHaveAccessibleName(name);
+  });
+
   it('saves the record, refreshes the token, THEN sets the cookie and refreshes the page', async () => {
     renderProfile();
     const en = screen.getByRole('radio', { name: 'English' });

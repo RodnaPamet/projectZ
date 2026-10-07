@@ -80,6 +80,53 @@ describe.each([
   });
 });
 
+/**
+ * #431, inflect #3201: the vendored switch named its radio group with the
+ * literal "Language", so a screen reader said it in English on the Bulgarian
+ * page. The name now comes from the catalogue's `common.language`.
+ */
+describe('the switch speaks the page language', () => {
+  it.each([
+    ['bg', 'Език'],
+    ['en', 'Language'],
+  ] as const)('%s: the radio group is named "%s"', async (l, name) => {
+    await renderFooter(l, false);
+    const lang = screen.getByTestId('footer-language');
+    expect(within(lang).getByRole('radiogroup')).toHaveAccessibleName(name);
+  });
+
+  /**
+   * Every text node, and the attributes a screen reader reads. Node by node,
+   * because the switch's code and endonym are adjacent spans ("БГ", then
+   * "Български" for screen readers) and textContent would run them together.
+   */
+  const allCopy = (container: HTMLElement) => {
+    const texts: string[] = [];
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n.textContent ?? '');
+    const attrs = [...container.querySelectorAll('[aria-label],[title],[alt]')].flatMap((el) =>
+      ['aria-label', 'title', 'alt'].map((a) => el.getAttribute(a) ?? ''),
+    );
+    return [...texts, ...attrs].join(' ');
+  };
+
+  it('in Bulgarian, no English word but the brand and the English endonym', async () => {
+    const { container } = await renderFooter('bg', false);
+    const latin = (allCopy(container).match(/[A-Za-z]{3,}/g) ?? []).filter(
+      (w) => !['playerz', 'English'].includes(w),
+    );
+    expect(latin).toEqual([]);
+  });
+
+  it('in English, no Cyrillic word but the Bulgarian endonym and its code', async () => {
+    const { container } = await renderFooter('en', false);
+    const cyrillic = (allCopy(container).match(/[Ѐ-ӿ]+/g) ?? []).filter(
+      (w) => !['Български', 'БГ'].includes(w),
+    );
+    expect(cyrillic).toEqual([]);
+  });
+});
+
 describe('switching language from the footer', () => {
   it('signed out: writes the NEXT_LOCALE cookie and re-renders, touching no user record', async () => {
     await renderFooter('bg', false);
