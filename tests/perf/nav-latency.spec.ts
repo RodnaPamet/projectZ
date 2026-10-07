@@ -300,7 +300,7 @@ const JOURNEYS: Journey[] = [
     entry: '/',
     lands: '/',
     steps: [
-      { id: 'home → venues', to: '/venues', click: 'main a[href="/venues"]' },
+      { id: 'home → venues', to: '/venues', click: 'main a[data-testid="landing-find-court"]' },
       { id: 'venues → home', to: '/', click: 'header a[href="/"]' },
       { id: 'home → login', to: '/login', tab: '/login' },
       { id: 'login → home (back)', to: '/', back: true },
