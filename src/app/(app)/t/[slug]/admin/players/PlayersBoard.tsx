@@ -84,10 +84,11 @@ export interface PlayerRow {
  * also `role="button"` straight inside `role="list"`, which axe refused as
  * critical at 393 px on this page; upstream #3129 wraps it in a listitem now.)
  * A button in the name cell is reachable by Tab and Enter in both renderings,
- * and leaves each card a plain list item. 44 px on a coarse pointer.
+ * and leaves each card a plain list item. It is the vendored `Button`, ghost
+ * (no tile at rest, as a name in a list should read), in the headings' colour:
+ * 44 px on a coarse pointer and the focus halo come with it, where a styled
+ * <button> had to restate both (#362).
  */
-const NAME_BUTTON =
-  'text-content-emphasis focus-visible:ring-ring rounded-sm text-left font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none pointer-coarse:min-h-11';
 
 /**
  * ═══ THIRTY AT A TIME ═══
@@ -195,13 +196,14 @@ export function PlayersBoard({
           // The name IS the row's control, in the table and in the cards: see
           // OPENING A ROW below.
           return (
-            <button
+            <Button
               type="button"
-              className={NAME_BUTTON}
+              variant="ghost"
+              className="text-content-emphasis"
               onClick={() => open(row.original.playerUserId)}
             >
               {row.original.name ?? row.original.email}
-            </button>
+            </Button>
           );
         },
       },

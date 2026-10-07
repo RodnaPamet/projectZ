@@ -89,15 +89,6 @@ export interface OpenInviteRow {
 /** Why a member's row has no controls, or null when it has them. */
 export type LockReason = 'self' | 'lastOwner' | 'ownerManagement' | null;
 
-/**
- * The name is a real button and the table has no `onRowClick`: a clickable
- * `<tr>` has no keyboard path. (The phone cards' `role="button"` inside
- * `role="list"`, which axe refused at 393 px, is fixed upstream
- * (#3129 there).) 44 px on a coarse pointer.
- */
-const NAME_BUTTON =
-  'text-content-emphasis focus-visible:ring-ring rounded-sm text-left font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none pointer-coarse:min-h-11';
-
 const NO_STATUS_OVERRIDES: Readonly<Record<string, string>> = {};
 
 type SuspendFailure = { name: string; error: string | null } | null;
@@ -174,11 +165,20 @@ export function StaffBoard({
         const label = m.name ?? m.email;
         return (
           <span className="gap-tight inline-flex flex-wrap items-center justify-end md:justify-start">
-            {/* The name is the row's control in both renderings — see
-                NAME_BUTTON. */}
-            <button type="button" className={NAME_BUTTON} onClick={() => open(m.membershipId)}>
+            {/* The name is the row's control in both renderings, and the
+                table has no `onRowClick`: a clickable <tr> has no keyboard
+                path. (The phone cards' role="button" inside role="list",
+                which axe refused at 393 px, is fixed upstream, #3129 there.)
+                The vendored Button, ghost, in the headings' colour: 44 px on
+                a coarse pointer and the focus halo come with it (#362). */}
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-content-emphasis"
+              onClick={() => open(m.membershipId)}
+            >
               {label}
-            </button>
+            </Button>
             {m.userId === viewerUserId && <StatusBadge variant="neutral">{t('you')}</StatusBadge>}
           </span>
         );
