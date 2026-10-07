@@ -11,7 +11,12 @@
  *
  *   raw-palette      no-raw-tokens            bg-slate-800, text-gray-500 …
  *   english-copy     i18n-no-hardcoded-copy   JSX text, copy attributes, and copy
- *                                             parameter defaults (label = 'Save')
+ *                                             parameter defaults (label = 'Save'),
+ *                                             except the props a11y-copy owns
+ *   a11y-copy        i18n-no-hardcoded-copy   what a screen reader reads: aria-label,
+ *                    (checkSpokenCopy)        ariaLabel and the other ARIA text props,
+ *                                             alt, a title it reads; any word in
+ *                                             them, a template's words included
  *   vocabulary       the upstream portability rules: compliance nouns and the
  *                    brands Inflect, PwC, METRO and Dub, in comments, strings,
  *                    JSX text and test names (not identifiers, import paths,
@@ -54,7 +59,10 @@ const NATIVE_SELECT = /<select(?:[\s/>]|$)/;
 const INLINE_MOTION = /style=\{\{[^}]*(?:animation|transitionDuration|animationDuration)\s*:/g;
 const INFINITE = /animation:[^;'"`]*\binfinite\b/g;
 
-/** i18n-no-hardcoded-copy.test.ts. */
+/**
+ * i18n-no-hardcoded-copy.test.ts. english-copy leaves aria-label,
+ * aria-description, alt and a spoken title to a11y-copy (isSpokenAttr).
+ */
 const COPY_ATTRS = new Set([
   'title',
   'label',
@@ -72,6 +80,64 @@ const NOT_COPY =
 /** A parameter whose default value is shown to the user: `label = 'Save'`. */
 const COPY_PARAM =
   /label|title|placeholder|description|text|message|caption|heading|hint|tooltip|^alt$/i;
+
+/**
+ * ═══ a11y-copy: WHAT A SCREEN READER READS (inflect #3201) ═══
+ *
+ * The vendored LocaleSwitcher named its radio group with `ariaLabel="Language"`.
+ * english-copy reads the attribute names i18n-no-hardcoded-copy lists, and
+ * `ariaLabel` is a camelCase PROP, not the `aria-label` attribute, so the
+ * string passed this scan, was copied, and a screen reader said "Language" on
+ * every Bulgarian page with the switch (#431, #433).
+ *
+ * a11y-copy owns the props whose reader is assistive technology:
+ *
+ *   - ARIA's text properties, as attributes (aria-label, aria-description,
+ *     aria-roledescription, aria-valuetext, aria-placeholder and the braille
+ *     pair) and as props (ariaLabel, ariaRoleDescription …), with a
+ *     component's prefixed variants (closeAriaLabel, incrementAriaLabel) and
+ *     the other names components give that text (accessibilityLabel,
+ *     srLabel, screenReaderText …). Never aria-labelledby and the other id
+ *     and token attributes, and never data-*;
+ *   - alt (and imageAlt …);
+ *   - title where a screen reader takes it from: on any HTML or SVG element
+ *     it is the tooltip and the name or the description; on a component only
+ *     when the component is interactive (a Button, a Link, a …Trigger, or one
+ *     given onClick or href). Elsewhere a component's `title` is its own prop,
+ *     usually a visible heading, and english-copy reads it.
+ *
+ * It reads them in JSX attributes, in object literals (props spread onto an
+ * element, an option handed to a primitive), in parameter defaults and in
+ * `setAttribute('aria-label', …)`. Its test is stricter than isCopy, because
+ * none of these props takes a key or a token, so every value is spoken: two
+ * letters in a row in any script. That flags a single lowercase word
+ * (`aria-label="close"`), which isCopy lets through as a likely key, and the
+ * words around a template's substitutions (`Remove ${name}`), which
+ * english-copy never reads. A template that is only substitutions and
+ * punctuation (`${court}, ${time}`) is the caller's text and passes.
+ */
+const ARIA_TEXT = [
+  'label',
+  'description',
+  'roledescription',
+  'valuetext',
+  'placeholder',
+  'braillelabel',
+  'brailleroledescription',
+];
+/** Read with hyphens dropped and in lower case, so aria-label, ariaLabel and closeAriaLabel match alike. */
+const SPOKEN_PROP = new RegExp(
+  `(?:aria(?:${ARIA_TEXT.join('|')})|accessib(?:ility|le)(?:label|name)|a11ylabel|srlabel|srtext|screenreader(?:label|text))$`,
+);
+/** NOT_COPY without its last alternative: a lowercase word is spoken too. */
+const NOT_SPOKEN =
+  /^(playerz\.bg|playerz|GNU GPL v3|MIT|Apache|ISO \d+|[A-Z]{2,6}|[\d\s.,:/%+-]+)$/;
+/** A template substitution, as spokenValues() writes it. */
+const SUBSTITUTION = '${…}';
+/** Components that are controls: their `title` is a tooltip on something a user operates. */
+const INTERACTIVE_COMPONENT =
+  /(?:Button|Link|Trigger|Toggle|Tab|MenuItem|Checkbox|Radio|Switch|Input|Select|Combobox|Textarea|Option|Slider|Stepper|Picker|Chip)$/;
+const ACTION_PROPS = new Set(['onClick', 'onPress', 'onSelect', 'href']);
 
 /**
  * The upstream portability vocabulary (the T03-T08 briefs), case-insensitive,
@@ -241,6 +307,126 @@ function isCopy(raw) {
   return /\s/.test(text) || /^[A-Z][a-z]/.test(text);
 }
 
+/** A prop or attribute whose value assistive technology reads (a11y-copy). */
+function isSpokenName(name) {
+  if (!name || name.startsWith('data-')) return false;
+  if (name === 'alt' || /[a-z]Alt$/.test(name)) return true;
+  return SPOKEN_PROP.test(name.replace(/-/g, '').toLowerCase());
+}
+
+/** Does the element this JSX attribute sits on give its `title` to a screen reader? */
+function titleIsSpoken(attr, sf) {
+  const element = attr.parent?.parent; // JsxAttributes, then the opening or self-closing element
+  if (!element?.tagName) return false;
+  const tag = element.tagName.getText(sf).split('.').pop();
+  if (/^[a-z]/.test(tag)) return true; // div, button, svg, motion.button: an HTML or SVG element
+  if (INTERACTIVE_COMPONENT.test(tag)) return true;
+  return element.attributes.properties.some(
+    (p) => ts.isJsxAttribute(p) && ACTION_PROPS.has(p.name.getText(sf)),
+  );
+}
+
+/** The JSX attributes a11y-copy reads, which english-copy therefore does not. */
+function isSpokenAttr(attr, sf) {
+  const name = attr.name.getText(sf);
+  return isSpokenName(name) || (name === 'title' && titleIsSpoken(attr, sf));
+}
+
+/** The operators whose operands both become the value: `label ?? 'x'`, `a || 'x'`, `'x ' + n`. */
+const EITHER_SIDE = new Set([
+  ts.SyntaxKind.QuestionQuestionToken,
+  ts.SyntaxKind.BarBarToken,
+  ts.SyntaxKind.PlusToken,
+]);
+
+/**
+ * The text a value resolves to from the file itself: a literal, a template's
+ * fixed words with each substitution as SUBSTITUTION, both arms of a
+ * ternary, both sides of `??`, `||` and `+`, and the right of `&&`. A
+ * condition (`kind === 'close'`) is never the value.
+ */
+function spokenValues(n) {
+  if (!n) return [];
+  if (
+    ts.isJsxExpression(n) ||
+    ts.isParenthesizedExpression(n) ||
+    ts.isAsExpression(n) ||
+    ts.isSatisfiesExpression(n) ||
+    ts.isNonNullExpression(n)
+  ) {
+    return spokenValues(n.expression);
+  }
+  if (ts.isConditionalExpression(n)) {
+    return [...spokenValues(n.whenTrue), ...spokenValues(n.whenFalse)];
+  }
+  if (ts.isBinaryExpression(n)) {
+    const op = n.operatorToken.kind;
+    if (EITHER_SIDE.has(op)) return [...spokenValues(n.left), ...spokenValues(n.right)];
+    return op === ts.SyntaxKind.AmpersandAmpersandToken ? spokenValues(n.right) : [];
+  }
+  if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) return [n.text];
+  if (ts.isTemplateExpression(n)) {
+    return [n.head.text + n.templateSpans.map((s) => SUBSTITUTION + s.literal.text).join('')];
+  }
+  return [];
+}
+
+/** Words a screen reader would say: two letters in a row, outside the substitutions and the brand. */
+function isSpoken(value) {
+  if (NOT_SPOKEN.test(value.trim())) return false;
+  const words = value
+    .split(SUBSTITUTION)
+    .join(' ')
+    .replace(/playerz(?:\.bg)?/gi, ' ');
+  return /\p{L}{2,}/u.test(words);
+}
+
+function a11yCopy(sf) {
+  const found = [];
+  const report = (node, value, show) => {
+    for (const v of spokenValues(value)) {
+      if (!isSpoken(v)) continue;
+      found.push({
+        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+        text: show(v),
+      });
+    }
+  };
+
+  const visit = (node) => {
+    if (ts.isJsxAttribute(node) && isSpokenAttr(node, sf)) {
+      const name = node.name.getText(sf);
+      report(node, node.initializer, (v) => `${name}="${v}"`);
+    }
+    if (ts.isPropertyAssignment(node)) {
+      const key = node.name;
+      const name = ts.isIdentifier(key) || ts.isStringLiteral(key) ? key.text : '';
+      if (isSpokenName(name)) report(node, node.initializer, (v) => `${name}: '${v}'`);
+    }
+    if ((ts.isParameter(node) || ts.isBindingElement(node)) && node.initializer) {
+      const inParams = ts.isParameter(node) || ts.findAncestor(node, ts.isParameter);
+      const key = ts.isBindingElement(node) ? (node.propertyName ?? node.name) : node.name;
+      const name = key && (ts.isIdentifier(key) || ts.isStringLiteral(key)) ? key.text : '';
+      if (inParams && isSpokenName(name)) {
+        report(node, node.initializer, (v) => `${name} = '${v}'`);
+      }
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'setAttribute'
+    ) {
+      const [attr, value] = node.arguments;
+      if (attr && ts.isStringLiteral(attr) && (isSpokenName(attr.text) || attr.text === 'title')) {
+        report(node, value, (v) => `setAttribute('${attr.text}', '${v}')`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return found;
+}
+
 function englishCopy(sf) {
   const found = [];
   const add = (node, text) =>
@@ -262,7 +448,12 @@ function englishCopy(sf) {
     if (ts.isJsxExpression(node) && node.parent && !ts.isJsxAttribute(node.parent)) {
       for (const s of rendered(node.expression)) if (isCopy(s.text)) add(s, `{'${s.text}'}`);
     }
-    if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && COPY_ATTRS.has(node.name.text)) {
+    if (
+      ts.isJsxAttribute(node) &&
+      ts.isIdentifier(node.name) &&
+      COPY_ATTRS.has(node.name.text) &&
+      !isSpokenAttr(node, sf)
+    ) {
       const init = node.initializer;
       const values =
         init && ts.isJsxExpression(init) ? rendered(init.expression) : init ? [init] : [];
@@ -276,13 +467,22 @@ function englishCopy(sf) {
       const key = ts.isBindingElement(node) ? (node.propertyName ?? node.name) : node.name;
       const name = key && (ts.isIdentifier(key) || ts.isStringLiteral(key)) ? key.text : '';
       const s = literal(node.initializer);
-      if (inParams && COPY_PARAM.test(name) && s !== null && isCopy(s))
+      if (inParams && COPY_PARAM.test(name) && !isSpokenName(name) && s !== null && isCopy(s))
         add(node, `${name} = '${s}'`);
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
   return found;
+}
+
+/**
+ * a11y-copy alone, over one code file: what i18n-no-hardcoded-copy runs over
+ * playerz's own components, whose attribute list has the same blind spot.
+ */
+export function checkSpokenCopy(path, text) {
+  const sf = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, scriptKind(path));
+  return a11yCopy(sf).map((f) => ({ path, line: f.line, rule: 'a11y-copy', text: f.text }));
 }
 
 /**
@@ -325,6 +525,7 @@ export function checkSource(path, text) {
     }
 
     for (const f of englishCopy(sf)) add('english-copy', f.line, f.text);
+    for (const f of a11yCopy(sf)) add('a11y-copy', f.line, f.text);
 
     const code = withoutComments(text).split('\n');
     const codeText = code.join('\n');

@@ -250,6 +250,20 @@ describe('the checks fire on the defects they exist for', () => {
     expect(unportable([vendored], () => Buffer.from('export const a = 1;\n'))).toEqual([]);
   });
 
+  it('a hard-coded screen-reader label in a vendored file is caught, camelCase prop included', () => {
+    // inflect #3201: the vendored LocaleSwitcher said ariaLabel="Language", a
+    // prop and not the aria-label attribute, so this scan passed it.
+    const vendored = row({ status: 'vendored', sha: 'a'.repeat(40) });
+    const literal = () =>
+      Buffer.from('export const S = () => <ToggleGroup ariaLabel="Language" />;\n');
+    expect(unportable([vendored], literal)).toEqual([
+      'src/components/ui/button.tsx:1  a11y-copy  ariaLabel="Language"',
+    ]);
+    const translated = () =>
+      Buffer.from("export const S = () => <ToggleGroup ariaLabel={t('language')} />;\n");
+    expect(unportable([vendored], translated)).toEqual([]);
+  });
+
   it('a local-diff row without a reason or an upstream link is refused', () => {
     const bare = rowProblems(row({ status: 'local-diff' }), 'ui');
     expect(bare.join('\n')).toMatch(/must say why/);

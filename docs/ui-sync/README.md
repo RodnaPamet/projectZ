@@ -110,6 +110,13 @@ on the owner's machine, and the default works from a worktree too.
   `<select`, inline or infinite animation, and `text-brand-NNN` or `text-` with an arbitrary
   `var(--brand-<name>)` value. It exits 1 on any finding.
 
+  Its `a11y-copy` rule reads the text a screen reader speaks: `aria-label` and the other ARIA
+  text attributes, their camelCase props (`ariaLabel`, `closeAriaLabel`), `alt`, and `title` on
+  an HTML element or an interactive component, in JSX, object literals, parameter defaults and
+  `setAttribute`. It flags any literal with words in it, including a single lowercase word and
+  the words around a template's `${…}`. The vendored `LocaleSwitcher` passed the older rules with
+  `ariaLabel="Language"` because they read only the kebab-case attribute (inflect #3201).
+
   It also runs over the whole manifest. `--manifest vendored` checks every `vendored` row's file
   and exits 1 on any finding. The guardrail runs the same scan, so a finding in any vendored
   file fails CI, not only in the files a PR copies. `--manifest pending [--ref <inflect rev>]`
