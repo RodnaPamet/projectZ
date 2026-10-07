@@ -136,10 +136,12 @@ describe('/login — where the sign-in ends', () => {
     );
   });
 
-  it('is one landmark with one level-one heading', async () => {
+  it('one level-one heading, and no <main> of its own: the chrome owns that (#362)', async () => {
     render(withIntl(await LoginPage({ searchParams: Promise.resolve({}) })));
 
-    expect(screen.getAllByRole('main')).toHaveLength(1);
+    // `PlayerChrome` wraps every page of the site in its one <main>, the
+    // public chrome's or the signed-in AppShell's; a second would nest.
+    expect(screen.queryAllByRole('main')).toHaveLength(0);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 });

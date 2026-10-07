@@ -8,20 +8,23 @@ import { expect, test } from '../fixtures';
 import { grantModerator } from '../utils/create-player';
 
 /**
- * The player chrome on a 393 px phone (T20, #362): a bottom tab bar under the
- * thumb, by account kind, and a header with the wordmark, a club account's
- * way back to its admin, and the bell.
+ * The site's frames on a 393 px phone (#362): the bottom tab bar under the
+ * thumb, and for a signed-in account the AppShell's hamburger and left drawer,
+ * exactly as in the club admin.
  *
- *   signed out   Играй · Вход
- *   player       Играй · Резервации · Профил     (Игри waits for its module)
- *   club         Играй · Админ · Профил
+ *   signed out   Играй · Вход                     (the public header above)
+ *   player,      Играй · Резервации · Профил      (Игри waits for its module),
+ *   coach        and the drawer holds every item, Платформа included
+ *   club         its admin's bar, Календар · Кортове · Играчи · Още, on public
+ *                pages as in the admin
  *
  * Sideways scroll on these pages is horizontal-drift.spec.ts's job; this
- * checks the bar does not add any, at the width it exists for.
+ * checks the frame adds none, at the width it exists for.
  */
 
 const TAB_BAR = `nav[aria-label="${bg.common.nav.tabBar}"]`;
 const TABS = `${TAB_BAR} li > a, ${TAB_BAR} li > button`;
+const DRAWER_NAV = `[data-testid="nav-drawer"] nav[aria-label="${bg.common.ui.mainNav}"]`;
 const n = bg.common.nav;
 
 async function expectTargets(page: Page) {
@@ -74,7 +77,19 @@ async function tabNames(page: Page): Promise<string[]> {
   return (await page.locator(TABS).allInnerTexts()).map((s) => s.trim());
 }
 
-test.describe('player shell — phone', () => {
+/** Open the drawer from the top bar's hamburger. */
+async function openDrawer(page: Page) {
+  const toggle = page.getByTestId('nav-toggle');
+  const box = (await toggle.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await toggle.tap();
+  const drawer = page.getByRole('dialog', { name: n.menu });
+  await expect(drawer).toBeVisible();
+  return drawer;
+}
+
+test.describe('the frames — phone', () => {
   test('signed out: Играй and Вход, under the thumb', async ({ page }) => {
     await page.goto('/venues');
     const bar = page.locator(TAB_BAR);
@@ -84,8 +99,9 @@ test.describe('player shell — phone', () => {
 
     // The header's own links are the desktop's: one copy on a phone.
     await expect(page.getByRole('navigation', { name: bg.common.ui.mainNav })).toBeHidden();
-    // No account, so no bell.
+    // No account: no bell, no hamburger, no drawer.
     await expect(page.getByTestId('header-notifications')).toHaveCount(0);
+    await expect(page.getByTestId('nav-toggle')).toHaveCount(0);
 
     // Fixed to the bottom of the viewport, and it lifts the toaster with it.
     const box = (await bar.boundingBox())!;
@@ -102,9 +118,9 @@ test.describe('player shell — phone', () => {
 
   test('a tab tap navigates, and the bar stays', async ({ page }) => {
     await page.goto('/');
-    // The SHOWN bar: `/` wears its own chrome (the (home) group), so across
-    // this navigation the router may hold the previous page's copy hidden
-    // beside the new one, and a bare selector matches both.
+    // The SHOWN bar: `/` wears its own layout's chrome (the (home) group), so
+    // across this navigation the router may hold the previous page's copy
+    // hidden beside the new one, and a bare selector matches both.
     const bar = page.locator(TAB_BAR).filter({ visible: true });
     await bar.getByRole('link', { name: n.play }).tap();
     await expect(page).toHaveURL(/\/venues$/);
@@ -119,7 +135,7 @@ test.describe('player shell — phone', () => {
     await expect(page.locator(TAB_BAR)).toHaveCount(0);
   });
 
-  test('player: Играй, Резервации, Профил; no Игри or messages until their modules', async ({
+  test('player: Играй, Резервации, Профил; no Игри or Съобщения until their modules', async ({
     playerPage: page,
   }) => {
     await page.goto('/me/bookings');
@@ -136,16 +152,50 @@ test.describe('player shell — phone', () => {
       page.locator(TAB_BAR).getByRole('link', { name: n.bookings }).locator('[data-tab-accent]'),
     ).toBeVisible();
 
-    // Modules default off: no Игри tab, no messages icon. The bell is there.
-    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.games })).toHaveCount(0);
-    await expect(page.getByTestId('header-messages')).toHaveCount(0);
+    // The rail is the desktop's; the account menu too, below md the Профил
+    // tab is the account's place. The bell is here.
+    await expect(page.locator('aside')).toBeHidden();
+    await expect(page.getByTestId('top-chrome-user-menu')).toBeHidden();
     await expect(page.getByTestId('header-notifications')).toBeVisible();
-
-    await expect(page.getByTestId('site-header-admin')).toHaveCount(0);
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.games })).toHaveCount(0);
     await expect(page.locator('a[href^="/t/"]')).toHaveCount(0);
 
     await expectTargets(page);
     await expectNoDrift(page);
+  });
+
+  test('player: the hamburger’s drawer holds every item; a tap navigates and closes it', async ({
+    playerPage: page,
+  }) => {
+    await page.goto('/venues');
+    const drawer = await openDrawer(page);
+    await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText([
+      n.play,
+      n.bookings,
+      n.profile,
+    ]);
+    await expect(drawer.getByTestId('drawer-account').getByRole('button')).toHaveText(
+      bg.common.signOut,
+    );
+
+    await page.locator(DRAWER_NAV).getByRole('link', { name: n.bookings }).tap();
+    await expect(page).toHaveURL(/\/me\/bookings$/);
+    await expect(page.getByRole('heading', { level: 1, name: bg.myBookings.title })).toBeVisible();
+    await expect(page.locator('[data-testid="nav-drawer"]')).toHaveCount(0);
+  });
+
+  test('player: Escape closes the drawer and gives focus back to the hamburger', async ({
+    playerPage: page,
+  }) => {
+    await page.goto('/venues');
+    const toggle = page.getByTestId('nav-toggle');
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    const drawer = page.getByRole('dialog', { name: n.menu });
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await expect(toggle).toBeFocused();
   });
 
   test('player: Профил is a page, with the language, the theme and a real Изход', async ({
@@ -204,7 +254,32 @@ test.describe('player shell — phone', () => {
     await expect(page.getByTestId('notifications-empty')).toContainText(n.notificationsEmpty);
   });
 
-  test('moderator: Платформа on Профил leads into the platform', async ({
+  test('coach: a player’s bar and drawer', async ({ coachPage: page }) => {
+    await page.goto('/venues');
+    expect(await tabNames(page)).toEqual([n.play, n.bookings, n.profile]);
+    await openDrawer(page);
+    await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText([
+      n.play,
+      n.bookings,
+      n.profile,
+    ]);
+  });
+
+  test('moderator: Платформа in the drawer leads into the platform', async ({
+    playerPage: page,
+    player,
+    isolatedTenant,
+  }) => {
+    await grantModerator(player.userId, isolatedTenant.userId);
+    await page.goto('/venues');
+    const drawer = await openDrawer(page);
+    await expect(drawer.getByText(n.platform)).toBeVisible();
+    await page.locator(DRAWER_NAV).getByRole('link', { name: n.moderation }).tap();
+    await expect(page).toHaveURL(/\/platform\/moderation$/);
+    await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
+  });
+
+  test('moderator: Платформа on Профил leads there too', async ({
     playerPage: page,
     player,
     isolatedTenant,
@@ -218,48 +293,50 @@ test.describe('player shell — phone', () => {
     await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
   });
 
-  test('club account: Играй, Админ, Профил, and "← Към админ" in the header', async ({
+  test('club account on /venues: its admin’s bar and drawer, never a player’s', async ({
     authedPage: page,
     isolatedTenant,
   }) => {
+    const slug = isolatedTenant.tenantSlug;
     await page.goto('/venues');
-    expect(await tabNames(page)).toEqual([n.play, n.admin, n.profile]);
-    const admin = page.getByTestId('site-header-admin');
-    await expect(admin).toBeVisible();
-    await expect(admin).toHaveText(n.backToAdmin);
-    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.admin })).toHaveAttribute(
-      'href',
-      `/t/${isolatedTenant.tenantSlug}/admin/calendar`,
-    );
-    await expectTargets(page);
-    await expectNoDrift(page);
-  });
-
-  test('club account: public → admin through "← Към админ", admin → public through Още', async ({
-    authedPage: page,
-    isolatedTenant,
-  }) => {
-    await page.goto('/venues');
-    await page.getByTestId('site-header-admin').tap();
-    await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
-
-    // The admin's own bar: Календар is current.
-    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.calendar })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
+    expect(await tabNames(page)).toEqual([n.calendar, n.courts, n.players, n.more]);
+    await expect(page.getByTestId('site-header-admin')).toHaveCount(0);
 
     const more = page.getByTestId('bottom-tab-more');
     await expect(more).toHaveAttribute('aria-expanded', 'false');
     await more.tap();
     const drawer = page.getByRole('dialog', { name: n.menu });
-    await expect(drawer).toBeVisible();
-    await drawer.getByRole('link', { name: n.publicPage }).tap();
-    // The club's own page (#356).
-    await expect(page).toHaveURL(new RegExp(`/clubs/${isolatedTenant.tenantSlug}$`));
+    await expect(drawer.getByRole('link', { name: n.pricing })).toBeVisible();
+    await expect(page.locator(DRAWER_NAV).getByRole('link', { name: n.play })).toHaveCount(0);
     await expect(
-      page.getByRole('heading', { level: 1, name: `E2E ${isolatedTenant.tenantSlug}` }),
-    ).toBeVisible();
+      drawer.getByTestId('drawer-account').getByRole('link', { name: n.publicPage }),
+    ).toHaveAttribute('href', `/clubs/${slug}`);
+
+    await expectTargets(page);
+    await expectNoDrift(page);
+  });
+
+  test('club account: public → admin through its bar, admin → public through Още', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    const slug = isolatedTenant.tenantSlug;
+    await page.goto('/venues');
+    await page.locator(TAB_BAR).getByRole('link', { name: n.calendar }).tap();
+    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.calendar })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    await page.getByTestId('bottom-tab-more').tap();
+    const drawer = page.getByRole('dialog', { name: n.menu });
+    await drawer.getByRole('link', { name: n.publicPage }).tap();
+    // The club's own page (#356), in the same frame.
+    await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
+    await expect(page.getByRole('heading', { level: 1, name: `E2E ${slug}` })).toBeVisible();
+    expect(await tabNames(page)).toEqual([n.calendar, n.courts, n.players, n.more]);
   });
 
   for (const theme of ['light', 'dark'] as const) {
@@ -281,11 +358,23 @@ test.describe('player shell — phone', () => {
       await expectBarAxeClean(page);
     });
 
+    test(`axe: player /venues with the drawer open, ${theme}`, async ({
+      playerPage: page,
+      baseURL,
+    }) => {
+      await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
+      await page.goto('/venues');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await openDrawer(page);
+      await expect(page.locator(DRAWER_NAV).getByRole('link', { name: n.play })).toBeVisible();
+      await expectAxeClean(page);
+    });
+
     test(`axe: club account on /venues, ${theme}`, async ({ authedPage: page, baseURL }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await expect(page.getByTestId('site-header-admin')).toBeVisible();
+      await expect(page.locator(TAB_BAR)).toBeVisible();
       await expectAxeClean(page);
       await expectBarAxeClean(page);
     });

@@ -8,6 +8,23 @@
 @import '../styles/tokens.css';
 
 /* ──────────────────────────────────────────────────────────────────
+ * `in-shell:` — inside a signed-in AppShell (#362).
+ *
+ * The same page renders in two frames: the public chrome for a visitor, where
+ * the page pads itself (`px-6 py-10`, a phone-wide cover image), and the
+ * vendored AppShellFrame for a signed-in account, whose `<main>` already pads
+ * (p-4, md:p-6), as it does for every club admin page. A page there drops its
+ * own gutter with this variant: `px-6 py-10 in-shell:p-0`. The shells mark
+ * their root with `data-app-shell` (club-admin-shell.tsx, player-shell.tsx).
+ *
+ * A custom variant is emitted AFTER every built-in one, breakpoints included,
+ * so `in-shell:p-0` also beats `md:px-6` on the same element: one override
+ * per property, at every width. Content portalled out of the shell (a sheet,
+ * a modal) is not under `[data-app-shell]`, and keeps its own padding.
+ * ────────────────────────────────────────────────────────────────── */
+@custom-variant in-shell (&:where([data-app-shell] *));
+
+/* ──────────────────────────────────────────────────────────────────
  * Legacy color aliases (from the upstream port).
  *
  * These `--bg-primary` / `--text-primary` / `--brand` names predate

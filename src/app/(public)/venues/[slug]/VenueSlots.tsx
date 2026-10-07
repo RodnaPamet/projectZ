@@ -4,13 +4,13 @@ import { Skeleton, SkeletonPill } from '@/components/ui/skeleton';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { toAvailability } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
-import { playerChrome } from '@/components/layout/SiteHeader';
+import { playerChrome } from '@/components/layout/player-chrome';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
 import { countPageUsage } from '@/lib/usage/record';
 
 import { bookingDays, parseInitialPick } from './booking-days';
-import { VenueBooking } from './VenueBooking';
+import { VenueBooking, type Viewer } from './VenueBooking';
 
 /**
  * The venue page's second stage (#403): the day picker and the first day's
@@ -62,11 +62,14 @@ export async function VenueSlots({
     playerChrome(),
   ]);
   const seed = toAvailability({ venue: publicVenue, from, to, resources });
+  // A coach books as a player would, until the coach module says otherwise
+  // (#377): the API answers for the account's kind either way.
+  const viewer: Viewer = kind === 'coach' ? 'player' : kind;
 
   // A player back from sign-in with `?confirm=1` lands on the confirm sheet
   // already open (VenueBooking), so the funnel's "sheet opened" (#371) is
   // counted here, on the server, rather than by the island's beacon.
-  if (pick.confirm && kind === 'player') {
+  if (pick.confirm && viewer === 'player') {
     await countPageUsage('SHEET_OPENED', { venueId: venue.id });
   }
 
@@ -77,7 +80,7 @@ export async function VenueSlots({
       seed={{ day: pick.day, availability: seed }}
       initialPick={pick}
       renderedAt={now.toISOString()}
-      viewer={kind === 'signed-out' ? 'signed-out' : kind}
+      viewer={viewer}
     />
   );
 
@@ -97,15 +100,15 @@ export async function VenueSlots({
 export function VenueSlotsSkeleton() {
   return (
     <RouteSkeleton className="flex flex-col gap-4">
-      <div className="px-6 md:px-0">
+      <div className="in-shell:px-0 px-6 md:px-0">
         <Skeleton className="h-6 w-40" />
       </div>
-      <div className="flex gap-1 px-6 md:px-0">
+      <div className="in-shell:px-0 flex gap-1 px-6 md:px-0">
         {Array.from({ length: 5 }).map((_, i) => (
           <SkeletonPill key={i} />
         ))}
       </div>
-      <div className="px-6 md:px-0">
+      <div className="in-shell:px-0 px-6 md:px-0">
         <CardListSkeleton rows={3} lines={3} />
       </div>
     </RouteSkeleton>

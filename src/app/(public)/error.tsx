@@ -22,7 +22,8 @@ export default function PublicError({
   const t = useTranslations('common');
 
   return (
-    <main className="safe-area-x flex flex-1 items-center justify-center p-6">
+    // No <main>: the chrome around the page owns the landmark (#362).
+    <div className="safe-area-x flex flex-1 items-center justify-center py-6">
       <ErrorState
         description={t('error.body')}
         onRetry={retry}
@@ -35,6 +36,6 @@ export default function PublicError({
           </p>
         )}
       </ErrorState>
-    </main>
+    </div>
   );
 }

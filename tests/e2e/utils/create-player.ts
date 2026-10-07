@@ -3,9 +3,9 @@ import bcrypt from 'bcryptjs';
 import { E2E_PASSWORD, prisma } from './create-isolated-tenant';
 
 /**
- * A PLAYER account for E2E (T20): the player chrome is about what a player
- * sees, and `isolatedTenant`'s account is a CLUB one (#263), which gets a
- * different tab bar and a link to its club.
+ * A PLAYER account for E2E (T20), or a COACH one (#362): the player shell is
+ * about what they see, and `isolatedTenant`'s account is a CLUB one (#263),
+ * which wears its club admin's frame instead.
  *
  * Straight to Prisma, as `createIsolatedTenant` does and for its reason: a
  * fixture that provisions through the app under test cannot tell "the app is
@@ -20,16 +20,16 @@ export interface E2EPlayer {
   name: string;
 }
 
-export async function createPlayer(): Promise<E2EPlayer> {
-  const id = `e2e-player-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+export async function createPlayer(kind: 'PLAYER' | 'COACH' = 'PLAYER'): Promise<E2EPlayer> {
+  const id = `e2e-${kind.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const email = `${id}@playerz.test`;
-  const name = 'E2E Player';
+  const name = kind === 'COACH' ? 'E2E Coach' : 'E2E Player';
   // Cost 4, not the app's 12: this account lives for one spec.
   const passwordHash = await bcrypt.hash(E2E_PASSWORD, 4);
 
   const user = await prisma().$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
-    return tx.user.create({ data: { email, name, accountKind: 'PLAYER', passwordHash } });
+    return tx.user.create({ data: { email, name, accountKind: kind, passwordHash } });
   });
 
   return { userId: user.id, email, password: E2E_PASSWORD, name };

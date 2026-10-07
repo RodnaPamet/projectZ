@@ -6,9 +6,9 @@ import {
   BookingDetail,
   cancelErrorKey,
   cancelState,
-} from '@/app/(app)/me/bookings/[id]/BookingDetail';
-import { directionsUrl } from '@/app/(app)/me/bookings/[id]/directions';
-import { MyBookingsTabs } from '@/app/(app)/me/bookings/MyBookingsTabs';
+} from '@/app/(public)/me/bookings/[id]/BookingDetail';
+import { directionsUrl } from '@/app/(public)/me/bookings/[id]/directions';
+import { MyBookingsTabs } from '@/app/(public)/me/bookings/MyBookingsTabs';
 import type { MyBookingDetailDto, MyBookingDto } from '@/app/api/v1/_lib/dto';
 import { __resetSessionExpiryForTests } from '@/lib/auth/session-expiry';
 import { ApiClientError } from '@/lib/data/errors';

@@ -189,9 +189,10 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
   const place = (v: { addressLine: string; city: string }) =>
     `${v.addressLine}, ${cityLabel(tCities, v.city)}`;
 
-  // The header and the tab bar come from (public)/layout.tsx (T20).
+  // The chrome (and its <main>) comes from (public)/layout.tsx (T20, #362);
+  // inside a signed-in shell the page drops its own gutter (`in-shell:`).
   return (
-    <main className="bg-bg-page text-content-default safe-area-x flex-1">
+    <div className="bg-bg-page text-content-default safe-area-x flex-1">
       {/* Structured data, in the server HTML. A data block, not a script:
           browsers never execute `application/ld+json`. serializeJsonLd
           escapes `<`, so no club or venue name can close the element. */}
@@ -199,14 +200,14 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
+      <div className="in-shell:p-0 mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
         <header className="flex flex-col gap-4">
           {/* The cover (#366): the first venue's photo that has one, else a
               token-tinted band. The back link is the page's own way to the
               index, not navigation chrome. */}
           <div
             className={cn(
-              'bg-bg-success relative overflow-hidden md:rounded-lg',
+              'bg-bg-success in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
               club.cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
             )}
           >
@@ -230,7 +231,7 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
             </Link>
           </div>
 
-          <div className="flex flex-col gap-2 px-6 md:px-0">
+          <div className="in-shell:px-0 flex flex-col gap-2 px-6 md:px-0">
             <Heading level={1}>{club.name}</Heading>
             {(main || club.phone) && (
               <ul aria-label={t('contactLabel')} className="flex flex-col gap-1">
@@ -268,7 +269,10 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
           </div>
         </header>
 
-        <section aria-labelledby="club-venues" className="flex flex-col gap-3 px-6 md:px-0">
+        <section
+          aria-labelledby="club-venues"
+          className="in-shell:px-0 flex flex-col gap-3 px-6 md:px-0"
+        >
           <div className="flex items-baseline justify-between gap-2">
             <Heading level={2} id="club-venues">
               {t('venuesTitle')}
@@ -343,6 +347,6 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

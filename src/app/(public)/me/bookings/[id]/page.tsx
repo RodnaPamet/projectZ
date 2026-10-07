@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMyBooking } from '@/app-layer/usecases/my-bookings';
 import { toMyBookingDetailDto } from '@/app/api/v1/_lib/dto';
-import { playerChrome } from '@/components/layout/SiteHeader';
+import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
 

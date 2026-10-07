@@ -14,9 +14,10 @@ import en from '../../messages/en.json';
  *
  * A visitor who is not signed in had no way to read the site in English: the
  * only switch was on /me/profile (#362). The footer carries the vendored
- * `LocaleSwitcher` on every public page. Signed out, the cookie is the whole
- * preference; signed in, the user record is written first, as the profile's
- * switch does, or the middleware would flip the page straight back.
+ * `LocaleSwitcher` on every public page, for a visitor who is not signed in:
+ * the cookie is the whole preference. A signed-in account wears the AppShell,
+ * which has no footer, and keeps its language on the user record, switched on
+ * /me/profile (#362). So the switch here must never touch a user record.
  */
 
 let locale: 'bg' | 'en' = 'bg';
@@ -54,9 +55,9 @@ beforeEach(() => {
   clearLocaleCookie();
 });
 
-async function renderFooter(l: 'bg' | 'en', signedIn: boolean) {
+async function renderFooter(l: 'bg' | 'en') {
   locale = l;
-  return render(withIntl(await resolveServerTree(<SiteFooter signedIn={signedIn} />), l));
+  return render(withIntl(await resolveServerTree(<SiteFooter />), l));
 }
 
 describe.each([
@@ -64,7 +65,7 @@ describe.each([
   ['en', en],
 ] as const)('the footer in %s', (l, messages) => {
   it('names the site, links the courts and the clubs section, and offers both languages', async () => {
-    await renderFooter(l, false);
+    await renderFooter(l);
     const footer = screen.getByTestId('site-footer');
     expect(footer).toHaveAttribute('aria-label', messages.common.footer.label);
     expect(
@@ -90,7 +91,7 @@ describe('the switch speaks the page language', () => {
     ['bg', 'Език'],
     ['en', 'Language'],
   ] as const)('%s: the radio group is named "%s"', async (l, name) => {
-    await renderFooter(l, false);
+    await renderFooter(l);
     const lang = screen.getByTestId('footer-language');
     expect(within(lang).getByRole('radiogroup')).toHaveAccessibleName(name);
   });
@@ -111,7 +112,7 @@ describe('the switch speaks the page language', () => {
   };
 
   it('in Bulgarian, no English word but the brand and the English endonym', async () => {
-    const { container } = await renderFooter('bg', false);
+    const { container } = await renderFooter('bg');
     const latin = (allCopy(container).match(/[A-Za-z]{3,}/g) ?? []).filter(
       (w) => !['playerz', 'English'].includes(w),
     );
@@ -119,7 +120,7 @@ describe('the switch speaks the page language', () => {
   });
 
   it('in English, no Cyrillic word but the Bulgarian endonym and its code', async () => {
-    const { container } = await renderFooter('en', false);
+    const { container } = await renderFooter('en');
     const cyrillic = (allCopy(container).match(/[Ѐ-ӿ]+/g) ?? []).filter(
       (w) => !['Български', 'БГ'].includes(w),
     );
@@ -128,34 +129,13 @@ describe('the switch speaks the page language', () => {
 });
 
 describe('switching language from the footer', () => {
-  it('signed out: writes the NEXT_LOCALE cookie and re-renders, touching no user record', async () => {
-    await renderFooter('bg', false);
+  // Signed out only: a signed-in account wears the AppShell, which has no
+  // footer, and switches its language on /me/profile (#362).
+  it('writes the NEXT_LOCALE cookie and re-renders, touching no user record', async () => {
+    await renderFooter('bg');
     await userEvent.click(screen.getByRole('radio', { name: 'English' }));
     expect(document.cookie).toContain('NEXT_LOCALE=en');
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
     expect(persistMyLocale).not.toHaveBeenCalled();
-  });
-
-  it('signed in: saves the preference on the user first, then the cookie', async () => {
-    persistMyLocale.mockImplementation(async () => {
-      // The record is written BEFORE the cookie, or the middleware would
-      // re-seed the old language from the token.
-      expect(document.cookie).not.toContain('NEXT_LOCALE=en');
-    });
-    await renderFooter('bg', true);
-    await userEvent.click(screen.getByRole('radio', { name: 'English' }));
-    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
-    expect(persistMyLocale).toHaveBeenCalledWith('en');
-    expect(document.cookie).toContain('NEXT_LOCALE=en');
-  });
-
-  it('signed in, the save failing: no cookie, no refresh, Bulgarian stays selected', async () => {
-    persistMyLocale.mockRejectedValue(new Error('locale not saved'));
-    await renderFooter('bg', true);
-    await userEvent.click(screen.getByRole('radio', { name: 'English' }));
-    await waitFor(() => expect(persistMyLocale).toHaveBeenCalled());
-    expect(refresh).not.toHaveBeenCalled();
-    expect(document.cookie).not.toContain('NEXT_LOCALE=en');
-    expect(screen.getByRole('radio', { name: 'Български' })).toBeChecked();
   });
 });

@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
-import type { AccountLinks } from '@/components/layout/account-links';
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
 import { resolveClubTabs } from '@/components/layout/club-admin-tab-bar';
 import {
@@ -9,6 +8,7 @@ import {
   platformNav,
   toShellSections,
   visibleSections,
+  type AccountLinks,
 } from '@/components/layout/nav-items';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { Role } from '@prisma/client';
@@ -69,7 +69,6 @@ const roleSections = (role: Role) =>
 
 const ACCOUNT: AccountLinks = {
   profileHref: '/me/profile',
-  clubAdmin: null,
   platformHref: null,
   publicSite: { href: '/venues', label: n.publicPage },
 };
@@ -242,12 +241,13 @@ describe('Още opens the drawer, and says so', () => {
   });
 });
 
-describe('AdminTopBar — the way out (#347) and the account menu', () => {
+describe('ShellTopBar — the way out (#347) and the account menu', () => {
   it('wordmark to the public home; the club’s name back to its admin; the public page from sm', () => {
     renderClub('OWNER');
-    expect(screen.getByTestId('admin-wordmark')).toHaveAttribute('href', '/');
-    expect(screen.getByTestId('admin-context-name')).toHaveAttribute('href', `/t/${SLUG}/admin`);
-    const pub = screen.getByTestId('admin-public-link');
+    // Играй: where `/` sends anybody signed in (#362), linked directly.
+    expect(screen.getByTestId('shell-wordmark')).toHaveAttribute('href', '/venues');
+    expect(screen.getByTestId('shell-context-name')).toHaveAttribute('href', `/t/${SLUG}/admin`);
+    const pub = screen.getByTestId('shell-public-link');
     expect(pub).toHaveAttribute('href', '/venues');
     expect(pub).toHaveTextContent(n.publicPage);
     expect(pub).toHaveClass('hidden', 'sm:inline-flex');
@@ -297,9 +297,8 @@ describe('The platform shell (moderator, #345, #347)', () => {
               user={{ name: 'Mod', email: 'mod@playerz.bg' }}
               account={{
                 profileHref: '/me/profile',
-                clubAdmin: null,
                 platformHref: null,
-                publicSite: { href: '/', label: n.toSite },
+                publicSite: { href: '/venues', label: n.toSite },
               }}
             >
               <p>queue</p>
@@ -314,8 +313,8 @@ describe('The platform shell (moderator, #345, #347)', () => {
     pathname = '/platform/moderation';
     renderPlatform();
     expect(screen.queryByRole('navigation', { name: n.tabBar })).not.toBeInTheDocument();
-    expect(screen.getByTestId('admin-public-link')).toHaveAttribute('href', '/');
-    expect(screen.getByTestId('admin-context-name')).toHaveAttribute('href', '/platform');
+    expect(screen.getByTestId('shell-public-link')).toHaveAttribute('href', '/venues');
+    expect(screen.getByTestId('shell-context-name')).toHaveAttribute('href', '/platform');
   });
 
   it('its menu: Към сайта, Профил, Изход', () => {
@@ -328,7 +327,7 @@ describe('The platform shell (moderator, #345, #347)', () => {
         .getAllByRole('link')
         .map((l) => [l.textContent, l.getAttribute('href')]),
     ).toEqual([
-      [n.toSite, '/'],
+      [n.toSite, '/venues'],
       [n.profile, '/me/profile'],
     ]);
   });

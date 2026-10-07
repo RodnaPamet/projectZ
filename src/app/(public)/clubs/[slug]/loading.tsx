@@ -12,9 +12,9 @@ export default function Loading() {
   return (
     <RouteSkeleton className="bg-bg-page">
       <div className="safe-area-x">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
-          <Skeleton className="h-32 w-full rounded-none md:h-40 md:rounded-lg" />
-          <div className="flex flex-col gap-2 px-6 md:px-0">
+        <div className="in-shell:p-0 mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
+          <Skeleton className="in-shell:rounded-lg h-32 w-full rounded-none md:h-40 md:rounded-lg" />
+          <div className="in-shell:px-0 flex flex-col gap-2 px-6 md:px-0">
             <PageTitleSkeleton />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
@@ -23,7 +23,7 @@ export default function Loading() {
               <SkeletonPill />
             </div>
           </div>
-          <div className="flex flex-col gap-3 px-6 md:px-0">
+          <div className="in-shell:px-0 flex flex-col gap-3 px-6 md:px-0">
             <Skeleton className="h-6 w-24" />
             <CardGridSkeleton count={2} className="lg:grid-cols-2" />
           </div>

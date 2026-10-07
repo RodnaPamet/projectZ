@@ -1,9 +1,9 @@
-import type { LandingReason } from '@/lib/auth/landing';
+import { PLAY_PATH, type LandingDecision } from '@/lib/auth/landing';
 import type { PlatformCapability } from '@/lib/platform/capabilities';
 import type { Permission } from '@/lib/permissions';
 
 /**
- * What the club-admin and platform shells link to — data, not a component.
+ * What the signed-in shells and the public chrome link to — data, not a component.
  *
  * ═══ WHY THIS MODULE HAS NO DIRECTIVE ═══
  *
@@ -30,7 +30,10 @@ import type { Permission } from '@/lib/permissions';
  * href here that has no `page.tsx` behind it.
  */
 
-/** The glyph a row shows. A key, because a component cannot cross to the client as a prop. */
+/**
+ * The glyph a row or a tab shows. A key, because a component cannot cross to
+ * the client as a prop; `nav-icons.tsx` maps each to its Nucleo glyph.
+ */
 export type NavIconKey =
   | 'calendar'
   | 'courts'
@@ -43,7 +46,14 @@ export type NavIconKey =
   | 'fees'
   | 'usage'
   | 'security'
-  | 'contactRequests';
+  | 'contactRequests'
+  // The player shell and the bottom tab bar (#362).
+  | 'discover'
+  | 'games'
+  | 'bookings'
+  | 'messages'
+  | 'profile'
+  | 'signIn';
 
 export interface NavItem {
   href: string;
@@ -311,42 +321,54 @@ export function toShellSections(
   }));
 }
 
-// ═══ THE PLAYER CHROME (T20, #362) ═════════════════════════════════════════
+// ═══ WHICH FRAME AN ACCOUNT WEARS (#362) ═══════════════════════════════════
 
 /**
- * Which player chrome a viewer gets: the site header's top links (from `md`)
- * and the bottom tab bar (below it). Three, not one per landing reason,
- * because the chrome only ever asks two questions: is anybody signed in, and
- * is this a CLUB account (#263)?
+ * The chrome a viewer gets around every page they open, decided on the server
+ * from the session and the account's landing (`playerChrome`):
  *
- *   signed-out   Play · Sign in
- *   player       Play · (Games) · Bookings · Profile    (PLAYER, COACH, undecided)
- *   club         Play · Admin · Profile                 (CLUB, its club live or not)
+ *   signed-out   the public site's header and footer, and below `md` the
+ *                bottom tab bar (Играй · Вход)
+ *   player       the AppShell frame with the player's sidebar
+ *   coach        the same frame with a coach's sidebar: a player's items until
+ *                the coach module (#377) ships its own (`SIGNED_IN_NAV`)
+ *   club         the AppShell frame with its CLUB's admin sidebar, on admin and
+ *                public pages alike (owner, 2026-10-07): one account, one kind
+ *                (#263), so a club account never sees the player sidebar
  *
- * The owner's direction on #362. Games waits for the open-play module (#376)
- * behind `modules.openPlay`. A coach and an undecided account land on
- * /me/bookings today (`decideLanding`), so they get a player's tabs. A CLUB
- * account cannot book, so its middle tab is its way home: its club's admin.
+ * An account that has not chosen its kind lands where #227 landed it
+ * (`decideLanding`): one that lands on a club's admin wears that club's frame,
+ * any other one a player's.
  */
-export type PlayerChromeKind = 'signed-out' | 'player' | 'club';
+export type PlayerChromeKind = 'signed-out' | 'player' | 'coach' | 'club';
 
 export function playerChromeKind(
   signedIn: boolean,
-  reason: LandingReason | null | undefined,
+  landing: Pick<LandingDecision, 'reason' | 'club'> | null | undefined,
 ): PlayerChromeKind {
   if (!signedIn) return 'signed-out';
-  return reason === 'club' || reason === 'club-unavailable' ? 'club' : 'player';
+  switch (landing?.reason) {
+    case 'club':
+    case 'club-unavailable':
+      return 'club';
+    case 'coach':
+      return 'coach';
+    case 'undecided':
+      return landing.club ? 'club' : 'player';
+    default:
+      return 'player';
+  }
 }
 
 /**
- * The modules a tab or a header icon waits for, read from the environment by
+ * The modules an item waits for, read from the environment by
  * `src/lib/modules.ts`. Plain data: the server reads the flags once and the
  * client only draws what it is handed.
  */
 export interface ChromeModules {
-  /** Module 2, open play (#376): the Games tab and top link. */
+  /** Module 2, open play (#376): Игри, in the sidebar and as a tab. */
   openPlay: boolean;
-  /** Module 1, messaging (#375): the messages icon in the header. */
+  /** Module 1, messaging (#375): Съобщения, in the sidebar. */
   messaging: boolean;
 }
 
@@ -363,91 +385,187 @@ export const MODULE_HREFS = {
   messaging: '/messages',
 } as const satisfies Record<keyof ChromeModules, string>;
 
-/** The glyph a tab shows, looked up on the client (`BottomTabBar`). */
-export type PlayerTabIconKey = 'discover' | 'games' | 'bookings' | 'signIn' | 'profile' | 'admin';
-
 /** A link in the player chrome. `labelKey` is under `common.nav`, as for the admin. */
 export interface PlayerLink {
   href: string;
   labelKey: string;
-  iconKey: PlayerTabIconKey;
+  iconKey: NavIconKey;
 }
 
-/** The profile page: the Profile tab below `md`, the account menu's first row from it. */
+/** The profile page: Профил in the sidebar and the tab bar, and the account menu's first row. */
 export const PROFILE_HREF = '/me/profile';
 
 /**
  * The platform's front door (#345): it redirects to the first platform page
- * the grant opens. The account menu and the profile link here, only for a
- * holder of a live grant.
+ * the grant opens. A club account's account rows link here, for a holder of a
+ * live grant; a player's sidebar lists the pages themselves.
  */
 export const PLATFORM_HREF = '/platform';
 
-const PLAY: PlayerLink = { href: '/venues', labelKey: 'play', iconKey: 'discover' };
+/**
+ * Where "home" is for a signed-in account: Играй, the venue index. `/`
+ * redirects a signed-in visitor here (`src/app/(home)/layout.tsx`), so the
+ * shells' wordmark and the platform's "Към сайта" link here directly rather
+ * than through that hop.
+ */
+export const SIGNED_IN_HOME = PLAY_PATH;
+
+const PLAY: PlayerLink = { href: PLAY_PATH, labelKey: 'play', iconKey: 'discover' };
 const GAMES: PlayerLink = { href: MODULE_HREFS.openPlay, labelKey: 'games', iconKey: 'games' };
 const BOOKINGS: PlayerLink = { href: '/me/bookings', labelKey: 'bookings', iconKey: 'bookings' };
+const MESSAGES: PlayerLink = {
+  href: MODULE_HREFS.messaging,
+  labelKey: 'messages',
+  iconKey: 'messages',
+};
 const PROFILE: PlayerLink = { href: PROFILE_HREF, labelKey: 'profile', iconKey: 'profile' };
 const SIGN_IN: PlayerLink = { href: '/login', labelKey: 'signIn', iconKey: 'signIn' };
 
 /**
- * The header's top links, shown from `md` (the tab bar carries them below).
- *
- * Profile is not one: from `md` it is the account menu's first row, in the
- * menu that already holds the theme and sign-out, so neither lives in two
- * places on one screen. Sign-in is not one either: it is the header's
- * right-hand slot, where the account menu sits once somebody is signed in.
+ * The public header's links, from `md` (signed out only; the tab bar carries
+ * them below it). Sign-in is not one: it is the header's right-hand slot.
  */
-export function playerTopLinks(
-  kind: PlayerChromeKind,
+export const PUBLIC_HEADER_LINKS: readonly PlayerLink[] = [PLAY];
+
+/**
+ * THE ITEMS EACH SIGNED-IN KIND'S SIDEBAR STARTS WITH, one list per kind.
+ *
+ * Игри and Съобщения wait for their modules (#376, #375). A coach has a
+ * player's items until the coach module (#377) ships coach pages: that is the
+ * line to change then, and nothing else has to. A CLUB account is not here:
+ * its sidebar is its club's admin (`clubAdminNav`), built by `clubShell`.
+ */
+export const SIGNED_IN_NAV: Record<'player' | 'coach', (modules: ChromeModules) => PlayerLink[]> = {
+  player: (m) => [
+    PLAY,
+    ...(m.openPlay ? [GAMES] : []),
+    BOOKINGS,
+    ...(m.messaging ? [MESSAGES] : []),
+    PROFILE,
+  ],
+  coach: (m) => SIGNED_IN_NAV.player(m),
+};
+
+/**
+ * The sidebar of the player shell (the player's and the coach's frame): the
+ * kind's items, then, for a holder of a live platform grant, a "Платформа"
+ * section listing the platform pages that grant opens. That section is the
+ * same filter the platform layout draws its own sidebar with
+ * (`platformItemAllowed` over `platformNav`), so the two cannot disagree about
+ * which pages a grant reaches. Hiding only: `/platform` authorises itself.
+ */
+export function playerShellNav(
+  kind: 'player' | 'coach',
+  opts: { modules?: ChromeModules; platform?: readonly PlatformCapability[] } = {},
+): NavSection[] {
+  const items: NavItem[] = SIGNED_IN_NAV[kind](opts.modules ?? MODULES_OFF).map((l) => ({
+    ...l,
+    prefetch: 'auto' as const,
+  }));
+  const platform = visibleSections(platformNav(), (item) =>
+    platformItemAllowed(item, opts.platform ?? []),
+  ).map((s) => ({ ...s, titleKey: 'platform' }));
+  return [{ items }, ...platform];
+}
+
+/**
+ * The bottom tab bar's tabs, below `md`. Every tab is a page.
+ *
+ * Signed in, the tabs are RESOLVED from the sidebar's own items, agrent's
+ * pattern (#362): Играй · (Игри) · Резервации · Профил, so the bar can never
+ * offer a page the sidebar does not. Съобщения and the platform stay in the
+ * drawer. A CLUB account wears its admin's bar (`ClubAdminTabBar`).
+ */
+const TAB_HREFS: readonly string[] = [PLAY.href, GAMES.href, BOOKINGS.href, PROFILE.href];
+
+export function playerTabs(
+  kind: Exclude<PlayerChromeKind, 'club'>,
   modules: ChromeModules = MODULES_OFF,
 ): PlayerLink[] {
-  if (kind !== 'player') return [PLAY];
-  return [PLAY, ...(modules.openPlay ? [GAMES] : []), BOOKINGS];
+  if (kind === 'signed-out') return [PLAY, SIGN_IN];
+  return SIGNED_IN_NAV[kind](modules).filter((l) => TAB_HREFS.includes(l.href));
 }
 
 /**
- * The bottom tab bar's tabs, below `md`. Every tab is a page: Profile
- * replaced the Account tab, which opened the account menu as a sheet.
- *
- * `adminHref` is where a CLUB account's admin starts (`landing.href`). A CLUB
- * account whose club is not live has none, and so no Admin tab: a link to an
- * admin that would refuse it is no way home.
- */
-export function playerTabs(
-  kind: PlayerChromeKind,
-  opts: { modules?: ChromeModules; adminHref?: string | null } = {},
-): PlayerLink[] {
-  const modules = opts.modules ?? MODULES_OFF;
-  switch (kind) {
-    case 'signed-out':
-      return [PLAY, SIGN_IN];
-    case 'player':
-      return [PLAY, ...(modules.openPlay ? [GAMES] : []), BOOKINGS, PROFILE];
-    case 'club': {
-      const admin: PlayerLink[] = opts.adminHref
-        ? [{ href: opts.adminHref, labelKey: 'admin', iconKey: 'admin' }]
-        : [];
-      return [PLAY, ...admin, PROFILE];
-    }
-  }
-}
-
-/**
- * Every href the player chrome and the account rows link with the modules off,
- * for `nav-hrefs-resolve`. The Admin tab's href is the club's (`clubHome`),
- * which that guard already follows through `clubAdminNav`.
+ * Every href the player chrome links with the modules off, for
+ * `nav-hrefs-resolve`. The club's admin hrefs are `clubAdminNav`'s, which that
+ * guard follows itself.
  */
 export function playerChromeHrefs(): string[] {
-  const kinds: PlayerChromeKind[] = ['signed-out', 'player', 'club'];
   return [
     ...new Set([
-      ...kinds.flatMap((k) => [
-        ...playerTopLinks(k).map((l) => l.href),
-        ...playerTabs(k).map((t) => t.href),
-      ]),
+      ...PUBLIC_HEADER_LINKS.map((l) => l.href),
+      ...(['signed-out', 'player', 'coach'] as const).flatMap((k) =>
+        playerTabs(k).map((t) => t.href),
+      ),
+      ...(['player', 'coach'] as const).flatMap((k) =>
+        playerShellNav(k).flatMap((s) => s.items.map((i) => i.href)),
+      ),
       PROFILE_HREF,
       PLATFORM_HREF,
+      SIGNED_IN_HOME,
       clubPublicHref('sample-club'),
     ]),
   ];
+}
+
+// ═══ THE ACCOUNT ROWS, AND THE CLUB'S FRAME (#362) ══════════════════════════
+
+/**
+ * What an account can reach beyond the page it is on (#362, #345, #347), in
+ * the account menu and at the foot of the drawer. Plain data, decided on the
+ * server, so each kind's rows are a fact the server already checked, never a
+ * guess the client makes:
+ *
+ *   profile       `/me/profile`, for every signed-in account; `null` where the
+ *                 sidebar already lists Профил (the player shell's drawer)
+ *   platform      a holder of a live platform grant: `/platform` (#345)
+ *   publicSite    inside a club's or the platform's shell: the way out (#347)
+ *
+ * Hiding a row is a courtesy, not a control: `/platform` and the club admin
+ * authorise every request themselves.
+ */
+export interface AccountLinks {
+  profileHref: string | null;
+  platformHref: string | null;
+  publicSite: { href: string; label: string } | null;
+}
+
+/** What `ClubAdminShell` draws for one club, decided on the server. */
+export interface ClubShellData {
+  sections: ShellNavSection[];
+  /** The shell's own start, which the club's name in the top bar links to. */
+  homeHref: string;
+  contextName: string;
+  account: AccountLinks;
+}
+
+/**
+ * THE CLUB'S FRAME, for its admin layout and for a CLUB account on any other
+ * page (#362, owner 2026-10-07): one builder, so the account sees one sidebar
+ * wherever it is.
+ *
+ * The sections are `clubAdminNav` kept to what the membership's role opens,
+ * from the permissions `resolveTenantPageContext` read from the database for
+ * THIS club (never the token's), translated, with no permission names left
+ * in them. The account rows are the club's public page (#356), the profile,
+ * and the platform for a holder of a live grant.
+ */
+export function clubShell(
+  ctx: { tenantSlug: string; tenantName: string; permissions: readonly Permission[] },
+  opts: { platform: readonly PlatformCapability[]; t: (key: string) => string },
+): ClubShellData {
+  const sections = visibleSections(clubAdminNav(ctx.tenantSlug), (item) =>
+    ctx.permissions.includes(item.requires),
+  );
+  return {
+    sections: toShellSections(sections, opts.t),
+    homeHref: `/t/${ctx.tenantSlug}/admin`,
+    contextName: ctx.tenantName,
+    account: {
+      profileHref: PROFILE_HREF,
+      platformHref: opts.platform.length > 0 ? PLATFORM_HREF : null,
+      publicSite: { href: clubPublicHref(ctx.tenantSlug), label: opts.t('publicPage') },
+    },
+  };
 }

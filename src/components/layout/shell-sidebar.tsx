@@ -13,7 +13,8 @@ import { NavSection } from './nav-section';
 import { useSidebarCollapsed } from './sidebar-collapse-context';
 
 /**
- * The admin shell's rail: playerz's sidebar CONTENT inside upstream's vendored frame.
+ * Every shell's rail: playerz's sidebar CONTENT inside upstream's vendored
+ * frame, for the club admin, the platform and the player (#362).
  *
  * Upstream's `SidebarContent` lives in its `SidebarNav.tsx` beside the
  * compliance IA (/risks, /controls, /evidence) and reads upstream's tenant
@@ -24,19 +25,21 @@ import { useSidebarCollapsed } from './sidebar-collapse-context';
  *
  * The same component fills the desktop rail and the phone drawer. The drawer
  * passes `onNavClick` and no `onToggleCollapse`: it is never collapsed, so it
- * shows the context name where the rail shows its toggle.
+ * shows the context name where the rail shows its toggle. The context is the
+ * club's name, the platform's, or for a player the app's, as upstream's own
+ * rail names its app.
  *
  * `nav[aria-label=common.ui.mainNav]` is a contract: the perf harness and the
  * E2E specs find the links through it.
  */
-export function AdminSidebar({
+export function ShellSidebar({
   sections,
   contextName,
   onNavClick,
   onToggleCollapse,
 }: {
   sections: ShellNavSection[];
-  /** The club's name, or the platform's. */
+  /** The club's name, the platform's, or the app's. */
   contextName: string;
   onNavClick?: () => void;
   onToggleCollapse?: () => void;
@@ -84,7 +87,7 @@ export function AdminSidebar({
               <NavItem
                 key={item.href}
                 href={item.href}
-                // A literal, and never a full prefetch in the admin
+                // A literal, and never a full prefetch from a sidebar
                 // (docs/perf/navigation-policy.md): `router-cache-policy`
                 // pins every <NavItem> to it, and nav-items.ts types the
                 // items to match.

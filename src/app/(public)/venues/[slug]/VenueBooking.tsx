@@ -269,14 +269,14 @@ export function VenueBooking({
 
   return (
     <section aria-labelledby="venue-slots-title" className="flex flex-col gap-4">
-      <div className="px-6 md:px-0">
+      <div className="in-shell:px-0 px-6 md:px-0">
         <Heading level={2} id="venue-slots-title">
           {t('slots.title')}
         </Heading>
       </div>
 
       {/* The day picker scrolls sideways inside itself, never the page. */}
-      <div className="overflow-x-auto px-6 pb-1 md:px-0">
+      <div className="in-shell:px-0 overflow-x-auto px-6 pb-1 md:px-0">
         <ToggleGroup
           ariaLabel={t('day.label')}
           options={dayOptions}
@@ -286,7 +286,7 @@ export function VenueBooking({
         />
       </div>
 
-      <div className="flex flex-col gap-3 px-6 md:px-0">
+      <div className="in-shell:px-0 flex flex-col gap-3 px-6 md:px-0">
         {resources === undefined ? (
           error ? (
             <ErrorState
@@ -381,13 +381,15 @@ export function VenueBooking({
       </div>
 
       {viewer === 'club' && (
-        <div className="px-6 md:px-0">
+        <div className="in-shell:px-0 px-6 md:px-0">
           <InlineNotice variant="info">{t('clubAccount')}</InlineNotice>
         </div>
       )}
 
-      {/* The pick and the button, pinned above the tab bar on a phone. */}
-      <div className="border-border-subtle bg-bg-page sticky bottom-[var(--app-bottom-inset,0px)] z-10 flex items-center justify-between gap-3 border-t px-6 py-3 md:static md:rounded-lg md:border">
+      {/* The pick and the button, pinned above the tab bar on a phone. Inside
+          a signed-in shell, whose <main> pads, it is a card at every width
+          rather than a strip that stops short of the screen edges. */}
+      <div className="border-border-subtle bg-bg-page in-shell:rounded-lg in-shell:border sticky bottom-[var(--app-bottom-inset,0px)] z-10 flex items-center justify-between gap-3 border-t px-6 py-3 md:static md:rounded-lg md:border">
         <div className="min-w-0">
           {selection ? (
             <>

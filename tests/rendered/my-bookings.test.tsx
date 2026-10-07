@@ -6,8 +6,8 @@ import {
   MyBookingsList,
   reviewErrorKey,
   withPendingReview,
-} from '@/app/(app)/me/bookings/MyBookingsList';
-import type { BookingTab } from '@/app/(app)/me/bookings/tabs';
+} from '@/app/(public)/me/bookings/MyBookingsList';
+import type { BookingTab } from '@/app/(public)/me/bookings/tabs';
 import type { MyBookingDto } from '@/app/api/v1/_lib/dto';
 import { __resetSessionExpiryForTests } from '@/lib/auth/session-expiry';
 import { ApiClientError } from '@/lib/data/errors';

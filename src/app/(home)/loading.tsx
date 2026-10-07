@@ -1,10 +1,11 @@
 import { RouteSkeleton } from '@/components/loading/route-skeleton';
-import { SiteHeaderSkeleton } from '@/components/loading/shapes';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
- * The home page's shape: the header, then the wordmark, the tagline and the
- * call to action, centred as page.tsx centres them.
+ * The home page's shape: the wordmark, the tagline and the call to action,
+ * centred as page.tsx centres them. The header above it is the real one: the
+ * `(home)` layout draws the chrome around this, as the public layout does for
+ * every other public page (#362).
  *
  * In the `(home)` route group, NOT at src/app/loading.tsx. A root loading.tsx
  * would wrap every layout too, and every redirect and 404 under it would
@@ -13,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Loading() {
   return (
     <RouteSkeleton>
-      <SiteHeaderSkeleton />
       <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-4 w-56" />

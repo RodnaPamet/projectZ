@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Heading } from '@/components/ui/typography';
 
+import { SIGNED_IN_HOME } from './nav-items';
+
 /**
  * The app's 404, drawn INSIDE an admin or platform shell (#362, audit S01).
  *
@@ -18,7 +20,7 @@ import { Heading } from '@/components/ui/typography';
  * The same words as the root 404 (`notFound.*`, src/app/not-found.tsx), and
  * the same vendored EmptyState. The way on is the shell's own front door,
  * which redirects to the first page the viewer may open, so it cannot lead to
- * a second 404.
+ * a second 404. "Начало" is Играй, where `/` sends anybody signed in (#362).
  */
 export function ShellNotFound({ home, homeLabel }: { home: string; homeLabel: string }) {
   const t = useTranslations('notFound');
@@ -33,7 +35,7 @@ export function ShellNotFound({ home, homeLabel }: { home: string; homeLabel: st
         title={t('title')}
         description={t('body')}
         primaryAction={{ label: homeLabel, href: home }}
-        secondaryAction={{ label: t('home'), href: '/' }}
+        secondaryAction={{ label: t('home'), href: SIGNED_IN_HOME }}
         data-testid="shell-not-found"
       />
     </div>

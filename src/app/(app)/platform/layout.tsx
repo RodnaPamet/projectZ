@@ -7,6 +7,7 @@ import {
   platformItemAllowed,
   platformNav,
   PROFILE_HREF,
+  SIGNED_IN_HOME,
   toShellSections,
   visibleSections,
 } from '@/components/layout/nav-items';
@@ -35,9 +36,9 @@ import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
  * ═══ THE WAY OUT (#347) ═══
  *
  * "Към сайта" in the top bar from `sm`, first in the account menu and at the
- * foot of the drawer, to the public home page. The wordmark goes there too;
- * the shell's name leads back to `/platform`, which redirects to the first
- * page the grant opens.
+ * foot of the drawer, to the site: Играй, where `/` sends anybody signed in
+ * (#362), linked directly. The wordmark goes there too; the shell's name leads
+ * back to `/platform`, which redirects to the first page the grant opens.
  */
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const me = await signedInIdentity();
@@ -62,10 +63,9 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       user={{ name: me.name, email: me.email }}
       account={{
         profileHref: PROFILE_HREF,
-        clubAdmin: null,
         // Already in it: the menu does not offer the shell it is in.
         platformHref: null,
-        publicSite: { href: '/', label: tNav('toSite') },
+        publicSite: { href: SIGNED_IN_HOME, label: tNav('toSite') },
       }}
     >
       {children}

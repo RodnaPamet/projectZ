@@ -9,7 +9,7 @@ export default function Loading() {
   return (
     <RouteSkeleton className="bg-bg-page">
       <div className="safe-area-x">
-        <div className="px-6 py-10">
+        <div className="in-shell:p-0 px-6 py-10">
           <PageTitleSkeleton className="mb-8" />
           <CardGridSkeleton count={6} />
         </div>

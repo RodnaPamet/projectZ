@@ -53,7 +53,7 @@ test.describe('club admin shell — desktop', () => {
 
     // #263: one account, one club. The club's name is not a picker; since #347
     // it is the link back to the admin's start, and nothing to switch.
-    const name = page.getByTestId('admin-context-name');
+    const name = page.getByTestId('shell-context-name');
     await expect(name).toHaveText(`E2E ${isolatedTenant.tenantSlug}`);
     await expect(name).toHaveAttribute('href', `/t/${isolatedTenant.tenantSlug}/admin`);
     await expect(page.getByRole('combobox')).toHaveCount(0);
@@ -65,12 +65,13 @@ test.describe('club admin shell — desktop', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto(`/t/${slug}/admin/courts`);
-    await expect(page.getByTestId('admin-wordmark')).toHaveAttribute('href', '/');
+    // Играй: where `/` sends anybody signed in (#362), linked directly.
+    await expect(page.getByTestId('shell-wordmark')).toHaveAttribute('href', '/venues');
     // No bottom bar on a desktop.
     await expect(page.locator(`nav[aria-label="${bg.common.nav.tabBar}"]`)).toBeHidden();
 
     // The club's own page (#356), even before it has a venue: it says so.
-    const pub = page.getByTestId('admin-public-link');
+    const pub = page.getByTestId('shell-public-link');
     await expect(pub).toHaveText(bg.common.nav.publicPage);
     await pub.click();
     await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
@@ -93,12 +94,19 @@ test.describe('club admin shell — desktop', () => {
     const venue = await seedClubVenue(isolatedTenant.tenantId, slug);
     try {
       await page.goto(`/t/${slug}/admin/courts`);
-      await page.getByTestId('admin-public-link').click();
+      await page.getByTestId('shell-public-link').click();
       await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
+      // The page's title streams in after its body (Next's async metadata),
+      // and axe's document-title rule reads it: settle on it first.
+      await expect(page).toHaveTitle(new RegExp(`E2E ${slug}`));
       await expectAxeClean(page);
       await clubPageToVenue(page, `E2E ${slug}`, venue);
-      // And back: the club account's way home from its own venue page.
-      await page.getByTestId('site-header-admin').click();
+      // And back: the club account wears its admin's frame on its own venue
+      // page too (#362), so its rail is the way home.
+      await page
+        .locator(`aside nav[aria-label="${bg.common.ui.mainNav}"]`)
+        .getByRole('link', { name: bg.common.nav.calendar })
+        .click();
       await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
     } finally {
       await destroyClubVenue(venue);

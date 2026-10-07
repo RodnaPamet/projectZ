@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
 import { toMyBookingDto } from '@/app/api/v1/_lib/dto';
-import { playerChrome } from '@/components/layout/SiteHeader';
+import { playerChrome } from '@/components/layout/player-chrome';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
@@ -60,8 +60,8 @@ export async function generateMetadata() {
  *
  * Until the player UI exists (#224) this is `PLAYER_HOME` — the page sign-in
  * sends every player to. So it wears the player chrome, from
- * `(app)/me/layout.tsx` since T20: without a header a player landed on a page
- * with no sign-out.
+ * `(public)/layout.tsx` (the player's AppShell since #362): without one a
+ * player landed on a page with no sign-out.
  */
 export default async function MyBookingsPage({
   searchParams,
@@ -99,12 +99,12 @@ export default async function MyBookingsPage({
   const seed = { items: page.items.map((b) => toMyBookingDto(b)), nextCursor: page.nextCursor };
 
   return (
-    // The header (and the notch inset above it, NAV_BAR_SAFE_AREA) is the
-    // layout's now. safe-area-x and px-6 on DIFFERENT elements: `.safe-area-x`
-    // is unlayered CSS and beats Tailwind's px-6, which on a phone with no
-    // side inset set the gutter to 0 (see venues/page.tsx).
+    // The chrome, its <main> and the notch inset are the layout's (#362).
+    // safe-area-x and px-6 on DIFFERENT elements: `.safe-area-x` is unlayered
+    // CSS and beats Tailwind's px-6, which on a phone with no side inset set
+    // the gutter to 0 (see venues/page.tsx). Inside the shell the frame pads.
     <div className="bg-bg-page text-content-default safe-area-x flex-1">
-      <main className="px-6 py-10">
+      <div className="in-shell:p-0 px-6 py-10">
         <Heading level={1} className="mb-section">
           {t('title')}
         </Heading>
@@ -118,7 +118,7 @@ export default async function MyBookingsPage({
         <ViewerScope viewerId={userId}>
           <MyBookingsTabs initialTab={tab} seed={seed} reviewMaxLength={REVIEW_MAX_LENGTH} />
         </ViewerScope>
-      </main>
+      </div>
     </div>
   );
 }

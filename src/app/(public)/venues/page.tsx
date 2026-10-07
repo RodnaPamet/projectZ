@@ -115,7 +115,7 @@ export default async function VenuesPage({
   // The funnel's first step (#371): anonymous, counted after the response.
   await countPageUsage('VENUES_VIEW', {});
 
-  // The site header and the tab bar come from (public)/layout.tsx (T20).
+  // The chrome (and its <main>) comes from (public)/layout.tsx (T20, #362).
   return (
     <>
       {/*
@@ -124,14 +124,15 @@ export default async function VenuesPage({
         `px-6` and, on a phone with no notch inset, set the side padding to
         env(...) = 0: the venue cards ran edge to edge at 393 px (seen in T12's
         skeleton screens, which copied these classes). The inset goes on the
-        outside, the gutter on the inside.
+        outside, the gutter on the inside. Inside a signed-in shell the frame's
+        <main> pads, so the gutter goes (`in-shell:`, globals.css).
       */}
-      <main className="bg-bg-page text-content-default safe-area-x">
-        <div className="px-6 py-10">
+      <div className="bg-bg-page text-content-default safe-area-x">
+        <div className="in-shell:p-0 px-6 py-10">
           <Heading level={1}>{t('title')}</Heading>
           <VenueList seed={seed} initialFilters={filters} facets={facets} />
         </div>
-      </main>
+      </div>
     </>
   );
 }
