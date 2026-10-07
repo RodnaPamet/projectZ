@@ -120,7 +120,7 @@ describe('completing ended bookings', () => {
 
     const r = await sweep();
 
-    expect(r).toEqual({ scanned: 1, completed: 1, truncated: false });
+    expect(r).toEqual({ scanned: 1, completed: 1, truncated: false, feeLines: 1 });
     expect(await statusOf(b.id)).toBe('COMPLETED');
   });
 
@@ -209,7 +209,7 @@ describe('completing ended bookings', () => {
     await sweep();
     const again = await sweep();
 
-    expect(again).toEqual({ scanned: 0, completed: 0, truncated: false });
+    expect(again).toEqual({ scanned: 0, completed: 0, truncated: false, feeLines: 0 });
   });
 
   it('reports a truncated run, oldest first, and the next run drains the rest', async () => {
@@ -219,13 +219,13 @@ describe('completing ended bookings', () => {
 
     const first = await sweep({ limit: 2 });
 
-    expect(first).toEqual({ scanned: 2, completed: 2, truncated: true });
+    expect(first).toEqual({ scanned: 2, completed: 2, truncated: true, feeLines: 2 });
     expect(await statusOf(oldest.id)).toBe('COMPLETED');
     expect(await statusOf(middle.id)).toBe('COMPLETED');
     expect(await statusOf(newest.id)).toBe('CONFIRMED');
 
     const second = await sweep({ limit: 2 });
-    expect(second).toEqual({ scanned: 1, completed: 1, truncated: false });
+    expect(second).toEqual({ scanned: 1, completed: 1, truncated: false, feeLines: 1 });
     expect(await statusOf(newest.id)).toBe('COMPLETED');
   });
 
@@ -307,7 +307,12 @@ describe('POST /api/cron/complete-ended-bookings', () => {
     expect(await statusOf(ended.id)).toBe('COMPLETED');
 
     const quiet = await call({ 'x-cron-secret': SECRET });
-    expect(await quiet.json()).toEqual({ scanned: 0, completed: 0, truncated: false });
+    expect(await quiet.json()).toEqual({
+      scanned: 0,
+      completed: 0,
+      truncated: false,
+      feeLines: 0,
+    });
   });
 });
 
