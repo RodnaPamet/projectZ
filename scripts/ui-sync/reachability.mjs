@@ -17,8 +17,9 @@
  * file used only for its types still counts as reachable, because deleting it
  * breaks the typecheck.
  *
- * Regex-based, not the TypeScript resolver: `@/` and relative specifiers, the
- * common import and export forms, dynamic import() and require(). The unit
+ * Regex-based, not the TypeScript resolver: `@/`, `@inflect/ui/` (tsconfig maps
+ * both onto src/) and relative specifiers, the common import and export forms,
+ * dynamic import() and require(). The unit
  * tests pin each form; unresolvedSymbols lists any named import it could not
  * follow.
  *
@@ -34,6 +35,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from '
 import { join, posix, relative, resolve } from 'node:path';
 
 import { UsageError, parseCli, run } from './cli.mjs';
+import { aliasTarget } from './inflect-package.mjs';
 import { stripComments } from './source.mjs';
 
 export const DEFAULT_ROOTS = ['src/app/**', 'src/*.ts', 'scripts/**'];
@@ -207,10 +209,12 @@ export function analyseReachability({
   const fileSet = new Set(files);
 
   const resolveSpec = (from, spec) => {
-    let base;
-    if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
-    else if (spec.startsWith('.')) base = posix.normalize(posix.join(posix.dirname(from), spec));
-    else return null;
+    // `@/` and `@inflect/ui/` (a vendored file's import of a module inflect
+    // moved into its package) are both src/.
+    let base = aliasTarget(spec);
+    if (base === null && spec.startsWith('.'))
+      base = posix.normalize(posix.join(posix.dirname(from), spec));
+    if (base === null) return null;
     for (const s of SUFFIXES) if (fileSet.has(base + s)) return base + s;
     const js = /^(.*)\.(?:js|jsx|mjs)$/.exec(base); // TS source imported by its emitted name
     if (js) for (const s of ['.ts', '.tsx']) if (fileSet.has(js[1] + s)) return js[1] + s;

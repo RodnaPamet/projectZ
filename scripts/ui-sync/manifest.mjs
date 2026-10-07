@@ -33,6 +33,9 @@ export const PORT_COMMIT = '58a6ebd';
 export const MANIFEST_DIR = 'docs/ui-sync/manifest';
 export const INFLECT_PATHS_FILE = 'docs/ui-sync/inflect-paths.txt';
 
+/** The rows of vendored files playerz deleted, kept so a file can be copied back. */
+export const AVAILABLE_FILE = 'docs/ui-sync/available.json';
+
 /**
  * The component directories kept in step with inflect. A playerz file at an
  * inflect path under one of these must have a row.
@@ -40,6 +43,9 @@ export const INFLECT_PATHS_FILE = 'docs/ui-sync/inflect-paths.txt';
  * `filters` holds one shared file (FilterToolbar.tsx). It was part of the
  * 480-path measurement and T28 moves its row to available.json when it deletes
  * the file, so it is tracked like the rest.
+ *
+ * These are playerz paths. In inflect each one is also read under
+ * packages/ui/src/ (inflect-package.mjs), where inflect #3046 is moving them.
  */
 export const SYNCED_DIRS = [
   'src/components/ui',
@@ -207,6 +213,20 @@ export function rowProblems(row, manifest) {
   return problems;
 }
 
+/** available.json's rows, in file order; an absent file is an empty list. */
+export function readAvailable(root) {
+  const file = join(root, AVAILABLE_FILE);
+  if (!existsSync(file)) return [];
+  const rows = JSON.parse(readFileSync(file, 'utf8'));
+  if (!Array.isArray(rows)) throw new Error(`${AVAILABLE_FILE}: expected a JSON array of rows`);
+  return rows;
+}
+
+/** Two-space JSON, as prettier writes it, with the rows in the order given. */
+export function writeAvailable(root, rows) {
+  writeFileSync(join(root, AVAILABLE_FILE), `${JSON.stringify(rows, null, 2)}\n`);
+}
+
 /** docs/ui-sync/inflect-paths.txt: `# inflect <sha>` header lines, then one path per line. */
 export function parseInflectPaths(text) {
   const sha = /^#\s*inflect\s+([0-9a-f]{7,40})\b/m.exec(text)?.[1] ?? null;
@@ -228,8 +248,10 @@ export function formatInflectPaths({ sha, date, paths }) {
     `# inflect ${sha} (${date})`,
     '#',
     '# Every inflect path under src/components/{ui,layout,theme,nav,filters} at that',
-    '# commit, plus the src/lib modules playerz vendors. A playerz file at any of these',
-    '# paths must have a row in docs/ui-sync/manifest (tests/guardrails/ui-sync-manifest).',
+    '# commit, plus the src/lib modules playerz vendors, and the same under',
+    '# packages/ui/src/ (the @inflect/ui package, inflect #3046). playerz keeps',
+    '# packages/ui/src/<p> at src/<p>. A playerz file at any of these paths must have',
+    '# a row in docs/ui-sync/manifest (tests/guardrails/ui-sync-manifest).',
     '# Regenerate with: node scripts/ui-sync/paths.mjs --ref <sha> --write',
     ...[...new Set(paths)].sort(),
     '',

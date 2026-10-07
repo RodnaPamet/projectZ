@@ -12,7 +12,13 @@
  *   TAKE       only inflect changed. `copy.mjs --ref <sha> <path>` brings it over.
  *   KEEP       only playerz changed. Send the change upstream, then copy it back.
  *   MERGE      both changed. Upstream playerz's part first; then it is a TAKE.
- *   GONE       inflect no longer has the path (deleted or moved upstream).
+ *   GONE       inflect no longer has the file, at either of its locations.
+ *
+ * Each side is read wherever inflect kept the file at that commit, src/<p> or
+ * packages/ui/src/<p> (inflect-package.mjs): inflect #3046 moves the shared UI
+ * into the @inflect/ui package one directory at a time, and a move alone is
+ * not drift. A row whose file moved since its inflectPath was written is
+ * listed as moved, so `paths.mjs --repoint` can catch the manifest up.
  *
  * `--port <playerz-rev>` (58a6ebd, the commit that made the 2026-07 port) also
  * marks the KEEP and MERGE rows whose whole playerz-side difference was made AT
@@ -27,6 +33,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { PACKAGE_SRC } from './inflect-package.mjs';
 import {
   REPO_ROOT,
   UsageError,
@@ -36,6 +43,7 @@ import {
   parseCli,
   playerzTree,
   readBlobs,
+  readInflectFiles,
   resolveRev,
   run,
   unresolvedImports,
@@ -61,7 +69,9 @@ const MEANING = {
   TAKE: 'inflect changed, playerz did not: `node scripts/ui-sync/copy.mjs --ref <sha> <path>`',
   KEEP: 'playerz changed, inflect did not: send the change upstream, then copy it back',
   MERGE: "both changed: upstream playerz's part first, then copy",
-  GONE: 'inflect no longer has the path: move the row to available.json, or re-point inflectPath',
+  GONE:
+    'inflect no longer has the file, in src/ or packages/ui/src/: move the row to available.json, ' +
+    'or re-point inflectPath',
   MISSING: 'the manifest names a file playerz does not have',
 };
 
@@ -93,9 +103,12 @@ async function main() {
   for (const r of rows)
     if (!bases.has(r.baseSha)) bases.set(r.baseSha, resolveRev(dir, r.baseSha, 'inflect'));
 
-  const inflect = readBlobs(
+  const inflect = readInflectFiles(
     dir,
-    rows.flatMap((r) => [`${bases.get(r.baseSha)}:${r.inflectPath}`, `${sha}:${r.inflectPath}`]),
+    rows.flatMap((r) => [
+      [bases.get(r.baseSha), r.inflectPath],
+      [sha, r.inflectPath],
+    ]),
   );
   const tree = playerzTree(root, flags.playerz ?? null);
   const ours = tree.readMany(rows.map((r) => r.path));
@@ -109,9 +122,13 @@ async function main() {
 
   const results = [];
   for (const row of rows) {
-    const theirsRaw = inflect.get(`${sha}:${row.inflectPath}`);
+    const theirsAt = inflect.get(`${sha}:${row.inflectPath}`);
+    const theirsRaw = theirsAt?.text ?? null;
     const side = {
-      base: await comparable(inflect.get(`${bases.get(row.baseSha)}:${row.inflectPath}`), row.path),
+      base: await comparable(
+        inflect.get(`${bases.get(row.baseSha)}:${row.inflectPath}`)?.text ?? null,
+        row.path,
+      ),
       theirs: await comparable(theirsRaw, row.path),
       ours: await comparable(ours.get(row.path), row.path),
     };
@@ -124,6 +141,10 @@ async function main() {
       baseSha: row.baseSha,
       status,
     };
+    // Where inflect keeps it at --ref, when that is not where the row says.
+    if (theirsAt && theirsAt.path !== row.inflectPath) result.movedTo = theirsAt.path;
+    // Both layouts at once would be two files that playerz holds as one.
+    if (theirsAt && theirsAt.found.length > 1) result.alsoAt = theirsAt.found.slice(1);
     if (status !== 'IDENTICAL' && status !== 'MISSING') {
       Object.assign(result, diffCounts(side.ours, side.theirs));
     }
@@ -135,9 +156,17 @@ async function main() {
       const missing = unresolvedImports(theirsRaw, row.path, tree);
       if (missing.length) result.unresolved = missing;
     }
+    const notes = [];
     if (status === 'IDENTICAL' && row.status === 'local-diff') {
-      result.note = 'local-diff row now matches upstream: re-copy it to mark it vendored';
+      notes.push('local-diff row now matches upstream: re-copy it to mark it vendored');
     }
+    if (result.alsoAt) {
+      notes.push(
+        `inflect has both ${theirsAt.path} and ${result.alsoAt.join(', ')}; ` +
+          'compared with the first, but playerz can hold only one',
+      );
+    }
+    if (notes.length) result.note = notes.join('; ');
     results.push(result);
   }
 
@@ -150,6 +179,7 @@ async function main() {
     port: portSha,
     counts,
     portTime: port ? results.filter((r) => r.portTime).length : null,
+    moved: results.filter((r) => r.movedTo).length,
     rows: results,
   };
 
@@ -166,7 +196,10 @@ function emit(target, text) {
 /** What a copy of inflect's version would do to the playerz file, in lines. */
 const lines = (r) => (r.added === undefined ? '' : `+${r.added} -${r.removed}`);
 
-function textReport({ inflect, playerz, port, counts, portTime, rows }) {
+/** The command that re-points the rows of files inflect has moved. */
+const repoint = (short) => `node scripts/ui-sync/paths.mjs --ref ${short} --repoint`;
+
+function textReport({ inflect, playerz, port, counts, portTime, moved, rows }) {
   const named = inflect.sha.startsWith(inflect.ref) ? '' : ` (${inflect.ref})`;
   const out = [
     `ui-sync status: ${rows.length} rows vs inflect ${inflect.short}${named}, ` +
@@ -175,6 +208,21 @@ function textReport({ inflect, playerz, port, counts, portTime, rows }) {
       .map((s) => `${s} ${counts[s]}`)
       .join(' · ')}`,
   ];
+  // Into the package is the way inflect moves files. The other way, the row
+  // was re-pointed at a commit newer than --ref (or inflect moved it back).
+  const into = rows.filter((r) => r.movedTo?.startsWith(PACKAGE_SRC)).length;
+  if (into) {
+    out.push(
+      `  moved into ${PACKAGE_SRC} since their row was written: ${into} (compared there; ` +
+        `${repoint(inflect.short)} re-points the rows)`,
+    );
+  }
+  if (moved > into) {
+    out.push(
+      `  still at their src/ path in this inflect commit: ${moved - into} (compared there; ` +
+        'the commit predates their move into the package)',
+    );
+  }
   if (port) {
     const keepPort = rows.filter((r) => r.status === 'KEEP' && r.portTime).length;
     out.push(
@@ -232,6 +280,40 @@ function markdownReport({ inflect, counts, rows }) {
     out.push('', '### Imports playerz cannot resolve yet', '');
     for (const r of gaps)
       out.push(`- \`${r.path}\`: ${r.unresolved.map((u) => `\`${u}\``).join(', ')}`);
+  }
+  const twice = rows.filter((r) => r.alsoAt);
+  if (twice.length) {
+    out.push(
+      '',
+      `### inflect keeps these twice (${twice.length})`,
+      '',
+      'Each is in both src/ and packages/ui/src/ at this commit, and playerz holds one copy. ' +
+        'The package one was compared.',
+      '',
+      ...twice.map(
+        (r) => `- \`${r.path}\`: \`${[r.movedTo ?? r.inflectPath, ...r.alsoAt].join('`, `')}\``,
+      ),
+    );
+  }
+  const moved = rows.filter((r) => r.movedTo);
+  if (moved.length) {
+    out.push(
+      '',
+      `### Moved in inflect (${moved.length})`,
+      '',
+      'inflect moved these files since their row was written (RodnaPamet/inflect-compliance#3046 ' +
+        'moves the shared UI into `packages/ui`). They are compared at the new path above, so a ' +
+        'move is not drift. ' +
+        `\`${repoint(inflect.short)}\` updates their \`inflectPath\`.`,
+      '',
+      '<details><summary>Moved rows</summary>',
+      '',
+      '| Path | Row says | inflect has it at |',
+      '| --- | --- | --- |',
+      ...moved.map((r) => `| \`${r.path}\` | \`${r.inflectPath}\` | \`${r.movedTo}\` |`),
+      '',
+      '</details>',
+    );
   }
   out.push(
     '',

@@ -120,7 +120,14 @@ const SWC_TRANSFORM = [
 ];
 
 const common = {
-  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    // Upstream is moving its shared UI into a workspace package, and the
+    // vendored files still in its src/ import the moved ones as
+    // `@inflect/ui/<path>`. playerz keeps every copy at src/<path>, so this is
+    // src/ too, as in tsconfig.json (scripts/ui-sync/inflect-package.mjs).
+    '^@inflect/ui/(.*)$': '<rootDir>/src/$1',
+  },
   // `.mjs` MUST be in the pattern. MSW's ESM deps (rettime, outvariant)
   // ship .mjs — allowlisting them in transformIgnorePatterns does nothing
   // if the transform itself never matches the extension.

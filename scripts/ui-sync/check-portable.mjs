@@ -26,7 +26,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import { UsageError, parseCli, run } from './cli.mjs';
-import { REPO_ROOT, inflectDir, normalise, readBlobs, resolveRev } from './lib.mjs';
+import { REPO_ROOT, inflectDir, normalise, readInflectFiles, resolveRev } from './lib.mjs';
 import { readAllRows } from './manifest.mjs';
 import { checkRows, checkSource } from './portable-rules.mjs';
 
@@ -54,17 +54,22 @@ async function manifestMode(status, ref) {
   if (ref) {
     const dir = inflectDir();
     const sha = resolveRev(dir, ref, 'inflect');
-    const blobs = readBlobs(
+    // Wherever inflect keeps each file at that commit, src/ or packages/ui/src/.
+    const files = readInflectFiles(
       dir,
-      rows.map((r) => `${sha}:${r.inflectPath}`),
+      rows.map((r) => [sha, r.inflectPath]),
     );
     const texts = new Map();
     for (const r of rows) {
-      const text = blobs.get(`${sha}:${r.inflectPath}`);
+      const text = files.get(`${sha}:${r.inflectPath}`)?.text;
       texts.set(r.path, text == null ? null : await normalise(text, r.path));
     }
     read = (r) => texts.get(r.path);
     source = `inflect ${sha.slice(0, 9)}`;
+    // A row inflect no longer has is skipped, not passed: say how many, or a
+    // scan that read nothing reads as "0 findings".
+    const absent = rows.filter((r) => texts.get(r.path) == null).length;
+    if (absent) source += `; ${absent} not in inflect there, so not checked`;
   } else {
     read = (r) => {
       const abs = join(REPO_ROOT, r.path);

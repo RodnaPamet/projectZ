@@ -1,6 +1,8 @@
 import { readFileSync, existsSync, globSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 
+import { aliasTarget } from '../../scripts/ui-sync/inflect-package.mjs';
+
 /**
  * EVERY USE CASE IS REACHABLE FROM A ROUTE — OR SAYS WHY NOT.
  *
@@ -85,13 +87,14 @@ const NOT_WIRED_YET: Record<string, string> = {
   wearables: 'the Strava importer runs from a script, never from a request',
 };
 
-/** `@/lib/x` → `src/lib/x`; `./sibling` → resolved against the importer. */
+/**
+ * `@/lib/x` and `@inflect/ui/lib/x` → `src/lib/x` (tsconfig.json maps both);
+ * `./sibling` → resolved against the importer.
+ */
 function resolveImport(spec: string, fromFile: string): string | null {
-  let base: string;
-
-  if (spec.startsWith('@/')) base = join('src', spec.slice(2));
-  else if (spec.startsWith('.')) base = normalize(join(dirname(fromFile), spec));
-  else return null; // a package, not ours
+  let base = aliasTarget(spec);
+  if (base === null && spec.startsWith('.')) base = normalize(join(dirname(fromFile), spec));
+  if (base === null) return null; // a package, not ours
 
   for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
     if (existsSync(candidate)) return candidate;

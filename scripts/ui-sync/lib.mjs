@@ -21,6 +21,7 @@ import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { UsageError } from './cli.mjs';
+import { aliasTarget, inflectLocations } from './inflect-package.mjs';
 import { importSpecifiers } from './source.mjs';
 
 export { UsageError, parseCli, run } from './cli.mjs';
@@ -100,6 +101,32 @@ export function readBlobs(dir, specs) {
     const size = Number(m[2]);
     out.set(spec, m[1] === 'blob' ? buf.subarray(at, at + size).toString('utf8') : null);
     at += size + 1; // content, then a newline
+  }
+  return out;
+}
+
+/**
+ * Inflect files by `[rev, inflectPath]`, each read wherever inflect kept it at
+ * that rev: the first of inflectLocations(inflectPath) that exists, so a file
+ * that moved into packages/ui since (or had not moved yet) is still found.
+ * One `git cat-file --batch` for all of them.
+ *
+ * Returns `${rev}:${inflectPath}` → { path, text, found }, or null when the file
+ * is at neither location. `path` is where it was read; `found` lists every
+ * location that exists, so a caller can tell a file inflect keeps twice.
+ */
+export function readInflectFiles(dir, wants) {
+  const blobs = readBlobs(
+    dir,
+    wants.flatMap(([rev, p]) => inflectLocations(p).map((at) => `${rev}:${at}`)),
+  );
+  const out = new Map();
+  for (const [rev, p] of wants) {
+    const found = inflectLocations(p).filter((at) => blobs.get(`${rev}:${at}`) != null);
+    out.set(
+      `${rev}:${p}`,
+      found.length === 0 ? null : { path: found[0], text: blobs.get(`${rev}:${found[0]}`), found },
+    );
   }
   return out;
 }
@@ -279,15 +306,14 @@ function packageNames(json) {
 
 /**
  * The imports of `text` (a file that would live at `fromPath`) that `tree`
- * cannot satisfy: a missing module under src/ (via the `@/` alias or a relative
- * path), or a package that is not in package.json.
+ * cannot satisfy: a missing module under src/ (via the `@/` or `@inflect/ui/`
+ * alias, or a relative path), or a package that is not in package.json.
  */
 export function unresolvedImports(text, fromPath, tree) {
   const missing = [];
   for (const spec of importSpecifiers(text)) {
-    let base = null;
-    if (spec.startsWith('@/')) base = `src/${spec.slice(2)}`;
-    else if (spec.startsWith('.'))
+    let base = aliasTarget(spec);
+    if (base === null && spec.startsWith('.'))
       base = posix.normalize(posix.join(posix.dirname(fromPath), spec));
     if (base !== null) {
       if (!RESOLVE_SUFFIXES.some((s) => tree.exists(base + s))) missing.push(spec);

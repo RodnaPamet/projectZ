@@ -317,6 +317,16 @@ describe('hand-rolled-menu (no-hand-rolled-menus)', () => {
     expect(check(`// never write fixed inset-0 by hand\nconst a = 1;`)).toEqual([]);
   });
 
+  it('knows an overlay primitive by its playerz path after inflect moves it into packages/ui', () => {
+    // An upstream author runs check-portable over the file where inflect keeps
+    // it; once #3046 moves modal.tsx, that is packages/ui/src/components/ui/.
+    const layer = `<div className="fixed inset-0" />`;
+    expect(check(layer, 'packages/ui/src/components/ui/modal.tsx')).toEqual([]);
+    expect(check(layer, 'packages/ui/src/components/ui/thing.tsx')).toEqual([
+      'hand-rolled-menu:1:fixed inset-0 click-away layer',
+    ]);
+  });
+
   // #300: a ratchet that counts bespoke overlays has to quote the literal it counts.
   it('lets a test file quote fixed inset-0, and only that rule', () => {
     const ratchet = `const BESPOKE = /fixed inset-0 bg-black/g;\nexpect(count('fixed inset-0 bg-black')).toBe(0);`;

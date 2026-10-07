@@ -12,6 +12,10 @@ playerz, 10 on both sides, and 3 at the port itself.
 This directory records which files are copies and locks them, so that a change goes to inflect
 first and comes back unchanged.
 
+inflect is moving that UI into a workspace package, `@inflect/ui` at `packages/ui` (inflect
+#3046). playerz keeps its copies where they are. See
+[inflect's `@inflect/ui` package](#inflects-inflectui-package).
+
 ## The rule: upstream first
 
 A vendored file equals `prettier(inflect@sha)`, formatted with this repo's `.prettierrc` (single
@@ -56,7 +60,7 @@ exists in inflect:
 | Field         | Meaning                                                                                                                                     |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path`        | The file in playerz.                                                                                                                        |
-| `inflectPath` | The file in inflect. It is the same path today.                                                                                             |
+| `inflectPath` | The file in inflect: `path`, or `packages/ui/src/<p>` for `src/<p>` once inflect has moved it into `@inflect/ui`.                           |
 | `baseSha`     | The inflect commit the file was last synced from, which `status.mjs` uses as the merge base. It is `1520b8b87` until the file is re-synced. |
 | `sha`         | The inflect commit a `vendored` file was copied from. It is `null` while the row is `pending`.                                              |
 | `status`      | `pending` (from the 2026-07 port, not re-synced yet), `vendored` (written by `copy.mjs`) or `local-diff`.                                   |
@@ -75,10 +79,44 @@ When you delete a vendored file, move its row to `docs/ui-sync/available.json` w
 file as a JSON array; until then it does not exist.
 
 `docs/ui-sync/inflect-paths.txt` lists every inflect path under the synced directories at one
-recorded inflect commit, plus the vendored `src/lib` modules. CI has no inflect clone, so the
-guardrail reads this list to check that every playerz file at one of those paths has a row. A file
-copied from inflect by hand, outside `copy.mjs`, would otherwise pass as playerz's own. Regenerate
-the list with `node scripts/ui-sync/paths.mjs --ref <sha> --write`.
+recorded inflect commit, plus the vendored `src/lib` modules, in both of inflect's layouts
+(`src/<p>` and `packages/ui/src/<p>`). CI has no inflect clone, so the guardrail reads this list to
+check that every playerz file at one of those paths has a row; it looks for `packages/ui/src/<p>`
+at `src/<p>`. A file copied from inflect by hand, outside `copy.mjs`, would otherwise pass as
+playerz's own. Regenerate the list with `node scripts/ui-sync/paths.mjs --ref <sha> --write`.
+
+## inflect's `@inflect/ui` package
+
+inflect #3046 is moving the shared UI out of `src/` into the npm workspace package `@inflect/ui`
+at `packages/ui`, one directory per PR. The package mirrors `src/`: `src/lib/cn.ts` became
+`packages/ui/src/lib/cn.ts` (step 2a), and the icons (2b) and 21 of the 24 `ui/hooks` (3a)
+followed. `table/`, the flat primitives, `layout/` and `src/lib/hooks` are next. Its
+`package.json` exports `@inflect/ui/<p>` as `packages/ui/src/<p>`.
+
+playerz keeps every copy at `src/<p>`, and a byte-identical copy still resolves there:
+
+- A file that moved imports its neighbours by relative path (`../../../lib/cn`). The same relative
+  path from `src/<p>` reaches playerz's copy, because the package has the same layout as `src/`.
+- A file still in inflect's `src/` imports a moved one as `@inflect/ui/<p>`. `tsconfig.json`
+  `paths` (which Next and Turbopack read) and `jest.config.mjs` map `@inflect/ui/*` onto `src/*`,
+  as they map `@/*`. So do the hand-written resolvers in `scripts/ui-sync` and the guardrails, all
+  through `aliasTarget` in `scripts/ui-sync/inflect-package.mjs`. The bare `@inflect/ui` (the
+  package's index) is not mapped, because playerz vendors no copy of it.
+
+The tools look for a row's file in both layouts, the package first, at every commit they read.
+A move is therefore never GONE, whether or not the row has caught up:
+
+- `status.mjs` compares the file where inflect has it, and lists the rows whose file moved since
+  their `inflectPath` was written (`moved` in `--json`, **Moved in inflect** in the issue).
+- `copy.mjs` takes either path and records where inflect has the file at `--ref`.
+- `paths.mjs --ref <sha> --repoint` points every row whose file moved, in the manifest and in
+  `available.json`, at its new path. Nothing else in the row changes: `baseSha` and `sha` still
+  name the commits the file was synced from, and the tools read those at its old path.
+
+After an inflect step moves files, run `paths.mjs --ref <sha> --repoint --write`, then
+`status.mjs --ref <sha>`, and copy the TAKE rows the move made: a file left in `src/` that now
+imports `@inflect/ui/<p>` instead of `@/<p>` is a one-line TAKE. If inflect ever keeps one file
+in both layouts at once, `status.mjs` notes it, because playerz can hold only one.
 
 ## The tools
 
@@ -94,15 +132,17 @@ on the owner's machine, and the default works from a worktree too.
   - **TAKE**: only inflect changed, so copy it.
   - **KEEP**: only playerz changed, so upstream the change.
   - **MERGE**: both changed.
-  - **GONE**: inflect removed the path.
+  - **GONE**: inflect removed the file, in both layouts.
 
-  It also lists the imports that playerz cannot resolve for TAKE and MERGE rows. `--json` and
-  `--markdown` write the full result to a file. `--playerz <rev>` reads playerz from a commit, and
-  `--port <rev>` marks the edits made at the original port.
+  It also lists the imports that playerz cannot resolve for TAKE and MERGE rows, and the rows
+  whose file inflect moved. `--json` and `--markdown` write the full result to a file.
+  `--playerz <rev>` reads playerz from a commit, and `--port <rev>` marks the edits made at the
+  original port.
 
-- **`copy.mjs --ref <rev> <paths or directories>`** writes the normalised inflect file at the same
-  path and sets its row to `vendored` at that commit. A directory copies the code files under it,
-  never inflect's `GUIDE.md` docs.
+- **`copy.mjs --ref <rev> <paths or directories>`** writes the normalised inflect file at its
+  playerz path (`src/<p>` for `packages/ui/src/<p>`) and sets its row to `vendored` at that
+  commit. A path may name either layout, and a directory is read in both. A directory copies the
+  code files under it, never inflect's `GUIDE.md` docs.
 - **`check-portable.mjs --root <dir> <files>`** runs playerz's guardrail rules over files in
   another checkout. It checks for raw palette classes, English copy (including `?? 'fallback'`
   and default props), compliance vocabulary and the Inflect, PwC, METRO and Dub brands, and
@@ -122,16 +162,20 @@ on the owner's machine, and the default works from a worktree too.
   file fails CI, not only in the files a PR copies. `--manifest pending [--ref <inflect rev>]`
   lists the findings in `pending` rows and always exits 0. Those files are inflect's to fix
   (#3047/#3048), so check this list before a batch copies them. Without `--ref` it reads the
-  playerz copies. With `--ref` it reads each `inflectPath` at that inflect commit, which is what
-  a copy would bring in.
+  playerz copies. With `--ref` it reads each row's file where inflect keeps it at that commit,
+  which is what a copy would bring in, and says how many rows it could not find there.
+
+  An overlay primitive keeps its exemption under `packages/ui/src/`, so the upstream check works
+  on the file where inflect keeps it.
 
 - **`reachability.mjs [--roots <glob>] [--scope <prefix>]`** builds a symbol-level, barrel-aware
   import graph rooted at `src/app/**`, `src/*.ts` and `scripts/**`. It prints JSON listing the
   unreachable files under the scope (default `src/components/`), with counts per directory. It
   cannot see a file that is referenced only by a string, such as next.config's next-intl request
   path or a guardrail's `readFileSync`, so check such a file before deleting it.
-- **`paths.mjs [--ref <rev>] [--write] [--add-pending]`** reports the playerz files at inflect
-  paths that have no row, and rewrites `inflect-paths.txt`.
+- **`paths.mjs [--ref <rev>] [--write] [--add-pending] [--repoint]`** reports the playerz files
+  at inflect paths that have no row, and rewrites `inflect-paths.txt`. `--repoint` points the rows
+  of files inflect moved at their new paths.
 
 To reproduce the 2026-09-27 measurement:
 
@@ -146,7 +190,9 @@ node scripts/ui-sync/status.mjs --ref 8d2feb4e3 --playerz 44048af --port 58a6ebd
 `.github/workflows/ui-drift.yml` runs `status.mjs` against inflect's `main` every Monday. It keeps
 one issue, **UI drift vs inflect `<sha>`**, up to date with the TAKE, MERGE and GONE rows (KEEP is
 listed collapsed). It closes the issue when none are left and reopens it when drift comes back.
-Drift does not fail anything: the workflow goes red only when it cannot run.
+Drift does not fail anything: the workflow goes red only when it cannot run. A row whose file
+inflect moved into `packages/ui` is listed under **Moved in inflect** (collapsed). A move is not
+drift, so it neither opens nor keeps open the issue.
 
 ## Visual baselines (Linux only)
 
