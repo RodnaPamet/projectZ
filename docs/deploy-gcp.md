@@ -157,11 +157,11 @@ Owner decision Q44: every merge goes to **staging**; **production** gets a relea
 | Database  | `playerz_staging` on `playerz-db`, direct (no pgbouncer)                               | `playerz_production` through `playerz-pgbouncer` |
 | Redis     | `playerz-redis`, its own db index                                                      | `playerz-redis`, db 0                            |
 | Env file  | `/opt/playerz/.env.staging` (`DEPLOY_ENV=staging`)                                     | `/opt/playerz/.env`                              |
-| Host      | `staging.35-187-80-26.sslip.io` (`staging.playerz.bg` once its DNS A record exists)    | `playerz.bg` (app.playerz.bg and www redirect)   |
+| Host      | `staging.playerz.bg` since 2026-10-07 (the old `staging.35-187-80-26.sslip.io` redirects) | `playerz.bg` (app.playerz.bg and www redirect)   |
 
 `DEPLOY_ENV=staging` makes robots.txt disallow everything and the sitemap empty, so the copy is never indexed.
 
-Staging sends no email: `DEPLOY_ENV=staging` forces the notification outbox's log-only adapter even if a provider key is set (#367), unless `EMAIL_ALLOW_ON_STAGING=1` is set on purpose. Google sign-in needs the staging callback URL (`https://<staging host>/api/auth/callback/google`) registered on the OAuth client.
+Staging sends no email: `DEPLOY_ENV=staging` forces the notification outbox's log-only adapter even if a provider key is set (#367), unless `EMAIL_ALLOW_ON_STAGING=1` is set on purpose. Google sign-in needs the staging callback URL (`https://staging.playerz.bg/api/auth/callback/google`) registered on the OAuth client. Both staging blocks are in `deploy/Caddyfile.playerz`.
 
 ```bash
 # Before anything: the disk is shared with agrent and both databases. Stop if it is tight.

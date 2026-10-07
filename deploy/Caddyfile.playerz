@@ -10,10 +10,12 @@
 #   playerz.bg        A  35.187.80.26
 #   app.playerz.bg    A  35.187.80.26
 #   www.playerz.bg    CNAME playerz.bg -> 35.187.80.26
+#   staging.playerz.bg A 35.187.80.26   (added 2026-10-07; no wildcard record)
 #   zone              ns1/ns2.jumphosting01.com (jump.bg), SOA serial 2026092704
 #
 #   cert  CN = app.playerz.bg, Let's Encrypt, 2026-09-27 15:35 -> 2026-12-26
 #         `curl` verifies the chain (ssl_verify_result=0)
+#   cert  CN = staging.playerz.bg, Let's Encrypt, 2026-10-07 17:07 -> 2027-01-05
 #
 # ═══ playerz.bg IS THE PRIMARY HOST — SINCE 2026-10-07 (#369, Q47) ═══
 #
@@ -67,4 +69,39 @@ playerz.bg, playerz.35-187-80-26.sslip.io {
 
 app.playerz.bg, www.playerz.bg {
 	redir https://playerz.bg{uri} 302
+}
+
+# ═══ STAGING (#373) — staging.playerz.bg SINCE 2026-10-07 ═══
+#
+# Every merge lands here before the weekly production release. Never indexed:
+# DEPLOY_ENV=staging makes robots.txt disallow everything, and the header below
+# says noindex as well. NEXTAUTH_URL and SITE_URL in /opt/playerz/.env.staging are
+# https://staging.playerz.bg; the Google client lists its callback. Production's
+# cookies are host-only (next-auth's defaults, no Domain attribute), so staging
+# on a subdomain never receives a production session.
+staging.playerz.bg {
+	encode gzip zstd
+	request_body {
+		max_size 10MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		X-Frame-Options           "DENY"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		X-Robots-Tag              "noindex, nofollow"
+		-Server
+	}
+	reverse_proxy playerz-staging-app:3000 {
+		header_up Host              {host}
+		header_up X-Real-IP         {remote_host}
+		header_up X-Forwarded-For   {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# Staging's address before 2026-10-07. It redirects rather than serves, so
+# sign-in always runs on the one host that NEXTAUTH_URL names.
+staging.35-187-80-26.sslip.io {
+	redir https://staging.playerz.bg{uri} 302
 }
