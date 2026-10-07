@@ -164,6 +164,9 @@ Owner decision Q44: every merge goes to **staging**; **production** gets a relea
 Staging sends no email: `DEPLOY_ENV=staging` forces the notification outbox's log-only adapter even if a provider key is set (#367), unless `EMAIL_ALLOW_ON_STAGING=1` is set on purpose. Google sign-in needs the staging callback URL (`https://<staging host>/api/auth/callback/google`) registered on the OAuth client.
 
 ```bash
+# Before anything: the disk is shared with agrent and both databases. Stop if it is tight.
+[ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -ge 10 ] || { echo "under 10 GB free: clean up first (below)"; exit 1; }
+
 # Staging, after a merge: build main once, tag it, migrate staging, recreate.
 cd /opt/playerz/repo && sudo git fetch -q --all && sudo git reset -q --hard origin/main
 sudo nice -n 10 docker build -q --build-arg SKIP_ENV_VALIDATION=1 -t playerz:staging .
@@ -179,7 +182,17 @@ sudo docker tag playerz-migrator:staging playerz-migrator:local
 sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
   playerz-migrator:local npx prisma migrate deploy
 cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml up -d --force-recreate playerz-app
+
+# After every deploy: keep the two newest rollback images, drop dangling images, cap the build cache.
+for t in $(sudo docker images playerz --format '{{.Tag}}' | grep '^rollback-' | sort -t- -k2 -n | head -n -2); do
+  sudo docker rmi "playerz:$t"
+done
+sudo docker image prune -f
+sudo docker builder prune -f --keep-storage 6GB
+df -h /
 ```
+
+**Disk hygiene is not optional.** Each image is about 2.5 GB, and a staging build plus a promotion adds two. On 2026-10-07 sixteen kept rollback images and 20 GB of build cache filled the 79 GB disk to 100%. `playerz-db` PANICked on a checkpoint write and restarted itself through WAL recovery, with no data lost, and agrent's Redis failed its background saves until space was freed. Keep two rollback tags at most: the image staging is about to promote is the newest known-good state anyway. `docker image prune -f` only removes dangling images, so agrent's tagged images are never touched by it.
 
 Promoting the staging image, instead of rebuilding, means production runs exactly the bytes that were tested on staging. An urgent fix is the same promotion done mid-week.
 
