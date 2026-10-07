@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMe } from '@/app-layer/usecases/me';
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
-import { playerChrome } from '@/components/layout/SiteHeader';
+import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
 
@@ -25,7 +25,7 @@ export async function generateMetadata() {
  * #359 adds the display name and the sports with their levels, between the
  * identity and the settings.
  *
- * Who is asking comes from `playerChrome`, the header's own request-cached
+ * Who is asking comes from `playerChrome`, the chrome's own request-cached
  * read. The queries this page adds run in parallel: `getMe`, the account the
  * #359 sections edit, as `GET /api/v1/me` answers it; and the email settings
  * (#367), as `GET /api/v1/me/notification-settings` answers them. The platform row is shown only
@@ -35,12 +35,12 @@ export default async function ProfilePage() {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/profile');
 
-  const [{ me, account }, mine, notificationSettings] = await Promise.all([
+  const [{ me, platformHref }, mine, notificationSettings] = await Promise.all([
     playerChrome(),
     getMe(userId),
     getMyNotificationSettings(userId),
   ]);
-  if (!me || !account || !mine || !notificationSettings) redirect('/login?next=/me/profile');
+  if (!me || !mine || !notificationSettings) redirect('/login?next=/me/profile');
 
   // #359's sections read and write `GET`/`PATCH /api/v1/me`; this is their
   // seed, from the same use case, so the first paint is the account and not a
@@ -51,7 +51,7 @@ export default async function ProfilePage() {
       <ProfileView
         name={me.name}
         email={me.email}
-        platformHref={account.platformHref}
+        platformHref={platformHref}
         account={mine}
         showSports={mine.accountKind !== 'CLUB'}
         notificationSettings={notificationSettings}

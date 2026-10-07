@@ -4,6 +4,8 @@ import { forwardRef, type AnchorHTMLAttributes } from 'react';
 import { BottomTabBar, isTabBarHidden } from '@/components/layout/BottomTabBar';
 import {
   MODULES_OFF,
+  playerShellNav,
+  playerTabs,
   type ChromeModules,
   type PlayerChromeKind,
 } from '@/components/layout/nav-items';
@@ -17,9 +19,11 @@ import { withIntl } from '../helpers/intl';
  * here, only what the bar is when it shows; tests/e2e/mobile/player-shell.spec.ts
  * measures it at 393 px in a real browser and runs axe over it.
  *
- *   signed out          Играй · Вход
- *   PLAYER, COACH, —    Играй · (Игри) · Резервации · Профил
- *   CLUB                Играй · Админ · Профил
+ *   signed out          Играй · Вход                          (the public chrome)
+ *   PLAYER, COACH, —    Играй · (Игри) · Резервации · Профил   (the player shell)
+ *
+ * A CLUB account wears its admin's bar (`ClubAdminTabBar`) on every page since
+ * #362, so this bar has no club variant and no tab into the admin.
  */
 let pathname = '/venues';
 jest.mock('next/navigation', () => ({ usePathname: () => pathname }));
@@ -61,22 +65,13 @@ function setSaveData(saveData: boolean | undefined) {
 }
 
 const n = bg.common.nav;
-const ADMIN = '/t/sofia-padel/admin/calendar';
 const OPEN_PLAY: ChromeModules = { openPlay: true, messaging: false };
+const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true };
 
 const renderBar = (
-  kind: PlayerChromeKind,
-  opts: { modules?: ChromeModules; adminHref?: string | null } = {},
-) =>
-  render(
-    withIntl(
-      <BottomTabBar
-        kind={kind}
-        modules={opts.modules ?? MODULES_OFF}
-        adminHref={opts.adminHref ?? null}
-      />,
-    ),
-  );
+  kind: Exclude<PlayerChromeKind, 'club'>,
+  opts: { modules?: ChromeModules } = {},
+) => render(withIntl(<BottomTabBar kind={kind} modules={opts.modules ?? MODULES_OFF} />));
 
 const bar = () => screen.getByRole('navigation', { name: n.tabBar });
 const tabs = () =>
@@ -100,8 +95,8 @@ describe('BottomTabBar — tabs by account kind (#362)', () => {
     ]);
   });
 
-  it('PLAYER (and COACH, and undecided): Играй, Резервации, Профил', () => {
-    renderBar('player');
+  it.each(['player', 'coach'] as const)('%s (and undecided): Играй, Резервации, Профил', (kind) => {
+    renderBar(kind);
     expect(tabs()).toEqual([
       [n.play, '/venues'],
       [n.bookings, '/me/bookings'],
@@ -109,33 +104,28 @@ describe('BottomTabBar — tabs by account kind (#362)', () => {
     ]);
   });
 
-  it('CLUB: Играй, Админ (its own club), Профил; no Резервации', () => {
-    renderBar('club', { adminHref: ADMIN });
-    expect(tabs()).toEqual([
-      [n.play, '/venues'],
-      [n.admin, ADMIN],
-      [n.profile, '/me/profile'],
-    ]);
-  });
-
-  it('CLUB whose club is not live: no Админ tab to an admin that would refuse it', () => {
-    renderBar('club', { adminHref: null });
-    expect(tabs()).toEqual([
-      [n.play, '/venues'],
-      [n.profile, '/me/profile'],
-    ]);
-  });
-
-  it('a PLAYER is never offered an admin, even if handed one', () => {
-    renderBar('player', { adminHref: ADMIN });
-    expect(within(bar()).queryByRole('link', { name: n.admin })).not.toBeInTheDocument();
+  it('no tab leads into the club admin', () => {
+    for (const kind of ['signed-out', 'player', 'coach'] as const) {
+      const { unmount } = renderBar(kind, { modules: EVERY_MODULE });
+      for (const [, href] of tabs()) expect(href).not.toMatch(/^\/t\//);
+      unmount();
+    }
   });
 
   it('every tab is a page: no menu button on the bar any more', () => {
-    for (const kind of ['signed-out', 'player', 'club'] as const) {
-      const { unmount } = renderBar(kind, { adminHref: ADMIN });
+    for (const kind of ['signed-out', 'player', 'coach'] as const) {
+      const { unmount } = renderBar(kind);
       expect(within(bar()).queryByRole('button')).not.toBeInTheDocument();
       unmount();
+    }
+  });
+
+  it('every tab is an item of the player shell’s own sidebar (agrent’s pattern)', () => {
+    for (const kind of ['player', 'coach'] as const) {
+      for (const modules of [MODULES_OFF, OPEN_PLAY, EVERY_MODULE]) {
+        const sidebar = new Set(playerShellNav(kind, { modules })[0]!.items.map((i) => i.href));
+        for (const tab of playerTabs(kind, modules)) expect(sidebar).toContain(tab.href);
+      }
     }
   });
 });
@@ -156,9 +146,14 @@ describe('BottomTabBar — the Игри tab waits for its module', () => {
     ]);
   });
 
-  it('a CLUB account gets no Игри tab even with the module on', () => {
-    renderBar('club', { modules: OPEN_PLAY, adminHref: ADMIN });
+  it('signed out gets no Игри tab even with the module on', () => {
+    renderBar('signed-out', { modules: OPEN_PLAY });
     expect(within(bar()).queryByRole('link', { name: n.games })).not.toBeInTheDocument();
+  });
+
+  it('Съобщения is never a tab: it waits in the sidebar (#375)', () => {
+    renderBar('player', { modules: EVERY_MODULE });
+    expect(within(bar()).queryByRole('link', { name: n.messages })).not.toBeInTheDocument();
   });
 });
 
@@ -185,7 +180,7 @@ describe('BottomTabBar — accessibility', () => {
   });
 
   it('every tab is a 44 px target, named by its label, its icon hidden', () => {
-    renderBar('club', { adminHref: ADMIN });
+    renderBar('player', { modules: OPEN_PLAY });
     for (const t of within(bar()).getAllByRole('link')) {
       expect(t).toHaveClass('min-h-11', 'min-w-11');
       expect(t.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
@@ -225,17 +220,15 @@ describe('BottomTabBar — prefetch and the bottom inset', () => {
     }
   });
 
-  it('never fully prefetches the Админ tab: it leads into the admin', () => {
+  it('fully prefetches a coach’s tabs and a visitor’s too', () => {
     setSaveData(false);
-    renderBar('club', { adminHref: ADMIN });
-    expect(within(bar()).getByRole('link', { name: n.admin })).toHaveAttribute(
-      'data-prefetch',
-      'null',
-    );
-    expect(within(bar()).getByRole('link', { name: n.play })).toHaveAttribute(
-      'data-prefetch',
-      'true',
-    );
+    for (const kind of ['coach', 'signed-out'] as const) {
+      const { unmount } = renderBar(kind);
+      for (const l of within(bar()).getAllByRole('link')) {
+        expect(l).toHaveAttribute('data-prefetch', 'true');
+      }
+      unmount();
+    }
   });
 
   it('falls back to the default prefetch under Save-Data', () => {

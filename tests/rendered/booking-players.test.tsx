@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 
-import { BookingPlayers, playersErrorKey } from '@/app/(app)/me/bookings/[id]/BookingPlayers';
+import { BookingPlayers, playersErrorKey } from '@/app/(public)/me/bookings/[id]/BookingPlayers';
 import {
   copyInviteLink,
   InvitePlayersSheet,
   shareInviteLink,
-} from '@/app/(app)/me/bookings/[id]/InvitePlayersSheet';
+} from '@/app/(public)/me/bookings/[id]/InvitePlayersSheet';
 import type { BookingPlayerDto, MyBookingDetailDto } from '@/app/api/v1/_lib/dto';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { __resetSessionExpiryForTests } from '@/lib/auth/session-expiry';

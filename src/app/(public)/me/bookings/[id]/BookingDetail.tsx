@@ -167,9 +167,10 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
   }
 
   return (
-    <main
+    // No <main>: the chrome owns the landmark; inside the shell the frame pads.
+    <div
       data-perf-ready
-      className="gap-section mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10"
+      className="gap-section in-shell:p-0 mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10"
     >
       <Link
         href="/me/bookings"
@@ -302,7 +303,7 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
           onConfirm={() => void confirmCancel()}
         />
       ) : null}
-    </main>
+    </div>
   );
 }
 

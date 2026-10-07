@@ -11,6 +11,7 @@ import {
   PERF_REMOTE,
   PERF_RUNS,
   PERF_WARM_PASSES,
+  PERSONAS,
   PROFILES,
   VENUE_NAME,
   VENUE_PUBLIC_SLUG,
@@ -62,15 +63,16 @@ function navTap(href: string, phone: boolean): { click: string; before?: string[
 }
 
 /**
- * A tap on the player chrome (T20), as the profile has it. Below `md` the
- * header's links are hidden and the bottom tab bar carries them, so the phone
- * taps the tab and the desktop clicks the header; each selector names the one
- * copy visible on its profile. The step ids, and so their budget rows, are
- * unchanged: same page to same page, through the control that profile shows.
+ * A tap on the player chrome (T20, #362), as the profile has it. Below `md`
+ * the bottom tab bar carries the links, so the phone taps the tab. On the
+ * desktop a visitor clicks the public header, and a signed-in account the
+ * AppShell's left rail (`aside`), which is its navigation since #362. Each
+ * selector names the one copy visible on its profile.
  */
 const TAB_BAR = `nav[aria-label="${bg.common.nav.tabBar}"]`;
-function playerTap(href: string, phone: boolean): { click: string } {
-  return { click: phone ? `${TAB_BAR} a[href="${href}"]` : `header a[href="${href}"]` };
+function playerTap(href: string, phone: boolean, signedIn: boolean): { click: string } {
+  if (phone) return { click: `${TAB_BAR} a[href="${href}"]` };
+  return { click: signedIn ? `aside ${MAIN_NAV} a[href="${href}"]` : `header a[href="${href}"]` };
 }
 
 /** The club's today, the way the diary decides it (in the club's zone, not the server's). */
@@ -134,6 +136,8 @@ const READY: ReadyTable = {
     { selector: 'main h1', text: bg.myBookings.title },
     { selector: 'main [data-perf-ready]' },
   ],
+  // The profile's heading is the account's own name (#359), from the seed.
+  '/me/profile': [{ selector: 'main h1', text: PERSONAS.player.name }],
   // The venue page, on each day the journeys show. The name is the venue's
   // own h1; the day picker's checked option tells today from tomorrow, as the
   // diary's "next day" link does; `[data-perf-ready]` is the court list,
@@ -303,15 +307,18 @@ const JOURNEYS: Journey[] = [
     ],
   },
   {
+    // Signed in, `/` is Играй (#362): the entry is the typed address, which
+    // the home page's layout sends on to /venues with a 307, and the loop is
+    // the player's three places in the AppShell, through the rail on the
+    // desktop and the tab bar on the phone.
     id: 'player',
     persona: 'player',
     entry: '/',
-    lands: '/',
+    lands: '/venues',
     steps: [
-      { id: 'home → my bookings', to: '/me/bookings', tab: '/me/bookings' },
-      { id: 'my bookings → home', to: '/', click: 'header a[href="/"]' },
-      { id: 'home → venues', to: '/venues', click: 'main a[href="/venues"]' },
-      { id: 'venues → home', to: '/', click: 'header a[href="/"]' },
+      { id: 'venues → my bookings', to: '/me/bookings', tab: '/me/bookings' },
+      { id: 'my bookings → profile', to: '/me/profile', tab: '/me/profile' },
+      { id: 'profile → venues', to: '/venues', tab: '/venues' },
     ],
   },
   {
@@ -471,7 +478,7 @@ for (let run = 1; run <= PERF_RUNS; run++) {
               'nav' in st
                 ? navTap(st.nav, profile.input === 'tap')
                 : 'tab' in st
-                  ? playerTap(st.tab, profile.input === 'tap')
+                  ? playerTap(st.tab, profile.input === 'tap', j.persona !== null)
                   : 'click' in st
                     ? { click: st.click, before: st.before }
                     : { back: true };

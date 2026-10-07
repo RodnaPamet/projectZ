@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 
 import { SWRConfig } from 'swr';
 
-import { ProfileView } from '@/app/(app)/me/profile/ProfileView';
+import { ProfileView } from '@/app/(public)/me/profile/ProfileView';
 import type { MeDto } from '@/app/api/v1/_lib/dto';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LOCALE_COOKIE } from '@/lib/locale-constants';
@@ -34,7 +34,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 const saveMyLocaleAction = jest.fn();
-jest.mock('@/app/(app)/me/profile/actions', () => ({
+jest.mock('@/app/(public)/me/profile/actions', () => ({
   saveMyLocaleAction: (...a: unknown[]) => saveMyLocaleAction(...a),
 }));
 

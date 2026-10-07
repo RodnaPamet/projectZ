@@ -37,7 +37,7 @@ export async function VenueHeader({
     <header className="flex flex-col gap-4">
       <div
         className={cn(
-          'bg-bg-success relative overflow-hidden md:rounded-lg',
+          'bg-bg-success in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
           cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
         )}
       >
@@ -52,7 +52,7 @@ export async function VenueHeader({
         <VenueBackLink />
       </div>
 
-      <div className="flex flex-col gap-2 px-6 md:px-0">
+      <div className="in-shell:px-0 flex flex-col gap-2 px-6 md:px-0">
         <Heading level={1}>{name}</Heading>
         <Caption className="flex items-center gap-1">
           <LocationPin className="size-3.5 shrink-0" aria-hidden="true" />

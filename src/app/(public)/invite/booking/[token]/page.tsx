@@ -67,15 +67,15 @@ export default async function BookingInvitePage({
 
   if (!preview) {
     return (
-      <main className="bg-bg-page text-content-default safe-area-x flex-1">
-        <div className="mx-auto max-w-md px-4 py-10 md:px-6 md:py-16">
+      <div className="bg-bg-page text-content-default safe-area-x flex-1">
+        <div className="in-shell:p-0 mx-auto max-w-md px-4 py-10 md:px-6 md:py-16">
           <EmptyState
             title={t('invalid.title')}
             description={t('invalid.description')}
             data-testid="booking-invite-invalid"
           />
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -89,8 +89,8 @@ export default async function BookingInvitePage({
   const to = format.dateTime(preview.endTs, { timeStyle: 'short', timeZone });
 
   return (
-    <main className="bg-bg-page text-content-default safe-area-x flex-1">
-      <div className="gap-section mx-auto flex max-w-md flex-col px-4 py-10 md:px-6 md:py-16">
+    <div className="bg-bg-page text-content-default safe-area-x flex-1">
+      <div className="gap-section in-shell:p-0 mx-auto flex max-w-md flex-col px-4 py-10 md:px-6 md:py-16">
         <Heading level={1} className="break-words">
           {preview.bookerFirstName
             ? t('title', { name: preview.bookerFirstName })
@@ -157,6 +157,6 @@ export default async function BookingInvitePage({
           </ViewerScope>
         )}
       </div>
-    </main>
+    </div>
   );
 }

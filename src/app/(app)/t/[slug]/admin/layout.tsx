@@ -2,16 +2,9 @@ import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
-// NOT from a 'use client' module: the server CALLS these, and every export of
+// NOT from a 'use client' module: the server CALLS this, and every export of
 // a client module is a client reference that throws when called (#195-#227).
-import {
-  clubAdminNav,
-  clubPublicHref,
-  PLATFORM_HREF,
-  PROFILE_HREF,
-  toShellSections,
-  visibleSections,
-} from '@/components/layout/nav-items';
+import { clubShell } from '@/components/layout/nav-items';
 import { resolveTenantPageContext, signedInIdentity } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
 
@@ -46,6 +39,12 @@ import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
  * platform (one indexed probe, the read the platform layout makes). Both reads
  * run alongside the membership read, not after it. Below `md` the shell adds the bottom tab bar,
  * resolved from the same `sections`, so a role sees only tabs it may open.
+ *
+ * ═══ ONE BUILDER FOR THE CLUB'S FRAME (#362) ═══
+ *
+ * `clubShell` builds the sections and the rows. `PlayerChrome` calls the same
+ * builder for a CLUB account on a public page, so the account wears one
+ * sidebar everywhere (owner, 2026-10-07).
  */
 export default async function ClubAdminLayout({
   children,
@@ -72,24 +71,16 @@ export default async function ClubAdminLayout({
   }
   if (result.kind === 'not-a-member') notFound();
 
-  const { ctx } = result;
-  const sections = visibleSections(clubAdminNav(ctx.tenantSlug), (item) =>
-    ctx.permissions.includes(item.requires),
-  );
-  if (sections.length === 0) notFound();
+  const club = clubShell(result.ctx, { platform: grant?.capabilities ?? [], t });
+  if (club.sections.length === 0) notFound();
 
   return (
     <ClubAdminShell
-      sections={toShellSections(sections, t)}
-      homeHref={`/t/${ctx.tenantSlug}/admin`}
-      contextName={ctx.tenantName}
+      sections={club.sections}
+      homeHref={club.homeHref}
+      contextName={club.contextName}
       user={{ name: me.name, email: me.email }}
-      account={{
-        profileHref: PROFILE_HREF,
-        clubAdmin: null,
-        platformHref: grant && grant.capabilities.length > 0 ? PLATFORM_HREF : null,
-        publicSite: { href: clubPublicHref(ctx.tenantSlug), label: t('publicPage') },
-      }}
+      account={club.account}
       bottomTabs
       fullBleedSegment="calendar"
     >

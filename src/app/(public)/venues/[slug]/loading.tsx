@@ -15,15 +15,15 @@ export default function Loading() {
   return (
     <RouteSkeleton className="bg-bg-page">
       <div className="safe-area-x">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
+        <div className="in-shell:p-0 mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
           <div className="relative">
-            <Skeleton className="h-32 w-full rounded-none md:h-40 md:rounded-lg" />
+            <Skeleton className="in-shell:rounded-lg h-32 w-full rounded-none md:h-40 md:rounded-lg" />
             {/* The real back link: usable while the page loads, and the
                 client reference that preloads the page's JS chunk (#403,
                 see VenueBackLink). */}
             <VenueBackLink />
           </div>
-          <div className="flex flex-col gap-2 px-6 md:px-0">
+          <div className="in-shell:px-0 flex flex-col gap-2 px-6 md:px-0">
             <PageTitleSkeleton />
             <Skeleton className="h-4 w-2/3" />
             <div className="flex gap-1">
@@ -31,12 +31,12 @@ export default function Loading() {
               <SkeletonPill />
             </div>
           </div>
-          <div className="flex gap-1 px-6 md:px-0">
+          <div className="in-shell:px-0 flex gap-1 px-6 md:px-0">
             {Array.from({ length: 5 }).map((_, i) => (
               <SkeletonPill key={i} />
             ))}
           </div>
-          <div className="px-6 md:px-0">
+          <div className="in-shell:px-0 px-6 md:px-0">
             <CardListSkeleton rows={3} lines={3} />
           </div>
         </div>

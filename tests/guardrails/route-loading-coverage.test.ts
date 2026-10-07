@@ -68,7 +68,7 @@ describe('route loading coverage', () => {
       expect.arrayContaining([
         '(home)',
         '(public)/venues',
-        '(app)/me/bookings',
+        '(public)/me/bookings',
         '(app)/t/[slug]/admin/calendar',
       ]),
     );

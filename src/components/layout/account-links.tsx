@@ -8,34 +8,14 @@ import type { ComponentType, SVGProps } from 'react';
 import {
   ArrowUpRight,
   CircleUser,
-  Gear,
   ShieldCheck,
   UserArrowRight,
 } from '@/components/ui/icons/nucleo';
 
 import { NavItem } from './nav-item';
+import type { AccountLinks } from './nav-items';
 import { NavSection } from './nav-section';
 import { USER_MENU_ROW_CLASS } from './user-menu';
-
-/**
- * What an account can reach beyond the page it is on (#362, #345, #346, #347).
- * Plain data, decided on the server, so each kind's rows are a fact the server
- * already checked, never a guess the client makes:
- *
- *   profile       every signed-in account: `/me/profile`
- *   clubAdmin     a CLUB account with a live club: its admin (#346)
- *   platform      a holder of a live platform grant: `/platform` (#345)
- *   publicSite    inside the admin or platform shell: the way out (#347)
- *
- * Hiding a row is a courtesy, not a control: `/platform` and the club admin
- * authorise every request themselves.
- */
-export interface AccountLinks {
-  profileHref: string;
-  clubAdmin: { href: string } | null;
-  platformHref: string | null;
-  publicSite: { href: string; label: string } | null;
-}
 
 interface Row {
   key: string;
@@ -44,7 +24,10 @@ interface Row {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
-/** The rows, in the one order both surfaces use. Sign-out is not a row: it is not a place. */
+/**
+ * An account's rows (`AccountLinks`, decided on the server; #362, #345, #347),
+ * in the one order both surfaces use. Sign-out is not a row: it is not a place.
+ */
 function useRows(links: AccountLinks): Row[] {
   const t = useTranslations('common.nav');
   const rows: Row[] = [];
@@ -56,10 +39,9 @@ function useRows(links: AccountLinks): Row[] {
       icon: ArrowUpRight,
     });
   }
-  if (links.clubAdmin) {
-    rows.push({ key: 'club-admin', href: links.clubAdmin.href, label: t('clubAdmin'), icon: Gear });
+  if (links.profileHref) {
+    rows.push({ key: 'profile', href: links.profileHref, label: t('profile'), icon: CircleUser });
   }
-  rows.push({ key: 'profile', href: links.profileHref, label: t('profile'), icon: CircleUser });
   if (links.platformHref) {
     rows.push({
       key: 'platform',

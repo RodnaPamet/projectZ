@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Loading() {
   return (
     <RouteSkeleton className="bg-bg-page safe-area-x flex flex-1 flex-col">
-      <div className="gap-section mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10">
+      <div className="gap-section in-shell:p-0 mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10">
         <Skeleton className="h-5 w-28" />
         <PageTitleSkeleton size="md" />
         <div className="border-border-subtle divide-border-subtle divide-y rounded-lg border">

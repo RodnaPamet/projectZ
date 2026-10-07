@@ -24,6 +24,10 @@ interface Fixtures {
   player: E2EPlayer;
   /** `page`, signed in as `player`. */
   playerPage: import('@playwright/test').Page;
+  /** A COACH account (#362): a player's sidebar until the coach module ships. */
+  coach: E2EPlayer;
+  /** `page`, signed in as `coach`. */
+  coachPage: import('@playwright/test').Page;
   /** A CLUB account holding STAFF at `isolatedTenant` (#362): front-desk pages only. */
   staff: E2EPlayer;
   /** `page`, signed in as `staff`. */
@@ -56,6 +60,17 @@ export const test = base.extend<Fixtures>({
 
   playerPage: async ({ page, player }, use) => {
     await signIn(page, player);
+    await use(page);
+  },
+
+  coach: async ({}, use) => {
+    const coach = await createPlayer('COACH');
+    await use(coach);
+    await destroyPlayer(coach.userId);
+  },
+
+  coachPage: async ({ page, coach }, use) => {
+    await signIn(page, coach);
     await use(page);
   },
 

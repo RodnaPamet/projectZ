@@ -36,7 +36,7 @@ const config = readFileSync('next.config.mjs', 'utf8');
 /** Full-prefetch sites, and why. Anything else fails. */
 const FULL_PREFETCH_ALLOWED: Record<string, string> = {
   'src/components/layout/tab-bar.tsx':
-    "The shared bottom tab bar (#362), which forwards its link's `fullPrefetch` to <Link>. Only the PLAYER bar sets it (T20: its pages, /venues and /me, read through SWR and revalidate after paint, so a 180 s old shell is refreshed on arrival), never under Save-Data and never on its Админ tab; the club admin's bar does not. The pin below holds that.",
+    "The shared bottom tab bar (#362), which forwards its link's `fullPrefetch` to <Link>. Only the PLAYER bar sets it (T20: its pages, /venues and /me, read through SWR and revalidate after paint, so a 180 s old shell is refreshed on arrival), never under Save-Data; the club admin's bar, which a club account wears on every page, does not. The pin below holds that.",
   'src/components/layout/PublicPrefetchLink.tsx':
     "The anonymous home page's links to /venues and /login (#290): 1.4-2.4 KB, the same for every visitor, and a first visit then renders from the router cache instead of waiting out the 300 ms reveal throttle. It skips full prefetch under Save-Data. Where it may be used is pinned below.",
   'src/components/layout/nav-item.tsx':
@@ -57,7 +57,7 @@ const AUTO_ONLY_COMPONENTS = ['NavItem'];
  */
 const PUBLIC_PREFETCH_SITES: Record<string, string[]> = {
   'src/app/(home)/page.tsx': ['/venues'],
-  'src/components/layout/site-header-view.tsx': ['/login'],
+  'src/components/layout/SiteHeader.tsx': ['/login'],
 };
 
 /**
@@ -225,8 +225,10 @@ describe('router cache policy', () => {
    * #362. The bottom tab bar is the one place a full prefetch is allowed, and
    * `tab-bar.tsx` is allow-listed above only because it forwards the choice.
    * The choice itself is `fullPrefetch`, and only the player bar may make it:
-   * an admin link (the club bar, the player bar's Админ tab) is never fully
-   * prefetched, and the player bar turns it off under Save-Data.
+   * an admin link (the club bar, which a club account wears everywhere) is
+   * never fully prefetched, and the player bar turns it off under Save-Data.
+   * The player bar has no admin tab to except any more: its tabs are the
+   * player shell's own pages.
    */
   it.each(sources)('%s: fullPrefetch is set only by the player tab bar', (f) => {
     if (f === 'src/components/layout/tab-bar.tsx') return;
@@ -238,9 +240,9 @@ describe('router cache policy', () => {
     });
   });
 
-  it('the player bar asks for a full prefetch only without Save-Data, and never for Админ', () => {
+  it('the player bar asks for a full prefetch only without Save-Data', () => {
     const bar = code(readFileSync('src/components/layout/BottomTabBar.tsx', 'utf8'));
-    expect(bar).toMatch(/fullPrefetch=\{!saveData && tab\.iconKey !== 'admin'\}/);
+    expect(bar).toMatch(/fullPrefetch=\{!saveData\}/);
     const shared = code(readFileSync('src/components/layout/tab-bar.tsx', 'utf8'));
     expect(shared).toMatch(/prefetch=\{fullPrefetch \? true : null\}/);
   });

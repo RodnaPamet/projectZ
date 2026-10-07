@@ -4,13 +4,13 @@ import type { ReactNode } from 'react';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { DrawerAccountSection, type AccountLinks } from './account-links';
-import { AdminSidebar } from './admin-sidebar';
-import { AdminTopBar } from './admin-top-bar';
+import { DrawerAccountSection } from './account-links';
 import { AppShellFrame } from './AppShellFrame';
 import { ClubAdminTabBar } from './club-admin-tab-bar';
 import { MobileNavDrawer } from './MobileNavDrawer';
-import type { ShellNavSection } from './nav-items';
+import type { AccountLinks, ShellNavSection } from './nav-items';
+import { ShellSidebar } from './shell-sidebar';
+import { ShellTopBar } from './shell-top-bar';
 import { SidebarCollapseProvider } from './sidebar-collapse-context';
 import { TabBarSpacer } from './tab-bar';
 
@@ -22,11 +22,19 @@ import { TabBarSpacer } from './tab-bar';
  * `uiStorageKey` seam) and closing the drawer on navigation. This supplies its
  * three slots, the way upstream's own `AppShell` does:
  *
- *   sidebar    `AdminSidebar` in the desktop rail, collapsible
+ *   sidebar    `ShellSidebar` in the desktop rail, collapsible
  *   mobileNav  the same sidebar in the vendored left drawer (a vaul Sheet),
  *              never collapsed, with the account rows at its foot
- *   topChrome  `AdminTopBar`, whose hamburger opens the drawer, and below
+ *   topChrome  `ShellTopBar`, whose hamburger opens the drawer, and below
  *              `md` the bottom tab bar, whose "Още" opens the same drawer
+ *
+ * ═══ A CLUB ACCOUNT WEARS IT EVERYWHERE (#362, owner 2026-10-07) ═══
+ *
+ * The club admin's layout renders it, and so does `PlayerChrome`, for a CLUB
+ * account on any public page it opens (/venues, a venue, a club's page): the
+ * same sections, built by the same `clubShell`, so one account sees one
+ * sidebar wherever it goes. A player wears the same frame with its own
+ * sidebar (`PlayerShell`).
  *
  * ═══ #362: A WAY AROUND, AND A WAY OUT ═══
  *
@@ -38,8 +46,7 @@ import { TabBarSpacer } from './tab-bar';
  *
  * Every shell has an exit to the public site (#347): in the top bar from `sm`,
  * as the first account row in the drawer, and in the account menu. The
- * account rows themselves (`AccountLinks`) are decided by the layout, on the
- * server.
+ * account rows themselves (`AccountLinks`) are decided on the server.
  *
  * ═══ #255: THE NAV NO LONGER SCROLLS THE PAGE SIDEWAYS ═══
  *
@@ -54,12 +61,14 @@ import { TabBarSpacer } from './tab-bar';
  * boolean rather than reading the route (it is vendored and route-agnostic),
  * so the decision is made here, from the segment below the admin layout.
  *
- * ═══ `data-scroll-root` ═══
+ * ═══ `data-scroll-root` AND `data-app-shell` ═══
  *
  * globals.css locks html/body to the viewport at `md+` only for a page that
- * opts in with this attribute. The frame's `md:h-full` needs that lock, and
- * its content column then owns the scroll. Every other page keeps scrolling
- * like a web page.
+ * opts in with `data-scroll-root`. The frame's `md:h-full` needs that lock,
+ * and its content column then owns the scroll. Every other page keeps
+ * scrolling like a web page. `data-app-shell` is what the `in-shell:` variant
+ * (globals.css) keys on: a page that also renders on the public site drops its
+ * own gutter inside a shell, whose `<main>` already pads.
  */
 export function ClubAdminShell({
   sections,
@@ -72,8 +81,11 @@ export function ClubAdminShell({
   children,
 }: {
   sections: ShellNavSection[];
-  /** Where the context name in the top bar leads: the shell's own first page. */
-  homeHref: string;
+  /**
+   * Where the context name in the top bar leads: the shell's own first page.
+   * None for a CLUB account whose club is not live: it has no admin to go back to.
+   */
+  homeHref?: string;
   contextName: string;
   user: { name: string | null; email: string | null };
   /** The account rows, in the menu and at the foot of the drawer. */
@@ -88,12 +100,12 @@ export function ClubAdminShell({
   const tNav = useTranslations('common.nav');
 
   return (
-    <div data-scroll-root className="bg-bg-page text-content-default md:h-full">
+    <div data-scroll-root data-app-shell className="bg-bg-page text-content-default md:h-full">
       <AppShellFrame
         fullBleed={fullBleedSegment !== undefined && segment === fullBleedSegment}
         sidebar={({ collapsed, onToggleCollapse }) => (
           <SidebarCollapseProvider collapsed={collapsed}>
-            <AdminSidebar
+            <ShellSidebar
               sections={sections}
               contextName={contextName}
               onToggleCollapse={onToggleCollapse}
@@ -105,16 +117,15 @@ export function ClubAdminShell({
           // `title`, #362): "Меню", where "Отвори навигационното меню" stood.
           <MobileNavDrawer open={open} onClose={onClose} title={tNav('menu')}>
             <SidebarCollapseProvider collapsed={false}>
-              <AdminSidebar sections={sections} contextName={contextName} onNavClick={onClose} />
+              <ShellSidebar sections={sections} contextName={contextName} onNavClick={onClose} />
               <DrawerAccountSection links={account} onNavigate={onClose} />
             </SidebarCollapseProvider>
           </MobileNavDrawer>
         )}
         topChrome={({ onMobileMenuClick, mobileNavOpen }) => (
           <>
-            <AdminTopBar
-              homeHref={homeHref}
-              contextName={contextName}
+            <ShellTopBar
+              context={homeHref ? { name: contextName, href: homeHref } : undefined}
               user={user}
               account={account}
               onMobileMenuClick={onMobileMenuClick}

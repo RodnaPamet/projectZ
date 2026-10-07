@@ -4,8 +4,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * /me/bookings: the title, then a list of booking cards, in the page's own
- * wrapper. No header stand-in since T20: (app)/me/layout.tsx renders the real
- * one around this.
+ * wrapper. No chrome stand-in: (public)/layout.tsx renders the real frame
+ * around this (#362).
  *
  * Shaped like the page as T22 left it: a `Heading level={1}` (text-2xl, so the
  * `md` title bar, not the 3xl `lg`) with `mb-section` under it, and cards of
@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Loading() {
   return (
     <RouteSkeleton className="bg-bg-page safe-area-x flex-1">
-      <div className="px-6 py-10">
+      <div className="in-shell:p-0 px-6 py-10">
         <PageTitleSkeleton size="md" subtitle={false} className="mb-section" />
         {/* The Предстоящи / Минали toggle (#359): two 44 px options. */}
         <Skeleton className="mb-section h-12 w-52 rounded-lg" />

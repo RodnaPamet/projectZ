@@ -31,7 +31,7 @@ test.describe('club admin shell — phone', () => {
     expect(box.height).toBeGreaterThanOrEqual(44);
     await expect(page.locator('aside[data-collapsed]')).toBeHidden();
     // Identity, the account menu and its theme toggle are on the phone too.
-    await expect(page.getByTestId('admin-context-name')).toBeVisible();
+    await expect(page.getByTestId('shell-context-name')).toBeVisible();
     await expect(page.getByTestId('top-chrome-user-menu')).toBeVisible();
   });
 

@@ -186,9 +186,11 @@ export default async function VenuePage({
   const { cover, gallery } = splitPhotos(venue.photos);
   const tCities = await getTranslations('cities');
 
-  // The header and the tab bar come from (public)/layout.tsx (T20).
+  // The chrome (and its <main>) comes from (public)/layout.tsx (T20, #362).
+  // Inside a signed-in shell the frame pads, so the page's own gutter goes
+  // (`in-shell:`, globals.css), and the cover is a rounded card at every width.
   return (
-    <main className="bg-bg-page text-content-default safe-area-x flex-1">
+    <div className="bg-bg-page text-content-default safe-area-x flex-1">
       {/* Structured data (#396), in the server HTML. A data block, not a
           script: browsers never execute `application/ld+json`, so script-src
           does not apply to it. serializeJsonLd escapes `<`, so no venue name
@@ -197,7 +199,7 @@ export default async function VenuePage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
+      <div className="in-shell:p-0 mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
         <VenueHeader
           name={venue.name}
           addressLine={venue.addressLine}
@@ -222,7 +224,7 @@ export default async function VenuePage({
         </Suspense>
         {gallery.length > 0 && <VenueGallery name={venue.name} photos={gallery} />}
       </div>
-    </main>
+    </div>
   );
 }
 

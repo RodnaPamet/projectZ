@@ -81,7 +81,8 @@ export function ProfileView({
   const display = account.name?.trim() || name?.trim() || email || tNav('account');
 
   return (
-    <main className="gap-section mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10">
+    // No <main>: the chrome owns the landmark; inside the shell the frame pads.
+    <div className="gap-section in-shell:p-0 mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 md:px-6 md:py-10">
       <div className="flex items-center gap-4">
         {/* The sign-in provider's picture when there is one (#359). */}
         <InitialsAvatar value={display} size="lg" imageUrl={account.avatarUrl} />
@@ -174,6 +175,6 @@ export function ProfileView({
       >
         {tCommon('signOut')}
       </Button>
-    </main>
+    </div>
   );
 }

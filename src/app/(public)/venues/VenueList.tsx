@@ -288,7 +288,9 @@ function VenueFilterBar({ filters, facets }: { filters: VenueFilters; facets: Ve
           // A row of sports can be wider than a phone. It scrolls inside its
           // own strip, bleeding to the screen edge, rather than wrap a
           // segmented control onto two lines or push the page sideways.
-          <div className="-mx-6 overflow-x-auto px-6 md:mx-0 md:px-0">
+          // Inside a signed-in shell it scrolls within the frame's padding:
+          // the bleed matched the page's own px-6, which the shell drops.
+          <div className="in-shell:mx-0 in-shell:px-0 -mx-6 overflow-x-auto px-6 md:mx-0 md:px-0">
             <ToggleGroup
               size="sm"
               ariaLabel={t('sport')}

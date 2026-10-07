@@ -58,7 +58,7 @@ export default async function LoginPage({
   const methods = signInMethods();
 
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4">
+    <div className="in-shell:px-0 mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4">
       <LoginForm
         error={typeof error === 'string' ? error : null}
         // NEXTAUTH_URL is the origin next-auth builds its absolute callback
@@ -67,6 +67,6 @@ export default async function LoginPage({
         google={methods.google === 'configured'}
         facebook={methods.facebook === 'configured'}
       />
-    </main>
+    </div>
   );
 }

@@ -3,20 +3,23 @@ import { getTranslations } from 'next-intl/server';
 
 import { Caption } from '@/components/ui/typography';
 
-import { FooterLocaleSwitcher } from './footer-locale-switcher';
+import { LocaleSwitcher } from './LocaleSwitcher';
 
 /**
  * The public site's footer (#368, #369): the wordmark, two links, and the
- * language switch every visitor can reach, signed in or not.
+ * language switch a visitor who is not signed in can reach.
  *
- * Mounted by `PlayerChrome` on the public pages and the landing page, not on
- * /me (the profile has its own switch, #362). Below `md` it sits above the
- * bottom tab bar's in-flow spacer, so the bar never covers it.
+ * Mounted by `PlayerChrome` on the public pages and the landing page, for a
+ * signed-out visitor only. A signed-in account wears the AppShell instead
+ * (#362), and its language lives on the account, switched on /me/profile,
+ * which writes the record first. Signed out, the cookie IS the preference, so
+ * the vendored `LocaleSwitcher` writes it on its own. Below `md` the footer
+ * sits above the bottom tab bar's in-flow spacer, so the bar never covers it.
  *
  * Links keep the default (auto) prefetch: docs/perf/navigation-policy.md keeps
  * full prefetch to the tab bar and the landing page's two links.
  */
-export async function SiteFooter({ signedIn }: { signedIn: boolean }) {
+export async function SiteFooter() {
   const [t, tCommon] = await Promise.all([
     getTranslations('common.footer'),
     getTranslations('common'),
@@ -58,7 +61,7 @@ export async function SiteFooter({ signedIn }: { signedIn: boolean }) {
 
         <div className="flex items-center gap-3" data-testid="footer-language">
           <span className="text-content-muted text-sm">{t('language')}</span>
-          <FooterLocaleSwitcher signedIn={signedIn} />
+          <LocaleSwitcher />
         </div>
       </div>
       <div className="mx-auto w-full max-w-6xl px-6 pb-8">

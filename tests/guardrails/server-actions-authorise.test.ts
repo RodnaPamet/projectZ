@@ -45,7 +45,7 @@ const ALLOWED_WITHOUT_PERMISSION: Record<string, string> = {
     'for. The authorisation is the token: 32 random bytes, stored only as a keyed hash, ' +
     'single-use, expiring, and sent to an address a member of that club chose. The action ' +
     'still requires a signed-in user, because a membership must belong to an account.',
-  'src/app/(app)/me/profile/actions.ts':
+  'src/app/(public)/me/profile/actions.ts':
     "saving one's own UI language (#362) is not club work: there is no club in the request " +
     'and no membership to check. The authorisation is the session: the action updates only ' +
     "the signed-in user's own row, by the id requireSignedIn returns, never by an id the " +

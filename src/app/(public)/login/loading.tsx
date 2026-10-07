@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export default function Loading() {
   return (
-    <RouteSkeleton className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4">
+    <RouteSkeleton className="in-shell:px-0 mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center px-4">
       <div className="space-y-6">
         <div className="space-y-2">
           <Skeleton className="h-8 w-24" />

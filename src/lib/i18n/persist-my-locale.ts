@@ -1,11 +1,11 @@
 import { getCsrfToken } from 'next-auth/react';
 
-import { saveMyLocaleAction } from '@/app/(app)/me/profile/actions';
+import { saveMyLocaleAction } from '@/app/(public)/me/profile/actions';
 
 /**
  * Save a SIGNED-IN person's language (#362, #368), for the vendored
- * `LocaleSwitcher`'s `onLocaleChange` (upstream #3185). The profile page and
- * the public footer both use it.
+ * `LocaleSwitcher`'s `onLocaleChange` (upstream #3185). The profile page uses
+ * it: a signed-in account switches its language there, and nowhere else.
  *
  * Write the language to the user record, then have next-auth re-read it into
  * the token, BEFORE the switcher sets the cookie. The middleware re-seeds the

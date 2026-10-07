@@ -15,18 +15,17 @@ jest.mock('next-intl/server', () => ({
     ),
 }));
 
-// The chrome is the site header and the tab bar, each tested on its own
-// (site-header, bottom-tab-bar). Here it is a marked wrapper, so the test can
-// see the page is inside it; `playerChrome` is the header's read, which says
-// whose 404 this is.
+// The chrome (the public header, or a signed-in account's AppShell) is tested
+// on its own (player-chrome, signed-in-shell). Here it is a marked wrapper, so
+// the test can see the page is inside it; `playerChrome` is the chrome's read,
+// which says whose 404 this is.
+let me: unknown = null;
+let landing: unknown = null;
 jest.mock('@/components/layout/player-chrome', () => ({
   PlayerChrome: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="player-chrome">{children}</div>
   ),
-}));
-let landing: unknown = null;
-jest.mock('@/components/layout/SiteHeader', () => ({
-  playerChrome: async () => ({ me: null, landing, kind: 'signed-out' }),
+  playerChrome: async () => ({ me, landing, kind: me ? 'club' : 'signed-out' }),
 }));
 
 /**
@@ -94,6 +93,7 @@ describe('the 404 page has copy in both locales', () => {
     // real catalogue (mocked above, so its `react-server` condition is never
     // resolved). It asserts the copy reads in place AND that the page is
     // built from the primitives, which a stand-in could not.
+    me = null;
     landing = null;
     render(withIntl(await NotFound()));
 
@@ -111,7 +111,8 @@ describe('the 404 page has copy in both locales', () => {
     expect(screen.getByRole('link', { name: bg.notFound.home })).toHaveAttribute('href', '/');
   });
 
-  it('a club account is offered its club first', async () => {
+  it('a club account is offered its club, and its frame is the way on from there', async () => {
+    me = { userId: 'u1', name: 'Mira', email: 'mira@sofia.bg' };
     landing = {
       href: '/t/sofia-padel/admin/calendar',
       reason: 'club',
@@ -123,6 +124,8 @@ describe('the 404 page has copy in both locales', () => {
       screen.getByRole('link', { name: bg.notFound.backToClub.replace('{club}', 'Sofia Padel') }),
     ).toHaveAttribute('href', '/t/sofia-padel/admin/calendar');
     expect(screen.queryByRole('link', { name: bg.notFound.backToVenues })).toBeNull();
-    expect(screen.getByRole('link', { name: bg.notFound.home })).toHaveAttribute('href', '/');
+    // Signed in, `/` is Играй, and the AppShell's sidebar lists every way on
+    // (#362): no second button to the same place.
+    expect(screen.queryByRole('link', { name: bg.notFound.home })).toBeNull();
   });
 });

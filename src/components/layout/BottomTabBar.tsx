@@ -2,44 +2,29 @@
 
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { ComponentType, SVGProps } from 'react';
 
-import {
-  CalendarDays,
-  CircleUser,
-  Gear,
-  Magnifier,
-  UserArrowRight,
-  Users2,
-} from '@/components/ui/icons/nucleo';
-
-import {
-  playerTabs,
-  type ChromeModules,
-  type PlayerChromeKind,
-  type PlayerTabIconKey,
-} from './nav-items';
+import { NAV_ICONS } from './nav-icons';
+import { playerTabs, type ChromeModules, type PlayerChromeKind } from './nav-items';
 import { useSaveData } from './PublicPrefetchLink';
 import { TabBar, TabBarLink } from './tab-bar';
 
 /**
  * The player's bottom tab bar, below `md` (T20; #362).
  *
- *   signed out          Играй · Вход
- *   player, coach, —    Играй · (Игри) · Резервации · Профил
- *   club account        Играй · Админ · Профил
+ *   signed out          Играй · Вход                      (the public chrome)
+ *   player, coach       Играй · (Игри) · Резервации · Профил   (the player shell)
  *
- * The tabs come from `nav-items.ts` (`playerTabs`), so `nav-hrefs-resolve`
- * follows every one to a page. Игри is there only when `modules.openPlay` is
- * on (`src/lib/modules.ts`). The bar itself is the shared `TabBar`, the same
- * one the club admin's renders.
+ * The tabs come from `nav-items.ts` (`playerTabs`): signed in, they are
+ * resolved from the player shell's own sidebar items, so the bar never offers
+ * a page the sidebar does not, and `nav-hrefs-resolve` follows every one to a
+ * page. Игри is there only when `modules.openPlay` is on (`src/lib/modules.ts`).
+ * A CLUB account wears its admin's bar, `ClubAdminTabBar`, on every page. The
+ * bar itself is the shared `TabBar`.
  *
  * ═══ EVERY TAB IS A PAGE ═══
  *
- * Профил was the Account tab, which opened the account menu as a bottom sheet
- * over whatever page you were on. It is now `/me/profile`: identity, language,
- * theme, and sign-out. From `md` the avatar keeps the account menu, which links
- * to the same page.
+ * Профил is `/me/profile`: identity, language, theme, and sign-out. From `md`
+ * the avatar keeps the account menu, which links to the same page.
  *
  * ═══ WHERE IT IS NOT ═══
  *
@@ -51,22 +36,20 @@ import { TabBar, TabBarLink } from './tab-bar';
  * Full, the one place docs/perf/navigation-policy.md allows it: the bar is
  * always on screen, a tap on it is the commonest navigation a phone makes, and
  * a fully prefetched tab renders from the router cache without React's 300 ms
- * reveal throttle (#290). The Админ tab is the exception: it leads into the
- * club admin, whose links stay on the default. Under Save-Data every tab falls
- * back to the default, and
+ * reveal throttle (#290). Every tab is a player page that revalidates after
+ * paint; no tab leads into the club admin any more (a club account has the
+ * admin's own bar). Under Save-Data every tab falls back to the default, and
  * the server render assumes Save-Data, so such a browser never starts a full
  * prefetch. `router-cache-policy` pins `fullPrefetch` to this file.
+ *
+ * ═══ SPACER ═══
+ *
+ * In the public chrome the bar ends the page and reserves its own room. The
+ * player shell mounts it from the frame's top-chrome slot instead, so it
+ * passes `spacer={false}` and pads the end of its `<main>` itself, as the club
+ * admin's shell does.
  */
 const HIDDEN_ON = [/^\/login(?:\/|$)/, /^\/invite\//, /^\/offline(?:\/|$)/];
-
-const ICONS: Record<PlayerTabIconKey, ComponentType<SVGProps<SVGSVGElement>>> = {
-  discover: Magnifier,
-  games: Users2,
-  bookings: CalendarDays,
-  signIn: UserArrowRight,
-  profile: CircleUser,
-  admin: Gear,
-};
 
 export function isTabBarHidden(pathname: string): boolean {
   return HIDDEN_ON.some((re) => re.test(pathname));
@@ -79,12 +62,12 @@ function isCurrent(pathname: string, href: string): boolean {
 export function BottomTabBar({
   kind,
   modules,
-  adminHref,
+  spacer = true,
 }: {
-  kind: PlayerChromeKind;
+  kind: Exclude<PlayerChromeKind, 'club'>;
   modules: ChromeModules;
-  /** A CLUB account's way into its admin (`landing.href`); none for anyone else. */
-  adminHref: string | null;
+  /** Reserve the bar's height at the end of the page (see SPACER). */
+  spacer?: boolean;
 }) {
   const t = useTranslations('common.nav');
   const pathname = usePathname() ?? '/';
@@ -93,15 +76,13 @@ export function BottomTabBar({
   if (isTabBarHidden(pathname)) return null;
 
   return (
-    <TabBar label={t('tabBar')}>
-      {playerTabs(kind, { modules, adminHref }).map((tab) => (
+    <TabBar label={t('tabBar')} spacer={spacer}>
+      {playerTabs(kind, modules).map((tab) => (
         <TabBarLink
           key={tab.href}
           href={tab.href}
-          // Not the Админ tab: it opens the club's live diary, and an admin
-          // page is never fully prefetched (docs/perf/navigation-policy.md).
-          fullPrefetch={!saveData && tab.iconKey !== 'admin'}
-          icon={ICONS[tab.iconKey]}
+          fullPrefetch={!saveData}
+          icon={NAV_ICONS[tab.iconKey]}
           label={t(tab.labelKey)}
           current={isCurrent(pathname, tab.href)}
           testId={`bottom-tab-${tab.iconKey}`}

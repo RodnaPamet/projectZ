@@ -15,7 +15,10 @@ import type { PhotoView } from '@/lib/media/photo-shape';
 export async function VenueGallery({ name, photos }: { name: string; photos: PhotoView[] }) {
   const t = await getTranslations('venue.gallery');
   return (
-    <section aria-labelledby="venue-gallery" className="flex flex-col gap-3 px-6 md:px-0">
+    <section
+      aria-labelledby="venue-gallery"
+      className="in-shell:px-0 flex flex-col gap-3 px-6 md:px-0"
+    >
       <Heading level={2} id="venue-gallery">
         {t('title')}
       </Heading>

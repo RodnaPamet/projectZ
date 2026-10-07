@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { PilotClub } from '@/app-layer/usecases/pilot-clubs';
+import HomeLayout from '@/app/(home)/layout';
 import HomePage from '@/app/(home)/page';
 
 import { withIntl } from '../helpers/intl';
@@ -40,12 +41,24 @@ jest.mock('next-intl/server', () => {
   };
 });
 
+// The chrome is tested on its own (player-chrome); here it is a marked
+// wrapper. `chromeIdentity` is its identity read, which the layout asks.
+let identity: { userId: string; name: string | null; email: string | null } | null = null;
 jest.mock('@/components/layout/player-chrome', () => ({
   PlayerChrome: ({ children, footer }: { children: React.ReactNode; footer?: boolean }) => (
     <div data-testid="player-chrome" data-footer={String(!!footer)}>
       {children}
     </div>
   ),
+  chromeIdentity: async () => identity,
+}));
+
+const redirect = jest.fn((href: string) => {
+  throw new Error(`NEXT_REDIRECT ${href}`);
+});
+jest.mock('next/navigation', () => ({
+  ...jest.requireActual('next/navigation'),
+  redirect: (href: string) => redirect(href),
 }));
 
 let clubs: PilotClub[] = [];
@@ -70,9 +83,11 @@ const PILOT: PilotClub[] = [
   },
 ];
 
+/** The page inside its layout, as `/` serves it to a visitor. */
 async function renderPage(l: 'bg' | 'en') {
   locale = l;
-  return render(withIntl(await resolveServerTree(await HomePage()), l));
+  const page = await HomeLayout({ children: await HomePage() });
+  return render(withIntl(await resolveServerTree(page), l));
 }
 
 /** Visible text and the accessible strings a screen reader reads. */
@@ -88,7 +103,23 @@ function allCopy(container: HTMLElement): string {
 
 beforeEach(() => {
   clubs = [];
+  identity = null;
+  redirect.mockClear();
   submitContactAction.mockReset();
+});
+
+describe('signed in, `/` is Играй (#362)', () => {
+  it('a signed-in account is sent to /venues by the layout, before the landing renders', async () => {
+    identity = { userId: 'u1', name: 'Ivo', email: 'ivo@example.bg' };
+    await expect(HomeLayout({ children: <p>landing</p> })).rejects.toThrow('NEXT_REDIRECT /venues');
+    expect(redirect).toHaveBeenCalledWith('/venues');
+  });
+
+  it('a visitor gets the landing, in the public chrome with its footer', async () => {
+    await renderPage('bg');
+    expect(redirect).not.toHaveBeenCalled();
+    expect(screen.getByTestId('player-chrome')).toHaveAttribute('data-footer', 'true');
+  });
 });
 
 describe.each([
@@ -106,7 +137,7 @@ describe.each([
     expect(cta).toHaveTextContent(m.hero.cta);
     expect(cta).toHaveAttribute('data-perf-ready');
     expect(screen.getByRole('link', { name: m.hero.forClubs })).toHaveAttribute('href', '#clubs');
-    // The page wears the chrome WITH the footer and its language switch.
+    // Its layout wears the chrome WITH the footer and its language switch.
     expect(screen.getByTestId('player-chrome')).toHaveAttribute('data-footer', 'true');
   });
 

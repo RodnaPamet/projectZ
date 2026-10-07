@@ -4,7 +4,6 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { loadPilotClubs, type PilotClub } from '@/app-layer/usecases/pilot-clubs';
 import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
-import { PlayerChrome } from '@/components/layout/player-chrome';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { ArrowRight } from '@/components/ui/icons/nucleo';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -127,87 +126,85 @@ export default async function HomePage() {
   });
 
   return (
-    // The home page is in the `(home)` group, not under a layout, so it wears
-    // the player chrome itself (T20), with the footer and its language switch.
-    <PlayerChrome footer>
-      <main className="bg-bg-page text-content-default safe-area-x flex-1">
-        {/* Structured data in the server HTML: a data block, never executed.
+    // The chrome, its <main>, the footer and its language switch are the
+    // `(home)` layout's, which sends a signed-in account to Играй (#362).
+    <div className="bg-bg-page text-content-default safe-area-x flex-1">
+      {/* Structured data in the server HTML: a data block, never executed.
             serializeJsonLd escapes `<`, so no copy can close the element. */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
-        />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
 
-        <section
-          aria-labelledby="landing-hero"
-          className="border-border-subtle border-b"
-          data-testid="landing-hero"
-        >
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-14 md:grid-cols-[1.15fr_1fr] md:py-24">
-            <div className="flex flex-col items-start gap-5">
-              <Eyebrow className="text-content-brand mb-0">{t('hero.eyebrow')}</Eyebrow>
-              {/* The vendored Heading, scaled up for the one page that is a
+      <section
+        aria-labelledby="landing-hero"
+        className="border-border-subtle border-b"
+        data-testid="landing-hero"
+      >
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-14 md:grid-cols-[1.15fr_1fr] md:py-24">
+          <div className="flex flex-col items-start gap-5">
+            <Eyebrow className="text-content-brand mb-0">{t('hero.eyebrow')}</Eyebrow>
+            {/* The vendored Heading, scaled up for the one page that is a
                   poster. Colour and weight stay the primitive's. */}
-              <Heading
-                level={1}
-                id="landing-hero"
-                className="text-4xl leading-[1.1] text-balance sm:text-5xl lg:text-6xl"
-              >
-                {t('hero.title')}
-              </Heading>
-              <p className="text-content-default max-w-xl text-lg text-pretty">{t('hero.lead')}</p>
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                {/* data-perf-ready: the perf harness's "content is on screen"
+            <Heading
+              level={1}
+              id="landing-hero"
+              className="text-4xl leading-[1.1] text-balance sm:text-5xl lg:text-6xl"
+            >
+              {t('hero.title')}
+            </Heading>
+            <p className="text-content-default max-w-xl text-lg text-pretty">{t('hero.lead')}</p>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {/* data-perf-ready: the perf harness's "content is on screen"
                     marker (docs/perf/README.md). Fully prefetched (#290). The
                     primary button's own recipe, as before. */}
-                <PublicPrefetchLink
-                  href="/venues"
-                  data-perf-ready
-                  data-testid="landing-find-court"
-                  className={buttonVariants({ variant: 'primary', size: 'lg' })}
-                >
-                  {t('hero.cta')}
-                  <ArrowRight aria-hidden="true" />
-                </PublicPrefetchLink>
-                {/* An in-page anchor: no route, nothing to prefetch. */}
-                <a href="#clubs" className={buttonVariants({ variant: 'secondary', size: 'lg' })}>
-                  {t('hero.forClubs')}
-                </a>
-              </div>
+              <PublicPrefetchLink
+                href="/venues"
+                data-perf-ready
+                data-testid="landing-find-court"
+                className={buttonVariants({ variant: 'primary', size: 'lg' })}
+              >
+                {t('hero.cta')}
+                <ArrowRight aria-hidden="true" />
+              </PublicPrefetchLink>
+              {/* An in-page anchor: no route, nothing to prefetch. */}
+              <a href="#clubs" className={buttonVariants({ variant: 'secondary', size: 'lg' })}>
+                {t('hero.forClubs')}
+              </a>
             </div>
+          </div>
 
-            {/* The court: drawn from tokens, decorative. No stock image and no
+          {/* The court: drawn from tokens, decorative. No stock image and no
                 external host; club photos (#366) appear on the club cards.
                 From md only: on a phone the copy and the button lead. */}
-            <div aria-hidden="true" className="relative mx-auto hidden w-full max-w-md md:block">
-              {/* A court from above: the net across the middle, a service
+          <div aria-hidden="true" className="relative mx-auto hidden w-full max-w-md md:block">
+            {/* A court from above: the net across the middle, a service
                   line each side of it, the centre line between them. */}
-              <div className="border-brand-default bg-brand-subtle relative aspect-[10/7] overflow-hidden rounded-2xl border-2">
-                <div className="border-brand-default absolute inset-y-0 left-1/2 border-l-4" />
-                <div className="border-brand-default absolute inset-y-0 right-[22%] left-[22%] border-x-2" />
-                <div className="border-brand-default absolute top-1/2 right-[22%] left-[22%] border-t-2" />
-              </div>
+            <div className="border-brand-default bg-brand-subtle relative aspect-[10/7] overflow-hidden rounded-2xl border-2">
+              <div className="border-brand-default absolute inset-y-0 left-1/2 border-l-4" />
+              <div className="border-brand-default absolute inset-y-0 right-[22%] left-[22%] border-x-2" />
+              <div className="border-brand-default absolute top-1/2 right-[22%] left-[22%] border-t-2" />
             </div>
-            <ul
-              aria-label={t('hero.sportsLabel')}
-              className="flex flex-wrap gap-2 md:col-span-2 md:justify-center"
-            >
-              {HERO_SPORTS.map((s) => (
-                <li key={s}>
-                  <StatusBadge variant="neutral" icon={null}>
-                    {tSports(s)}
-                  </StatusBadge>
-                </li>
-              ))}
-            </ul>
           </div>
-        </section>
+          <ul
+            aria-label={t('hero.sportsLabel')}
+            className="flex flex-wrap gap-2 md:col-span-2 md:justify-center"
+          >
+            {HERO_SPORTS.map((s) => (
+              <li key={s}>
+                <StatusBadge variant="neutral" icon={null}>
+                  {tSports(s)}
+                </StatusBadge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-        <PlayersSection />
-        <PilotClubsSection clubs={clubs} />
-        <ForClubsSection privacyHref={PRIVACY_HREF} />
-        <ClosingSection />
-      </main>
-    </PlayerChrome>
+      <PlayersSection />
+      <PilotClubsSection clubs={clubs} />
+      <ForClubsSection privacyHref={PRIVACY_HREF} />
+      <ClosingSection />
+    </div>
   );
 }

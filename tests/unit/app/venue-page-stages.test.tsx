@@ -57,7 +57,7 @@ jest.mock('@/app-layer/usecases/venue-availability', () => ({
   loadVenueAvailability: jest.fn(),
 }));
 
-jest.mock('@/components/layout/SiteHeader', () => ({
+jest.mock('@/components/layout/player-chrome', () => ({
   playerChrome: jest.fn(async () => ({ me: null, kind: 'signed-out' })),
 }));
 

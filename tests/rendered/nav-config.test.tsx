@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 
-import { AdminSidebar } from '@/components/layout/admin-sidebar';
+import { ShellSidebar } from '@/components/layout/shell-sidebar';
 import {
   clubAdminNav,
   platformItemAllowed,
@@ -21,7 +21,7 @@ import { enMessages, messages as bgMessages, withIntl } from '../helpers/intl';
  *
  * This replaced `app-nav.test.tsx` when AppNav went. The builders are data
  * (`nav-items.ts`); the layouts filter them by the database-resolved
- * permissions and translate them on the server; `AdminSidebar` renders the
+ * permissions and translate them on the server; `ShellSidebar` renders the
  * result. So the test does the same three steps and asserts on what a person
  * would see.
  *
@@ -49,7 +49,7 @@ function renderNav(sections: NavSection[], locale: 'bg' | 'en' = 'bg') {
   return render(
     withIntl(
       <SidebarCollapseProvider collapsed={false}>
-        <AdminSidebar sections={toShellSections(sections, t)} contextName="Sofia Padel" />
+        <ShellSidebar sections={toShellSections(sections, t)} contextName="Sofia Padel" />
       </SidebarCollapseProvider>,
       locale,
     ),
