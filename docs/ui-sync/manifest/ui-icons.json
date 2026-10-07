@@ -3,7 +3,7 @@
   "rows": [
     {
       "path": "src/components/ui/icons/anthropic.tsx",
-      "inflectPath": "src/components/ui/icons/anthropic.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/anthropic.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -11,7 +11,7 @@
     },
     {
       "path": "src/components/ui/icons/arrow-up-right-2.tsx",
-      "inflectPath": "src/components/ui/icons/arrow-up-right-2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/arrow-up-right-2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -19,7 +19,7 @@
     },
     {
       "path": "src/components/ui/icons/bing.tsx",
-      "inflectPath": "src/components/ui/icons/bing.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/bing.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -27,7 +27,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/af.tsx",
-      "inflectPath": "src/components/ui/icons/continents/af.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/af.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -35,7 +35,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/as.tsx",
-      "inflectPath": "src/components/ui/icons/continents/as.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/as.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -43,7 +43,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/eu.tsx",
-      "inflectPath": "src/components/ui/icons/continents/eu.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/eu.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -51,7 +51,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/index.tsx",
-      "inflectPath": "src/components/ui/icons/continents/index.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/index.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -59,7 +59,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/na.tsx",
-      "inflectPath": "src/components/ui/icons/continents/na.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/na.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -67,7 +67,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/oc.tsx",
-      "inflectPath": "src/components/ui/icons/continents/oc.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/oc.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -75,7 +75,7 @@
     },
     {
       "path": "src/components/ui/icons/continents/sa.tsx",
-      "inflectPath": "src/components/ui/icons/continents/sa.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/continents/sa.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -83,7 +83,7 @@
     },
     {
       "path": "src/components/ui/icons/copy.tsx",
-      "inflectPath": "src/components/ui/icons/copy.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/copy.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -91,7 +91,7 @@
     },
     {
       "path": "src/components/ui/icons/crown-small.tsx",
-      "inflectPath": "src/components/ui/icons/crown-small.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/crown-small.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -99,7 +99,7 @@
     },
     {
       "path": "src/components/ui/icons/default-domains/amazon.tsx",
-      "inflectPath": "src/components/ui/icons/default-domains/amazon.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/default-domains/amazon.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -107,7 +107,7 @@
     },
     {
       "path": "src/components/ui/icons/default-domains/chatgpt.tsx",
-      "inflectPath": "src/components/ui/icons/default-domains/chatgpt.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/default-domains/chatgpt.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -115,7 +115,7 @@
     },
     {
       "path": "src/components/ui/icons/default-domains/figma.tsx",
-      "inflectPath": "src/components/ui/icons/default-domains/figma.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/default-domains/figma.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -123,7 +123,7 @@
     },
     {
       "path": "src/components/ui/icons/default-domains/github-enhanced.tsx",
-      "inflectPath": "src/components/ui/icons/default-domains/github-enhanced.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/default-domains/github-enhanced.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -131,7 +131,7 @@
     },
     {
       "path": "src/components/ui/icons/default-domains/google-enhanced.tsx",
-      "inflectPath": "src/components/ui/icons/default-domains/google-enhanced.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/default-domains/google-enhanced.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -139,7 +139,7 @@
     },
     {
       "path": "src/components/ui/icons/default-domains/spotify.tsx",
-      "inflectPath": "src/components/ui/icons/default-domains/spotify.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/default-domains/spotify.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -187,7 +187,7 @@
     },
     {
       "path": "src/components/ui/icons/expanding-arrow.tsx",
-      "inflectPath": "src/components/ui/icons/expanding-arrow.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/expanding-arrow.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -195,7 +195,7 @@
     },
     {
       "path": "src/components/ui/icons/facebook.tsx",
-      "inflectPath": "src/components/ui/icons/facebook.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/facebook.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -203,7 +203,7 @@
     },
     {
       "path": "src/components/ui/icons/file-pen.tsx",
-      "inflectPath": "src/components/ui/icons/file-pen.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/file-pen.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -211,7 +211,7 @@
     },
     {
       "path": "src/components/ui/icons/file-send.tsx",
-      "inflectPath": "src/components/ui/icons/file-send.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/file-send.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -219,7 +219,7 @@
     },
     {
       "path": "src/components/ui/icons/github.tsx",
-      "inflectPath": "src/components/ui/icons/github.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/github.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -227,7 +227,7 @@
     },
     {
       "path": "src/components/ui/icons/go.tsx",
-      "inflectPath": "src/components/ui/icons/go.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/go.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -235,7 +235,7 @@
     },
     {
       "path": "src/components/ui/icons/google.tsx",
-      "inflectPath": "src/components/ui/icons/google.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/google.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -251,7 +251,7 @@
     },
     {
       "path": "src/components/ui/icons/instagram.tsx",
-      "inflectPath": "src/components/ui/icons/instagram.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/instagram.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -259,7 +259,7 @@
     },
     {
       "path": "src/components/ui/icons/ios-app-store.tsx",
-      "inflectPath": "src/components/ui/icons/ios-app-store.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/ios-app-store.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -267,7 +267,7 @@
     },
     {
       "path": "src/components/ui/icons/linkedin.tsx",
-      "inflectPath": "src/components/ui/icons/linkedin.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/linkedin.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -275,15 +275,15 @@
     },
     {
       "path": "src/components/ui/icons/loading-circle.tsx",
-      "inflectPath": "src/components/ui/icons/loading-circle.tsx",
-      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
-      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "inflectPath": "packages/ui/src/components/ui/icons/loading-circle.tsx",
+      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
-      "sha256": "50058108be92d5b82a287840f1f2c80e8eda201f7b9ce2acb38393fdc1d421f9"
+      "sha256": "896996db7af0d420d50141ad19df74bc968e249757356149d1970aa2eeea5e05"
     },
     {
       "path": "src/components/ui/icons/loading-dots.tsx",
-      "inflectPath": "src/components/ui/icons/loading-dots.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/loading-dots.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -291,15 +291,15 @@
     },
     {
       "path": "src/components/ui/icons/loading-spinner.tsx",
-      "inflectPath": "src/components/ui/icons/loading-spinner.tsx",
-      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
-      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "inflectPath": "packages/ui/src/components/ui/icons/loading-spinner.tsx",
+      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
-      "sha256": "dad584824272a90211d780d150de0c338ac1a4113f5333b6ab60f727bd4aae5b"
+      "sha256": "c8ef764cd664c7640660b3dbd9033a7e3843ed8a2ac9f014f175e41f739a4372"
     },
     {
       "path": "src/components/ui/icons/lock-small.tsx",
-      "inflectPath": "src/components/ui/icons/lock-small.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/lock-small.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -307,7 +307,7 @@
     },
     {
       "path": "src/components/ui/icons/magic.tsx",
-      "inflectPath": "src/components/ui/icons/magic.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/magic.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -315,7 +315,7 @@
     },
     {
       "path": "src/components/ui/icons/markdown-icon.tsx",
-      "inflectPath": "src/components/ui/icons/markdown-icon.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/markdown-icon.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -323,7 +323,7 @@
     },
     {
       "path": "src/components/ui/icons/matrix-lines.tsx",
-      "inflectPath": "src/components/ui/icons/matrix-lines.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/matrix-lines.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -331,7 +331,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/android-logo.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/android-logo.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/android-logo.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -339,7 +339,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/apple-logo.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/apple-logo.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/apple-logo.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -347,7 +347,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/apple.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/apple.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/apple.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -355,7 +355,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-bold-up.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-bold-up.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-bold-up.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -363,7 +363,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-left.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-left.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-left.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -371,7 +371,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -379,7 +379,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-trend-up.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-trend-up.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-trend-up.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -387,7 +387,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-turn-left.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-turn-left.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-turn-left.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -395,7 +395,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-turn-right2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-turn-right2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-turn-right2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -403,7 +403,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrow-up-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrow-up-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrow-up-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -411,7 +411,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrows-opposite-direction-x.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrows-opposite-direction-x.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrows-opposite-direction-x.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -419,7 +419,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/arrows-opposite-direction-y.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/arrows-opposite-direction-y.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/arrows-opposite-direction-y.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -427,7 +427,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/at-sign.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/at-sign.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/at-sign.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -435,7 +435,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/badge-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/badge-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/badge-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -443,7 +443,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/badge-check2-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/badge-check2-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/badge-check2-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -451,7 +451,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/bell.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/bell.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/bell.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -459,7 +459,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/blog.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/blog.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/blog.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -467,7 +467,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/bolt-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/bolt-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/bolt-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -475,7 +475,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/bolt.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/bolt.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/bolt.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -483,7 +483,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/book-open.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/book-open.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/book-open.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -491,7 +491,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/book2-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/book2-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/book2-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -499,7 +499,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/book2-small.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/book2-small.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/book2-small.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -507,7 +507,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/book2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/book2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/book2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -515,7 +515,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/books2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/books2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/books2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -523,7 +523,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/box-archive.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/box-archive.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/box-archive.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -531,7 +531,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/brackets-curly.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/brackets-curly.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/brackets-curly.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -539,7 +539,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/briefcase-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/briefcase-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/briefcase-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -547,7 +547,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/brush.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/brush.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/brush.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -555,7 +555,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/bullet-list-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/bullet-list-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/bullet-list-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -563,7 +563,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/bullet-list.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/bullet-list.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/bullet-list.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -571,7 +571,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/calculator.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/calculator.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/calculator.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -579,7 +579,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/calendar-days.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/calendar-days.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/calendar-days.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -587,7 +587,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/calendar-refresh.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/calendar-refresh.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/calendar-refresh.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -595,7 +595,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/calendar.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/calendar.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/calendar.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -603,7 +603,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/calendar6.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/calendar6.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/calendar6.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -611,7 +611,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cards.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cards.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cards.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -619,7 +619,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/caret-up-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/caret-up-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/caret-up-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -627,7 +627,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/chart-activity2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/chart-activity2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/chart-activity2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -635,7 +635,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/chart-area2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/chart-area2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/chart-area2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -643,7 +643,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/chart-line.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/chart-line.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/chart-line.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -651,7 +651,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -659,7 +659,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/check2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/check2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/check2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -667,7 +667,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/checkbox-checked-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/checkbox-checked-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/checkbox-checked-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -675,7 +675,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/checkbox-unchecked.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/checkbox-unchecked.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/checkbox-unchecked.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -683,7 +683,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/chevron-left.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/chevron-left.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/chevron-left.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -691,7 +691,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/chevron-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/chevron-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/chevron-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -699,7 +699,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/chevron-up.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/chevron-up.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/chevron-up.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -707,7 +707,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-arrow-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-arrow-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-arrow-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -715,7 +715,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-check-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-check-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-check-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -723,7 +723,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -731,7 +731,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-dollar-out.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-dollar-out.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-dollar-out.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -739,7 +739,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-dollar.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-dollar.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-dollar.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -747,7 +747,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-dollar3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-dollar3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-dollar3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -755,7 +755,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-dotted.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-dotted.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-dotted.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -763,7 +763,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-half-dotted-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-half-dotted-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-half-dotted-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -771,7 +771,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-half-dotted-clock.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-half-dotted-clock.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-half-dotted-clock.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -779,7 +779,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-info.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-info.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-info.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -787,7 +787,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-percentage.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-percentage.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-percentage.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -795,7 +795,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-play-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-play-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-play-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -803,7 +803,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-play.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-play.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-play.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -811,7 +811,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-question.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-question.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-question.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -819,7 +819,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-user.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-user.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-user.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -827,7 +827,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-warning.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-warning.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-warning.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -835,7 +835,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circle-xmark.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circle-xmark.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circle-xmark.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -843,7 +843,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circles.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circles.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circles.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -851,7 +851,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/circles3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/circles3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/circles3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -859,7 +859,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cloud-upload.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cloud-upload.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cloud-upload.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -867,7 +867,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cloud.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cloud.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cloud.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -875,7 +875,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/code.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/code.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/code.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -883,7 +883,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/color-palette2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/color-palette2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/color-palette2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -891,7 +891,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/connected-dots-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/connected-dots-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/connected-dots-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -899,7 +899,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/connected-dots.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/connected-dots.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/connected-dots.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -907,7 +907,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/connected-dots4.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/connected-dots4.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/connected-dots4.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -915,7 +915,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/connections3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/connections3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/connections3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -923,7 +923,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/credit-card.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/credit-card.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/credit-card.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -931,7 +931,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/crosshairs3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/crosshairs3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/crosshairs3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -939,7 +939,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/crown.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/crown.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/crown.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -947,7 +947,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cube-settings-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cube-settings-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cube-settings-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -955,7 +955,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cube-settings.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cube-settings.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cube-settings.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -963,7 +963,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cube.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cube.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cube.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -971,7 +971,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/currency-dollar.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/currency-dollar.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/currency-dollar.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -979,7 +979,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/cursor-rays.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/cursor-rays.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/cursor-rays.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -987,7 +987,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/database-key.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/database-key.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/database-key.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -995,7 +995,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/desktop.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/desktop.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/desktop.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1003,7 +1003,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/diamond-turn-right-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/diamond-turn-right-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/diamond-turn-right-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1011,7 +1011,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/diamond-turn-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/diamond-turn-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/diamond-turn-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1019,7 +1019,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/directions.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/directions.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/directions.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1027,7 +1027,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/discount.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/discount.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/discount.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1035,7 +1035,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/dots.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/dots.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/dots.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1043,7 +1043,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/download.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/download.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/download.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1051,7 +1051,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/duplicate.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/duplicate.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/duplicate.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1059,7 +1059,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/earth-position.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/earth-position.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/earth-position.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1067,7 +1067,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/earth.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/earth.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/earth.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1075,7 +1075,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope-alert.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope-alert.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope-alert.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1083,7 +1083,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope-arrow-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope-arrow-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope-arrow-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1091,7 +1091,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope-ban.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope-ban.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope-ban.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1099,7 +1099,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1107,7 +1107,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1115,7 +1115,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope-open.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope-open.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope-open.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1123,7 +1123,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/envelope.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/envelope.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/envelope.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1131,7 +1131,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/eye-slash.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/eye-slash.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/eye-slash.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1139,7 +1139,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/eye.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/eye.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/eye.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1147,7 +1147,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/face-smile.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/face-smile.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/face-smile.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1155,7 +1155,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/feather-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/feather-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/feather-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1163,7 +1163,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/file-content.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/file-content.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/file-content.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1171,7 +1171,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/file-zip2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/file-zip2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/file-zip2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1179,7 +1179,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/filter-bars.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/filter-bars.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/filter-bars.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1187,7 +1187,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/filter2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/filter2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/filter2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1195,7 +1195,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/flag-wavy.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/flag-wavy.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/flag-wavy.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1203,7 +1203,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/flag.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/flag.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/flag.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1211,7 +1211,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/flag2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/flag2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/flag2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1219,7 +1219,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/flag6.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/flag6.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/flag6.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1227,7 +1227,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/flask-small.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/flask-small.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/flask-small.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1235,7 +1235,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/flask.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/flask.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/flask.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1243,7 +1243,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/folder-bookmark.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/folder-bookmark.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/folder-bookmark.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1251,7 +1251,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/folder-lock.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/folder-lock.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/folder-lock.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1259,7 +1259,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/folder-plus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/folder-plus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/folder-plus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1267,7 +1267,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/folder-shield.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/folder-shield.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/folder-shield.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1275,7 +1275,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/folder.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/folder.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/folder.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1283,7 +1283,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/folder5.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/folder5.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/folder5.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1291,7 +1291,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gaming-console.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gaming-console.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gaming-console.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1299,7 +1299,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gauge6.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gauge6.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gauge6.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1307,7 +1307,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gear.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gear.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gear.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1315,7 +1315,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gear2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gear2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gear2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1323,7 +1323,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gear3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gear3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gear3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1331,7 +1331,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gem.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gem.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gem.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1339,7 +1339,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gift-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gift-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gift-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1347,7 +1347,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/gift.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/gift.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/gift.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1355,7 +1355,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/globe-pointer.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/globe-pointer.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/globe-pointer.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1363,7 +1363,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/globe-search.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/globe-search.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/globe-search.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1371,7 +1371,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/globe.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/globe.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/globe.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1379,7 +1379,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/globe2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/globe2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/globe2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1387,7 +1387,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/greek-temple.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/greek-temple.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/greek-temple.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1395,7 +1395,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/grid-layout-rows.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/grid-layout-rows.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/grid-layout-rows.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1403,7 +1403,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/grid-plus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/grid-plus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/grid-plus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1411,7 +1411,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/grid.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/grid.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/grid.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1419,7 +1419,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/grip-dots-vertical.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/grip-dots-vertical.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/grip-dots-vertical.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1427,7 +1427,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/heading-1.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/heading-1.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/heading-1.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1435,7 +1435,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/heading-2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/heading-2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/heading-2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1443,7 +1443,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/headset.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/headset.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/headset.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1451,7 +1451,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/heart-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/heart-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/heart-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1459,7 +1459,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/heart.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/heart.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/heart.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1467,7 +1467,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/hexadecagon-star.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/hexadecagon-star.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/hexadecagon-star.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1475,7 +1475,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/history.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/history.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/history.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1483,7 +1483,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/hyperlink.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/hyperlink.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/hyperlink.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1491,7 +1491,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/icosahedron.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/icosahedron.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/icosahedron.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1499,7 +1499,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/image-icon.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/image-icon.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/image-icon.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1507,7 +1507,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/incognito.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/incognito.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/incognito.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1515,7 +1515,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/index.ts",
-      "inflectPath": "src/components/ui/icons/nucleo/index.ts",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/index.ts",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1523,7 +1523,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/infinity-icon.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/infinity-icon.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/infinity-icon.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1531,7 +1531,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/input-field.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/input-field.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/input-field.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1539,7 +1539,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/input-password-pointer.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/input-password-pointer.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/input-password-pointer.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1547,7 +1547,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/input-password.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/input-password.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/input-password.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1555,7 +1555,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/input-search.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/input-search.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/input-search.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1563,7 +1563,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/invoice-dollar.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/invoice-dollar.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/invoice-dollar.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1571,7 +1571,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/key.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/key.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/key.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1579,7 +1579,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/layout-sidebar.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/layout-sidebar.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/layout-sidebar.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1587,7 +1587,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/license.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/license.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/license.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1595,7 +1595,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/life-ring-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/life-ring-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/life-ring-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1603,7 +1603,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/life-ring.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/life-ring.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/life-ring.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1611,7 +1611,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/lines-y.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/lines-y.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/lines-y.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1619,7 +1619,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/link-broken.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/link-broken.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/link-broken.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1627,7 +1627,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/link4.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/link4.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/link4.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1635,7 +1635,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/location-pin.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/location-pin.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/location-pin.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1643,7 +1643,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/lock-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/lock-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/lock-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1651,7 +1651,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/lock.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/lock.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/lock.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1659,7 +1659,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/magnifier.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/magnifier.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/magnifier.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1667,7 +1667,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/map-position.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/map-position.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/map-position.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1675,7 +1675,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/marketing-target.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/marketing-target.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/marketing-target.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1683,7 +1683,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/media-pause.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/media-pause.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/media-pause.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1691,7 +1691,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/media-play.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/media-play.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/media-play.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1699,7 +1699,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/megaphone.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/megaphone.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/megaphone.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1707,7 +1707,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/menu3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/menu3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/menu3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1715,7 +1715,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/message-smile.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/message-smile.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/message-smile.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1723,7 +1723,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/microphone-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/microphone-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/microphone-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1731,7 +1731,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/minus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/minus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/minus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1739,7 +1739,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/mobile-phone.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/mobile-phone.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/mobile-phone.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1747,7 +1747,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/money-bill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/money-bill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/money-bill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1755,7 +1755,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/money-bill2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/money-bill2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/money-bill2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1763,7 +1763,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/money-bills2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/money-bills2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/money-bills2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1771,7 +1771,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/msg.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/msg.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/msg.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1779,7 +1779,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/msgs-dotted.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/msgs-dotted.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/msgs-dotted.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1787,7 +1787,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/msgs-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/msgs-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/msgs-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1795,7 +1795,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/msgs.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/msgs.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/msgs.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1803,7 +1803,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/note.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/note.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/note.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1811,7 +1811,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/office-building.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/office-building.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/office-building.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1819,7 +1819,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/page2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/page2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/page2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1827,7 +1827,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/paintbrush.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/paintbrush.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/paintbrush.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1835,7 +1835,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/palette-2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/palette-2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/palette-2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1843,7 +1843,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/paper-plane.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/paper-plane.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/paper-plane.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1851,7 +1851,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/pen-writing.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/pen-writing.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/pen-writing.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1859,7 +1859,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/pen2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/pen2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/pen2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1867,7 +1867,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/percentage-arrow-down.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/percentage-arrow-down.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/percentage-arrow-down.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1875,7 +1875,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/photo.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/photo.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/photo.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1883,7 +1883,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/plug2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/plug2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/plug2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1891,7 +1891,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/plus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/plus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/plus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1899,7 +1899,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/plus2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/plus2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/plus2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1907,7 +1907,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/post.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/post.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/post.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1915,7 +1915,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/pyramid.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/pyramid.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/pyramid.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1923,7 +1923,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/qrcode.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/qrcode.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/qrcode.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1931,7 +1931,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/receipt2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/receipt2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/receipt2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1939,7 +1939,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/referred-via.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/referred-via.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/referred-via.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1947,7 +1947,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/refresh2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/refresh2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/refresh2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1955,7 +1955,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/robot.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/robot.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/robot.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1963,7 +1963,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/satellite-dish.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/satellite-dish.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/satellite-dish.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1971,7 +1971,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/scan-text.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/scan-text.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/scan-text.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1979,7 +1979,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/scribble.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/scribble.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/scribble.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1987,7 +1987,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shield-alert.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shield-alert.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shield-alert.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -1995,7 +1995,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shield-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shield-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shield-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2003,7 +2003,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shield-keyhole.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shield-keyhole.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shield-keyhole.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2011,7 +2011,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shield-slash.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shield-slash.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shield-slash.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2019,7 +2019,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shield-user.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shield-user.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shield-user.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2027,7 +2027,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shop.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shop.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shop.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2035,7 +2035,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/shuffle.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/shuffle.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/shuffle.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2043,7 +2043,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/sitemap.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/sitemap.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/sitemap.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2051,7 +2051,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/sliders.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/sliders.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/sliders.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2059,7 +2059,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/sort-alpha-ascending.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/sort-alpha-ascending.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/sort-alpha-ascending.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2067,7 +2067,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/sort-alpha-descending.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/sort-alpha-descending.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/sort-alpha-descending.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2075,7 +2075,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/sparkle3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/sparkle3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/sparkle3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2083,7 +2083,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/square-chart.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/square-chart.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/square-chart.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2091,7 +2091,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/square-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/square-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/square-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2099,7 +2099,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/square-layout-grid5.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/square-layout-grid5.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/square-layout-grid5.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2107,7 +2107,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/square-layout-grid6.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/square-layout-grid6.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/square-layout-grid6.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2115,7 +2115,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/square-user-sparkle2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/square-user-sparkle2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/square-user-sparkle2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2123,7 +2123,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/square-xmark.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/square-xmark.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/square-xmark.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2131,7 +2131,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/stack-y-3.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/stack-y-3.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/stack-y-3.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2139,7 +2139,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/star-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/star-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/star-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2147,7 +2147,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/star.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/star.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/star.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2155,7 +2155,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/stars2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/stars2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/stars2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2163,7 +2163,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/suitcase.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/suitcase.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/suitcase.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2171,7 +2171,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/table-icon.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/table-icon.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/table-icon.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2179,7 +2179,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/table-rows2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/table-rows2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/table-rows2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2187,7 +2187,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/tablet.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/tablet.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/tablet.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2195,7 +2195,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/tag.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/tag.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/tag.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2203,7 +2203,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/tags.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/tags.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/tags.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2211,7 +2211,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/text-bold.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/text-bold.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/text-bold.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2219,7 +2219,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/text-italic.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/text-italic.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/text-italic.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2227,7 +2227,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/text-strike.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/text-strike.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/text-strike.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2235,7 +2235,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/timer2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/timer2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/timer2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2243,7 +2243,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/toggle2-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/toggle2-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/toggle2-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2251,7 +2251,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/toggles.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/toggles.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/toggles.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2259,7 +2259,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/trash.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/trash.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/trash.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2267,7 +2267,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/triangle-warning.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/triangle-warning.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/triangle-warning.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2275,7 +2275,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/trophy.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/trophy.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/trophy.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2283,7 +2283,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/tv.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/tv.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/tv.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2291,7 +2291,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/ui-card.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/ui-card.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/ui-card.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2299,7 +2299,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-arrow-right.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-arrow-right.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-arrow-right.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2307,7 +2307,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-check.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-check.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-check.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2315,7 +2315,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-crown.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-crown.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-crown.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2323,7 +2323,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-delete.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-delete.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-delete.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2331,7 +2331,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-focus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-focus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-focus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2339,7 +2339,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-minus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-minus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-minus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2347,7 +2347,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-plus.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-plus.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-plus.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2355,7 +2355,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-search.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-search.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-search.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2363,7 +2363,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user-xmark.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user-xmark.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user-xmark.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2371,7 +2371,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/user.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/user.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/user.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2379,7 +2379,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/users-fill.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/users-fill.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/users-fill.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2387,7 +2387,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/users-settings.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/users-settings.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/users-settings.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2395,7 +2395,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/users.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/users.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/users.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2403,7 +2403,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/users2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/users2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/users2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2411,7 +2411,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/users6.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/users6.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/users6.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2419,7 +2419,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/versions2.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/versions2.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/versions2.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2427,7 +2427,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/views.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/views.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/views.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2435,7 +2435,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/watch.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/watch.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/watch.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2443,7 +2443,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/webhook.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/webhook.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/webhook.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2451,7 +2451,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/window-search.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/window-search.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/window-search.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2459,7 +2459,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/window-settings.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/window-settings.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/window-settings.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2467,7 +2467,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/window.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/window.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/window.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2475,7 +2475,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/workflow.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/workflow.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/workflow.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2483,7 +2483,7 @@
     },
     {
       "path": "src/components/ui/icons/nucleo/xmark.tsx",
-      "inflectPath": "src/components/ui/icons/nucleo/xmark.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/nucleo/xmark.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2491,7 +2491,7 @@
     },
     {
       "path": "src/components/ui/icons/openai.tsx",
-      "inflectPath": "src/components/ui/icons/openai.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/openai.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2499,7 +2499,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/card-amex.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/card-amex.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-amex.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2507,7 +2507,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/card-discover.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/card-discover.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-discover.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2515,7 +2515,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/card-mastercard.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/card-mastercard.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-mastercard.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2523,7 +2523,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/card-visa.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/card-visa.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-visa.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2531,7 +2531,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/paypal.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/paypal.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/paypal.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2539,7 +2539,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/stablecoin.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/stablecoin.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stablecoin.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2547,7 +2547,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/stripe-icon.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/stripe-icon.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stripe-icon.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2555,7 +2555,7 @@
     },
     {
       "path": "src/components/ui/icons/payment-platforms/stripe-link.tsx",
-      "inflectPath": "src/components/ui/icons/payment-platforms/stripe-link.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stripe-link.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2563,7 +2563,7 @@
     },
     {
       "path": "src/components/ui/icons/photo.tsx",
-      "inflectPath": "src/components/ui/icons/photo.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/photo.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2571,7 +2571,7 @@
     },
     {
       "path": "src/components/ui/icons/php.tsx",
-      "inflectPath": "src/components/ui/icons/php.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/php.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2587,7 +2587,7 @@
     },
     {
       "path": "src/components/ui/icons/product-hunt.tsx",
-      "inflectPath": "src/components/ui/icons/product-hunt.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/product-hunt.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2595,7 +2595,7 @@
     },
     {
       "path": "src/components/ui/icons/python.tsx",
-      "inflectPath": "src/components/ui/icons/python.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/python.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2603,7 +2603,7 @@
     },
     {
       "path": "src/components/ui/icons/reddit.tsx",
-      "inflectPath": "src/components/ui/icons/reddit.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/reddit.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2611,7 +2611,7 @@
     },
     {
       "path": "src/components/ui/icons/ruby.tsx",
-      "inflectPath": "src/components/ui/icons/ruby.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/ruby.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2619,7 +2619,7 @@
     },
     {
       "path": "src/components/ui/icons/slack.tsx",
-      "inflectPath": "src/components/ui/icons/slack.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/slack.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2627,7 +2627,7 @@
     },
     {
       "path": "src/components/ui/icons/sort-order.tsx",
-      "inflectPath": "src/components/ui/icons/sort-order.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/sort-order.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2635,7 +2635,7 @@
     },
     {
       "path": "src/components/ui/icons/success.tsx",
-      "inflectPath": "src/components/ui/icons/success.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/success.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2643,7 +2643,7 @@
     },
     {
       "path": "src/components/ui/icons/tick.tsx",
-      "inflectPath": "src/components/ui/icons/tick.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/tick.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2651,7 +2651,7 @@
     },
     {
       "path": "src/components/ui/icons/tiktok.tsx",
-      "inflectPath": "src/components/ui/icons/tiktok.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/tiktok.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2659,7 +2659,7 @@
     },
     {
       "path": "src/components/ui/icons/twitter.tsx",
-      "inflectPath": "src/components/ui/icons/twitter.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/twitter.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2667,7 +2667,7 @@
     },
     {
       "path": "src/components/ui/icons/typescript.tsx",
-      "inflectPath": "src/components/ui/icons/typescript.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/typescript.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2675,7 +2675,7 @@
     },
     {
       "path": "src/components/ui/icons/unsplash.tsx",
-      "inflectPath": "src/components/ui/icons/unsplash.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/unsplash.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2683,7 +2683,7 @@
     },
     {
       "path": "src/components/ui/icons/user-clock.tsx",
-      "inflectPath": "src/components/ui/icons/user-clock.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/user-clock.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2691,7 +2691,7 @@
     },
     {
       "path": "src/components/ui/icons/veriff.tsx",
-      "inflectPath": "src/components/ui/icons/veriff.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/veriff.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2699,7 +2699,7 @@
     },
     {
       "path": "src/components/ui/icons/verified-badge.tsx",
-      "inflectPath": "src/components/ui/icons/verified-badge.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/verified-badge.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",
@@ -2707,7 +2707,7 @@
     },
     {
       "path": "src/components/ui/icons/youtube.tsx",
-      "inflectPath": "src/components/ui/icons/youtube.tsx",
+      "inflectPath": "packages/ui/src/components/ui/icons/youtube.tsx",
       "baseSha": "1520b8b87",
       "sha": null,
       "status": "pending",

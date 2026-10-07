@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '@inflect/ui/lib/cn';
 import {
   cloneElement,
   isValidElement,
@@ -9,7 +9,7 @@ import {
   type Ref,
   type UIEventHandler,
 } from 'react';
-import { useScrollProgress } from './hooks/use-scroll-progress';
+import { useScrollProgress } from '@inflect/ui/components/ui/hooks/use-scroll-progress';
 
 type ScrollerProps = {
   className?: string;
