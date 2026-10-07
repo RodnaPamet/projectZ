@@ -519,14 +519,14 @@
     "onlineShare": {
       "title": "Online bookings",
       "subtitle": "How much of your booking comes in online",
-      "detail": "{online} of {total} bookings this month were made online",
-      "empty": "No bookings this month yet.",
+      "detail": "{online} of {total} bookings in {month} were made online",
+      "empty": "No bookings in {month}",
       "trend": {
-        "up": "↑ on last month",
-        "down": "↓ on last month",
-        "flat": "→ same as last month"
+        "up": "↑ on the month before",
+        "down": "↓ on the month before",
+        "flat": "→ same as the month before"
       },
-      "trendLabel": "Online share over the last 6 months: {values}",
+      "trendLabel": "Online share over 6 months: {values}",
       "monthValue": "{month}: {value}",
       "noBookingsShort": "no bookings",
       "definition": "Online share = online ÷ all confirmed and played bookings, by the month they are played in. Cancelled bookings are not counted."
