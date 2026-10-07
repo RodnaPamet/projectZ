@@ -145,7 +145,9 @@ export async function readStatementAndDownload(page: Page, club: FeeClub, phone:
   await expect(page.getByRole('combobox', { name: `${r.month}, септември 2026 г.` })).toBeVisible();
 
   // The totals: three played, 84,00 € on them, 10%, 6,00 € due (0 + 2,40 + 3,60).
-  const totals = page.getByTestId('statement-totals');
+  // Visible only: under the 300 ms reveal throttle a streamed page can sit in
+  // a hidden copy beside the shown one (see mobile/horizontal-drift.spec.ts).
+  const totals = page.getByTestId('statement-totals').filter({ visible: true });
   await expect(totals).toContainText(s.total.played);
   await expect(totals).toContainText('3');
   await expect(totals).toContainText('84,00');
@@ -153,10 +155,12 @@ export async function readStatementAndDownload(page: Page, club: FeeClub, phone:
   await expect(totals).toContainText('6,00');
 
   // The free period ended on 10 September: part of this month.
-  await expect(page.getByTestId('statement-free-period')).toContainText(s.free.partTitle);
+  await expect(page.getByTestId('statement-free-period').filter({ visible: true })).toContainText(
+    s.free.partTitle,
+  );
 
   // The lines: in the table at 1280 px, as cards on a phone; both carry the courts.
-  const lines = page.getByTestId('statement-lines');
+  const lines = page.getByTestId('statement-lines').filter({ visible: true });
   await expect(lines).toContainText('Корт 1');
   await expect(lines).toContainText('Корт 2');
   await expect(lines).toContainText(s.freeBadge);
@@ -166,7 +170,7 @@ export async function readStatementAndDownload(page: Page, club: FeeClub, phone:
 
   // The CSV: UTF-8 with a BOM, ;-separated, Bulgarian headers, one row per line.
   const download = page.waitForEvent('download');
-  await page.getByRole('link', { name: s.downloadCsv }).click();
+  await page.getByRole('link', { name: s.downloadCsv }).filter({ visible: true }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe(`playerz-${club.slug}-${FEE_MONTH}.csv`);
   const bytes = await readFile((await file.path())!);
@@ -206,6 +210,6 @@ export async function switchToThisMonth(page: Page, club: FeeClub) {
   await page.getByRole('option', { name: label }).click();
 
   await expect(page).toHaveURL(new RegExp(`/admin/reports\\?month=${thisMonth}$`));
-  await expect(page.getByText(s.empty.title)).toBeVisible();
+  await expect(page.getByText(s.empty.title).filter({ visible: true })).toBeVisible();
   await expectNoDrift(page);
 }
