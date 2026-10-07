@@ -15,6 +15,7 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Heading } from '@/components/ui/typography';
+import { combineNouns, type ResourceNoun } from '@/lib/sports/resource-kinds';
 
 import { deletePricingRuleAction } from './actions';
 import { comboProps, useRequiredChoice, WEEK } from './choices';
@@ -72,6 +73,8 @@ const ConfirmDialog = dynamic(() =>
 export interface CourtOption {
   id: string;
   name: string;
+  /** What the copy calls it (P51): a karting track is a "писта". */
+  noun: ResourceNoun;
   /** The price of ONE minBookingMinutes block, not of a booking. */
   basePriceCents: number;
   minBookingMinutes: number;
@@ -125,6 +128,16 @@ export function PricingBoard({
 
   const court = courts.find((c) => c.id === courtId);
   const rules = rulesByCourt[courtId] ?? NO_RULES;
+  // The picker is "Писта" at a karting club and "Корт или писта" at one with
+  // both (P51); the empty state speaks of the court picked.
+  const nouns = combineNouns(courts.map((c) => c.noun));
+  const courtLabel = t(
+    nouns === 'track'
+      ? 'track.field.court'
+      : nouns === 'mixed'
+        ? 'mixed.field.court'
+        : 'field.court',
+  );
 
   /**
    * ═══ DELETE IS OPTIMISTIC, AND HONEST ABOUT FAILING ═══
@@ -218,7 +231,7 @@ export function PricingBoard({
     <div data-perf-ready className="gap-section grid lg:grid-cols-[2fr_1fr]">
       <div className="gap-default grid content-start">
         <div className="gap-tight grid sm:max-w-xs">
-          <FormField label={t('field.court')}>
+          <FormField label={courtLabel}>
             <Combobox
               id={`${ids}-court`}
               options={courtOptions}
@@ -228,7 +241,7 @@ export function PricingBoard({
                 setEditingId(null);
                 setAdding(false);
               }}
-              {...comboProps(t('field.court'), courtChoice.selected)}
+              {...comboProps(courtLabel, courtChoice.selected)}
             />
           </FormField>
           <p className="text-content-muted text-sm">
@@ -241,7 +254,10 @@ export function PricingBoard({
         )}
 
         {visible.length === 0 && !adding ? (
-          <EmptyState title={t('empty.title')} description={t('empty.description')} />
+          <EmptyState
+            title={t(court?.noun === 'track' ? 'track.empty.title' : 'empty.title')}
+            description={t('empty.description')}
+          />
         ) : (
           <ul className="gap-tight grid">
             {visible.map((r) => {

@@ -99,6 +99,8 @@ export interface AvailabilityInputs {
     id: string;
     name: string;
     sport: string;
+    /** COURT, TRACK…: what the copy calls it (P51). Booking ignores it. */
+    resourceType: string;
     basePriceCents: number;
     currency: string;
     minBookingMinutes: number;
@@ -154,6 +156,7 @@ export async function getAvailabilityInputs(
       id: true,
       name: true,
       sport: true,
+      resourceType: true,
       basePriceCents: true,
       currency: true,
       minBookingMinutes: true,

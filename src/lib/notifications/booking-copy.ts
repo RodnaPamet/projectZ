@@ -1,6 +1,7 @@
 import { resolveLocale, type Locale } from '@/lib/i18n/locales';
 import { translateFor } from '@/lib/i18n/server-messages';
 import { absoluteUrl } from '@/lib/seo/site-url';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 /**
  * The words of a booking notification (#367), in the RECIPIENT's language.
@@ -19,6 +20,8 @@ export interface BookingFacts {
   bookingId: string;
   venueName: string;
   courtName: string;
+  /** What the court is called (P51): a karting TRACK is a "Писта". Absent reads as a court. */
+  resourceType?: string;
   startTs: Date;
   endTs: Date;
   timezone: string;
@@ -50,6 +53,11 @@ export function formatWhen(locale: Locale, start: Date, end: Date, timeZone: str
 /** Where a notification about a booking takes you. */
 export function bookingHref(bookingId: string): string {
   return `/me/bookings/${encodeURIComponent(bookingId)}`;
+}
+
+/** The label of the court line: "Корт", or "Писта" for a karting track. */
+function courtLabel(facts: BookingFacts): 'court' | 'track.court' {
+  return resourceNoun(facts.resourceType) === 'track' ? 'track.court' : 'court';
 }
 
 /** One line of text: no line breaks, so a venue name cannot add lines. */
@@ -126,7 +134,7 @@ export async function bookingEmail(
     intro,
     '',
     `${await l('venue')}: ${values.venue}`,
-    `${await l('court')}: ${oneLine(facts.courtName)}`,
+    `${await l(courtLabel(facts))}: ${oneLine(facts.courtName)}`,
     `${await l('when')}: ${formatWhen(locale, facts.startTs, facts.endTs, tz)}`,
     `${await l('zone')}: ${tz}`,
   ];
@@ -173,7 +181,7 @@ export async function seriesCancelledEmail(
     intro,
     '',
     `${await l('venue')}: ${values.venue}`,
-    `${await l('court')}: ${oneLine(facts.courtName)}`,
+    `${await l(courtLabel(facts))}: ${oneLine(facts.courtName)}`,
     `${await l('when')}: ${formatTime(locale, facts.startTs, tz)}–${formatTime(locale, facts.endTs, tz)}`,
     `${await l('zone')}: ${tz}`,
     '',

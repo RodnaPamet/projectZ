@@ -12,6 +12,7 @@ import { requireSignedIn } from '@/lib/auth/page-context';
 import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
 import { bookingInvitePath } from '@/lib/booking/invite-path';
 import { ViewerScope } from '@/lib/data/provider';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { JoinBookingButton } from './JoinBookingButton';
 
@@ -110,7 +111,9 @@ export default async function BookingInvitePage({
             <p className="text-content-muted text-sm">{preview.venueCity}</p>
           </div>
           <div>
-            <Caption>{t('court')}</Caption>
+            <Caption>
+              {t(resourceNoun(preview.resourceType) === 'track' ? 'track.court' : 'court')}
+            </Caption>
             <p className="text-content-default text-sm">
               {preview.courtName} · {tSports(preview.sport as never)}
             </p>

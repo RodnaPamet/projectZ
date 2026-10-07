@@ -1,6 +1,6 @@
 import type { ResourceType, SportType } from '@prisma/client';
 
-export type SportFamily = 'RACKET' | 'TEAM_BALL' | 'BOARD' | 'ESPORT' | 'ENDURANCE';
+export type SportFamily = 'RACKET' | 'TEAM_BALL' | 'BOARD' | 'ESPORT' | 'MOTORSPORT' | 'ENDURANCE';
 
 export type Scoring = 'SETS' | 'GOALS' | 'POINTS' | 'CHESS' | 'TIME_DISTANCE' | 'CUSTOM';
 
@@ -26,8 +26,18 @@ export interface SportConfig {
   key: SportType;
   family: SportFamily;
   label: { bg: string; en: string };
-  /** lucide-react icon name. */
+  /**
+   * The icon's export name: one of the vendored nucleo icons upstream ships
+   * (`src/components/ui/icons/nucleo`) where one fits the sport, otherwise a
+   * lucide-react icon. Nothing renders it yet; `tests/unit/sports/registry.test.ts`
+   * checks that each name exists in one of the two sets, in that order.
+   */
   icon: string;
+  /**
+   * What a booking of this sport holds. A court sport's court may also be
+   * stored as another non-exclusive type (a 5-a-side pitch as a FIELD); an
+   * EXCLUSIVE type is this sport's alone, both ways (`src/lib/sports/resources.ts`).
+   */
   resourceType: ResourceType;
   teamSize: { min: number; max: number; perSide?: number };
   scoring: Scoring;
@@ -39,6 +49,13 @@ export interface SportConfig {
    * every run.
    */
   bookable: boolean;
+  /**
+   * Whether a player declares a 1–7 level in it on their profile (#359, Q37).
+   * The level is where rankings (#378) and matchmaking start a player from; a
+   * sport playerz neither ranks nor matches players in has nothing for one to
+   * seed, and the seven sentences describing the levels would not fit it.
+   */
+  selfDeclaredLevel: boolean;
   defaultDurationMinutes: number;
   indoorOutdoor: 'INDOOR' | 'OUTDOOR' | 'BOTH';
 }

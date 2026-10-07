@@ -83,6 +83,8 @@ const BOOKING_FIELDS = {
       id: true,
       name: true,
       sport: true,
+      // What the copy calls it: a karting track is a "писта" (P51).
+      resourceType: true,
       // The cutoff rides along so every booking a player is shown can say
       // until when they may cancel it (`cancellableUntil`, #354).
       venue: { select: { id: true, name: true, timezone: true, cancellationCutoffHours: true } },

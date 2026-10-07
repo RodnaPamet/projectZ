@@ -19,6 +19,7 @@ import { Caption, Heading } from '@/components/ui/typography';
 import { KEYS, V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
+import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { bookingPlayerReads, playersErrorKey, type PlayersErrorKey } from './BookingPlayers';
 
@@ -187,7 +188,7 @@ export function InvitePlayersSheet({
           <Caption data-testid="invite-spots-left">{t('spotsLeft', { count: spotsLeft })}</Caption>
           {full ? (
             <InlineNotice variant="info" data-testid="invite-full">
-              {t('full')}
+              {t(resourceNoun(b.resource.resourceType) === 'track' ? 'track.full' : 'full')}
             </InlineNotice>
           ) : null}
           <Button

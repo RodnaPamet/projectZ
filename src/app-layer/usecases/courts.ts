@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { listCourts } from '@/app-layer/repositories/court';
 import type { CourtCreate, CourtUpdate } from '@/app-layer/schemas/court';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
+import { resourceTypeAfter } from '@/lib/sports/resources';
 
 /**
  * Creating, editing and retiring a court.
@@ -56,6 +57,7 @@ export class VenueNotFoundError extends Error {
 const AUDITED_FIELDS = {
   name: true,
   sport: true,
+  resourceType: true,
   surface: true,
   isIndoor: true,
   capacity: true,
@@ -117,7 +119,10 @@ export async function updateCourt(
 
   const after = await db.resource.update({
     where: { id: courtId },
-    data: input,
+    // The form has no type field; the sport carries it (P51). A court moved to
+    // karting becomes a TRACK and a track moved to squash a COURT, while a
+    // FIELD onboarded for 5-a-side stays a FIELD (`resourceTypeAfter`).
+    data: { ...input, resourceType: resourceTypeAfter(input.sport, before.resourceType) },
     select: { id: true, ...AUDITED_FIELDS },
   });
 

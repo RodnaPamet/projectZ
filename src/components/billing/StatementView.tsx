@@ -62,7 +62,14 @@ export function StatementView({
     },
     {
       id: 'court',
-      header: t('column.court'),
+      // "Писта" at a karting club, "Корт / писта" at one with both (P51).
+      header: t(
+        statement.courtNouns === 'track'
+          ? 'track.column.court'
+          : statement.courtNouns === 'mixed'
+            ? 'mixed.column.court'
+            : 'column.court',
+      ),
       cell: ({ row }) => (
         <span className="grid">
           <span className="text-content-emphasis">{row.original.courtName}</span>

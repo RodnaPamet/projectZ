@@ -162,8 +162,10 @@ describe('PATCH /api/v1/me (#359)', () => {
       ['level 8', [{ sport: 'PADEL', level: 8 }]],
       ['a fractional level', [{ sport: 'PADEL', level: 3.5 }]],
       ['a level as a string', [{ sport: 'PADEL', level: '3' }]],
-      ['a sport not in the catalogue', [{ sport: 'SQUASH', level: 3 }]],
+      // SQUASH served here until P51 made it a sport; it now has a level.
+      ['a sport that does not exist', [{ sport: 'CURLING', level: 3 }]],
       ['a sport that is not booked (RUNNING)', [{ sport: 'RUNNING', level: 3 }]],
+      ['a sport booked but with no level (KARTING, P51)', [{ sport: 'KARTING', level: 3 }]],
       [
         'the same sport twice',
         [

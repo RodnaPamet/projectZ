@@ -2,6 +2,9 @@ import { parseArgs } from 'node:util';
 
 import { CourtSurface, type PrismaClient, SportType } from '@prisma/client';
 
+import { resourceNoun } from '@/lib/sports/resource-kinds';
+import { defaultResourceType } from '@/lib/sports/resources';
+
 import {
   assertOwnerRole,
   assignOwner,
@@ -222,9 +225,14 @@ async function main(): Promise<void> {
       select: { id: true },
     });
 
+    // A karting track is a TRACK, and named one (P51); every other sport keeps
+    // the COURT and the "Корт N" this script has always made.
+    const resourceType = defaultResourceType(sport);
+    const noun = resourceNoun(resourceType) === 'track' ? 'Писта' : 'Корт';
+
     let created = 0;
     for (let i = 1; i <= courts; i++) {
-      const name = `Корт ${i}`;
+      const name = `${noun} ${i}`;
       const existing = await tx.resource.findFirst({
         where: { tenantId: org.id, venueId: venue.id, name },
         select: { id: true },
@@ -237,6 +245,7 @@ async function main(): Promise<void> {
           venueId: venue.id,
           name,
           sport,
+          resourceType,
           surface,
           basePriceCents: price,
         },

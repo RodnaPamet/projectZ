@@ -72,6 +72,7 @@ const BOOKING_SELECT = {
   resource: {
     select: {
       name: true,
+      resourceType: true,
       venue: { select: { name: true, timezone: true, cancellationCutoffHours: true } },
     },
   },
@@ -84,6 +85,7 @@ function factsOf(b: BookingRow): BookingFacts {
     bookingId: b.id,
     venueName: b.resource.venue.name,
     courtName: b.resource.name,
+    resourceType: b.resource.resourceType,
     startTs: b.startTs,
     endTs: b.endTs,
     timezone: b.resource.venue.timezone,

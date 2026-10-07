@@ -59,18 +59,19 @@ at the new rate. The platform page `/platform/fees` sets the same two values
 
 **Each court.**
 
-| What                                                                                                                                      | Spec field          |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| Name as the club calls it (`Корт 1`, `Padel 2`). The script finds the court again by this name, so keep it stable                         | `name`              |
-| Sport: `PADEL`, `TENNIS`, `FOOTBALL5`, `FOOTBALL`, `BASKETBALL`, `VOLLEYBALL`, `BADMINTON`, `TABLE_TENNIS`, `PICKLEBALL`, … (`SportType`) | `sport`             |
-| Surface: `CLAY`, `HARD`, `GRASS`, `ARTIFICIAL_GRASS`, `CARPET`, `WOOD`, `CONCRETE`                                                        | `surface`           |
-| Indoor or outdoor                                                                                                                         | `indoor`            |
-| Players on the court (padel 4, 5-a-side 10)                                                                                               | `capacity`          |
-| Price **per hour** in **cents** (`3000` = €30.00)                                                                                         | `pricePerHourCents` |
-| How often a booking may start: every 30 min, every hour… (the start grid)                                                                 | `slotStepMinutes`   |
-| Shortest booking. Every booking is a whole number of these                                                                                | `minBookingMinutes` |
-| Longest booking                                                                                                                           | `maxBookingMinutes` |
-| Its own hours, if they differ from the venue's (optional)                                                                                 | `hours`             |
+| What                                                                                                                                                                                                                                | Spec field          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Name as the club calls it (`Корт 1`, `Padel 2`). The script finds the court again by this name, so keep it stable                                                                                                                   | `name`              |
+| Sport: `PADEL`, `TENNIS`, `FOOTBALL5`, `FOOTBALL`, `BASKETBALL`, `VOLLEYBALL`, `BADMINTON`, `TABLE_TENNIS`, `PICKLEBALL`, `SQUASH`, `KARTING`, … (`SportType`)                                                                      | `sport`             |
+| What the booking holds (optional): `COURT` unless said; `FIELD` for a pitch; `TRACK` for `KARTING`, which is always a track (left out, a karting court becomes one). A track is booked like a court and called a "писта" in the app | `resourceType`      |
+| Surface: `CLAY`, `HARD`, `GRASS`, `ARTIFICIAL_GRASS`, `CARPET`, `WOOD`, `CONCRETE`                                                                                                                                                  | `surface`           |
+| Indoor or outdoor                                                                                                                                                                                                                   | `indoor`            |
+| Players on the court (padel 4, 5-a-side 10)                                                                                                                                                                                         | `capacity`          |
+| Price **per hour** in **cents** (`3000` = €30.00)                                                                                                                                                                                   | `pricePerHourCents` |
+| How often a booking may start: every 30 min, every hour… (the start grid)                                                                                                                                                           | `slotStepMinutes`   |
+| Shortest booking. Every booking is a whole number of these                                                                                                                                                                          | `minBookingMinutes` |
+| Longest booking                                                                                                                                                                                                                     | `maxBookingMinutes` |
+| Its own hours, if they differ from the venue's (optional)                                                                                                                                                                           | `hours`             |
 
 How the grid and durations combine: a padel court with `slotStepMinutes: 30`,
 `minBookingMinutes: 90` and `maxBookingMinutes: 180` offers starts at 07:00,
@@ -80,6 +81,48 @@ multiples of the minimum, so a club that wants 60, 90 and 120 minutes needs a
 a maximum that is not a multiple of the minimum, a minimum that is not a
 multiple of the step, or an hourly price that does not come to whole cents per
 minimum-length booking.
+
+**Squash and karting (P51).** A squash court is a court like any other. A
+karting track is hired whole, by one group, in the track's own steps, like a
+court: laps and arrive-and-drive sessions stay the club's own sales. Its
+`resourceType` is `TRACK` (the default for `KARTING`, and refused for any other
+sport), which is what makes the app call it a "писта" instead of a "корт". The
+pilot clubs' courts, with the owner's values (name and price are the club's):
+
+<!-- prettier-ignore -->
+```jsonc
+{
+  "name": "Скуош",
+  "sport": "SQUASH",                     // resourceType left out: COURT
+  "surface": "WOOD",                     // sprung hardwood
+  "indoor": true,
+  "capacity": 2,
+  "pricePerHourCents": 2400,             // a multiple of 4: whole cents per 45 minutes
+  "slotStepMinutes": 15,
+  "minBookingMinutes": 45,
+  "maxBookingMinutes": 90
+}
+```
+
+<!-- prettier-ignore -->
+```jsonc
+{
+  "name": "Писта",
+  "sport": "KARTING",
+  "resourceType": "TRACK",               // optional: KARTING is always a TRACK
+  "surface": "CONCRETE",                 // coated concrete
+  "indoor": true,
+  "capacity": 10,                        // drivers on the track at once
+  "pricePerHourCents": 24000,            // the WHOLE track, per hour; a multiple of 4
+  "slotStepMinutes": 15,
+  "minBookingMinutes": 15,
+  "maxBookingMinutes": 60
+}
+```
+
+The squash court sells 45 or 90 minutes, not 60 or 75: lengths are whole
+multiples of the minimum. Offering 45, 60, 75 and 90 needs a 15-minute minimum,
+which also sells 15 and 30. The track sells 15, 30, 45 or 60 minutes.
 
 Not part of onboarding, because the club does these itself in its admin at
 `/t/{slug}/admin`: peak and off-peak pricing rules, holiday closures, staff,
@@ -154,6 +197,8 @@ Rules the script checks, with an error that names the field:
 - Unknown keys are errors, so a typo cannot be silently ignored.
 - Venue slugs are unique within the spec, and court names are unique within
   their venue.
+- `KARTING` is on a `TRACK` and nothing else is: a karting court with another
+  `resourceType`, or a `TRACK` for another sport, is refused.
 
 **What the script writes.** `basePriceCents` is the price of one minimum-length
 booking (`pricePerHourCents × minBookingMinutes / 60`), because that is how the

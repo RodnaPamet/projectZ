@@ -101,7 +101,8 @@ There is no registry. The image is built on the box from a clone.
 ```bash
 # Keep the running image as the way back. Migrations here have been additive, so
 # the previous image runs against the new schema; re-tag and recreate to roll back.
-# One exception, p37: see "Rolling back past p37" below.
+# Two exceptions, p37 and p51 (its rows, not its schema): see "Rolling back past
+# p37" and "Rolling back past p51" below.
 sudo docker tag playerz:local playerz:rollback-$(date +%s)
 
 cd /opt/playerz/repo && sudo git fetch --all && sudo git reset --hard origin/main
@@ -141,6 +142,47 @@ nothing that matters is lost. Leave the rest of p37 in place.
 - The `accountKind` column is simply unmapped in the old image.
 - The kinds triggers keep refusing mixed accounts. The old image cannot say why
   and fails those writes as errors, but they are the writes the owner ruled out.
+
+### Rolling back past p51
+
+`20261007150000_p51_squash_karting` only adds enum values (`SQUASH`, `KARTING`,
+`TRACK`), so the schema is no obstacle: an image built before it runs against
+it unchanged. The ROWS that use those values are. Prisma 7 refuses to read an
+enum value its client was not generated with, and the whole query fails:
+
+```
+PrismaClientKnownRequestError: Value 'SQUASH' not found in enum 'SportType'
+```
+
+Measured against the pre-p51 client, not inferred. `/venues` reads every court
+of the venues on its page and its filters read the sport of every live court,
+so one squash court at a public venue fails the previous image's venue index,
+for everybody. A player who picked squash on their profile fails `/me`; a
+squash or karting booking fails its player's bookings and the club's diary.
+
+So before starting the previous image, park those rows. If it reports a table
+it does not handle, something else wrote a new value: stop and look before
+rolling back.
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p51-park.sql
+```
+
+Parked, a squash or karting court is archived (off the public pages, not
+bookable, its bookings kept) and reads as a tennis court in the previous image;
+its name still says what it is. Squash and karting profile levels are set
+aside. Tell the two pilot clubs their court is off the app until the roll
+forward. After rolling forward again, with the p51 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p51-unpark.sql
+```
+
+Until the pilot clubs are onboarded and a player picks squash, nothing uses the
+new values and the park finds nothing to do; it is still the safe step. On
+staging, the same with `playerz_staging`.
 
 `SKIP_ENV_VALIDATION=1` is for the **build** only. Next imports every route
 module to collect metadata, and `src/env.ts` would refuse at import time for

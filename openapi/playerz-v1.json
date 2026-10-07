@@ -7195,7 +7195,7 @@
       },
       "SportType": {
         "type": "string",
-        "description": "Prisma `SportType`. The server does NOT validate this value before handing it to the query layer, so a value outside this enum produces a 500, not a 400.",
+        "description": "Prisma `SportType`. As a query parameter (`?sport=`) a value outside this list is a 400 BAD_REQUEST naming the field `sport` (#334). On the RESPONSE side treat it as an open string: P51 added SQUASH and KARTING, and a client generated before that cannot decode a venue that has a squash court or a karting track. The server will add values again.",
         "enum": [
           "TENNIS",
           "PADEL",
@@ -7203,6 +7203,7 @@
           "TABLE_TENNIS",
           "BEACH_TENNIS",
           "PICKLEBALL",
+          "SQUASH",
           "FOOTBALL5",
           "FOOTBALL",
           "BASKETBALL",
@@ -7211,9 +7212,16 @@
           "HANDBALL",
           "CHESS",
           "ESPORTS",
+          "KARTING",
           "RUNNING",
           "CYCLING"
         ]
+      },
+      "ResourceType": {
+        "type": "string",
+        "title": "ResourceType",
+        "description": "Prisma `ResourceType`: what a booking holds. Booking, availability and pricing treat every type alike; the type decides what the resource is CALLED. A TRACK (P51, karting, hired whole) is a \"писта\" / \"track\"; every other type reads \"корт\" / \"court\" in the web app today. On the RESPONSE side treat it as an open string: a type added later must not fail a shipped decoder, and an unknown one is best shown as a court.",
+        "enum": ["COURT", "FIELD", "TABLE", "BOARD_TABLE", "LOBBY", "ROUTE", "TRACK"]
       },
       "VenueSummary": {
         "type": "object",
@@ -7299,8 +7307,16 @@
       },
       "VenueResource": {
         "type": "object",
-        "description": "One bookable resource (court, field, table, lobby, route) as embedded in `VenueDetail`. ACTIVE only, ordered by name, capped at 50.",
-        "required": ["id", "name", "sport", "surface", "isIndoor", "basePriceCents"],
+        "description": "One bookable resource (court, field, table, lobby, route, karting track) as embedded in `VenueDetail`. ACTIVE only, ordered by name, capped at 50.",
+        "required": [
+          "id",
+          "name",
+          "sport",
+          "resourceType",
+          "surface",
+          "isIndoor",
+          "basePriceCents"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -7310,6 +7326,9 @@
           },
           "sport": {
             "$ref": "#/components/schemas/SportType"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/ResourceType"
           },
           "surface": {
             "type": ["string", "null"],
@@ -7577,6 +7596,7 @@
           "resourceId",
           "name",
           "sport",
+          "resourceType",
           "currency",
           "minBookingMinutes",
           "maxBookingMinutes",
@@ -7592,6 +7612,9 @@
           },
           "sport": {
             "$ref": "#/components/schemas/SportType"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/ResourceType"
           },
           "currency": {
             "type": "string",
@@ -7720,7 +7743,7 @@
           "resource": {
             "type": "object",
             "description": "The court/pitch/table booked. Trimmed deliberately: no price, no status, no tenant id.",
-            "required": ["id", "name", "sport"],
+            "required": ["id", "name", "sport", "resourceType"],
             "properties": {
               "id": {
                 "type": "string",
@@ -7733,6 +7756,10 @@
               "sport": {
                 "type": "string",
                 "description": "Sport code for the resource."
+              },
+              "resourceType": {
+                "type": "string",
+                "description": "`ResourceType` (P51): COURT, FIELD, TABLE, BOARD_TABLE, LOBBY, ROUTE or TRACK. A TRACK (karting) is called a \"писта\" / \"track\", anything else a court. An open string, as `sport` here: show an unknown value as a court."
               }
             }
           },
@@ -8993,7 +9020,7 @@
           "resource": {
             "type": "object",
             "description": "The court/pitch/table booked. Trimmed deliberately: no price, no status, no tenant id.",
-            "required": ["id", "name", "sport"],
+            "required": ["id", "name", "sport", "resourceType"],
             "properties": {
               "id": {
                 "type": "string",
@@ -9006,6 +9033,10 @@
               "sport": {
                 "type": "string",
                 "description": "Sport code for the resource."
+              },
+              "resourceType": {
+                "type": "string",
+                "description": "`ResourceType` (P51): COURT, FIELD, TABLE, BOARD_TABLE, LOBBY, ROUTE or TRACK. A TRACK (karting) is called a \"писта\" / \"track\", anything else a court. An open string, as `sport` here: show an unknown value as a court."
               }
             }
           },
@@ -9392,7 +9423,7 @@
           "resource": {
             "type": "object",
             "description": "The court/pitch/table booked. Trimmed deliberately: no price, no status, no tenant id.",
-            "required": ["id", "name", "sport"],
+            "required": ["id", "name", "sport", "resourceType"],
             "properties": {
               "id": {
                 "type": "string",
@@ -9405,6 +9436,10 @@
               "sport": {
                 "type": "string",
                 "description": "Sport code for the resource."
+              },
+              "resourceType": {
+                "type": "string",
+                "description": "`ResourceType` (P51): COURT, FIELD, TABLE, BOARD_TABLE, LOBBY, ROUTE or TRACK. A TRACK (karting) is called a \"писта\" / \"track\", anything else a court. An open string, as `sport` here: show an unknown value as a court."
               }
             }
           },
@@ -9544,7 +9579,7 @@
       "ProfileSport": {
         "type": "string",
         "title": "ProfileSport",
-        "description": "A sport a player can declare (#359): the bookable sports of the registry. On the RESPONSE side treat it as an open string, as `Booking.status`: a sport added later must not fail a shipped decoder. On the request side only these values are accepted.",
+        "description": "A sport a player can declare (#359): the bookable sports of the registry that take a self-declared level. KARTING is bookable and is NOT one: playerz neither ranks nor matches drivers, so a level would seed nothing (P51), and `PATCH /me` refuses it with a 400. On the RESPONSE side treat it as an open string, as `Booking.status`: a sport added later must not fail a shipped decoder. On the request side only these values are accepted.",
         "enum": [
           "TENNIS",
           "PADEL",
@@ -9552,6 +9587,7 @@
           "TABLE_TENNIS",
           "BEACH_TENNIS",
           "PICKLEBALL",
+          "SQUASH",
           "FOOTBALL",
           "FOOTBALL5",
           "BASKETBALL",
@@ -10405,13 +10441,17 @@
           },
           "resource": {
             "type": "object",
-            "required": ["name", "sport"],
+            "required": ["name", "sport", "resourceType"],
             "properties": {
               "name": {
                 "type": "string"
               },
               "sport": {
                 "type": "string"
+              },
+              "resourceType": {
+                "type": "string",
+                "description": "`ResourceType` (P51): COURT, FIELD, TABLE, BOARD_TABLE, LOBBY, ROUTE or TRACK. A TRACK (karting) is called a \"писта\" / \"track\", anything else a court. An open string, as `sport` here: show an unknown value as a court."
               }
             }
           },
@@ -10849,7 +10889,8 @@
           "freePeriod",
           "totals",
           "lines",
-          "linesTruncated"
+          "linesTruncated",
+          "courtNouns"
         ],
         "properties": {
           "club": {
@@ -10915,6 +10956,11 @@
           },
           "linesTruncated": {
             "type": "boolean"
+          },
+          "courtNouns": {
+            "type": "string",
+            "enum": ["court", "track", "mixed"],
+            "description": "What the court column is called (P51): `track` at a club whose resources are all karting tracks (\"Писта\"), `mixed` at one with courts and tracks (\"Корт / писта\"), else `court` (\"Корт\"). Treat an unknown value as `court`."
           }
         }
       },

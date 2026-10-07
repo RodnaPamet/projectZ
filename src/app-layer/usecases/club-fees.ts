@@ -1,6 +1,7 @@
 import { Prisma, type ClubFeeLineKind, type PrismaClient } from '@prisma/client';
 
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
+import { RESOURCE_TYPES, resourceNouns, type ResourceNouns } from '@/lib/sports/resource-kinds';
 import {
   bpsToPercent,
   chargeFor,
@@ -277,6 +278,12 @@ export interface ClubStatement {
   lines: StatementLine[];
   /** True when the month had more lines than `STATEMENT_LINE_CAP`; the totals are still whole. */
   linesTruncated: boolean;
+  /**
+   * What the court column is called (P51): `track` at a karting club, `mixed`
+   * at one with courts and tracks, else `court`. From the club's resources,
+   * archived ones included, since a statement can hold lines for them.
+   */
+  courtNouns: ResourceNouns;
 }
 
 export function termsView(org: ClubTerms): ClubTermsView {
@@ -332,7 +339,7 @@ export async function loadClubStatement(
   });
   if (!org) return null;
 
-  const [rows, groups] = await Promise.all([
+  const [rows, groups, types] = await Promise.all([
     db.clubFeeLine.findMany({
       where: { tenantId, statementMonth: month },
       orderBy: [{ bookingStartTs: 'asc' }, { kind: 'asc' }, { id: 'asc' }],
@@ -344,6 +351,13 @@ export async function loadClubStatement(
       _count: { _all: true },
       _sum: { priceCents: true, feeCents: true },
       orderBy: { kind: 'asc' },
+    }),
+    db.resource.findMany({
+      where: { tenantId },
+      select: { resourceType: true },
+      distinct: ['resourceType'],
+      orderBy: { resourceType: 'asc' },
+      take: RESOURCE_TYPES.length,
     }),
   ]);
 
@@ -375,6 +389,7 @@ export async function loadClubStatement(
       recordedAt: l.createdAt,
     })),
     linesTruncated: rows.length > STATEMENT_LINE_CAP,
+    courtNouns: resourceNouns(types.map((r) => r.resourceType)),
   };
 }
 

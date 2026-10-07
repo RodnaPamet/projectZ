@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
+import { combineNouns } from '@/lib/sports/resource-kinds';
 
 import { DayGrid } from './DayGrid';
 import { loadDiaryDay } from './diary-day';
@@ -43,11 +44,22 @@ export default async function CalendarPage({
     labels: { unknownPlayer: t('unknownPlayer'), guest: t('guest') },
   });
 
+  // "всички писти" at a karting club (P51).
+  const nouns = combineNouns(day.courts.map((c) => c.noun));
+
   return (
     <section>
       <header className="mb-section">
         <Heading level={1}>{t('title')}</Heading>
-        <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
+        <p className="text-content-muted mt-1 text-sm">
+          {t(
+            nouns === 'track'
+              ? 'track.subtitle'
+              : nouns === 'mixed'
+                ? 'mixed.subtitle'
+                : 'subtitle',
+          )}
+        </p>
       </header>
 
       {/*

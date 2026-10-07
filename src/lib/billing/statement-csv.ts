@@ -96,7 +96,13 @@ export async function statementCsv(statement: ClubStatement): Promise<string> {
     t('date'),
     t('time'),
     t('venue'),
-    t('court'),
+    t(
+      statement.courtNouns === 'track'
+        ? 'track.court'
+        : statement.courtNouns === 'mixed'
+          ? 'mixed.court'
+          : 'court',
+    ),
     t('kind'),
     t('price', { currency }),
     t('rate'),

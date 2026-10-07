@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { RESOURCE_TYPES } from '@/lib/sports/resource-kinds';
+import { allowedResourceTypes, defaultResourceType } from '@/lib/sports/resources';
+
 import { cuidSchema, paginationSchema, sportSchema } from './common';
 
 export const courtIdSchema = z.object({ courtId: cuidSchema });
@@ -64,9 +67,13 @@ export const courtCreateSchema = z
     venueId: cuidSchema,
     name: z.string().trim().min(1).max(80),
     sport: sportSchema,
-    resourceType: z
-      .enum(['COURT', 'FIELD', 'TABLE', 'BOARD_TABLE', 'LOBBY', 'ROUTE'])
-      .default('COURT'),
+    /**
+     * DERIVED from the resource kinds, never hand-listed: this was a literal
+     * copy of six types, which a seventh (TRACK, P51) would have silently
+     * missed. Left out, the sport decides (`defaultResourceType`): COURT, or
+     * the sport's own exclusive type — a karting court is a TRACK.
+     */
+    resourceType: z.enum(RESOURCE_TYPES).optional(),
     surface: z.enum(['CLAY', 'HARD', 'GRASS', 'ARTIFICIAL_GRASS', 'CARPET', 'WOOD', 'CONCRETE']),
     isIndoor: z.boolean().default(false),
     capacity: z.number().int().min(1).max(64).default(4),
@@ -78,7 +85,19 @@ export const courtCreateSchema = z
     basePriceCents: z.number().int().min(0).max(1_000_000),
     ...bookingWindow,
   })
-  .superRefine(checkWindow);
+  .superRefine(checkWindow)
+  .superRefine((v, ctx) => {
+    // A karting court stored as a COURT would read "корт" everywhere; a tennis
+    // court stored as a TRACK, "писта" (src/lib/sports/resource-kinds.ts).
+    if (v.resourceType !== undefined && !allowedResourceTypes(v.sport).includes(v.resourceType)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['resourceType'],
+        message: `resourceType ${v.resourceType} does not fit ${v.sport}`,
+      });
+    }
+  })
+  .transform((v) => ({ ...v, resourceType: v.resourceType ?? defaultResourceType(v.sport) }));
 
 export const courtUpdateSchema = z
   .object({

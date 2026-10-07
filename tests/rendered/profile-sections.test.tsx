@@ -256,4 +256,36 @@ describe('Спортове и ниво', () => {
       { sport: 'PADEL', level: 6 },
     ]);
   });
+
+  it('offers squash with its 1–7 level, and no karting (P51)', async () => {
+    // Karting is booked as a whole track and playerz keeps no lap times, so a
+    // self-declared level would seed nothing: the sheet does not offer it, as
+    // `PATCH /me` does not accept it.
+    const calls = installFakeFetch((c) =>
+      c.method === 'PATCH' ? ok(me({ sports: [{ sport: 'SQUASH', level: 5 }] })) : ok(me()),
+    );
+    mount(<SportLevelsSection seed={me()} />);
+    fireEvent.click(screen.getByRole('button', { name: p.sports.pick }));
+
+    const squash = await screen.findByTestId('profile-sport-pick-SQUASH');
+    expect(squash).toHaveTextContent('Скуош');
+    expect(screen.queryByTestId('profile-sport-pick-KARTING')).toBeNull();
+    expect(screen.getByRole('dialog')).not.toHaveTextContent(messages.sports.KARTING);
+
+    fireEvent.click(within(squash).getByRole('checkbox'));
+    expect(
+      within(squash)
+        .getAllByRole('radio')
+        .map((r) => r.textContent),
+    ).toEqual(['1', '2', '3', '4', '5', '6', '7']);
+    fireEvent.click(within(squash).getByRole('radio', { name: '5' }));
+    fireEvent.click(screen.getByRole('button', { name: p.sports.save }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('profile-sport-SQUASH')).toHaveTextContent('Скуош'),
+    );
+    expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({
+      sports: [{ sport: 'SQUASH', level: 5 }],
+    });
+  });
 });

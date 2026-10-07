@@ -11,7 +11,9 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { bookableSports } from '@/lib/sports/registry';
+import { bookableSports, isSportKey } from '@/lib/sports/registry';
+import { isResourceType, RESOURCE_KINDS } from '@/lib/sports/resource-kinds';
+import { nounForSport } from '@/lib/sports/resources';
 
 import { createCourtAction, updateCourtAction } from './actions';
 
@@ -56,6 +58,8 @@ export interface CourtFormValues {
   id?: string;
   name: string;
   sport: string;
+  /** What it is stored as (P51): decides whether the copy says корт or писта. */
+  resourceType?: string;
   surface: string;
   isIndoor: boolean;
   capacity: number;
@@ -67,16 +71,19 @@ export interface CourtFormValues {
 
 /**
  * The sports this form offers: the registry's bookable sports played on a
- * COURT — the resource type `createCourtAction` creates.
+ * COURT, and those with an EXCLUSIVE resource type of their own (karting, on a
+ * TRACK). The server picks the type from the sport (`defaultResourceType`,
+ * `resourceTypeAfter`), so the form never asks for one.
  *
- * It was a hand-written list of six, one of them SQUASH, which is not a
- * `SportType` at all: `sportSchema` refused it, so picking it failed the save
- * with an English Zod message. FOOTBALL is a FIELD in the registry. Reading the
- * registry keeps this list honest as sports are added. A court already saved
- * under any other sport keeps it on edit (see `sportKeys` below).
+ * It was a hand-written list of six, one of them SQUASH, which was not a
+ * `SportType` at all then: `sportSchema` refused it, so picking it failed the
+ * save with an English Zod message. Squash is a real sport since P51 and
+ * arrives here from the registry, as every sport added later will. FOOTBALL is
+ * a FIELD in the registry. A court already saved under any other sport keeps
+ * it on edit (see `sportKeys` below).
  */
 const COURT_SPORTS: readonly string[] = bookableSports()
-  .filter((s) => s.resourceType === 'COURT')
+  .filter((s) => s.resourceType === 'COURT' || RESOURCE_KINDS[s.resourceType].exclusive)
   .map((s) => s.key);
 const SURFACES = [
   'CLAY',
@@ -147,6 +154,15 @@ export function CourtForm({
   const venue = useRequiredChoice(venueOptions, venues?.[0]?.id);
   const sport = useRequiredChoice(sportOptions, court?.sport ?? 'PADEL');
   const surface = useRequiredChoice(surfaceOptions, court?.surface ?? 'ARTIFICIAL_GRASS');
+
+  // The copy follows the sport picked, as the saved type will (P51): karting
+  // makes a TRACK, so the switch reads "Закрита" and the button "Добавяне на
+  // писта" before anything is saved.
+  const picked = sport.selected?.value;
+  const noun =
+    picked && isSportKey(picked)
+      ? nounForSport(picked, isResourceType(court?.resourceType) ? court.resourceType : undefined)
+      : 'court';
 
   // A successful submit closes the form. Checked on render rather than in an
   // effect: `state` only changes when the action returns, so there is nothing
@@ -278,7 +294,7 @@ export function CourtForm({
       <div className="gap-tight flex min-h-11 items-center">
         <Switch id={`${ids}-indoor`} name="isIndoor" defaultChecked={court?.isIndoor} />
         <Label htmlFor={`${ids}-indoor`} className="cursor-pointer py-3">
-          {t('setting.indoor')}
+          {t(noun === 'track' ? 'track.setting.indoor' : 'setting.indoor')}
         </Label>
       </div>
 
@@ -286,7 +302,7 @@ export function CourtForm({
 
       <div className="gap-tight flex">
         <Button type="submit" disabled={pending} data-perf-write="submit">
-          {editing ? t('action.save') : t('action.add')}
+          {editing ? t('action.save') : t(noun === 'track' ? 'track.action.add' : 'action.add')}
         </Button>
         {onDone && (
           <Button type="button" variant="ghost" onClick={onDone}>

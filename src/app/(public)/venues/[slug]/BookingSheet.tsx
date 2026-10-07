@@ -13,11 +13,14 @@ import type { ApiClientError } from '@/lib/data/errors';
 import { isApiClientError } from '@/lib/data/errors';
 import type { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { cn } from '@/lib/cn';
+import type { ResourceNoun } from '@/lib/sports/resource-kinds';
 
 /** The slot the player picked: one court, one start, one length. */
 export interface Selection {
   resourceId: string;
   courtName: string;
+  /** What the court is called (P51): a karting track is a "писта". */
+  noun: ResourceNoun;
   currency: string;
   startTs: string;
   endTs: string;
@@ -166,7 +169,9 @@ export function BookingSheet({
       <Sheet.Header title={t('title')} description={venueName} />
       <Sheet.Body className="flex flex-col gap-4">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="text-content-muted">{t('court')}</dt>
+          <dt className="text-content-muted">
+            {t(selection.noun === 'track' ? 'track.court' : 'court')}
+          </dt>
           <dd className="text-content-emphasis">{selection.courtName}</dd>
           <dt className="text-content-muted">{t('date')}</dt>
           <dd className="text-content-emphasis">{day}</dd>

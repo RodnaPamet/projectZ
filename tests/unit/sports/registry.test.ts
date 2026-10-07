@@ -1,3 +1,7 @@
+import * as Lucide from 'lucide-react';
+
+import * as Nucleo from '@/components/ui/icons/nucleo';
+import { PROFILE_SPORTS } from '@/lib/profile/limits';
 import {
   SPORTS,
   UnsupportedCapabilityError,
@@ -61,9 +65,7 @@ describe('sport registry', () => {
     // The whole point. Without this, a booking flow that quietly accepts
     // RUNNING reserves a slot on a route — and a runner is told the trail is
     // "already booked".
-    expect(() => assertSportSupports('RUNNING', 'slotBooking')).toThrow(
-      UnsupportedCapabilityError,
-    );
+    expect(() => assertSportSupports('RUNNING', 'slotBooking')).toThrow(UnsupportedCapabilityError);
     expect(() => assertSportSupports('CYCLING', 'slotBooking')).toThrow();
     expect(() => assertSportSupports('PADEL', 'slotBooking')).not.toThrow();
   });
@@ -75,17 +77,30 @@ describe('sport registry', () => {
   });
 
   it('8. sportsByFamily partitions the registry with no gaps or overlaps', () => {
-    const families: SportFamily[] = ['RACKET', 'TEAM_BALL', 'BOARD', 'ESPORT', 'ENDURANCE'];
+    const families: SportFamily[] = [
+      'RACKET',
+      'TEAM_BALL',
+      'BOARD',
+      'ESPORT',
+      'MOTORSPORT',
+      'ENDURANCE',
+    ];
     const seen = families.flatMap((f) => sportsByFamily(f).map((s) => s.key));
 
     expect(seen.length).toBe(allSports().length);
     expect(new Set(seen).size).toBe(seen.length);
   });
 
-  it('9. every config names an icon', () => {
-    for (const s of allSports()) {
-      expect(s.icon.trim().length).toBeGreaterThan(0);
-    }
+  it('9. every config names an icon that exists: vendored nucleo first, then lucide-react', () => {
+    // A non-empty string was all this checked, and BASKETBALL had named
+    // 'Dribbble' since lucide-react 1.x dropped its brand icons. A name that
+    // resolves to nothing is the same as no icon, found by whoever first
+    // renders one.
+    const exists = (name: string) =>
+      typeof (Nucleo as Record<string, unknown>)[name] === 'function' ||
+      (Lucide as Record<string, unknown>)[name] !== undefined;
+    const missing = allSports().filter((s) => !exists(s.icon));
+    expect(missing.map((s) => `${s.key}: ${s.icon}`)).toEqual([]);
   });
 
   it('10. team sports declare a coherent perSide', () => {
@@ -131,5 +146,36 @@ describe('sport registry', () => {
     for (const s of allSports()) {
       expect(allowed).toContain(s.scoring);
     }
+  });
+
+  it('17. karting is booked on its own TRACK and squash on a COURT (P51)', () => {
+    expect(SPORTS.KARTING).toMatchObject({
+      family: 'MOTORSPORT',
+      resourceType: 'TRACK',
+      bookable: true,
+      // playerz keeps no lap times, so no score, live or otherwise.
+      scoring: 'CUSTOM',
+    });
+    expect(SPORTS.SQUASH).toMatchObject({
+      family: 'RACKET',
+      resourceType: 'COURT',
+      bookable: true,
+    });
+    expect(supportsCapability('KARTING', 'slotBooking')).toBe(true);
+    expect(supportsCapability('KARTING', 'liveScore')).toBe(false);
+    expect(supportsCapability('SQUASH', 'teams')).toBe(false); // singles
+  });
+
+  it('18. the profile offers a level in every bookable sport but karting (#359, P51)', () => {
+    // The level seeds rankings and matchmaking; playerz does neither for a
+    // track hired whole. Kept as data, so `PATCH /me` and the sheet agree.
+    expect(PROFILE_SPORTS).toContain('SQUASH');
+    expect(PROFILE_SPORTS).not.toContain('KARTING');
+    expect([...PROFILE_SPORTS].sort()).toEqual(
+      bookableSports()
+        .filter((s) => s.key !== 'KARTING')
+        .map((s) => s.key)
+        .sort(),
+    );
   });
 });
