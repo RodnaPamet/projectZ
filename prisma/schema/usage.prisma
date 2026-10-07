@@ -1,0 +1,53 @@
+/// A step in the booking funnel, counted server-side (#371, owner decision Q48).
+///
+/// The funnel, in order: `/venues` → a venue page → a slot picked → the
+/// confirm sheet opened → a booking created. `SLOTS_VIEW` (a day's times read
+/// from the availability endpoint) sits beside it: it counts the page's own
+/// refresh after paint and every day a person flicks through, so it is an
+/// activity signal, not a funnel step. See docs/usage-counts.md.
+enum UsageEvent {
+  VENUES_VIEW
+  VENUE_VIEW
+  SLOTS_VIEW
+  SLOT_PICKED
+  SHEET_OPENED
+  BOOKING_CREATED
+}
+
+/// How often each funnel step happened, per day (Europe/Sofia) and venue.
+///
+/// ═══ AN AGGREGATE, NEVER A HIT LOG ═══
+///
+/// One row per (day, event, venue), incremented by an upsert
+/// (`ON CONFLICT … DO UPDATE SET count = count + 1`). Nothing here names a
+/// person: no user id, no IP address, no user agent, no session — and
+/// tests/guardrails/usage-no-personal-data.test.ts fails the build if a column
+/// that could is ever added. The user agent is read at capture time only to
+/// skip crawlers, and is never stored.
+///
+/// `venueId` is `''` (not NULL) for a step that is about no single venue, the
+/// `/venues` index: the primary key needs a value, and NULLs are distinct in
+/// a key. `clubId` is the venue's club at the time of counting, copied rather
+/// than joined, so the per-club funnel needs no lookup.
+///
+/// ═══ KEPT ═══
+///
+/// Rows are aggregates with nothing personal in them, so they are kept: the
+/// pilot's success is judged on months of them. app_superuser is not even
+/// granted DELETE.
+///
+/// ═══ WHO TOUCHES IT ═══
+///
+/// Denied to app_user (P49). Written by src/lib/usage/record.ts and read by the
+/// platform usage route (asPlatformAdmin), both BYPASSRLS.
+model UsageDaily {
+  day     DateTime   @db.Date
+  event   UsageEvent
+  venueId String     @default("")
+  clubId  String?
+  count   Int        @default(0)
+
+  @@id([day, event, venueId])
+  @@index([clubId, day])
+  @@map("usage_daily")
+}

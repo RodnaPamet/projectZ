@@ -134,6 +134,13 @@ export const KEYS = {
     paged(`${BASE}/platform/contact-requests`, params),
   /** The caller's second factor, and THIS session's step-up (#262). */
   mfaStatus: () => `${BASE}/me/mfa`,
+  /**
+   * The pilot's numbers (#371): online share per club and the booking funnel.
+   * `reason` is in the key for the moderation queue's reason: every read is
+   * audited with it (PLATFORM_USAGE_READ).
+   */
+  platformUsage: (params: { reason: string; days: number }) =>
+    `${BASE}/platform/usage${query(params)}`,
   /** The club's players matching a phone, name or email — the desk's "link to a player" (#364). */
   deskCustomers: (slug: string, q: string) =>
     `${BASE}/t/${seg(slug)}/admin/customers${query({ q })}`,
@@ -171,6 +178,8 @@ export const V1 = {
   review: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/bookings/${seg(bookingId)}/review`,
   resolveCase: (caseId: string) => `${BASE}/platform/moderation/cases/${seg(caseId)}/resolve`,
+  /** `POST { event }`: a funnel step only the browser sees (#371). See usage-beacon.ts. */
+  usageEvents: (venueId: string) => `${BASE}/venues/${seg(venueId)}/usage-events`,
   /** `PATCH`: the display name and the sports with their levels (#359). */
   updateAccount: () => `${BASE}/me`,
   /** `POST { ids }`: the bell's rows the caller has now seen (#367). */

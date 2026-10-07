@@ -6,6 +6,7 @@ import { toVenueSummary, type VenueSummary } from '@/app/api/v1/_lib/dto';
 import { Heading } from '@/components/ui/typography';
 import type { V1Page } from '@/lib/data/keys';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { countPageUsage } from '@/lib/usage/record';
 
 import { filtersFromParams } from './filters';
 import { VenueList } from './VenueList';
@@ -110,6 +111,9 @@ export default async function VenuesPage({
     // has. Two DISTINCT reads in the same transaction, for the same reason.
     return { seed, facets: await listVenueFacets(db) };
   });
+
+  // The funnel's first step (#371): anonymous, counted after the response.
+  await countPageUsage('VENUES_VIEW', {});
 
   // The site header and the tab bar come from (public)/layout.tsx (T20).
   return (

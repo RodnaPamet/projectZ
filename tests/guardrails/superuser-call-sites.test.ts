@@ -115,6 +115,12 @@ const ALLOWED: Record<string, string> = {
     'the media sweep (#366) deletes stored photo objects no venue_photo row names, across every ' +
     'club. It reads only venue_photo.objectKey and writes no row. A timer, not a person, behind ' +
     'CRON_SECRET like the other sweeps.',
+  'src/lib/usage/record.ts':
+    'the usage counters (#371): one INSERT … ON CONFLICT into usage_daily after a public page ' +
+    'or route has answered. The table denies app_user outright (P49) and the events come from ' +
+    'public pages with no tenant to bind. It writes a daily aggregate and reads only the ' +
+    "venue's own club id and status, in the same statement. NOT asPlatformAdmin: no person " +
+    'reaches into a club; it is machine work on behalf of an anonymous visit.',
   'src/app-layer/usecases/notifications.ts': 'writes a user-bound row after the tenant tx commits',
   'src/app/api/v1/realtime/subscribe/route.ts': 'resolves channel membership before binding',
   'src/app/api/v1/t/[slug]/me/route.ts': 'resolves the membership that the binding needs',

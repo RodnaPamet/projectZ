@@ -9,6 +9,7 @@ import { splitPhotos } from '@/lib/media/photo-view';
 import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { venuePath } from '@/lib/seo/sitemap';
+import { countPageUsage } from '@/lib/usage/record';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { buildVenueJsonLd, serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
@@ -178,6 +179,8 @@ export default async function VenuePage({
 
   const { venue, clubSlug } = found;
   const publicSlug = venue.publicSlug ?? slug;
+  // The funnel's venue-page step (#371): anonymous, counted after the response.
+  await countPageUsage('VENUE_VIEW', { venueId: venue.id });
   const sports = [...new Set(venue.resources.map((r) => r.sport))];
   const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug));
   const { cover, gallery } = splitPhotos(venue.photos);

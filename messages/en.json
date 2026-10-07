@@ -83,6 +83,7 @@
       "sectionVenue": "Venue",
       "sectionPeople": "People",
       "moderation": "Moderation",
+      "usage": "Usage",
       "play": "Play",
       "signIn": "Sign in",
       "account": "Account",
@@ -514,6 +515,21 @@
         "title": "Archive this court?",
         "failed": "The court's status was not changed. Try again."
       }
+    },
+    "onlineShare": {
+      "title": "Online bookings",
+      "subtitle": "How much of your booking comes in online",
+      "detail": "{online} of {total} bookings this month were made online",
+      "empty": "No bookings this month yet.",
+      "trend": {
+        "up": "↑ on last month",
+        "down": "↓ on last month",
+        "flat": "→ same as last month"
+      },
+      "trendLabel": "Online share over the last 6 months: {values}",
+      "monthValue": "{month}: {value}",
+      "noBookingsShort": "no bookings",
+      "definition": "Online share = online ÷ all confirmed and played bookings, by the month they are played in. Cancelled bookings are not counted."
     },
     "pricing": {
       "metaTitle": "Pricing",
@@ -1154,6 +1170,75 @@
         "STEP_UP_REQUIRED": "Confirm with a code from your app to continue, then try again.",
         "MFA_ENROLMENT_REQUIRED": "Moderation needs two-step verification. Turn it on under Security, and the queue opens.",
         "UNKNOWN": "Something went wrong. Nothing was changed."
+      }
+    },
+    "usage": {
+      "metaTitle": "Pilot numbers — playerz.bg",
+      "title": "Pilot numbers",
+      "subtitle": "Each club's online share of bookings, and the booking funnel. Counts only — nothing that names a person.",
+      "reason": {
+        "label": "Why are you opening the numbers?",
+        "hint": "At least {min} characters. It is written to the platform audit log with every load."
+      },
+      "open": "Show",
+      "refresh": "Refresh",
+      "error": {
+        "PLATFORM_AUTHORITY_REQUIRED": "You have no active platform grant.",
+        "PLATFORM_CAPABILITY_REQUIRED": "Your grant does not include reading clubs.",
+        "REASON_REQUIRED": "Give a reason of at least 12 characters.",
+        "REASON_TOO_LONG": "That reason is too long — 500 characters at most.",
+        "UNAUTHORIZED": "Your session has expired. Sign in again.",
+        "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+        "NETWORK": "The server cannot be reached.",
+        "VIEWER_CHANGED": "This tab is open for another account. Reload the page.",
+        "UNKNOWN": "The numbers did not load. Try again."
+      },
+      "trend": {
+        "up": "↑ up",
+        "down": "↓ down",
+        "flat": "→ no change",
+        "none": "—"
+      },
+      "clubs": {
+        "title": "Clubs",
+        "definition": "Online share = online bookings ÷ (online + desk), confirmed or played, by the month they are played in (Sofia time). Cancelled bookings are not counted. A club is active if a booking was made there in the last 14 days.",
+        "club": "Club",
+        "thisMonth": "Online share, {month}",
+        "lastMonth": "Online share, {month}",
+        "ofTotal": "{online} of {total}",
+        "trend": "Trend",
+        "bookings": "Bookings this month",
+        "weeks": "Last 8 weeks",
+        "weeksLabel": "Online share by week: {values}",
+        "age": "Since start",
+        "ageValue": "{weeks, plural, one {# week} other {# weeks}}",
+        "status": "Status",
+        "active": "Active",
+        "inactive": "Inactive",
+        "emptyTitle": "No clubs yet",
+        "empty": "Clubs appear here as soon as they are added."
+      },
+      "funnel": {
+        "title": "Booking funnel",
+        "range": "Period",
+        "days": "{days} days",
+        "period": "From {from} to {to}, by day in Sofia.",
+        "fromPrevious": "{percent} of the step before",
+        "definition": "Counted on the server and anonymously: no user, IP address or browser, and no cookies. Bots are not counted. “Days viewed” counts every load of a day's free times and is not a step in the funnel.",
+        "byVenue": "By venue",
+        "venue": "Venue",
+        "unknownVenue": "Deleted venue",
+        "conversion": "Visit → booking",
+        "emptyTitle": "No visits yet",
+        "empty": "No venue visits were counted in this period."
+      },
+      "event": {
+        "VENUES_VIEW": "Venue list",
+        "VENUE_VIEW": "Venue page",
+        "SLOTS_VIEW": "Days viewed",
+        "SLOT_PICKED": "Time picked",
+        "SHEET_OPENED": "Confirmation opened",
+        "BOOKING_CREATED": "Booking"
       }
     },
     "security": {

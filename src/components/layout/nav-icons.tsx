@@ -35,6 +35,7 @@ export const NAV_ICONS: Record<NavIconKey, ComponentType<SVGProps<SVGSVGElement>
   reports: ChartLine,
   moderation: ShieldCheck,
   fees: InvoiceDollar,
+  usage: ChartLine,
   security: ShieldKeyhole,
   contactRequests: Envelope,
 };

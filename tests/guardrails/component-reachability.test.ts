@@ -43,6 +43,10 @@ const KEPT: Record<string, string> = {
   'src/components/chess/EngineAttribution.tsx':
     'the Stockfish GPL attribution, a licence condition gpl-isolation.test.ts requires a UI ' +
     'surface to render; it is mounted when the chess analysis page lands',
+  'src/components/reports/online-share-card.tsx':
+    'the club’s "Онлайн резервации" card (#371). The club admin page that mounts it, ' +
+    '"Отчети и такса", is #372’s, built in parallel; the card goes into that page’s marked ' +
+    'slot when #372 merges, and this entry goes with it',
 };
 
 /** heldByBarrel at T29. Lower it when a re-sync drops a barrel line; never raise it. */

@@ -128,12 +128,16 @@ function mount({
 /** A fake v1: availability always answers; the booking POST answers `booking()`. */
 function api(booking: () => FakeAnswer | Promise<FakeAnswer>) {
   return installFakeFetch((call) => {
+    // The funnel beacon (#371) answers 204 and is never the booking.
+    if (isBeacon(call)) return { status: 204 };
     if (call.method === 'POST') return booking();
     return ok(availability());
   });
 }
 
-const posts = (calls: FakeCall[]) => calls.filter((c) => c.method === 'POST');
+const isBeacon = (c: FakeCall) => c.url.endsWith('/usage-events');
+const posts = (calls: FakeCall[]) => calls.filter((c) => c.method === 'POST' && !isBeacon(c));
+const beacons = (calls: FakeCall[]) => calls.filter(isBeacon);
 
 const pickNine = () => fireEvent.click(screen.getByRole('button', { name: /^09:00/ }));
 const openSheet = async () => {
@@ -270,6 +274,27 @@ describe('the confirmation sheet', () => {
     expect(sent[0]!.headers['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
     expect(sent[0]!.headers['x-playerz-viewer']).toBe('u1');
     expect(sent[0]!.body).toEqual({ resourceId: 'c1', startTs: AT(9), endTs: AT(10) });
+  });
+
+  it('counts "time picked" and "confirmation opened" (#371) with a beacon that carries nobody', async () => {
+    const calls = api(() => ok({ id: 'b1', status: 'CONFIRMED' }, 201));
+    mount();
+    await openSheet();
+    await waitFor(() => expect(beacons(calls)).toHaveLength(2));
+
+    expect(beacons(calls).map((c) => [c.method, c.url, c.body])).toEqual([
+      ['POST', '/api/v1/venues/v1/usage-events', { event: 'SLOT_PICKED' }],
+      ['POST', '/api/v1/venues/v1/usage-events', { event: 'SHEET_OPENED' }],
+    ]);
+    for (const c of beacons(calls)) {
+      // Not the data layer's request: no viewer, no idempotency key, no session.
+      expect(Object.keys(c.headers)).toEqual(['content-type']);
+    }
+    const init = (globalThis.fetch as jest.Mock).mock.calls.find(([u]) =>
+      String(u).endsWith('/usage-events'),
+    )![1] as RequestInit;
+    expect(init.credentials).toBe('omit');
+    expect(init.keepalive).toBe(true);
   });
 
   it('after a dropped connection, confirming again re-sends the SAME key', async () => {
