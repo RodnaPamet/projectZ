@@ -121,7 +121,10 @@ const DAY_PICKER = `main [role="radiogroup"][aria-label="${bg.venue.day.label}"]
  * are the same on every day, so the link is what tells today from tomorrow.
  */
 const READY: ReadyTable = {
-  '/': [{ selector: 'main h1', text: 'playerz.bg' }, { selector: 'main [data-perf-ready]' }],
+  '/': [
+    { selector: 'main h1', text: bg.landing.hero.title },
+    { selector: 'main [data-perf-ready]' },
+  ],
   '/venues': [
     { selector: 'main h1', text: bg.venues.title },
     { selector: 'main [data-perf-ready]' },

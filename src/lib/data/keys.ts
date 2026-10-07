@@ -129,6 +129,9 @@ export const KEYS = {
    */
   moderationCases: (params: { reason: string }) =>
     paged(`${BASE}/platform/moderation/cases`, params),
+  /** The landing page's club enquiries (#369); audited per page, like the queue. */
+  contactRequests: (params: { reason: string }) =>
+    paged(`${BASE}/platform/contact-requests`, params),
   /** The caller's second factor, and THIS session's step-up (#262). */
   mfaStatus: () => `${BASE}/me/mfa`,
   /** The club's players matching a phone, name or email — the desk's "link to a player" (#364). */

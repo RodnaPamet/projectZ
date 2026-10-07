@@ -24,7 +24,7 @@
     "test:e2e": "playwright test --pass-with-no-tests",
     "test:e2e:ui": "playwright test --ui",
     "perf:nav": "playwright test -c playwright.perf.config.ts",
-    "perf:nav:prod": "PERF_BASE_URL=${PERF_BASE_URL:-https://app.playerz.bg} playwright test -c playwright.perf.prod.config.ts",
+    "perf:nav:prod": "PERF_BASE_URL=${PERF_BASE_URL:-https://playerz.bg} playwright test -c playwright.perf.prod.config.ts",
     "perf:compare": "tsx tests/perf/compare.ts",
     "perf:budget": "tsx tests/perf/budget.ts",
     "perf:bundle": "tsx tests/perf/bundle-budget.ts",

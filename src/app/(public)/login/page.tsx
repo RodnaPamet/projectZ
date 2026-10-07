@@ -1,9 +1,15 @@
+import { getTranslations } from 'next-intl/server';
+
 import { postSignInPath } from '@/lib/auth/landing';
 import { signInMethods } from '@/lib/auth/sign-in-methods';
 
 import { LoginForm } from './login-form';
 
-export const metadata = { title: 'Вход — playerz.bg' };
+/** In the visitor's language (#368): this was a Bulgarian literal on the English page too. */
+export async function generateMetadata() {
+  const t = await getTranslations('login');
+  return { title: t('metaTitle') };
+}
 
 /**
  * Sign-in.

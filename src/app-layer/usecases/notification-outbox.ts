@@ -1,6 +1,7 @@
 import type { NotificationKind, Prisma } from '@prisma/client';
 
 import { runAsSuperuser, runAsUserOnly } from '@/lib/db/rls-middleware';
+import { contactInboxAddress } from '@/lib/email/contact-inbox';
 import {
   emailProvider,
   headerSafe,
@@ -40,9 +41,17 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
  * (`EMAIL_BACKOFF_SECONDS`), and dead-lettered (`DEAD`) after
  * `EMAIL_MAX_ATTEMPTS`, or at once when the provider refuses the message for
  * good.
+ *
+ * ═══ ONE ROW HAS NO RECIPIENT USER: THE OPERATOR'S (#369) ═══
+ *
+ * Category `contact` is a landing-page enquiry emailed to the operator. It has
+ * no `userId` (P50 allows NULL for that category alone) and no stored address:
+ * the drain sends it to `CONTACT_INBOX_EMAIL` as read at send time, and skips
+ * it ('no-address') when that is unset. It is written by
+ * `usecases/contact-requests.ts`, BYPASSRLS, in the enquiry's own transaction.
  */
 
-export type EmailCategory = 'confirmation' | 'reminder' | 'clubChanges' | 'messages';
+export type EmailCategory = 'confirmation' | 'reminder' | 'clubChanges' | 'messages' | 'contact';
 
 export const NOTIFICATION_TITLE_MAX = 80;
 export const NOTIFICATION_BODY_MAX = 200;
@@ -150,7 +159,8 @@ export interface DrainResult {
 
 interface Claimed {
   id: string;
-  userId: string;
+  /** Null only for category `contact`: the operator, not a user. */
+  userId: string | null;
   kind: NotificationKind;
   category: string;
   subject: string;
@@ -223,7 +233,7 @@ export async function drainEmailOutbox(
   if (claimed.length === 0) return result;
 
   // Everything the re-checks need, in two reads for the whole batch.
-  const userIds = [...new Set(claimed.map((c) => c.userId))];
+  const userIds = [...new Set(claimed.flatMap((c) => (c.userId ? [c.userId] : [])))];
   const bookingIds = [
     ...new Set(claimed.flatMap((c) => (c.refType === 'booking' && c.refId ? [c.refId] : []))),
   ];
@@ -256,14 +266,17 @@ export async function drainEmailOutbox(
   let configLogged = false;
 
   for (const row of claimed) {
-    const skip = skipReason(row, now, userById.get(row.userId), bookingById);
-    if (skip) {
-      await finish(row.id, { status: 'SKIPPED', lastError: skip });
+    const user = row.userId ? userById.get(row.userId) : undefined;
+    // The operator's enquiry email: the inbox as configured NOW.
+    const operator = row.category === 'contact' && row.userId === null;
+    const to = operator ? contactInboxAddress() : (user?.email ?? null);
+    const skip = skipReason(row, now, operator ? to : user, bookingById);
+    if (skip || !to) {
+      await finish(row.id, { status: 'SKIPPED', lastError: skip ?? 'no-address' });
       result.skipped++;
       continue;
     }
 
-    const to = userById.get(row.userId)!.email;
     const outcome = await provider.send({
       to,
       subject: row.subject,
@@ -321,6 +334,7 @@ export async function drainEmailOutbox(
 function skipReason(
   row: Claimed,
   now: Date,
+  /** The recipient user, or for the operator's row the inbox address (or null). */
   user:
     | {
         email: string;
@@ -328,10 +342,16 @@ function skipReason(
         emailBookingReminders: boolean;
         emailClubChanges: boolean;
       }
+    | string
+    | null
     | undefined,
   bookings: Map<string, { status: string; startTs: Date }>,
 ): string | null {
   if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) return 'expired';
+  // The operator has no settings to re-check: an inbox, or nothing.
+  if (typeof user === 'string' || user === null) {
+    return user && isDeliverableAddress(user) ? null : 'no-address';
+  }
   if (!user || !isDeliverableAddress(user.email)) return 'no-address';
   if (!wants(user, row.category)) return 'opted-out';
 

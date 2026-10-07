@@ -289,6 +289,11 @@ export const env = createEnv({
     EMAIL_FROM: z.string().min(3).optional(),
     // Staging (DEPLOY_ENV=staging) never emails anyone unless this is '1'.
     EMAIL_ALLOW_ON_STAGING: z.enum(['0', '1']).optional(),
+    // Where the landing page's club enquiries are emailed (#369), through the
+    // same outbox. Unset: the enquiry is still stored and listed on /platform,
+    // and no email is queued. Read at send time too, so a changed inbox is
+    // honoured by rows already queued.
+    CONTACT_INBOX_EMAIL: z.string().email().optional(),
 
     // Web Push (VAPID). Optional: without them push is simply not sent, and the
     // notification CENTRE still has the row — the user sees it when they open
@@ -566,6 +571,7 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     EMAIL_ALLOW_ON_STAGING: process.env.EMAIL_ALLOW_ON_STAGING,
+    CONTACT_INBOX_EMAIL: process.env.CONTACT_INBOX_EMAIL,
 
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,

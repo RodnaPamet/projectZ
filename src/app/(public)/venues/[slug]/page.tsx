@@ -6,6 +6,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
 import { splitPhotos } from '@/lib/media/photo-view';
+import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { venuePath } from '@/lib/seo/sitemap';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
@@ -104,14 +105,19 @@ export async function generateMetadata({
   // Node `proxy.ts` could, at the price of a database read in front of the
   // render on every request. Google treats noindex like a 404 here. See #396.
   if (!found) return { robots: { index: false } };
-  const [t, locale] = await Promise.all([getTranslations('venue'), getLocale()]);
+  const [t, tCities, locale] = await Promise.all([
+    getTranslations('venue'),
+    getTranslations('cities'),
+    getLocale(),
+  ]);
 
   const { venue } = found;
   const title = t('metaTitle', { name: venue.name });
   const description = t('metaDescription', {
     name: venue.name,
     address: venue.addressLine,
-    city: venue.city,
+    // In the page's language (#368): a stored `Sofia` reads `София` in Bulgarian.
+    city: cityLabel(tCities, venue.city),
   });
   const path = venuePath(venue.publicSlug ?? slug);
   const images = venueImages(venue);
@@ -175,6 +181,7 @@ export default async function VenuePage({
   const sports = [...new Set(venue.resources.map((r) => r.sport))];
   const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug));
   const { cover, gallery } = splitPhotos(venue.photos);
+  const tCities = await getTranslations('cities');
 
   // The header and the tab bar come from (public)/layout.tsx (T20).
   return (
@@ -191,7 +198,7 @@ export default async function VenuePage({
         <VenueHeader
           name={venue.name}
           addressLine={venue.addressLine}
-          city={venue.city}
+          city={cityLabel(tCities, venue.city)}
           sports={sports}
           cover={cover}
         />

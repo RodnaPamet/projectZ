@@ -4,6 +4,7 @@ import {
   CalendarIcon,
   ChartLine,
   InvoiceDollar,
+  Envelope,
   LocationPin,
   MoneyBill,
   NucleoPhoto,
@@ -35,4 +36,5 @@ export const NAV_ICONS: Record<NavIconKey, ComponentType<SVGProps<SVGSVGElement>
   moderation: ShieldCheck,
   fees: InvoiceDollar,
   security: ShieldKeyhole,
+  contactRequests: Envelope,
 };

@@ -52,6 +52,25 @@ const ALLOWED_WITHOUT_PERMISSION: Record<string, string> = {
     'request names, and refuses a locale outside the catalogue.',
 };
 
+/**
+ * Actions open to ANYONE, signed in or not, which the rule below (an exempt
+ * action still demands a signed-in user) cannot apply to. Each names the guard
+ * that stands in for authentication, and the guard's module must rate-limit:
+ * an open endpoint with no limit is a spam cannon.
+ */
+const OPEN_TO_ANYONE: Record<string, { guard: string; module: string; why: string }> = {
+  'src/app/(home)/actions.ts': {
+    guard: 'submitContactRequest',
+    module: 'src/app-layer/usecases/contact-requests.ts',
+    why:
+      "the landing page's club enquiry form (#369) is for clubs that have no account yet, so " +
+      'there is nobody to sign in. What stands in for it is submitContactRequest: zod on every ' +
+      'field, a honeypot, a per-IP rate limit keyed on a keyed hash of the IP (never stored), ' +
+      "and an email that only ever goes to the operator's one configured inbox, never to an " +
+      'address the visitor typed.',
+  },
+};
+
 const ACTION_FILES = globSync('src/app/**/*.ts')
   .map((f) => f.toString())
   .filter((f) => /^\s*['"]use server['"]/.test(readFileSync(f, 'utf8')));
@@ -147,6 +166,27 @@ describe('server actions authorise themselves', () => {
     expect(unexplained).toEqual([]);
   });
 
+  it.each(Object.entries(OPEN_TO_ANYONE))(
+    '%s is open to anyone, behind its named, rate-limited guard',
+    (file, { guard, module, why }) => {
+      expect(ACTION_FILES).toContain(file);
+      expect(why.trim().length).toBeGreaterThanOrEqual(40);
+      const code = codeOnly(readFileSync(file, 'utf8'));
+      const names = exportedActions(code);
+      expect(names.length).toBeGreaterThan(0);
+      for (const name of names) {
+        expect({
+          file,
+          name,
+          guarded: new RegExp(`\\b${guard}\\b`).test(bodyOf(code, name)),
+        }).toEqual({ file, name, guarded: true });
+      }
+      const guardSrc = codeOnly(readFileSync(module, 'utf8'));
+      expect(guardSrc).toMatch(new RegExp(`export async function ${guard}\\b`));
+      expect(guardSrc).toMatch(/\bcheckRateLimit\s*\(/);
+    },
+  );
+
   it('an exempt action still demands a signed-in user', () => {
     // The exemption is from the PERMISSION check, not from authentication.
     // Without this, "exempt" would drift into "open".
@@ -163,7 +203,9 @@ describe('server actions authorise themselves', () => {
   });
 
   it.each(
-    ACTION_FILES.filter((f) => !(f in ALLOWED_WITHOUT_PERMISSION)).flatMap((file) => {
+    ACTION_FILES.filter(
+      (f) => !(f in ALLOWED_WITHOUT_PERMISSION) && !(f in OPEN_TO_ANYONE),
+    ).flatMap((file) => {
       const code = codeOnly(readFileSync(file, 'utf8'));
       return exportedActions(code).map((name) => [`${file}:${name}`, code, name] as const);
     }),

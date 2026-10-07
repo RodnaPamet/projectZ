@@ -17,7 +17,7 @@ import { THEME_COOKIE } from '../../src/lib/theme-constants';
  */
 
 const PAGES = [
-  { path: '/', heading: 'playerz.bg' },
+  { path: '/', heading: bg.landing.hero.title },
   { path: '/venues', heading: bg.venues.title },
   { path: '/login', heading: bg.login.title },
 ] as const;
@@ -66,7 +66,10 @@ test.describe('public pages — desktop', () => {
 
   test('/: the call to action is the primary button, and it leads to /venues', async ({ page }) => {
     await page.goto('/');
-    const cta = page.getByRole('link', { name: bg.venues.title }).and(page.locator('main a'));
+    // The landing page's hero (#369): "Намери корт", the page's one fully
+    // prefetched link.
+    const cta = page.getByTestId('landing-find-court').filter({ visible: true });
+    await expect(cta).toHaveText(bg.landing.hero.cta);
     await expect(cta).toHaveAttribute('href', '/venues');
     // The button recipe, not the #245 alias classes that drew a look-alike.
     await expect(cta).toHaveClass(/rounded-full/);

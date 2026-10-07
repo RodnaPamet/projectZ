@@ -43,7 +43,7 @@ export default async function NotFound() {
   const club = landing?.club ? { href: landing.href, name: landing.club.tenantName } : null;
 
   return (
-    <PlayerChrome>
+    <PlayerChrome footer>
       <main className="bg-bg-page text-content-default flex flex-1 flex-col items-center justify-center p-8">
         {/* The page's heading, for the outline and the tab's reader; the
             vendored EmptyState draws its title as text, not as a heading. */}

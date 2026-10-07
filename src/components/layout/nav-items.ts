@@ -41,7 +41,8 @@ export type NavIconKey =
   | 'reports'
   | 'moderation'
   | 'fees'
-  | 'security';
+  | 'security'
+  | 'contactRequests';
 
 export interface NavItem {
   href: string;
@@ -225,6 +226,14 @@ export function platformNav(): NavSection<PlatformNavItem>[] {
           labelKey: 'fees',
           iconKey: 'fees',
           requires: 'TENANT_READ',
+          prefetch: 'auto',
+        },
+        {
+          // The landing page's club enquiries (#369).
+          href: '/platform/contact-requests',
+          labelKey: 'contactRequests',
+          iconKey: 'contactRequests',
+          requires: 'CONTACT_READ',
           prefetch: 'auto',
         },
         {

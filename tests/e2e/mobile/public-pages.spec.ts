@@ -13,7 +13,7 @@ import { THEME_COOKIE } from '../../../src/lib/theme-constants';
  */
 
 const PAGES = [
-  { path: '/', heading: 'playerz.bg' },
+  { path: '/', heading: bg.landing.hero.title },
   { path: '/venues', heading: bg.venues.title },
   { path: '/login', heading: bg.login.title },
 ] as const;
@@ -58,8 +58,9 @@ test.describe('public pages — phone', () => {
 
   test('/: the call to action is a full touch target', async ({ page }) => {
     await page.goto('/');
-    const cta = page.locator('main a[href="/venues"]');
-    await expect(cta).toHaveText(bg.venues.title);
+    const cta = page.getByTestId('landing-find-court').filter({ visible: true });
+    await expect(cta).toHaveAttribute('href', '/venues');
+    await expect(cta).toHaveText(bg.landing.hero.cta);
     const box = (await cta.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(44);
   });

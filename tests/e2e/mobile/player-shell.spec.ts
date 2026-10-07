@@ -102,10 +102,15 @@ test.describe('player shell — phone', () => {
 
   test('a tab tap navigates, and the bar stays', async ({ page }) => {
     await page.goto('/');
-    await page.locator(TAB_BAR).getByRole('link', { name: n.play }).tap();
+    // The SHOWN bar: `/` wears its own chrome (the (home) group), so across
+    // this navigation the router may hold the previous page's copy hidden
+    // beside the new one, and a bare selector matches both.
+    const bar = page.locator(TAB_BAR).filter({ visible: true });
+    await bar.getByRole('link', { name: n.play }).tap();
     await expect(page).toHaveURL(/\/venues$/);
     await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
-    await expect(page.locator(TAB_BAR)).toBeVisible();
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveCount(1);
   });
 
   test('is not on /login, where the page has one job', async ({ page }) => {
@@ -206,7 +211,9 @@ test.describe('player shell — phone', () => {
   }) => {
     await grantModerator(player.userId, isolatedTenant.userId);
     await page.goto('/me/profile');
-    await page.getByTestId('profile-platform').tap();
+    // The shown row: a streamed page can sit in a hidden copy beside the shown
+    // one under the 300 ms reveal throttle (#367).
+    await page.getByTestId('profile-platform').filter({ visible: true }).tap();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
     await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
   });

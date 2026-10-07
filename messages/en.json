@@ -109,8 +109,19 @@
       "photos": "Photos",
       "sectionFinance": "Finance",
       "reports": "Reports and fee",
-      "fees": "Club fees"
-    }
+      "fees": "Club fees",
+      "contactRequests": "Enquiries"
+    },
+    "footer": {
+      "label": "Footer",
+      "tagline": "Courts and games in Sofia.",
+      "linksLabel": "Links",
+      "venues": "Courts",
+      "forClubs": "For clubs",
+      "language": "Language",
+      "copyright": "© {year} playerz.bg. All rights reserved."
+    },
+    "metaDescription": "Book a court and find a game in Sofia."
   },
   "nav": {
     "openNavigationMenu": "Open navigation menu",
@@ -146,7 +157,8 @@
     "withMicrosoft": "Sign in with Microsoft",
     "invalid": "Wrong email or password.",
     "unavailable": "Sign-in is temporarily unavailable.",
-    "noProviders": "Sign-in is not configured. Please contact an administrator."
+    "noProviders": "Sign-in is not configured. Please contact an administrator.",
+    "metaTitle": "Sign in — playerz.bg"
   },
   "venues": {
     "metaTitle": "Venues — playerz.bg",
@@ -284,8 +296,104 @@
     "title": "You’re offline",
     "body": "We can’t reach playerz.bg right now. Your bookings are safe — this page will work again as soon as you have a connection."
   },
-  "home": {
-    "tagline": "Book a court in minutes."
+  "landing": {
+    "metaTitle": "playerz.bg — book a court in Sofia",
+    "metaDescription": "Free courts at Sofia's clubs in one place: padel, tennis, football and more. Instant confirmation; you pay at the club.",
+    "hero": {
+      "eyebrow": "Courts in Sofia",
+      "title": "Find a court. Book it in seconds.",
+      "lead": "Padel, tennis, football and more: the free slots of Sofia's clubs in one place. Your booking is confirmed at once, and you pay at the club.",
+      "cta": "Find a court",
+      "forClubs": "For clubs",
+      "sportsLabel": "Sports on playerz"
+    },
+    "players": {
+      "eyebrow": "For players",
+      "title": "How it works",
+      "search": {
+        "title": "Every court sport",
+        "body": "Search by sport and city and see which courts are free today and through the week."
+      },
+      "instant": {
+        "title": "Instant confirmation",
+        "body": "Pick a free slot and it is yours. No waiting for the club to call you back."
+      },
+      "payAtClub": {
+        "title": "Pay at the club",
+        "body": "No card and no prepayment. You pay at the club when you come to play."
+      },
+      "team": {
+        "title": "Bring your team",
+        "body": "Invite your teammates with a link. Everyone sees when and where you play."
+      }
+    },
+    "clubsList": {
+      "eyebrow": "Pilot clubs",
+      "title": "Clubs on playerz",
+      "lead": "We are starting in Sofia with clubs we work with closely.",
+      "venues": "{count, plural, one {# venue} other {# venues}}",
+      "sportsLabel": "Sports at {club}",
+      "empty": {
+        "title": "The first clubs are coming soon",
+        "description": "We are starting in Sofia with a few clubs. Yours could be one of them.",
+        "action": "Get in touch"
+      }
+    },
+    "clubs": {
+      "eyebrow": "For clubs",
+      "title": "Fill your empty slots",
+      "lead": "playerz shows your free courts to players in Sofia and turns them into bookings, without changing how you work.",
+      "diary": {
+        "title": "One diary",
+        "body": "Desk and online bookings in one place. No double bookings."
+      },
+      "free": {
+        "title": "The first 2 months free",
+        "body": "After that you pay a small percentage of the online bookings that were played, and nothing else."
+      },
+      "payAtClub": {
+        "title": "Payment stays with you",
+        "body": "Players pay at the club, as they do today."
+      },
+      "onboarding": {
+        "title": "An easy start",
+        "body": "We set up your courts, prices and photos together with you."
+      },
+      "form": {
+        "title": "Get in touch",
+        "lead": "Leave a phone number or an email and we will get back to you.",
+        "name": "Your name",
+        "clubName": "Club",
+        "phone": "Phone",
+        "email": "Email",
+        "reachHint": "Phone or email: at least one of the two.",
+        "message": "Message",
+        "messagePlaceholder": "How many courts you have, for which sports, how you take bookings today…",
+        "honeypot": "Do not fill in this field",
+        "submit": "Send",
+        "sending": "Sending…",
+        "privacy": "We will use your details only to reply to you. <link>Privacy policy</link>",
+        "success": {
+          "title": "Thank you!",
+          "body": "We have received your enquiry and will get back to you soon."
+        },
+        "errors": {
+          "required": "Please fill in this field.",
+          "tooLong": "This is too long.",
+          "phone": "Enter a phone number, e.g. +359 88 123 4567.",
+          "email": "Enter a valid email address.",
+          "reachable": "Leave a phone number or an email.",
+          "rateLimited": "You have sent several enquiries in a row. Please try again in an hour.",
+          "failed": "Your enquiry was not sent. Please try again.",
+          "unavailable": "This page is out of date. Reload it and try again."
+        }
+      }
+    },
+    "closing": {
+      "title": "Ready to play?",
+      "lead": "See which courts are free today.",
+      "cta": "Browse courts"
+    }
   },
   "engine": {
     "analysisBy": "Analysis by",
@@ -1193,6 +1301,38 @@
       "statementSubtitle": "The same statement the club sees in its admin.",
       "statementHeading": "{club} — {month}",
       "back": "← All clubs"
+    },
+    "contactRequests": {
+      "metaTitle": "Club enquiries — playerz.bg",
+      "title": "Club enquiries",
+      "subtitle": "Sent from the For clubs form on the home page. Newest first.",
+      "reason": {
+        "label": "Why are you opening the enquiries?",
+        "hint": "At least {min} characters. Recorded in the platform audit log with every page loaded."
+      },
+      "open": "Show enquiries",
+      "refresh": "Reload",
+      "more": "Load more",
+      "empty": {
+        "title": "No enquiries",
+        "description": "When a club fills in the form on the home page, you will see it here."
+      },
+      "received": "Received {when}",
+      "language": "Form language: {language}",
+      "phone": "Phone",
+      "email": "Email",
+      "error": {
+        "PLATFORM_AUTHORITY_REQUIRED": "You have no live platform grant.",
+        "PLATFORM_CAPABILITY_REQUIRED": "Your grant does not include club enquiries.",
+        "REASON_REQUIRED": "Give a reason of at least 12 characters.",
+        "REASON_TOO_LONG": "The reason is too long: 500 characters at most.",
+        "INVALID_CURSOR": "The list changed in the meantime. Reload it.",
+        "UNAUTHORIZED": "Your session has expired. Sign in again.",
+        "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+        "NETWORK": "The server is unreachable.",
+        "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
+        "UNKNOWN": "Something went wrong."
+      }
     }
   },
   "accountKind": {
@@ -1369,6 +1509,16 @@
       "link": "Your booking",
       "footer": "You are getting this email because you have a booking on playerz.bg.",
       "settings": "Choose which emails you get in Profile → Notifications: {url}"
+    },
+    "contactRequest": {
+      "subject": "Club enquiry: {club}",
+      "intro": "A new enquiry from the playerz.bg For clubs form.",
+      "name": "Name",
+      "club": "Club",
+      "phone": "Phone",
+      "email": "Email",
+      "message": "Message",
+      "link": "All enquiries"
     }
   },
   "billing": {
