@@ -514,6 +514,38 @@ describe('the nightly workflow can actually run', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('boots the app with everything the per-PR E2E job gives it', () => {
+    // Nightly failed every night from 2026-10-03 (#338) for want of ONE env
+    // var: ci.yml's E2E job gained DATA_ENCRYPTION_KEY when sign-in started
+    // needing it, and the jobs that run the same suite elsewhere never did, so
+    // every sign-in 500'd there and nothing gated a merge. The per-PR job is
+    // the one known to work; every other Playwright job sets at least its keys.
+    const envOf = (file: string, job: Record<string, unknown>): Record<string, unknown> => ({
+      ...((parseYaml(read(file)) as { env?: Record<string, unknown> }).env ?? {}),
+      ...((job.env as Record<string, unknown> | undefined) ?? {}),
+    });
+
+    const reference = jobs.find(
+      ({ file, name }) => file === '.github/workflows/ci.yml' && name === 'e2e',
+    );
+    if (!reference) throw new Error('ci.yml has no `e2e` job; repoint this test at the per-PR E2E');
+    const required = Object.keys(envOf(reference.file, reference.job));
+    // Sanity: reading the wrong job would make the comparison vacuous.
+    expect(required).toContain('DATA_ENCRYPTION_KEY');
+
+    const others = jobs.filter((j) => j !== reference && /playwright test/.test(shellOf(j.job)));
+    expect(others.length).toBeGreaterThan(0);
+
+    const gaps = others.flatMap(({ file, name, job }) => {
+      const have = envOf(file, job);
+      return required
+        .filter((key) => !(key in have))
+        .map((key) => `${file} → ${name} lacks ${key}`);
+    });
+
+    expect(gaps).toEqual([]);
+  });
+
   it('says something out loud when it fails', () => {
     // The four defects this block exists for were not subtle. They survived
     // for weeks because a scheduled run reports at 02:00 into a tab nobody

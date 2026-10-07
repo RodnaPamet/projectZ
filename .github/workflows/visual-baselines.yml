@@ -75,6 +75,11 @@ jobs:
     env:
       DIRECT_DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/playerz_test'
       DATABASE_URL: 'postgresql://playerz_app:ci-least-privilege@localhost:5432/playerz_test' # pragma: allowlist secret
+      # Same as ci.yml's E2E job. Without the key every sign-in 500s in production
+      # mode ("DATA_ENCRYPTION_KEY is required"), which is what failed Nightly
+      # every night from 2026-10-03 (#338). Throwaway values.
+      DATA_ENCRYPTION_KEY: 'ci-e2e-data-encryption-key-throwaway-0000000000' # pragma: allowlist secret
+      MEDIA_STORAGE: local
     services:
       # postgis/postgis, not postgres: `prisma migrate deploy` creates the
       # postgis extension, which the stock image does not have.
