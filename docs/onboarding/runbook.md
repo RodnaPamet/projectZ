@@ -229,7 +229,7 @@ sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env \
   playerz-migrator:local npx tsx scripts/onboard-club.ts --spec /clubs/sofia-padel.json
 ```
 
-Verify the same pages on `https://app.playerz.bg`, but do not book on
+Verify the same pages on `https://playerz.bg`, but do not book on
 production. A booking there is a real reservation at a real club.
 
 Locally, against a dev database: `npm run onboard:club -- --spec docs/onboarding/example-club.json --dry-run`.
@@ -277,7 +277,7 @@ using that **same email address**, sign-in matches the existing account by
 email and they land in their club's admin. Nothing needs to be sent to them.
 Tell them:
 
-- "Sign in at app.playerz.bg with Google, using _owner@…_."
+- "Sign in at playerz.bg with Google, using _owner@…_."
 - The address must be exactly the email of the Google account (a Gmail
   address, or a Google Workspace address on a verified domain; Google sign-in
   refuses an unverified email). For Facebook, it is the email on the Facebook
