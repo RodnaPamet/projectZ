@@ -96,7 +96,14 @@ const courtRow = (tenantId: string, name: string) =>
     });
   });
 
-/** Focus the field's trigger, open it with Enter, type, and pick with Enter. */
+/**
+ * Focus the field's trigger, open it with Enter, type, and pick with Enter.
+ *
+ * Done when focus is back on the trigger, as a keyboard user finds it. The
+ * popover hands focus back only once its close animation ends, so a next field
+ * focused before then loses it to this trigger, and its Enter reopens this
+ * list (seen once under a loaded parallel run).
+ */
 async function chooseByKeyboard(page: Page, field: string, search: string, expected: string) {
   const trigger = page.getByRole('combobox', { name: new RegExp(`^${field},`) });
   await trigger.focus();
@@ -105,6 +112,8 @@ async function chooseByKeyboard(page: Page, field: string, search: string, expec
   await page.keyboard.type(search);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('combobox', { name: `${field}, ${expected}` })).toBeVisible();
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 }
 
 async function expectNoDrift(page: Page) {
