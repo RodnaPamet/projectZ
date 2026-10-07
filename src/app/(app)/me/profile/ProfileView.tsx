@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getCsrfToken, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
@@ -20,8 +20,7 @@ import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
-
-import { saveMyLocaleAction } from './actions';
+import { persistMyLocale, refreshSession } from '@/lib/i18n/persist-my-locale';
 
 /**
  * A titled group of rows: the vendored `Heading` over a flat `Card` whose rows
@@ -41,34 +40,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const ROW = 'flex min-h-14 items-center justify-between gap-3 px-4 py-2';
-
-/**
- * Write the language to the user record, then have next-auth re-read it into
- * the token, BEFORE the switcher sets the cookie (the switcher's
- * `onLocaleChange`, upstream #3185). The middleware re-seeds the cookie from
- * the token on every request, so with the old token in place the new language
- * would be flipped straight back. `auth.ts` reads the value from the
- * database on `trigger: 'update'`; this request carries none.
- */
-async function persistLocale(locale: string) {
-  const saved = await saveMyLocaleAction(locale);
-  if (!saved.ok) throw new Error('locale not saved');
-  await refreshSession();
-}
-
-/**
- * next-auth's CSRF-checked session update: `auth.ts` re-reads the locale and
- * the display name (#359) from the user's own row into the token.
- */
-async function refreshSession() {
-  const csrfToken = await getCsrfToken();
-  const res = await fetch('/api/auth/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ csrfToken, data: {} }),
-  });
-  if (!res.ok) throw new Error('session not refreshed');
-}
 
 /**
  * The profile page's body (#362): identity, settings, privacy, the platform
@@ -148,7 +119,7 @@ export function ProfileView({
             onLocaleChange={async (locale) => {
               setSaveFailed(false);
               try {
-                await persistLocale(locale);
+                await persistMyLocale(locale);
               } catch (err) {
                 setSaveFailed(true);
                 throw err;

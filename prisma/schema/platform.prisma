@@ -61,6 +61,10 @@ enum PlatformCapability {
   /// step-up; granted explicitly, never implied by another capability. Reading
   /// the statements is TENANT_READ.
   CLUB_FEE_MANAGE
+  /// Read the landing page's club enquiries (#369, `contact_request`). A READ:
+  /// names, phones and emails people sent to the operator, so it is granted
+  /// by name and every read is audited, like any other platform read.
+  CONTACT_READ
 }
 
 /// One person's platform authority, for a bounded window.

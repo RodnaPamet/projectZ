@@ -28,6 +28,7 @@ export const PLATFORM_CAPABILITIES = [
   PlatformCapability.TENANT_SUSPEND,
   PlatformCapability.REVIEW_MODERATE,
   PlatformCapability.CLUB_FEE_MANAGE,
+  PlatformCapability.CONTACT_READ,
 ] as const;
 
 /**

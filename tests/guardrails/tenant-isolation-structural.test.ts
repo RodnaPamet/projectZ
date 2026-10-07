@@ -72,6 +72,13 @@ const GLOBAL_MODELS = new Set([
   // message read.
   'conversationParticipant',
   'chatMessage',
+  //
+  // ── P50 club enquiries (#369) ──────────────────────────────────────
+  //
+  // `contactRequest` is an anonymous visitor's enquiry to the operator: it
+  // belongs to no club and no user, has no tenantId column, and denies
+  // app_user outright. Only the platform reads it, through asPlatformAdmin.
+  'contactRequest',
 ]);
 
 /** Prisma calls that read or mutate rows and therefore need scoping. */

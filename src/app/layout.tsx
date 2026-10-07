@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 
 // From the SERVER-SAFE module, never from ThemeProvider ('use client'): a
 // server import of a client module's constant is a client-reference proxy, not
@@ -98,9 +98,19 @@ const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement;var ck
   THEME_STORAGE_KEY,
 )};var c={dark:${jsToken(THEME_CHROME.dark)},light:${jsToken(THEME_CHROME.light)}};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;}}if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}d.setAttribute('data-theme',t);var sec=location.protocol==='https:'?'; secure':'';document.cookie=ck+'='+t+'; path=/; max-age=31536000; samesite=lax'+sec;var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
 
-export const metadata: Metadata = {
+/**
+ * The defaults every page inherits. The description is in the request's
+ * language (#368): it was an English literal, so every page without its own
+ * (/venues, /login, the invitations, the 404) described itself in English to
+ * a Bulgarian reader and in search results.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('common');
+  return { ...BASE_METADATA, description: t('metaDescription') };
+}
+
+const BASE_METADATA: Metadata = {
   title: 'playerz.bg',
-  description: 'Book a court. Find a game. Multi-sport booking across Bulgaria.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     // Installed to the home screen, the app should not render the browser's

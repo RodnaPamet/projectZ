@@ -97,6 +97,10 @@ const ALLOWED: Record<string, string> = {
   'src/app/api/v1/venues/[id]/availability/route.ts': 'public availability for a venue',
   'src/app/api/venues/route.ts': 'legacy public venue list',
   'src/app/api/venues/near/route.ts': 'legacy public geo search',
+  'src/app-layer/usecases/pilot-clubs.ts':
+    "the landing page's pilot clubs (#369): the clubs of the public venues, through " +
+    'publicVenueFilter like /venues, and only their name, slug, cities, sports and cover. ' +
+    'A visitor has no club to bind, and venue / venue_org are FORCE row security.',
 
   // ── Machine work with no human actor ────────────────────────────────
   'src/app/api/webhooks/stripe/route.ts': 'Stripe posts with no session and no tenant slug',
@@ -170,6 +174,12 @@ const ALLOWED: Record<string, string> = {
     'UPDATE … FOR UPDATE SKIP LOCKED: machine work with no human actor, the shape of the ' +
     'completion sweep. Every write it makes goes through `deliver`, bound to the recipient ' +
     '(runAsUserOnly). NOT asPlatformAdmin: no person reaches into a club.',
+  'src/app-layer/usecases/contact-requests.ts':
+    "the landing page's club enquiry form (#369): an ANONYMOUS visitor's row, which belongs " +
+    'to no user and no club; contact_request denies app_user outright (P50). It writes one new ' +
+    "row and, in the same transaction, the operator's outbox email by the id just created " +
+    '(email_outbox rows with no user are invisible to app_user too). It reads nothing back. ' +
+    'Reading the enquiries is NOT here: that is asPlatformAdmin under CONTACT_READ, audited.',
   'src/app-layer/usecases/notification-outbox.ts':
     'the email outbox drain (#367): claims due rows across every user with FOR UPDATE SKIP ' +
     "LOCKED, re-reads each recipient's address and settings and the booking's status by the " +

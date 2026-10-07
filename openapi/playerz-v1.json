@@ -2660,6 +2660,83 @@
         }
       }
     },
+    "/platform/contact-requests": {
+      "get": {
+        "operationId": "listPlatformContactRequests",
+        "summary": "The landing page's club enquiries",
+        "tags": ["Platform"],
+        "description": "Enquiries sent through the \"For clubs\" form on the landing page (#369): who wrote, for which club, a phone and/or an email, the message, and the language the form was read in. They belong to no club, so `subjectTenantId` on the audit row is null.\n\n**Needs `CONTACT_READ`.** A read capability: no step-up.\n\nEvery page writes a `PLATFORM_CONTACT_REQUEST_LIST` audit row with the stated reason. Newest first, 50 per page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque. Pass back `nextCursor` verbatim; never parse it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of enquiries, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformContactRequestPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`INVALID_CURSOR` — `cursor` is malformed, or names no row (it may be from another endpoint, or the row may be gone). An unknown cursor is refused rather than answered with an empty page, which would read as a completed walk.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters. It lands in an append-only row that cannot be pruned; put the detail in the ticket and the ticket number here.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry the capability this operation needs. Neither message names what is missing; the operator finds that in the log.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/platform/moderation/cases": {
       "get": {
         "operationId": "listPlatformModerationCases",
@@ -8248,8 +8325,16 @@
       },
       "PlatformCapability": {
         "type": "string",
-        "enum": ["TENANT_READ", "AUDIT_READ", "USER_READ", "TENANT_SUSPEND", "REVIEW_MODERATE"],
-        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: taking a club offline is a power nobody has decided to ship. `REVIEW_MODERATE` is the one write that IS enabled, by owner decision: reading the review moderation queue and approving or rejecting its cases. Its reach is a review's visibility and the venue rating computed from it, nothing is deleted, and every decision is audited with the moderator's note. Since #262 every write capability — `REVIEW_MODERATE` included, for reading the queue as well as deciding — also needs a second-factor step-up on the calling session from the last 15 minutes (`POST /me/mfa/step-up`)."
+        "enum": [
+          "TENANT_READ",
+          "AUDIT_READ",
+          "USER_READ",
+          "TENANT_SUSPEND",
+          "REVIEW_MODERATE",
+          "CLUB_FEE_MANAGE",
+          "CONTACT_READ"
+        ],
+        "description": "What a platform grant permits. `TENANT_SUSPEND` is a WRITE capability, declared so the shape is settled and deliberately refused at runtime: taking a club offline is a power nobody has decided to ship. `REVIEW_MODERATE` is the one write that IS enabled, by owner decision: reading the review moderation queue and approving or rejecting its cases. Its reach is a review's visibility and the venue rating computed from it, nothing is deleted, and every decision is audited with the moderator's note. Since #262 every write capability — `REVIEW_MODERATE` included, for reading the queue as well as deciding — also needs a second-factor step-up on the calling session from the last 15 minutes (`POST /me/mfa/step-up`). `CONTACT_READ` (#369) reads the landing page's club enquiries: a read, no step-up. `CLUB_FEE_MANAGE` (#372) sets a club's fee terms: a write, behind a step-up."
       },
       "PlatformAuditEntry": {
         "type": "object",
@@ -8349,6 +8434,66 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/PlatformTenant"
+                }
+              },
+              "nextCursor": {
+                "type": ["string", "null"],
+                "description": "Null on the last page."
+              }
+            }
+          }
+        }
+      },
+      "PlatformContactRequest": {
+        "type": "object",
+        "required": ["id", "name", "clubName", "phone", "email", "message", "locale", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "clubName": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "phone": {
+            "type": ["string", "null"],
+            "description": "At least one of `phone` and `email` is set."
+          },
+          "email": {
+            "type": ["string", "null"]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Plain text, as typed."
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["bg", "en"],
+            "description": "The language the form was read in."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PlatformContactRequestPage": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items", "nextCursor"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformContactRequest"
                 }
               },
               "nextCursor": {

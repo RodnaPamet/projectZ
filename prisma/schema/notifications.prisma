@@ -20,6 +20,9 @@ enum NotificationKind {
   BOOKING_PLAYER_LEFT
   BOOKING_PLAYER_ADDED
   BOOKING_PLAYER_REMOVED
+  /// #369: a club asked about playerz through the landing page's form.
+  /// Email only, to the operator's inbox (`CONTACT_INBOX_EMAIL`); no bell.
+  CONTACT_REQUEST
 }
 
 /// Where an email stands in the outbox (#367).
@@ -122,9 +125,17 @@ model Notification {
 ///
 /// Owner-only under RLS (`app.user_id`), like `notification`; the drain is
 /// machine work and binds BYPASSRLS.
+///
+/// One kind of row has NO user (#369, P50): category `contact`, a landing-page
+/// enquiry for the operator. Its address is not stored either: the drain reads
+/// `CONTACT_INBOX_EMAIL` at send time, and skips the row when that is unset. A
+/// CHECK keeps `userId` NULL to that category alone; such a row is invisible
+/// to `app_user` (the owner policy never matches NULL) and is written and
+/// drained BYPASSRLS.
 model EmailOutbox {
   id        String           @id @default(cuid())
-  userId    String
+  /// NULL only for category `contact` (CHECK `email_outbox_user_or_contact`).
+  userId    String?
   kind      NotificationKind
   /// The settings category it is sent under: `confirmation`, `reminder` or
   /// `clubChanges` (and later `messages`). Re-checked at send time.
@@ -157,11 +168,40 @@ model EmailOutbox {
   updatedAt DateTime @updatedAt
 
   /// Deleting an account deletes its unsent mail (and the copy it carries).
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// NULLs are distinct here, so a `contact` row's dedupe key is unique by the
+  /// partial index `email_outbox_contact_dedupeKey_key` (P50) instead.
   @@unique([userId, dedupeKey])
   /// The drain: what is due, oldest first.
   @@index([status, nextAttemptAt])
   @@index([refType, refId])
   @@map("email_outbox")
+}
+
+/// An enquiry from the landing page's "For clubs" form (#369).
+///
+/// Written by an ANONYMOUS visitor, so it belongs to no user and no club:
+/// `app_user` may neither read nor write it (deny-all policy), the form's
+/// Server Action writes it BYPASSRLS, and the platform reads it through
+/// `asPlatformAdmin` under CONTACT_READ, audited.
+///
+/// The visitor's IP is NOT stored, here or anywhere: the form's rate limit is
+/// keyed on a keyed hash of it, in Redis, for the window only.
+model ContactRequest {
+  id       String  @id @default(cuid())
+  name     String
+  clubName String
+  /// At least one of the two (CHECK `contact_request_reachable`).
+  phone    String?
+  email    String?
+  message  String
+  /// The language the visitor read the form in, so the reply can match it.
+  locale   Locale
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  /// The platform list: newest first, keyset on (createdAt, id).
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("contact_request")
 }
