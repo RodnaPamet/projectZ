@@ -850,7 +850,8 @@
           "NOT_STARTED": "That booking has not started yet.",
           "NOT_ATTENDABLE": "Only a confirmed or completed booking can be marked as a no-show.",
           "ALREADY_NO_SHOW": "That booking is already marked as a no-show.",
-          "REVIEWED": "The player has already reviewed this visit, so it can no longer be marked as a no-show. A disputed review goes to moderation."
+          "REVIEWED": "The player has already reviewed this visit, so it can no longer be marked as a no-show. A disputed review goes to moderation.",
+          "ACCOUNT_DELETED": "The player deleted their account, so this booking stays as it is."
         }
       },
       "desk": {
@@ -1627,13 +1628,19 @@
     },
     "data": {
       "row": "A copy of your data",
-      "hint": "Everything playerz.bg holds about you, in one file (JSON).",
+      "hint": "Your profile, bookings, credit, notifications and devices, in one file (JSON).",
       "download": "Download my data"
     },
     "delete": {
       "title": "Delete account",
       "intro": "Deletion happens at once and can’t be undone. Your name, email, picture, sports, notifications and reviews are deleted. Bookings you have played stay with the clubs as “Deleted user”, because their statements are worked out from them.",
       "exportFirst": "If you want a copy of your data, download it first.",
+      "credit": {
+        "title": "You will lose your credit",
+        "body": "Unused credit at a club is not returned once the account is deleted:",
+        "line": "{club}: {amount}",
+        "hint": "Use it, or ask the club what can be done, before you delete your account."
+      },
       "button": "Delete account",
       "blocked": {
         "title": "You have upcoming bookings",

@@ -83,7 +83,7 @@ function renderProfile(
             notificationSettings={{
               email: { confirmation: true, reminder: true, clubChanges: true },
             }}
-            deletion={opts.deletion ?? { kind: 'allowed' }}
+            deletion={opts.deletion ?? { kind: 'allowed', credit: [] }}
           />
         </TooltipProvider>
       </SWRConfig>,

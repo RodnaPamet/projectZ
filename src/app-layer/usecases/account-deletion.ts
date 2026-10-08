@@ -21,6 +21,9 @@ import { recomputeVenueRating } from './reviews';
  *   3. A CLUB account cannot delete itself. It asks through the contact form
  *      and the platform deletes it.
  *   4. A COACH account is a player's case: the coach module does not exist yet.
+ *   5. Unused credit at a club is lost with the account. The person is told
+ *      how much, at which club, and may still delete (#370 review: warn, then
+ *      allow).
  *
  * What happens to every table is decided, with the reason, in
  * src/lib/account/deletion-plan.ts; `deleteAccount` below is that list in code,
@@ -72,10 +75,22 @@ export interface UpcomingBooking {
   deletableFrom: Date;
 }
 
+/**
+ * Unused credit at one club, which the account loses when it is deleted. The
+ * owner's decision (#370 review): warn, then allow. The ledger itself is kept,
+ * naming the tombstone (deletion-plan.ts); the balance is simply nobody's.
+ */
+export interface ClubCredit {
+  tenantId: string;
+  club: string;
+  /** Positive: a club with nothing left, or a debt, is not listed. */
+  balanceCents: number;
+}
+
 export type DeletionStanding =
-  | { kind: 'allowed' }
+  | { kind: 'allowed'; credit: ClubCredit[] }
   | { kind: 'club' }
-  | { kind: 'blocked'; bookings: UpcomingBooking[]; total: number };
+  | { kind: 'blocked'; bookings: UpcomingBooking[]; total: number; credit: ClubCredit[] };
 
 /** A CLUB account, or one that runs a club: deleted by the platform on request. */
 export class ClubAccountDeletionRefusedError extends Error {
@@ -112,14 +127,6 @@ export class AccountNotFoundForDeletionError extends Error {
 export type DeletionSummary = Record<string, number>;
 
 const CLUB_ROLES = ['OWNER', 'MANAGER', 'STAFF'] as const;
-
-/** Bell rows that name the OTHER player on a booking (#358): their copy carries a name. */
-const PLAYER_CHANGE_KINDS = [
-  'BOOKING_PLAYER_JOINED',
-  'BOOKING_PLAYER_LEFT',
-  'BOOKING_PLAYER_ADDED',
-  'BOOKING_PLAYER_REMOVED',
-] as const;
 
 const REVOKE_REASON = 'The account was deleted by its holder (#370).';
 const REVOKE_REASON_OPERATOR = 'The account was deleted by the platform, on request (#370).';
@@ -183,8 +190,39 @@ async function upcoming(db: PrismaClient, userId: string, now: Date) {
 }
 
 /**
+ * The person's positive credit at each club, by club name. The balance is the
+ * sum of the ledger's deltas, as the club's players list reads it.
+ */
+async function creditAtClubs(db: PrismaClient, userId: string): Promise<ClubCredit[]> {
+  // guardrail-allow: cross-tenant — the person's own credit, at every club.
+  const sums = await db.creditLedgerEntry.groupBy({
+    by: ['tenantId'],
+    where: { userId },
+    _sum: { deltaCents: true },
+  });
+  const positive = sums.filter((s) => (s._sum.deltaCents ?? 0) > 0);
+  if (positive.length === 0) return [];
+  // guardrail-allow: cross-tenant — the names of the clubs that hold it.
+  const clubs = await db.venueOrg.findMany({
+    where: { id: { in: positive.map((s) => s.tenantId) } },
+    select: { id: true, name: true },
+    take: positive.length,
+  });
+  const names = new Map(clubs.map((c) => [c.id, c.name]));
+  return positive
+    .map((s) => ({
+      tenantId: s.tenantId,
+      club: names.get(s.tenantId) ?? '',
+      balanceCents: s._sum.deltaCents ?? 0,
+    }))
+    .sort((a, b) => a.club.localeCompare(b.club, 'bg'));
+}
+
+/**
  * May this account delete itself now, and if not, why: what the profile page
  * draws. Read-only. `deleteAccount` decides again, under the row lock.
+ *
+ * Credit never blocks it: it is listed, so the person is told what they lose.
  */
 export async function deletionStanding(
   db: PrismaClient,
@@ -198,7 +236,8 @@ export async function deletionStanding(
   if (!user || user.deletedAt) throw new AccountNotFoundForDeletionError();
   if (await runsAClub(db, userId, user.accountKind)) return { kind: 'club' };
   const { bookings, total } = await upcoming(db, userId, now);
-  return total > 0 ? { kind: 'blocked', bookings, total } : { kind: 'allowed' };
+  const credit = await creditAtClubs(db, userId);
+  return total > 0 ? { kind: 'blocked', bookings, total, credit } : { kind: 'allowed', credit };
 }
 
 /** `deletionStanding` for the signed-in person, bound as the deletion is. */
@@ -278,19 +317,8 @@ export async function deleteAccount(
     (await db.mfaRecoveryCode.deleteMany({ where: { userId } })).count,
   );
 
-  // The security log keeps the event and loses the address. P52's trigger
-  // admits this one update, for this one account, under this setting.
-  await db.$executeRawUnsafe(`SELECT set_config('app.erasure_user_id', $1, true)`, userId);
-  count(
-    'AccountSecurityEvent.erased',
-    // guardrail-allow: cross-tenant — the person's own security log; it names no club.
-    (
-      await db.accountSecurityEvent.updateMany({
-        where: { userId, OR: [{ ipAddress: { not: null } }, { userAgent: { not: null } }] },
-        data: { ipAddress: null, userAgent: null },
-      })
-    ).count,
-  );
+  // The security log's addresses go last, after the tombstone (step 10): P52's
+  // trigger admits that one update only for an account already deleted.
 
   // ═══ 4. THE PERSON'S OWN DATA ═══
   count('PlayerProfile', (await db.playerProfile.deleteMany({ where: { userId } })).count);
@@ -307,24 +335,54 @@ export async function deleteAccount(
     (await db.emailOutbox.deleteMany({ where: { userId } })).count,
   );
 
-  // Other people's bell rows that name this person: a player joined or left
-  // (to the booker, naming the player), was added or removed (to the player,
-  // naming the booker). Their copy carries the name; the key says who.
+  // Other people's bell rows that name this person (#358, #416). Their copy
+  // carries the name:
+  //
+  //   joined, left    to the booker, naming the player: "{name} напусна играта"
+  //   added, removed  to the player, naming the booker: "{name} ви добави в игра"
+  //
+  // A joined or left row is keyed `booking:<bookingId>:<event>:<placeId>`
+  // (booking-notifications.ts). The place is often gone by now: leaving and
+  // being removed delete it, and the profile page tells a blocked player to
+  // leave their games first. So the person's places are read from the club's
+  // audit log as well, which keeps them: a place they joined by link or left
+  // (they are the actor), or one the booker took them off (`removedUserId`).
+  // Every row names its booking, which is how the bell rows are found.
+  count(
+    'Notification.namingTheAccount',
+    await db.$executeRaw`
+      WITH places AS (
+        SELECT p.id AS place, p."bookingId" AS booking
+          FROM booking_participant p
+         WHERE p."userId" = ${userId}
+        UNION
+        SELECT a."entityId", a."detailsJson" ->> 'bookingId'
+          FROM audit_entry a
+         WHERE a.entity = 'BookingParticipant'
+           AND (
+             (a.action IN ('BOOKING_PLAYER_JOINED', 'BOOKING_PLAYER_LEFT')
+               AND a."actorUserId" = ${userId})
+             OR (a.action = 'BOOKING_PLAYER_REMOVED'
+               AND a."detailsJson" ->> 'removedUserId' = ${userId})
+           )
+      )
+      DELETE FROM notification n
+       USING places
+       WHERE n."userId" <> ${userId}
+         AND n."refType" = 'booking'
+         AND n."refId" = places.booking
+         AND n.kind IN ('BOOKING_PLAYER_JOINED', 'BOOKING_PLAYER_LEFT')
+         AND split_part(n."dedupeKey", ':', 4) = places.place`,
+  );
+  // The booker's side: every added or removed row on a booking they made.
   count(
     'Notification.namingTheAccount',
     await db.$executeRaw`
       DELETE FROM notification n
        WHERE n."userId" <> ${userId}
          AND n."refType" = 'booking'
-         AND (
-           (n.kind IN ('BOOKING_PLAYER_JOINED', 'BOOKING_PLAYER_LEFT')
-             AND n."refId" IN (SELECT "bookingId" FROM booking_participant WHERE "userId" = ${userId})
-             AND split_part(n."dedupeKey", ':', 4)
-                 IN (SELECT id FROM booking_participant WHERE "userId" = ${userId}))
-           OR
-           (n.kind IN ('BOOKING_PLAYER_ADDED', 'BOOKING_PLAYER_REMOVED')
-             AND n."refId" IN (SELECT id FROM booking WHERE "bookedByUserId" = ${userId}))
-         )`,
+         AND n.kind IN ('BOOKING_PLAYER_ADDED', 'BOOKING_PLAYER_REMOVED')
+         AND n."refId" IN (SELECT id FROM booking WHERE "bookedByUserId" = ${userId})`,
   );
   count(
     // guardrail-allow: cross-tenant — the person's own bell, by their id.
@@ -346,7 +404,12 @@ export async function deleteAccount(
   count(
     'Invite',
     // guardrail-allow: cross-tenant — invitations addressed to this person, at any club.
-    (await db.invite.deleteMany({ where: { email: locked.email } })).count,
+    // In any case: a club types the address, and MARIA@ is still Maria.
+    (
+      await db.invite.deleteMany({
+        where: { email: { equals: locked.email, mode: 'insensitive' } },
+      })
+    ).count,
   );
   count(
     'Invite.invitedBy',
@@ -567,10 +630,10 @@ export async function deleteAccount(
 
   // ═══ 9. THE TOMBSTONE ═══
   //
-  // ONE update: P52's trigger refuses every update after the one that sets
-  // `deletedAt`, and its CHECK refuses a deleted row with anything personal
-  // left on it. `sessionVersion` moves too, so a token minted before this, by
-  // an instance that never wrote a session row, is stale as well.
+  // ONE update. P52's CHECK refuses a deleted row with anything personal left
+  // on it, and its trigger refuses ever clearing `deletedAt` again.
+  // `sessionVersion` moves too, so a token minted before this, by an instance
+  // that never wrote a session row, is stale as well.
   await db.user.update({
     where: { id: userId },
     data: {
@@ -592,6 +655,22 @@ export async function deleteAccount(
     },
   });
   summary.User = 1;
+
+  // ═══ 10. THE SECURITY LOG KEEPS THE EVENT AND LOSES THE ADDRESS ═══
+  //
+  // P52's trigger admits this one update, for this one account, under this
+  // setting, and only once the account is a tombstone: step 9 first.
+  await db.$executeRawUnsafe(`SELECT set_config('app.erasure_user_id', $1, true)`, userId);
+  count(
+    'AccountSecurityEvent.erased',
+    // guardrail-allow: cross-tenant — the person's own security log; it names no club.
+    (
+      await db.accountSecurityEvent.updateMany({
+        where: { userId, OR: [{ ipAddress: { not: null } }, { userAgent: { not: null } }] },
+        data: { ipAddress: null, userAgent: null },
+      })
+    ).count,
+  );
 
   return summary;
 }

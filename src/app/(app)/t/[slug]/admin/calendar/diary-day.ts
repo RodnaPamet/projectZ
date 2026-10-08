@@ -93,9 +93,8 @@ export async function loadDiaryDay(
   // its own clock, under a row lock, when staff actually press it.
   const now = new Date();
 
-  const { timezone, courts, bookings, names, isoDay, todayAtClub } = await runInTenantContext(
-    tenantId,
-    async (db) => {
+  const { timezone, courts, bookings, names, deleted, isoDay, todayAtClub } =
+    await runInTenantContext(tenantId, async (db) => {
       const club = await db.venueOrg.findFirstOrThrow({
         where: { id: tenantId },
         select: { timezone: true },
@@ -141,11 +140,12 @@ export async function loadDiaryDay(
         names: new Map(
           users.map((u) => [u.id, u.deletedAt ? labels.deletedUser : (u.name ?? u.email)]),
         ),
+        // ...and nobody can be marked as missing it: markNoShow refuses one.
+        deleted: new Set(users.filter((u) => u.deletedAt).map((u) => u.id)),
         isoDay: requested,
         todayAtClub,
       };
-    },
-  );
+    });
 
   // ═══ THE DAY IS THE ONE THE QUERY USED ═══
   //
@@ -218,7 +218,8 @@ export async function loadDiaryDay(
       // read per booking and is answered by the refusal message instead.
       canMarkNoShow:
         (b.status === 'CONFIRMED' || b.status === 'COMPLETED') &&
-        b.startTs.getTime() <= now.getTime(),
+        b.startTs.getTime() <= now.getTime() &&
+        !(b.bookedByUserId && deleted.has(b.bookedByUserId)),
     };
   });
 

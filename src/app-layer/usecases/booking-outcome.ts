@@ -161,7 +161,14 @@ export type NoShowRefusal =
   | 'NOT_ATTENDABLE'
   | 'ALREADY_NO_SHOW'
   /** The player has reviewed the visit. See `markNoShow` for why that is final. */
-  | 'REVIEWED';
+  | 'REVIEWED'
+  /**
+   * The player deleted their account (#370). Their reviews went with it, and
+   * those were what made a reviewed visit final: without this, a club could
+   * mark a deleted player's old bookings as no-shows and have their platform
+   * fee reversed. Nobody is left to dispute it, so nothing is changed.
+   */
+  | 'ACCOUNT_DELETED';
 
 const REFUSAL_MESSAGES: Record<NoShowRefusal, string> = {
   NOT_FOUND: 'Booking not found',
@@ -169,6 +176,7 @@ const REFUSAL_MESSAGES: Record<NoShowRefusal, string> = {
   NOT_ATTENDABLE: 'Only a confirmed or completed booking can be marked as a no-show',
   ALREADY_NO_SHOW: 'This booking is already marked as a no-show',
   REVIEWED: 'The player has already reviewed this booking',
+  ACCOUNT_DELETED: 'The player deleted their account; the booking stays as it was',
 };
 
 export class NoShowRefusedError extends Error {
@@ -239,6 +247,14 @@ export async function markNoShow(
 
   const reviewed = await db.review.count({ where: { tenantId, bookingId: row.id } });
   if (reviewed > 0) throw new NoShowRefusedError('REVIEWED');
+
+  if (row.bookedByUserId) {
+    const booker = await db.user.findUnique({
+      where: { id: row.bookedByUserId },
+      select: { deletedAt: true },
+    });
+    if (booker?.deletedAt) throw new NoShowRefusedError('ACCOUNT_DELETED');
+  }
 
   await db.booking.updateMany({
     where: { id: row.id, tenantId, status: row.status },
