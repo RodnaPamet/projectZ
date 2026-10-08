@@ -31,15 +31,18 @@ import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
  *
  * The two context reads are request-cached and run together: the membership
  * (one indexed query, shared with the club layout above and the page below)
- * and the identity (the token's name and email, for the account menu).
+ * and the identity (the token's name and email, for the account menu and the
+ * sidebar's foot).
  *
- * ═══ THE WAY OUT, AND THE PHONE BAR (#362, #347) ═══
+ * ═══ THE ACCOUNT, THE WAY OUT, AND THE PHONE BAR (#362, #347) ═══
  *
- * The account rows are decided here: the public site (the club's own page,
- * `/clubs/{slug}`, #356), the profile, and for a holder of a live platform grant the
- * platform (one indexed probe, the read the platform layout makes). Both reads
- * run alongside the membership read, not after it. Below `md` the shell adds the bottom tab bar,
- * resolved from the same `sections`, so a role sees only tabs it may open.
+ * The account is decided here: the sidebar's foot (the name, the club, the
+ * role; the gear to the club admin's home), the public site (the club's own
+ * page, `/clubs/{slug}`, #356), and for a holder of a live platform grant the
+ * Платформа section in the sidebar (one indexed probe, the read the platform
+ * layout makes). Both reads run alongside the membership read, not after it.
+ * Below `md` the shell adds the bottom tab bar, resolved from the same
+ * `sections`, so a role sees only tabs it may open.
  *
  * ═══ ONE BUILDER FOR THE CLUB'S FRAME (#362) ═══
  *
@@ -57,10 +60,11 @@ export default async function ClubAdminLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [result, me, t, grant] = await Promise.all([
+  const [result, me, t, tRole, grant] = await Promise.all([
     resolveTenantPageContext(slug),
     signedInIdentity(),
     getTranslations('common.nav'),
+    getTranslations('admin.staff.role'),
     // The same live-grant read the platform layout makes (#345), beside the
     // others rather than after them: hiding only, and never a throw.
     // `signedInIdentity` is request-cached, so asking twice is one read.
@@ -75,15 +79,21 @@ export default async function ClubAdminLayout({
   if (result.kind === 'not-a-member') notFound();
 
   const nouns = await clubResourceNouns(result.ctx.tenantId);
-  const club = clubShell(result.ctx, { platform: grant?.capabilities ?? [], t, nouns });
-  if (club.sections.length === 0) notFound();
+  const club = clubShell(result.ctx, {
+    platform: grant?.capabilities ?? [],
+    me,
+    t,
+    tRole,
+    nouns,
+  });
+  if (!club.opensAdmin) notFound();
 
   return (
     <ClubAdminShell
       sections={club.sections}
       homeHref={club.homeHref}
       contextName={club.contextName}
-      user={{ name: me.name, email: me.email }}
+      user={{ userId: me.userId, name: me.name, email: me.email }}
       account={club.account}
       bottomTabs
       fullBleedSegment="calendar"

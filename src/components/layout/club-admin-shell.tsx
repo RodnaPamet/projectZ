@@ -4,11 +4,11 @@ import type { ReactNode } from 'react';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { DrawerAccountSection } from './account-links';
+import { DrawerPublicSite } from './account-links';
 import { AppShellFrame } from './AppShellFrame';
 import { ClubAdminTabBar } from './club-admin-tab-bar';
 import { MobileNavDrawer } from './MobileNavDrawer';
-import type { AccountLinks, ShellNavSection } from './nav-items';
+import type { ShellAccount, ShellNavSection } from './nav-items';
 import { ShellSidebar } from './shell-sidebar';
 import { ShellTopBar } from './shell-top-bar';
 import { SidebarCollapseProvider } from './sidebar-collapse-context';
@@ -24,7 +24,7 @@ import { TabBarSpacer } from './tab-bar';
  *
  *   sidebar    `ShellSidebar` in the desktop rail, collapsible
  *   mobileNav  the same sidebar in the vendored left drawer (a vaul Sheet),
- *              never collapsed, with the account rows at its foot
+ *              never collapsed, the way out to the public site above its foot
  *   topChrome  `ShellTopBar`, whose hamburger opens the drawer, and below
  *              `md` the bottom tab bar, whose "Още" opens the same drawer
  *
@@ -45,8 +45,10 @@ import { TabBarSpacer } from './tab-bar';
  * one the frame hands the opener and the drawer's state to.
  *
  * Every shell has an exit to the public site (#347): in the top bar from `sm`,
- * as the first account row in the drawer, and in the account menu. The
- * account rows themselves (`AccountLinks`) are decided on the server.
+ * and in the drawer below it. The sidebar's foot names the account and holds
+ * the gear and Изход (owner, 2026-10-08); the top bar ends with the bell and
+ * the account menu, as in every shell. All of it (`ShellAccount`) is decided
+ * on the server.
  *
  * ═══ #255: THE NAV NO LONGER SCROLLS THE PAGE SIDEWAYS ═══
  *
@@ -87,9 +89,9 @@ export function ClubAdminShell({
    */
   homeHref?: string;
   contextName: string;
-  user: { name: string | null; email: string | null };
-  /** The account rows, in the menu and at the foot of the drawer. */
-  account: AccountLinks;
+  user: { userId: string; name: string | null; email: string | null };
+  /** The sidebar foot's identity and gear, and the way out (`ShellAccount`). */
+  account: ShellAccount;
   /** The bottom tab bar below `md`. The club admin has one; the platform does not. */
   bottomTabs?: boolean;
   /** The child segment that renders edge to edge, e.g. `'calendar'`. */
@@ -108,6 +110,7 @@ export function ClubAdminShell({
             <ShellSidebar
               sections={sections}
               contextName={contextName}
+              account={account}
               onToggleCollapse={onToggleCollapse}
             />
           </SidebarCollapseProvider>
@@ -117,8 +120,15 @@ export function ClubAdminShell({
           // `title`, #362): "Меню", where "Отвори навигационното меню" stood.
           <MobileNavDrawer open={open} onClose={onClose} title={tNav('menu')}>
             <SidebarCollapseProvider collapsed={false}>
-              <ShellSidebar sections={sections} contextName={contextName} onNavClick={onClose} />
-              <DrawerAccountSection links={account} onNavigate={onClose} />
+              <ShellSidebar
+                sections={sections}
+                contextName={contextName}
+                account={account}
+                onNavClick={onClose}
+                beforeFoot={
+                  <DrawerPublicSite publicSite={account.publicSite} onNavigate={onClose} />
+                }
+              />
             </SidebarCollapseProvider>
           </MobileNavDrawer>
         )}

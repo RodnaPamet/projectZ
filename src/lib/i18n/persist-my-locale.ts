@@ -4,8 +4,10 @@ import { saveMyLocaleAction } from '@/app/(public)/me/profile/actions';
 
 /**
  * Save a SIGNED-IN person's language (#362, #368), for the vendored
- * `LocaleSwitcher`'s `onLocaleChange` (upstream #3185). The profile page uses
- * it: a signed-in account switches its language there, and nowhere else.
+ * `LocaleSwitcher`'s `onLocaleChange` (upstream #3185). A signed-in account
+ * switches its language in two places, and both hand it this: the profile
+ * page, and the account menu's Език row in every shell (`UserMenu`'s
+ * `onLocaleChange`, upstream #3248).
  *
  * Write the language to the user record, then have next-auth re-read it into
  * the token, BEFORE the switcher sets the cookie. The middleware re-seeds the

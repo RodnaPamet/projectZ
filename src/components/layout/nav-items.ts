@@ -416,8 +416,9 @@ export const PROFILE_HREF = '/me/profile';
 
 /**
  * The platform's front door (#345): it redirects to the first platform page
- * the grant opens. A club account's account rows link here, for a holder of a
- * live grant; a player's sidebar lists the pages themselves.
+ * the grant opens. The sidebar foot's gear links here for a holder of a live
+ * grant who is not a club account (a club account's gear is its club admin);
+ * every grant holder's sidebar lists the pages themselves.
  */
 export const PLATFORM_HREF = '/platform';
 
@@ -481,10 +482,22 @@ export function playerShellNav(
     ...l,
     prefetch: 'auto' as const,
   }));
-  const platform = visibleSections(platformNav(), (item) =>
-    platformItemAllowed(item, opts.platform ?? []),
-  ).map((s) => ({ ...s, titleKey: 'platform' }));
-  return [{ items }, ...platform];
+  return [{ items }, ...platformSections(opts.platform ?? [])];
+}
+
+/**
+ * The "Платформа" section of a signed-in sidebar: the platform pages a live
+ * grant opens, by the same filter the platform layout draws its own sidebar
+ * with (`platformItemAllowed` over `platformNav`), so the two cannot disagree
+ * about which pages a grant reaches. Empty without a grant. Hiding only:
+ * `/platform` authorises itself.
+ */
+export function platformSections(
+  capabilities: readonly PlatformCapability[],
+): NavSection<PlatformNavItem>[] {
+  return visibleSections(platformNav(), (item) => platformItemAllowed(item, capabilities)).map(
+    (s) => ({ ...s, titleKey: 'platform' }),
+  );
 }
 
 /**
@@ -528,35 +541,88 @@ export function playerChromeHrefs(): string[] {
   ];
 }
 
-// ═══ THE ACCOUNT ROWS, AND THE CLUB'S FRAME (#362) ══════════════════════════
+// ═══ THE ACCOUNT, AND THE CLUB'S FRAME (#362) ══════════════════════════════
 
 /**
- * What an account can reach beyond the page it is on (#362, #345, #347), in
- * the account menu and at the foot of the drawer. Plain data, decided on the
- * server, so each kind's rows are a fact the server already checked, never a
- * guess the client makes:
- *
- *   profile       `/me/profile`, for every signed-in account; `null` where the
- *                 sidebar already lists Профил (the player shell's drawer)
- *   platform      a holder of a live platform grant: `/platform` (#345)
- *   publicSite    inside a club's or the platform's shell: the way out (#347)
- *
- * Hiding a row is a courtesy, not a control: `/platform` and the club admin
- * authorise every request themselves.
+ * Who is signed in, as the sidebar's foot names them (owner, 2026-10-08:
+ * upstream's `SidebarContent` user block): the name, then the club for a club
+ * account or the account's kind otherwise, then the role in that club or the
+ * platform grant. Translated on the server; `null` lines are not drawn.
  */
-export interface AccountLinks {
-  profileHref: string | null;
-  platformHref: string | null;
+export interface ShellIdentity {
+  name: string;
+  context: string | null;
+  role: string | null;
+}
+
+/**
+ * What a shell shows of the account beyond its pages (#362), decided on the
+ * server, so each kind's is a fact the server already checked, never a guess
+ * the client makes:
+ *
+ *   identity    the sidebar foot's three lines
+ *   admin       the foot's gear: a club account's club admin, else the
+ *               platform for a holder of a live grant, else none. An account
+ *               that is both gets its club admin, and Платформа stays in its
+ *               sidebar's list.
+ *   publicSite  the way out of a club's or the platform's shell (#347): in the
+ *               top bar from `sm`, and in the drawer below it
+ *
+ * The account menu (the name, Тема, Език, Профил, Изход) is the same in every
+ * shell and needs nothing from here. Hiding is a courtesy, not a control:
+ * `/platform` and the club admin authorise every request themselves.
+ */
+export interface ShellAccount {
+  identity: ShellIdentity;
+  admin: { href: string; label: string } | null;
   publicSite: { href: string; label: string } | null;
+}
+
+/** What the menu and the sidebar's foot call an account: its name, else its e-mail. */
+export function displayName(me: { name: string | null; email: string | null }): string {
+  return me.name?.trim() || me.email || '';
+}
+
+/** The role label's key in `admin.staff.role` for an account's kind. */
+const KIND_LABEL_KEY = { player: 'PLAYER', coach: 'COACH' } as const;
+
+/**
+ * A PLAYER's or a COACH's account (#362): its kind under its name, and for a
+ * holder of a live platform grant the grant on the third line and the gear to
+ * `/platform`.
+ */
+export function playerAccount(
+  me: { name: string | null; email: string | null },
+  kind: 'player' | 'coach',
+  platform: readonly PlatformCapability[],
+  t: { nav: (key: string) => string; role: (key: string) => string },
+): ShellAccount {
+  const grant = platform.length > 0;
+  return {
+    identity: {
+      name: displayName(me),
+      context: t.role(KIND_LABEL_KEY[kind]),
+      role: grant ? t.nav('platform') : null,
+    },
+    admin: grant ? { href: PLATFORM_HREF, label: t.nav('platform') } : null,
+    publicSite: null,
+  };
 }
 
 /** What `ClubAdminShell` draws for one club, decided on the server. */
 export interface ClubShellData {
   sections: ShellNavSection[];
-  /** The shell's own start, which the club's name in the top bar links to. */
+  /** Whether the role opens any admin page: the admin layout answers 404 when not. */
+  opensAdmin: boolean;
+  /** The club admin's home (`/t/{slug}/admin`), which the club's name in the top bar links to. */
   homeHref: string;
   contextName: string;
-  account: AccountLinks;
+  account: ShellAccount;
+}
+
+/** The club admin's home: its settings and every page the role opens (#362). */
+export function clubAdminHref(slug: string): string {
+  return `/t/${slug}/admin`;
 }
 
 /**
@@ -567,29 +633,45 @@ export interface ClubShellData {
  * The sections are `clubAdminNav` kept to what the membership's role opens,
  * from the permissions `resolveTenantPageContext` read from the database for
  * THIS club (never the token's), translated, with no permission names left
- * in them, and the courts screen named after what the club plays on. The
- * account rows are the club's public page (#356), the profile, and the
- * platform for a holder of a live grant.
+ * in them, and the courts screen named after what the club plays on. A
+ * holder of a live platform grant gets the Платформа section after them. The
+ * sidebar's foot names the club and the role, and its gear opens the club
+ * admin's home; the way out is the club's public page (#356).
  */
 export function clubShell(
-  ctx: { tenantSlug: string; tenantName: string; permissions: readonly Permission[] },
+  ctx: {
+    tenantSlug: string;
+    tenantName: string;
+    role: string;
+    permissions: readonly Permission[];
+  },
   opts: {
     platform: readonly PlatformCapability[];
+    me: { name: string | null; email: string | null };
+    /** `common.nav`. */
     t: (key: string) => string;
+    /** `admin.staff.role`: the membership's role, by name. */
+    tRole: (key: string) => string;
     /** What the club plays on, for the courts screen's label (`clubResourceNouns`). */
     nouns?: ResourceNouns;
   },
 ): ClubShellData {
-  const sections = visibleSections(clubAdminNav(ctx.tenantSlug, opts.nouns), (item) =>
+  const admin = visibleSections(clubAdminNav(ctx.tenantSlug, opts.nouns), (item) =>
     ctx.permissions.includes(item.requires),
   );
+  const opensAdmin = admin.length > 0;
   return {
-    sections: toShellSections(sections, opts.t),
-    homeHref: `/t/${ctx.tenantSlug}/admin`,
+    sections: toShellSections([...admin, ...platformSections(opts.platform)], opts.t),
+    opensAdmin,
+    homeHref: clubAdminHref(ctx.tenantSlug),
     contextName: ctx.tenantName,
     account: {
-      profileHref: PROFILE_HREF,
-      platformHref: opts.platform.length > 0 ? PLATFORM_HREF : null,
+      identity: {
+        name: displayName(opts.me),
+        context: ctx.tenantName,
+        role: opts.tRole(ctx.role),
+      },
+      admin: opensAdmin ? { href: clubAdminHref(ctx.tenantSlug), label: opts.t('admin') } : null,
       publicSite: { href: clubPublicHref(ctx.tenantSlug), label: opts.t('publicPage') },
     },
   };

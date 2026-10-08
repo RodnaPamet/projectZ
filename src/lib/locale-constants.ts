@@ -8,10 +8,11 @@
  * upstream's names. A second copy of the cookie name could drift from the one the server reads,
  * and a switcher that wrote `inflect_locale` would change nothing.
  *
- * It renders nowhere yet. The admin shell passes `showLanguage={false}` to the vendored UserMenu
- * (upstream #3100), because the middleware re-seeds `NEXT_LOCALE` from `User.locale` on every
- * signed-in request: a cookie-only switch would flip the page and then flip it straight back.
- * The vendored menu still imports the switcher, so this has to resolve.
+ * The switcher renders in three places: the public footer (a visitor's cookie IS their
+ * language), the profile page, and every shell's account menu (#362). The last two hand it
+ * `persistMyLocale` (upstream #3185, and #3248 for the menu's row), because the middleware
+ * re-seeds `NEXT_LOCALE` from `User.locale` on every signed-in request: a cookie-only switch
+ * would flip the page and then flip it straight back.
  */
 import { LOCALES, type Locale } from './i18n/locales';
 

@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
 import bg from '../../messages/bg.json';
+import en from '../../messages/en.json';
 import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
 
@@ -36,9 +37,10 @@ async function openMenu(page: Page) {
   return menu;
 }
 
-async function expectAxeClean(page: Page) {
+async function expectAxeClean(page: Page, disableRules: string[] = []) {
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+    .disableRules(disableRules)
     .analyze();
   const report = results.violations
     .map((v) => `  [${v.impact}] ${v.id}: ${v.help}\n    ${v.nodes[0]?.target.join(' ')}`)
@@ -87,6 +89,37 @@ test.describe('the frames — desktop', () => {
     await expect(menu.getByTestId('user-menu-display-name')).toHaveText(player.name);
     await expect(page.locator(MENU_ROWS)).toHaveText([n.profile, bg.common.signOut]);
     await expect(menu.getByTestId('user-menu-theme-row')).toBeVisible();
+    await expect(menu.getByTestId('user-menu-language-row')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // The rail's foot (owner, 2026-10-08): the player, no gear, Изход.
+    const foot = page.locator('aside').getByTestId('sidebar-account');
+    await expect(foot.getByTestId('sidebar-identity')).toContainText(player.name);
+    await expect(foot.getByTestId('sidebar-identity')).toContainText(bg.admin.staff.role.PLAYER);
+    await expect(foot.getByTestId('nav-admin-icon')).toHaveCount(0);
+    await expect(foot.getByTestId('nav-logout')).toBeVisible();
+  });
+
+  test('player: the menu’s Език switches the language, and it holds on the next page', async ({
+    playerPage: page,
+  }) => {
+    await page.goto('/venues');
+    const menu = await openMenu(page);
+    await menu
+      .getByTestId('user-menu-language-row')
+      .getByRole('radio', { name: 'English' })
+      .click();
+    // The record first, then the cookie and the refresh: the page re-renders
+    // in English (the rail's own name too), and a fresh request does not flip
+    // it back.
+    const railEn = page.locator(`aside nav[aria-label="${en.common.ui.mainNav}"]`);
+    await expect(railEn.getByRole('link', { name: en.common.nav.play })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await railEn.getByRole('link', { name: en.common.nav.bookings }).click();
+    await expect(page).toHaveURL(/\/me\/bookings$/);
+    await expect(page.getByRole('heading', { level: 1, name: en.myBookings.title })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: en.myBookings.title })).toBeVisible();
   });
 
   test('player: the menu’s Профил opens the page; theme and Изход are the menu’s here', async ({
@@ -148,6 +181,11 @@ test.describe('the frames — desktop', () => {
       n.moderation,
       n.security,
     ]);
+    // The foot's gear is the platform's, for a grant holder who is no club.
+    const gear = page.locator('#admin-icon-link-desktop');
+    await expect(gear).toHaveAttribute('href', '/platform');
+    await expect(gear).toHaveAttribute('aria-label', n.platform);
+
     await rail.getByRole('link', { name: n.moderation }).click();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
     await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
@@ -178,7 +216,17 @@ test.describe('the frames — desktop', () => {
     await expect(page.getByTestId('site-header-admin')).toHaveCount(0);
 
     await openMenu(page);
-    await expect(page.locator(MENU_ROWS)).toHaveText([n.publicPage, n.profile, bg.common.signOut]);
+    await expect(page.locator(MENU_ROWS)).toHaveText([n.profile, bg.common.signOut]);
+    await page.keyboard.press('Escape');
+
+    // The foot names the club and its role, and its gear opens the club
+    // admin's home, as on its admin pages.
+    const foot = page.locator('aside').getByTestId('sidebar-account');
+    await expect(foot).toContainText(`E2E ${slug}`);
+    await expect(foot.locator('#admin-icon-link-desktop')).toHaveAttribute(
+      'href',
+      `/t/${slug}/admin`,
+    );
 
     // A club account cannot book, so Резервации is not its page (audit C12).
     await page.goto('/me/bookings');
@@ -240,6 +288,22 @@ test.describe('the frames — desktop', () => {
       await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
       await expect(page.locator('main')).toHaveCount(1);
       await expectAxeClean(page);
+    });
+
+    test(`axe, ${theme}: the account menu open (Тема, Език, Профил, Изход)`, async ({
+      playerPage: page,
+      baseURL,
+    }) => {
+      await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
+      await page.goto('/venues');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const menu = await openMenu(page);
+      await expect(menu.getByTestId('user-menu-language-row')).toBeVisible();
+      // Two rules off, both the vendored menu's own markup, filed upstream as
+      // RodnaPamet/inflect-compliance#3254: its theme and language rows sit
+      // inside `role="menu"` (aria-required-children), and the popover's
+      // dialog has no name (aria-dialog-name). Every other rule runs.
+      await expectAxeClean(page, ['aria-required-children', 'aria-dialog-name']);
     });
 
     test(`axe, ${theme}: a club account’s frame on /venues`, async ({

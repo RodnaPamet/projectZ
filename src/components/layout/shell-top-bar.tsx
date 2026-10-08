@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
 
 import { ArrowUpRight } from '@/components/ui/icons/nucleo';
+import { persistMyLocale } from '@/lib/i18n/persist-my-locale';
 
 import { AccountMenuRows } from './account-links';
+import { HeaderActions } from './header-actions';
 import { NavBar, NavBarMobileMenu } from './nav-bar';
-import { SIGNED_IN_HOME, type AccountLinks } from './nav-items';
+import { SIGNED_IN_HOME, type ShellAccount } from './nav-items';
 import { UserMenu } from './user-menu';
 
 /**
@@ -16,8 +17,11 @@ import { UserMenu } from './user-menu';
  *
  *   left   the 44 px hamburger (phones only) · the playerz.bg wordmark
  *   right  club admin, platform: from `sm` the public site ↗ · the club's (or
- *            the platform's) name · the account menu
- *          player: the bell (`actions`) · from `md` the account menu
+ *            the platform's) name
+ *          every shell: the bell (#367), then the account menu
+ *
+ * The right slot ends as upstream's `TopChrome` does (owner, 2026-10-08):
+ * `NotificationsBell`, then `UserMenu`, at every width and in every shell.
  *
  * ═══ NO SWITCHER (#263) ═══
  *
@@ -40,46 +44,29 @@ import { UserMenu } from './user-menu';
  * and 17.06:1 dark), and the owner kept it so; `SiteHeader.tsx` explains why
  * no brand shade can carry 16 px text in both themes.
  *
- * ═══ THE ACCOUNT MENU ═══
+ * ═══ THE ACCOUNT MENU, THE SAME IN EVERY SHELL ═══
  *
- * The vendored `UserMenu` brings the identity header and the theme row. Its
- * language row is off (`showLanguage={false}`, upstream #3100): the language
- * is the user's, kept on `/me/profile`, where the switcher writes the record
- * first. The account rows arrive through the `items` slot. A player's menu is
- * there from `md` only (`menuFromMd`): below it the Профил tab is the
- * account's place, and the profile page holds the theme and sign-out, so
- * neither control is on a phone screen twice.
+ * The vendored `UserMenu` as upstream builds it: the name and e-mail, Тема,
+ * Език, then the account's rows through its `items` slot, Профил and Изход.
+ * The language lives on the user record, re-seeded into the cookie on every
+ * request, so the language row writes the record first (`persistMyLocale`,
+ * handed to the row's switcher through `onLocaleChange`, upstream #3248); a
+ * switch the record refuses is abandoned and the old language stays.
  */
 export function ShellTopBar({
   context,
-  actions,
   user,
   account,
-  menuFromMd = false,
   onMobileMenuClick,
 }: {
   /** The club's (or the platform's) name, linking back to the shell's own start. */
   context?: { name: string; href: string };
-  /** Icons before the account menu: the player's bell. */
-  actions?: ReactNode;
-  user: { name: string | null; email: string | null };
-  account: AccountLinks;
-  /** Show the account menu from `md` only. */
-  menuFromMd?: boolean;
+  user: { userId: string; name: string | null; email: string | null };
+  account: Pick<ShellAccount, 'publicSite'>;
   onMobileMenuClick: () => void;
 }) {
   const t = useTranslations('common');
   const tNav = useTranslations('nav');
-
-  const menu = (
-    <UserMenu
-      displayName={user.name ?? user.email}
-      displayEmail={user.email}
-      displayImage={null}
-      showLanguage={false}
-      items={({ close }) => <AccountMenuRows links={account} close={close} />}
-    />
-  );
 
   return (
     <NavBar
@@ -117,8 +104,14 @@ export function ShellTopBar({
               {context.name}
             </Link>
           ) : null}
-          {actions}
-          {menuFromMd ? <div className="hidden md:flex">{menu}</div> : menu}
+          <HeaderActions viewerId={user.userId} />
+          <UserMenu
+            displayName={user.name ?? user.email}
+            displayEmail={user.email}
+            displayImage={null}
+            onLocaleChange={persistMyLocale}
+            items={({ close }) => <AccountMenuRows close={close} />}
+          />
         </>
       }
     />

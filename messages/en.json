@@ -100,6 +100,7 @@
       "profile": "Profile",
       "publicPage": "Public page",
       "toSite": "To the site",
+      "admin": "Admin",
       "platform": "Platform",
       "more": "More",
       "menu": "Menu",
@@ -481,6 +482,10 @@
     "backToPlatform": "Back to the platform"
   },
   "admin": {
+    "home": {
+      "metaTitle": "Administration",
+      "title": "Administration"
+    },
     "courts": {
       "metaTitle": "Courts",
       "title": "Courts",

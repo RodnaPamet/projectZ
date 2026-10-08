@@ -152,10 +152,10 @@ test.describe('the frames — phone', () => {
       page.locator(TAB_BAR).getByRole('link', { name: n.bookings }).locator('[data-tab-accent]'),
     ).toBeVisible();
 
-    // The rail is the desktop's; the account menu too, below md the Профил
-    // tab is the account's place. The bell is here.
+    // The rail is the desktop's. The bell and the account menu are here, as
+    // in every shell at every width (owner, 2026-10-08).
     await expect(page.locator('aside')).toBeHidden();
-    await expect(page.getByTestId('top-chrome-user-menu')).toBeHidden();
+    await expect(page.getByTestId('top-chrome-user-menu')).toBeVisible();
     await expect(page.getByTestId('header-notifications')).toBeVisible();
     await expect(page.locator(TAB_BAR).getByRole('link', { name: n.games })).toHaveCount(0);
     await expect(page.locator('a[href^="/t/"]')).toHaveCount(0);
@@ -174,9 +174,11 @@ test.describe('the frames — phone', () => {
       n.bookings,
       n.profile,
     ]);
-    await expect(drawer.getByTestId('drawer-account').getByRole('button')).toHaveText(
-      bg.common.signOut,
-    );
+    // The rail's foot comes along: the player, and Изход.
+    const foot = drawer.getByTestId('sidebar-account');
+    await expect(foot.getByTestId('sidebar-identity')).toContainText(bg.admin.staff.role.PLAYER);
+    await expect(foot.getByTestId('nav-logout')).toBeVisible();
+    await expect(drawer.getByTestId('drawer-account')).toHaveCount(0);
 
     await page.locator(DRAWER_NAV).getByRole('link', { name: n.bookings }).tap();
     await expect(page).toHaveURL(/\/me\/bookings$/);
@@ -273,7 +275,9 @@ test.describe('the frames — phone', () => {
     await grantModerator(player.userId, isolatedTenant.userId);
     await page.goto('/venues');
     const drawer = await openDrawer(page);
-    await expect(drawer.getByText(n.platform)).toBeVisible();
+    // The section's title; the foot names the grant too.
+    await expect(page.locator(DRAWER_NAV).getByText(n.platform)).toBeVisible();
+    await expect(drawer.getByTestId('nav-admin-icon')).toHaveAttribute('href', '/platform');
     await page.locator(DRAWER_NAV).getByRole('link', { name: n.moderation }).tap();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
     await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);

@@ -45,13 +45,14 @@ const ROW = 'flex min-h-14 items-center justify-between gap-3 px-4 py-2';
  * The profile page's body (#362): identity, settings, privacy, the platform
  * for a grant holder, and sign-out.
  *
- * ═══ ONE PLACE PER SCREEN SIZE ═══
+ * ═══ WHAT THE ACCOUNT MENU ALSO HOLDS ═══
  *
- * From `md` the avatar keeps the vendored account menu, which has the theme
- * and sign-out built in. So the theme row and the sign-out button here are
- * phone-only (`md:hidden`): the same control is never on screen twice. The
- * language is only here, at every width: the menu's row is off, because it
- * would write the cookie alone.
+ * Every shell's account menu has the theme, the language and sign-out, at
+ * every width (owner, 2026-10-08). From `md` this page leaves the theme and
+ * sign-out to it (`md:hidden` rows), as before; on a phone, where the Профил
+ * tab lands, it keeps them in reach on the page too. The language row stays
+ * here at every width, the account's own setting, and writes the record the
+ * same way the menu's does (`persistMyLocale`).
  */
 export function ProfileView({
   name,
