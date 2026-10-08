@@ -8,6 +8,7 @@ import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
 import { splitPhotos } from '@/lib/media/photo-view';
 import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { bookingNoun } from '@/lib/sports/resource-kinds';
 import { venuePath } from '@/lib/seo/sitemap';
 import { countPageUsage } from '@/lib/usage/record';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
@@ -113,7 +114,20 @@ export async function generateMetadata({
   ]);
 
   const { venue } = found;
-  const title = t('metaTitle', { name: venue.name });
+  // What the venue offers, from its bookable resources (#362): "резервирай
+  // писта" at a karting track, "игрище" at a football venue, "час" where no
+  // one word is true. The resource-kinds table decides.
+  const noun = bookingNoun(venue.resources.map((r) => r.resourceType));
+  const title = t(
+    noun === 'track'
+      ? 'track.metaTitle'
+      : noun === 'field'
+        ? 'field.metaTitle'
+        : noun === 'time'
+          ? 'time.metaTitle'
+          : 'metaTitle',
+    { name: venue.name },
+  );
   const description = t('metaDescription', {
     name: venue.name,
     address: venue.addressLine,
