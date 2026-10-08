@@ -170,6 +170,11 @@
       "googleHint": "If your Facebook account has no email address, sign in with Google instead.",
       "retry": "Try again with Facebook"
     },
+    "facebookNoAddress": {
+      "title": "Facebook sent no email address",
+      "body": "You allowed access to your email, but Facebook sent no address. That happens when Facebook finds no valid email address on your profile that it can share.",
+      "googleHint": "Sign in with Google, or check the email address in your Facebook settings."
+    },
     "unavailable": "Sign-in is temporarily unavailable.",
     "noProviders": "Sign-in is not configured. Please contact an administrator.",
     "metaTitle": "Sign in — playerz.bg"

@@ -187,3 +187,58 @@ describe('LoginForm — Facebook sent no email address (#361)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(messages.login.unavailable);
   });
 });
+
+describe('LoginForm — Facebook had no address to give (#361)', () => {
+  // The person ALLOWED email and Facebook sent none (the first real sign-in,
+  // 2026-10-08). Asking again cannot change that, so there is no "try again".
+  const NO_ADDRESS = { ...BOTH, error: 'FacebookEmailUnavailable', callbackUrl: '/invite/abc' };
+
+  it('says Facebook sent no address although email was allowed, instead of the generic message', () => {
+    render(withIntl(<LoginForm {...NO_ADDRESS} />));
+
+    const notice = screen.getByTestId('login-facebook-email-unavailable');
+    expect(notice).toHaveAttribute('role', 'alert');
+    expect(notice).toHaveTextContent(messages.login.facebookNoAddress.title);
+    expect(notice).toHaveTextContent(messages.login.facebookNoAddress.body);
+    expect(screen.queryByText(messages.login.unavailable)).toBeNull();
+    expect(screen.queryByTestId('login-facebook-email-required')).toBeNull();
+    expect(notice.textContent).not.toContain('FacebookEmailUnavailable');
+  });
+
+  it('keeps the ordinary Facebook button: no re-request, which would refuse again', async () => {
+    render(withIntl(<LoginForm {...NO_ADDRESS} />));
+
+    expect(screen.queryByRole('button', { name: messages.login.facebookEmail.retry })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: messages.login.withFacebook }));
+
+    expect(signIn).toHaveBeenCalledWith('facebook', { callbackUrl: '/invite/abc' }, undefined);
+  });
+
+  it('points at Google where Google is configured, and only there', () => {
+    const { unmount } = render(withIntl(<LoginForm {...NO_ADDRESS} />));
+    expect(
+      within(screen.getByTestId('login-facebook-email-unavailable')).getByText(
+        messages.login.facebookNoAddress.googleHint,
+      ),
+    ).toBeInTheDocument();
+    unmount();
+
+    render(withIntl(<LoginForm {...NO_ADDRESS} google={false} />));
+    expect(screen.queryByText(messages.login.facebookNoAddress.googleHint)).toBeNull();
+  });
+
+  it('reads as English in English', () => {
+    render(withIntl(<LoginForm {...NO_ADDRESS} />, 'en'));
+
+    expect(screen.getByTestId('login-facebook-email-unavailable')).toHaveTextContent(
+      enMessages.login.facebookNoAddress.title,
+    );
+  });
+
+  it('falls back to the generic message if Facebook is no longer offered', () => {
+    render(withIntl(<LoginForm {...NO_ADDRESS} facebook={false} />));
+
+    expect(screen.queryByTestId('login-facebook-email-unavailable')).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent(messages.login.unavailable);
+  });
+});

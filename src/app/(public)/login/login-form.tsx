@@ -11,7 +11,11 @@ import { Facebook } from '@/components/ui/icons/facebook';
 import { Google } from '@/components/ui/icons/google';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
-import { FACEBOOK_EMAIL_REQUIRED, FACEBOOK_REREQUEST } from '@/lib/auth/facebook';
+import {
+  FACEBOOK_EMAIL_REQUIRED,
+  FACEBOOK_EMAIL_UNAVAILABLE,
+  FACEBOOK_REREQUEST,
+} from '@/lib/auth/facebook';
 
 type Provider = 'google' | 'facebook';
 
@@ -51,6 +55,10 @@ type Provider = 'google' | 'facebook';
  * offer it a second time. Google stays beside it for an account that has no
  * address to give. Every other code gets the one generic message, so a raw
  * next-auth code never reaches the screen.
+ *
+ * `?error=FacebookEmailUnavailable` is the other cause: the person ALLOWED
+ * email and Facebook still sent none. Asking again cannot change that, so this
+ * one says so, keeps the ordinary Facebook button and points at Google.
  */
 export function LoginForm({
   error,
@@ -68,7 +76,9 @@ export function LoginForm({
 
   // Only while Facebook is still on offer: the explanation ends in "try again".
   const facebookNoEmail = facebook && error === FACEBOOK_EMAIL_REQUIRED;
-  const message = error && !facebookNoEmail ? t('unavailable') : null;
+  // Allowed, and Facebook had no address to give: no "try again" for this one.
+  const facebookNoAddress = facebook && error === FACEBOOK_EMAIL_UNAVAILABLE;
+  const message = error && !facebookNoEmail && !facebookNoAddress ? t('unavailable') : null;
 
   function start(provider: Provider, authorizationParams?: Record<string, string>) {
     setPending(provider);
@@ -98,6 +108,17 @@ export function LoginForm({
         >
           <p>{t('facebookEmail.body')}</p>
           {google ? <p className="mt-1">{t('facebookEmail.googleHint')}</p> : null}
+        </InlineNotice>
+      ) : null}
+
+      {facebookNoAddress ? (
+        <InlineNotice
+          variant="error"
+          title={t('facebookNoAddress.title')}
+          data-testid="login-facebook-email-unavailable"
+        >
+          <p>{t('facebookNoAddress.body')}</p>
+          {google ? <p className="mt-1">{t('facebookNoAddress.googleHint')}</p> : null}
         </InlineNotice>
       ) : null}
 

@@ -34,13 +34,23 @@ jest.mock('@/lib/auth/sessions', () => ({
   createUserSession: jest.fn(),
   newSessionSecret: jest.fn(() => 'secret'),
 }));
+// The grant lookup is Graph over the network; its own tests are in
+// facebook-permissions.test.ts. Here it only decides which refusal is sent.
+const readFacebookEmailPermission = jest.fn();
+jest.mock('@/lib/auth/facebook-permissions', () => ({
+  readFacebookEmailPermission: (...args: unknown[]) => readFacebookEmailPermission(...args),
+}));
 
 import { authOptions } from '@/auth';
-import { FACEBOOK_EMAIL_REQUIRED_REDIRECT } from '@/lib/auth/facebook';
+import {
+  FACEBOOK_EMAIL_REQUIRED_REDIRECT,
+  FACEBOOK_EMAIL_UNAVAILABLE_REDIRECT,
+} from '@/lib/auth/facebook';
+import { logger } from '@/lib/observability/logger';
 
 type SignInArgs = {
   user: { id?: string; email?: string | null; name?: string | null; image?: string | null };
-  account: { type: string; provider: string } | null;
+  account: { type: string; provider: string; access_token?: string } | null;
   profile?: Record<string, unknown>;
 };
 
@@ -55,6 +65,8 @@ const google = (over: Partial<SignInArgs> = {}): SignInArgs => ({
 });
 
 beforeEach(() => {
+  readFacebookEmailPermission.mockReset();
+  readFacebookEmailPermission.mockResolvedValue('unknown');
   upsert.mockReset();
   upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: null });
   update.mockReset();
@@ -170,6 +182,56 @@ describe('Facebook sign-in (#361)', () => {
     );
     expect(upsert).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
+  });
+
+  describe('which refusal: the grant tells the two causes apart', () => {
+    const noEmail = (permission: string): SignInArgs => {
+      readFacebookEmailPermission.mockResolvedValue(permission);
+      return facebook({
+        user: { id: '1029384756', email: null, name: 'Ivo' },
+        account: { type: 'oauth', provider: 'facebook', access_token: 'user-token' },
+        profile: { id: '1029384756', name: 'Ivo', picture: { data: { url: PICTURE } } },
+      });
+    };
+
+    it('email ALLOWED and none sent: "Facebook has no address", not "try again"', async () => {
+      // The first real sign-in (2026-10-08): "Email address" was shared on the
+      // person's Facebook page for the app, and /me still had no address.
+      await expect(signIn(noEmail('granted'))).resolves.toBe(FACEBOOK_EMAIL_UNAVAILABLE_REDIRECT);
+      expect(readFacebookEmailPermission).toHaveBeenCalledWith('user-token');
+      expect(upsert).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it.each(['declined', 'not-requested', 'unknown'])(
+      '%s: "allow access to your email and try again"',
+      async (permission) => {
+        await expect(signIn(noEmail(permission))).resolves.toBe(FACEBOOK_EMAIL_REQUIRED_REDIRECT);
+        expect(upsert).not.toHaveBeenCalled();
+      },
+    );
+
+    it('logs the grant and the NAMES of the fields the profile carried, never a value', async () => {
+      const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      try {
+        await signIn(noEmail('granted'));
+
+        expect(warn).toHaveBeenCalledWith('oauth sign-in refused: the provider returned no email', {
+          component: 'auth',
+          provider: 'facebook',
+          emailPermission: 'granted',
+          profileFields: ['id', 'name', 'picture'],
+        });
+        expect(JSON.stringify(warn.mock.calls)).not.toMatch(/Ivo|1029384756|user-token|fbsbx/);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('a Google sign-in without an email asks Facebook nothing', async () => {
+      await expect(signIn(google({ user: { id: 'g', email: null } }))).resolves.toBe(false);
+      expect(readFacebookEmailPermission).not.toHaveBeenCalled();
+    });
   });
 
   it('refuses through next-auth’s sign-in route, which carries the callback URL to /login', () => {
