@@ -64,6 +64,8 @@ export interface PlayerRow {
   playerUserId: string;
   name: string | null;
   email: string;
+  /** Deleted their account (#370): listed as "Изтрит потребител", with nothing to open. */
+  deleted: boolean;
   tags: string[];
   noShowCount: number;
   lastPlayedAt: string | null;
@@ -130,6 +132,7 @@ export function PlayersBoard({
   noShowWindowDays: number;
 }) {
   const t = useTranslations('admin.players');
+  const tCommon = useTranslations('common');
   const format = useFormatter();
   const ids = useId();
   const [search, setSearch] = useState('');
@@ -193,6 +196,15 @@ export function PlayersBoard({
         id: 'name',
         header: t('field.name'),
         cell: ({ row }) => {
+          // A deleted account (#370): its bookings keep it on the list, and
+          // there is nobody left to tag, credit or unblock, so no control.
+          if (row.original.deleted) {
+            return (
+              <span className="text-content-muted italic" data-testid="player-deleted">
+                {tCommon('deletedUser')}
+              </span>
+            );
+          }
           // The name IS the row's control, in the table and in the cards: see
           // OPENING A ROW below.
           return (
@@ -252,7 +264,7 @@ export function PlayersBoard({
         ),
       },
     ]);
-  }, [t, format, open]);
+  }, [t, tCommon, format, open]);
 
   if (players.length === 0) {
     return (

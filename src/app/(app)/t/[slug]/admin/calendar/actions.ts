@@ -73,9 +73,17 @@ export async function markNoShowAction(slug: string, bookingId: string): Promise
  */
 export async function refreshDiaryDayAction(slug: string, requestedDay: string | null) {
   const ctx = await requireTenantAction(slug, 'bookings.view_all');
-  const [t, locale] = await Promise.all([getTranslations('admin.calendar'), getLocale()]);
+  const [t, tCommon, locale] = await Promise.all([
+    getTranslations('admin.calendar'),
+    getTranslations('common'),
+    getLocale(),
+  ]);
   return loadDiaryDay(ctx.tenantId, typeof requestedDay === 'string' ? requestedDay : null, {
     locale,
-    labels: { unknownPlayer: t('unknownPlayer'), guest: t('guest') },
+    labels: {
+      unknownPlayer: t('unknownPlayer'),
+      guest: t('guest'),
+      deletedUser: tCommon('deletedUser'),
+    },
   });
 }

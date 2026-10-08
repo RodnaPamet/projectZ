@@ -519,6 +519,31 @@ export const MEDIA_UPLOAD_LIMIT: RateLimitConfig = {
   windowMs: 10 * 60 * 1000,
 };
 
+/**
+ * Account deletion (#370): 5 per hour per (IP, userId).
+ *
+ * Threat model: a stolen session, or a script, hammering `DELETE /api/v1/me`.
+ * A deletion that succeeds ends every session at once, so the budget only
+ * ever pays for refusals (an upcoming booking, a club account): five tries in
+ * an hour is plenty for a person, and a ceiling on anything else.
+ */
+export const ACCOUNT_DELETE_LIMIT: RateLimitConfig = {
+  maxAttempts: 5,
+  windowMs: 60 * 60 * 1000,
+};
+
+/**
+ * The personal-data export (#370): 10 per hour per (IP, userId).
+ *
+ * Threat model: a stolen session scraping everything about its victim on a
+ * loop, and the cost of a read that spans every club the person played at. A
+ * person downloads their data once; ten an hour is room for a second thought.
+ */
+export const DATA_EXPORT_LIMIT: RateLimitConfig = {
+  maxAttempts: 10,
+  windowMs: 60 * 60 * 1000,
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // Progressive rate limit — Epic A.3 auth brute-force protection
 // ═══════════════════════════════════════════════════════════════════

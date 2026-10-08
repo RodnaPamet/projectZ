@@ -35,7 +35,11 @@ export default async function CalendarPage({
   const { ctx } = result;
   if (!ctx.permissions.includes('bookings.view_all')) notFound();
 
-  const [t, locale] = await Promise.all([getTranslations('admin.calendar'), getLocale()]);
+  const [t, tCommon, locale] = await Promise.all([
+    getTranslations('admin.calendar'),
+    getTranslations('common'),
+    getLocale(),
+  ]);
 
   // `?day=` exactly as the URL has it: the grid asks for the same day again
   // when it refreshes itself, and no `?day=` means the club's today then too.
@@ -43,7 +47,11 @@ export default async function CalendarPage({
 
   const day = await loadDiaryDay(ctx.tenantId, requestedDay, {
     locale,
-    labels: { unknownPlayer: t('unknownPlayer'), guest: t('guest') },
+    labels: {
+      unknownPlayer: t('unknownPlayer'),
+      guest: t('guest'),
+      deletedUser: tCommon('deletedUser'),
+    },
   });
 
   // "всички писти" at a karting club (P51).

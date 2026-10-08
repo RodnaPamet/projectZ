@@ -116,8 +116,13 @@ async function readBookings(tenantId: string | null, ids: string[]): Promise<Boo
 
 async function readRecipients(ids: string[]): Promise<Map<string, Recipient>> {
   if (ids.length === 0) return new Map();
+  // A deleted account (#370) hears nothing: it is not a recipient at all.
   const rows = await runAsSuperuser((db) =>
-    db.user.findMany({ where: { id: { in: ids } }, select: RECIPIENT_SELECT, take: ids.length }),
+    db.user.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      select: RECIPIENT_SELECT,
+      take: ids.length,
+    }),
   );
   return new Map(rows.map((r) => [r.id, r]));
 }

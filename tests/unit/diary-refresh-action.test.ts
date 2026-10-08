@@ -56,7 +56,7 @@ describe('refreshDiaryDayAction', () => {
     });
     expect(loadDiaryDay).toHaveBeenCalledWith('tenant-1', '2026-09-29', {
       locale: 'bg',
-      labels: { unknownPlayer: 't:unknownPlayer', guest: 't:guest' },
+      labels: { unknownPlayer: 't:unknownPlayer', guest: 't:guest', deletedUser: 't:deletedUser' },
     });
   });
 

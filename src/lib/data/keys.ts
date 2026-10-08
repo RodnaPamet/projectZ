@@ -182,6 +182,13 @@ export const V1 = {
   usageEvents: (venueId: string) => `${BASE}/venues/${seg(venueId)}/usage-events`,
   /** `PATCH`: the display name and the sports with their levels (#359). */
   updateAccount: () => `${BASE}/me`,
+  /** `DELETE`: delete the account, at once and for good (#370). */
+  deleteAccount: () => `${BASE}/me`,
+  /**
+   * Everything playerz holds about the caller, as a JSON file (#370): an
+   * `<a download>` href, not an SWR key, because the browser saves it.
+   */
+  exportMyData: () => `${BASE}/me/export`,
   /** `POST { ids }`: the bell's rows the caller has now seen (#367). */
   markNotificationsRead: () => `${BASE}/me/notifications/read`,
   /** `PATCH { email: { … } }`: switch an email category (#367). */

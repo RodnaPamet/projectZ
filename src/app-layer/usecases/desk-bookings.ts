@@ -244,6 +244,11 @@ export async function assertClubPlayer(
   tenantId: string,
   userId: string,
 ): Promise<void> {
+  // A deleted account (#370) is nobody's customer any more: it stays in the
+  // club's past bookings, and gains no new one (P52 refuses it as well).
+  const person = await db.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
+  if (!person || person.deletedAt) throw new DeskPlayerNotFoundError();
+
   const [membership, booking, notes] = await Promise.all([
     db.tenantMembership.findFirst({
       where: { tenantId, userId, role: 'PLAYER', status: 'ACTIVE' },
@@ -292,7 +297,7 @@ export async function findClubCustomers(
 
   const phone = normalizePhone(q);
   if (!phone) {
-    const rows = await listPlayers(db, tenantId, { search: q });
+    const rows = (await listPlayers(db, tenantId, { search: q })).filter((p) => !p.deleted);
     return rows.slice(0, CUSTOMER_MATCH_LIMIT).map((p) => ({
       userId: p.playerUserId,
       name: p.name,
@@ -312,7 +317,8 @@ export async function findClubCustomers(
       take: CUSTOMER_MATCH_LIMIT,
     }),
   ]);
-  const byId = new Map(players.map((p) => [p.playerUserId, p]));
+  // A deleted account is listed by the players screen and linked to nothing.
+  const byId = new Map(players.filter((p) => !p.deleted).map((p) => [p.playerUserId, p]));
 
   // Step 2, by id, bounded by step 1: which of the club's players gave this
   // phone themselves. Stored as typed, so compared normalised.
@@ -483,7 +489,7 @@ export async function getDeskBooking(db: PrismaClient, tenantId: string, booking
     row.bookedByUserId
       ? db.user.findUnique({
           where: { id: row.bookedByUserId },
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, deletedAt: true },
         })
       : null,
     row.seriesId

@@ -33,10 +33,12 @@ export interface DiaryDay {
   renderedAt: number;
 }
 
-/** The two names the grid falls back on, translated by the caller. */
+/** The names the grid falls back on, translated by the caller. */
 export interface DiaryLabels {
   unknownPlayer: string;
   guest: string;
+  /** A booking whose player deleted their account (#370): "Изтрит потребител". */
+  deletedUser: string;
 }
 
 /** `2026-01-15`, and nothing else — this reaches a date constructor. */
@@ -126,7 +128,7 @@ export async function loadDiaryDay(
       const users = userIds.length
         ? await db.user.findMany({
             where: { id: { in: userIds } },
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, deletedAt: true },
             take: 1000,
           })
         : [];
@@ -135,7 +137,10 @@ export async function loadDiaryDay(
         timezone: club.timezone,
         courts: courtRows,
         bookings: rows,
-        names: new Map(users.map((u) => [u.id, u.name ?? u.email])),
+        // A deleted account's booking stays in the diary (#370), under no name.
+        names: new Map(
+          users.map((u) => [u.id, u.deletedAt ? labels.deletedUser : (u.name ?? u.email)]),
+        ),
         isoDay: requested,
         todayAtClub,
       };

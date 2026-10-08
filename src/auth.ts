@@ -16,7 +16,12 @@ import {
 import { readFacebookEmailPermission } from '@/lib/auth/facebook-permissions';
 import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-claims';
 import { passwordSignInEnabled } from '@/lib/auth/password-sign-in';
-import { createUserSession, newSessionSecret, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
+import {
+  checkSession,
+  createUserSession,
+  newSessionSecret,
+  SESSION_MAX_AGE_SECONDS,
+} from '@/lib/auth/sessions';
 import { facebookConfigured, googleConfigured } from '@/lib/auth/sign-in-methods';
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
@@ -43,6 +48,18 @@ export { SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
  * two comes back as `tenant: null` although the relation is required (#419).
  * Reading `.id` off it would fail the sign-in with a TypeError.
  */
+/**
+ * Thrown by the jwt callback for a token whose session is gone (#370). The
+ * message is what next-auth logs under JWT_SESSION_ERROR; nothing reaches the
+ * client but an empty session and an expired cookie.
+ */
+export class SessionRevokedError extends Error {
+  constructor() {
+    super('The session was revoked or its account deleted; it is signed out.');
+    this.name = 'SessionRevokedError';
+  }
+}
+
 function membershipClaimsFrom(
   rows: readonly { role: MembershipClaim['role']; tenant: { id: string; slug: string } | null }[],
 ): MembershipClaim[] {
@@ -427,6 +444,39 @@ export const authOptions: NextAuthOptions = {
         token.userSessionId = created.userSessionId;
         token.sessionVersion = created.sessionVersion;
         token.sessionSecret = sessionSecret;
+      }
+
+      // ═══ A SESSION THAT WAS TAKEN BACK IS SIGNED OUT HERE TOO (#370) ═══
+      //
+      // Every route and page already refuses a revoked session: they call
+      // `checkSession`, which looks the token's session row up. But this
+      // callback is what `/api/auth/session` runs, and it used to re-encode
+      // whatever cookie it was handed, so a client asking next-auth "am I
+      // signed in?" was told yes by an account that no longer exists.
+      //
+      // Deleting an account deletes its session rows, signing out everywhere
+      // also revokes them; either way the check fails, and throwing is how
+      // next-auth is told: its session route catches the throw, expires the
+      // cookie and answers `{}` (core/routes/session.js, 4.24.15).
+      //
+      // A database that does not answer is NOT a revoked session. The token
+      // then stays as it is, and the next route or page checks it again.
+      if (!user && token.sub) {
+        let usable = true;
+        try {
+          const check = await checkSession({
+            userSessionId: typeof token.userSessionId === 'string' ? token.userSessionId : null,
+            sessionVersion: typeof token.sessionVersion === 'number' ? token.sessionVersion : -1,
+            sessionSecret: typeof token.sessionSecret === 'string' ? token.sessionSecret : null,
+          });
+          usable = check.usable;
+        } catch (error) {
+          logger.warn('session check failed; the token is left alone', {
+            component: 'auth',
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        if (!usable) throw new SessionRevokedError();
       }
 
       // ═══ A LANGUAGE CHANGE REACHES THE TOKEN (#362) ═══

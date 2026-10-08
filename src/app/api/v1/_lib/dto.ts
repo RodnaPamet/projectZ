@@ -550,6 +550,11 @@ export interface BookingPlayerDto {
   isYou: boolean;
   /** Has an account, as opposed to a guest named by the booker. */
   registered: boolean;
+  /**
+   * The account was deleted (#370): its place stays, with `name` and
+   * `avatarUrl` null. A client shows "Изтрит потребител".
+   */
+  deleted: boolean;
 }
 
 export function toBookingPlayerDto(p: BookingPlayerDto): BookingPlayerDto {
@@ -560,6 +565,7 @@ export function toBookingPlayerDto(p: BookingPlayerDto): BookingPlayerDto {
     isBooker: p.isBooker,
     isYou: p.isYou,
     registered: p.registered,
+    deleted: p.deleted,
   };
 }
 

@@ -127,7 +127,8 @@
       "language": "Language",
       "copyright": "© {year} playerz.bg. All rights reserved."
     },
-    "metaDescription": "Book a court and find a game in Sofia."
+    "metaDescription": "Book a court and find a game in Sofia.",
+    "deletedUser": "Deleted user"
   },
   "nav": {
     "openNavigationMenu": "Open navigation menu",
@@ -424,7 +425,8 @@
       "title": "Ready to play?",
       "lead": "See which courts are free today.",
       "cta": "Browse courts"
-    }
+    },
+    "accountDeleted": "Your account has been deleted."
   },
   "engine": {
     "analysisBy": "Analysis by",
@@ -1570,8 +1572,6 @@
     "metaTitle": "Profile",
     "settings": "Settings",
     "privacy": "Privacy",
-    "privacyData": "Privacy and data",
-    "comingSoon": "Soon",
     "platformRow": "Platform: moderation and security",
     "languageSaveFailed": "Your language was not saved. Please try again.",
     "personal": {
@@ -1624,6 +1624,44 @@
       "saveFailed": "The setting was not saved. Please try again.",
       "edit": "Change",
       "editLabel": "Change notifications"
+    },
+    "data": {
+      "row": "A copy of your data",
+      "hint": "Everything playerz.bg holds about you, in one file (JSON).",
+      "download": "Download my data"
+    },
+    "delete": {
+      "title": "Delete account",
+      "intro": "Deletion happens at once and can’t be undone. Your name, email, picture, sports, notifications and reviews are deleted. Bookings you have played stay with the clubs as “Deleted user”, because their statements are worked out from them.",
+      "exportFirst": "If you want a copy of your data, download it first.",
+      "button": "Delete account",
+      "blocked": {
+        "title": "You have upcoming bookings",
+        "body": "You can delete your account once you have no upcoming bookings. Cancel the ones you made and leave the ones you were added to.",
+        "cancel": "You can cancel it until {deadline}.",
+        "leave": "You can leave the game until it starts.",
+        "wait": "It can no longer be cancelled in the app. You can delete your account after {end}.",
+        "more": "{count, plural, one {And # more booking.} other {And # more bookings.}}"
+      },
+      "club": {
+        "title": "Club accounts are deleted on request",
+        "body": "A club account can’t be deleted from the app. Write to us through the contact form and we will delete it.",
+        "contact": "Go to the contact form"
+      },
+      "dialog": {
+        "title": "Delete your account?",
+        "body": "This can’t be undone. You will be signed out on every device.",
+        "word": "DELETE",
+        "typeToConfirm": "Type {word} to confirm",
+        "confirm": "Delete account",
+        "cancel": "Cancel"
+      },
+      "error": {
+        "UPCOMING_BOOKINGS": "An upcoming booking appeared in the meantime, so your account was not deleted.",
+        "CLUB": "A club account can’t be deleted from the app. Write to us through the contact form.",
+        "RATE_LIMITED": "Too many attempts. Try again in a little while.",
+        "FAILED": "Your account was not deleted. Try again."
+      }
     }
   },
   "bookingInvite": {

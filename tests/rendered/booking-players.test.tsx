@@ -33,6 +33,7 @@ const player = (over: Partial<BookingPlayerDto>): BookingPlayerDto => ({
   isBooker: true,
   isYou: true,
   registered: true,
+  deleted: false,
   ...over,
 });
 
@@ -126,6 +127,32 @@ beforeEach(() => {
 });
 
 describe('the players list', () => {
+  it('a player who deleted their account keeps the place, as "Изтрит потребител" (#370)', () => {
+    installFakeFetch(() => ok({}));
+    wrap(
+      <BookingPlayers
+        booking={booking({
+          playersOpen: false,
+          players: [
+            player({}),
+            player({
+              participantId: 'bp9',
+              name: null,
+              isBooker: false,
+              isYou: false,
+              deleted: true,
+            }),
+          ],
+        })}
+        date="20 окт."
+        time="19:00"
+      />,
+    );
+    const rows = within(screen.getByTestId('booking-players')).getAllByRole('listitem');
+    expect(rows[1]).toHaveTextContent(messages.common.deletedUser);
+    expect(rows[1]).not.toHaveTextContent(d.unnamed);
+  });
+
   it('shows the booker as "you", and Премахни on each added player, for the booker', () => {
     installFakeFetch(() => ok({}));
     wrap(<BookingPlayers booking={booking()} date="20 окт." time="19:00" />);

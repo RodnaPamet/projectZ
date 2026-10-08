@@ -8,6 +8,11 @@ import { useState, type ReactNode } from 'react';
 
 import type { MeDto, NotificationSettingsDto } from '@/app/api/v1/_lib/dto';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
+import {
+  DataExportRow,
+  DeleteAccountSection,
+  type DeletionStandingView,
+} from '@/components/profile/DeleteAccountSection';
 import { NotificationSettingsRow } from '@/components/profile/NotificationSettingsRow';
 import { PersonalDataSection } from '@/components/profile/PersonalDataSection';
 import { SportLevelsSection } from '@/components/profile/SportLevelsSection';
@@ -18,8 +23,8 @@ import { Card } from '@/components/ui/card';
 import { ChevronRight, ShieldCheck, UserArrowRight } from '@/components/ui/icons/nucleo';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
+import { V1 } from '@/lib/data/keys';
 import { persistMyLocale, refreshSession } from '@/lib/i18n/persist-my-locale';
 
 /**
@@ -61,6 +66,7 @@ export function ProfileView({
   account: seed,
   showSports,
   notificationSettings,
+  deletion,
 }: {
   name: string | null;
   email: string | null;
@@ -71,6 +77,8 @@ export function ProfileView({
   showSports: boolean;
   /** Which emails the account gets (#367); the bell has no switch. */
   notificationSettings: NotificationSettingsDto;
+  /** May the account delete itself, and if not, why (#370). */
+  deletion: DeletionStandingView;
 }) {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
@@ -143,14 +151,8 @@ export function ProfileView({
       ) : null}
 
       <Section title={t('privacy')}>
-        {/* The data page comes with #370 (legal pages, export, deletion).
-            Until then the row says so rather than linking to a 404. */}
-        <div className={ROW} data-testid="profile-privacy-row">
-          <span className="text-content-default text-sm">{t('privacyData')}</span>
-          <StatusBadge size="sm" variant="neutral" icon={null}>
-            {t('comingSoon')}
-          </StatusBadge>
-        </div>
+        {/* #370: everything playerz holds about the account, as a file. */}
+        <DataExportRow href={V1.exportMyData()} />
       </Section>
 
       {platformHref ? (
@@ -176,6 +178,9 @@ export function ProfileView({
       >
         {tCommon('signOut')}
       </Button>
+
+      {/* Last, below everything else (#370): what deleting the account takes. */}
+      <DeleteAccountSection standing={deletion} />
     </div>
   );
 }

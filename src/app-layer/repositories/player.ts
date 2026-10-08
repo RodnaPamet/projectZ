@@ -48,6 +48,12 @@ export interface PlayerListItem {
   playerUserId: string;
   name: string | null;
   email: string;
+  /**
+   * The player deleted their account (#370). They stay on the list, because
+   * their bookings stay in the club's records, under no name and no address:
+   * the screen says "Изтрит потребител" and offers nothing to change.
+   */
+  deleted: boolean;
   tags: string[];
   noShowCount: number;
   /** When staff last lifted this player's no-show block here (#354). */
@@ -149,7 +155,7 @@ export async function listPlayers(
   const [users, memberships, credit] = await Promise.all([
     db.user.findMany({
       where: { id: { in: ids } },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, deletedAt: true },
       // Bounded by the id set, and bounded again explicitly: `query-shape`'s
       // D2 rule takes no view on whether an `in` happens to be small today.
       take: PLAYER_LIST_LIMIT,
@@ -195,13 +201,15 @@ export async function listPlayers(
   const rows = ids.map((id): PlayerListItem => {
     const u = byId.get(id);
     const r = relById.get(id);
+    const deleted = !!u?.deletedAt;
     return {
       playerUserId: id,
-      name: u?.name ?? null,
-      // A row whose user is gone should not crash the screen. It should not
-      // happen — nothing deletes users — and if it does, the club needs to see
-      // the row rather than a blank page.
-      email: u?.email ?? '',
+      name: deleted ? null : (u?.name ?? null),
+      // A row whose user is gone should not crash the screen: the club needs to
+      // see the row rather than a blank page. A deleted account's row keeps no
+      // address at all, not even its tombstone's (#370).
+      email: deleted ? '' : (u?.email ?? ''),
+      deleted,
       // No relationship yet means the club has written nothing about them.
       tags: r?.tags ?? [],
       noShowCount: r?.noShowCount ?? 0,

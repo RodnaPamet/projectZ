@@ -867,8 +867,10 @@ async function readCoPlayers(
   }
   if (ordered.length === 0) return [];
 
+  // Never a deleted account (#370): nobody is there to add, and the database
+  // would refuse the place anyway (P52's account_not_deleted).
   const users = await db.user.findMany({
-    where: { id: { in: ordered }, accountKind: 'PLAYER' },
+    where: { id: { in: ordered }, accountKind: 'PLAYER', deletedAt: null },
     select: { id: true, name: true, avatarUrl: true },
     take: ordered.length,
   });

@@ -315,6 +315,53 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // An old undecided account holding a role of the other kind (P37's trigger).
   AccountKindNotAllowedError: { status: 409, code: 'ACCOUNT_KIND_NOT_ALLOWED' },
 
+  // ── Deleting an account (#370) ────────────────────────────────────
+  //
+  // A club account does not delete itself (owner decision 3): it asks through
+  // the contact form and the platform does it. 403, because retrying will not
+  // help, with a code that names the cure.
+  ClubAccountDeletionRefusedError: { status: 403, code: 'CLUB_ACCOUNT_DELETION_BY_REQUEST' },
+  // Bookings still to play (owner decision 1). 409: the world can change —
+  // cancel or leave them, or wait until they are played — and the same
+  // request then succeeds. `details` lists them, so a client can link each.
+  UpcomingBookingsError: {
+    status: 409,
+    code: 'UPCOMING_BOOKINGS',
+    details: (e) => {
+      const { bookings, total } = e as Error & {
+        total: number;
+        bookings: Array<{
+          bookingId: string;
+          role: string;
+          cure: string;
+          startTs: Date;
+          endTs: Date;
+          cancellableUntil: Date;
+          deletableFrom: Date;
+        }>;
+      };
+      return {
+        total,
+        bookings: bookings.map((b) => ({
+          bookingId: b.bookingId,
+          role: b.role,
+          cure: b.cure,
+          startTs: b.startTs.toISOString(),
+          endTs: b.endTs.toISOString(),
+          cancellableUntil: b.cancellableUntil.toISOString(),
+          deletableFrom: b.deletableFrom.toISOString(),
+        })),
+      };
+    },
+  },
+  // The account is gone (deleted from another tab) or never was: from the
+  // caller's side that is "not signed in", as GET /me answers a missing row.
+  AccountNotFoundForDeletionError: {
+    status: 401,
+    code: 'UNAUTHORIZED',
+    clientMessage: 'Authentication required',
+  },
+
   // ── 503: ours, not theirs, and retryable ──────────────────────────
   EngineUnavailableError: { status: 503, code: 'ENGINE_UNAVAILABLE' },
   ModerationUnavailableError: { status: 503, code: 'MODERATION_UNAVAILABLE' },

@@ -4,6 +4,7 @@ import { SWRConfig } from 'swr';
 
 import { ProfileView } from '@/app/(public)/me/profile/ProfileView';
 import type { MeDto } from '@/app/api/v1/_lib/dto';
+import type { DeletionStandingView } from '@/components/profile/DeleteAccountSection';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LOCALE_COOKIE } from '@/lib/locale-constants';
 
@@ -57,7 +58,12 @@ const account = (over: Partial<MeDto> = {}): MeDto => ({
 
 function renderProfile(
   platformHref: string | null = null,
-  opts: { account?: MeDto; showSports?: boolean; locale?: 'bg' | 'en' } = {},
+  opts: {
+    account?: MeDto;
+    showSports?: boolean;
+    locale?: 'bg' | 'en';
+    deletion?: DeletionStandingView;
+  } = {},
 ) {
   const seed = opts.account ?? account();
   return render(
@@ -77,6 +83,7 @@ function renderProfile(
             notificationSettings={{
               email: { confirmation: true, reminder: true, clubChanges: true },
             }}
+            deletion={opts.deletion ?? { kind: 'allowed' }}
           />
         </TooltipProvider>
       </SWRConfig>,
@@ -113,12 +120,13 @@ describe('Профил — what every account sees', () => {
     expect(screen.getByTestId('profile-theme-row')).toHaveClass('md:hidden');
   });
 
-  it('privacy and data: a row that says the page is coming, not a link to a 404', () => {
+  it('privacy and data: the export downloads the file from the v1 route (#370)', () => {
     renderProfile();
-    const row = screen.getByTestId('profile-privacy-row');
-    expect(row).toHaveTextContent(p.privacyData);
-    expect(row).toHaveTextContent(p.comingSoon);
-    expect(within(row).queryByRole('link')).not.toBeInTheDocument();
+    const row = screen.getByTestId('profile-export-row');
+    expect(row).toHaveTextContent(p.data.row);
+    const link = within(row).getByRole('link', { name: p.data.download });
+    expect(link).toHaveAttribute('href', '/api/v1/me/export');
+    expect(link).toHaveAttribute('download');
   });
 
   it('Изход is a real button, phone-only, and lands on the home page', () => {

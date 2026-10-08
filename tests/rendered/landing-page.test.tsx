@@ -84,9 +84,11 @@ const PILOT: PilotClub[] = [
 ];
 
 /** The page inside its layout, as `/` serves it to a visitor. */
-async function renderPage(l: 'bg' | 'en') {
+async function renderPage(l: 'bg' | 'en', query: { account?: string } = {}) {
   locale = l;
-  const page = await HomeLayout({ children: await HomePage() });
+  const page = await HomeLayout({
+    children: await HomePage({ searchParams: Promise.resolve(query) }),
+  });
   return render(withIntl(await resolveServerTree(page), l));
 }
 
@@ -119,6 +121,14 @@ describe('signed in, `/` is Играй (#362)', () => {
     await renderPage('bg');
     expect(redirect).not.toHaveBeenCalled();
     expect(screen.getByTestId('player-chrome')).toHaveAttribute('data-footer', 'true');
+    expect(screen.queryByTestId('landing-account-deleted')).not.toBeInTheDocument();
+  });
+
+  it('a deleted account lands here and is told so, in one line (#370)', async () => {
+    await renderPage('bg', { account: 'deleted' });
+    expect(screen.getByTestId('landing-account-deleted')).toHaveTextContent(
+      bg.landing.accountDeleted,
+    );
   });
 });
 

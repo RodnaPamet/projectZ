@@ -31,7 +31,7 @@ const COURT = {
   slotStepMinutes: 30,
 } as const;
 
-const LABELS = { unknownPlayer: 'Непознат играч', guest: 'Гост' };
+const LABELS = { unknownPlayer: 'Непознат играч', guest: 'Гост', deletedUser: 'Изтрит потребител' };
 const OPTS = { locale: 'bg', labels: LABELS };
 
 describe('loadDiaryDay', () => {

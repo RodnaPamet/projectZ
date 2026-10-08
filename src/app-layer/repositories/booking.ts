@@ -270,6 +270,46 @@ export async function listBookingsForUserAcrossClubs(
 }
 
 /**
+ * Every booking this person still has to play, at any club (#370): the ones
+ * that stand between them and deleting their account.
+ *
+ * The same two definitions as Резервации → Предстоящи, so the profile page
+ * lists exactly what that tab does: `mine` (booked it, or was added to it) and
+ * `upcomingWhere` (PENDING or CONFIRMED, and not over). Soonest first. Bounded:
+ * a person with more than `take` of them is told about the first `take`, and
+ * still cannot delete until all are gone.
+ */
+export async function listUpcomingBookingsForUser(
+  db: PrismaClient,
+  input: { userId: string; now: Date; take: number },
+) {
+  // guardrail-allow: cross-tenant — a person's own bookings span every club,
+  // and the filter is their session-derived id, not a request parameter.
+  return db.booking.findMany({
+    where: { ...mine(input.userId), ...upcomingWhere(input.now) },
+    select: {
+      id: true,
+      tenantId: true,
+      status: true,
+      startTs: true,
+      endTs: true,
+      bookedByUserId: true,
+      resource: {
+        select: {
+          name: true,
+          resourceType: true,
+          venue: { select: { name: true, timezone: true, cancellationCutoffHours: true } },
+        },
+      },
+    },
+    orderBy: [{ startTs: 'asc' }, { id: 'asc' }],
+    take: input.take,
+  });
+}
+
+export type UpcomingBookingRow = Awaited<ReturnType<typeof listUpcomingBookingsForUser>>[number];
+
+/**
  * ONE of this person's bookings, at any club, with what its detail page shows
  * (#359): the venue's address and coordinates for directions, its public slug
  * for a link back, and the people on the booking.
@@ -342,6 +382,11 @@ export interface BookingPlayer {
   isYou: boolean;
   /** Registered (has an account), as opposed to a guest named by the booker. */
   registered: boolean;
+  /**
+   * The account was deleted (#370). The place stays, as the booking does, under
+   * no name and no picture: the screen says "Изтрит потребител".
+   */
+  deleted: boolean;
 }
 
 /**
@@ -372,22 +417,24 @@ export async function readBookingPlayers(
   const users = unique.length
     ? await db.user.findMany({
         where: { id: { in: unique } },
-        select: { id: true, name: true, avatarUrl: true },
+        select: { id: true, name: true, avatarUrl: true, deletedAt: true },
         take: unique.length,
       })
     : [];
   const byId = new Map(users.map((u) => [u.id, u]));
+  const gone = (u: { deletedAt: Date | null } | undefined) => !!u?.deletedAt;
 
   const players: BookingPlayer[] = [];
   if (b.bookedByUserId) {
     const u = byId.get(b.bookedByUserId);
     players.push({
       participantId: null,
-      name: u?.name ?? null,
-      avatarUrl: u?.avatarUrl ?? null,
+      name: gone(u) ? null : (u?.name ?? null),
+      avatarUrl: gone(u) ? null : (u?.avatarUrl ?? null),
       isBooker: true,
       isYou: b.bookedByUserId === viewerId,
       registered: true,
+      deleted: gone(u),
     });
   }
   for (const p of rows) {
@@ -396,11 +443,12 @@ export async function readBookingPlayers(
       const u = byId.get(p.userId);
       players.push({
         participantId: p.id,
-        name: u?.name ?? null,
-        avatarUrl: u?.avatarUrl ?? null,
+        name: gone(u) ? null : (u?.name ?? null),
+        avatarUrl: gone(u) ? null : (u?.avatarUrl ?? null),
         isBooker: false,
         isYou: p.userId === viewerId,
         registered: true,
+        deleted: gone(u),
       });
     } else if (p.guestName) {
       players.push({
@@ -410,6 +458,7 @@ export async function readBookingPlayers(
         isBooker: false,
         isYou: false,
         registered: false,
+        deleted: false,
       });
     }
   }

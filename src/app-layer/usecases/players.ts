@@ -81,6 +81,14 @@ function assertId(value: unknown): asserts value is string {
 async function ownPlayer(db: PrismaClient, tenantId: string, playerUserId: string) {
   assertId(playerUserId);
 
+  // A player who deleted their account (#370) is listed under no name and is
+  // nobody's to tag or credit: the club's notes on them went with the account.
+  const person = await db.user.findUnique({
+    where: { id: playerUserId },
+    select: { deletedAt: true },
+  });
+  if (person?.deletedAt) throw new PlayerNotAtThisClubError();
+
   const rel = await db.playerVenueRelationship.findFirst({
     where: { tenantId, playerUserId },
     select: { id: true, tags: true },
