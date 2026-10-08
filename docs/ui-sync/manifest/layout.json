@@ -4,8 +4,8 @@
     {
       "path": "src/components/layout/AppShellFrame.tsx",
       "inflectPath": "src/components/layout/AppShellFrame.tsx",
-      "baseSha": "b7eaff481dd765bc05922e349c608b727eccb292",
-      "sha": "b7eaff481dd765bc05922e349c608b727eccb292",
+      "baseSha": "7ac55896328462f7dee15e40fc7d4c9d4ee0c1e3",
+      "sha": "7ac55896328462f7dee15e40fc7d4c9d4ee0c1e3",
       "status": "vendored",
       "sha256": "5c1f678b1c99d0654a9c54059a5ec947a69f7f067c52a560aaad4460fc43adf5"
     },
