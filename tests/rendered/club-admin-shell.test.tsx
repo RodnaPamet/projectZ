@@ -262,6 +262,22 @@ describe('Още opens the drawer, and says so', () => {
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 
+  it('the current page is aria-current="page" in the sidebar and the drawer, and only it (#362)', () => {
+    // The vendored NavItem says so since inflect #3256; before, the active
+    // row was told apart by its colour, its weight and the band alone.
+    renderClub('OWNER');
+    const sidebar = screen.getAllByRole('navigation', { name: bg.common.ui.mainNav })[0]!;
+    const current = (root: HTMLElement) =>
+      within(root)
+        .getAllByRole('link')
+        .filter((l) => l.getAttribute('aria-current') === 'page')
+        .map((l) => l.textContent);
+    expect(current(sidebar)).toEqual([n.calendar]);
+
+    fireEvent.click(within(bar()).getByRole('button', { name: n.more }));
+    expect(current(screen.getByRole('dialog', { name: n.menu }))).toEqual([n.calendar]);
+  });
+
   it('a STAFF member’s drawer offers no page staff cannot open', () => {
     renderClub('STAFF');
     fireEvent.click(within(bar()).getByRole('button', { name: n.more }));

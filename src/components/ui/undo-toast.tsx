@@ -127,7 +127,7 @@ export function UndoToast({
             'border-border-default bg-bg-default border',
             'text-content-default hover:bg-bg-muted',
             'focus-visible:ring-2 focus-visible:outline-none',
-            'focus-visible:ring-brand-emphasis focus-visible:ring-offset-2',
+            'focus-visible:ring-[var(--accent-emphasis)] focus-visible:ring-offset-2',
             'focus-visible:ring-offset-bg-elevated',
           )}
         >

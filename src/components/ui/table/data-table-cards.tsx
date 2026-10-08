@@ -118,8 +118,11 @@ export function DataTableCards<T extends TableRowData>({
               // as often as on one, and the miss scrolls the
               // list — the opposite of what was wanted.
               clickable && 'relative min-h-11 pr-9',
+              // The focus ring is SOLID: at /40 it measured
+              // under the 3:1 a focus indicator owes (WCAG
+              // 1.4.11) on both themes' cards.
               clickable &&
-                'hover:bg-bg-muted/50 cursor-pointer transition-colors duration-75 focus-visible:ring-2 focus-visible:ring-[var(--brand-default)]/40 focus-visible:outline-none',
+                'hover:bg-bg-muted/50 cursor-pointer transition-colors duration-75 focus-visible:ring-2 focus-visible:ring-[var(--accent-default)] focus-visible:outline-none',
             )}
           >
             {clickable && (

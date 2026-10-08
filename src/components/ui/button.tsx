@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/cn';
+import { cn } from '@inflect/ui/lib/cn';
 import { VariantProps } from 'class-variance-authority';
 import { ReactNode, forwardRef, useId } from 'react';
 // Direct module, not the `./icons` barrel: the barrel re-exports every
@@ -8,7 +8,7 @@ import { ReactNode, forwardRef, useId } from 'react';
 // widely imported should not pull them into whichever chunk lands it.
 // Every other LoadingSpinner call site in the app already imports the
 // module path.
-import { LoadingSpinner } from './icons/loading-spinner';
+import { LoadingSpinner } from '@inflect/ui/components/ui/icons/loading-spinner';
 import { Tooltip } from './tooltip';
 import { buttonVariants } from './button-variants';
 import { HIT_AREA_CLASS } from './hit-area';
@@ -85,6 +85,35 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const reasonId = `${generatedId}-disabled-reason`;
     const labelId = `${generatedId}-label`;
 
+    // #3065 — this branch rendered a bare div with hand-written
+    // attributes and never forwarded `props`, so EVERY prop passed
+    // alongside `disabledTooltip` was silently dropped: a
+    // `<Button disabledTooltip="…" data-testid="save" />` was
+    // unaddressable by that id, and an `aria-label` vanished. Silent in
+    // both directions — the tooltip worked and the shape looked right,
+    // so a test written against the testid failed as though the
+    // SELECTOR were wrong.
+    //
+    // It is NOT a blanket spread, because two groups of props would
+    // break what this branch exists to do:
+    //
+    //   every `on*` handler — the comment below is explicit that
+    //     focusing this must EXPLAIN, never ACTIVATE. Forwarding the
+    //     caller's `onClick` would make a control it is announcing as
+    //     `aria-disabled` run its action.
+    //   `disabled` / `type` — `disabled` removes the element from the
+    //     tab order, which is the problem this branch was written to
+    //     fix rather than the fix; `type` is button-only and means
+    //     nothing on a div.
+    //
+    // Filtered by PREFIX rather than by a hand-listed set, so a handler
+    // React adds later cannot leak in behind the list going stale.
+    const inertPassThrough = Object.fromEntries(
+      Object.entries(props).filter(
+        ([key]) => !key.startsWith('on') && key !== 'disabled' && key !== 'type',
+      ),
+    ) as React.HTMLAttributes<HTMLDivElement>;
+
     if (disabledTooltip) {
       return (
         <Tooltip content={disabledTooltip}>
@@ -127,6 +156,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
            * activate. That is the whole difference from `buttonLikeKeys`.
            */}
           <div
+            {...inertPassThrough}
             role="button"
             aria-disabled="true"
             tabIndex={0}
@@ -139,7 +169,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               // two-stop halo the cva base uses, so a disabled control
               // and a live one focus identically.
               'focus-visible:outline-none',
-              'focus-visible:shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--brand-default)]',
+              'focus-visible:shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--accent-default)]',
               INERT_BUTTON_SHELL,
               // Still Surface single-rung ladder (2026-07-28). This
               // branch does NOT route through the cva variant (it is a
@@ -226,7 +256,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
          * The button is `justify-center` and hugs its content
          * (inline-flex, no forced width), so the WHOLE content unit —
          * `[icon][gap][label]` — is centred as one symmetric group
-         * with equal padding on both sides. A leading `+ Asset`
+         * with equal padding on both sides. A leading `+ New`
          * therefore reads as a tidy centred unit (the `+` counted with
          * the word), not the word alone centred with the icon hanging
          * off-centre to the left.
