@@ -510,6 +510,18 @@ npm run delete:account -- --email maria@example.bg --dry-run
 npm run delete:account -- --email maria@example.bg
 ```
 
+On the VM the runtime image has no `npx`, so the script runs in the migrator
+image, as club onboarding does (docs/onboarding/runbook.md). The env file
+supplies `DIRECT_DATABASE_URL`:
+
+```bash
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
+  playerz-migrator:local npx tsx scripts/delete-account.ts --email maria@example.bg --dry-run
+
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
+  playerz-migrator:local npx tsx scripts/delete-account.ts --email maria@example.bg
+```
+
 The dry run runs the whole deletion and rolls it back, printing the rows it
 would change. The real run is the same code as the button on `/me/profile`
 (`deleteAccount` in `src/app-layer/usecases/account-deletion.ts`), in one
