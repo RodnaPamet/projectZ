@@ -68,6 +68,19 @@ describe('/delete-account', () => {
     );
   });
 
+  it('says what deleting does not undo: the no-shows, carried; the credit, lost (#370 review)', async () => {
+    await renderPage();
+    expect(screen.getByTestId('delete-account-help-no-shows')).toHaveTextContent(
+      messages.deleteAccountHelp.kept.noShows,
+    );
+    expect(screen.getByTestId('delete-account-help-credit')).toHaveTextContent(
+      messages.deleteAccountHelp.kept.credit,
+    );
+    // The profile's own wording, so the two never disagree.
+    expect(messages.profile.delete.noShowCarry).toContain('90 дни');
+    expect(messages.deleteAccountHelp.kept.noShows).toContain('90 дни');
+  });
+
   it('a club account is sent to the contact form', async () => {
     await renderPage();
     expect(screen.getByTestId('delete-account-help-contact')).toHaveAttribute('href', '/#clubs');

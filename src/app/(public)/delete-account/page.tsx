@@ -97,6 +97,12 @@ export default async function DeleteAccountHelpPage() {
         <Section title={t('kept.title')}>
           <p className={P}>{t('kept.bookings')}</p>
           <p className={P}>{t('kept.logs')}</p>
+          <p className={P} data-testid="delete-account-help-no-shows">
+            {t('kept.noShows')}
+          </p>
+          <p className={P} data-testid="delete-account-help-credit">
+            {t('kept.credit')}
+          </p>
         </Section>
 
         <Section title={t('club.title')}>
