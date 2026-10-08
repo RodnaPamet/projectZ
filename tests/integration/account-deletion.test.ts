@@ -5,11 +5,19 @@ import { loadDiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
 import { DELETE as deleteMe, GET as getMeRoute } from '@/app/api/v1/me/route';
 import { listPlayers } from '@/app-layer/repositories/player';
 import { deleteAccount, deletionStanding } from '@/app-layer/usecases/account-deletion';
+import { markNoShow } from '@/app-layer/usecases/booking-outcome';
+import {
+  acceptBookingInvite,
+  createBookingInviteLink,
+  leaveBooking,
+  removeBookingPlayer,
+} from '@/app-layer/usecases/booking-players';
 import { loadClubStatement } from '@/app-layer/usecases/club-fees';
 import { getMyBooking } from '@/app-layer/usecases/my-bookings';
 import { SessionRevokedError, authOptions } from '@/auth';
 import { tombstoneEmail } from '@/lib/account/deleted-user';
-import { checkSession } from '@/lib/auth/sessions';
+import { AccountDeletedError, checkSession, createUserSession } from '@/lib/auth/sessions';
+import { hashForLookup } from '@/lib/security/encryption';
 import { statementMonthOf } from '@/lib/billing/club-fee';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
@@ -185,8 +193,43 @@ describe('who may delete, and when (#370)', () => {
     });
     expect(await runAsSuperuser((tx) => deletionStanding(tx, player.userId))).toEqual({
       kind: 'allowed',
+      credit: [],
     });
     expect((await callDelete(player)).res.status).toBe(204);
+  });
+
+  it('unused credit is listed club by club, and does not block it (warn, then allow)', async () => {
+    const second = await seedTenant({ name: 'Клуб Бета' });
+    const entry = (tenantId: string, deltaCents: number, balanceAfterCents: number) =>
+      asAppSuperuser(db, (tx) =>
+        tx.creditLedgerEntry.create({
+          data: {
+            tenantId,
+            userId: player.userId,
+            deltaCents,
+            reason: deltaCents > 0 ? 'ADMIN_ADJUST' : 'SPEND',
+            balanceAfterCents,
+          },
+        }),
+      );
+    // 12.50 left at this club: two entries, the balance their sum.
+    await entry(club.tenantId, 2000, 2000);
+    await entry(club.tenantId, -750, 1250);
+    // Spent to nothing at the other: not listed.
+    await entry(second.tenantId, 500, 500);
+    await entry(second.tenantId, -500, 0);
+
+    const standing = await runAsSuperuser((tx) => deletionStanding(tx, player.userId));
+    expect(standing).toEqual({
+      kind: 'allowed',
+      credit: [{ tenantId: club.tenantId, club: expect.any(String), balanceCents: 1250 }],
+    });
+    expect((await callDelete(player)).res.status).toBe(204);
+    // The ledger is kept; the balance is nobody's.
+    const kept = await asAppSuperuser(db, (tx) =>
+      tx.creditLedgerEntry.count({ where: { userId: player.userId } }),
+    );
+    expect(kept).toBe(4);
   });
 });
 
@@ -297,6 +340,16 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
         data: {
           tenantId: second.tenantId,
           email: u.email,
+          tokenHash: `invite-${Math.random()}`,
+          expiresAt: new Date(Date.now() + DAY),
+          role: 'STAFF',
+        },
+      });
+      // A club typed the same address in capitals: still this person's.
+      await tx.invite.create({
+        data: {
+          tenantId: club.tenantId,
+          email: u.email.toUpperCase(),
           tokenHash: `invite-${Math.random()}`,
           expiresAt: new Date(Date.now() + DAY),
           role: 'STAFF',
@@ -479,7 +532,9 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
         PasswordResetToken: await tx.passwordResetToken.count({ where: { userId } }),
         MfaRecoveryCode: await tx.mfaRecoveryCode.count({ where: { userId } }),
         TenantMembership: await tx.tenantMembership.count({ where: { userId } }),
-        Invite: await tx.invite.count({ where: { email } }),
+        Invite: await tx.invite.count({
+          where: { email: { equals: email, mode: 'insensitive' } },
+        }),
         DeviceToken: await tx.deviceToken.count({ where: { userId } }),
         PushSubscription: await tx.pushSubscription.count({ where: { userId } }),
         Notification: await tx.notification.count({ where: { userId } }),
@@ -659,11 +714,31 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
   it('the tombstone is final, and nothing new is written for it', async () => {
     expect((await callDelete(player)).res.status).toBe(204);
 
+    // Never revived...
+    await expect(
+      asAppSuperuser(db, (tx) =>
+        tx.user.update({ where: { id: player.userId }, data: { deletedAt: null } }),
+      ),
+    ).rejects.toThrow(/app_user_tombstone_final/);
+    // ...and never given a name or an address again (the CHECK)...
     await expect(
       asAppSuperuser(db, (tx) =>
         tx.user.update({ where: { id: player.userId }, data: { name: 'Back' } }),
       ),
-    ).rejects.toThrow(/app_user_tombstone_final/);
+    ).rejects.toThrow(/app_user_deleted_is_scrubbed/);
+    await expect(
+      asAppSuperuser(db, (tx) =>
+        tx.user.update({ where: { id: player.userId }, data: { email: 'back@example.bg' } }),
+      ),
+    ).rejects.toThrow(/app_user_deleted_is_scrubbed/);
+    // ...but a maintenance UPDATE across app_user, like P37's backfill, does
+    // not abort on it: the trap the review found, where CI has no tombstones.
+    await asAppSuperuser(db, (tx) =>
+      tx.$executeRawUnsafe(`UPDATE app_user SET "sessionVersion" = "sessionVersion" + 1`),
+    );
+    await asAppSuperuser(db, (tx) =>
+      tx.$executeRawUnsafe(`UPDATE app_user SET locale = 'en' WHERE id = $1`, player.userId),
+    );
     await expect(
       booking(club.tenantId, court.resourceId, new Date(Date.now() + DAY), {
         bookedByUserId: player.userId,
@@ -814,5 +889,198 @@ describe('a booking racing the deletion (#370, P52)', () => {
       tx.booking.count({ where: { bookedByUserId: userId } }),
     );
     expect(live).toBe(0);
+  });
+});
+
+describe('other people’s bells that name the account, once its place is gone (#370 review)', () => {
+  let club: SeededTenant;
+  let court: { venueId: string; venueSlug: string; resourceId: string };
+  let leaving: TestIdentity;
+  let bookerId: string;
+
+  beforeEach(async () => {
+    club = await seedTenant({});
+    court = await seedVenue(club.tenantId, { name: 'Алфа Кортове' });
+    await asAppSuperuser(db, (tx) =>
+      tx.resource.update({ where: { id: court.resourceId }, data: { capacity: 4 } }),
+    );
+    bookerId = await seedPlayer(db, club.tenantId, 'booker');
+    leaving = await signInAs(db, {
+      userId: await seedPlayer(db, club.tenantId, 'leaving'),
+      memberships: [],
+    });
+  });
+
+  /** A future game the booker made, and the place `leaving` takes on it by link. */
+  async function joinByLink() {
+    const game = await booking(club.tenantId, court.resourceId, new Date(Date.now() + 3 * DAY), {
+      bookedByUserId: bookerId,
+    });
+    const link = await createBookingInviteLink({ userId: bookerId, bookingId: game.id });
+    await acceptBookingInvite({ userId: leaving.userId, token: link.token });
+    return game.id;
+  }
+
+  const bookersBell = () =>
+    asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({
+        where: { userId: bookerId },
+        select: { kind: true, dedupeKey: true },
+        take: 50,
+      }),
+    );
+
+  it('left, then deleted: the booker’s "joined" and "left" rows go', async () => {
+    const gameId = await joinByLink();
+    await leaveBooking({ userId: leaving.userId, bookingId: gameId });
+    // The place is gone; the booker's bell still names the player, twice.
+    expect((await bookersBell()).map((n) => n.kind).sort()).toEqual([
+      'BOOKING_PLAYER_JOINED',
+      'BOOKING_PLAYER_LEFT',
+    ]);
+    // An unrelated row of the booker's stays.
+    await asAppSuperuser(db, (tx) =>
+      tx.notification.create({
+        data: { userId: bookerId, kind: 'BOOKING_CONFIRMED', title: 'Потвърдена', body: 'x' },
+      }),
+    );
+
+    expect((await callDelete(leaving)).res.status).toBe(204);
+
+    expect((await bookersBell()).map((n) => n.kind)).toEqual(['BOOKING_CONFIRMED']);
+  });
+
+  it('removed by the booker, then deleted: the "joined" row goes too', async () => {
+    const gameId = await joinByLink();
+    const place = await asAppSuperuser(db, (tx) =>
+      tx.bookingParticipant.findFirstOrThrow({
+        where: { bookingId: gameId, userId: leaving.userId },
+        select: { id: true },
+      }),
+    );
+    await removeBookingPlayer({ userId: bookerId, bookingId: gameId, participantId: place.id });
+    expect((await bookersBell()).map((n) => n.kind)).toEqual(['BOOKING_PLAYER_JOINED']);
+
+    expect((await callDelete(leaving)).res.status).toBe(204);
+
+    expect(await bookersBell()).toEqual([]);
+  });
+
+  it('another player’s rows on the same game stay', async () => {
+    const gameId = await joinByLink();
+    const staying = await seedPlayer(db, club.tenantId, 'staying');
+    const link = await createBookingInviteLink({ userId: bookerId, bookingId: gameId });
+    await acceptBookingInvite({ userId: staying, token: link.token });
+    await leaveBooking({ userId: leaving.userId, bookingId: gameId });
+
+    expect((await callDelete(leaving)).res.status).toBe(204);
+
+    const left = await bookersBell();
+    expect(left).toHaveLength(1);
+    expect(left[0]!.kind).toBe('BOOKING_PLAYER_JOINED');
+  });
+});
+
+describe('sessions around a deletion (#370 review)', () => {
+  let club: SeededTenant;
+  let userId: string;
+
+  beforeEach(async () => {
+    club = await seedTenant({});
+    userId = await seedPlayer(db, club.tenantId, 'session');
+    const who = await signInAs(db, { userId, memberships: [] });
+    expect((await callDelete(who)).res.status).toBe(204);
+  });
+
+  it('a sign-in that found the account just before cannot record a session for it', async () => {
+    await expect(
+      createUserSession({
+        userId,
+        sessionSecret: 'late-sign-in-secret', // pragma: allowlist secret
+        expiresAt: new Date(Date.now() + DAY),
+      }),
+    ).rejects.toBeInstanceOf(AccountDeletedError);
+  });
+
+  it('and the database refuses the row itself, whoever writes it', async () => {
+    await expect(
+      asAppSuperuser(db, (tx) =>
+        tx.userSession.create({
+          data: { userId, tokenHash: `t-${Math.random()}`, expiresAt: new Date(Date.now() + DAY) },
+        }),
+      ),
+    ).rejects.toThrow(/account_deleted/);
+  });
+
+  it('a session row that slipped in anyway is still refused by checkSession', async () => {
+    // Past every guard (as only the owner can be): the check itself is what is tested.
+    const row = await db.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`);
+      return tx.userSession.create({
+        data: {
+          userId,
+          tokenHash: hashForLookup('slipped-in-secret'),
+          expiresAt: new Date(Date.now() + DAY),
+        },
+        select: { id: true, sessionVersion: true },
+      });
+    });
+    const version = await asAppSuperuser(db, (tx) =>
+      tx.user.findUniqueOrThrow({ where: { id: userId }, select: { sessionVersion: true } }),
+    );
+    expect(
+      await checkSession({
+        userSessionId: row.id,
+        sessionVersion: version.sessionVersion,
+        sessionSecret: 'slipped-in-secret', // pragma: allowlist secret
+      }),
+    ).toEqual({ usable: false, reason: 'unknown' });
+  });
+});
+
+describe('the security log’s erasure is for a deleted account only (#370 review, P52)', () => {
+  it('a live account’s addresses cannot be erased, whatever the setting says', async () => {
+    const club = await seedTenant({});
+    const userId = await seedPlayer(db, club.tenantId, 'admin');
+    await asAppSuperuser(db, (tx) =>
+      tx.accountSecurityEvent.create({
+        data: { userId, action: 'MFA_STEP_UP_SUCCEEDED', ipAddress: '203.0.113.9', userAgent: 'x' },
+      }),
+    );
+    await expect(
+      asAppSuperuser(db, async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.erasure_user_id', $1, true)`, userId);
+        return tx.accountSecurityEvent.updateMany({
+          where: { userId },
+          data: { ipAddress: null, userAgent: null },
+        });
+      }),
+    ).rejects.toThrow(/APPEND-ONLY/);
+  });
+});
+
+describe('a deleted player’s old bookings cannot be marked no-shows (#370 review)', () => {
+  it('refused, so the protection their review gave is not lifted by deleting it', async () => {
+    const club = await seedTenant({});
+    const court = await seedVenue(club.tenantId);
+    const who = await signInAs(db, {
+      userId: await seedPlayer(db, club.tenantId, 'played'),
+      memberships: [],
+    });
+    const played = await booking(club.tenantId, court.resourceId, new Date(Date.now() - 2 * DAY), {
+      bookedByUserId: who.userId,
+      status: 'COMPLETED',
+    });
+    expect((await callDelete(who)).res.status).toBe(204);
+
+    await expect(
+      asAppUser(db, club.tenantId, (tx) =>
+        markNoShow(tx, club.tenantId, { bookingId: played.id, actorUserId: club.userId }),
+      ),
+    ).rejects.toMatchObject({ name: 'NoShowRefusedError', reason: 'ACCOUNT_DELETED' });
+    const row = await asAppSuperuser(db, (tx) =>
+      tx.booking.findUniqueOrThrow({ where: { id: played.id }, select: { status: true } }),
+    );
+    expect(row.status).toBe('COMPLETED');
   });
 });

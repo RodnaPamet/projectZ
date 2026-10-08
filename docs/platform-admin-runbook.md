@@ -495,20 +495,29 @@ an error rather than a mixed account.
 
 A player or a coach deletes their own account on `/me/profile` ("Изтриване на
 профила"). This section is for everyone else: a person who asks by email
-because they can no longer sign in, and a club account, which cannot delete
-itself (owner decision 3) and asks through the landing page's contact form.
+because they can no longer sign in. A club account cannot delete itself
+(owner decision 3) and asks through the landing page's contact form, but the
+script refuses it too until club retirement exists (#459, below).
 
 **First, make sure it is them.** Deletion is immediate and cannot be undone.
 Answer the request at the address the account signs in with, and act only on
 a reply from that address, or on a request made in person to someone who knows
 them. A request from any other address is somebody else asking.
 
-Then, with the owner connection (`DIRECT_DATABASE_URL`), a dry run first:
+Then, with the owner connection (`DIRECT_DATABASE_URL`). **Without
+`--confirm` the script is a dry run**: it runs the whole deletion, rolls it
+back, and prints the account it found (id, kind, name, created), every row it
+would change, and any credit the person would lose at a club. Check that this
+is the person who asked. Then delete, confirming the id the dry run printed:
 
 ```bash
-npm run delete:account -- --email maria@example.bg --dry-run
 npm run delete:account -- --email maria@example.bg
+npm run delete:account -- --email maria@example.bg --confirm <account id>
 ```
+
+`--confirm` must name the account the address leads to. If the address in the
+second command is not the one from the first (a typo, or another request),
+nothing is deleted and the script says so; run the dry run for it again.
 
 On the VM the runtime image has no `npx`, so the script runs in the migrator
 image, as club onboarding does (docs/onboarding/runbook.md). The env file
@@ -516,14 +525,13 @@ supplies `DIRECT_DATABASE_URL`:
 
 ```bash
 sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
-  playerz-migrator:local npx tsx scripts/delete-account.ts --email maria@example.bg --dry-run
+  playerz-migrator:local npx tsx scripts/delete-account.ts --email maria@example.bg
 
 sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
-  playerz-migrator:local npx tsx scripts/delete-account.ts --email maria@example.bg
+  playerz-migrator:local npx tsx scripts/delete-account.ts --email maria@example.bg --confirm <account id>
 ```
 
-The dry run runs the whole deletion and rolls it back, printing the rows it
-would change. The real run is the same code as the button on `/me/profile`
+The real run is the same code as the button on `/me/profile`
 (`deleteAccount` in `src/app-layer/usecases/account-deletion.ts`), in one
 transaction. What it does to each table, and why, is
 `src/lib/account/deletion-plan.ts`. In short:
@@ -534,16 +542,18 @@ transaction. What it does to each table, and why, is
   notes on them;
 - their bookings stay in the clubs' records as "Изтрит потребител", because the
   clubs' statements and the platform fee are computed from them;
+- unused credit at a club is lost (owner decision: warn, then allow). The dry
+  run lists it; tell the person before you confirm;
 - the account row stays as a tombstone with no address. Signing in again with
   the same Google or Facebook address creates a new, empty account.
 
 **It refuses**, and changes nothing, when:
 
-| Refusal                           | What to do                                                                                                                                                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| upcoming bookings (it lists them) | Ask the person to cancel the ones they made and leave the ones they were added to. One past its club's cancellation cutoff is played first, or the club cancels it. Then run it again.                                   |
-| a club account                    | Retiring a club is #459 and is not built yet. Until it is: hide the club, cancel its upcoming bookings with notice from its own admin, and run the script for the holder once their account no longer holds a club role. |
-| no account has the address        | Nothing to do, or it was deleted already: a tombstone does not keep its address.                                                                                                                                         |
+| Refusal                           | What to do                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| upcoming bookings (it lists them) | Ask the person to cancel the ones they made and leave the ones they were added to. One past its club's cancellation cutoff is played first, or the club cancels it. Then run it again.                                                                                                                                                                                                                                                                         |
+| a club account                    | The script refuses every account whose kind is CLUB, whatever roles it holds, and any other account that holds an OWNER, MANAGER or STAFF role at a club. Retiring a club (hiding it and its venues, cancelling its upcoming bookings with notice, keeping its financial records) is #459 and is not built, and there is no way around it by hand. Tell the person the request is recorded and will be carried out with #459, and keep the request until then. |
+| no account has the address        | Nothing to do, or it was deleted already: a tombstone does not keep its address.                                                                                                                                                                                                                                                                                                                                                                               |
 
 **A landing-page enquiry** (`contact_request`) belongs to no account, so the
 script does not touch it. If the person asks for theirs to be erased too:

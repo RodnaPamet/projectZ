@@ -13,7 +13,10 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
 
+import { CreditLossNotice, type ClubCreditView } from './CreditLossNotice';
 import { PROFILE_ROW, ProfileSection } from './ProfileSection';
+
+export type { ClubCreditView };
 
 // The dialog, its field and the sign-out it ends in are only loaded when
 // somebody actually opens it.
@@ -36,9 +39,9 @@ export interface UpcomingBookingView {
 }
 
 export type DeletionStandingView =
-  | { kind: 'allowed' }
+  | { kind: 'allowed'; credit: ClubCreditView[] }
   | { kind: 'club' }
-  | { kind: 'blocked'; total: number; bookings: UpcomingBookingView[] };
+  | { kind: 'blocked'; total: number; bookings: UpcomingBookingView[]; credit: ClubCreditView[] };
 
 /** Where the landing page's contact form is: its "За клубове" section. */
 export const CONTACT_FORM_HREF = '/#clubs';
@@ -53,6 +56,10 @@ export const CONTACT_FORM_HREF = '/#clubs';
  *             too late to cancel, when deletion becomes possible
  *   allowed   what goes and what stays, then the button that opens the typed
  *             confirmation
+ *
+ * In both of the last two, unused credit at any club is listed as lost first
+ * (#370 review, the owner's decision: warn, then allow), and the dialog says
+ * it again.
  *
  * The page decides which, on the server; the API decides again, under a lock,
  * when the button is pressed, so the state shown here is never trusted.
@@ -130,6 +137,11 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
               {t('blocked.more', { count: standing.total - standing.bookings.length })}
             </Caption>
           ) : null}
+          {standing.credit.length > 0 ? (
+            <div className="px-4">
+              <CreditLossNotice credit={standing.credit} />
+            </div>
+          ) : null}
           <div className="px-4">
             <Button
               type="button"
@@ -144,6 +156,7 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
         <div className="gap-compact flex flex-col px-4 py-3" data-testid="profile-delete-allowed">
           <p className="text-content-default text-sm">{t('intro')}</p>
           <Caption>{t('exportFirst')}</Caption>
+          <CreditLossNotice credit={standing.credit} />
           <div>
             <Button
               type="button"
@@ -154,7 +167,12 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
             />
           </div>
           {open ? (
-            <DeleteAccountDialog open={open} setOpen={setOpen} onRefused={() => router.refresh()} />
+            <DeleteAccountDialog
+              open={open}
+              setOpen={setOpen}
+              credit={standing.credit}
+              onRefused={() => router.refresh()}
+            />
           ) : null}
         </div>
       )}

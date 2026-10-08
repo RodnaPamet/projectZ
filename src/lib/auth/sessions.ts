@@ -68,6 +68,14 @@ export type SessionCheck =
   | { usable: true }
   | { usable: false; reason: 'no-session' | 'revoked' | 'expired' | 'stale-version' | 'unknown' };
 
+/** The account was deleted (#370): no session is recorded for it, and none is usable. */
+export class AccountDeletedError extends Error {
+  constructor() {
+    super('The account was deleted; it cannot be signed in to.');
+    this.name = 'AccountDeletedError';
+  }
+}
+
 /**
  * Record a new session.
  *
@@ -91,8 +99,13 @@ export async function createUserSession(input: {
     // that counter moves.
     const user = await db.user.findUniqueOrThrow({
       where: { id: input.userId },
-      select: { sessionVersion: true },
+      select: { sessionVersion: true, deletedAt: true },
     });
+    // A sign-in that found the account just before it was deleted (#370):
+    // there is nobody left to sign in. P52's trigger on user_session refuses
+    // the row as well, for the case where the deletion commits between this
+    // read and the insert below.
+    if (user.deletedAt) throw new AccountDeletedError();
 
     const row = await db.userSession.create({
       data: {
@@ -152,7 +165,7 @@ export async function checkSession(claims: SessionClaims): Promise<SessionCheck>
         sessionVersion: true,
         revokedAt: true,
         expiresAt: true,
-        user: { select: { sessionVersion: true } },
+        user: { select: { sessionVersion: true, deletedAt: true } },
       },
     }),
   );
@@ -165,6 +178,9 @@ export async function checkSession(claims: SessionClaims): Promise<SessionCheck>
   // was a TypeError that turned a deleted account's request into a 500. A
   // session whose user is gone is a session nobody can use.
   if (!row?.user) return { usable: false, reason: 'unknown' };
+  // A deleted account (#370) is the same thing: its session rows went with
+  // it, so this only answers a row that slipped in around the deletion.
+  if (row.user.deletedAt) return { usable: false, reason: 'unknown' };
   if (row.revokedAt) return { usable: false, reason: 'revoked' };
   if (row.expiresAt.getTime() <= Date.now()) return { usable: false, reason: 'expired' };
 

@@ -12,7 +12,9 @@ import { EXPORT_EXCLUDED_COLUMNS } from '../helpers/export-excluded';
 /**
  * "Изтегли моите данни" (#370): `GET /api/v1/me/export`, against a real
  * database. Every section is there with the person's own data, and nothing
- * else is: no secret, no token, nobody else's email, phone or name.
+ * else is: no secret, no token, nobody else's email, phone or contact details,
+ * and none of a club's own notes. The one place another person's name may
+ * appear is the person's own bell, word for word (data-export.ts says why).
  */
 const db = prismaTestClient();
 const HOUR = 3_600_000;
@@ -23,11 +25,26 @@ const SECRETS = {
   mfaSecret: 'v1:export-test-envelope-must-never-leave', // pragma: allowlist secret
   sessionToken: 'session-token-hash-must-never-leave',
   refreshToken: 'refresh-token-hash-must-never-leave',
+  pushEndpoint: 'https://push.test/endpoint-must-never-leave',
   p256dh: 'push-key-must-never-leave',
   pushAuth: 'push-auth-must-never-leave',
   deviceToken: 'apns-device-token-must-never-leave',
   linkHash: 'invite-link-hash-must-never-leave',
   recoveryCode: 'recovery-code-hash-must-never-leave',
+};
+
+/** What is somebody else's, or the club's own: none of it may leave in her file. */
+const NOT_HERS = {
+  coPlayerPhone: '+359888999000',
+  coPlayerEmailPrefix: 'coplayer-',
+  participantGuestName: 'Гост Гостев',
+  participantGuestEmail: 'guest@example.bg',
+  bookersDeskPhone: '+359877555444',
+  bookersSessionIp: '198.51.100.99',
+  bookersBell: 'Само за Петър',
+  clubTag: 'вип-клиентка',
+  deskNote: 'бележка на рецепцията',
+  seriesNote: 'винаги корт 1, бележка на клуба',
 };
 
 async function download(who: TestIdentity) {
@@ -58,6 +75,7 @@ describe('GET /api/v1/me/export (#370)', () => {
   let court: { venueId: string; venueSlug: string; resourceId: string };
   let player: TestIdentity;
   let mineId: string;
+  let deskId: string;
   let theirsId: string;
 
   beforeEach(async () => {
@@ -83,7 +101,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       });
       await tx.user.update({
         where: { id: otherId },
-        data: { name: 'Петър Съиграч', phone: '+359888999000' },
+        data: { name: 'Петър Съиграч', phone: NOT_HERS.coPlayerPhone },
       });
       await tx.playerSportLevel.create({ data: { userId, sport: 'TENNIS', level: 3 } });
       await tx.playerProfile.create({
@@ -99,17 +117,41 @@ describe('GET /api/v1/me/export (#370)', () => {
           userAgent: 'Firefox',
         },
       });
+      // The co-player's own session: not hers.
+      await tx.userSession.create({
+        data: {
+          userId: otherId,
+          tokenHash: `other-${Math.random()}`,
+          expiresAt: new Date(Date.now() + DAY),
+          ipAddress: NOT_HERS.bookersSessionIp,
+        },
+      });
+      await tx.accountSecurityEvent.create({
+        data: {
+          userId,
+          action: 'MFA_STEP_UP_SUCCEEDED',
+          detailsJson: { method: 'totp' },
+          ipAddress: '198.51.100.5',
+          userAgent: 'Safari',
+        },
+      });
       await tx.mfaRecoveryCode.create({ data: { userId, codeHash: SECRETS.recoveryCode } });
       await tx.pushSubscription.create({
         data: {
           userId,
-          endpoint: 'https://push.test/endpoint',
+          endpoint: SECRETS.pushEndpoint,
           p256dh: SECRETS.p256dh,
           auth: SECRETS.pushAuth,
+          userAgent: 'Chrome on Android',
         },
       });
       await tx.deviceToken.create({
-        data: { userId, deviceToken: SECRETS.deviceToken, bundleId: 'bg.playerz' },
+        data: {
+          userId,
+          deviceToken: SECRETS.deviceToken,
+          bundleId: 'bg.playerz',
+          deviceName: 'iPhone на Мария',
+        },
       });
 
       const mine = await tx.booking.create({
@@ -121,10 +163,30 @@ describe('GET /api/v1/me/export (#370)', () => {
           bookedByUserId: userId,
           totalCents: 3000,
           status: 'COMPLETED',
+          notes: 'Ще дойда с ракетите си',
           idempotencyKey: `export-${Math.random()}`,
         },
       });
       mineId = mine.id;
+      // A booking the club's desk entered for her: the contact it took is
+      // hers, the note is the desk's.
+      const desk = await tx.booking.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: court.resourceId,
+          startTs: new Date(past.getTime() - DAY),
+          endTs: new Date(past.getTime() - DAY + HOUR),
+          bookedByUserId: userId,
+          channel: 'DESK',
+          guestName: 'Мария (рецепция)',
+          guestPhone: '+359888000222',
+          notes: NOT_HERS.deskNote,
+          totalCents: 2400,
+          status: 'NO_SHOW',
+          idempotencyKey: `export-${Math.random()}`,
+        },
+      });
+      deskId = desk.id;
       const theirs = await tx.booking.create({
         data: {
           tenantId: club.tenantId,
@@ -132,6 +194,8 @@ describe('GET /api/v1/me/export (#370)', () => {
           startTs: new Date(past.getTime() + 2 * HOUR),
           endTs: new Date(past.getTime() + 3 * HOUR),
           bookedByUserId: otherId,
+          channel: 'DESK',
+          guestPhone: NOT_HERS.bookersDeskPhone,
           totalCents: 2400,
           status: 'COMPLETED',
           idempotencyKey: `export-${Math.random()}`,
@@ -146,9 +210,83 @@ describe('GET /api/v1/me/export (#370)', () => {
         data: {
           tenantId: club.tenantId,
           bookingId: theirs.id,
-          guestName: 'Гост Гостев',
-          guestEmail: 'guest@example.bg',
+          guestName: NOT_HERS.participantGuestName,
+          guestEmail: NOT_HERS.participantGuestEmail,
           position: 3,
+        },
+      });
+      await tx.bookingSeries.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: court.resourceId,
+          startTime: '19:00',
+          durationMinutes: 60,
+          timezone: 'Europe/Sofia',
+          firstDate: new Date('2026-11-03'),
+          lastDate: new Date('2026-12-29'),
+          customerName: 'Мария Иванова',
+          customerPhone: '+359888000111',
+          customerUserId: userId,
+          notes: NOT_HERS.seriesNote,
+          priceCents: 2000,
+          idempotencyKey: `series-${Math.random()}`,
+        },
+      });
+      await tx.creditLedgerEntry.create({
+        data: {
+          tenantId: club.tenantId,
+          userId,
+          deltaCents: 1500,
+          reason: 'REFUND_CREDIT',
+          refType: 'booking',
+          refId: mine.id,
+          balanceAfterCents: 1500,
+        },
+      });
+      await tx.creditLedgerEntry.create({
+        data: {
+          tenantId: club.tenantId,
+          userId,
+          deltaCents: -500,
+          reason: 'SPEND',
+          balanceAfterCents: 1000,
+        },
+      });
+      await tx.playerVenueRelationship.create({
+        data: {
+          tenantId: club.tenantId,
+          playerUserId: userId,
+          noShowCount: 1,
+          tags: [NOT_HERS.clubTag],
+        },
+      });
+      await tx.notification.create({
+        data: {
+          userId,
+          kind: 'BOOKING_PLAYER_JOINED',
+          title: 'Петър Съиграч се включи в играта',
+          body: 'Алфа Кортове',
+          refType: 'booking',
+          refId: mine.id,
+        },
+      });
+      await tx.notification.create({
+        data: {
+          userId: otherId,
+          kind: 'BOOKING_CONFIRMED',
+          title: NOT_HERS.bookersBell,
+          body: 'x',
+        },
+      });
+      await tx.emailOutbox.create({
+        data: {
+          userId,
+          kind: 'BOOKING_CONFIRMED',
+          category: 'confirmation',
+          dedupeKey: `booking:${mine.id}:confirmed`,
+          locale: 'bg',
+          subject: 'Потвърдена резервация',
+          text: 'Здравейте, Мария',
         },
       });
       await tx.bookingInviteLink.create({
@@ -192,12 +330,18 @@ describe('GET /api/v1/me/export (#370)', () => {
       'exportedAt',
       'profile',
       'signIn',
+      'devices',
       'memberships',
       'bookings',
+      'weeklySeries',
+      'credit',
+      'noShowStanding',
       'reviews',
+      'notifications',
       'notificationSettings',
       'inviteLinks',
     ]);
+    expect(json.version).toBe(2);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
@@ -207,23 +351,8 @@ describe('GET /api/v1/me/export (#370)', () => {
       sports: [{ sport: 'TENNIS', level: 3 }],
       playerProfile: { displayName: 'Мария', bio: 'Обичам тенис' },
     });
-    expect(json.signIn).toMatchObject({ providerAccounts: [], twoStepVerification: false });
     expect(json.memberships).toEqual([
       expect.objectContaining({ club: 'Клуб Алфа', role: 'PLAYER', status: 'ACTIVE' }),
-    ]);
-    const bookings = json.bookings as { asBooker: unknown[]; asPlayer: unknown[] };
-    expect(bookings.asBooker).toEqual([
-      expect.objectContaining({
-        id: mineId,
-        venue: 'Алфа Кортове',
-        court: 'Court 1',
-        price: { cents: 3000, currency: 'EUR' },
-        status: 'COMPLETED',
-        addedPlayers: 0,
-      }),
-    ]);
-    expect(bookings.asPlayer).toEqual([
-      expect.objectContaining({ id: theirsId, venue: 'Алфа Кортове', addedPlayers: 2 }),
     ]);
     expect(json.reviews).toEqual([
       expect.objectContaining({ venue: 'Алфа Кортове', rating: 4, text: 'Хубави кортове' }),
@@ -234,22 +363,141 @@ describe('GET /api/v1/me/export (#370)', () => {
     expect(json.inviteLinks).toEqual([expect.objectContaining({ bookingId: mineId })]);
   });
 
-  it('carries no secret, no token, and nobody else’s name, email or phone', async () => {
+  it('signing in: her sessions with where they came from, and the second step’s log', async () => {
+    const { json } = await download(player);
+    const signIn = json.signIn as Record<string, unknown>;
+    expect(signIn).toMatchObject({ providerAccounts: [], twoStepVerification: false });
+    // signInAs records a session too; hers are all there, the seeded one with its address.
+    expect(signIn.sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ipAddress: '198.51.100.4', userAgent: 'Firefox', endedAt: null }),
+      ]),
+    );
+    expect(signIn.securityEvents).toEqual([
+      expect.objectContaining({
+        action: 'MFA_STEP_UP_SUCCEEDED',
+        ipAddress: '198.51.100.5',
+        userAgent: 'Safari',
+        details: { method: 'totp' },
+      }),
+    ]);
+    expect(json.devices).toEqual({
+      apps: [expect.objectContaining({ deviceName: 'iPhone на Мария', app: 'bg.playerz' })],
+      browsers: [expect.objectContaining({ userAgent: 'Chrome on Android' })],
+    });
+  });
+
+  it('bookings: her note on an online one, the contact the desk took on a desk one, never the desk’s note', async () => {
+    const { json } = await download(player);
+    const bookings = json.bookings as {
+      asBooker: Array<Record<string, unknown>>;
+      asPlayer: Array<Record<string, unknown>>;
+    };
+    expect(bookings.asBooker).toEqual([
+      expect.objectContaining({
+        id: mineId,
+        venue: 'Алфа Кортове',
+        court: 'Court 1',
+        price: { cents: 3000, currency: 'EUR' },
+        status: 'COMPLETED',
+        channel: 'ONLINE',
+        note: 'Ще дойда с ракетите си',
+        contactGivenToClub: null,
+        addedPlayers: 0,
+      }),
+      expect.objectContaining({
+        id: deskId,
+        channel: 'DESK',
+        status: 'NO_SHOW',
+        note: null,
+        contactGivenToClub: { name: 'Мария (рецепция)', phone: '+359888000222', email: null },
+      }),
+    ]);
+    // Where she was added: how many played, never who, and nothing the booker gave.
+    expect(bookings.asPlayer).toEqual([
+      expect.objectContaining({ id: theirsId, venue: 'Алфа Кортове', addedPlayers: 2 }),
+    ]);
+    expect(Object.keys(bookings.asPlayer[0]!)).not.toContain('contactGivenToClub');
+    expect(Object.keys(bookings.asPlayer[0]!)).not.toContain('note');
+  });
+
+  it('a weekly series, her credit, and her no-show standing at the club', async () => {
+    const { json } = await download(player);
+    expect(json.weeklySeries).toEqual([
+      expect.objectContaining({
+        club: 'Клуб Алфа',
+        venue: 'Алфа Кортове',
+        startTime: '19:00',
+        firstDate: '2026-11-03',
+        lastDate: '2026-12-29',
+        priceCents: 2000,
+        contactGivenToClub: { name: 'Мария Иванова', phone: '+359888000111' },
+      }),
+    ]);
+    expect(json.credit).toEqual({
+      balances: [{ club: 'Клуб Алфа', balanceCents: 1000, currency: 'EUR' }],
+      ledger: [
+        expect.objectContaining({
+          club: 'Клуб Алфа',
+          deltaCents: 1500,
+          balanceAfterCents: 1500,
+          reason: 'REFUND_CREDIT',
+          ref: { type: 'booking', id: mineId },
+        }),
+        expect.objectContaining({ deltaCents: -500, reason: 'SPEND', ref: null }),
+      ],
+    });
+    expect(json.noShowStanding).toEqual([
+      {
+        club: 'Клуб Алфа',
+        recentNoShows: 1,
+        blocked: false,
+        countedOverDays: 90,
+        blockedFrom: 3,
+        blockLiftedAt: null,
+      },
+    ]);
+  });
+
+  it('notifications: her bell, word for word, and the emails playerz sent her', async () => {
+    const { json } = await download(player);
+    const notifications = json.notifications as {
+      bell: Array<Record<string, unknown>>;
+      email: Array<Record<string, unknown>>;
+    };
+    expect(notifications.bell).toEqual([
+      expect.objectContaining({
+        kind: 'BOOKING_PLAYER_JOINED',
+        title: 'Петър Съиграч се включи в играта',
+        readAt: null,
+      }),
+    ]);
+    expect(notifications.email).toEqual([
+      expect.objectContaining({
+        kind: 'BOOKING_CONFIRMED',
+        subject: 'Потвърдена резервация',
+        text: 'Здравейте, Мария',
+        status: 'PENDING',
+      }),
+    ]);
+  });
+
+  it('carries no secret, no token, nothing of anybody else’s and none of the club’s notes', async () => {
     const { text, json } = await download(player);
     for (const [what, value] of Object.entries(SECRETS)) {
       expect({ what, leaked: text.includes(value) }).toEqual({ what, leaked: false });
     }
-    for (const other of [
-      'Петър Съиграч',
-      '+359888999000',
-      'coplayer-',
-      'Гост Гостев',
-      'guest@example.bg',
-    ]) {
-      expect({ other, leaked: text.includes(other) }).toEqual({ other, leaked: false });
+    for (const [what, value] of Object.entries(NOT_HERS)) {
+      expect({ what, leaked: text.includes(value) }).toEqual({ what, leaked: false });
     }
-    // No IP address or user agent either: sessions are not part of the export.
-    expect(text).not.toContain('198.51.100.4');
+    // The co-player's name is in her own bell, as it was on her screen, and
+    // nowhere else in the file.
+    const elsewhere = JSON.stringify({
+      ...json,
+      notifications: { ...(json.notifications as object), bell: [] },
+    });
+    expect(text).toContain('Петър Съиграч');
+    expect(elsewhere).not.toContain('Петър Съиграч');
     const keys = keysOf(json);
     for (const column of EXPORT_EXCLUDED_COLUMNS) {
       expect({ column, present: keys.has(column) }).toEqual({ column, present: false });
@@ -264,6 +512,8 @@ describe('GET /api/v1/me/export (#370)', () => {
     expect(json.memberships).toEqual([expect.objectContaining({ role: 'OWNER' })]);
     // The club's diary is the club's: none of its bookings are the owner's.
     expect(json.bookings).toEqual({ asBooker: [], asPlayer: [] });
+    expect(json.weeklySeries).toEqual([]);
+    expect(json.credit).toEqual({ balances: [], ledger: [] });
   });
 
   it('nobody signed in, or an account since deleted: 401', async () => {

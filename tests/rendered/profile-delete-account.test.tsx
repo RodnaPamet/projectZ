@@ -85,6 +85,7 @@ describe('upcoming bookings first', () => {
     wrap({
       kind: 'blocked',
       total: 4,
+      credit: [],
       bookings: [
         upcoming({}),
         upcoming({ bookingId: 'bk2', role: 'PARTICIPANT', cure: 'leave' }),
@@ -109,13 +110,27 @@ describe('upcoming bookings first', () => {
     expect(screen.getByTestId('profile-delete-blocked')).toHaveTextContent('И още 1 резервация.');
 
     expect(screen.getByTestId('profile-delete-button')).toBeDisabled();
+    // No credit, no word about it.
+    expect(screen.queryByTestId('profile-delete-credit')).toBeNull();
+  });
+
+  it('credit at a club is said to be lost here too, before the bookings are dealt with', () => {
+    installFakeFetch(() => ({ status: 200, body: { data: {} } }));
+    wrap({
+      kind: 'blocked',
+      total: 1,
+      bookings: [upcoming({})],
+      credit: [{ club: 'Клуб Алфа', balanceCents: 1250 }],
+    });
+    expect(screen.getByTestId('profile-delete-credit')).toHaveTextContent(t.credit.title);
+    expect(screen.getByTestId('profile-delete-credit-club')).toHaveTextContent('Клуб Алфа: 12,50');
   });
 });
 
 describe('a player who may delete', () => {
   it('says what goes and what stays, then asks for the word before the button works', async () => {
     const calls = installFakeFetch(() => ({ status: 204 }));
-    wrap({ kind: 'allowed' });
+    wrap({ kind: 'allowed', credit: [] });
     expect(screen.getByTestId('profile-delete-allowed')).toHaveTextContent('Изтрит потребител');
 
     fireEvent.click(screen.getByTestId('profile-delete-button'));
@@ -139,7 +154,7 @@ describe('a player who may delete', () => {
 
   it('a refusal keeps the dialog open, says why, and does not sign out', async () => {
     installFakeFetch(() => fail(409, 'UPCOMING_BOOKINGS'));
-    wrap({ kind: 'allowed' });
+    wrap({ kind: 'allowed', credit: [] });
     fireEvent.click(screen.getByTestId('profile-delete-button'));
     fireEvent.change(await screen.findByTestId('delete-account-confirm-input'), {
       target: { value: 'ИЗТРИЙ' },
@@ -151,6 +166,43 @@ describe('a player who may delete', () => {
     );
     expect(signOut).not.toHaveBeenCalled();
     expect(screen.getByTestId('delete-account-dialog')).toBeInTheDocument();
+  });
+
+  it('unused credit: listed as lost, club by club, in the section and again in the dialog; the button still works', async () => {
+    const calls = installFakeFetch(() => ({ status: 204 }));
+    wrap({
+      kind: 'allowed',
+      credit: [
+        { club: 'Клуб Алфа', balanceCents: 1250 },
+        { club: 'Клуб Бета', balanceCents: 300 },
+      ],
+    });
+    const section = screen.getByTestId('profile-delete-allowed');
+    const notice = within(section).getByTestId('profile-delete-credit');
+    expect(notice).toHaveTextContent(t.credit.title);
+    expect(notice).toHaveTextContent(t.credit.body);
+    expect(
+      within(notice)
+        .getAllByTestId('profile-delete-credit-club')
+        .map((l) => l.textContent),
+    ).toEqual([
+      expect.stringMatching(/^Клуб Алфа: 12,50\s€$/),
+      expect.stringMatching(/^Клуб Бета: 3,00\s€$/),
+    ]);
+    // Warn, then allow (owner): the button is not held back.
+    expect(screen.getByTestId('profile-delete-button')).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId('profile-delete-button'));
+    const dialog = await screen.findByTestId('delete-account-dialog');
+    expect(within(dialog).getByTestId('profile-delete-credit')).toHaveTextContent(
+      'Клуб Бета: 3,00',
+    );
+    fireEvent.change(screen.getByTestId('delete-account-confirm-input'), {
+      target: { value: 'ИЗТРИЙ' },
+    });
+    fireEvent.click(screen.getByTestId('delete-account-confirm'));
+    await waitFor(() => expect(signOut).toHaveBeenCalled());
+    expect(calls.map((c) => c.method)).toEqual(['DELETE']);
   });
 });
 

@@ -98,7 +98,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason:
       'The row stays as a TOMBSTONE with deletedAt set, because bookings, places and the fee ledger name its id and platform grants hang off it by a foreign key that refuses deletion. ' +
       'emailVerified is cleared, the email settings switched off, the language reset, sessionVersion bumped; accountKind and createdAt stay (nothing personal). ' +
-      'The trigger app_user_tombstone_final refuses every later update, so it is never revived.',
+      'The trigger app_user_tombstone_final refuses ever changing deletedAt again, so it is never revived; the CHECK app_user_deleted_is_scrubbed keeps every personal column null while it is set. Other columns may still be written, so a maintenance UPDATE across app_user does not abort on a tombstone.',
   },
   {
     model: 'PlayerProfile',
@@ -116,7 +116,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'UserSession',
     action: 'delete',
     reason:
-      'Every session row, with its IP address, user agent and token hashes. checkSession then finds no row, so every token of the account (web cookie or native) is signed out on its next request.',
+      'Every session row, with its IP address, user agent and token hashes. checkSession then finds no row, so every token of the account (web cookie or native) is signed out on its next request. None is written after: createUserSession refuses a deleted account, P52’s trigger refuses the row under the race, and checkSession refuses any session of one.',
   },
   {
     model: 'PasswordResetToken',
@@ -140,7 +140,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'ipAddress',
     action: 'anonymise',
     reason:
-      'Set to null, with userAgent: the one log that stores them. P52 lets the append-only trigger admit exactly this update, under app.erasure_user_id.',
+      'Set to null, with userAgent: the one log that stores them. P52 lets the append-only trigger admit exactly this update, for an account already deleted and named by app.erasure_user_id, so it runs after the tombstone.',
   },
   {
     model: 'AccountSecurityEvent',
@@ -179,7 +179,8 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'Invite',
     field: 'email',
     action: 'delete',
-    reason: 'Staff invitations addressed to the account’s email, whatever their state.',
+    reason:
+      'Staff invitations addressed to the account’s email, whatever their state, matched in any case (a club types the address).',
   },
   {
     model: 'Invite',
@@ -387,7 +388,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'userId',
     action: 'keep',
     reason:
-      'An append-only money ledger (its trigger refuses changes); a balance must stay reconstructable. The id names a tombstone.',
+      'An append-only money ledger (its trigger refuses changes); a balance must stay reconstructable. The id names a tombstone. Unused credit is lost with the account: the owner’s decision is warn, then allow, so the profile and the deletion dialog list each club’s balance first.',
   },
   {
     model: 'BookingSplit',
@@ -479,7 +480,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'userId',
     action: 'delete',
     reason:
-      'The account’s bell. Also deleted: other people’s bell rows that name the account (a player joined, left, was added or removed), since their copy carries its name.',
+      'The account’s bell. Also deleted: other people’s bell rows that name the account, since their copy carries its name: a player joined or left (found by the place, which the club’s audit log keeps after the person left or was removed), or was added or removed by the account as booker.',
   },
   {
     model: 'Notification',

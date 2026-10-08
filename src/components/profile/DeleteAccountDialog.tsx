@@ -14,6 +14,8 @@ import { isApiClientError } from '@/lib/data/errors';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 
+import { CreditLossNotice, type ClubCreditView } from './CreditLossNotice';
+
 export type DeleteErrorKey = 'UPCOMING_BOOKINGS' | 'CLUB' | 'RATE_LIMITED' | 'FAILED';
 
 /** A refusal of `DELETE /api/v1/me`, as a catalogue key. */
@@ -50,10 +52,13 @@ export const DELETED_LANDING = '/?account=deleted';
 export function DeleteAccountDialog({
   open,
   setOpen,
+  credit = [],
   onRefused,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  /** Unused credit lost with the account: said again here, before the word. */
+  credit?: ClubCreditView[];
   onRefused?: () => void;
 }) {
   const t = useTranslations('profile.delete');
@@ -107,6 +112,7 @@ export function DeleteAccountDialog({
           }}
         >
           <p className="text-content-default text-sm">{t('dialog.body')}</p>
+          <CreditLossNotice credit={credit} />
           <FormField label={t('dialog.typeToConfirm', { word: t('dialog.word') })} required>
             <Input
               id={inputId}

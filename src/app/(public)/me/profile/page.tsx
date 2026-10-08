@@ -19,9 +19,12 @@ import { ProfileView } from './ProfileView';
 
 /** The standing, with its instants as ISO strings for the client section. */
 function standingView(s: DeletionStanding): DeletionStandingView {
-  if (s.kind !== 'blocked') return s;
+  if (s.kind === 'club') return s;
+  const credit = s.credit.map((c) => ({ club: c.club, balanceCents: c.balanceCents }));
+  if (s.kind === 'allowed') return { kind: 'allowed', credit };
   return {
     kind: 'blocked',
+    credit,
     total: s.total,
     bookings: s.bookings.map((b) => ({
       bookingId: b.bookingId,
