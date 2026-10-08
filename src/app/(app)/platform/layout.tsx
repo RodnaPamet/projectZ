@@ -13,7 +13,7 @@ import {
   visibleSections,
   type ShellAccount,
 } from '@/components/layout/nav-items';
-import { playerChrome } from '@/components/layout/player-chrome';
+import { playerChrome } from '@/components/layout/player-chrome-data';
 
 /**
  * The platform shell: the same frame as the club admin, for holders of a platform grant (T19).
