@@ -546,6 +546,30 @@ describe('the nightly workflow can actually run', () => {
     expect(gaps).toEqual([]);
   });
 
+  it('bounds and retries every browser install', () => {
+    // On 2026-10-07 a stalled `playwright install --with-deps` held every E2E
+    // job that started between 18:37 and 19:51 UTC until the job's own 40-50
+    // minute limit killed it. Three PRs, a main commit and the nightly went red
+    // without running one test. Bounded and retried, a stall costs one attempt.
+    type Step = { run?: string; 'timeout-minutes'?: unknown };
+    const installs = jobs.flatMap(({ file, name, job }) =>
+      ((job.steps as Step[] | undefined) ?? [])
+        .filter((step) => /playwright install/.test(step.run ?? ''))
+        .map((step) => ({ where: `${file} → ${name}`, step })),
+    );
+    expect(installs.length).toBeGreaterThan(0);
+
+    const problems = installs.flatMap(({ where, step }) => [
+      ...(typeof step['timeout-minutes'] === 'number' ? [] : [`${where}: no timeout-minutes`]),
+      ...(/timeout \d+ npx playwright install/.test(step.run ?? '')
+        ? []
+        : [`${where}: an attempt is not wrapped in \`timeout\``]),
+      ...(/for attempt in/.test(step.run ?? '') ? [] : [`${where}: not retried`]),
+    ]);
+
+    expect(problems).toEqual([]);
+  });
+
   it('says something out loud when it fails', () => {
     // The four defects this block exists for were not subtle. They survived
     // for weeks because a scheduled run reports at 02:00 into a tab nobody

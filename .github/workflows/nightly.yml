@@ -83,7 +83,18 @@ jobs:
       - if: steps.gate.outputs.go == 'true'
         uses: ./.github/actions/setup-node-prisma
       - if: steps.gate.outputs.go == 'true'
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        # Bounded and retried: on 2026-10-07 a stalled install held every E2E job
+        # that started 18:37-19:51 UTC until its 40-50 minute job limit killed it.
+        # An attempt gets 8 minutes; a normal install takes about one.
+        timeout-minutes: 26
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 480 npx playwright install --with-deps ${{ matrix.browser }}; then exit 0; fi
+            echo "::warning::playwright install failed or stalled (attempt ${attempt}/3) — retrying"
+            sudo dpkg --configure -a >/dev/null 2>&1 || true
+            sleep $((attempt * 10))
+          done
+          exit 1
       - if: steps.gate.outputs.go == 'true'
         run: |
           if [ -d prisma/migrations ]; then npx prisma migrate deploy; fi
@@ -167,7 +178,18 @@ jobs:
       - if: steps.gate.outputs.go == 'true'
         uses: ./.github/actions/setup-node-prisma
       - if: steps.gate.outputs.go == 'true'
-        run: npx playwright install --with-deps chromium
+        # Bounded and retried: on 2026-10-07 a stalled install held every E2E job
+        # that started 18:37-19:51 UTC until its 40-50 minute job limit killed it.
+        # An attempt gets 8 minutes; a normal install takes about one.
+        timeout-minutes: 26
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 480 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::playwright install failed or stalled (attempt ${attempt}/3) — retrying"
+            sudo dpkg --configure -a >/dev/null 2>&1 || true
+            sleep $((attempt * 10))
+          done
+          exit 1
       # globalSetup runs `prisma migrate deploy` itself — but it runs INSIDE
       # `playwright test`, which is far too late: the role has to exist and have
       # a password before the webServer connects. So migrate here as well
