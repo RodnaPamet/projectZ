@@ -36,13 +36,13 @@ export function SiteHeader() {
       left={
         <>
           {/*
-            NOT `text-brand-600`. That is a FILL colour — `--brand-emphasis` —
-            and on the #f4f2ed page it is 4.48:1, which passes as 36px text
+            NOT `text-brand-600`. That was a FILL shade (deleted in #362),
+            and on the #f4f2ed page it was 4.48:1, which passes as 36px text
             but misses 4.5:1 at 16px; axe caught it as a serious violation
-            (#233). No fixed brand shade passes as text in both themes, and
+            (#233). No brand fill passes as text in both themes, and
             tests/guardrails/no-raw-brand-text.test.ts bans them as text.
             `content-emphasis` is the headings token, theme-aware by
-            construction: 15.56:1 light, 17.06:1 dark (src/lib/design/contrast.ts).
+            construction: 15.56:1 light, 17.79:1 dark (src/lib/design/contrast.ts).
             The owner kept the wordmark charcoal.
           */}
           <Link
