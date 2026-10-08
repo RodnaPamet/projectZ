@@ -1906,7 +1906,9 @@
     "kept": {
       "title": "What stays, and why",
       "bookings": "Your past and cancelled bookings stay with the clubs, without your name: their calendars and player lists show them as “Deleted user”. The clubs keep them because their statements and the platform fee are worked out from them. The same goes for your places on other players’ bookings.",
-      "logs": "Records of when a booking was made or cancelled stay in the clubs’ history, linked to the deleted account. They hold no email address, phone number or IP address of yours."
+      "logs": "Records of when a booking was made or cancelled stay in the clubs’ history, linked to the deleted account. They hold no email address, phone number or IP address of yours.",
+      "credit": "Unused credit at a club is lost and is not returned after the deletion. Your profile shows how much you have at each club before you delete your account.",
+      "noShows": "No-shows at a club, and any block on booking there online, do not go away with the account. They are kept for up to 90 days from each no-show, tied to a protected fingerprint of your email address and not to your name, so that a block cannot be dodged with a new account. If you make a new account with the same address, they move to it. The club’s notes and tags do not."
     },
     "club": {
       "title": "Club accounts",
@@ -1915,7 +1917,7 @@
     },
     "export": {
       "title": "A copy of your data",
-      "body": "Before you delete your account, you can download everything playerz.bg holds about you: Profile → Privacy → “Download my data”. You get one file, in JSON format."
+      "body": "Before you delete your account, you can download a copy of your data: your profile, bookings, credit, notifications and devices. Profile → Privacy → “Download my data”. You get one file, in JSON format."
     },
     "after": {
       "title": "After deletion",
