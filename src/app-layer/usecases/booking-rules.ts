@@ -52,7 +52,11 @@ export class NoShowBlockedError extends Error {
 }
 
 export interface NoShowStanding {
-  /** NO_SHOW bookings that count: started in the window, and after the last clear. */
+  /**
+   * No-shows that count: started in the window, and after the last clear. The
+   * player's own NO_SHOW bookings here, and any carried over from an account
+   * they deleted (P53, `no-show-carry.ts`).
+   */
   recentNoShows: number;
   blocked: boolean;
   /** When staff last lifted a block for this player here, if ever. */
@@ -60,7 +64,7 @@ export interface NoShowStanding {
 }
 
 /** The earliest start that still counts, given the window and the last clear. */
-function countsFrom(now: Date, clearedAt: Date | null): Date {
+export function noShowCountsFrom(now: Date, clearedAt: Date | null): Date {
   const windowStart = new Date(now.getTime() - NO_SHOW_WINDOW_DAYS * DAY_MS);
   return clearedAt && clearedAt > windowStart ? clearedAt : windowStart;
 }
@@ -98,15 +102,19 @@ export async function noShowStanding(
     select: { noShowBlockClearedAt: true },
   });
   const clearedAt = rel?.noShowBlockClearedAt ?? null;
+  const from = noShowCountsFrom(now, clearedAt);
 
-  const recentNoShows = await db.booking.count({
-    where: {
-      tenantId,
-      bookedByUserId: playerUserId,
-      status: 'NO_SHOW',
-      startTs: { gt: countsFrom(now, clearedAt) },
-    },
-  });
+  const [own, carried] = await Promise.all([
+    db.booking.count({
+      where: { tenantId, bookedByUserId: playerUserId, status: 'NO_SHOW', startTs: { gt: from } },
+    }),
+    // Taken over from an account the person deleted (#370 review): they count
+    // as the deleted account's would have, and a lifted block forgives them too.
+    db.noShowCarry.count({
+      where: { tenantId, inheritedByUserId: playerUserId, startedAt: { gt: from } },
+    }),
+  ]);
+  const recentNoShows = own + carried;
 
   return { recentNoShows, blocked: recentNoShows >= NO_SHOW_BLOCK_THRESHOLD, clearedAt };
 }
@@ -163,28 +171,39 @@ export async function noShowStandings(
   if (players.length === 0) return out;
 
   const windowStart = new Date(now.getTime() - NO_SHOW_WINDOW_DAYS * DAY_MS);
-  const rows = await db.booking.findMany({
-    where: {
-      tenantId,
-      bookedByUserId: { in: players.map((p) => p.playerUserId) },
-      status: 'NO_SHOW',
-      startTs: { gt: windowStart },
-    },
-    select: { bookedByUserId: true, startTs: true },
-    // A club marks a handful of no-shows a week; this is a ceiling, not a page.
-    take: 5_000,
-  });
+  const ids = players.map((p) => p.playerUserId);
+  const [rows, carried] = await Promise.all([
+    db.booking.findMany({
+      where: {
+        tenantId,
+        bookedByUserId: { in: ids },
+        status: 'NO_SHOW',
+        startTs: { gt: windowStart },
+      },
+      select: { bookedByUserId: true, startTs: true },
+      // A club marks a handful of no-shows a week; this is a ceiling, not a page.
+      take: 5_000,
+    }),
+    // And the ones taken over from a deleted account (P53).
+    db.noShowCarry.findMany({
+      where: { tenantId, inheritedByUserId: { in: ids }, startedAt: { gt: windowStart } },
+      select: { inheritedByUserId: true, startedAt: true },
+      take: 5_000,
+    }),
+  ]);
 
   const startsBy = new Map<string, Date[]>();
-  for (const r of rows) {
-    if (!r.bookedByUserId) continue;
-    const list = startsBy.get(r.bookedByUserId) ?? [];
-    list.push(r.startTs);
-    startsBy.set(r.bookedByUserId, list);
-  }
+  const add = (userId: string | null, start: Date) => {
+    if (!userId) return;
+    const list = startsBy.get(userId) ?? [];
+    list.push(start);
+    startsBy.set(userId, list);
+  };
+  for (const r of rows) add(r.bookedByUserId, r.startTs);
+  for (const c of carried) add(c.inheritedByUserId, c.startedAt);
 
   for (const p of players) {
-    const from = countsFrom(now, p.noShowBlockClearedAt);
+    const from = noShowCountsFrom(now, p.noShowBlockClearedAt);
     const recentNoShows = (startsBy.get(p.playerUserId) ?? []).filter((s) => s > from).length;
     out.set(p.playerUserId, {
       recentNoShows,

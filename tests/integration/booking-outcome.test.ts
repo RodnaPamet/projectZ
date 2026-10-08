@@ -312,6 +312,7 @@ describe('POST /api/cron/complete-ended-bookings', () => {
       completed: 0,
       truncated: false,
       feeLines: 0,
+      lapsedNoShowCarries: 0,
     });
   });
 });

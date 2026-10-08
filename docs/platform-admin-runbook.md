@@ -545,7 +545,15 @@ transaction. What it does to each table, and why, is
 - unused credit at a club is lost (owner decision: warn, then allow). The dry
   run lists it; tell the person before you confirm;
 - the account row stays as a tombstone with no address. Signing in again with
-  the same Google or Facebook address creates a new, empty account.
+  the same Google or Facebook address creates a new, empty account, with one
+  exception: the no-show standing (owner decision, P53). Each no-show that
+  still counts at a club is kept against a keyed fingerprint of the address
+  (`no_show_carry`, no name, no address) until it stops counting, 90 days from
+  its booking; a new account with the same address takes it over at its first
+  sign-in, so a club's block holds. Tags and history do not carry over. The
+  completion sweep drops each row as it lapses. **Rotating
+  `DATA_ENCRYPTION_KEY` ends every carry-over**: the fingerprint is keyed from
+  it, and an old fingerprint never matches a new one.
 
 **It refuses**, and changes nothing, when:
 

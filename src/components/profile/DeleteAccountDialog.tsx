@@ -112,6 +112,9 @@ export function DeleteAccountDialog({
           }}
         >
           <p className="text-content-default text-sm">{t('dialog.body')}</p>
+          <p className="text-content-muted text-sm" data-testid="delete-account-no-show-carry">
+            {t('noShowCarry')}
+          </p>
           <CreditLossNotice credit={credit} />
           <FormField label={t('dialog.typeToConfirm', { word: t('dialog.word') })} required>
             <Input

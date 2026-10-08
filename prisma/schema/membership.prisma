@@ -36,6 +36,38 @@ model PlayerVenueRelationship {
   @@map("player_venue_relationship")
 }
 
+/// A deleted account's no-show standing at a club, waiting for the next
+/// account made with the same address (#370 review; owner decision
+/// 2026-10-08, "carry the no-show block over"). One row per no-show that still
+/// counted when the account was deleted, and only then: an account with no
+/// standing anywhere leaves nothing here.
+///
+/// `fingerprint` is a keyed HMAC of the address (src/lib/account/
+/// no-show-fingerprint.ts), never the address. A sign-in to an account with
+/// that address sets `inheritedByUserId`, and from then on the club's standing
+/// for that account counts the row (`noShowStanding`), exactly as the deleted
+/// account's would have. Every row is dropped once its no-show stops counting,
+/// 90 days after `startedAt` (`purgeLapsedNoShowCarries`, run by the
+/// completion sweep). Tags and history are not carried.
+model NoShowCarry {
+  id                String   @id @default(cuid())
+  tenantId          String
+  fingerprint       String
+  /// The tombstone it came from.
+  deletedUserId     String
+  /// The account that took it over, once one exists.
+  inheritedByUserId String?
+  /// When the missed booking started: it counts for 90 days from here.
+  startedAt         DateTime @db.Timestamptz(3)
+  createdAt         DateTime @default(now())
+
+  @@index([fingerprint])
+  @@index([tenantId, inheritedByUserId])
+  @@index([inheritedByUserId])
+  @@index([startedAt])
+  @@map("no_show_carry")
+}
+
 model Membership {
   id       String @id @default(cuid())
   tenantId String

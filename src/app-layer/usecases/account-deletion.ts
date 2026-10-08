@@ -6,6 +6,7 @@ import { playerCancellableUntil, playerMayCancel } from '@/lib/booking/cutoff';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 
+import { carryNoShowStanding } from './no-show-carry';
 import { recomputeVenueRating } from './reviews';
 
 /**
@@ -24,6 +25,9 @@ import { recomputeVenueRating } from './reviews';
  *   5. Unused credit at a club is lost with the account. The person is told
  *      how much, at which club, and may still delete (#370 review: warn, then
  *      allow).
+ *   6. A no-show standing is not escaped by deleting the account: what still
+ *      counts at each club carries to the next account made with the same
+ *      address, for as long as it would have counted (#370 review, P53).
  *
  * What happens to every table is decided, with the reason, in
  * src/lib/account/deletion-plan.ts; `deleteAccount` below is that list in code,
@@ -391,6 +395,12 @@ export async function deleteAccount(
   );
 
   // ═══ 5. CLUBS ═══
+  //
+  // First the no-show standing, while the clubs' lifted blocks are still
+  // there to read: what still counts at each club waits for the next account
+  // made with this address (P53, owner decision: "carry the no-show block
+  // over"). Nothing is kept when nothing counts.
+  count('NoShowCarry', await carryNoShowStanding(db, { userId, email: locked.email, now }));
   count('TenantMembership', (await db.tenantMembership.deleteMany({ where: { userId } })).count);
   count(
     'TenantMembership.invitedBy',

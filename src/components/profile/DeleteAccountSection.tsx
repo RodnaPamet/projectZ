@@ -59,7 +59,8 @@ export const CONTACT_FORM_HREF = '/#clubs';
  *
  * In both of the last two, unused credit at any club is listed as lost first
  * (#370 review, the owner's decision: warn, then allow), and the dialog says
- * it again.
+ * it again. So does the line on no-shows: what still counts at a club carries
+ * to a new account made with the same address (P53).
  *
  * The page decides which, on the server; the API decides again, under a lock,
  * when the button is pressed, so the state shown here is never trusted.
@@ -142,6 +143,9 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
               <CreditLossNotice credit={standing.credit} />
             </div>
           ) : null}
+          <Caption className="px-4" data-testid="profile-delete-no-show-carry">
+            {t('noShowCarry')}
+          </Caption>
           <div className="px-4">
             <Button
               type="button"
@@ -156,6 +160,7 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
         <div className="gap-compact flex flex-col px-4 py-3" data-testid="profile-delete-allowed">
           <p className="text-content-default text-sm">{t('intro')}</p>
           <Caption>{t('exportFirst')}</Caption>
+          <Caption data-testid="profile-delete-no-show-carry">{t('noShowCarry')}</Caption>
           <CreditLossNotice credit={standing.credit} />
           <div>
             <Button
