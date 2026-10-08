@@ -10,6 +10,14 @@
       "sha256": "b34fd224e5849032369215758acac265ac153a01c0dbf0215106838126c2d93e"
     },
     {
+      "path": "src/components/ui/breadcrumbs.tsx",
+      "inflectPath": "src/components/ui/breadcrumbs.tsx",
+      "baseSha": "f1d954d876a74a355390e366c2cdfc4a233290d2",
+      "sha": "f1d954d876a74a355390e366c2cdfc4a233290d2",
+      "status": "vendored",
+      "sha256": "91e69ac7d9c12042eb07b5a28e30e38bbbf5177b95bb241decdc013292d85997"
+    },
+    {
       "path": "src/components/ui/button-like-keys.ts",
       "inflectPath": "src/components/ui/button-like-keys.ts",
       "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",

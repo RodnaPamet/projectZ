@@ -26,6 +26,22 @@
       "sha256": "166fc6d9aba59abae4046b9b14e71ddd896b7a6df6f3f5a96f020b7faf3303fd"
     },
     {
+      "path": "src/components/layout/PageBreadcrumbs.tsx",
+      "inflectPath": "src/components/layout/PageBreadcrumbs.tsx",
+      "baseSha": "f1d954d876a74a355390e366c2cdfc4a233290d2",
+      "sha": "f1d954d876a74a355390e366c2cdfc4a233290d2",
+      "status": "vendored",
+      "sha256": "0b7aa30a855d4fe45ac721cff4ae7f26eb2ac9d02c98b414d9f11e74ae9e2023"
+    },
+    {
+      "path": "src/components/layout/breadcrumbs-store.tsx",
+      "inflectPath": "src/components/layout/breadcrumbs-store.tsx",
+      "baseSha": "f1d954d876a74a355390e366c2cdfc4a233290d2",
+      "sha": "f1d954d876a74a355390e366c2cdfc4a233290d2",
+      "status": "vendored",
+      "sha256": "a30af046979dcef25be13ecf5bb3f151dfced4c527743751734e6118185ea6ee"
+    },
+    {
       "path": "src/components/layout/nav-bar.tsx",
       "inflectPath": "src/components/layout/nav-bar.tsx",
       "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
