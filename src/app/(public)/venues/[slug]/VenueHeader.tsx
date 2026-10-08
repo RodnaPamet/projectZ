@@ -37,7 +37,7 @@ export async function VenueHeader({
     <header className="flex flex-col gap-4">
       <div
         className={cn(
-          'bg-bg-success in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
+          'bg-brand-subtle in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
           cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
         )}
       >

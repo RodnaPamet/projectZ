@@ -217,7 +217,7 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
               index, not navigation chrome. */}
           <div
             className={cn(
-              'bg-bg-success in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
+              'bg-brand-subtle in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
               club.cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
             )}
           >
