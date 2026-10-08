@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { platformCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { isMonth, statementMonthOf } from '@/lib/billing/club-fee';
 import { ViewerScope } from '@/lib/data/provider';
@@ -37,8 +39,11 @@ export default async function PlatformClubStatementPage({
     typeof sp.month === 'string' && isMonth(sp.month) ? sp.month : statementMonthOf(new Date());
   const reason = typeof sp.reason === 'string' ? sp.reason : '';
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={platformCrumbs(tNav, 'fees', t('statementTitle'))} />
       <header className="mb-6">
         <h1 className="text-content-emphasis text-3xl font-semibold">{t('statementTitle')}</h1>
         <p className="text-content-muted mt-1 text-sm">{t('statementSubtitle')}</p>

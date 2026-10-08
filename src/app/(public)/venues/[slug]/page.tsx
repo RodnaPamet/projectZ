@@ -5,6 +5,9 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
+import { playCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
+import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { splitPhotos } from '@/lib/media/photo-view';
 import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -198,7 +201,12 @@ export default async function VenuePage({
   const sports = [...new Set(venue.resources.map((r) => r.sport))];
   const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug));
   const { cover, gallery } = splitPhotos(venue.photos);
-  const tCities = await getTranslations('cities');
+  const [tCities, tNav, me] = await Promise.all([
+    getTranslations('cities'),
+    getTranslations('common.nav'),
+    // Request-cached: the layout's chrome asked already.
+    chromeIdentity(),
+  ]);
 
   // The chrome (and its <main>) comes from (public)/layout.tsx (T20, #362).
   // Inside a signed-in shell the frame pads, so the page's own gutter goes
@@ -214,6 +222,10 @@ export default async function VenuePage({
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <div className="in-shell:p-0 mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
+        {/* Signed in: Играй / the venue, in the top bar from md (#362). Not
+            inline on a phone: the cover's back link is the page's own way to
+            Играй there, and a second one would say it twice. */}
+        {me ? <PageBreadcrumbs items={playCrumbs(tNav, venue.name)} className="hidden" /> : null}
         <VenueHeader
           name={venue.name}
           addressLine={venue.addressLine}

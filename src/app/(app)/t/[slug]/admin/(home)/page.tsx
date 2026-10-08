@@ -5,8 +5,10 @@ import { getTranslations } from 'next-intl/server';
 
 import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
 import { NAV_ICONS } from '@/components/layout/nav-icons';
 import { clubAdminNav, visibleSections } from '@/components/layout/nav-items';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Eyebrow, Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
@@ -58,6 +60,9 @@ export default async function ClubAdminHomePage({ params }: { params: Promise<{ 
 
   return (
     <section className="space-y-section">
+      {/* One crumb, the page's own heading: the top bar shows it from md, and
+          the phone has the title, so it is not drawn inline. */}
+      <PageBreadcrumbs items={clubAdminCrumbs(ctx.tenantSlug, tNav)} className="hidden" />
       <header className="gap-default flex flex-wrap items-center justify-between">
         <Heading level={1}>{t('title')}</Heading>
         <div

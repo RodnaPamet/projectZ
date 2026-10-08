@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMyBooking } from '@/app-layer/usecases/my-bookings';
 import { toMyBookingDetailDto } from '@/app/api/v1/_lib/dto';
+import { bookingsCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
@@ -43,13 +45,21 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   const { kind, landing } = await playerChrome();
   if (kind === 'club' && landing) redirect(landing.href);
 
-  const booking = await getMyBooking({ userId, bookingId: id });
+  const [booking, tNav] = await Promise.all([
+    getMyBooking({ userId, bookingId: id }),
+    getTranslations('common.nav'),
+  ]);
   if (!booking) notFound();
+  const seed = toMyBookingDetailDto(booking);
 
   return (
     <div className="bg-bg-page text-content-default safe-area-x flex flex-1 flex-col">
+      {/* Резервации / the booking's venue, its heading (#362), in the top bar
+          from md. Not inline on a phone: the page's "‹ Резервации" is its own
+          way back there, and a second one would say it twice. */}
+      <PageBreadcrumbs items={bookingsCrumbs(tNav, seed.venue.name)} className="hidden" />
       <ViewerScope viewerId={userId}>
-        <BookingDetail seed={toMyBookingDetailDto(booking)} serverNow={renderedAt()} />
+        <BookingDetail seed={seed} serverNow={renderedAt()} />
       </ViewerScope>
     </div>
   );

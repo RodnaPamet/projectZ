@@ -4,6 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { listMyBookings } from '@/app-layer/usecases/my-bookings';
 import { REVIEW_MAX_LENGTH } from '@/app-layer/usecases/reviews';
 import { toMyBookingDto } from '@/app/api/v1/_lib/dto';
+import { bookingsCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { playerChrome } from '@/components/layout/player-chrome';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
@@ -89,8 +91,9 @@ export default async function MyBookingsPage({
   // A coach has the player UI until the coach profile ships (#377), and is told so.
   const coach = landing?.reason === 'coach';
 
-  const [t, page] = await Promise.all([
+  const [t, tNav, page] = await Promise.all([
     getTranslations('myBookings'),
+    getTranslations('common.nav'),
     // No cursor and no limit: the endpoint's own defaults, so the seed is
     // exactly what the tab's key, `/api/v1/me/bookings?when=…`, answers.
     listMyBookings({ userId, when: tab }),
@@ -105,6 +108,8 @@ export default async function MyBookingsPage({
     // the gutter to 0 (see venues/page.tsx). Inside the shell the frame pads.
     <div className="bg-bg-page text-content-default safe-area-x flex-1">
       <div className="in-shell:p-0 px-6 py-10">
+        {/* One crumb, the page's own title: the top bar shows it from md. */}
+        <PageBreadcrumbs items={bookingsCrumbs(tNav)} className="hidden" />
         <Heading level={1} className="mb-section">
           {t('title')}
         </Heading>

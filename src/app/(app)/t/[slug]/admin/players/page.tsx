@@ -7,6 +7,8 @@ import {
   playersWereTruncated,
 } from '@/app-layer/repositories/player';
 import { NO_SHOW_WINDOW_DAYS, noShowStandings } from '@/app-layer/usecases/booking-rules';
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
 
@@ -62,8 +64,11 @@ export default async function PlayersPage({ params }: { params: Promise<{ slug: 
     };
   });
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'players')} />
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">{t('title')}</h1>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
