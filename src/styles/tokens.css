@@ -6,15 +6,21 @@
  * to utility classes like bg-bg-default, text-content-emphasis, etc.
  *
  * Both themes are live:
- *   - Dark (default, charcoal-green on near-black) under `:root`
+ *   - Dark (default, "midnight": purple and yellow on midnight black) under `:root`
  *   - Light under `[data-theme="light"]` — toggleable via
- *     `ThemeProvider` / the sidebar theme toggle, persisted in
+ *     `ThemeProvider` / the theme toggle, persisted in
  *     localStorage, and picked up from `prefers-color-scheme` on the
  *     first visit. Add a new token to `:root` only when you also add
  *     the light counterpart here; the light-mode parity guardrail at
  *     `tests/guardrails/light-mode-parity.test.ts` enforces this.
  *
- * Palette: playerz green (#22C55E) on near-black; warm off-white in light mode.
+ * Palette (#362, the owner, 2026-10-08): the upstream light theme's colours
+ * in light; midnight black, purple and yellow in dark.
+ * Purple LEADS: buttons, links, the active menu item's text and fill. Yellow
+ * ACCENTS: the active item's marker bar, the bottom tab's active bar, focus
+ * rings, highlights, badges and counts. Light is the upstream light theme,
+ * token for token, except where WCAG AA forces a deviation; each one is
+ * marked DEVIATION in the light block, with its numbers.
  *
  * CONTRAST IS MEASURED, NOT CLAIMED. Every pairing this product actually renders
  * is computed from these values by tests/guardrails/contrast.test.ts, in BOTH
@@ -23,11 +29,13 @@
  */
 
 /* ═══════════════════════════════════════════════════════════════════
-   DARK THEME (default) — playerz.bg palette.
+   DARK THEME (default) — "midnight", #362.
 
-   playerz green (#22C55E) on near-black surfaces. Status colors
-   kept as conventional emerald/amber/red/blue so semantic meaning is
-   preserved across themes.
+   Purple (#7950f5) leads and yellow (#facc15) accents, on midnight-black
+   surfaces with a breath of violet. Status colours stay conventional
+   (emerald / orange / red / blue) so their meaning survives the theme;
+   warning and attention are ORANGE, not amber, so they never read as the
+   yellow accent.
    ═══════════════════════════════════════════════════════════════════ */
 :root {
   /*
@@ -38,111 +46,134 @@
   color-scheme: dark;
 
   /* ── Surfaces ──────────────────────────────────────────────────── */
-  --bg-page: #0d110e; /* near-black, faint green — app/page background */
-  --bg-default: #141813; /* raised charcoal — cards, panels, tables, modals, popovers */
-  --bg-muted: #1b201b; /* hover surfaces, pressed/active states */
+  --bg-page: #0b0b12; /* midnight black, a breath of violet — app/page background */
+  --bg-default: #13131f; /* raised midnight — cards, panels, tables, modals, popovers */
+  --bg-muted: #1c1b2b; /* hover surfaces, pressed/active states */
   --bg-subtle: rgba(
-    52,
-    213,
-    127,
+    167,
+    139,
+    250,
     0.08
-  ); /* green @ 8% — selection bg, disabled surfaces, faint tints */
-  --bg-elevated: #232922; /* lifted charcoal — tooltips, dropdowns above default */
-  --bg-inverted: #22c55e; /* playerz green — inverted surface (primary button bg) */
-  /* No hue: it dims the charcoal-green page instead of tinting it navy. */
-  --bg-overlay: rgba(8, 8, 8, 0.7); /* neutral near-black scrim behind modals/drawers */
+  ); /* violet-400 @ 8% — selection bg, disabled surfaces, faint tints */
+  --bg-elevated: #1f1e30; /* lifted midnight — tooltips, dropdowns above default */
+  --bg-inverted: #6d3fe8; /* = --brand-emphasis — inverted surface; --content-inverted on it 5.95:1 */
+  /* Next to no hue: it dims the midnight page instead of tinting it. */
+  --bg-overlay: rgba(6, 6, 12, 0.72); /* near-black scrim behind modals/drawers */
 
   /* ── Content / Text ────────────────────────────────────────────── */
   /*
-   * GAP-CI-77: bumped `--content-muted` and `--content-subtle` so
-   * small text on `--bg-default` (#141813 charcoal cards) clears WCAG AA
-   * 4.5:1. The previous values (#95B0C9, #6B85A0) gave 4.31:1 and
-   * 2.80:1 respectively — small body text (`text-xs`, 12px) at those
-   * tiers fails axe-core's color-contrast rule. The new values
-   * preserve the tier hierarchy (muted > subtle) while sitting above
-   * the AA threshold on every dark surface in use.
+   * GAP-CI-77 set the rule this ladder follows: small text (`text-xs`, 12px)
+   * at the muted and subtle tiers must clear WCAG AA 4.5:1 on every dark
+   * surface in use, not only on the page, or axe-core's color-contrast rule
+   * fails it. The midnight values (#362) keep the tier hierarchy
+   * (emphasis > default > muted > subtle), near-white with a faint cool tint,
+   * and contrast.test.ts measures them on the page, a card and a dropdown.
    */
-  --content-emphasis: #f2f3ee; /* soft off-white — headings, selected items, bold labels */
-  --content-default: #eaebe4; /* body text, table cells, default content (14.5:1 on bg-default) */
-  --content-muted: #b9bcb2; /* secondary text, placeholders, captions (AA, 9.0:1 on bg-default) */
-  --content-subtle: #8c8f86; /* disabled text, hints, tertiary info (AA, 5.3:1 on bg-default) */
-  --content-inverted: #04120a; /* near-black — text on green/inverted surfaces (5.81:1 on --brand-emphasis) */
+  --content-emphasis: #f4f3fa; /* near-white — headings, selected items, bold labels (17.79:1 on bg-page) */
+  --content-default: #e4e2ee; /* body text, table cells, default content (14.39:1 on bg-default) */
+  --content-muted: #b6b3c8; /* secondary text, placeholders, captions (AA, 9.00:1 on bg-default) */
+  --content-subtle: #8f8ca5; /* disabled text, hints, tertiary info (AA, 5.67:1 on bg-default) */
+  --content-inverted: #ffffff; /* white — the label on the purple fills (5.95:1 on --brand-emphasis) */
   /*
-   * BRAND-COLOURED TEXT: a green wordmark, a green link. `text-content-brand`,
-   * never a fixed `text-brand-NNN` and never a `--brand-*` FILL token (#233).
+   * BRAND-COLOURED TEXT: a purple link, the active menu item's label.
+   * `text-content-brand`, never a `--brand-*` FILL token as text (#233, #246).
    *
-   * No single brand shade is body text in BOTH themes. brand-600 is 4.48:1 on
-   * the light page and 3.79:1 on this one: it fails AA twice. So this token
-   * swaps shade with the theme, brand-500 here and brand-700 in light. A
-   * `dark:` variant cannot do that swap, because Tailwind keys `dark:` off the
-   * OS preference and this app switches on [data-theme].
+   * No brand fill is body text in BOTH themes: --brand-default is 4.00:1 on
+   * this page, under AA, and --brand-emphasis 3.29:1. So this token carries
+   * its own shade per theme, violet-400 here and upstream's #b83d00 in light.
+   * A `dark:` variant cannot do that swap, because Tailwind keys `dark:` off
+   * the OS preference and this app switches on [data-theme].
    *
-   * tests/guardrails/no-raw-brand-text.test.ts bans the fixed shades as text;
+   * tests/guardrails/no-raw-brand-text.test.ts bans the fill tokens as text;
    * the contrast ratchet pins both numbers below.
    */
-  --content-brand: #16a34a; /* brand-500 — 5.77:1 on --bg-page, 5.45:1 on --bg-default */
+  --content-brand: #a78bfa; /* violet-400 — 7.21:1 on --bg-page, 6.77:1 on --bg-default */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
-  --border-default: #2e332c; /* DECORATIVE dividers and card edges only — see below */
-  --border-subtle: rgba(255, 255, 255, 0.1); /* soft dividers, card edges */
+  --border-default: #272637; /* DECORATIVE dividers and card edges only — see below */
+  --border-subtle: rgba(167, 139, 250, 0.12); /* violet @ 12% — soft dividers, card edges */
   /*
    * INTERACTIVE control boundaries: inputs, checkboxes, radios, selects.
    *
    * WCAG 1.4.11 requires 3:1 for the visual boundary of a control — the edge IS
-   * the thing that tells you where the field is. `--border-default` is 1.39:1 on
+   * the thing that tells you where the field is. `--border-default` is 1.24:1 on
    * a card, which is fine for a decorative divider (WCAG exempts those) and
    * essentially invisible on a checkbox.
    *
    * The contrast ratchet found this. Do not point a control at --border-default.
    */
-  --border-strong: #6e7569; /* 3.77:1 on --bg-default — control boundaries */
-  --border-emphasis: #454b42; /* focused inputs, emphasized outlines */
+  --border-strong: #6f6b88; /* 3.62:1 on --bg-default — control boundaries */
+  --border-emphasis: #3b3953; /* focused inputs, emphasized outlines */
 
-  /* ── Brand / Primary (playerz green) ───────────────────────────── */
-  --brand-default: #22c55e; /* playerz green — brand accent, links (dark) */
+  /* ── Brand / Primary (purple) ──────────────────────────────────── */
+  /*
+   * Hue 255° (violet-600 territory), and it must stay at least 150° from
+   * --brand-secondary-default (button-material.test.ts). The label on every
+   * stop of the primary button is white, and every stop clears AA under it.
+   */
+  --brand-default: #7950f5; /* violet — the primary's top stop, accents. White label 4.91:1 */
   /*
    * The FOCUS RING. Its own token, deliberately.
    *
    * Overloading --brand-default would mean that making the ring visible enough
    * (3:1, WCAG 1.4.11) also darkens every link on the site. A keyboard user who
    * cannot see where they are cannot use the app at all — this is not a place to
-   * compromise for the sake of a link colour.
+   * compromise for the sake of a link colour. Since #362 it is the yellow accent.
    */
-  --focus-ring: #22c55e; /* 8.35:1 on --bg-page, 7.88:1 on --bg-default */
-  --brand-emphasis: #16a34a; /* brand-500 — a FILL: primary buttons, checked controls. 5.77:1 on --bg-page */
-  --brand-muted: #4ade80; /* lighter green — hover accent */
-  --brand-subtle: rgba(34, 197, 94, 0.18); /* green @ 18% — brand tint backgrounds */
+  --focus-ring: #facc15; /* 12.81:1 on --bg-page, 12.02:1 on --bg-default */
+  --brand-emphasis: #6d3fe8; /* deeper violet — a FILL: primary buttons, checked controls. 3.29:1 on --bg-page; white label 5.95:1 */
+  --brand-muted: #8255f5; /* lighter violet — the hover's top stop. White label 4.60:1 */
+  --brand-subtle: rgba(139, 92, 246, 0.18); /* violet-500 @ 18% — brand tint backgrounds */
 
-  /* ── Brand / Secondary (the complement: orchid pink, hue 321°) ────────
+  /* ── Brand / Secondary (the complement: yellow, hue 48°) ─────────────
    *
-   * PROPOSED, flagged for owner approval (T18). The vendored Still Surface
-   * button REQUIRES this family to be the complementary hue of
-   * --brand-default in every theme: hover is a trade of edges, and primary
-   * takes this colour as its hover edge (button-variants.ts).
+   * The vendored Still Surface button REQUIRES this family to be the
+   * complementary hue of --brand-default in every theme: hover is a trade of
+   * edges, and primary takes this colour as its hover edge (button-variants.ts).
+   * Yellow-400 sits 153° from the purple, past the 150° that
+   * button-material.test.ts asks for:
    *
-   * It was teal (#14b8a6, hue 173°), 31° from the green (142°). Against the
-   * edge it replaces on hover, --brand-emphasis, teal measured 1.32:1 here
-   * and 1.09:1 in light, with a CIELAB distance of 40.8: the hover read as
-   * the same edge, slightly off. Orchid pink sits 179° away:
+   *   #facc15 on --bg-page 12.81:1, on --bg-default 12.02:1 (3:1 for an edge)
    *
-   *   #f080c8 on --bg-page 7.82:1, on --bg-default 7.37:1 (3:1 for an edge)
-   *   against the rest edge #16a34a: 1.35:1 in luminance, ΔE76 119.6
+   * A yellow hover edge on the purple primary is one of the highlights the
+   * owner gave yellow (#362).
    *
-   * Luminance cannot separate complementary hues of similar lightness and
-   * is not asked to; the hue does, at three times teal's ΔE. The subtle
-   * tint is the sidebar's active wash (T19): --content-emphasis on it over
-   * --bg-default is 11.92:1 (teal's was 11.96:1). The --nav-band-* glows
-   * below are literal rgba and were not moved.
+   * EXCEPT -subtle. It is not the complement's tint: it is the sidebar's
+   * active wash (NAV_ITEM_ACTIVE), and the owner wants the active item's fill
+   * PURPLE. So it is violet @ 18%, the same as --brand-subtle; the active
+   * label (--content-brand) on it measures 5.56:1 over the sidebar.
    */
-  --brand-secondary-default: #f080c8; /* orchid — hover edge of the primary button. 7.82:1 on --bg-page */
-  --brand-secondary-emphasis: #d9479f; /* deeper orchid — active surfaces. 4.85:1 on --bg-page */
-  --brand-secondary-muted: #f9a8d9; /* lighter orchid — highlight midstop */
+  --brand-secondary-default: #facc15; /* yellow-400 — hover edge of the primary button. 12.81:1 on --bg-page */
+  --brand-secondary-emphasis: #eab308; /* yellow-500 — active surfaces. 10.23:1 on --bg-page */
+  --brand-secondary-muted: #fde047; /* yellow-300 — highlight midstop */
   --brand-secondary-subtle: rgba(
-    240,
-    128,
-    200,
+    139,
+    92,
+    246,
     0.18
-  ); /* orchid @ 18% — the sidebar's active wash */
+  ); /* violet @ 18% — the sidebar's active wash, purple on purpose (see above) */
+
+  /* ── Accent (yellow) — #362 ─────────────────────────────────────────
+   *
+   * Purple leads, yellow accents. These are the yellow roles that are not
+   * the primary's hover edge: the vendored Button's focus halo and the
+   * table's focus rings (--accent-default), the undo toast's ring
+   * (--accent-emphasis), the sidebar active row's marker band
+   * (--nav-band-active), the bottom tab bar's active bar (tab-bar.tsx) and
+   * the bell's count (notification-bell.tsx).
+   *
+   * --accent-default, --accent-emphasis and --nav-band-active are upstream's
+   * names. Upstream reads them in button-variants.ts, button.tsx, the table,
+   * the undo toast and nav-item.tsx, with fallbacks that resolve to its own
+   * brand; a vendored file here reads them once it is re-synced past that
+   * change. --accent-subtle and --content-accent are playerz's own: upstream's
+   * StatusBadge may not take a brand tone, so the bell colours its count here.
+   */
+  --accent-default: #facc15; /* yellow-400 — 12.81:1 on --bg-page, 12.02:1 on --bg-default, 10.66:1 on --bg-elevated */
+  --accent-emphasis: #eab308; /* yellow-500 — the undo toast's ring. 8.51:1 on --bg-elevated */
+  --accent-subtle: rgba(250, 204, 21, 0.15); /* yellow @ 15% — the count badge's tint */
+  --content-accent: #facc15; /* the count's digits: 9.58:1 over the page, 8.70:1 over a card, 7.69:1 over the header's brand wash */
+  --nav-band-active: #facc15; /* the active row's marker band (upstream paints --bg-page): 12.02:1 on the sidebar */
 
   /* ── Status: Success ───────────────────────────────────────────── */
   --bg-success: rgba(16, 185, 129, 0.15); /* emerald-500 @ 15% — badge tint */
@@ -151,10 +182,13 @@
   --border-success: rgba(16, 185, 129, 0.3); /* emerald-500 @ 30% */
 
   /* ── Status: Warning ───────────────────────────────────────────── */
-  --bg-warning: rgba(245, 158, 11, 0.15); /* amber-500 @ 15% — badge tint */
-  --bg-warning-emphasis: #d97706; /* amber-600 — solid actionable surface */
-  --content-warning: #fbbf24; /* amber-400 */
-  --border-warning: rgba(245, 158, 11, 0.3); /* amber-500 @ 30% */
+  /* ORANGE since #362, not amber: amber sat 4° from the yellow accent, and a
+     warning must never read as a highlight. Orange-400 is hue 27° to the
+     accent's 48°. */
+  --bg-warning: rgba(249, 115, 22, 0.15); /* orange-500 @ 15% — badge tint */
+  --bg-warning-emphasis: #c2410c; /* orange-700 — solid actionable surface: white 5.18:1 */
+  --content-warning: #fb923c; /* orange-400 — 8.13:1 on --bg-default, 6.65:1 on its tint */
+  --border-warning: rgba(249, 115, 22, 0.3); /* orange-500 @ 30% */
 
   /* ── Status: Error / Danger ────────────────────────────────────── */
   --bg-error: rgba(239, 68, 68, 0.15); /* red-500 @ 15% — badge tint */
@@ -170,38 +204,39 @@
   --border-info: rgba(59, 130, 246, 0.3); /* blue-500 @ 30% */
 
   /* ── Status: Attention (pending / needs-action) ────────────────── */
-  --bg-attention: rgba(251, 191, 36, 0.15); /* amber-400 @ 15% */
-  --content-attention: #fbbf24; /* amber-400 */
-  --border-attention: rgba(251, 191, 36, 0.3); /* amber-400 @ 30% */
+  /* Follows warning to orange (#362). */
+  --bg-attention: rgba(249, 115, 22, 0.15); /* orange-500 @ 15% */
+  --content-attention: #fb923c; /* orange-400 */
+  --border-attention: rgba(249, 115, 22, 0.3); /* orange-500 @ 30% */
 
   /* ── Interactive / Focus ───────────────────────────────────────── */
   /*
-   * Within each theme, ONE ring colour under three names (dark #22c55e here,
-   * light #15803d in its own block). --focus-ring is declared once, above, next
-   * to the brand tokens. This block used to declare it a SECOND time as
-   * rgba(34, 197, 94, 0.55), and in one rule the last declaration wins, so that
+   * Within each theme, ONE ring colour under three names (dark #facc15 here,
+   * light #d04a02 in its own block). --focus-ring is declared once, above, next
+   * to the brand tokens. This block used to declare it a SECOND time, as a
+   * translucent copy, and in one rule the last declaration wins, so that
    * translucent copy was what rendered (#244). --ring-default and --ring (the
    * names shadcn-style `ring-ring` and `ring-[var(--ring)]` callers use) are the
    * same literal rather than var(--focus-ring), so the contrast ratchet can
    * measure them: it parses literals and fails on an alias.
    */
-  --ring-default: #22c55e; /* same as --focus-ring */
+  --ring-default: #facc15; /* same as --focus-ring */
 
   /* shadcn / Radix compatibility tokens */
-  --ring: #22c55e; /* same as --focus-ring */
-  --ring-offset-background: #0d110e;
-  --primary: #22c55e;
+  --ring: #facc15; /* same as --focus-ring */
+  --ring-offset-background: #0b0b12;
+  --primary: #7950f5;
 
   /* ── Glass ─────────────────────────────────────────────────────── */
   /*
    * The default raised <Card> (`.glass-card`). These were upstream's navy
-   * (rgba(0, 47, 95, 0.82)), the one blue slab left on a charcoal-green page.
-   * Now --bg-default and --border-default at partial alpha, the same recipe
-   * as the light block: the glass card reads as a card, with the blur behind
-   * it, instead of as a different product.
+   * (rgba(0, 47, 95, 0.82)) until #246, a blue slab on a page of another
+   * colour. Now --bg-default and --border-default at partial alpha, the same
+   * recipe as the light block: the glass card reads as a card, with the blur
+   * behind it, instead of as a different product.
    */
-  --glass-bg: rgba(20, 24, 19, 0.85); /* --bg-default @ 85% */
-  --glass-border: rgba(46, 51, 44, 0.8); /* --border-default @ 80% — decorative card edge */
+  --glass-bg: rgba(19, 19, 31, 0.85); /* --bg-default @ 85% */
+  --glass-border: rgba(39, 38, 55, 0.8); /* --border-default @ 80% — decorative card edge */
   --glass-blur: 12px; /* backdrop blur radius */
 
   /* ── Radius ────────────────────────────────────────────────────── */
@@ -228,9 +263,9 @@
    *   --btn-still-lift   rest elevation
    *   --btn-still-press  that lift inverted, on :active
    *
-   * The lift is tinted green-black (0, 12, 4), not upstream's navy
-   * (0, 10, 25): it falls on the #0d110e page, and a blue shadow under a
-   * green tile reads as a second, unrelated light source.
+   * The lift is tinted purple-black (6, 4, 18), not upstream's navy
+   * (0, 10, 25): it falls on the #0b0b12 page under a purple tile, and a
+   * navy shadow there reads as a second, unrelated light source.
    *
    * The HOVER signal is not here. It is --brand-secondary-default, the
    * complementary edge primary takes on hover (see the Brand / Secondary
@@ -241,7 +276,7 @@
    * #dc2626 4.83:1 (hover) and #991b1b 8.31:1 (the deep stop). */
   --btn-still-top: rgba(255, 255, 255, 0.26);
   --btn-still-bot: rgba(0, 0, 0, 0.3);
-  --btn-still-lift: 0 1px 2px rgba(0, 12, 4, 0.45), 0 2px 8px rgba(0, 12, 4, 0.3);
+  --btn-still-lift: 0 1px 2px rgba(6, 4, 18, 0.45), 0 2px 8px rgba(6, 4, 18, 0.3);
   --btn-still-press: inset 0 2px 5px rgba(0, 0, 0, 0.42);
   --btn-still-danger: #b91c1c; /* red-700 — rest, the lightest stop: white 6.47:1 */
   --btn-still-danger-deep: #991b1b; /* red-800 — gradient tail and rest edge: white 8.31:1 */
@@ -256,15 +291,20 @@
    * three states. Consumed by PR-B via `control-variants.ts`. */
   --ctrl-edge-rest: rgba(255, 255, 255, 0.14);
   --ctrl-edge-hover: rgba(255, 255, 255, 0.28);
-  /* R20-PR-D — enriched focus halo. The 3px brand ring (originally
+  /* R20-PR-D — enriched focus halo. The 3px ring (originally
    * just the focus indicator) now also carries a 2-stop ambient
    * drop so a focused control reads "warm AND raised". It was
    * shaped after the retired R20 button token
    * `--btn-ambient-focus` (removed when T18 vendored upstream's
    * Still Surface buttons), minus that token's 4px outer brand
-   * ring; it now stands on its own. */
+   * ring; it now stands on its own.
+   *
+   * The ring stop is the yellow accent at 50% since #362: it is a focus
+   * indicator, so it must clear 3:1 (WCAG 1.4.11), and at 50% it measures
+   * 3.82:1 on the page and 3.80:1 on a card. The brand at 20% it replaced
+   * did not reach 2:1. */
   --ctrl-edge-focus:
-    0 0 0 3px rgba(34, 197, 94, 0.2), 0 1px 2px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.16);
+    0 0 0 3px rgba(250, 204, 21, 0.5), 0 1px 2px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.16);
 
   /* ── Transitions ───────────────────────────────────────────────── */
   --duration-fast: 100ms;
@@ -279,29 +319,29 @@
    * via Tailwind's arbitrary-value syntax without `color-mix()`,
    * which would inflate the class string for one token.
    *
-   * playerz: playerz yellow @ 35% — visible against the deep navy bg
-   * without screaming. 6px blur is the sweet spot — wider feels
-   * smoky, narrower disappears at non-Retina rendering.
+   * The hover band is the brand ramp, so its glow is the purple @ 35% —
+   * visible against the midnight sidebar without screaming. 6px blur is
+   * the sweet spot — wider feels smoky, narrower disappears at
+   * non-Retina rendering.
    */
-  --nav-band-glow: 0 0 6px rgba(34, 197, 94, 0.35);
+  --nav-band-glow: 0 0 6px rgba(139, 92, 246, 0.35);
 
   /* ── Sidebar band glow — ACTIVE variant (R13-PR4) ──────────────── */
   /*
-   * When a NavItem is the current page, the band's gradient swaps
-   * from primary brand (yellow) to secondary brand (electric blue).
-   * The glow follows — same 6px blur radius, same 35% alpha, but
-   * tuned to the blue family so the aura around the band matches
-   * its stops. A mismatched glow (yellow around a blue band) would
-   * read as accidental colour bleed.
+   * When a NavItem is the current page, its band is --nav-band-active:
+   * the yellow marker (#362). The glow follows it — same 6px blur radius,
+   * same 35% alpha, in the yellow — so the aura around the band matches
+   * the band. A mismatched glow (purple around a yellow band) would read
+   * as accidental colour bleed.
    */
-  --nav-band-glow-active: 0 0 6px rgba(20, 184, 166, 0.35);
+  --nav-band-glow-active: 0 0 6px rgba(250, 204, 21, 0.35);
 
   /* ── Sidebar gloss highlight (R13-PR6) ─────────────────────────── */
   /*
    * A 1-px wide top-edge `::after` line on `<NavItem>` rows reveals
    * on hover + active. Simulates light catching the top edge of a
    * raised button — the "glossy" cue the user asked for. On the
-   * deep-navy playerz surface a faint white at 8% is enough to read;
+   * midnight surface a faint white at 8% is enough to read;
    * the row appears to lift slightly toward the cursor without any
    * actual geometry change.
    */
@@ -315,7 +355,7 @@
    * "slightly recessed", which is what gives clicks the "I'm
    * pressing on a real button" feel.
    *
-   * On playerz's deep-navy surface a dark-tinted inset (0.25 black)
+   * On the midnight surface a dark-tinted inset (0.25 black)
    * lands as a near-invisible bottom edge that the eye reads as
    * subtle concavity. Heavier alpha would make the row look bruised;
    * lighter would disappear entirely.
@@ -327,42 +367,50 @@
    * gradient (`transparent → tint → transparent`) that sweeps
    * across the row body once when hover engages. The tint at 14%
    * alpha is muted enough to read as "a wash of light", not "a
-   * solid colour block". playerz uses the brand yellow at low
-   * opacity; playerz.bg uses the brand orange at a marginally higher
-   * opacity to compensate for the cream surface's lower
-   * contrast. Same alpha would make the orange disappear
-   * against cream.
+   * solid colour block". Dark uses the purple at 14%; light uses
+   * upstream's orange at a marginally higher 16% to compensate for
+   * the cream surface's lower contrast. Same alpha would make the
+   * orange disappear against cream.
    */
-  --nav-row-liquid-tint: rgba(34, 197, 94, 0.14);
+  --nav-row-liquid-tint: rgba(139, 92, 246, 0.14);
 
   /* R15-PR9 — outer brand-coloured aura around the ACTIVE row.
    * The active row's band already glows (R13-PR2 `--nav-band-
-   * glow`); this token extends a halo of the SECONDARY brand
-   * (navy on playerz) around the row's full perimeter at low
-   * alpha + soft blur. Semantically a brand-presence signal,
-   * NOT a depth shadow — it doesn't lift the row off the
-   * sidebar, it bathes the row in brand light.
+   * glow`); this token extends a halo around the row's full
+   * perimeter at low alpha + soft blur. Semantically a
+   * brand-presence signal, NOT a depth shadow — it doesn't lift the
+   * row off the sidebar, it bathes the row in brand light.
+   *
+   * PURPLE here, not the secondary yellow: the aura is part of the
+   * active item's fill, which the owner wants purple (#362). Light
+   * keeps upstream's navy.
    *
    * Alpha is low (18%) so the aura reads as ambient light
    * rather than as an outline. Blur is 12px so the edges
    * dissipate softly into the sidebar surface, no hard ring.
    */
-  --nav-row-aura-color: rgba(20, 184, 166, 0.18);
+  --nav-row-aura-color: rgba(139, 92, 246, 0.18);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   LIGHT THEME — playerz.bg-inspired enterprise palette.
+   LIGHT THEME — the upstream light theme, #362.
 
    Activated by ThemeProvider setting `data-theme="light"` on <html>.
-   Designed around:
+   The owner chose upstream's light theme as it is:
      - warm off-white / cream backgrounds (not cold blue-slate)
      - charcoal text hierarchy (not blue-tinted)
-     - playerz green as the primary accent (darker shades than dark mode)
-     - warm neutral borders
+     - orange as the brand, navy as its complement
+     - warm-grey borders
      - conservative, document-friendly status colors
 
-   Palette origin: playerz.bg brand language + Tailwind warm neutrals.
-   Contrast: all text/surface pairs meet WCAG 2.1 AA (4.5:1+).
+   Every token here equals upstream's src/styles/tokens.css, except where
+   WCAG AA forces a deviation. Each is marked DEVIATION below:
+     - the brand ramp, one step darker (#b83d00 / #9a3412 / #c2410c);
+     - the focus ring, solid #d04a02 (upstream's translucent one is 1.73:1);
+     - the --ctrl-edge-focus ring stop at .85 (upstream's .20 is 1.30:1);
+     - --content-subtle #686868 (upstream's #6b6b6b fails a disabled button);
+     - --content-accent #9a3412, the bell's count (a playerz token).
+   Contrast: all text/surface pairs meet WCAG 2.1 AA (4.5:1+), measured.
    ═══════════════════════════════════════════════════════════════════ */
 [data-theme='light'] {
   color-scheme: light; /* see the dark block */
@@ -388,65 +436,72 @@
   --content-default: #3d3d3d; /* dark charcoal — body text, table cells (11.4:1) */
   --content-muted: #525252; /* darker warm gray — secondary text, captions (7.2:1 on bg-default) */
   /*
-   * #686868 since T18 (was #6b6b6b). The vendored Button paints a disabled or
-   * disabledTooltip button as text-content-subtle on bg-bg-subtle, and on the
-   * page that measured 4.44:1, which axe failed in CI. #686868 is 4.64:1 there
-   * (4.81:1 over a card), and 5.17:1 on --bg-default.
+   * DEVIATION: #686868 since T18 (upstream has #6b6b6b). The vendored Button
+   * paints a disabled or disabledTooltip button as text-content-subtle on
+   * bg-bg-subtle, and on the page that measured 4.44:1, which axe failed in CI.
+   * #686868 is 4.64:1 there (4.81:1 over a card), and 5.17:1 on --bg-default.
    */
   --content-subtle: #686868; /* warm medium gray — hints, disabled, tertiary (5.17:1 on bg-default) */
   --content-inverted: #faf9f7; /* warm off-white — text on inverted/dark surfaces */
-  --content-brand: #166534; /* brand-700 — 6.37:1 on --bg-page, 6.61:1 on --bg-default. Why it differs by theme: see the dark block */
+  --content-brand: #b83d00; /* upstream's — 5.07:1 on --bg-page, 5.25:1 on --bg-default. Why it differs by theme: see the dark block */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
   --border-default: #e5e2de; /* DECORATIVE dividers and card edges only */
   --border-subtle: rgba(229, 226, 222, 0.6); /* warm gray @ 60% — soft dividers */
-  --border-strong: #787b72; /* 3.99:1 on --bg-default — control boundaries (WCAG 1.4.11) */
+  --border-strong: #8a8278; /* upstream's — 3.51:1 on --bg-default — control boundaries (WCAG 1.4.11) */
   --border-emphasis: #c9c5be; /* medium warm gray — focused inputs */
 
-  /* ── Brand / Primary (playerz green) ───────────────────────────── */
+  /* ── Brand / Primary (orange) ──────────────────────────────────── */
   /*
-   * THE LIGHT RAMP, ONE STEP DARKER (T18, PROPOSED, flagged for owner
-   * approval). The Still Surface primary paints a gradient from
-   * --brand-default to --brand-emphasis, and on hover from --brand-muted to
-   * --brand-default, under a --content-inverted (#faf9f7) label. With the old
-   * ramp (#16a34a / #15803d / #22c55e) that label measured 3.13 / 4.77 /
-   * 2.17:1, so the top stop and the whole hover failed AA. One step down
-   * (brand-700 / brand-800 / brand-600) it is 6.78 / 8.66 / 4.77:1, every
-   * stop and every state.
+   * DEVIATION: THE RAMP, ONE STEP DARKER. The Still Surface primary paints a
+   * gradient from --brand-default to --brand-emphasis, and on hover from
+   * --brand-muted to --brand-default, under a --content-inverted (#faf9f7)
+   * label. With upstream's ramp (#d04a02 / #b83d00 / #e06520) that label
+   * measures 4.28 / 5.39 / 3.30:1, so the top stop and the whole hover fail
+   * AA. One step down (#b83d00 / #9a3412 / #c2410c), the way T18 moved the
+   * ramp before it, it is 5.39 / 6.94 / 4.92:1, every stop and every state.
    *
-   * The focus ring stays brand-600, now the same value as --brand-muted;
-   * the button's own halo is --brand-default, 6.37:1 on the page.
+   * upstream's signature #d04a02 is not lost: it is the focus ring and the
+   * accent (below), roles that need 3:1, which it clears.
    */
-  --brand-default: #166534; /* brand-700 — links, accents, the primary's top stop. Label 6.78:1 */
-  --focus-ring: #15803d; /* 4.48:1 on --bg-page, 4.65:1 on --bg-default */
+  --brand-default: #b83d00; /* links, accents, the primary's top stop. Label 5.39:1; as an edge 5.07:1 on the page */
+  --focus-ring: #d04a02; /* DEVIATION, solid (see Interactive / Focus). 4.03:1 on --bg-page, 4.18:1 on --bg-default */
   /*
    * A FILL token: the primary button's deep stop, a checked checkbox or
-   * switch, the selected day. On --bg-page it is 8.14:1 (8.45:1 on
-   * --bg-default). It was brand-600, 4.48:1, until T18 moved the ramp.
+   * switch, the selected day. On --bg-page it is 6.53:1 (6.77:1 on
+   * --bg-default).
    *
    * An older note said "5.1:1 on white". The page is #f4f2ed, never white.
-   * Green TEXT is --content-brand.
+   * Brand TEXT is --content-brand.
    */
-  --brand-emphasis: #14532d; /* brand-800 — FILL. 8.14:1 on --bg-page; label 8.66:1 */
-  --brand-muted: #15803d; /* brand-600 — the hover's top stop. Label 4.77:1 */
-  --brand-subtle: rgba(22, 163, 74, 0.09); /* green @ 9% — brand tint backgrounds */
+  --brand-emphasis: #9a3412; /* FILL. 6.53:1 on --bg-page; label 6.94:1 */
+  --brand-muted: #c2410c; /* the hover's top stop. Label 4.92:1 */
+  --brand-subtle: rgba(208, 74, 2, 0.09); /* upstream's: orange @ 9% — brand tint backgrounds */
 
-  /* ── Brand / Secondary (the complement: deep orchid, hue 323°) ──
+  /* ── Brand / Secondary (the complement: upstream's navy, hue 224°) ──
    *
-   * PROPOSED with the dark family; the reasoning is in the dark block.
-   * Deep teal #0f766e measured 1.09:1 against the rest edge it replaced
-   * on hover (ΔE76 35.3). Deep orchid:
-   *
-   *   #b0247a on --bg-page 5.55:1, on --bg-default 5.76:1
-   *   against the rest edge #14532d: 1.47:1 in luminance, ΔE76 96.6
-   *
-   * The sidebar's active wash: --content-emphasis on it over --bg-default
-   * is 14.03:1 (teal's was 14.29:1).
+   * upstream's own, unchanged. #1e3a8a sits 155° from the orange, and as the
+   * primary's hover edge it measures 9.26:1 on the page and 9.60:1 on a card.
+   * The subtle tint is the sidebar's active wash: the active label
+   * (--content-brand) on it measures 4.51:1 over the sidebar (--bg-default).
    */
-  --brand-secondary-default: #b0247a; /* deep orchid — hover edge of the primary button. 5.55:1 on --bg-page */
-  --brand-secondary-emphasis: #8a1c5f; /* deeper orchid — active surfaces. 7.78:1 on --bg-page */
-  --brand-secondary-muted: #d0459a; /* lighter orchid — highlight midstop. 3.75:1 on --bg-page */
-  --brand-secondary-subtle: rgba(176, 36, 122, 0.09); /* orchid @ 9% — the sidebar's active wash */
+  --brand-secondary-default: #1e3a8a; /* navy — hover edge of the primary button. 9.26:1 on --bg-page */
+  --brand-secondary-emphasis: #172554; /* deeper navy — active surfaces. 13.13:1 on --bg-page */
+  --brand-secondary-muted: #3b82f6; /* lighter blue — highlight midstop */
+  --brand-secondary-subtle: rgba(30, 58, 138, 0.09); /* navy @ 9% — the sidebar's active wash */
+
+  /* ── Accent — #362 ─────────────────────────────────────────────────
+   *
+   * What upstream paints in these roles, whose fallbacks resolve to its
+   * brand: the signature orange. Who reads them: see the dark block.
+   */
+  --accent-default: #d04a02; /* signature orange — 4.03:1 on --bg-page, 4.18:1 on --bg-default, 4.39:1 on --bg-elevated */
+  --accent-emphasis: #b83d00; /* the undo toast's ring. 5.53:1 on --bg-elevated */
+  --accent-subtle: rgba(208, 74, 2, 0.09); /* orange @ 9% — the count badge's tint */
+  /* DEVIATION: one step past --accent-emphasis. The count sits on the
+     header's orange wash, where #b83d00 measures 4.04:1. */
+  --content-accent: #9a3412; /* the count's digits: 5.81:1 over the page, 6.01:1 over a card, 5.21:1 over the header's wash */
+  --nav-band-active: var(--bg-page); /* upstream's: the page-tone cut-out */
 
   /* ── Status: Success ───────────────────────────────────────────── */
   /*
@@ -487,14 +542,16 @@
 
   /* ── Interactive / Focus ───────────────────────────────────────── */
   /*
-   * One ring colour per theme; see the dark block. The rgba(22, 163, 74, 0.4)
-   * that used to sit here re-declared --focus-ring and won the cascade: 1.53:1
-   * on the page, a ring nobody could see (#244).
+   * One ring colour per theme; see the dark block.
+   *
+   * DEVIATION: upstream's ring is rgba(208, 74, 2, 0.4), and that measures
+   * 1.73:1 on the page, a ring nobody can see; a translucent ring here was
+   * #244 once already. It is the same signature orange, solid.
    */
-  --ring-default: #15803d; /* same as --focus-ring */
-  --ring: #15803d; /* same as --focus-ring */
+  --ring-default: #d04a02; /* same as --focus-ring */
+  --ring: #d04a02; /* same as --focus-ring */
   --ring-offset-background: #f8f6f3;
-  --primary: #16a34a;
+  --primary: #b83d00;
 
   /* ── Glass (warm light variant) ─────────────────────────────────── */
   --glass-bg: rgba(
@@ -536,9 +593,13 @@
    * ambient drop matches the rest of the light-theme shadow scale
    * (alphas dropped to the warm-graphite range so the lift reads
    * subtle on cream surfaces). See the dark-theme block above for
-   * the rationale. */
+   * the rationale.
+   *
+   * DEVIATION: the ring stop at .85, not upstream's .20. It is a focus
+   * indicator, so it must clear 3:1 (WCAG 1.4.11); .20 measures 1.30:1 on
+   * the page, .85 measures 3.32:1 there and 3.41:1 on a card. */
   --ctrl-edge-focus:
-    0 0 0 3px rgba(22, 163, 74, 0.2), 0 1px 2px rgba(60, 50, 40, 0.1),
+    0 0 0 3px rgba(208, 74, 2, 0.85), 0 1px 2px rgba(60, 50, 40, 0.1),
     0 2px 6px rgba(60, 50, 40, 0.06);
 
   /* ── Sidebar band glow (R13-PR2) ───────────────────────────────── */
@@ -549,17 +610,17 @@
    * disappear on cream; 0.35 lets the glow read at peripheral
    * vision without compromising legibility of the band itself.
    */
-  --nav-band-glow: 0 0 6px rgba(22, 163, 74, 0.35);
+  --nav-band-glow: 0 0 6px rgba(208, 74, 2, 0.35);
 
   /* ── Sidebar band glow — ACTIVE variant (R13-PR4) ──────────────── */
   /*
-   * playerz.bg active rows paint the band with deep navy. The active glow
-   * is the navy hue at the same 35% alpha — keeps the aura coherent
-   * with the band's stops. Geometry matches the playerz glow (6px
-   * blur) so the visual weight of the active state feels balanced
-   * across themes.
+   * In light the active band is upstream's page-tone cut-out
+   * (--nav-band-active), and the glow around it is upstream's navy at
+   * the same 35% alpha: it is what draws the band's edge on the
+   * cream sidebar. Geometry matches the dark glow (6px blur) so the
+   * visual weight of the active state feels balanced across themes.
    */
-  --nav-band-glow-active: 0 0 6px rgba(15, 61, 34, 0.35);
+  --nav-band-glow-active: 0 0 6px rgba(30, 58, 138, 0.35);
 
   /* ── Sidebar gloss highlight (R13-PR6) ─────────────────────────── */
   /*
@@ -579,29 +640,27 @@
    * On cream the bevel shadow is a warm-tinted alpha rather than
    * pure black — matches the warm-neutral shadow vocabulary of the
    * light theme (see `--shadow`, also rgba(60, 50, 40, …)). Alpha
-   * is lower than playerz (0.08 vs 0.25) because cream is more
+   * is lower than dark (0.08 vs 0.25) because cream is more
    * sensitive to dark inserts; a heavier value would make the row
    * look smudged.
    */
   --nav-bevel-shadow: inset 0 -1px 1px 0 rgba(60, 50, 40, 0.08);
 
-  /* R15-PR7 — light-theme liquid sweep tint. playerz.bg orange at 16%
-   * opacity. Slightly higher alpha than playerz (0.14) because the
-   * cream surface (`--bg-default: #FAF7F2`) has lower contrast
-   * with brand orange than the navy playerz surface has with brand
-   * yellow — equalising the perceived wash strength across
-   * themes.
+  /* R15-PR7 — light-theme liquid sweep tint. upstream's orange at 16%
+   * opacity. Slightly higher alpha than dark (0.14) because the
+   * cream surface (`--bg-default: #F8F6F3`) shows a tint less
+   * readily than the midnight one — equalising the perceived wash
+   * strength across themes.
    */
-  --nav-row-liquid-tint: rgba(22, 163, 74, 0.16);
+  --nav-row-liquid-tint: rgba(208, 74, 2, 0.16);
 
-  /* R15-PR9 — light-theme active-row aura. Deep navy
-   * (rgba(15, 61, 34, …) = `--brand-secondary-default` on the
-   * light theme) at 18% alpha. Same alpha as playerz for theme
+  /* R15-PR9 — light-theme active-row aura. upstream's navy
+   * (rgba(30, 58, 138, …) = `--brand-secondary-default` on the
+   * light theme) at 18% alpha. Same alpha as dark for theme
    * parity — both themes produce the same perceived halo
-   * strength because the underlying brand-secondary RGB
-   * compensates for cream-surface absorption.
+   * strength.
    */
-  --nav-row-aura-color: rgba(15, 61, 34, 0.18);
+  --nav-row-aura-color: rgba(30, 58, 138, 0.18);
 }
 
 /* ─────────────────────────────────────────────────────────────────

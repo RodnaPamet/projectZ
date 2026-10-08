@@ -58,14 +58,20 @@ function tabClass(active: boolean) {
   );
 }
 
-/** The non-colour active cue: a short bar along the tab's top edge. */
+/**
+ * The non-colour active cue: a short bar along the tab's top edge.
+ *
+ * In the accent (#362): yellow on dark, the signature orange on light, 12.81:1
+ * and 4.03:1 on the page the bar sits on. Not `--nav-band-active`, the
+ * sidebar's band: in light that is the page tone, and the bar would vanish.
+ */
 function ActiveAccent({ active }: { active: boolean }) {
   if (!active) return null;
   return (
     <span
       aria-hidden="true"
       data-tab-accent
-      className="absolute inset-x-3 -top-1.5 h-0.5 rounded-full bg-[var(--brand-default)]"
+      className="absolute inset-x-3 -top-1.5 h-0.5 rounded-full bg-[var(--accent-default)]"
     />
   );
 }

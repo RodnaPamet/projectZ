@@ -118,7 +118,7 @@ describe('the scan is not vacuous', () => {
     for (const known of ['text-content-muted', 'bg-bg-default', 'border-border-subtle'])
       expect(all).toContain(known);
     // A config-only key compiles: without @config these three would be dead too.
-    expect(dead(['text-content-muted', 'bg-brand-600', 'border-border-strong'])).toEqual([]);
+    expect(dead(['text-content-muted', 'bg-brand-emphasis', 'border-border-strong'])).toEqual([]);
   });
 });
 
@@ -170,6 +170,8 @@ describe('the rule fires on the classes it exists for', () => {
     'ring-brand-glow',
     'bg-status-success',
     'md:hover:bg-bg-surface/50',
+    // The fixed green shades, deleted in #362.
+    'bg-brand-600',
   ])('%s is dead', (cls) => {
     expect(dead([cls])).toEqual([cls]);
   });
@@ -184,7 +186,10 @@ describe('the rule fires on the classes it exists for', () => {
     'animate-spin',
     'text-sm',
     'border-2',
-    '!bg-brand-600',
+    '!bg-brand-emphasis',
+    // The accent's tint and text (#362), the bell's count.
+    'bg-bg-accent',
+    'text-content-accent',
   ])('%s is alive', (cls) => {
     expect(dead([cls])).toEqual([]);
   });

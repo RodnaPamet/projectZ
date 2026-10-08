@@ -61,24 +61,15 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // ── Existing brand palette (unchanged) ──
+        // ── Brand (theme-driven, #362) ──
         //
-        // The fixed shades are FILLS (`bg-brand-600`). They are banned as TEXT
-        // by tests/guardrails/no-raw-brand-text.test.ts: no single shade is body
-        // text in both themes (brand-600 is 4.48:1 on the light page, 3.79:1 on
-        // the dark one). Green text is `text-content-brand`, below (#233).
+        // Only the four semantic keys. The fixed green shades that sat here
+        // (`brand-50` … `brand-950`) were the old palette in hex, nothing used
+        // them, and a fixed shade cannot follow the theme anyway: the brand is
+        // purple in dark and orange in light. These are FILLS; brand-coloured
+        // TEXT is `text-content-brand`, below (#233, and
+        // tests/guardrails/no-raw-brand-text.test.ts).
         brand: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#16A34A',
-          600: '#15803D',
-          700: '#166534',
-          800: '#14532d',
-          900: '#0f3d22',
-          950: '#052e16',
           // ── Semantic brand tokens (theme-driven via CSS vars) ──
           // Without these, named utilities like `bg-brand-emphasis`,
           // `border-brand-emphasis`, `bg-brand-subtle`, etc. — used
@@ -113,6 +104,8 @@ const config: Config = {
           info: 'var(--bg-info)',
           'info-emphasis': 'var(--bg-info-emphasis)',
           attention: 'var(--bg-attention)',
+          // The accent's tint (#362): the bell's count, with text-content-accent.
+          accent: 'var(--accent-subtle)',
         },
 
         // ── Semantic content/text tokens ──
@@ -127,11 +120,13 @@ const config: Config = {
           error: 'var(--content-error)',
           info: 'var(--content-info)',
           attention: 'var(--content-attention)',
-          // Green TEXT. Theme-aware, which no palette shade can be: brand-700 on
-          // light (6.37:1 on the page), brand-500 on dark (5.77:1). A `dark:`
+          // Brand TEXT. Theme-aware, which no fill token is: violet-400 on dark
+          // (7.21:1 on the page), upstream's #b83d00 on light (5.07:1). A `dark:`
           // variant is no substitute — no `darkMode` is set, so Tailwind keys
           // `dark:` off the OS while the app switches on [data-theme] (#233).
           brand: 'var(--content-brand)',
+          // The accent's text on its tint, bg-bg-accent (#362): the bell's count.
+          accent: 'var(--content-accent)',
         },
 
         // The focus ring. Its own token so that making it visible enough does not
@@ -381,8 +376,8 @@ const config: Config = {
         // value.
         //
         // Why brand-secondary-default as the glow colour?
-        // (In playerz that is the complementary orchid since
-        // T18; it was inflect's navy, then teal. No playerz
+        // (In playerz that is the complementary yellow in dark
+        // and upstream's navy in light since #362. No playerz
         // element uses this keyframe yet.) The active row's
         // band is the secondary hue (R13-PR4 band overrides). The
         // starburst is the same hue family — it reads as

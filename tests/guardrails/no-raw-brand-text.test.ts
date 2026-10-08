@@ -3,26 +3,31 @@ import { readFileSync, globSync } from 'node:fs';
 import ts from 'typescript';
 
 /**
- * GREEN TEXT IS `text-content-brand`. NEVER A FIXED BRAND SHADE.
+ * BRAND-COLOURED TEXT IS `text-content-brand`. NEVER A BRAND FILL OR SHADE.
  *
  * ═══ WHY ═══
  *
- * No shade of the brand green is body text in both themes (#233). Measured with
- * src/lib/design/contrast.ts against each theme's page background:
+ * No brand colour is body text in both themes (#233). Measured with
+ * src/lib/design/contrast.ts against each theme's page background, for the
+ * #362 fills (purple in dark, inflect's orange one step darker in light):
  *
- *   shade        light  #f4f2ed    dark  #0d110e
- *   brand-500        2.95 ✗            5.77 ✓
- *   brand-600        4.48 ✗            3.79 ✗
- *   brand-700        6.37 ✓            2.67 ✗
+ *   fill               light  #f4f2ed    dark  #0b0b12
+ *   --brand-muted          4.63 ✓            4.26 ✗
+ *   --brand-default        5.07 ✓            4.00 ✗
+ *   --brand-emphasis       6.53 ✓            3.29 ✗
  *
- * Whatever NNN a `text-brand-NNN` names, it is wrong in at least one theme. It
- * gets through review anyway, because passing contrast depends on the colour
- * AND the size, and a class name only states the colour.
+ * The fixed shades this rule was written for (`text-brand-NNN`, the green
+ * palette, where brand-600 was 4.48:1 on the light page and 3.79:1 on the dark
+ * one) were deleted from tailwind.config.ts in #362, and a class that names one
+ * now compiles to nothing; the ban stays so neither kind comes back. Text in a
+ * fill colour gets through review because passing contrast depends on the
+ * colour AND the size, and a class name only states the colour.
  * `text-brand-600 text-4xl` on the homepage cleared the 3:1 large-text bar. The
  * same class at 16px in a header was an axe violation, short by 0.02.
  *
- * `text-content-brand` swaps shade with the theme (brand-700 light, brand-500
- * dark), and tests/guardrails/contrast.test.ts pins it at 6.37:1 and 5.77:1.
+ * `text-content-brand` carries its own shade per theme (violet-400 dark,
+ * inflect's #b83d00 light), and tests/guardrails/contrast.test.ts pins it at
+ * 7.21:1 and 5.07:1.
  * A `dark:` variant cannot do the same job. No `darkMode` is configured, so
  * `dark:` compiles to `@media (prefers-color-scheme: dark)` and follows the OS,
  * while the app follows [data-theme]. Anyone whose two settings differ gets the
@@ -30,8 +35,9 @@ import ts from 'typescript';
  *
  * ═══ WHAT IS BANNED, AND WHAT IS NOT ═══
  *
- * Banned: the two utilities that colour GLYPHS from the fixed palette. What each
- * compiles to was checked against this repo's Tailwind:
+ * Banned: the two utilities that colour GLYPHS from a fixed palette (deleted in
+ * #362, so these compile to nothing today). What each compiled to was checked
+ * against this repo's Tailwind:
  *
  *   text-brand-NNN          → color
  *   placeholder-brand-NNN   → &::placeholder { color }
@@ -52,10 +58,10 @@ import ts from 'typescript';
  * Not banned, on purpose:
  *
  *   bg- border- ring- outline- divide- shadow- accent- from- via- to-
- *       These are FILLS and boundaries, and #233 keeps the palette for them.
+ *       These are FILLS and boundaries, and #233 keeps the brand for them.
  *   fill- stroke-
- *       SVG marks. Non-text, so the bar is 3:1, and brand-600 clears it in both
- *       themes (4.48 / 3.79).
+ *       SVG marks. Non-text, so the bar is 3:1, and the brand fills clear it in
+ *       both themes (--brand-default 5.07 light / 4.00 dark).
  *   decoration-  → text-decoration-color. It colours the underline, not the letters.
  *   caret-       → caret-color. The insertion caret is a non-text indicator.
  *   text-brand-{default,emphasis,muted,subtle}
@@ -198,20 +204,21 @@ describe('no fixed brand shade colours text, anywhere in src/', () => {
       throw new Error(
         `Brand-palette TEXT colour:\n\n` +
           findings.map((f) => `  ${f.file}:${f.line}  ${f.token}`).join('\n') +
-          `\n\nNo fixed brand shade is body text in both themes. brand-600 is 4.48:1 on the\n` +
-          `light page and 3.79:1 on the dark one, and the class cannot say how big the\n` +
+          `\n\nNo brand fill is body text in both themes. --brand-default is 4.00:1 on the\n` +
+          `dark page (5.07:1 on the light one), and the class cannot say how big the\n` +
           `text is, which decides whether it passes.\n\n` +
           `Use text-content-brand. It changes shade with the theme, and\n` +
-          `tests/guardrails/contrast.test.ts pins it at 6.37:1 light, 5.77:1 dark.\n\n` +
-          `Fills are fine: bg-brand-600, border-brand-600. dark:text-brand-500 is not a\n` +
-          `fix, because dark: follows the OS and this app follows [data-theme].`,
+          `tests/guardrails/contrast.test.ts pins it at 5.07:1 light, 7.21:1 dark.\n\n` +
+          `Fills are fine: bg-brand-emphasis, border-[var(--brand-default)]. A dark:\n` +
+          `variant is not a fix, because dark: follows the OS and this app follows\n` +
+          `[data-theme].`,
       );
     }
   });
 
   it('the replacement exists and is measured, so the rule is actionable', () => {
     // A ban that points at a token must point at a real, MEASURED token: a
-    // replacement nobody checks is just a different way to ship 4.48:1.
+    // replacement nobody checks is just a different way to ship 4.00:1.
     expect(readFileSync('tailwind.config.ts', 'utf8')).toMatch(/brand:\s*'var\(--content-brand\)'/);
 
     const declarations = cssCode(readFileSync('src/styles/tokens.css', 'utf8')).match(

@@ -125,7 +125,8 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'destructive';
 // `!` because tailwind-merge reads the tile's `shadow-[var(--btn-still-lift),…]`
 // as a shadow COLOUR and this as a shadow SIZE, keeps both, and the lift wins
 // on stylesheet order. The real `focus-visible:` class has a variant and wins.
-const FOCUS = 'shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--brand-default)]!';
+// The halo is the accent since #362 (upstream's --accent-default seam).
+const FOCUS = 'shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--accent-default)]!';
 
 const FORCED: Record<Variant, { hover: string; press: string }> = {
   primary: {
@@ -189,41 +190,61 @@ function ButtonStates() {
 }
 
 /**
- * The T18 colour PROPOSALS, flagged for owner approval. Each chip paints the
- * live token, so it follows the theme toggle. The ratios are the ones
- * tests/guardrails/contrast.test.ts pins per theme, so a hex that moves
- * without its number fails the build.
+ * The #362 palette (the owner, 2026-10-08): in dark, midnight black with
+ * purple leading and yellow accenting; in light, upstream's theme, with the
+ * deviations AA forces. Each chip paints the live token, so it follows the
+ * theme toggle. The ratios are the ones tests/guardrails/contrast.test.ts pins
+ * per theme, so a hex that moves without its number fails the build.
  */
-const PROPOSALS: ReadonlyArray<{ token: string; role: string; dark: string; light: string }> = [
-  {
-    token: '--brand-secondary-default',
-    role: 'PROPOSED complementary hover edge: orchid, hue 321° dark / 323° light (was teal, 173°)',
-    dark: '#f080c8 · 7.82:1 page · 7.37:1 card · ΔE 119.6 from the rest edge (teal 40.8)',
-    light: '#b0247a · 5.55:1 page · 5.76:1 card · ΔE 96.6 from the rest edge (teal 35.3)',
-  },
-  {
-    token: '--brand-secondary-subtle',
-    role: 'PROPOSED sidebar active wash',
-    dark: 'orchid @ 18% · heading text on it 11.92:1',
-    light: 'orchid @ 9% · heading text on it 14.03:1',
-  },
+const PALETTE: ReadonlyArray<{ token: string; role: string; dark: string; light: string }> = [
   {
     token: '--brand-default',
-    role: 'Primary top stop and focus halo',
-    dark: '#22c55e · label 8.41:1 · halo 8.35:1 page, 7.88:1 card',
-    light: 'PROPOSED #166534 (was #16a34a) · label 6.78:1 (was 3.13) · halo 6.37 / 6.61:1',
+    role: "Primary top stop; the secondary button's hover edge",
+    dark: '#7950f5 · white label 4.91:1 · edge 4.00:1 page, 3.75:1 card',
+    light:
+      '#b83d00 (upstream #d04a02, one step darker) · label 5.39:1 (was 4.28) · edge 5.07 / 5.25:1',
   },
   {
     token: '--brand-emphasis',
-    role: 'Primary bottom stop and rest edge',
-    dark: '#16a34a · label 5.81:1',
-    light: 'PROPOSED #14532d (was #15803d) · label 8.66:1 (was 4.77)',
+    role: 'Primary bottom stop and rest edge, checked controls',
+    dark: '#6d3fe8 · white label 5.95:1 · fill 3.29:1 page',
+    light: '#9a3412 (upstream #b83d00) · label 6.94:1 · fill 6.53:1 page',
   },
   {
     token: '--brand-muted',
     role: 'Primary hover top stop',
-    dark: '#4ade80 · label 11.00:1',
-    light: 'PROPOSED #15803d (was #22c55e) · label 4.77:1 (was 2.17)',
+    dark: '#8255f5 · white label 4.60:1',
+    light: '#c2410c (upstream #e06520) · label 4.92:1 (was 3.30)',
+  },
+  {
+    token: '--brand-secondary-default',
+    role: 'Primary hover edge: the complement, 153° (dark) / 155° (light) from the brand',
+    dark: '#facc15 yellow · 12.81:1 page · 12.02:1 card',
+    light: "#1e3a8a, upstream's navy · 9.26:1 page · 9.60:1 card",
+  },
+  {
+    token: '--accent-default',
+    role: "Focus halo and the tab bar's active bar",
+    dark: '#facc15 yellow · 12.81:1 page · 12.02:1 card · 10.66:1 dropdown',
+    light: '#d04a02, the signature orange · 4.03:1 page · 4.18:1 card · 4.39:1 dropdown',
+  },
+  {
+    token: '--content-accent',
+    role: "The bell's count, on --accent-subtle",
+    dark: "#facc15 · 7.69:1 over the header's brand wash",
+    light: "#9a3412 · 5.21:1 over the header's brand wash",
+  },
+  {
+    token: '--brand-secondary-subtle',
+    role: 'Sidebar active wash: purple in dark, on purpose',
+    dark: 'violet @ 18% · the active label on it 5.56:1',
+    light: 'navy @ 9% (upstream) · the active label on it 4.51:1',
+  },
+  {
+    token: '--nav-band-active',
+    role: 'Sidebar active marker band',
+    dark: '#facc15 yellow · 12.02:1 on the sidebar',
+    light: "the page tone: upstream's cut-out",
   },
   {
     token: '--btn-still-danger',
@@ -233,18 +254,18 @@ const PROPOSALS: ReadonlyArray<{ token: string; role: string; dark: string; ligh
   },
 ];
 
-function ProposedSwatches() {
+function PaletteSwatches() {
   return (
-    <div className="w-full" data-testid="ds-button-proposals">
+    <div className="w-full" data-testid="ds-palette">
       <h3 className="text-content-emphasis mb-1 text-sm font-semibold">
-        Proposed for owner approval (T18)
+        The palette (#362): purple leads, yellow accents
       </h3>
       <p className="text-content-muted mb-3 text-xs">
         Buttons are 28px on a fine pointer and 44px on touch. Ratios are WCAG 2.x, measured from
         tokens.css and pinned in contrast.test.ts.
       </p>
       <ul className="grid w-full gap-3 sm:grid-cols-2">
-        {PROPOSALS.map((p) => (
+        {PALETTE.map((p) => (
           <li key={p.token} className="flex min-w-0 items-start gap-3">
             <span
               aria-hidden
@@ -292,7 +313,7 @@ export default function DesignSystemPage() {
 
         <Section title="Button">
           <ButtonStates />
-          <ProposedSwatches />
+          <PaletteSwatches />
         </Section>
 
         <Section title="Input">

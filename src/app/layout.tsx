@@ -43,7 +43,7 @@ const inter = Inter({
  * `viewport.themeColor` below and tests/guardrails/native-feel.test.ts).
  * Defined once so the viewport pair and the pre-paint script cannot disagree.
  */
-const THEME_CHROME = { dark: '#0d110e', light: '#f4f2ed' } as const satisfies Record<Theme, string>;
+const THEME_CHROME = { dark: '#0b0b12', light: '#f4f2ed' } as const satisfies Record<Theme, string>;
 
 /**
  * A constant, quoted as a JS string literal for the inline script below.
