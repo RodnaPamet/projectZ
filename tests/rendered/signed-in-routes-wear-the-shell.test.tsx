@@ -1,7 +1,7 @@
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { SWRConfig } from 'swr';
 
@@ -140,6 +140,7 @@ describe('every page sits under a signed-in frame, or says why not', () => {
 // ── The frames, rendered per account kind ─────────────────────────────
 
 jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
+jest.mock('@/lib/i18n/persist-my-locale', () => ({ persistMyLocale: jest.fn() }));
 
 class Refused extends Error {
   constructor(
@@ -217,6 +218,11 @@ interface Kind {
   /** The rail's links this kind must see, and links it must never see. */
   sees: string[];
   never: RegExp;
+  /**
+   * Where the sidebar foot's gear leads (owner, 2026-10-08), in every frame
+   * the kind wears: its club admin, the platform for a grant, or no gear.
+   */
+  gear: string | null;
 }
 
 const PLAYER_RAIL = ['/venues', '/me/bookings', '/me/profile'];
@@ -238,6 +244,7 @@ const KINDS: Record<'player' | 'coach' | 'club' | 'moderator', Kind> = {
     membership: NOT_A_MEMBER,
     sees: PLAYER_RAIL,
     never: /^\/(t\/|platform)/,
+    gear: null,
   },
   coach: {
     landing: { href: '/me/bookings', reason: 'coach', club: null },
@@ -245,6 +252,7 @@ const KINDS: Record<'player' | 'coach' | 'club' | 'moderator', Kind> = {
     membership: NOT_A_MEMBER,
     sees: PLAYER_RAIL,
     never: /^\/(t\/|platform)/,
+    gear: null,
   },
   club: {
     landing: {
@@ -267,6 +275,7 @@ const KINDS: Record<'player' | 'coach' | 'club' | 'moderator', Kind> = {
     sees: CLUB_RAIL,
     // One account, one kind: never the player's sidebar.
     never: /^\/(venues|me\/)/,
+    gear: `/t/${SLUG}/admin`,
   },
   moderator: {
     landing: { href: '/me/bookings', reason: 'player', club: null },
@@ -274,6 +283,7 @@ const KINDS: Record<'player' | 'coach' | 'club' | 'moderator', Kind> = {
     membership: NOT_A_MEMBER,
     sees: [...PLAYER_RAIL, '/platform/moderation', '/platform/security'],
     never: /^\/t\//,
+    gear: '/platform',
   },
 };
 
@@ -309,6 +319,17 @@ function renderTree(tree: ReactNode) {
 }
 
 beforeEach(() => {
+  // Wide enough that the vendored Popover is a dropdown jsdom can open.
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes('1024px') || query.includes('640px'),
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })) as unknown as typeof window.matchMedia;
   installFakeFetch(() => ok({ items: [], nextCursor: null, unreadCount: 0 }));
   signedInIdentity.mockResolvedValue(ME);
   clubResourceNouns.mockReset();
@@ -352,6 +373,22 @@ describe.each(Object.keys(LAYOUTS))('%s', (layout) => {
       expect(screen.queryByTestId('site-footer')).not.toBeInTheDocument();
       // A refused page is the root 404, and a page that was not refused is the page.
       expect(screen.queryByTestId('the-page') !== null).toBe(!refused);
+
+      // The sidebar's foot: the gear to the kind's admin, or none (owner,
+      // 2026-10-08), in every frame the kind wears, its own 404 included.
+      const gear = within(rail).queryByTestId('nav-admin-icon');
+      expect({ name, layout, gear: gear?.getAttribute('href') ?? null }).toEqual({
+        name,
+        layout,
+        gear: kind.gear,
+      });
+      expect(within(rail).getByTestId('sidebar-identity')).toHaveTextContent(ME.name);
+
+      // Every shell's account menu: the theme row and the language row.
+      fireEvent.click(screen.getByTestId('top-chrome-user-menu'));
+      const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
+      expect(within(menu).getByTestId('user-menu-theme-row')).toBeInTheDocument();
+      expect(within(menu).getByTestId('user-menu-language-row')).toBeInTheDocument();
     },
   );
 });

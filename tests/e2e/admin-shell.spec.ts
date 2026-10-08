@@ -78,12 +78,13 @@ test.describe('club admin shell — desktop', () => {
     await expect(page.getByRole('heading', { level: 1, name: `E2E ${slug}` })).toBeVisible();
     await expect(page.getByText(bg.club.noVenues.title)).toBeVisible();
 
-    // And the menu offers the same, with the profile.
+    // The account menu is every shell's (owner, 2026-10-08): the profile and
+    // sign-out, under the theme and the language.
     await page.goto(`/t/${slug}/admin/courts`);
     await page.getByTestId('top-chrome-user-menu').click();
     const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
-    await expect(menu.getByTestId('user-menu-public')).toHaveAttribute('href', `/clubs/${slug}`);
     await expect(menu.getByTestId('user-menu-profile')).toHaveAttribute('href', '/me/profile');
+    await expect(menu.getByRole('menuitem')).toHaveText([bg.common.nav.profile, bg.common.signOut]);
   });
 
   test('"Публична страница" → the club page → its venue (#356)', async ({
@@ -118,8 +119,13 @@ test.describe('club admin shell — desktop', () => {
     isolatedTenant,
   }) => {
     const slug = isolatedTenant.tenantSlug;
+    // The club admin's home offers staff its two pages, as the rail does.
     await page.goto(`/t/${slug}/admin`);
-    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
+    await expect(page.locator('main h1')).toHaveText(bg.admin.home.title);
+    await expect(page.locator('main').getByRole('link')).toHaveText([
+      bg.common.nav.calendar,
+      bg.common.nav.players,
+    ]);
     const nav = page.locator(MAIN_NAV);
     await expect(nav.getByRole('link')).toHaveCount(2);
     await expect(nav.locator(`a[href="/t/${slug}/admin/calendar"]`)).toBeVisible();
@@ -131,17 +137,48 @@ test.describe('club admin shell — desktop', () => {
     await expect(page.getByRole('heading', { level: 1, name: bg.notFound.title })).toBeAttached();
     await expect(page.locator(MAIN_NAV)).toBeVisible();
     await expect(page.locator('main')).toHaveCount(1);
+    // "Към админа на клуба": the club admin's home.
     await page.getByRole('link', { name: bg.notFound.backToAdmin }).click();
-    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
+    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin$`));
+    await expect(page.locator('main h1')).toHaveText(bg.admin.home.title);
   });
 
-  test('/t/{slug}/admin opens the first page the role may see (audit C10)', async ({
+  test('the foot’s gear opens the club admin’s home: the theme, and every page the role opens', async ({
     authedPage: page,
     isolatedTenant,
   }) => {
+    const slug = isolatedTenant.tenantSlug;
+    await page.goto(`/t/${slug}/admin/courts`);
+    const foot = page.locator('aside').getByTestId('sidebar-account');
+    await expect(foot).toContainText(`E2E ${slug}`);
+    await expect(foot).toContainText(bg.admin.staff.role.OWNER);
+    await foot.locator('#admin-icon-link-desktop').click();
+
+    // Not a 404 (audit C10), and not a redirect any more: a page of its own.
+    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin$`));
+    await expect(page.locator('main h1')).toHaveText(bg.admin.home.title);
+    await expect(page.locator('#admin-theme-toggle')).toBeVisible();
+    const pages = page.locator('main').getByRole('link');
+    await expect(pages).toHaveText([
+      bg.common.nav.calendar,
+      bg.common.nav.courts,
+      bg.common.nav.pricing,
+      bg.common.nav.photos,
+      bg.common.nav.players,
+      bg.common.nav.staff,
+      bg.common.nav.reports,
+    ]);
+    await pages.filter({ hasText: bg.common.nav.pricing }).click();
+    await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/pricing$`));
+  });
+
+  test('the club admin’s home switches the theme', async ({ authedPage: page, isolatedTenant }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin`);
-    await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/calendar$`));
-    await expect(page.locator('main h1')).toHaveText(bg.admin.calendar.title);
+    const html = page.locator('html');
+    const before = await html.getAttribute('data-theme');
+    const after = before === 'dark' ? 'light' : 'dark';
+    await page.locator('#admin-theme-toggle').click();
+    await expect(html).toHaveAttribute('data-theme', after);
   });
 
   test('collapses to an icon rail, and remembers it across a reload', async ({
@@ -186,26 +223,37 @@ test.describe('club admin shell — desktop', () => {
     await expect(page.locator('main h1')).toHaveText(bg.admin.pricing.title);
   });
 
-  test('the account menu has the theme toggle and signs out', async ({
+  test('the account menu has the theme and the language, and signs out', async ({
     authedPage: page,
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
     await page.getByTestId('top-chrome-user-menu').click();
     await expect(page.getByTestId('user-menu-theme-row')).toBeVisible();
-    await expect(page.getByTestId('user-menu-language-row')).toHaveCount(0);
+    await expect(page.getByTestId('user-menu-language-row')).toBeVisible();
     await page.getByTestId('user-menu-sign-out').click();
     await expect(page).toHaveURL(/\/$/);
   });
 
-  for (const theme of ['light', 'dark'] as const) {
-    test(`axe, ${theme}: no violations, best practice included (one <main>)`, async ({
+  test('the sidebar’s foot signs out too', async ({ authedPage: page, isolatedTenant }) => {
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await page.locator('aside').getByTestId('nav-logout').click();
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  for (const [theme, path, what] of [
+    ['light', 'courts', 'a page'],
+    ['dark', 'courts', 'a page'],
+    ['light', '', 'the club admin’s home'],
+    ['dark', '', 'the club admin’s home'],
+  ] as const) {
+    test(`axe, ${theme}, ${what}: no violations, best practice included (one <main>)`, async ({
       authedPage: page,
       isolatedTenant,
       baseURL,
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
-      await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+      await page.goto(`/t/${isolatedTenant.tenantSlug}/admin${path ? `/${path}` : ''}`);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator('main h1')).toBeVisible();
 

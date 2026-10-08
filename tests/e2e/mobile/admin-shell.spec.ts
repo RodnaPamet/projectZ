@@ -109,7 +109,7 @@ test.describe('club admin shell — phone', () => {
     );
   });
 
-  test('Още opens the drawer: the long tail, then Публична страница, Профил, Изход', async ({
+  test('Още opens the drawer: the long tail, Публична страница, then the foot', async ({
     authedPage: page,
     isolatedTenant,
   }) => {
@@ -127,11 +127,15 @@ test.describe('club admin shell — phone', () => {
       'href',
       `/clubs/${isolatedTenant.tenantSlug}`,
     );
-    await expect(account.getByRole('link', { name: n.profile })).toHaveAttribute(
+    // The rail's foot (owner, 2026-10-08): the club and the role, the gear to
+    // the club admin's home, and Изход.
+    const foot = drawer.getByTestId('sidebar-account');
+    await expect(foot).toContainText(`E2E ${isolatedTenant.tenantSlug}`);
+    await expect(foot.getByTestId('nav-admin-icon')).toHaveAttribute(
       'href',
-      '/me/profile',
+      `/t/${isolatedTenant.tenantSlug}/admin`,
     );
-    const signOut = account.getByRole('button', { name: bg.common.signOut });
+    const signOut = foot.getByRole('button', { name: bg.common.signOut });
     await expect(signOut).toBeVisible();
     await signOut.tap();
     await expect(page).toHaveURL(/\/$/);

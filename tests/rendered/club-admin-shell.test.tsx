@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
 import { resolveClubTabs } from '@/components/layout/club-admin-tab-bar';
@@ -8,7 +9,7 @@ import {
   platformNav,
   toShellSections,
   visibleSections,
-  type AccountLinks,
+  type ShellAccount,
 } from '@/components/layout/nav-items';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { Role } from '@prisma/client';
@@ -17,6 +18,7 @@ import { KeyboardShortcutProvider } from '@/lib/hooks/use-keyboard-shortcut';
 
 import bg from '../../messages/bg.json';
 import { withIntl } from '../helpers/intl';
+import { installFakeFetch, ok } from '../unit/data/fake-v1';
 
 /**
  * The club admin shell per role, and the platform shell (#362, #345, #347).
@@ -35,6 +37,12 @@ import { withIntl } from '../helpers/intl';
  */
 const signOut = jest.fn();
 jest.mock('next-auth/react', () => ({ signOut: (...a: unknown[]) => signOut(...a) }));
+
+// The account menu's language row writes the user record first (#362).
+const persistMyLocale = jest.fn();
+jest.mock('@/lib/i18n/persist-my-locale', () => ({
+  persistMyLocale: (...a: unknown[]) => persistMyLocale(...a),
+}));
 
 let pathname = '/t/sofia-padel/admin/calendar';
 jest.mock('next/navigation', () => ({
@@ -73,33 +81,38 @@ const roleSections = (role: Role) =>
     t,
   );
 
-const ACCOUNT: AccountLinks = {
-  profileHref: '/me/profile',
-  platformHref: null,
+const ACCOUNT: ShellAccount = {
+  identity: { name: 'Mira', context: 'Sofia Padel', role: bg.admin.staff.role.OWNER },
+  admin: { href: `/t/${SLUG}/admin`, label: n.admin },
   publicSite: { href: '/venues', label: n.publicPage },
 };
 
-function renderClub(role: Role, account: AccountLinks = ACCOUNT) {
+function renderClub(role: Role, account: ShellAccount = ACCOUNT) {
   return render(
     withIntl(
-      <KeyboardShortcutProvider>
-        <TooltipProvider>
-          <ClubAdminShell
-            sections={roleSections(role)}
-            homeHref={`/t/${SLUG}/admin`}
-            contextName="Sofia Padel"
-            user={{ name: 'Mira', email: 'mira@sofia.bg' }}
-            account={account}
-            bottomTabs
-            fullBleedSegment="calendar"
-          >
-            <p>page</p>
-          </ClubAdminShell>
-        </TooltipProvider>
-      </KeyboardShortcutProvider>,
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <KeyboardShortcutProvider>
+          <TooltipProvider>
+            <ClubAdminShell
+              sections={roleSections(role)}
+              homeHref={`/t/${SLUG}/admin`}
+              contextName="Sofia Padel"
+              user={{ userId: 'u-mira', name: 'Mira', email: 'mira@sofia.bg' }}
+              account={account}
+              bottomTabs
+              fullBleedSegment="calendar"
+            >
+              <p>page</p>
+            </ClubAdminShell>
+          </TooltipProvider>
+        </KeyboardShortcutProvider>
+      </SWRConfig>,
     ),
   );
 }
+
+/** The desktop rail (the drawer is the other `complementary`-less copy). */
+const rail = () => screen.getByRole('complementary');
 
 const bar = () => screen.getByRole('navigation', { name: n.tabBar });
 const barTabs = () =>
@@ -110,7 +123,13 @@ const barTabs = () =>
 beforeEach(() => {
   pathname = `/t/${SLUG}/admin/calendar`;
   desktopViewport();
+  // The rail's collapse is persisted (`playerz:sidebar-collapsed`); each test
+  // starts expanded.
+  window.localStorage.clear();
   signOut.mockReset();
+  persistMyLocale.mockReset();
+  persistMyLocale.mockResolvedValue(undefined);
+  installFakeFetch(() => ok({ items: [], nextCursor: null, unreadCount: 0 }));
 });
 
 describe('ClubAdminTabBar — tabs per role, resolved from the sidebar’s own sections', () => {
@@ -214,7 +233,7 @@ describe('Още opens the drawer, and says so', () => {
     expect(within(drawer).queryByText(bg.nav.openNavigationMenu)).not.toBeInTheDocument();
   });
 
-  it('the drawer keeps the long tail and ends in the account rows, Изход a real button', () => {
+  it('the drawer keeps the long tail, the way out, and the sidebar’s foot', () => {
     renderClub('OWNER');
     fireEvent.click(within(bar()).getByRole('button', { name: n.more }));
     const drawer = screen.getByRole('dialog', { name: n.menu });
@@ -223,17 +242,23 @@ describe('Още opens the drawer, and says so', () => {
     expect(within(drawer).getByRole('link', { name: n.pricing })).toBeInTheDocument();
     expect(within(drawer).getByRole('link', { name: n.staff })).toBeInTheDocument();
 
-    const account = within(drawer).getByTestId('drawer-account');
-    expect(
-      within(account)
-        .getAllByRole('link')
-        .map((l) => [l.textContent, l.getAttribute('href')]),
-    ).toEqual([
-      [n.publicPage, '/venues'],
-      [n.profile, '/me/profile'],
-    ]);
-    const signOutRow = within(account).getByRole('button', { name: bg.common.signOut });
-    fireEvent.click(signOutRow);
+    // The public page, which the phone's top bar has no room for.
+    const way = within(drawer).getByTestId('drawer-account');
+    expect(within(way).getByRole('link', { name: n.publicPage })).toHaveAttribute(
+      'href',
+      '/venues',
+    );
+
+    // The same foot as the rail: who, the gear, Изход. The gear's id is the
+    // rail's alone, so the open drawer does not double it.
+    const foot = within(drawer).getByTestId('sidebar-account');
+    expect(within(foot).getByTestId('sidebar-identity')).toHaveTextContent(
+      ['Mira', 'Sofia Padel', bg.admin.staff.role.OWNER].join(''),
+    );
+    const gear = within(foot).getByRole('link', { name: n.admin });
+    expect(gear).toHaveAttribute('href', `/t/${SLUG}/admin`);
+    expect(gear).not.toHaveAttribute('id');
+    fireEvent.click(within(foot).getByRole('button', { name: bg.common.signOut }));
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 
@@ -259,30 +284,78 @@ describe('ShellTopBar — the way out (#347) and the account menu', () => {
     expect(pub).toHaveClass('hidden', 'sm:inline-flex');
   });
 
-  it('menu: Публична страница, Профил, Изход; no language row', () => {
+  it('the bell, then the menu: the name, Тема, Език, Профил, Изход (owner, 2026-10-08)', () => {
     renderClub('OWNER');
-    fireEvent.click(screen.getByTestId('top-chrome-user-menu'));
+    // Upstream's `TopChrome` order: the bell, then the account menu.
+    const bell = screen.getByRole('button', { name: n.notifications });
+    const trigger = screen.getByTestId('top-chrome-user-menu');
+    expect(bell.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(trigger);
     const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
+    expect(within(menu).getByTestId('user-menu-display-name')).toHaveTextContent('Mira');
+    expect(within(menu).getByTestId('user-menu-display-email')).toHaveTextContent('mira@sofia.bg');
+    expect(within(menu).getByTestId('user-menu-theme-row')).toHaveTextContent(bg.common.theme);
+    expect(within(menu).getByTestId('user-menu-language-row')).toHaveTextContent(
+      bg.common.language,
+    );
+    // Upstream's own rows: `menuitem`s, the account's page then sign-out.
     expect(
       within(menu)
-        .getAllByRole('link')
+        .getAllByRole('menuitem')
         .map((l) => [l.textContent, l.getAttribute('href')]),
     ).toEqual([
-      [n.publicPage, '/venues'],
       [n.profile, '/me/profile'],
+      [bg.common.signOut, null],
     ]);
-    expect(within(menu).getByRole('button', { name: bg.common.signOut })).toBeInTheDocument();
-    expect(within(menu).queryByTestId('user-menu-language-row')).not.toBeInTheDocument();
   });
 
-  it('a club account that also moderates gets Платформа in the menu and the drawer', () => {
-    renderClub('OWNER', { ...ACCOUNT, platformHref: '/platform' });
+  it('the language row writes the record first (`persistMyLocale`)', async () => {
+    renderClub('OWNER');
     fireEvent.click(screen.getByTestId('top-chrome-user-menu'));
-    const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
-    expect(within(menu).getByRole('link', { name: n.platform })).toHaveAttribute(
-      'href',
-      '/platform',
-    );
+    const row = screen.getByTestId('user-menu-language-row');
+    await act(async () => {
+      fireEvent.click(within(row).getByRole('radio', { name: 'English' }));
+    });
+    expect(persistMyLocale).toHaveBeenCalledWith('en');
+  });
+});
+
+describe('The sidebar’s foot (owner, 2026-10-08: upstream’s user block)', () => {
+  it('the name, the club and the role; the gear to the club admin; Изход', () => {
+    renderClub('OWNER');
+    const foot = within(rail()).getByTestId('sidebar-account');
+    const lines = within(foot).getByTestId('sidebar-identity').querySelectorAll('p');
+    expect(Array.from(lines, (l) => [l.textContent, l.className.includes('muted')])).toEqual([
+      ['Mira', false],
+      ['Sofia Padel', true],
+      [bg.admin.staff.role.OWNER, true],
+    ]);
+    const gear = within(foot).getByRole('link', { name: n.admin });
+    expect(gear).toHaveAttribute('href', `/t/${SLUG}/admin`);
+    expect(gear).toHaveAttribute('id', 'admin-icon-link-desktop');
+    expect(gear).toHaveClass('icon-btn', 'icon-btn-sm');
+    const out = within(foot).getByRole('button', { name: bg.common.signOut });
+    expect(out).toHaveClass('icon-btn', 'icon-btn-sm');
+    fireEvent.click(out);
+    expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
+  });
+
+  it('no gear where the account has no admin to open', () => {
+    renderClub('OWNER', { ...ACCOUNT, admin: null });
+    const foot = within(rail()).getByTestId('sidebar-account');
+    expect(within(foot).queryByTestId('nav-admin-icon')).not.toBeInTheDocument();
+    expect(within(foot).getByRole('button', { name: bg.common.signOut })).toBeInTheDocument();
+  });
+
+  it('collapsed: the identity goes, and the two icons stack centred', () => {
+    renderClub('OWNER');
+    fireEvent.click(within(rail()).getByTestId('sidebar-collapse-toggle'));
+    const foot = within(rail()).getByTestId('sidebar-account');
+    expect(within(foot).queryByTestId('sidebar-identity')).not.toBeInTheDocument();
+    const icons = within(foot).getByTestId('nav-logout').parentElement!;
+    expect(icons).toHaveClass('flex-col', 'items-center');
+    expect(within(icons).getByTestId('nav-admin-icon')).toBeInTheDocument();
   });
 });
 
@@ -300,10 +373,10 @@ describe('The platform shell (moderator, #345, #347)', () => {
               sections={sections}
               homeHref="/platform"
               contextName={bg.platform.name}
-              user={{ name: 'Mod', email: 'mod@playerz.bg' }}
+              user={{ userId: 'u-mod', name: 'Mod', email: 'mod@playerz.bg' }}
               account={{
-                profileHref: '/me/profile',
-                platformHref: null,
+                identity: { name: 'Mod', context: bg.admin.staff.role.PLAYER, role: n.platform },
+                admin: { href: '/platform', label: n.platform },
                 publicSite: { href: '/venues', label: n.toSite },
               }}
             >
@@ -323,18 +396,33 @@ describe('The platform shell (moderator, #345, #347)', () => {
     expect(screen.getByTestId('shell-context-name')).toHaveAttribute('href', '/platform');
   });
 
-  it('its menu: Към сайта, Профил, Изход', () => {
+  it('its menu is every shell’s: Тема, Език, Профил, Изход', () => {
     pathname = '/platform/moderation';
     renderPlatform();
     fireEvent.click(screen.getByTestId('top-chrome-user-menu'));
     const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
+    expect(within(menu).getByTestId('user-menu-theme-row')).toBeInTheDocument();
+    expect(within(menu).getByTestId('user-menu-language-row')).toBeInTheDocument();
     expect(
       within(menu)
-        .getAllByRole('link')
+        .getAllByRole('menuitem')
         .map((l) => [l.textContent, l.getAttribute('href')]),
     ).toEqual([
-      [n.toSite, '/venues'],
       [n.profile, '/me/profile'],
+      [bg.common.signOut, null],
     ]);
+  });
+
+  it('its foot: the grant on the third line, the gear to the platform', () => {
+    pathname = '/platform/moderation';
+    renderPlatform();
+    const foot = within(screen.getByRole('complementary')).getByTestId('sidebar-account');
+    expect(within(foot).getByTestId('sidebar-identity')).toHaveTextContent(
+      ['Mod', bg.admin.staff.role.PLAYER, n.platform].join(''),
+    );
+    expect(within(foot).getByRole('link', { name: n.platform })).toHaveAttribute(
+      'href',
+      '/platform',
+    );
   });
 });

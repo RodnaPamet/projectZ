@@ -36,6 +36,8 @@ import { installFakeFetch, ok } from '../unit/data/fake-v1';
  */
 const signOut = jest.fn();
 jest.mock('next-auth/react', () => ({ signOut: (...a: unknown[]) => signOut(...a) }));
+// The account menu's language row writes the user record first (#362).
+jest.mock('@/lib/i18n/persist-my-locale', () => ({ persistMyLocale: jest.fn() }));
 
 let pathname = '/venues';
 jest.mock('next/navigation', () => ({
@@ -176,8 +178,37 @@ function menuRows() {
   const menu = screen.getByRole('menu', { name: bg.nav.accountMenu });
   return {
     menu,
-    links: within(menu).queryAllByRole('link').map(row),
+    // The place rows: upstream's `menuitem`s that are links.
+    links: within(menu)
+      .queryAllByRole('menuitem')
+      .filter((m) => m.hasAttribute('href'))
+      .map(row),
   };
+}
+
+/**
+ * The rail's foot (owner, 2026-10-08): its identity lines, and its gear as
+ * [label, href], or `null` where the account has none.
+ */
+function railFoot() {
+  const foot = within(rail()).getByTestId('sidebar-account');
+  const gear = within(foot).queryByTestId('nav-admin-icon');
+  return {
+    lines: Array.from(within(foot).getByTestId('sidebar-identity').querySelectorAll('p'), (p) =>
+      p.textContent?.trim(),
+    ),
+    gear: gear ? [gear.getAttribute('aria-label'), gear.getAttribute('href')] : null,
+    signOut: within(foot).getByRole('button', { name: bg.common.signOut }),
+  };
+}
+
+/** Every shell's menu: the name, Тема, Език, then Профил and Изход (owner, 2026-10-08). */
+function expectTheMenu() {
+  const { menu, links } = menuRows();
+  expect(within(menu).getByTestId('user-menu-theme-row')).toHaveTextContent(bg.common.theme);
+  expect(within(menu).getByTestId('user-menu-language-row')).toHaveTextContent(bg.common.language);
+  expect(links).toEqual([[n.profile, '/me/profile']]);
+  expect(within(menu).getByRole('menuitem', { name: bg.common.signOut })).toBeInTheDocument();
 }
 
 const PLAYER_ITEMS = [
@@ -257,7 +288,7 @@ describe('PLAYER: the AppShell with the player’s sidebar', () => {
 
     expect(container.querySelector('[data-app-shell]')).not.toBeNull();
     expect(railLinks()).toEqual(PLAYER_ITEMS);
-    expect(within(rail()).queryByText(n.platform)).not.toBeInTheDocument();
+    expect(within(railNav()).queryByText(n.platform)).not.toBeInTheDocument();
     expect(container.querySelectorAll('a[href^="/t/"]')).toHaveLength(0);
     expect(within(railNav()).getByRole('link', { name: n.play })).toHaveAttribute(
       'data-testid',
@@ -271,12 +302,18 @@ describe('PLAYER: the AppShell with the player’s sidebar', () => {
     const banner = screen.getByRole('banner');
     expect(within(banner).getByTestId('shell-wordmark')).toHaveAttribute('href', '/venues');
     expect(within(banner).getByRole('button', { name: n.notifications })).toBeInTheDocument();
-    const { menu, links } = menuRows();
-    expect(links).toEqual([[n.profile, '/me/profile']]);
-    expect(within(menu).getByRole('button', { name: bg.common.signOut })).toBeInTheDocument();
-    expect(within(menu).getByTestId('user-menu-theme-row')).toBeInTheDocument();
-    // The menu is the desktop's: below md the Профил tab is the account's place.
-    expect(screen.getByTestId('top-chrome-user-menu').closest('.hidden')).toHaveClass('md:flex');
+    // At every width, as in every shell (owner, 2026-10-08).
+    expect(screen.getByTestId('top-chrome-user-menu').closest('.hidden')).toBeNull();
+    expectTheMenu();
+  });
+
+  it('the rail’s foot: the name and Играч; no gear without an admin to open; Изход', async () => {
+    await renderChrome();
+    const foot = railFoot();
+    expect(foot.lines).toEqual(['Ivo', bg.admin.staff.role.PLAYER]);
+    expect(foot.gear).toBeNull();
+    fireEvent.click(foot.signOut);
+    expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 
   it('none of the public chrome: no Вход, no footer, one <main> with the page in it', async () => {
@@ -296,10 +333,11 @@ describe('PLAYER: the AppShell with the player’s sidebar', () => {
     const drawer = screen.getByRole('dialog', { name: n.menu });
     const drawerNav = within(drawer).getByRole('navigation', { name: bg.common.ui.mainNav });
     expect(within(drawerNav).getAllByRole('link').map(row)).toEqual(PLAYER_ITEMS);
-    // The drawer's foot is Изход alone: Профил is already a row above it.
-    const account = within(drawer).getByTestId('drawer-account');
-    expect(within(account).queryAllByRole('link')).toHaveLength(0);
-    fireEvent.click(within(account).getByRole('button', { name: bg.common.signOut }));
+    // The drawer ends in the rail's foot; a player has no way out to list.
+    expect(within(drawer).queryByTestId('drawer-account')).not.toBeInTheDocument();
+    const foot = within(drawer).getByTestId('sidebar-account');
+    expect(within(foot).getByTestId('sidebar-identity')).toHaveTextContent('Ivo');
+    fireEvent.click(within(foot).getByRole('button', { name: bg.common.signOut }));
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 
@@ -326,6 +364,15 @@ describe('COACH: a player’s items in the same frame, until the coach module sh
     expect(barTabs()).toEqual(PLAYER_ITEMS);
     expect(screen.queryByTestId('shell-context-name')).not.toBeInTheDocument();
   });
+
+  it('its foot names a coach, with no gear; its menu is every shell’s', async () => {
+    signedInIdentity.mockResolvedValue(IVO);
+    resolveLanding.mockResolvedValue(COACH);
+    await renderChrome();
+    expect(railFoot().lines).toEqual(['Ivo', bg.admin.staff.role.COACH]);
+    expect(railFoot().gear).toBeNull();
+    expectTheMenu();
+  });
 });
 
 describe('a platform grant holder: "Платформа" lists the pages the grant opens (#345)', () => {
@@ -340,10 +387,19 @@ describe('a platform grant holder: "Платформа" lists the pages the gran
       [n.moderation, '/platform/moderation'],
       [n.security, '/platform/security'],
     ]);
-    expect(within(rail()).getByText(n.platform)).toBeInTheDocument();
+    expect(within(railNav()).getByText(n.platform)).toBeInTheDocument();
     expect(resolvePlatformAuthority).toHaveBeenCalledWith('u1');
     // The platform is the rail's, so the menu does not repeat it.
     expect(menuRows().links).toEqual([[n.profile, '/me/profile']]);
+  });
+
+  it('its foot: the grant on the third line, and the gear to /platform', async () => {
+    resolvePlatformAuthority.mockResolvedValue(MODERATOR);
+    await renderChrome();
+    expect(railFoot()).toMatchObject({
+      lines: ['Ivo', bg.admin.staff.role.PLAYER, n.platform],
+      gear: [n.platform, '/platform'],
+    });
   });
 
   it('every capability: all five platform pages', async () => {
@@ -364,7 +420,7 @@ describe('a platform grant holder: "Платформа" lists the pages the gran
     await renderChrome();
 
     expect(railLinks()).toEqual(PLAYER_ITEMS);
-    expect(within(rail()).queryByText(n.platform)).not.toBeInTheDocument();
+    expect(within(railNav()).queryByText(n.platform)).not.toBeInTheDocument();
   });
 
   it('the drawer holds the platform too', async () => {
@@ -431,18 +487,25 @@ describe('a CLUB account on a public page: its club admin’s frame, never a pla
     expect(resolveTenantPageContext).toHaveBeenCalledWith(SLUG);
   });
 
-  it('the admin’s top bar: its name back to the admin, its public page, its menu; no bell', async () => {
+  it('the admin’s top bar: its name back to the admin, its public page, the bell, the menu', async () => {
     await renderChrome();
 
     expect(screen.getByTestId('shell-context-name')).toHaveAttribute('href', `/t/${SLUG}/admin`);
     expect(screen.getByTestId('shell-context-name')).toHaveTextContent('Sofia Padel');
     expect(screen.getByTestId('shell-public-link')).toHaveAttribute('href', `/clubs/${SLUG}`);
-    expect(screen.queryByTestId('header-notifications')).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: n.notifications }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId('site-header-admin')).not.toBeInTheDocument();
-    expect(menuRows().links).toEqual([
-      [n.publicPage, `/clubs/${SLUG}`],
-      [n.profile, '/me/profile'],
-    ]);
+    expectTheMenu();
+  });
+
+  it('its foot: the name, the club, the role; the gear to the club admin', async () => {
+    await renderChrome();
+    expect(railFoot()).toMatchObject({
+      lines: ['Ivo', 'Sofia Padel', bg.admin.staff.role.OWNER],
+      gear: [n.admin, `/t/${SLUG}/admin`],
+    });
   });
 
   it('below md: the admin’s bar, Календар · Кортове · Играчи · Още', async () => {
@@ -496,14 +559,17 @@ describe('a CLUB account on a public page: its club admin’s frame, never a pla
     ]);
   });
 
-  it('a club account that also holds a grant: Платформа in its menu, as in its admin', async () => {
+  it('a club account that also holds a grant: the gear stays the club admin’s, Платформа is in the list', async () => {
     resolvePlatformAuthority.mockResolvedValue(MODERATOR);
     await renderChrome();
-    expect(menuRows().links).toEqual([
-      [n.publicPage, `/clubs/${SLUG}`],
-      [n.profile, '/me/profile'],
-      [n.platform, '/platform'],
+    expect(railLinks()).toEqual([
+      ...CLUB_ITEMS,
+      [n.moderation, '/platform/moderation'],
+      [n.security, '/platform/security'],
     ]);
+    expect(within(railNav()).getByText(n.platform)).toBeInTheDocument();
+    expect(railFoot().gear).toEqual([n.admin, `/t/${SLUG}/admin`]);
+    expect(menuRows().links).toEqual([[n.profile, '/me/profile']]);
   });
 
   it('its club not live: the club frame with no admin pages, still not a player’s', async () => {
@@ -515,6 +581,8 @@ describe('a CLUB account on a public page: its club admin’s frame, never a pla
     expect(screen.queryByTestId('shell-context-name')).not.toBeInTheDocument();
     expect(menuRows().links).toEqual([[n.profile, '/me/profile']]);
     expect(resolveTenantPageContext).not.toHaveBeenCalled();
+    // No club to name and no admin to open.
+    expect(railFoot()).toMatchObject({ lines: ['Ivo'], gear: null });
   });
 
   it('an undecided account that lands on a club’s admin wears that club’s frame', async () => {

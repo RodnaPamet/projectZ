@@ -14,12 +14,15 @@ import { BottomTabBar } from './BottomTabBar';
 import { ClubAdminShell } from './club-admin-shell';
 import {
   clubShell,
+  displayName,
+  platformSections,
+  playerAccount,
   playerChromeKind,
   playerShellNav,
-  PROFILE_HREF,
   PLATFORM_HREF,
   toShellSections,
   type ClubShellData,
+  type ShellAccount,
 } from './nav-items';
 import { PlayerShell } from './player-shell';
 import { SiteHeader } from './SiteHeader';
@@ -109,8 +112,9 @@ function chromeReadFailed(
  *                and below `md` the bottom tab bar (Играй · Вход)
  *   player,      `PlayerShell`: upstream's AppShell frame with the player's
  *   coach        sidebar (Играй · Резервации · Профил, the modules' items,
- *                and Платформа for a grant holder), the bell, the account
- *                menu, and below `md` the drawer and the tab bar
+ *                and Платформа for a grant holder) and its foot (the account,
+ *                the gear, Изход), the bell, the account menu, and below `md`
+ *                the drawer and the tab bar
  *   club         `ClubAdminShell` with its club's admin sidebar, exactly as on
  *                its admin pages (owner, 2026-10-07): one account, one kind,
  *                one sidebar
@@ -125,8 +129,9 @@ function chromeReadFailed(
  * vendored frame's), so a page renders none of its own.
  *
  * `footer` adds the public footer (#368, #369), whose language switch is the
- * one a signed-out visitor can reach. A signed-in account's language lives on
- * /me/profile, so no frame of theirs has a footer.
+ * one a signed-out visitor can reach. A signed-in account switches its
+ * language in the account menu (or on /me/profile), so no frame of theirs has
+ * a footer.
  */
 export async function PlayerChrome({
   children,
@@ -148,21 +153,27 @@ export async function PlayerChrome({
     );
   }
 
-  const [tNav, tCommon] = await Promise.all([
+  const [tNav, tCommon, tRole] = await Promise.all([
     getTranslations('common.nav'),
     getTranslations('common'),
+    getTranslations('admin.staff.role'),
   ]);
-  const user = { name: me.name, email: me.email };
+  const user = { userId: me.userId, name: me.name, email: me.email };
 
   if (kind === 'club') {
-    const club = await clubFrame(landing?.club?.tenantSlug ?? null, platform, tNav);
+    const club = await clubFrame(landing?.club?.tenantSlug ?? null, {
+      platform,
+      me: user,
+      t: tNav,
+      tRole,
+    });
     return (
       <ClubAdminShell
-        sections={club?.sections ?? []}
+        sections={club?.sections ?? toShellSections(platformSections(platform), tNav)}
         homeHref={club?.homeHref}
         contextName={club?.contextName ?? tCommon('appName')}
         user={user}
-        account={club?.account ?? { profileHref: PROFILE_HREF, platformHref, publicSite: null }}
+        account={club?.account ?? noClubAccount(user, platformHref, tNav)}
         bottomTabs
       >
         {children}
@@ -174,13 +185,35 @@ export async function PlayerChrome({
     <PlayerShell
       sections={toShellSections(playerShellNav(kind, { modules, platform }), tNav)}
       contextName={tCommon('appName')}
-      user={{ userId: me.userId, ...user }}
+      user={user}
+      account={playerAccount(user, kind, platform, { nav: tNav, role: tRole })}
       kind={kind}
       modules={modules}
     >
       {children}
     </PlayerShell>
   );
+}
+
+/**
+ * A CLUB account with no live club to draw (suspended, closed, the membership
+ * gone): its name alone at the sidebar's foot, and the gear only to the
+ * platform, for a holder of a live grant.
+ */
+function noClubAccount(
+  me: { name: string | null; email: string | null },
+  platformHref: string | null,
+  tNav: (key: string) => string,
+): ShellAccount {
+  return {
+    identity: {
+      name: displayName(me),
+      context: null,
+      role: platformHref ? tNav('platform') : null,
+    },
+    admin: platformHref ? { href: PLATFORM_HREF, label: tNav('platform') } : null,
+    publicSite: null,
+  };
 }
 
 /**
@@ -194,8 +227,7 @@ export async function PlayerChrome({
  */
 async function clubFrame(
   slug: string | null,
-  platform: Parameters<typeof clubShell>[1]['platform'],
-  t: (key: string) => string,
+  opts: Omit<Parameters<typeof clubShell>[1], 'nouns'>,
 ): Promise<ClubShellData | null> {
   if (!slug) return null;
   const result = await resolveTenantPageContext(slug).catch((err: unknown) => {
@@ -211,5 +243,5 @@ async function clubFrame(
     chromeReadFailed('resource-nouns', err);
     return 'court' as const;
   });
-  return clubShell(result.ctx, { platform, t, nouns });
+  return clubShell(result.ctx, { ...opts, nouns });
 }

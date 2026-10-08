@@ -11,6 +11,7 @@ import {
   type NavSection,
 } from '@/components/layout/nav-items';
 import { SidebarCollapseProvider } from '@/components/layout/sidebar-collapse-context';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { getPermissionsForRole } from '@/lib/permissions';
 
 import { foreignWordsIn } from '../helpers/foreign-vocabulary';
@@ -53,9 +54,15 @@ function renderNav(sections: NavSection[], locale: 'bg' | 'en' = 'bg') {
   const t = translator(locale === 'en' ? enMessages : bgMessages);
   return render(
     withIntl(
-      <SidebarCollapseProvider collapsed={false}>
-        <ShellSidebar sections={toShellSections(sections, t)} contextName="Sofia Padel" />
-      </SidebarCollapseProvider>,
+      <TooltipProvider>
+        <SidebarCollapseProvider collapsed={false}>
+          <ShellSidebar
+            sections={toShellSections(sections, t)}
+            contextName="Sofia Padel"
+            account={{ identity: { name: 'Mira', context: null, role: null }, admin: null }}
+          />
+        </SidebarCollapseProvider>
+      </TooltipProvider>,
       locale,
     ),
   );
