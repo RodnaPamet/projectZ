@@ -75,6 +75,57 @@ export const FACEBOOK_EMAIL_REQUIRED_REDIRECT = `/api/auth/signin?error=${FACEBO
  */
 export const FACEBOOK_REREQUEST = { auth_type: 'rerequest' } as const;
 
+// ─── Which of the two causes it was ──────────────────────────────────
+
+/**
+ * The refusal when the person DID allow `email` and Facebook still sent no
+ * address: Meta's "no valid email address is available".
+ *
+ * Seen on the first real sign-in (2026-10-08): the person's Facebook page for
+ * the app listed "Email address" as shared, and `/me` came back without it, on
+ * the first try and again on the re-request. Asking again cannot change that,
+ * so this refusal gets its own words and no "try again" — a retry would only
+ * end on the same page.
+ */
+export const FACEBOOK_EMAIL_UNAVAILABLE = 'FacebookEmailUnavailable';
+
+/** Through `/api/auth/signin` for the same reason as the other refusal. */
+export const FACEBOOK_EMAIL_UNAVAILABLE_REDIRECT = `/api/auth/signin?error=${FACEBOOK_EMAIL_UNAVAILABLE}`;
+
+/** https://developers.facebook.com/docs/graph-api/reference/user/permissions/ */
+export const FACEBOOK_PERMISSIONS_URL = `https://graph.facebook.com/${FACEBOOK_GRAPH_VERSION}/me/permissions`;
+
+/**
+ * What the person's grant to the app says about `email`.
+ *
+ * - `granted`: allowed, so a missing address is Facebook having none to give.
+ * - `declined`: unticked on the consent screen, or `expired`; asking again
+ *   (`FACEBOOK_REREQUEST`) can help.
+ * - `not-requested`: the grant has no `email` row at all.
+ * - `unknown`: there was no token, the lookup failed, or the answer was
+ *   unexpected. Treated like `declined`, which still offers a way forward.
+ */
+export type FacebookEmailPermission = 'granted' | 'declined' | 'not-requested' | 'unknown';
+
+/** Reads a Graph `/me/permissions` body: `{ data: [{ permission, status }] }`. */
+export function emailPermissionFrom(body: unknown): FacebookEmailPermission {
+  const rows = (body as { data?: unknown } | null)?.data;
+  if (!Array.isArray(rows)) return 'unknown';
+  const row = rows.find((r) => (r as { permission?: unknown } | null)?.permission === 'email') as
+    { status?: unknown } | undefined;
+  if (!row) return 'not-requested';
+  if (row.status === 'granted') return 'granted';
+  if (row.status === 'declined' || row.status === 'expired') return 'declined';
+  return 'unknown';
+}
+
+/** Where a Facebook sign-in that brought no address is sent. */
+export function facebookNoEmailRedirect(permission: FacebookEmailPermission): string {
+  return permission === 'granted'
+    ? FACEBOOK_EMAIL_UNAVAILABLE_REDIRECT
+    : FACEBOOK_EMAIL_REQUIRED_REDIRECT;
+}
+
 // ─── The picture ─────────────────────────────────────────────────────
 
 /**

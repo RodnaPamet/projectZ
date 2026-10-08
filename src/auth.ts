@@ -5,14 +5,15 @@ import GoogleProvider from 'next-auth/providers/google';
 
 import {
   FACEBOOK_AUTHORIZATION_URL,
-  FACEBOOK_EMAIL_REQUIRED_REDIRECT,
   FACEBOOK_SCOPE,
   FACEBOOK_TOKEN_URL,
   FACEBOOK_USERINFO_FIELDS,
   FACEBOOK_USERINFO_URL,
+  facebookNoEmailRedirect,
   facebookPictureFrom,
   facebookRefreshesAvatar,
 } from '@/lib/auth/facebook';
+import { readFacebookEmailPermission } from '@/lib/auth/facebook-permissions';
 import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-claims';
 import { passwordSignInEnabled } from '@/lib/auth/password-sign-in';
 import { createUserSession, newSessionSecret, SESSION_MAX_AGE_SECONDS } from '@/lib/auth/sessions';
@@ -236,22 +237,33 @@ export const authOptions: NextAuthOptions = {
 
       const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
       if (!email) {
-        logger.warn('oauth sign-in refused: the provider returned no email', {
-          component: 'auth',
-          provider: account.provider,
-        });
         // ═══ NO EMAIL, NO ACCOUNT ═══
         //
         // Accounts are found by email, so a sign-in without one has nothing to
         // sign into, and an account created without one could never be found
         // again: the next sign-in would make another. Nothing is written.
         //
-        // Facebook is the provider that does this in practice — it leaves the
-        // address out when the person unticked it on the consent screen, or
-        // when the account has none it will share. That person is told so on
-        // the sign-in page, with a button that asks Facebook again and the
-        // Google button beside it, rather than a generic "unavailable".
-        return account.provider === 'facebook' ? FACEBOOK_EMAIL_REQUIRED_REDIRECT : false;
+        // Facebook is the provider that does this in practice, for one of two
+        // reasons, and the person's grant tells them apart:
+        // - they unticked email on the consent screen: the sign-in page says
+        //   so, and its Facebook button asks again (auth_type=rerequest);
+        // - they allowed it and Facebook had no address to give: asking again
+        //   cannot help, so the page says that instead.
+        // Google stays beside both, rather than a generic "unavailable".
+        const emailPermission =
+          account.provider === 'facebook'
+            ? await readFacebookEmailPermission(account.access_token)
+            : undefined;
+        logger.warn('oauth sign-in refused: the provider returned no email', {
+          component: 'auth',
+          provider: account.provider,
+          ...(emailPermission ? { emailPermission } : {}),
+          // Which fields the provider's profile carried: names, never values.
+          profileFields: profile && typeof profile === 'object' ? Object.keys(profile).sort() : [],
+        });
+        return account.provider === 'facebook'
+          ? facebookNoEmailRedirect(emailPermission ?? 'unknown')
+          : false;
       }
 
       // ═══ AN UNVERIFIED EMAIL IS AN ACCOUNT TAKEOVER ═══
