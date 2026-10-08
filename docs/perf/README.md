@@ -27,7 +27,7 @@ Each run held the heavy lock (`lockf -k /tmp/playerz-heavy.lock`) and took its o
 `next build`. Main ran its own harness plus one fix from #362's: the landing's call to
 action found by its test id, because main's landing has two links to `/venues` and the
 old selector matched both. `docs/perf/budget.json` is reset from it under T29's rule. The
-First Load JS budget is unchanged: every route is under it (below).
+First Load JS budget is reset from #362's final build (below).
 
 **Measured under concurrent load.** Load average (1 min) per sample, min / median / max:
 main 1.18 / 2.59 / 6.67 and 0.94 / 1.67 / 2.67; branch 1.40 / 2.17 / 4.55 and
@@ -65,6 +65,20 @@ names). The player chrome, which the root 404 draws too, now refers to both sign
 frames (`player-shell`, `club-admin-shell`, in place of `header-actions`,
 `player-user-menu` and `footer-locale-switcher`), and a route's chunks carry every client
 reference it can render, so a visitor's page carries the shells too.
+
+**The First Load JS budget is reset** (`docs/perf/bundle-budget.json`, from `a552824`, Next
+16.3.8, under T29's rule: measured + 5%). The owner's second request for #362 (2026-10-08:
+the account menu with Тема and Език in every shell, the bell in every top bar, the
+sidebar's foot with the gear and sign-out, the club admin's home) added, against the
+branch just before it: 0.6 to 0.8 KB to the public and player routes, 0.7 to 2.4 KB to the
+club admin's pages, 2.3 to 3.6 KB to the platform's, and the club admin's home is a page
+of its own now (+4.8 KB over its redirect). `/me/profile`, 0.8 KB under its T29 budget on
+main (`f53e598`, 308.2 of 309.0), went 0.6 KB over (309.6), the one route that did. The
+rule has no per-route edit, so every route moves to its measured size + 5%. At the reset
+the largest are `/platform/fees` 350.7 KB (budget 368.3) and `/venues` 321.0 KB (337.1).
+One saving came with it: the platform layout reads the viewer's kind through
+`player-chrome-data.ts`, not `player-chrome.tsx`, which would have put both shells into
+every platform route (+4.4 to +6.1 KB before the split).
 
 ## #403's baseline: `c72cb8a` (the venue page's first paint), 6 October 2026
 
