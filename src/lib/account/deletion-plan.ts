@@ -217,7 +217,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'playerUserId',
     action: 'delete',
     reason:
-      'A club’s notes on the person (tags, the no-show count): there is no person left to act on. The bookings, their no-shows included, stay.',
+      'A club’s notes on the person (tags, the no-show count): there is no person left to act on. The bookings, their no-shows included, stay, and the no-shows that still count are carried first (NoShowCarry). Tags do not carry over.',
   },
   {
     model: 'PlayerVenueRelationship',
@@ -230,6 +230,27 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'noShowBlockClearedByUserId',
     action: 'anonymise',
     reason: 'Set to null where the account was the staff member who lifted a block.',
+  },
+  {
+    model: 'NoShowCarry',
+    field: 'deletedUserId',
+    action: 'keep',
+    reason:
+      'Owner decision (#370 review): a no-show standing is not escaped by deleting the account. Each no-show that still counts at a club is kept, one row each, naming the tombstone, until it stops counting (90 days from the booking’s start); the completion sweep drops it then. Nothing when nothing counts.',
+  },
+  {
+    model: 'NoShowCarry',
+    field: 'fingerprint',
+    action: 'keep',
+    reason:
+      'A keyed HMAC of the address (src/lib/account/no-show-fingerprint.ts), never the address: how the next account made with the same address takes the standing over. Kept and dropped with its row; rotating DATA_ENCRYPTION_KEY ends every carry-over.',
+  },
+  {
+    model: 'NoShowCarry',
+    field: 'inheritedByUserId',
+    action: 'delete',
+    reason:
+      'Rows the account took over from one deleted before it. Its own deletion carries them again, with its own no-shows, under its own tombstone, then deletes these, so nothing counts twice.',
   },
 
   // ── Bookings: the club's records ──────────────────────────────────────

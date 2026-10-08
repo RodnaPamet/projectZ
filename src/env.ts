@@ -240,6 +240,9 @@ export const env = createEnv({
         }
       }),
 
+    // Also the base of the no-show fingerprint (P53, src/lib/account/
+    // no-show-fingerprint.ts): rotating this key ends every carry-over of a
+    // deleted account's no-show standing to a new account.
     DATA_ENCRYPTION_KEY: z
       .string()
       .min(32, 'DATA_ENCRYPTION_KEY must be at least 32 characters')

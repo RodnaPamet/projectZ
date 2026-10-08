@@ -112,6 +112,8 @@ describe('upcoming bookings first', () => {
     expect(screen.getByTestId('profile-delete-button')).toBeDisabled();
     // No credit, no word about it.
     expect(screen.queryByTestId('profile-delete-credit')).toBeNull();
+    // What deleting does not undo: the no-shows (P53), said here too.
+    expect(screen.getByTestId('profile-delete-no-show-carry')).toHaveTextContent(t.noShowCarry);
   });
 
   it('credit at a club is said to be lost here too, before the bookings are dealt with', () => {
@@ -132,11 +134,15 @@ describe('a player who may delete', () => {
     const calls = installFakeFetch(() => ({ status: 204 }));
     wrap({ kind: 'allowed', credit: [] });
     expect(screen.getByTestId('profile-delete-allowed')).toHaveTextContent('Изтрит потребител');
+    // The no-show standing is not escaped by deleting (P53): disclosed before
+    // the button, and again in the dialog.
+    expect(screen.getByTestId('profile-delete-no-show-carry')).toHaveTextContent(t.noShowCarry);
 
     fireEvent.click(screen.getByTestId('profile-delete-button'));
     const input = await screen.findByTestId('delete-account-confirm-input');
     const confirm = screen.getByTestId('delete-account-confirm');
     expect(screen.getByTestId('delete-account-dialog')).toHaveTextContent(t.dialog.body);
+    expect(screen.getByTestId('delete-account-no-show-carry')).toHaveTextContent(t.noShowCarry);
     expect(confirm).toBeDisabled();
 
     fireEvent.change(input, { target: { value: 'изтри' } });

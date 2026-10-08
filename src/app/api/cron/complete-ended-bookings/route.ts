@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { completeEndedBookings } from '@/app-layer/usecases/booking-outcome';
+import { purgeLapsedNoShowCarries } from '@/app-layer/usecases/no-show-carry';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { logger } from '@/lib/observability/logger';
 
@@ -75,15 +76,21 @@ export async function POST(req: NextRequest) {
   // it against. Every row it writes is audited as SYSTEM instead.
   const result = await runAsSuperuser((db) => completeEndedBookings(db));
 
-  if (result.completed > 0 || result.truncated || result.feeLines > 0) {
+  // And the no-shows a deleted account's standing carried (P53, #370 review):
+  // each is dropped the moment it stops counting, so nothing of a deleted
+  // account is kept past its standing. One indexed DELETE; usually nothing.
+  const lapsedNoShowCarries = await runAsSuperuser((db) => purgeLapsedNoShowCarries(db));
+
+  if (result.completed > 0 || result.truncated || result.feeLines > 0 || lapsedNoShowCarries > 0) {
     logger.info('completed ended bookings', {
       component: 'cron',
       scanned: result.scanned,
       completed: result.completed,
       truncated: result.truncated,
       feeLines: result.feeLines,
+      lapsedNoShowCarries,
     });
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, lapsedNoShowCarries });
 }

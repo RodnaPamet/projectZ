@@ -3,6 +3,8 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import FacebookProvider from 'next-auth/providers/facebook';
 import GoogleProvider from 'next-auth/providers/google';
 
+import { inheritNoShowStanding } from '@/app-layer/usecases/no-show-carry';
+
 import {
   FACEBOOK_AUTHORIZATION_URL,
   FACEBOOK_SCOPE,
@@ -371,6 +373,23 @@ export const authOptions: NextAuthOptions = {
             });
           }
         }
+      }
+
+      // ═══ A DELETED ACCOUNT'S NO-SHOW STANDING WAITS FOR THIS ADDRESS ═══
+      //
+      // If an account with this address was deleted while it had no-shows
+      // that still counted at a club, this account takes them over (#370
+      // review, P53): the club's block holds as it would have. Idempotent and
+      // one indexed lookup, so it runs at every sign-in; a first sign-in after
+      // the deletion is the one that finds something. Contained: a failure here
+      // is logged, and the next sign-in tries again.
+      try {
+        await inheritNoShowStanding(row.id, email);
+      } catch (error) {
+        logger.warn('sign-in: a carried no-show standing was not taken over', {
+          component: 'auth',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
 
       // The rest of the chain reads this object: `token.sub`, the membership

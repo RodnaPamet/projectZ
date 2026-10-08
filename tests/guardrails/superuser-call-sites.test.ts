@@ -197,6 +197,10 @@ const ALLOWED: Record<string, string> = {
     'the personal-data export (#370): the person’s own bookings, places, memberships and ' +
     'reviews at every club, by their session-derived id, as listMyBookings reads them. ' +
     'Read-only, named columns only.',
+  'src/app-layer/usecases/no-show-carry.ts':
+    'a deleted account’s no-show standing taken over at sign-in (#370 review, P53): the carried ' +
+    'rows wait under no club binding, found by the keyed fingerprint of the address just ' +
+    'signed in with, and they land at every club the deleted account missed bookings at.',
   'src/app-layer/usecases/notification-outbox.ts':
     'the email outbox drain (#367): claims due rows across every user with FOR UPDATE SKIP ' +
     "LOCKED, re-reads each recipient's address and settings and the booking's status by the " +

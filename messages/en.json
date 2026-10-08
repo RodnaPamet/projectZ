@@ -1635,6 +1635,7 @@
       "title": "Delete account",
       "intro": "Deletion happens at once and can’t be undone. Your name, email, picture, sports, notifications and reviews are deleted. Bookings you have played stay with the clubs as “Deleted user”, because their statements are worked out from them.",
       "exportFirst": "If you want a copy of your data, download it first.",
+      "noShowCarry": "No-shows at a club, and any block on booking there online, do not go away with the account. They are kept for up to 90 days from each no-show, tied to a protected fingerprint of your email address, not to your name. If you make a new account with the same address, they move to it.",
       "credit": {
         "title": "You will lose your credit",
         "body": "Unused credit at a club is not returned once the account is deleted:",
