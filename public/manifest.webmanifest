@@ -4,8 +4,8 @@
   "description": "Book a court, find a game, track your form.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#0b0b12",
+  "theme_color": "#0b0b12",
   "orientation": "portrait-primary",
   "lang": "bg",
   "icons": [

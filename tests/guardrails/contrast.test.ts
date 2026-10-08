@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs';
 
-import { AA_NON_TEXT, AA_NORMAL, ratioOf } from '@/lib/design/contrast';
+import { AA_NON_TEXT, AA_NORMAL, composite, parseColor, ratioOf } from '@/lib/design/contrast';
 
 /**
  * WCAG CONTRAST, MEASURED — not asserted in a comment.
  *
  * `tokens.css` carries hand-written claims like:
  *
- *     --content-muted: #b9bcb2;  /* (AA, 9.0:1 on bg-default) *␘/
+ *     --content-muted: #b6b3c8;  /* (AA, 9.00:1 on bg-default) *␘/
  *
  * Those were true when somebody measured them. They are NOT re-measured when a
  * designer nudges a hex by two points, and nothing tells you the comment has
@@ -103,8 +103,12 @@ function tokensFor(
 interface Pairing {
   fg: string;
   bg: string;
-  /** For a translucent bg, what is behind it. */
-  backdrop?: string;
+  /**
+   * For a translucent bg, what is behind it. A list is a stack of layers,
+   * bottom first, each composited onto the one under it: the bell's count sits
+   * on the header's brand wash, which is itself translucent over the page.
+   */
+  backdrop?: string | string[];
   /** Text is AA_NORMAL. Icons, borders and focus rings are AA_NON_TEXT. */
   kind?: 'text' | 'non-text';
   why: string;
@@ -139,25 +143,35 @@ const PAIRINGS: Pairing[] = [
 
   // ── Brand-coloured text (#233) ────────────────────────────────────
   //
-  // Green WORDS have their own token, because no fixed brand shade is body text
-  // in both themes: brand-600 is 4.48:1 on the light page and 3.79:1 on the
-  // dark one. `--content-brand` changes shade with the theme instead (brand-700
-  // light, brand-500 dark). tests/guardrails/no-raw-brand-text.test.ts bans the
-  // fixed shades as text, so this token is the only way green text gets
-  // written, and it is measured here.
+  // Brand-coloured WORDS have their own token, because no brand fill is body
+  // text in both themes: --brand-default is 4.00:1 on the dark page, under AA
+  // (#362). `--content-brand` carries its own shade per theme instead
+  // (violet-400 dark, inflect's #b83d00 light).
+  // tests/guardrails/no-raw-brand-text.test.ts bans the fills as text, so this
+  // token is the only way brand-coloured text gets written, and it is measured
+  // here.
   {
     fg: '--content-brand',
     bg: '--bg-page',
     kind: 'text',
-    why: 'green words on the page: the homepage wordmark, the link on the 404',
-    measured: { light: 6.37, dark: 5.77 },
+    why: 'brand-coloured words on the page: the homepage wordmark, the link on the 404',
+    measured: { light: 5.07, dark: 7.21 },
   },
   {
     fg: '--content-brand',
     bg: '--bg-default',
     kind: 'text',
-    why: 'green words in a card',
-    measured: { light: 6.61, dark: 5.45 },
+    why: 'brand-coloured words in a card',
+    measured: { light: 5.25, dark: 6.77 },
+  },
+  {
+    fg: '--content-brand',
+    bg: '--brand-secondary-subtle',
+    backdrop: '--bg-default',
+    kind: 'text',
+    why: "the sidebar's ACTIVE label on its wash (NAV_ITEM_ACTIVE), over the sidebar",
+    // The wash is purple in dark on purpose (#362), and inflect's navy in light.
+    measured: { light: 4.51, dark: 5.56 },
   },
 
   // ── The inverted surface: text on the primary button ──────────────
@@ -196,30 +210,31 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-muted',
     kind: 'text',
     why: 'the SECONDARY button label on hover, on its darkest stop',
-    measured: { light: 6.1, dark: 5.02 },
+    measured: { light: 4.85, dark: 6.22 },
   },
 
   // ── The Still Surface primary tile (T18) ──────────────────────────
   //
   // The primary paints --brand-default → --brand-emphasis at rest and
   // --brand-muted → --brand-default on hover, under `text-content-inverted`.
-  // The label crosses every stop, so every stop is text and pinned. In light
-  // the old ramp measured 3.13 / 4.77 / 2.17:1 here: the top stop and the whole
-  // hover failed. T18 moved the light ramp one step darker (brand-700 / 800 /
-  // 600) and these are the new numbers. Dark is unchanged.
+  // The label crosses every stop, so every stop is text and pinned. In light,
+  // inflect's own ramp (#d04a02 / #b83d00 / #e06520) measures 4.28 / 5.39 /
+  // 3.30:1 here: the top stop and the whole hover fail. #362 takes it one step
+  // darker (#b83d00 / #9a3412 / #c2410c), as T18 did the ramp before it, and
+  // these are the numbers. Dark is a white label on purple.
   {
     fg: '--content-inverted',
     bg: '--brand-default',
     kind: 'text',
     why: 'the PRIMARY button label on its top stop, and on the bottom stop of its hover',
-    measured: { light: 6.78, dark: 8.41 },
+    measured: { light: 5.39, dark: 4.91 },
   },
   {
     fg: '--content-inverted',
     bg: '--brand-muted',
     kind: 'text',
     why: 'the PRIMARY button label on the top stop of its hover',
-    measured: { light: 4.77, dark: 11.0 },
+    measured: { light: 4.92, dark: 4.6 },
   },
 
   // ── The Still Surface destructive tile (T18) ──────────────────────
@@ -262,7 +277,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: 'the label on a disabled or disabledTooltip button, on the page',
-    measured: { light: 4.64, dark: 5.12 },
+    measured: { light: 4.64, dark: 5.51 },
   },
   {
     fg: '--content-subtle',
@@ -270,7 +285,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-default',
     kind: 'text',
     why: 'the label on a disabled or disabledTooltip button, in a card',
-    measured: { light: 4.81, dark: 4.75 },
+    measured: { light: 4.81, dark: 5.08 },
   },
 
   // ── Status colours, which carry MEANING and must be readable ──────
@@ -288,7 +303,7 @@ const PAIRINGS: Pairing[] = [
   // the edge of a checkbox is the only thing telling you a checkbox is there.
   //
   // It does NOT require it for purely decorative borders, which is why
-  // `--border-default` (a card divider, 1.39:1) is absent from this list and
+  // `--border-default` (a card divider, 1.24:1) is absent from this list and
   // `--border-strong` is in it. Demanding 3:1 of every hairline divider would
   // make the UI shout, and a ratchet that forces a bad design is a ratchet people
   // learn to silence.
@@ -309,65 +324,133 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the FOCUS RING. A keyboard user who cannot see where they are cannot use the app.',
-    measured: { light: 4.48, dark: 8.35 },
+    measured: { light: 4.03, dark: 12.81 },
   },
   {
     fg: '--focus-ring',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the focus ring on a control inside a card',
-    measured: { light: 4.65, dark: 7.88 },
+    measured: { light: 4.18, dark: 12.02 },
   },
   {
     fg: '--ring',
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the shadcn-named ring: the calendar day, the table selection toolbar',
-    measured: { light: 4.48, dark: 8.35 },
+    measured: { light: 4.03, dark: 12.81 },
   },
   {
     fg: '--ring',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the shadcn-named ring on a control inside a card',
-    measured: { light: 4.65, dark: 7.88 },
+    measured: { light: 4.18, dark: 12.02 },
   },
   //
   // The vendored Button does not use --focus-ring. Its halo is a two-stop
-  // shadow, a --bg-default spacer then --brand-default, so the outer stop is
-  // measured against both surfaces a button sits on. The secondary button's
-  // hover edge is the same token.
+  // shadow, a --bg-default spacer then --accent-default (inflect's seam,
+  // #362), so the outer stop is measured against every surface a button sits
+  // on: the page, a card, and a dropdown or popover. The table's focus rings
+  // read the same token, and the bottom tab bar's active bar is painted in it
+  // on the page.
+  {
+    fg: '--accent-default',
+    bg: '--bg-page',
+    kind: 'non-text',
+    why: "the BUTTON's focus halo, and the tab bar's active bar, on the page",
+    measured: { light: 4.03, dark: 12.81 },
+  },
+  {
+    fg: '--accent-default',
+    bg: '--bg-default',
+    kind: 'non-text',
+    why: "the BUTTON's focus halo in a card",
+    measured: { light: 4.18, dark: 12.02 },
+  },
+  {
+    fg: '--accent-default',
+    bg: '--bg-elevated',
+    kind: 'non-text',
+    why: "the BUTTON's focus halo in a dropdown or popover",
+    measured: { light: 4.39, dark: 10.66 },
+  },
+  {
+    fg: '--accent-emphasis',
+    bg: '--bg-elevated',
+    kind: 'non-text',
+    why: "the undo toast's focus ring, on its elevated surface",
+    measured: { light: 5.53, dark: 8.51 },
+  },
+  //
+  // The SECONDARY button's hover edge is --brand-default, the mirror of
+  // primary's. It was also the button's halo until #362 moved that to the
+  // accent; as an edge it identifies the control's boundary, so 1.4.11's 3:1
+  // still applies on both surfaces.
   {
     fg: '--brand-default',
     bg: '--bg-page',
     kind: 'non-text',
-    why: "the BUTTON's focus halo, and the secondary button's hover edge, on the page",
-    measured: { light: 6.37, dark: 8.35 },
+    why: "the secondary button's hover edge, on the page",
+    measured: { light: 5.07, dark: 4.0 },
   },
   {
     fg: '--brand-default',
     bg: '--bg-default',
     kind: 'non-text',
-    why: "the BUTTON's focus halo, and the secondary button's hover edge, in a card",
-    measured: { light: 6.61, dark: 7.88 },
+    why: "the secondary button's hover edge, in a card",
+    measured: { light: 5.25, dark: 3.75 },
   },
   //
-  // The PRIMARY button's hover edge is the complementary hue (T18 proposes
-  // orchid, replacing teal). An edge identifies the control's boundary, so
-  // 1.4.11's 3:1 applies on both surfaces.
+  // The PRIMARY button's hover edge is the complementary hue: yellow in dark,
+  // inflect's navy in light (#362). An edge identifies the control's boundary,
+  // so 1.4.11's 3:1 applies on both surfaces.
   {
     fg: '--brand-secondary-default',
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the PRIMARY button hover edge, the complementary hue, on the page',
-    measured: { light: 5.55, dark: 7.82 },
+    measured: { light: 9.26, dark: 12.81 },
   },
   {
     fg: '--brand-secondary-default',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the PRIMARY button hover edge in a card',
-    measured: { light: 5.76, dark: 7.37 },
+    measured: { light: 9.6, dark: 12.02 },
+  },
+
+  // ── The bell's count, in the accent (#362) ────────────────────────
+  //
+  // notification-bell.tsx paints the unread count as text-content-accent on
+  // bg-bg-accent (a status badge may not take a brand tone upstream). The bell
+  // sits at the right of the header, where nav-bar.tsx pools its radial
+  // --brand-subtle wash, so the tint is measured over that wash at full
+  // strength as well as over the bare page and a card. The light value is one
+  // step past --accent-emphasis because of the wash: #b83d00 is 4.04:1 there.
+  {
+    fg: '--content-accent',
+    bg: '--accent-subtle',
+    backdrop: '--bg-page',
+    kind: 'text',
+    why: "the bell's unread count, over the page",
+    measured: { light: 5.81, dark: 9.58 },
+  },
+  {
+    fg: '--content-accent',
+    bg: '--accent-subtle',
+    backdrop: '--bg-default',
+    kind: 'text',
+    why: "the bell's unread count, over a card",
+    measured: { light: 6.01, dark: 8.7 },
+  },
+  {
+    fg: '--content-accent',
+    bg: '--accent-subtle',
+    backdrop: ['--bg-page', '--brand-subtle'],
+    kind: 'text',
+    why: "the bell's unread count, over the header's brand wash",
+    measured: { light: 5.21, dark: 7.69 },
   },
 
   // ── The raised Card: text on translucent glass ────────────────────
@@ -381,7 +464,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: 'body text in the default raised card',
-    measured: { light: 10.02, dark: 15.11 },
+    measured: { light: 10.02, dark: 14.54 },
   },
   {
     fg: '--content-muted',
@@ -389,7 +472,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: 'captions in the default raised card',
-    measured: { light: 7.2, dark: 9.41 },
+    measured: { light: 7.2, dark: 9.1 },
   },
 
   // ── The label on the brand fill (#245) ────────────────────────────
@@ -404,8 +487,8 @@ const PAIRINGS: Pairing[] = [
     bg: '--brand-emphasis',
     kind: 'text',
     why: 'the label on a primary link, and the PRIMARY button label on its bottom stop',
-    // Light was 4.77 on brand-600 until T18 moved the ramp to brand-800.
-    measured: { light: 8.66, dark: 5.81 },
+    // Light is inflect's #b83d00 label stop moved one step to #9a3412 (#362).
+    measured: { light: 6.94, dark: 5.95 },
   },
 
   // ── The brand FILL, pinned at the bar a fill needs ────────────────
@@ -413,32 +496,52 @@ const PAIRINGS: Pairing[] = [
   // `--brand-emphasis` is what #233 tripped on. It fills the primary button, a
   // checked checkbox or switch, and the selected day, and then it was used as a
   // 16px header colour. As TEXT on the light page it measured 4.48:1, 0.02 short
-  // of AA, and this ratchet would have failed it as it should. (T18 later moved
-  // the light ramp, and it is 8.14:1 now; green text is still --content-brand.)
+  // of AA, and this ratchet would have failed it as it should. Since #362 it is
+  // 3.29:1 on the dark page, so as text it would fail outright; brand-coloured
+  // text is --content-brand.
   //
   // So it is pinned as what it is: a fill, whose job is to stand out against
   // the surface around it (WCAG 1.4.11, 3:1). Large text has the same 3:1 bar.
   // Pinning it as `text` would fail on a use the product does not make. Pinning
-  // it at the non-text bar with no number would bury the 4.48, and a buried
+  // it at the non-text bar with no number would bury the 3.29, and a buried
   // number is how "5.1:1 on white" survived. The number is pinned instead.
   {
     fg: '--brand-emphasis',
     bg: '--bg-page',
     kind: 'non-text',
     why: 'a primary-button fill or a checked control on the page — a FILL, not body text',
-    // Light was 4.48 (brand-600) until T18 moved the ramp to brand-800, which
-    // now clears body text as well. The pin stays at the fill bar: the token's
-    // job did not change.
-    measured: { light: 8.14, dark: 5.77 },
+    measured: { light: 6.53, dark: 3.29 },
   },
   {
     fg: '--brand-emphasis',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the same fill on a control inside a card',
-    measured: { light: 8.45, dark: 5.45 },
+    measured: { light: 6.77, dark: 3.09 },
   },
 ];
+
+/**
+ * A pairing's backdrop as one opaque colour. A list is composited bottom-up,
+ * each layer over the one under it; a missing token is a broken ratchet.
+ */
+function backdropOf(
+  layers: string | string[],
+  tokens: Map<string, string>,
+  theme: string,
+): string | undefined {
+  const names = Array.isArray(layers) ? layers : [layers];
+  if (names.length === 1) return tokens.get(names[0]!);
+
+  let flat = null as ReturnType<typeof parseColor>;
+  for (const name of names) {
+    const value = tokens.get(name);
+    const color = value ? parseColor(value) : null;
+    if (!color) throw new Error(`Backdrop layer ${name} (${value}) is not a colour in ${theme}.`);
+    flat = flat ? composite(color, flat) : color;
+  }
+  return `rgba(${flat!.r}, ${flat!.g}, ${flat!.b}, 1)`;
+}
 
 describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
   const { tokens, duplicates } = tokensFor(theme);
@@ -463,7 +566,9 @@ describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
     expect(tokens.get('--content-default')).toBeTruthy();
   });
 
-  it.each(PAIRINGS.map((p) => [`${p.fg} on ${p.bg}`, p] as const))(
+  const over = (p: Pairing) => (p.backdrop ? ` over ${[p.backdrop].flat().join(' + ')}` : '');
+
+  it.each(PAIRINGS.map((p) => [`${p.fg} on ${p.bg}${over(p)}`, p] as const))(
     '%s meets WCAG AA',
     (_label, pairing) => {
       // A literal (`#ffffff`, for a `text-white` label) is its own value.
@@ -475,7 +580,7 @@ describe.each(['dark', 'light'] as const)('%s theme contrast', (theme) => {
       if (!fg) throw new Error(`${pairing.fg} is not defined in the ${theme} theme.`);
       if (!bg) throw new Error(`${pairing.bg} is not defined in the ${theme} theme.`);
 
-      const backdrop = pairing.backdrop ? tokens.get(pairing.backdrop) : tokens.get('--bg-page');
+      const backdrop = backdropOf(pairing.backdrop ?? '--bg-page', tokens, theme);
 
       const ratio = ratioOf(fg, bg, { backdrop });
 
@@ -592,6 +697,17 @@ describe('the contrast calculation is correct', () => {
     const dark = tokensFor('dark', css);
     expect(dark.duplicates).toEqual([]);
     expect([...dark.tokens.keys()]).toEqual(['--focus-ring']);
+  });
+
+  it('flattens a layered backdrop bottom-up, and a missing layer is an error', () => {
+    // The bell's count sits on the header's translucent wash over the page.
+    const tokens = new Map([
+      ['--page', '#ffffff'],
+      ['--wash', 'rgba(0, 0, 0, 0.5)'],
+    ]);
+    expect(backdropOf(['--page', '--wash'], tokens, 'test')).toBe('rgba(127.5, 127.5, 127.5, 1)');
+    expect(backdropOf('--page', tokens, 'test')).toBe('#ffffff');
+    expect(() => backdropOf(['--page', '--missing'], tokens, 'test')).toThrow(/--missing/);
   });
 
   it('actually FAILS a pairing that is too low', () => {

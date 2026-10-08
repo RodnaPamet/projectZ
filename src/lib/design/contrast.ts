@@ -5,7 +5,7 @@
  *
  * `tokens.css` is full of hand-written claims:
  *
- *     --content-muted: #b9bcb2;  // (AA, 9.0:1 on bg-default)
+ *     --content-muted: #b6b3c8;  // (AA, 9.00:1 on bg-default)
  *
  * Those were true when somebody measured them. They are not re-measured when a
  * designer nudges a hex by two points, and nothing tells you the comment has
@@ -67,7 +67,7 @@ export function parseColor(input: string): Rgb | null {
 /**
  * Flatten a translucent colour onto its backdrop.
  *
- * A token like `rgba(52, 213, 127, 0.08)` has NO contrast ratio on its own — the
+ * A token like `rgba(167, 139, 250, 0.08)` has NO contrast ratio on its own — the
  * ratio depends entirely on what is behind it. Measuring it as if it were opaque
  * produces a number that is confidently wrong, which is worse than no number.
  */

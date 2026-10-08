@@ -201,13 +201,21 @@ export function NotificationBell() {
         icon={<Bell aria-hidden="true" />}
         right={
           unread > 0 ? (
+            // In the ACCENT, not the error tone (#362): a count is a
+            // highlight, not a failure. Yellow on dark, orange on light. The
+            // vendored badge has no brand tone and upstream forbids one
+            // (status-badge-no-brand), so the neutral solid badge is coloured
+            // here: `bg-bg-accent text-content-accent` replace its
+            // `bg-bg-subtle text-content-muted` through cn's tailwind-merge.
+            // contrast.test.ts measures the digits on the tint over the
+            // header's brand wash, where the bell sits.
             <StatusBadge
-              variant="error"
+              variant="neutral"
               tone="solid"
               size="sm"
               icon={null}
               aria-hidden="true"
-              className="pointer-events-none absolute -top-1 -right-1 min-w-4 justify-center px-1 tabular-nums"
+              className="bg-bg-accent text-content-accent pointer-events-none absolute -top-1 -right-1 min-w-4 justify-center px-1 tabular-nums"
               data-testid="notifications-count"
             >
               {badgeLabel(unread)}
