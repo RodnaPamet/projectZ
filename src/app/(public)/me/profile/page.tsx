@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import {
   AccountNotFoundForDeletionError,
@@ -14,6 +14,8 @@ import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import type { DeletionStandingView } from '@/components/profile/DeleteAccountSection';
 import { ViewerScope } from '@/lib/data/provider';
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
+import { legalHrefs } from '@/lib/legal/texts';
 
 import { ProfileView } from './ProfileView';
 
@@ -77,15 +79,18 @@ export default async function ProfilePage() {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/profile');
 
-  const [{ me, platformHref }, mine, notificationSettings, standing, tNav] = await Promise.all([
-    playerChrome(),
-    getMe(userId),
-    getMyNotificationSettings(userId),
-    // "Изтриване на профила" (#370): may this account delete itself, and if
-    // not, why. The API decides again when the button is pressed.
-    readStanding(userId),
-    getTranslations('common.nav'),
-  ]);
+  const [{ me, platformHref }, mine, notificationSettings, standing, tNav, locale] =
+    await Promise.all([
+      playerChrome(),
+      getMe(userId),
+      getMyNotificationSettings(userId),
+      // "Изтриване на профила" (#370): may this account delete itself, and if
+      // not, why. The API decides again when the button is pressed.
+      readStanding(userId),
+      getTranslations('common.nav'),
+      getLocale(),
+    ]);
+  const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
   if (!me || !mine || !notificationSettings || !standing) redirect('/login?next=/me/profile');
 
   // #359's sections read and write `GET`/`PATCH /api/v1/me`; this is their
@@ -104,6 +109,7 @@ export default async function ProfilePage() {
         showSports={mine.accountKind !== 'CLUB'}
         notificationSettings={notificationSettings}
         deletion={standingView(standing)}
+        legal={legal}
       />
     </ViewerScope>
   );

@@ -34,6 +34,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+# The legal texts (#370), read from disk at request time by src/lib/legal/texts.ts.
+# Without them every legal page is a 404 and every link to one is hidden.
+COPY --from=builder --chown=nextjs:nodejs /app/content ./content
 
 # ── Remove npm from the RUNTIME image ───────────────────────────────
 #

@@ -51,6 +51,10 @@ const ESM_PACKAGES = [
   // names errors/types.ts rather than the package. Reproduction: importing
   // toApiErrorResponse from a unit test.
   '@t3-oss/[^/]+',
+  // marked is ESM-only from v16 (#370: the legal pages lex their Markdown with
+  // it). Reproduction: tests/rendered/legal-pages.test.tsx, under jsdom, dies on
+  // marked.esm.js's `export` without this.
+  'marked',
   // tournament-organizer is ESM-only, and so is the pairing engine it pulls in.
   // A nested ESM dep that is not named here stays untransformed and the parser
   // dies on its first `import` — the failure names the PARENT file, which sends

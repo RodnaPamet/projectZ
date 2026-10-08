@@ -75,6 +75,8 @@ let modules: ChromeModules = { openPlay: false, messaging: false };
 jest.mock('@/lib/modules', () => ({ readModules: () => modules }));
 
 jest.mock('next-intl/server', () => ({
+  // The signed-out chrome reads the language for its legal links (#370).
+  getLocale: async () => 'bg',
   getTranslations: async (ns: string) => {
     // `as unknown as`: the catalogue is NESTED, so no flat record type
     // describes it. The namespace may be dotted (`common.nav`).
@@ -277,6 +279,8 @@ describe('signed out: the public site’s header and footer', () => {
     expect(screen.queryByTestId('header-notifications')).not.toBeInTheDocument();
     expect(resolveLanding).not.toHaveBeenCalled();
     expect(resolvePlatformAuthority).not.toHaveBeenCalled();
+    // A visitor's frame carries the essential-only notice (#370).
+    expect(screen.getByTestId('cookie-notice')).toHaveTextContent(bg.common.cookieNotice.text);
   });
 });
 
@@ -321,6 +325,8 @@ describe('PLAYER: the AppShell with the player’s sidebar', () => {
 
     expect(screen.queryByRole('link', { name: bg.login.title })).not.toBeInTheDocument();
     expect(screen.queryByTestId('site-footer')).not.toBeInTheDocument();
+    // The cookie notice is a visitor's; an account's shell has none (#370).
+    expect(screen.queryByTestId('cookie-notice')).not.toBeInTheDocument();
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.getByRole('main')).toContainElement(screen.getByTestId('the-page'));
   });

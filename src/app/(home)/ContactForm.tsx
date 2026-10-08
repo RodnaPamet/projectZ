@@ -48,7 +48,11 @@ async function submit(_previous: State, form: FormData): Promise<State> {
   }
 }
 
-export function ContactForm({ privacyHref }: { privacyHref: string }) {
+/**
+ * `privacyHref` is null until the owner's privacy text exists (#370): the line
+ * then says how the details are used, with no link to a page that is a 404.
+ */
+export function ContactForm({ privacyHref }: { privacyHref: string | null }) {
   const t = useTranslations('landing.clubs.form');
   const [state, action, pending] = useActionState<State, FormData>(submit, null);
   const [values, setValues] = useState<Record<ContactField, string>>({
@@ -125,14 +129,16 @@ export function ContactForm({ privacyHref }: { privacyHref: string }) {
         </label>
       </div>
 
-      <Caption>
-        {t.rich('privacy', {
-          link: (chunks) => (
-            <TextLink tone="link" href={privacyHref}>
-              {chunks}
-            </TextLink>
-          ),
-        })}
+      <Caption data-testid="contact-privacy">
+        {privacyHref
+          ? t.rich('privacy', {
+              link: (chunks) => (
+                <TextLink tone="link" href={privacyHref}>
+                  {chunks}
+                </TextLink>
+              ),
+            })
+          : t('privacyNoLink')}
       </Caption>
 
       <div>

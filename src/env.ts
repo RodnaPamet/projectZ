@@ -519,6 +519,15 @@ export const env = createEnv({
       })
       .optional(),
     MEDIA_LOCAL_DIR: z.string().optional(),
+
+    // ═══ THE LEGAL TEXTS (#370, docs/legal-pages.md) ═══
+    //
+    // Where /privacy, /terms and /cookies read their Markdown. Unset in every
+    // deployment: the texts are content/legal under the working directory,
+    // which the image carries. The tests point it at tests/fixtures/legal, the
+    // only reason it exists. Read at use (src/lib/legal/texts.ts), so a test
+    // can set it after the module loads.
+    LEGAL_CONTENT_DIR: z.string().optional(),
   },
 
   /**
@@ -642,6 +651,7 @@ export const env = createEnv({
     GCS_CREDENTIALS_BASE64: process.env.GCS_CREDENTIALS_BASE64,
     MEDIA_PUBLIC_BASE_URL: process.env.MEDIA_PUBLIC_BASE_URL,
     MEDIA_LOCAL_DIR: process.env.MEDIA_LOCAL_DIR,
+    LEGAL_CONTENT_DIR: process.env.LEGAL_CONTENT_DIR,
 
     NEXT_PUBLIC_NOTIFICATIONS_SSE: process.env.NEXT_PUBLIC_NOTIFICATIONS_SSE,
   },

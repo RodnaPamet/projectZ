@@ -1,13 +1,17 @@
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { Caption } from '@/components/ui/typography';
+import { DELETE_ACCOUNT_HELP_HREF } from '@/lib/account/links';
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
+import { legalHrefs } from '@/lib/legal/texts';
 
 import { LocaleSwitcher } from './LocaleSwitcher';
 
 /**
- * The public site's footer (#368, #369): the wordmark, two links, and the
- * language switch a visitor who is not signed in can reach.
+ * The public site's footer (#368, #369, #370): the wordmark, its links (the
+ * venues, the clubs' form, the legal texts that exist, how to delete an
+ * account), and the language switch a visitor who is not signed in can reach.
  *
  * Mounted by `PlayerChrome` on the public pages and the landing page, for a
  * signed-out visitor only. A signed-in account wears the AppShell instead
@@ -20,10 +24,23 @@ import { LocaleSwitcher } from './LocaleSwitcher';
  * full prefetch to the tab bar and the landing page's two links.
  */
 export async function SiteFooter() {
-  const [t, tCommon] = await Promise.all([
+  const [t, tCommon, locale] = await Promise.all([
     getTranslations('common.footer'),
     getTranslations('common'),
+    getLocale(),
   ]);
+  // The legal texts link from here once they exist in the page's language
+  // (#370); until then there is nothing to link to. How to delete an account
+  // is ours, and always there (#445).
+  const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
+  const links = [
+    { href: '/venues', label: t('venues') },
+    { href: '/#clubs', label: t('forClubs') },
+    ...(legal.privacy ? [{ href: legal.privacy, label: t('privacy') }] : []),
+    ...(legal.terms ? [{ href: legal.terms, label: t('terms') }] : []),
+    ...(legal.cookies ? [{ href: legal.cookies, label: t('cookies') }] : []),
+    { href: DELETE_ACCOUNT_HELP_HREF, label: t('deleteAccount') },
+  ];
   const linkClass =
     'text-content-muted hover:text-content-emphasis rounded-sm text-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none';
 
@@ -46,16 +63,13 @@ export async function SiteFooter() {
 
         <nav aria-label={t('linksLabel')}>
           <ul className="flex flex-wrap gap-x-6 gap-y-2">
-            <li>
-              <Link href="/venues" className={linkClass}>
-                {t('venues')}
-              </Link>
-            </li>
-            <li>
-              <Link href="/#clubs" className={linkClass}>
-                {t('forClubs')}
-              </Link>
-            </li>
+            {links.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className={linkClass}>
+                  {l.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </nav>
 

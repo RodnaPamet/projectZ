@@ -24,6 +24,7 @@ import { ChevronRight, ShieldCheck, UserArrowRight } from '@/components/ui/icons
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption, Heading } from '@/components/ui/typography';
+import { DELETE_ACCOUNT_HELP_HREF } from '@/lib/account/links';
 import { V1 } from '@/lib/data/keys';
 import { persistMyLocale, refreshSession } from '@/lib/i18n/persist-my-locale';
 
@@ -46,6 +47,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 const ROW = 'flex min-h-14 items-center justify-between gap-3 px-4 py-2';
 
+/** A row that is a link: the whole row is the target, as the platform row. */
+const LINK_ROW =
+  'text-content-default hover:bg-bg-muted flex min-h-14 items-center gap-3 px-4 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset';
+
 /**
  * The profile page's body (#362): identity, settings, privacy, the platform
  * for a grant holder, and sign-out.
@@ -67,6 +72,7 @@ export function ProfileView({
   showSports,
   notificationSettings,
   deletion,
+  legal,
 }: {
   name: string | null;
   email: string | null;
@@ -79,6 +85,8 @@ export function ProfileView({
   notificationSettings: NotificationSettingsDto;
   /** May the account delete itself, and if not, why (#370). */
   deletion: DeletionStandingView;
+  /** The legal texts that exist in this language (#370), null for the rest. */
+  legal: { privacy: string | null; terms: string | null; cookies: string | null };
 }) {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
@@ -153,6 +161,21 @@ export function ProfileView({
       <Section title={t('privacy')}>
         {/* #370: everything playerz holds about the account, as a file. */}
         <DataExportRow href={V1.exportMyData()} />
+        {/* The owner's texts, once they exist in this language; how to delete
+            an account, always (#445). */}
+        {[
+          { key: 'privacy', href: legal.privacy, label: t('legal.privacy') },
+          { key: 'terms', href: legal.terms, label: t('legal.terms') },
+          { key: 'cookies', href: legal.cookies, label: t('legal.cookies') },
+          { key: 'deleteAccount', href: DELETE_ACCOUNT_HELP_HREF, label: t('legal.deleteAccount') },
+        ].map(({ key, href, label }) =>
+          href ? (
+            <Link key={key} href={href} className={LINK_ROW} data-testid={`profile-legal-${key}`}>
+              <span className="flex-1">{label}</span>
+              <ChevronRight className="text-content-muted size-4" aria-hidden="true" />
+            </Link>
+          ) : null,
+        )}
       </Section>
 
       {platformHref ? (

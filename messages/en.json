@@ -125,10 +125,19 @@
       "venues": "Courts",
       "forClubs": "For clubs",
       "language": "Language",
-      "copyright": "© {year} playerz.bg. All rights reserved."
+      "copyright": "© {year} playerz.bg. All rights reserved.",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "cookies": "Cookies",
+      "deleteAccount": "Deleting your account"
     },
     "metaDescription": "Book a court and find a game in Sofia.",
-    "deletedUser": "Deleted user"
+    "deletedUser": "Deleted user",
+    "cookieNotice": {
+      "text": "playerz.bg uses only essential cookies: to keep you signed in, for security, and for the language and theme you chose. No tracking and no ads.",
+      "more": "More about cookies",
+      "dismiss": "Hide this message"
+    }
   },
   "nav": {
     "openNavigationMenu": "Open navigation menu",
@@ -418,7 +427,8 @@
           "rateLimited": "You have sent several enquiries in a row. Please try again in an hour.",
           "failed": "Your enquiry was not sent. Please try again.",
           "unavailable": "This page is out of date. Reload it and try again."
-        }
+        },
+        "privacyNoLink": "We will use your details only to reply to you."
       }
     },
     "closing": {
@@ -1632,7 +1642,7 @@
       "download": "Download my data"
     },
     "delete": {
-      "title": "Delete account",
+      "title": "Deleting your account",
       "intro": "Deletion happens at once and can’t be undone. Your name, email, picture, sports, notifications and reviews are deleted. Bookings you have played stay with the clubs as “Deleted user”, because their statements are worked out from them.",
       "exportFirst": "If you want a copy of your data, download it first.",
       "noShowCarry": "No-shows at a club, and any block on booking there online, do not go away with the account. They are kept for up to 90 days from each no-show, tied to a protected fingerprint of your email address, not to your name. If you make a new account with the same address, they move to it.",
@@ -1670,6 +1680,12 @@
         "RATE_LIMITED": "Too many attempts. Try again in a little while.",
         "FAILED": "Your account was not deleted. Try again."
       }
+    },
+    "legal": {
+      "privacy": "Privacy policy",
+      "terms": "Terms of use",
+      "cookies": "Cookie policy",
+      "deleteAccount": "How to delete your account"
     }
   },
   "bookingInvite": {
@@ -1720,7 +1736,8 @@
         "ALREADY_SET": "This account has already been chosen.",
         "NOT_ALLOWED": "This account cannot be that type. Please contact us.",
         "FAILED": "Your choice was not saved. Try again."
-      }
+      },
+      "consent": "By continuing, you accept the <terms>Terms of use</terms> and the <privacy>Privacy policy</privacy>."
     }
   },
   "emails": {
@@ -1842,6 +1859,68 @@
       "reversal": "Correction",
       "yes": "Yes",
       "no": "No"
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy policy"
+    },
+    "terms": {
+      "title": "Terms of use"
+    },
+    "cookies": {
+      "title": "Cookie policy"
+    }
+  },
+  "deleteAccountHelp": {
+    "metaTitle": "How to delete your account — playerz.bg",
+    "metaDescription": "How to delete a playerz.bg account, what is deleted, and what the clubs keep.",
+    "title": "Deleting your playerz.bg account",
+    "lead": "You can delete your account yourself, at any time, from your Profile page. Here is how, and what happens to your data.",
+    "where": {
+      "title": "Where the button is",
+      "step1": "Sign in to playerz.bg with the account you want to delete.",
+      "step2": "Open Profile: from the bar at the bottom of your phone, or from the menu on the left on a computer.",
+      "step3": "At the bottom of the page, under “Deleting your account”, press “Delete account”.",
+      "step4": "Type DELETE and confirm. Your account is deleted at once, and you are signed out on every device.",
+      "link": "Go to your profile"
+    },
+    "upcoming": {
+      "title": "First: your upcoming bookings",
+      "body": "You can delete your account once you have no upcoming bookings. That way a club never loses a booking without notice.",
+      "cancel": "Cancel a booking you made from its page under Bookings.",
+      "leave": "Leave a game you were added to with “Leave the game”.",
+      "wait": "Once a club’s cancellation deadline has passed, the booking can no longer be cancelled in the app. You can then delete your account after it has been played.",
+      "profile": "Your Profile page shows which bookings are left and until when you can cancel them."
+    },
+    "deleted": {
+      "title": "What is deleted",
+      "identity": "your name, email address, phone number and picture;",
+      "sports": "the sports and levels you set;",
+      "notifications": "your notifications and email settings;",
+      "reviews": "your reviews of venues (the venue’s rating is worked out again without them);",
+      "links": "the invite links you made;",
+      "clubs": "your club memberships and the notes clubs kept about you;",
+      "devices": "the devices and sessions you signed in with."
+    },
+    "kept": {
+      "title": "What stays, and why",
+      "bookings": "Your past and cancelled bookings stay with the clubs, without your name: their calendars and player lists show them as “Deleted user”. The clubs keep them because their statements and the platform fee are worked out from them. The same goes for your places on other players’ bookings.",
+      "logs": "Records of when a booking was made or cancelled stay in the clubs’ history, linked to the deleted account. They hold no email address, phone number or IP address of yours."
+    },
+    "club": {
+      "title": "Club accounts",
+      "body": "A club account can’t be deleted from the app. Write to us through the contact form and we will delete it.",
+      "link": "Go to the contact form"
+    },
+    "export": {
+      "title": "A copy of your data",
+      "body": "Before you delete your account, you can download everything playerz.bg holds about you: Profile → Privacy → “Download my data”. You get one file, in JSON format."
+    },
+    "after": {
+      "title": "After deletion",
+      "body": "Deletion can’t be undone. If you later sign in again with the same Google or Facebook account, you start with a new, empty account: the old one is not brought back.",
+      "facebook": "If you signed in with Facebook, you can also remove playerz.bg’s access in your Facebook settings. That does not delete your playerz.bg account, though: delete it here."
     }
   }
 }

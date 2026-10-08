@@ -186,6 +186,8 @@ jest.mock('@/app-layer/usecases/club-nouns', () => ({
 }));
 
 jest.mock('next-intl/server', () => ({
+  // The signed-out chrome reads the language for its legal links (#370).
+  getLocale: async () => 'bg',
   getTranslations: async (ns: string) => {
     const messages = (await import('../../messages/bg.json')).default as unknown;
     const scope = ns

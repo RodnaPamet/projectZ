@@ -11,6 +11,7 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { ChevronRight } from '@/components/ui/icons/nucleo';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption } from '@/components/ui/typography';
+import { CONTACT_FORM_HREF } from '@/lib/account/links';
 import { cn } from '@/lib/cn';
 
 import { CreditLossNotice, type ClubCreditView } from './CreditLossNotice';
@@ -42,9 +43,6 @@ export type DeletionStandingView =
   | { kind: 'allowed'; credit: ClubCreditView[] }
   | { kind: 'club' }
   | { kind: 'blocked'; total: number; bookings: UpcomingBookingView[]; credit: ClubCreditView[] };
-
-/** Where the landing page's contact form is: its "За клубове" section. */
-export const CONTACT_FORM_HREF = '/#clubs';
 
 /**
  * "Изтриване на профила" (#370), the last section of /me/profile.

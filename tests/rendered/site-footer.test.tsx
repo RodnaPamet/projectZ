@@ -24,6 +24,7 @@ let locale: 'bg' | 'en' = 'bg';
 jest.mock('next-intl/server', () => {
   const { createTranslator } = jest.requireActual('next-intl');
   return {
+    getLocale: async () => locale,
     getTranslations: async (namespace: string) =>
       createTranslator({
         locale,
@@ -59,6 +60,47 @@ async function renderFooter(l: 'bg' | 'en') {
   locale = l;
   return render(withIntl(await resolveServerTree(<SiteFooter />), l));
 }
+
+describe('the footer’s legal links (#370, #445)', () => {
+  const previous = process.env.LEGAL_CONTENT_DIR;
+  afterEach(() => {
+    if (previous === undefined) delete process.env.LEGAL_CONTENT_DIR;
+    else process.env.LEGAL_CONTENT_DIR = previous;
+  });
+
+  it('with no legal text, it links none of them, and always how to delete an account', async () => {
+    process.env.LEGAL_CONTENT_DIR = require('node:path').join(process.cwd(), 'tests/fixtures/none');
+    await renderFooter('bg');
+    const footer = screen.getByTestId('site-footer');
+    for (const name of [
+      bg.common.footer.privacy,
+      bg.common.footer.terms,
+      bg.common.footer.cookies,
+    ]) {
+      expect(within(footer).queryByRole('link', { name })).toBeNull();
+    }
+    expect(
+      within(footer).getByRole('link', { name: bg.common.footer.deleteAccount }),
+    ).toHaveAttribute('href', '/delete-account');
+  });
+
+  it('links each text that exists, and only those', async () => {
+    // The fixtures hold a privacy text in both languages, an empty terms file
+    // and no cookies file.
+    process.env.LEGAL_CONTENT_DIR = require('node:path').join(
+      process.cwd(),
+      'tests/fixtures/legal',
+    );
+    await renderFooter('en');
+    const footer = screen.getByTestId('site-footer');
+    expect(within(footer).getByRole('link', { name: en.common.footer.privacy })).toHaveAttribute(
+      'href',
+      '/privacy',
+    );
+    expect(within(footer).queryByRole('link', { name: en.common.footer.terms })).toBeNull();
+    expect(within(footer).queryByRole('link', { name: en.common.footer.cookies })).toBeNull();
+  });
+});
 
 describe.each([
   ['bg', bg],
