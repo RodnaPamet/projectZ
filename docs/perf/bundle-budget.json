@@ -1,7 +1,7 @@
 {
   "schema": "playerz-first-load-js/budget@1",
-  "source": "next build, Next 16.3.6, da4342f",
+  "source": "next build, Next 16.3.8, a552824",
   "unit": "gzip KB",
   "rule": "measured First Load JS + 5%, rounded up to 0.1 KB",
-  "routes": { "/": 309.6, "/clubs/[slug]": 307.9, "/design-system": 332.2, "/invite/[token]": 301.9, "/invite/booking/[token]": 309.3, "/login": 301.1, "/me/bookings": 315.6, "/me/bookings/[id]": 321.8, "/me/profile": 309.0, "/offline": 201.5, "/platform": 305.6, "/platform/contact-requests": 317.1, "/platform/moderation": 314.6, "/platform/fees": 364.7, "/platform/fees/[clubId]": 353.5, "/platform/security": 315.0, "/platform/usage": 354.0, "/start/kind": 227.3, "/t/[slug]": 203.6, "/t/[slug]/admin": 303.3, "/t/[slug]/admin/calendar": 311.3, "/t/[slug]/admin/courts": 310.3, "/t/[slug]/admin/photos": 317.4, "/t/[slug]/admin/players": 346.9, "/t/[slug]/admin/pricing": 327.4, "/t/[slug]/admin/reports": 357.9, "/t/[slug]/admin/staff": 351.9, "/venues": 328.0, "/venues/[slug]": 314.5 }
+  "routes": { "/": 315.3, "/clubs/[slug]": 316.5, "/design-system": 335.2, "/invite/[token]": 313.3, "/invite/booking/[token]": 317.7, "/login": 312.6, "/me/bookings": 327.8, "/me/bookings/[id]": 330.7, "/me/profile": 325.1, "/offline": 201.6, "/platform": 310.2, "/platform/contact-requests": 320.6, "/platform/fees": 368.3, "/platform/fees/[clubId]": 356.3, "/platform/moderation": 323.2, "/platform/security": 321.7, "/platform/usage": 356.7, "/start/kind": 227.8, "/t/[slug]": 203.7, "/t/[slug]/admin": 311.5, "/t/[slug]/admin/calendar": 324.4, "/t/[slug]/admin/courts": 315.4, "/t/[slug]/admin/photos": 318.5, "/t/[slug]/admin/players": 352.3, "/t/[slug]/admin/pricing": 333.5, "/t/[slug]/admin/reports": 361, "/t/[slug]/admin/staff": 356.4, "/venues": 337.1, "/venues/[slug]": 323.3 }
 }
