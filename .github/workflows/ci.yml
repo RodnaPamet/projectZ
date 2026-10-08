@@ -440,7 +440,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install Playwright browsers
         if: needs.preflight.outputs.has_e2e == 'true'
-        run: npx playwright install --with-deps chromium
+        # Bounded and retried: on 2026-10-07 a stalled install held every E2E job
+        # that started 18:37-19:51 UTC until its 40-50 minute job limit killed it.
+        # An attempt gets 8 minutes; a normal install takes about one.
+        timeout-minutes: 26
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 480 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::playwright install failed or stalled (attempt ${attempt}/3) — retrying"
+            sudo dpkg --configure -a >/dev/null 2>&1 || true
+            sleep $((attempt * 10))
+          done
+          exit 1
       - name: Apply migrations + seed
         if: needs.preflight.outputs.has_e2e == 'true'
         # Both run as the OWNER. `prisma migrate deploy` reads
