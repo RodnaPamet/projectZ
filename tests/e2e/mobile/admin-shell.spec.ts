@@ -30,8 +30,10 @@ test.describe('club admin shell — phone', () => {
     expect(box.width).toBeGreaterThanOrEqual(44);
     expect(box.height).toBeGreaterThanOrEqual(44);
     await expect(page.locator('aside[data-collapsed]')).toBeHidden();
-    // Identity, the account menu and its theme toggle are on the phone too.
-    await expect(page.getByTestId('shell-context-name')).toBeVisible();
+    // The account menu, and the theme in it, are on the phone too. The club's
+    // name is not in the bar below `sm`, as upstream's switcher is not: beside
+    // the bell and the menu it covered the wordmark (#362). It heads the drawer.
+    await expect(page.getByTestId('shell-context-name')).toBeHidden();
     await expect(page.getByTestId('top-chrome-user-menu')).toBeVisible();
   });
 

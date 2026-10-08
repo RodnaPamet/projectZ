@@ -31,6 +31,8 @@ import { installFakeFetch, ok } from '../unit/data/fake-v1';
  * `Breadcrumbs`), a screen-reader sentinel while no page has pushed one, and
  * the brand mark below `md` only. The sidebar's header keeps the app's (or
  * the club's, or the platform's) name, so the name is never on screen twice.
+ * Nothing covers the mark: below `sm` the club's (or the platform's) name
+ * leaves the bar, and the trail may shrink, to give way to the right slot.
  *
  * A page pushes its trail with the vendored `PageBreadcrumbs`, which also
  * draws it inline below `md`, as upstream's pages do. Each shell is rendered
@@ -179,6 +181,10 @@ describe('the player shell', () => {
     expect(trail).toHaveAttribute('aria-label', bg.common.ui.breadcrumb);
     // From md only: the slot is hidden below it.
     expect(trail.parentElement).toHaveClass('hidden', 'md:inline-flex');
+    // And it gives way to the right slot: the vendored rows wrap and truncate
+    // only if the wrapper and the nav may shrink.
+    expect(trail.parentElement).toHaveClass('min-w-0');
+    expect(trail).toHaveClass('min-w-0');
   });
 
   it('the wordmark is the phone’s, and the sidebar keeps the name: never twice from md', () => {
@@ -263,6 +269,15 @@ describe('the club admin shell', () => {
     expect(sidebarHeader()).toHaveTextContent('Sofia Padel');
   });
 
+  it('below sm the club’s name leaves the bar, so it never covers the wordmark', () => {
+    pathname = `/t/${SLUG}/admin/courts`;
+    clubShell(<PageBreadcrumbs items={clubAdminCrumbs(SLUG, t, 'courts')} />);
+    // Upstream's switcher is `hidden sm:inline-flex`; `sm:block` keeps truncate's ellipsis.
+    const name = within(screen.getByRole('banner')).getByTestId('shell-context-name');
+    expect(name).toHaveClass('hidden', 'sm:block', 'truncate');
+    expect(name).toHaveTextContent('Sofia Padel');
+  });
+
   it('at a karting club the courts crumb is the sidebar’s word, "Писти"', () => {
     pathname = `/t/${SLUG}/admin/courts`;
     clubShell(<PageBreadcrumbs items={clubAdminCrumbs(SLUG, t, 'courts', 'track')} />);
@@ -279,5 +294,9 @@ describe('the platform shell', () => {
       [n.moderation, null],
     ]);
     expect(sidebarHeader()).toHaveTextContent(bg.platform.name);
+    expect(within(screen.getByRole('banner')).getByTestId('shell-context-name')).toHaveClass(
+      'hidden',
+      'sm:block',
+    );
   });
 });

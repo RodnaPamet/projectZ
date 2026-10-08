@@ -33,6 +33,20 @@ import { UserMenu } from './user-menu';
  * or the platform), so the bar shows the wordmark below `md` only, and never
  * says it twice.
  *
+ * ═══ NOTHING UNDER THE RIGHT SLOT ═══
+ *
+ * Upstream's right slot never shrinks (`NAV_BAR_SLOT_RIGHT`); the left one
+ * gives way, and what does not fit in it runs on underneath. So the club's
+ * name covered the wordmark on a phone, by 25 px at 393 px with a sixteen-
+ * letter name, and at 768 px a long name left the trail running 69 px under
+ * the public link. Below `sm`, where the bell and the menu are 44 px targets,
+ * the club's (or the platform's) name leaves the bar, as upstream's switcher
+ * does (its `hidden sm:inline-flex`; `sm:block` here, so `truncate` keeps its
+ * ellipsis), and heads the drawer instead; until `lg` it is capped at 10rem.
+ * And the trail and its `nav` are `min-w-0`, so the vendored `Breadcrumbs`
+ * wraps and then truncates its crumbs, as its own `min-w-0` rows mean it to,
+ * rather than overflowing.
+ *
  * ═══ NO SWITCHER (#263) ═══
  *
  * A CLUB account holds exactly one club, so the name on the right is not a
@@ -110,7 +124,7 @@ export function ShellTopBar({
           {context ? (
             <Link
               href={context.href}
-              className="text-content-muted hover:text-content-default max-w-[8rem] truncate text-sm underline-offset-4 hover:underline sm:max-w-[16rem]"
+              className="text-content-muted hover:text-content-default hidden max-w-[10rem] truncate text-sm underline-offset-4 hover:underline sm:block lg:max-w-[16rem]"
               data-testid="shell-context-name"
             >
               {context.name}
@@ -137,15 +151,17 @@ export function ShellTopBar({
  *
  * Its own component, and the bar's only reader of the trail: a page pushes
  * after it mounts, and only this re-renders then, not the bell or the account
- * menu beside it.
+ * menu beside it. `min-w-0` on the wrapper and the `nav` is the one departure
+ * from upstream's markup: it lets the trail give way to the right slot (see
+ * NOTHING UNDER THE RIGHT SLOT above).
  */
 function TopBarTrail() {
   const tNav = useTranslations('nav');
   const breadcrumbs = useCurrentBreadcrumbs();
   return (
-    <span className="hidden items-center md:inline-flex">
+    <span className="hidden min-w-0 items-center md:inline-flex">
       {breadcrumbs.length > 0 ? (
-        <Breadcrumbs items={breadcrumbs} data-testid="top-chrome-breadcrumbs" />
+        <Breadcrumbs items={breadcrumbs} className="min-w-0" data-testid="top-chrome-breadcrumbs" />
       ) : (
         <span className="sr-only">{tNav('noBreadcrumbs')}</span>
       )}
