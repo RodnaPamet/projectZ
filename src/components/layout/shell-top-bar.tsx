@@ -66,7 +66,7 @@ import { UserMenu } from './user-menu';
  *
  * `NavBarBrand` paints initials on a pulsing brand-gradient tile. playerz's
  * header shows the name, in charcoal (`text-content-emphasis`, 15.56:1 light
- * and 17.06:1 dark), and the owner kept it so; `SiteHeader.tsx` explains why
+ * and 17.79:1 dark), and the owner kept it so; `SiteHeader.tsx` explains why
  * no brand shade can carry 16 px text in both themes.
  *
  * ═══ THE ACCOUNT MENU, THE SAME IN EVERY SHELL ═══
