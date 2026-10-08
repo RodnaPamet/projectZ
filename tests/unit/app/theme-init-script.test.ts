@@ -5,10 +5,10 @@ import { THEME_COOKIE, THEME_STORAGE_KEY } from '@/lib/theme-constants';
 /**
  * The root layout's pre-paint theme script, RUN (#370).
  *
- * It stores nothing the visitor did not choose: a first visit applies the
- * OS's scheme and writes no cookie and no storage. The one write left copies
- * a choice made earlier (found in localStorage) into the cookie, so the
- * server can render it.
+ * It writes nothing, as upstream's has since inflect #3270: a theme is stored
+ * only when the person picks one (the vendored ThemeProvider). A first visit
+ * applies the OS's scheme; a choice in the cookie, or only in localStorage, is
+ * applied; none of them is written.
  *
  * The script is a constant inside src/app/layout.tsx, which may export only
  * what Next allows a layout to, so this runs the source itself: the template
@@ -126,16 +126,16 @@ describe('a choice the visitor made', () => {
     expect(storageWrites).toEqual([]);
   });
 
-  it('in localStorage only: applied, and copied into the cookie so the server renders it', () => {
+  it('in localStorage only: applied before paint, and not copied into the cookie', () => {
     window.localStorage[THEME_STORAGE_KEY] = 'light';
     osPrefers('dark');
     expect(run()).toBe('light');
-    expect(cookieWrites).toEqual([`${THEME_COOKIE}=light; path=/; max-age=31536000; samesite=lax`]);
+    expect(cookieWrites).toEqual([]);
     expect(storageWrites).toEqual([]);
-    expect(document.cookie).toContain(`${THEME_COOKIE}=light`);
+    expect(document.cookie).not.toContain(THEME_COOKIE);
   });
 
-  it('something that is not a theme in localStorage is not a choice: nothing copied', () => {
+  it('something that is not a theme in localStorage is not a choice: the OS decides', () => {
     window.localStorage[THEME_STORAGE_KEY] = 'sepia';
     osPrefers('light');
     expect(run()).toBe('light');

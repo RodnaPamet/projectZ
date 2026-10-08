@@ -88,7 +88,7 @@ the cookie policy's text with the owner.
 | `next-auth.csrf-token`, `next-auth.callback-url`                                     | cookie       | opening sign-in                                                              | the sign-in's security                          |
 | `next-auth.pkce.code_verifier`, `next-auth.state`                                    | cookie       | during a Google or Facebook sign-in, for minutes                             | the sign-in's security                          |
 | `NEXT_LOCALE`                                                                        | cookie       | using the language switch, or signing in to an account with a saved language | the language the person chose                   |
-| `playerz_theme`                                                                      | cookie       | picking a theme, or copying an earlier pick from localStorage                | the theme the person chose, drawn by the server |
+| `playerz_theme`                                                                      | cookie       | picking a theme                                                              | the theme the person chose, drawn by the server |
 | `playerz:theme`                                                                      | localStorage | picking a theme                                                              | the same                                        |
 | `playerz:sidebar-collapsed`                                                          | localStorage | collapsing the sidebar                                                       | the layout the person chose                     |
 | `playerz:cookie-notice`                                                              | localStorage | hiding this notice                                                           | not showing it again                            |
@@ -100,10 +100,11 @@ are images: profile pictures from Google and Facebook on signed-in pages
 (#458 is to keep our own copy) and venue photos from Cloud Storage. They set no
 cookies, though they see the viewer's IP address.
 
-Until the vendored ThemeProvider is re-vendored at inflect #3270's merge, it
-still copies the device's light or dark setting into `playerz_theme` and
-`playerz:theme` on a first visit. The pre-paint script in `src/app/layout.tsx`
-already writes only a choice.
+A theme is written only when the person picks one: the vendored ThemeProvider
+(inflect #3270) writes in `setTheme` and `toggle`, never on a first visit or
+from the device's light or dark setting, and the pre-paint script in
+`src/app/layout.tsx` writes nothing at all. `tests/rendered/theme-storage-on-choice.test.tsx`
+and `tests/unit/app/theme-init-script.test.ts` record every write to prove it.
 
 ## Not here yet
 

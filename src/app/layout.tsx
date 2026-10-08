@@ -68,21 +68,23 @@ function jsToken(value: string): string {
 /**
  * The pre-paint theme script — the SECOND line of defence behind the cookie.
  *
- * A returning visitor's `<html>` already carries `data-theme` from the cookie
- * (below), so no script has to win a race against first paint. This only
- * matters on a FIRST visit, or on the one force-static page (/offline) where
- * there is no request and `cookies()` is empty: it resolves cookie →
- * localStorage → `prefers-color-scheme` → dark and sets `data-theme` before the
- * body paints.
+ * A visitor who picked a theme has it in the cookie, so their `<html>` already
+ * carries `data-theme` (below) and no script has to win a race against first
+ * paint. This matters for everybody else, and on the one force-static page
+ * (/offline) where there is no request and `cookies()` is empty: it resolves
+ * cookie → localStorage → `prefers-color-scheme` → dark and sets `data-theme`
+ * before the body paints.
  *
- * ═══ IT STORES NOTHING THE VISITOR DID NOT CHOOSE (#370) ═══
+ * ═══ IT WRITES NOTHING (#370, as upstream's has since its #3270) ═══
  *
- * A theme read from `prefers-color-scheme` is applied and never written:
- * reading the OS needs no storage, and a one-year cookie copied from it on
- * every first visit is not a preference anybody asked us to keep (the cookie
- * notice's audit, owner decision 2026-10-08). The one write left copies a
- * choice the visitor made earlier, found in localStorage, into the cookie, so
- * the server can render it. The toggle (ThemeProvider) writes on a choice.
+ * A theme is stored only when the person picks one, by the vendored
+ * ThemeProvider's `setTheme` / `toggle`. Reading `prefers-color-scheme` needs
+ * no storage, and a one-year cookie copied from it on every first visit is not
+ * a preference anybody asked us to keep (the cookie notice's audit, owner
+ * decision 2026-10-08). A choice found only in localStorage is applied here
+ * before paint, and not copied into the cookie either: the provider no longer
+ * copies it, and a write of playerz's own would be a divergence nobody sees.
+ * Such a visitor gets the `dark` server default, corrected before paint.
  *
  * Without it a light-preferring visitor saw the dark `:root` palette until
  * ThemeProvider's mount effect ran — a full dark→light flash, and a 150 ms
@@ -105,7 +107,7 @@ function jsToken(value: string): string {
  */
 const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement;var ck=${jsToken(THEME_COOKIE)};var lk=${jsToken(
   THEME_STORAGE_KEY,
-)};var c={dark:${jsToken(THEME_CHROME.dark)},light:${jsToken(THEME_CHROME.light)}};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}var keep=false;if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;keep=true;}}if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}d.setAttribute('data-theme',t);if(keep){var sec=location.protocol==='https:'?'; secure':'';document.cookie=ck+'='+t+'; path=/; max-age=31536000; samesite=lax'+sec;}var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
+)};var c={dark:${jsToken(THEME_CHROME.dark)},light:${jsToken(THEME_CHROME.light)}};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;}}if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}d.setAttribute('data-theme',t);var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
 
 /**
  * The defaults every page inherits. The description is in the request's
