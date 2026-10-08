@@ -19,7 +19,54 @@ npm run perf:budget -- .perf/after.json                     # the latency budget
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
 ```
 
-## The current baseline: `c72cb8a` (#403, the venue page's first paint), 6 October 2026
+## The current baseline: `8997b77` (#362, every signed-in account in the AppShell), 7 October 2026
+
+`docs/perf/baseline-8997b77.json` holds two runs of #362's branch at `8997b77`, merged,
+interleaved with two runs of main (`a0b0d4b`) in one session, 21:48–23:10 Sofia time.
+Each run held the heavy lock (`lockf -k /tmp/playerz-heavy.lock`) and took its own
+`next build`. Main ran its own harness plus one fix from #362's: the landing's call to
+action found by its test id, because main's landing has two links to `/venues` and the
+old selector matched both. `docs/perf/budget.json` is reset from it under T29's rule. The
+First Load JS budget is unchanged: every route is under it (below).
+
+**Measured under concurrent load.** Load average (1 min) per sample, min / median / max:
+main 1.18 / 2.59 / 6.67 and 0.94 / 1.67 / 2.67; branch 1.40 / 2.17 / 4.55 and
+0.96 / 1.65 / 2.65.
+
+`perf:compare` finds **0 rows faster, 2 slower** beyond noise, both the player's
+`load /`. Cold medians of 20:
+
+| Profile | main: `/`, the landing | #362: `/` → 307 → `/venues` | `/venues` typed (player-venue) |
+| ------- | ---------------------- | --------------------------- | ------------------------------ |
+| phone   | 500 ms                 | 646 ms                      | 488 ms                         |
+| desktop | 96 ms                  | 156 ms                      | 135 ms                         |
+
+- **Signed in, `/` is a 307 to `/venues`** (owner, 2026-10-07). The step now ends on a
+  heavier page, one round trip later: about 158 ms over typing `/venues` on the phone
+  profile's throttled network, about 21 ms on the desktop. Every link to Играй inside the
+  app (the shells' wordmark, the platform's "Към сайта", the in-shell 404) goes to
+  `/venues` directly, so only a typed or bookmarked `/` and the installed app's
+  `start_url` (`/`, `public/manifest.webmanifest`) pay it.
+- **The player journey's steps are new**, so `perf:compare` judges none of them: main's
+  loop went through the landing, which a signed-in account no longer sees. Against main's
+  steps to the same pages, medians: to `/me/bookings` phone 85 → 90 ms cold and
+  53 → 50 warm, desktop 335 → 340 cold and 22 → 25 warm; to `/venues` phone 95 → 69 cold
+  and 60 → 45 warm, desktop 34 → 26 cold and 24 → 27 warm.
+- **`desktop · load /venues` is over #403's budget on main too.** Public-venue 119 ms and
+  player-venue 135 ms against ceilings of 108 and 114; main measured 121 and 136 in the
+  same session. That is the machine's load on a full page load, not #362; the reset takes
+  today's medians.
+
+First Load JS, gzip KB, main `a0b0d4b` → `8997b77`: the public pages +3.7 to +4.2 (`/`
+298.6, `/venues` 319.3 of a 328.0 budget, `/clubs/[slug]`, `/login`, `/invite/*`) and
+`/design-system` +1.4; `/me/*` and `/venues/[slug]` +0.4 to +2.3; the admin and the
+platform within ±0.1, except `/t/[slug]/admin/staff` +0.5 (the vendored `Button` on the
+names). The player chrome, which the root 404 draws too, now refers to both signed-in
+frames (`player-shell`, `club-admin-shell`, in place of `header-actions`,
+`player-user-menu` and `footer-locale-switcher`), and a route's chunks carry every client
+reference it can render, so a visitor's page carries the shells too.
+
+## #403's baseline: `c72cb8a` (the venue page's first paint), 6 October 2026
 
 `docs/perf/baseline-c72cb8a.json` holds two runs of #403's branch, merged, interleaved with
 two runs of main (`5cee77b`) in one session, 15:04–16:23 Sofia time. Both sides ran the
