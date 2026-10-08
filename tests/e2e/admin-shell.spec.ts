@@ -121,7 +121,9 @@ test.describe('club admin shell — desktop', () => {
     const slug = isolatedTenant.tenantSlug;
     // The club admin's home offers staff its two pages, as the rail does.
     await page.goto(`/t/${slug}/admin`);
-    await expect(page.locator('main h1')).toHaveText(bg.admin.home.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.home.title, exact: true }),
+    ).toBeVisible();
     await expect(page.locator('main').getByRole('link')).toHaveText([
       bg.common.nav.calendar,
       bg.common.nav.players,
@@ -140,7 +142,9 @@ test.describe('club admin shell — desktop', () => {
     // "Към админа на клуба": the club admin's home.
     await page.getByRole('link', { name: bg.notFound.backToAdmin }).click();
     await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin$`));
-    await expect(page.locator('main h1')).toHaveText(bg.admin.home.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.home.title, exact: true }),
+    ).toBeVisible();
   });
 
   test('the foot’s gear opens the club admin’s home: the theme, and every page the role opens', async ({
@@ -156,7 +160,9 @@ test.describe('club admin shell — desktop', () => {
 
     // Not a 404 (audit C10), and not a redirect any more: a page of its own.
     await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin$`));
-    await expect(page.locator('main h1')).toHaveText(bg.admin.home.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.home.title, exact: true }),
+    ).toBeVisible();
     await expect(page.locator('#admin-theme-toggle')).toBeVisible();
     const pages = page.locator('main').getByRole('link');
     await expect(pages).toHaveText([
@@ -220,7 +226,9 @@ test.describe('club admin shell — desktop', () => {
     await expect(pricing).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/pricing$`));
-    await expect(page.locator('main h1')).toHaveText(bg.admin.pricing.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.pricing.title, exact: true }),
+    ).toBeVisible();
   });
 
   test('the account menu has the theme and the language, and signs out', async ({
@@ -255,7 +263,13 @@ test.describe('club admin shell — desktop', () => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto(`/t/${isolatedTenant.tenantSlug}/admin${path ? `/${path}` : ''}`);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await expect(page.locator('main h1')).toBeVisible();
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: path ? bg.admin.courts.title : bg.admin.home.title,
+          exact: true,
+        }),
+      ).toBeVisible();
 
       // The shell renders the only <main>; a page that adds its own fails
       // best-practice's landmark rules, which is why those tags are on.

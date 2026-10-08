@@ -280,7 +280,9 @@ test.describe('the frames — phone', () => {
     await expect(drawer.getByTestId('nav-admin-icon')).toHaveAttribute('href', '/platform');
     await page.locator(DRAWER_NAV).getByRole('link', { name: n.moderation }).tap();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
-    await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.platform.moderation.title, exact: true }),
+    ).toBeVisible();
   });
 
   test('moderator: Платформа on Профил leads there too', async ({
@@ -294,7 +296,9 @@ test.describe('the frames — phone', () => {
     // one under the 300 ms reveal throttle (#367).
     await page.getByTestId('profile-platform').filter({ visible: true }).tap();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
-    await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.platform.moderation.title, exact: true }),
+    ).toBeVisible();
   });
 
   test('club account on /venues: its admin’s bar and drawer, never a player’s', async ({

@@ -66,7 +66,9 @@ test.describe('club admin shell — phone', () => {
     await link.tap();
 
     await expect(page).toHaveURL(new RegExp(`/t/${isolatedTenant.tenantSlug}/admin/pricing$`));
-    await expect(page.locator('main h1')).toHaveText(bg.admin.pricing.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.pricing.title, exact: true }),
+    ).toBeVisible();
     await expect(page.locator(DRAWER)).toHaveCount(0);
   });
 
@@ -174,7 +176,9 @@ test.describe('club admin shell — phone', () => {
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       // The page itself, not its loading skeleton, which has no h1.
-      await expect(page.locator('main h1')).toHaveText(bg.admin.courts.title);
+      await expect(
+        page.getByRole('heading', { level: 1, name: bg.admin.courts.title, exact: true }),
+      ).toBeVisible();
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
         .analyze();
