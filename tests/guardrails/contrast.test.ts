@@ -381,7 +381,7 @@ const PAIRINGS: Pairing[] = [
     fg: '--accent-default',
     bg: '--bg-default',
     kind: 'non-text',
-    why: "the BUTTON's focus halo in a card",
+    why: "the BUTTON's focus halo, and a table's or a card row's focus ring, in a card",
     measured: { light: 4.18, dark: 12.02 },
   },
   {

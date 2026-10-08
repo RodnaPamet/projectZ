@@ -52,10 +52,10 @@
     {
       "path": "src/components/layout/nav-item.tsx",
       "inflectPath": "src/components/layout/nav-item.tsx",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "baseSha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
+      "sha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
       "status": "vendored",
-      "sha256": "028e38d2f78a03adc12f39c1a9fc175184dfeaf172d3d7f0981a675672dbec05"
+      "sha256": "753092e4cc64330f8950676f950d69d0a03361ed14ac47762d5fa93ce8c3118d"
     },
     {
       "path": "src/components/layout/nav-section.tsx",

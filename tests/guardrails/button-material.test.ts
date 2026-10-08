@@ -8,8 +8,9 @@ import { ratioOf } from '@/lib/design/contrast';
  * STILL SURFACE — the button material, locked (T18).
  *
  * Ported from inflect's `tests/guards/still-surface-button-material.test.ts`
- * (at 542ef7966), the guard that sits beside the two files playerz vendors
- * byte-identical: `button.tsx` and `button-variants.ts`. Those files can only
+ * (at 542ef7966; the literal-base check follows its #3101 rewrite), the guard
+ * that sits beside the two files playerz vendors byte-identical: `button.tsx`
+ * and `button-variants.ts`. Those files can only
  * change by a copy from inflect (ui-sync-manifest fails any local edit), so
  * this is less about a playerz contributor drifting the recipe than about a
  * future re-sync bringing a different material back without anyone deciding
@@ -188,11 +189,42 @@ describe('Still Surface — contrast floors', () => {
     expect(block).toMatch(/['"]bg-\[var\(--bg-muted\)\]['"]/);
   });
 
-  it('stillTile takes an explicit worst-case base colour', () => {
-    expect(src).toMatch(
-      /function stillTile\(\s*from: string,\s*to: string,\s*lift: string,\s*base: string,?\s*\)/,
-    );
-    expect(src).toMatch(/`bg-\[\$\{base\}\]`/);
+  // This asserted that `stillTile(from, to, lift, base)` took the base as a
+  // parameter and interpolated it. Inflect #3101 (#3084) wrote the tile
+  // classes out, because Tailwind never evaluates a function and so never
+  // emitted the interpolated ones, so it asserts the property instead, as
+  // inflect's own guard does: each tile writes its worst-case base literally,
+  // and the base is one of the stops its rest gradient paints.
+  it.each([
+    // variant, where its block ends, the base it must declare
+    ['primary', 'secondary: [', 'var(--brand-emphasis)'],
+    ['destructive', null, 'var(--btn-still-danger)'],
+  ] as const)('%s declares its worst-case base colour as a literal class', (key, next, base) => {
+    const from = src.indexOf(`${key}: [`);
+    expect(from).toBeGreaterThanOrEqual(0);
+    const block = src.slice(from, next ? src.indexOf(next) : src.indexOf('size:', from));
+    // A collapsed window would pass every check below for free.
+    expect(block.length).toBeGreaterThan(400);
+    expect({ key, base: block.includes(`'bg-[${base}]'`) }).toEqual({ key, base: true });
+    const rest = block.split('\n').find((l) => l.includes("'bg-[image:"));
+    expect({ key, stop: (rest ?? '').includes(base) }).toEqual({ key, stop: true });
+  });
+
+  it('primary and destructive keep their fill on press (inflect #3160)', () => {
+    // The owner reported the flat fill flip on click as the buttons being
+    // "animated" again, so upstream removed it: press feedback is the seat
+    // shadow and the reciprocal edge. A re-sync that brings a press fill back
+    // fails here, and the owner gets to decide.
+    for (const [key, next] of [
+      ['primary', 'secondary: ['],
+      ['destructive', 'size:'],
+    ] as const) {
+      const from = src.indexOf(`${key}: [`);
+      const block = src.slice(from, src.indexOf(next, from));
+      expect(block.length).toBeGreaterThan(400);
+      expect({ key, pressFill: /active:bg-/.test(block) }).toEqual({ key, pressFill: false });
+      expect(block).toMatch(/active:shadow-\[var\(--btn-still-press\)\]/);
+    }
   });
 
   it('every danger stop clears 4.5:1 under the white label, in both themes', () => {
@@ -284,12 +316,13 @@ describe('Still Surface — the single 28 px rung and the 44 px touch floor', ()
 
 describe('Still Surface — every class the recipe returns reaches the CSS', () => {
   // Tailwind generates a class only if its full text appears in a scanned
-  // file. stillTile() in the vendored button-variants.ts builds its classes
-  // from template literals, which Tailwind cannot see, and on the first T18
-  // build the destructive button had no fill. tailwind.config.ts spells the
-  // expanded strings out (STILL_TILE_CLASSES). This evaluates the real recipe
-  // and fails on any class that is literal in neither file.
-  const sources = read(VARIANTS) + read(HIT_AREA) + read('tailwind.config.ts');
+  // file. stillTile() in the vendored button-variants.ts used to build its
+  // classes from template literals, which Tailwind cannot see, and on the
+  // first T18 build the destructive button had no fill; playerz kept a
+  // safelist in tailwind.config.ts until inflect #3101 wrote the classes out.
+  // This evaluates the real recipe and fails on any class that is not
+  // literal in the vendored files themselves: there is no safelist to hide in.
+  const sources = read(VARIANTS) + read(HIT_AREA);
   // Tailwind splits source text on whitespace and quotes; a class counts as
   // written when it sits between two such delimiters.
   const DELIM = `[\\s'"\`]`;
@@ -318,11 +351,14 @@ describe('Still Surface — durable invariants', () => {
     expect(src).toMatch(/disabled:saturate-50/);
   });
 
-  it('keeps a visible focus indicator on --brand-default', () => {
-    // contrast.test.ts measures --brand-default on the page and in a card.
+  it('keeps a visible focus indicator on --accent-default', () => {
+    // Inflect's accent seam (#362): the halo points in the accent, which
+    // playerz sets to yellow (dark) and the signature orange (light).
+    // contrast.test.ts measures --accent-default on the page, in a card and
+    // in a dropdown.
     expect(src).toMatch(/focus-visible:outline-none/);
     expect(src).toMatch(
-      /focus-visible:shadow-\[0_0_0_2px_var\(--bg-default\),0_0_0_4px_var\(--brand-default\)\]/,
+      /focus-visible:shadow-\[0_0_0_2px_var\(--bg-default\),0_0_0_4px_var\(--accent-default\)\]/,
     );
   });
 

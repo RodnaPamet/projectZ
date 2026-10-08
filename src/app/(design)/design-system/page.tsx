@@ -128,12 +128,16 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'destructive';
 // The halo is the accent since #362 (upstream's --accent-default seam).
 const FOCUS = 'shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--accent-default)]!';
 
+// Primary and destructive keep their fill on press since upstream #3160 (the
+// flat flip read as animation), so their press column is what a pointer sees
+// while it holds the button down: the hover fill, under the press's seat
+// shadow and, on primary, the complementary edge.
 const FORCED: Record<Variant, { hover: string; press: string }> = {
   primary: {
     hover:
       'border-[var(--brand-secondary-default)] bg-[var(--brand-muted)] bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-muted),var(--brand-default))]',
     press:
-      'border-[var(--brand-secondary-default)] bg-[image:linear-gradient(to_bottom,var(--brand-emphasis),var(--brand-emphasis))] shadow-[var(--btn-still-press)]',
+      'border-[var(--brand-secondary-default)] bg-[var(--brand-muted)] bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-muted),var(--brand-default))] shadow-[var(--btn-still-press)]',
   },
   secondary: {
     hover: 'border-[var(--brand-default)] text-content-brand',
@@ -148,7 +152,7 @@ const FORCED: Record<Variant, { hover: string; press: string }> = {
     hover:
       'bg-[var(--btn-still-danger-lift)] bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger-lift),var(--btn-still-danger))]',
     press:
-      'bg-[image:linear-gradient(to_bottom,var(--btn-still-danger-deep),var(--btn-still-danger-deep))] shadow-[var(--btn-still-press)]',
+      'bg-[var(--btn-still-danger-lift)] bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger-lift),var(--btn-still-danger))] shadow-[var(--btn-still-press)]',
   },
 };
 

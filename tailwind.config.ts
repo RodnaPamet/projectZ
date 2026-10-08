@@ -1,47 +1,6 @@
 import type { Config } from 'tailwindcss';
 import plugin from 'tailwindcss/plugin';
 
-/**
- * THE STILL SURFACE TILE CLASSES, SPELLED OUT (T18).
- *
- * The vendored button-variants.ts builds the primary and destructive tiles
- * with a helper, `stillTile(from, to, lift, base)`, that writes its classes as
- * template literals: `bg-[${base}]`, `border-[${to}]`, and so on. Tailwind
- * finds classes by scanning source text, and it never runs that function, so
- * none of those classes existed in the built CSS. Measured on the first T18
- * build: the destructive button had no fill at all (white label on white in
- * the light theme), and primary's rest gradient, its rest edge and both
- * tiles' hover fills were missing; primary only looked right because
- * `bg-[var(--brand-emphasis)]` happens to be written literally elsewhere.
- *
- * The vendored file cannot change here (ui-sync-manifest), so the expanded
- * strings live in this playerz-owned file, which Tailwind's source detection
- * scans like any other. tests/guardrails/button-material.test.ts evaluates
- * buttonVariants and fails if any class it returns is not written literally
- * in one of the two files, so a re-sync that changes the recipe cannot
- * silently drop styles again. Upstream:
- * https://github.com/RodnaPamet/inflect-compliance/issues/3084. Delete this
- * list once inflect writes the strings literally.
- *
- * Exported only so the guard can read it; nothing imports it at runtime.
- */
-export const STILL_TILE_CLASSES = [
-  // primary: stillTile(--brand-default, --brand-emphasis, --brand-muted, --brand-emphasis)
-  'bg-[var(--brand-emphasis)]',
-  'bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-default),var(--brand-emphasis))]',
-  'border-[var(--brand-emphasis)]',
-  'hover:bg-[var(--brand-muted)]',
-  'hover:bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--brand-muted),var(--brand-default))]',
-  'active:bg-[image:linear-gradient(to_bottom,var(--brand-emphasis),var(--brand-emphasis))]',
-  // destructive: stillTile(--btn-still-danger, -deep, -lift, --btn-still-danger)
-  'bg-[var(--btn-still-danger)]',
-  'bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger),var(--btn-still-danger-deep))]',
-  'border-[var(--btn-still-danger-deep)]',
-  'hover:bg-[var(--btn-still-danger-lift)]',
-  'hover:bg-[image:linear-gradient(to_bottom,var(--btn-still-top),transparent_46%),linear-gradient(to_bottom,var(--btn-still-danger-lift),var(--btn-still-danger))]',
-  'active:bg-[image:linear-gradient(to_bottom,var(--btn-still-danger-deep),var(--btn-still-danger-deep))]',
-] as const;
-
 const config: Config = {
   content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
