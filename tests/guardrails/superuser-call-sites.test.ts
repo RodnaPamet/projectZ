@@ -186,6 +186,17 @@ const ALLOWED: Record<string, string> = {
     "row and, in the same transaction, the operator's outbox email by the id just created " +
     '(email_outbox rows with no user are invisible to app_user too). It reads nothing back. ' +
     'Reading the enquiries is NOT here: that is asPlatformAdmin under CONTACT_READ, audited.',
+  'src/app-layer/usecases/account-deletion.ts':
+    'deleting an account (#370): the person’s rows sit at every club they played at under ' +
+    'tenant-scoped RLS, and on owner-only tables keyed on app.user_id, so no binding means ' +
+    '"this person, everywhere". One transaction, every statement keyed on the one user id ' +
+    '(from a verified session, or the address an operator typed into scripts/delete-account.ts), ' +
+    'and it starts by locking that row. Not asPlatformAdmin: the person deletes their own ' +
+    'account, which exercises no platform capability.',
+  'src/app-layer/usecases/data-export.ts':
+    'the personal-data export (#370): the person’s own bookings, places, memberships and ' +
+    'reviews at every club, by their session-derived id, as listMyBookings reads them. ' +
+    'Read-only, named columns only.',
   'src/app-layer/usecases/notification-outbox.ts':
     'the email outbox drain (#367): claims due rows across every user with FOR UPDATE SKIP ' +
     "LOCKED, re-reads each recipient's address and settings and the booking's status by the " +

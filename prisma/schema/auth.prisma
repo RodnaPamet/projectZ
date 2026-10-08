@@ -179,6 +179,20 @@ model User {
   /// step strictly after this, so a code cannot be replayed inside its window.
   mfaLastUsedStep BigInt?
 
+  /// When the person deleted this account (#370), or null. A deleted account
+  /// is a TOMBSTONE: the row stays, because bookings, participations and the
+  /// club fee ledger still name its id, and platform grants (which are never
+  /// deleted) hang off it by a foreign key. Everything personal on it is gone:
+  /// `email` is `deleted-<id>@deleted.playerz.invalid`, so the next sign-in with
+  /// the same Google or Facebook address creates a NEW account and never finds
+  /// this one, and name, phone, picture, password, emailVerified and the second
+  /// factor are null. Two database rules hold it there (P52):
+  /// `app_user_deleted_is_scrubbed` (a CHECK) and `app_user_tombstone_final_trg`,
+  /// which refuses any later UPDATE, so a deleted account is never revived.
+  /// Every surface that shows a person shows a deleted one as "Изтрит
+  /// потребител". See src/app-layer/usecases/account-deletion.ts.
+  deletedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -177,6 +177,7 @@ describe('GET /api/v1/me/bookings/{id}, ?when=, and cancel (#359)', () => {
           isBooker: true,
           isYou: true,
           registered: true,
+          deleted: false,
         },
       ]);
       expect(JSON.stringify(d)).not.toMatch(/@playerz\.test/);

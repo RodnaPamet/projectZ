@@ -57,6 +57,7 @@ export default function DeskBookingDetails({
 }) {
   const t = useTranslations('admin.calendar.desk.detail');
   const ts = useTranslations('myBookings.status');
+  const tCommon = useTranslations('common');
   const format = useFormatter();
   const ids = useId();
   const key = KEYS.deskBooking(slug, bookingId);
@@ -144,7 +145,13 @@ export default function DeskBookingDetails({
             </dd>
 
             <dt className="text-content-muted">{t('player')}</dt>
-            <dd>{b.player ? (b.player.name ?? b.player.email) : t('noPlayer')}</dd>
+            <dd>
+              {b.player
+                ? b.player.deleted
+                  ? tCommon('deletedUser')
+                  : (b.player.name ?? b.player.email)
+                : t('noPlayer')}
+            </dd>
 
             <dt className="text-content-muted">{t('price')}</dt>
             <dd className="tabular-nums">

@@ -1,13 +1,18 @@
+import { getToken } from 'next-auth/jwt';
 import { type NextRequest } from 'next/server';
 
 import { updateMeBodySchema } from '@/app-layer/schemas/me';
+import { deleteMyAccount } from '@/app-layer/usecases/account-deletion';
 import { getMe } from '@/app-layer/usecases/me';
 import { updateMyProfile } from '@/app-layer/usecases/my-profile';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
-import { ok } from '@/app/api/v1/_lib/envelope';
+import { noContent, ok } from '@/app/api/v1/_lib/envelope';
+import { expireSessionCookies } from '@/lib/auth/session-cookies';
 import { UnauthorizedError, ValidationError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
+import { logger } from '@/lib/observability/logger';
+import { ACCOUNT_DELETE_LIMIT } from '@/lib/security/rate-limit';
 
 /**
  * GET /api/v1/me — who am I, and what kind of account is this?
@@ -86,5 +91,43 @@ async function patchHandler(req: NextRequest) {
   return ok(me);
 }
 
+/**
+ * DELETE /api/v1/me — delete my account, at once and for good (#370).
+ *
+ * The rules are the use case's, checked inside its transaction under a lock
+ * on the account, never taken from the client: 403
+ * `CLUB_ACCOUNT_DELETION_BY_REQUEST` for a club account (it asks through the
+ * contact form, owner decision 3), 409 `UPCOMING_BOOKINGS` while the person
+ * has a booking still to play, with the bookings in `details`. Nothing is
+ * changed by a refusal.
+ *
+ * 204 on success. Every session of the account is gone by then (its rows are
+ * deleted, so `checkSession` signs out every token on its next request), and
+ * this response also expires the session cookie it came with, so the browser
+ * that asked is signed out without waiting for that.
+ *
+ * Rate-limited per (IP, account) at ACCOUNT_DELETE_LIMIT: 5 an hour.
+ */
+async function deleteHandler(req: NextRequest) {
+  const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
+  if (!ctx.userId) throw new UnauthorizedError('Authentication required');
+
+  const summary = await deleteMyAccount(ctx.userId);
+  // Counts by table, no ids: the operator's trail of what one deletion did.
+  logger.info('account deleted by its holder', { component: 'account', rows: summary });
+
+  return expireSessionCookies(noContent(), req);
+}
+
 export const GET = defineV1Route(handler);
 export const PATCH = defineV1Route(patchHandler);
+export const DELETE = defineV1Route(deleteHandler, {
+  rateLimit: {
+    config: ACCOUNT_DELETE_LIMIT,
+    scope: 'account-delete',
+    // Keyed on the account as well as the IP, so people deleting at one club's
+    // wifi do not share a budget. Read from the token alone; the handler
+    // checks the session.
+    getUserId: async (req) => (await getToken({ req, secret: process.env.NEXTAUTH_SECRET }))?.sub,
+  },
+});

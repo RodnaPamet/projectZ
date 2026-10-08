@@ -490,3 +490,52 @@ is. Settle one with the owner connection: expire or suspend the memberships that
 should not stay, then set the kind. The database refuses a kind the remaining
 ACTIVE memberships do not fit (`account_kind_membership_trg`), so a mistake is
 an error rather than a mixed account.
+
+## Deleting an account on request (#370)
+
+A player or a coach deletes their own account on `/me/profile` ("Изтриване на
+профила"). This section is for everyone else: a person who asks by email
+because they can no longer sign in, and a club account, which cannot delete
+itself (owner decision 3) and asks through the landing page's contact form.
+
+**First, make sure it is them.** Deletion is immediate and cannot be undone.
+Answer the request at the address the account signs in with, and act only on
+a reply from that address, or on a request made in person to someone who knows
+them. A request from any other address is somebody else asking.
+
+Then, with the owner connection (`DIRECT_DATABASE_URL`), a dry run first:
+
+```bash
+npm run delete:account -- --email maria@example.bg --dry-run
+npm run delete:account -- --email maria@example.bg
+```
+
+The dry run runs the whole deletion and rolls it back, printing the rows it
+would change. The real run is the same code as the button on `/me/profile`
+(`deleteAccount` in `src/app-layer/usecases/account-deletion.ts`), in one
+transaction. What it does to each table, and why, is
+`src/lib/account/deletion-plan.ts`. In short:
+
+- every session of the account is signed out at once;
+- the person's data is deleted: profile, sports, devices, notifications, email,
+  reviews (the ratings are recomputed), invite links, memberships, the club's
+  notes on them;
+- their bookings stay in the clubs' records as "Изтрит потребител", because the
+  clubs' statements and the platform fee are computed from them;
+- the account row stays as a tombstone with no address. Signing in again with
+  the same Google or Facebook address creates a new, empty account.
+
+**It refuses**, and changes nothing, when:
+
+| Refusal                           | What to do                                                                                                                                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| upcoming bookings (it lists them) | Ask the person to cancel the ones they made and leave the ones they were added to. One past its club's cancellation cutoff is played first, or the club cancels it. Then run it again.                                   |
+| a club account                    | Retiring a club is #459 and is not built yet. Until it is: hide the club, cancel its upcoming bookings with notice from its own admin, and run the script for the holder once their account no longer holds a club role. |
+| no account has the address        | Nothing to do, or it was deleted already: a tombstone does not keep its address.                                                                                                                                         |
+
+**A landing-page enquiry** (`contact_request`) belongs to no account, so the
+script does not touch it. If the person asks for theirs to be erased too:
+
+```sql
+DELETE FROM contact_request WHERE lower(email) = 'maria@example.bg';
+```

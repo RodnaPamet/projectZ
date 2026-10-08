@@ -240,7 +240,8 @@ export async function drainEmailOutbox(
   const [users, bookings] = await runAsSuperuser(async (db) =>
     Promise.all([
       db.user.findMany({
-        where: { id: { in: userIds } },
+        // A deleted account (#370) has no address: its rows are skipped.
+        where: { id: { in: userIds }, deletedAt: null },
         select: {
           id: true,
           email: true,

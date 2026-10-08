@@ -85,7 +85,11 @@ export interface DeskBookingDto {
   currency: string;
   notes: string | null;
   customer: { name: string | null; phone: string | null };
-  player: { id: string; name: string | null; email: string } | null;
+  /**
+   * The linked account. `deleted` (#370): the player deleted it; `name` is
+   * null and `email` empty, and a client shows "Изтрит потребител".
+   */
+  player: { id: string; name: string | null; email: string; deleted: boolean } | null;
   resource: { id: string; name: string };
   venue: { id: string; name: string; timezone: string };
   series: {
@@ -124,7 +128,7 @@ export function toDeskBooking(b: {
     lastDate: Date;
     cancelledFrom: Date | null;
   } | null;
-  player: { id: string; name: string | null; email: string } | null;
+  player: { id: string; name: string | null; email: string; deletedAt?: Date | null } | null;
   seriesLeft: number;
 }): DeskBookingDto {
   const tz = b.resource.venue.timezone;
@@ -142,7 +146,11 @@ export function toDeskBooking(b: {
     currency: b.currency,
     notes: b.notes,
     customer: { name: b.guestName, phone: b.guestPhone },
-    player: b.player ? { id: b.player.id, name: b.player.name, email: b.player.email } : null,
+    player: b.player
+      ? b.player.deletedAt
+        ? { id: b.player.id, name: null, email: '', deleted: true }
+        : { id: b.player.id, name: b.player.name, email: b.player.email, deleted: false }
+      : null,
     resource: { id: b.resource.id, name: b.resource.name },
     venue: { id: b.resource.venue.id, name: b.resource.venue.name, timezone: tz },
     series: b.series

@@ -6,6 +6,7 @@ import { loadPilotClubs, type PilotClub } from '@/app-layer/usecases/pilot-clubs
 import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { ArrowRight } from '@/components/ui/icons/nucleo';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Eyebrow, Heading } from '@/components/ui/typography';
 import { logger } from '@/lib/observability/logger';
@@ -110,7 +111,14 @@ async function pilotClubs(): Promise<PilotClub[]> {
   }
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ account?: string | string[] }>;
+}) {
+  // Where a deleted account lands (#370): its sessions are gone and it is
+  // signed out, so it sees the landing page, with one line saying it worked.
+  const accountDeleted = (await searchParams).account === 'deleted';
   const [t, tSports, locale, clubs] = await Promise.all([
     getTranslations('landing'),
     getTranslations('sports'),
@@ -135,6 +143,14 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
+
+      {accountDeleted ? (
+        <div className="mx-auto w-full max-w-6xl px-6 pt-6">
+          <InlineNotice variant="success" data-testid="landing-account-deleted">
+            {t('accountDeleted')}
+          </InlineNotice>
+        </div>
+      ) : null}
 
       <section
         aria-labelledby="landing-hero"

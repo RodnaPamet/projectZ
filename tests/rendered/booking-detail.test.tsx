@@ -66,6 +66,7 @@ const detail = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => (
       isBooker: true,
       isYou: true,
       registered: true,
+      deleted: false,
     },
   ],
   capacity: 4,
@@ -187,6 +188,7 @@ describe('the detail page', () => {
             isBooker: true,
             isYou: true,
             registered: true,
+            deleted: false,
           },
           {
             participantId: 'bp1',
@@ -195,6 +197,7 @@ describe('the detail page', () => {
             isBooker: false,
             isYou: false,
             registered: true,
+            deleted: false,
           },
           {
             participantId: 'bp2',
@@ -203,6 +206,7 @@ describe('the detail page', () => {
             isBooker: false,
             isYou: false,
             registered: false,
+            deleted: false,
           },
         ],
       }),

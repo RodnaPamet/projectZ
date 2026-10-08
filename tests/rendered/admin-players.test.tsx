@@ -37,6 +37,7 @@ const IVAN: PlayerRow = {
   playerUserId: 'u1',
   name: 'Иван Петров',
   email: 'ivan@example.bg',
+  deleted: false,
   tags: ['вип'],
   noShowCount: 2,
   lastPlayedAt: null,
@@ -48,6 +49,7 @@ const MARIA: PlayerRow = {
   playerUserId: 'u2',
   name: null,
   email: 'maria@example.bg',
+  deleted: false,
   tags: [],
   noShowCount: 0,
   lastPlayedAt: null,
@@ -137,6 +139,18 @@ describe('PlayersBoard', () => {
     const { container } = board([]);
     expect(screen.getByText(p.empty.title)).toBeInTheDocument();
     expect(container.querySelector('[data-perf-ready]')).not.toBeNull();
+  });
+
+  it('a player who deleted their account stays, as "Изтрит потребител", with nothing to open (#370)', () => {
+    const GONE: PlayerRow = { ...MARIA, playerUserId: 'u3', name: null, email: '', deleted: true };
+    board([IVAN, GONE]);
+    const label = screen.getAllByTestId('player-deleted')[0]!;
+    expect(label).toHaveTextContent(bg.common.deletedUser);
+    // Only Ivan's name is a control; the deleted row has no button to open.
+    expect(
+      screen.getAllByRole('button', { name: IVAN.name!, hidden: true }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: bg.common.deletedUser, hidden: true })).toBeNull();
   });
 });
 

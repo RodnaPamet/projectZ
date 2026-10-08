@@ -75,6 +75,7 @@ export function BookingPlayers({
 }) {
   const t = useTranslations('myBookings.players');
   const td = useTranslations('myBookings.detail');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<BookingPlayerDto | null>(null);
@@ -116,7 +117,10 @@ export function BookingPlayers({
     }
   }
 
-  const name = (p: BookingPlayerDto) => (p.isYou ? td('you') : (p.name ?? td('unnamed')));
+  // A player who deleted their account (#370) keeps the place, under no name.
+  const label = (p: BookingPlayerDto) =>
+    p.deleted ? tCommon('deletedUser') : (p.name ?? td('unnamed'));
+  const name = (p: BookingPlayerDto) => (p.isYou ? td('you') : label(p));
 
   return (
     <section className="gap-tight flex flex-col" aria-labelledby="booking-players">
@@ -134,7 +138,7 @@ export function BookingPlayers({
               key={p.participantId ?? `booker-${i}`}
               className="flex min-h-14 items-center gap-3 px-4 py-2"
             >
-              <InitialsAvatar value={p.name ?? td('unnamed')} imageUrl={p.avatarUrl} />
+              <InitialsAvatar value={label(p)} imageUrl={p.avatarUrl} />
               <span className="text-content-default min-w-0 flex-1 truncate text-sm">
                 {name(p)}
               </span>

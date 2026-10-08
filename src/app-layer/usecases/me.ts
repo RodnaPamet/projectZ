@@ -61,7 +61,7 @@ export interface Me {
   };
 }
 
-/** Null when the account row is gone — the route answers that as signed out. */
+/** Null when the account row is gone or deleted — the route answers that as signed out. */
 export async function getMe(userId: string): Promise<Me | null> {
   return runAsSuperuser(async (db) => {
     const user = await db.user.findUnique({
@@ -73,12 +73,15 @@ export async function getMe(userId: string): Promise<Me | null> {
         avatarUrl: true,
         locale: true,
         accountKind: true,
+        deletedAt: true,
         // The person's own levels (#359), by the session-derived id like
         // everything else here; the enum's order, so the list is stable.
         sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
       },
     });
-    if (!user) return null;
+    // A deleted account (#370) is no account: its sessions are gone, so this is
+    // unreachable through a route, and "signed out" is the answer if it is not.
+    if (!user || user.deletedAt) return null;
 
     // A PLAYER is decided by its kind alone, as in `resolveLanding`: its
     // memberships are all PLAYER rows, which decide nothing, so it costs one

@@ -214,7 +214,7 @@ test.describe('the frames — phone', () => {
     );
     await expect(page.getByTestId('profile-language-row')).toBeVisible();
     await expect(page.getByTestId('profile-theme-row')).toBeVisible();
-    await expect(page.getByTestId('profile-privacy-row')).toBeVisible();
+    await expect(page.getByTestId('profile-export-row')).toBeVisible();
     // No grant, no platform.
     await expect(page.getByTestId('profile-platform')).toHaveCount(0);
 

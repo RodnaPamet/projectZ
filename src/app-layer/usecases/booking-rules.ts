@@ -223,6 +223,13 @@ export async function clearNoShowBlock(
   }
   const now = input.now ?? new Date();
 
+  // A deleted account (#370) books nothing again, so there is no block to lift.
+  const person = await db.user.findUnique({
+    where: { id: input.playerUserId },
+    select: { deletedAt: true },
+  });
+  if (person?.deletedAt) throw new NoShowBlockNotSetError();
+
   const standing = await noShowStanding(db, tenantId, input.playerUserId, now);
   if (!standing.blocked) throw new NoShowBlockNotSetError();
 
