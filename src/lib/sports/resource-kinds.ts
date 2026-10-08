@@ -30,8 +30,23 @@ export type ResourceNoun = 'court' | 'track';
 /** The noun of a LIST of resources: one noun, or both. Empty reads as courts. */
 export type ResourceNouns = ResourceNoun | 'mixed';
 
+/**
+ * What a venue's page title offers to book (#362): "резервирай корт",
+ * "писта", "игрище", or "час" (a time) when no one word is true of the
+ * venue. Wider than `ResourceNoun` on purpose: a search result for a football
+ * venue says "игрище", while the rest of the copy still reads its fields as
+ * "корт" (P51 kept the copy's nouns to two).
+ */
+export type BookingNoun = 'court' | 'track' | 'field' | 'time';
+
 interface ResourceKind {
   noun: ResourceNoun;
+  /**
+   * The title's word for a venue whose every resource is of this type. A type
+   * with no word of its own there (a table, a lobby, a climbing route) offers
+   * a time: "резервирай корт" would name the wrong thing in a search result.
+   */
+  booking: BookingNoun;
   /**
    * Only the sports the registry puts on this type may use it, and they may
    * use nothing else (`allowedResourceTypes` in resources.ts).
@@ -40,13 +55,13 @@ interface ResourceKind {
 }
 
 export const RESOURCE_KINDS: Record<ResourceType, ResourceKind> = {
-  COURT: { noun: 'court', exclusive: false },
-  FIELD: { noun: 'court', exclusive: false },
-  TABLE: { noun: 'court', exclusive: false },
-  BOARD_TABLE: { noun: 'court', exclusive: false },
-  LOBBY: { noun: 'court', exclusive: false },
-  ROUTE: { noun: 'court', exclusive: false },
-  TRACK: { noun: 'track', exclusive: true },
+  COURT: { noun: 'court', booking: 'court', exclusive: false },
+  FIELD: { noun: 'court', booking: 'field', exclusive: false },
+  TABLE: { noun: 'court', booking: 'time', exclusive: false },
+  BOARD_TABLE: { noun: 'court', booking: 'time', exclusive: false },
+  LOBBY: { noun: 'court', booking: 'time', exclusive: false },
+  ROUTE: { noun: 'court', booking: 'time', exclusive: false },
+  TRACK: { noun: 'track', booking: 'track', exclusive: true },
 };
 
 /** Every resource type, in schema order: the zod enums derive from this, never a copy. */
@@ -75,4 +90,21 @@ export function combineNouns(nouns: Iterable<ResourceNoun>): ResourceNouns {
 /** `combineNouns` over resource types, as a list of rows has them. */
 export function resourceNouns(types: Iterable<string | null | undefined>): ResourceNouns {
   return combineNouns(Array.from(types, resourceNoun));
+}
+
+/**
+ * What a venue offers to book, from its resources' types: their one booking
+ * word, a time when they have several (a padel court and a football pitch, or
+ * a court and a track), and a court when there are none, as an empty list
+ * reads everywhere else. A type this build does not know counts as a court, as
+ * `resourceNoun` reads it.
+ */
+export function bookingNoun(types: Iterable<string | null | undefined>): BookingNoun {
+  const seen = new Set(
+    Array.from(types, (t): BookingNoun =>
+      isResourceType(t) ? RESOURCE_KINDS[t].booking : 'court',
+    ),
+  );
+  if (seen.size > 1) return 'time';
+  return seen.values().next().value ?? 'court';
 }

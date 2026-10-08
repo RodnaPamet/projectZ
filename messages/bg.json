@@ -198,6 +198,15 @@
   },
   "venue": {
     "metaTitle": "{name} — резервирай корт | playerz.bg",
+    "track": {
+      "metaTitle": "{name} — резервирай писта | playerz.bg"
+    },
+    "field": {
+      "metaTitle": "{name} — резервирай игрище | playerz.bg"
+    },
+    "time": {
+      "metaTitle": "{name} — резервирай час | playerz.bg"
+    },
     "metaDescription": "{name}, {address}, {city}. Свободни часове и резервация онлайн с плащане на място.",
     "back": "Към обектите",
     "sportsLabel": "Спортове",

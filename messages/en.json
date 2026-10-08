@@ -198,6 +198,15 @@
   },
   "venue": {
     "metaTitle": "{name} — book a court | playerz.bg",
+    "track": {
+      "metaTitle": "{name} — book a track | playerz.bg"
+    },
+    "field": {
+      "metaTitle": "{name} — book a pitch | playerz.bg"
+    },
+    "time": {
+      "metaTitle": "{name} — book a time | playerz.bg"
+    },
     "metaDescription": "{name}, {address}, {city}. Free times and online booking, paid at the club.",
     "back": "Back to venues",
     "sportsLabel": "Sports",
