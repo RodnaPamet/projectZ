@@ -4,6 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { COURT_LIST_LIMIT, courtsWereTruncated } from '@/app-layer/repositories/court';
 import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { loadCourtsScreen } from '@/app-layer/usecases/courts';
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
@@ -108,8 +110,11 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
   // the tab title and the club nav name the screen (#362).
   const nouns = resourceNouns(rows.map((r) => r.resourceType));
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'courts', nouns)} />
       <header className="mb-section">
         <Heading level={1}>
           {t(nouns === 'track' ? 'track.title' : nouns === 'mixed' ? 'mixed.title' : 'title')}

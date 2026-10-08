@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { platformCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { Heading } from '@/components/ui/typography';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
@@ -28,9 +30,12 @@ export default async function PlatformUsagePage() {
 
   const t = await getTranslations('platform.usage');
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     // No <main>: the platform shell owns it (T19).
     <section>
+      <PageBreadcrumbs items={platformCrumbs(tNav, 'usage')} />
       <header className="mb-6">
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>

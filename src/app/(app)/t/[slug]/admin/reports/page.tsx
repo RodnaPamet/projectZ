@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { loadClubStatement } from '@/app-layer/usecases/club-fees';
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { StatementView } from '@/components/billing/StatementView';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
@@ -65,8 +67,11 @@ export default async function ReportsPage({
   const months = monthsBack(statement.clubSinceMonth, current);
   if (!months.includes(month)) months.push(month);
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'reports')} />
       <header className="mb-section">
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>

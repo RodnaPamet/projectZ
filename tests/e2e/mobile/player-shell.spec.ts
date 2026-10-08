@@ -247,8 +247,12 @@ test.describe('the frames — phone', () => {
     await page.goto('/venues');
     const bell = page.getByTestId('header-notifications');
     await expect(bell).toHaveAccessibleName(n.notifications);
-    // Polled: the vendored Popover picks its phone sheet after hydration and
-    // re-mounts the trigger, so for a moment there is no box to measure.
+    // The vendored Popover picks its phone sheet after hydration and re-mounts
+    // the trigger: wait for the sheet's trigger (its `sm:hidden`, where the
+    // dropdown's is `sm:inline-flex`) rather than for any box. A box alone was
+    // there before the switch too, at the 44 px touch floor, and a tap that
+    // landed in between opened nothing.
+    await expect(bell).toHaveClass(/(^|\s)sm:hidden(\s|$)/);
     await expect
       .poll(async () => (await bell.boundingBox())?.width ?? 0)
       .toBeGreaterThanOrEqual(44);

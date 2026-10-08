@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 
 import { clubOnlineBookingCap } from '@/app-layer/usecases/booking-rules';
 import { loadPricingScreen } from '@/app-layer/usecases/pricing-rules';
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
@@ -97,8 +99,11 @@ export default async function PricingPage({ params }: { params: Promise<{ slug: 
     minBookingMinutes: c.minBookingMinutes,
   }));
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'pricing')} />
       <header className="mb-section">
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>

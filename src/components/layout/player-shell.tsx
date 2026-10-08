@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { AppShellFrame } from './AppShellFrame';
 import { BottomTabBar, isTabBarHidden } from './BottomTabBar';
+import { BreadcrumbsProvider } from './breadcrumbs-store';
 import { MobileNavDrawer } from './MobileNavDrawer';
 import type { ChromeModules, ShellAccount, ShellNavSection } from './nav-items';
 import { ShellSidebar } from './shell-sidebar';
@@ -39,7 +40,8 @@ import { TabBarSpacer } from './tab-bar';
  *
  * The sections and the account are plain data decided on the server
  * (`PlayerChrome`), so the shell can only show what the server already
- * checked.
+ * checked. The shell holds the `BreadcrumbsProvider` its pages push their
+ * trail into (`PageBreadcrumbs`), which the top bar draws from `md`.
  *
  * The bar is mounted from the top-chrome slot, as the club admin's is, so it
  * does not reserve its own room; the end of `<main>` does, while the bar
@@ -68,40 +70,42 @@ export function PlayerShell({
   const barShows = !isTabBarHidden(usePathname() ?? '/');
 
   return (
-    <div data-scroll-root data-app-shell className="bg-bg-page text-content-default md:h-full">
-      <AppShellFrame
-        sidebar={({ collapsed, onToggleCollapse }) => (
-          <SidebarCollapseProvider collapsed={collapsed}>
-            <ShellSidebar
-              sections={sections}
-              contextName={contextName}
-              account={account}
-              onToggleCollapse={onToggleCollapse}
-            />
-          </SidebarCollapseProvider>
-        )}
-        mobileNav={({ open, onClose }) => (
-          <MobileNavDrawer open={open} onClose={onClose} title={tNav('menu')}>
-            <SidebarCollapseProvider collapsed={false}>
+    <BreadcrumbsProvider>
+      <div data-scroll-root data-app-shell className="bg-bg-page text-content-default md:h-full">
+        <AppShellFrame
+          sidebar={({ collapsed, onToggleCollapse }) => (
+            <SidebarCollapseProvider collapsed={collapsed}>
               <ShellSidebar
                 sections={sections}
                 contextName={contextName}
                 account={account}
-                onNavClick={onClose}
+                onToggleCollapse={onToggleCollapse}
               />
             </SidebarCollapseProvider>
-          </MobileNavDrawer>
-        )}
-        topChrome={({ onMobileMenuClick }) => (
-          <>
-            <ShellTopBar user={user} account={account} onMobileMenuClick={onMobileMenuClick} />
-            <BottomTabBar kind={kind} modules={modules} spacer={false} />
-          </>
-        )}
-      >
-        {children}
-        {barShows ? <TabBarSpacer /> : null}
-      </AppShellFrame>
-    </div>
+          )}
+          mobileNav={({ open, onClose }) => (
+            <MobileNavDrawer open={open} onClose={onClose} title={tNav('menu')}>
+              <SidebarCollapseProvider collapsed={false}>
+                <ShellSidebar
+                  sections={sections}
+                  contextName={contextName}
+                  account={account}
+                  onNavClick={onClose}
+                />
+              </SidebarCollapseProvider>
+            </MobileNavDrawer>
+          )}
+          topChrome={({ onMobileMenuClick }) => (
+            <>
+              <ShellTopBar user={user} account={account} onMobileMenuClick={onMobileMenuClick} />
+              <BottomTabBar kind={kind} modules={modules} spacer={false} />
+            </>
+          )}
+        >
+          {children}
+          {barShows ? <TabBarSpacer /> : null}
+        </AppShellFrame>
+      </div>
+    </BreadcrumbsProvider>
   );
 }

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { DrawerPublicSite } from './account-links';
 import { AppShellFrame } from './AppShellFrame';
+import { BreadcrumbsProvider } from './breadcrumbs-store';
 import { ClubAdminTabBar } from './club-admin-tab-bar';
 import { MobileNavDrawer } from './MobileNavDrawer';
 import type { ShellAccount, ShellNavSection } from './nav-items';
@@ -49,6 +50,12 @@ import { TabBarSpacer } from './tab-bar';
  * the gear and Изход (owner, 2026-10-08); the top bar ends with the bell and
  * the account menu, as in every shell. All of it (`ShellAccount`) is decided
  * on the server.
+ *
+ * ═══ THE TRAIL (owner, 2026-10-08) ═══
+ *
+ * The shell holds the `BreadcrumbsProvider` its pages push their trail into
+ * (`PageBreadcrumbs`, as upstream's pages do); the top bar draws it from `md`
+ * in its left slot, where upstream's `TopChrome` has it.
  *
  * ═══ #255: THE NAV NO LONGER SCROLLS THE PAGE SIDEWAYS ═══
  *
@@ -102,62 +109,64 @@ export function ClubAdminShell({
   const tNav = useTranslations('common.nav');
 
   return (
-    <div data-scroll-root data-app-shell className="bg-bg-page text-content-default md:h-full">
-      <AppShellFrame
-        fullBleed={fullBleedSegment !== undefined && segment === fullBleedSegment}
-        sidebar={({ collapsed, onToggleCollapse }) => (
-          <SidebarCollapseProvider collapsed={collapsed}>
-            <ShellSidebar
-              sections={sections}
-              contextName={contextName}
-              account={account}
-              onToggleCollapse={onToggleCollapse}
-            />
-          </SidebarCollapseProvider>
-        )}
-        mobileNav={({ open, onClose }) => (
-          // Named as a place, not as the hamburger's instruction (upstream
-          // `title`, #362): "Меню", where "Отвори навигационното меню" stood.
-          <MobileNavDrawer open={open} onClose={onClose} title={tNav('menu')}>
-            <SidebarCollapseProvider collapsed={false}>
+    <BreadcrumbsProvider>
+      <div data-scroll-root data-app-shell className="bg-bg-page text-content-default md:h-full">
+        <AppShellFrame
+          fullBleed={fullBleedSegment !== undefined && segment === fullBleedSegment}
+          sidebar={({ collapsed, onToggleCollapse }) => (
+            <SidebarCollapseProvider collapsed={collapsed}>
               <ShellSidebar
                 sections={sections}
                 contextName={contextName}
                 account={account}
-                onNavClick={onClose}
-                beforeFoot={
-                  <DrawerPublicSite publicSite={account.publicSite} onNavigate={onClose} />
-                }
+                onToggleCollapse={onToggleCollapse}
               />
             </SidebarCollapseProvider>
-          </MobileNavDrawer>
-        )}
-        topChrome={({ onMobileMenuClick, mobileNavOpen }) => (
-          <>
-            <ShellTopBar
-              context={homeHref ? { name: contextName, href: homeHref } : undefined}
-              user={user}
-              account={account}
-              onMobileMenuClick={onMobileMenuClick}
-            />
-            {/* Mounted from the top-chrome slot because that is the slot the
+          )}
+          mobileNav={({ open, onClose }) => (
+            // Named as a place, not as the hamburger's instruction (upstream
+            // `title`, #362): "Меню", where "Отвори навигационното меню" stood.
+            <MobileNavDrawer open={open} onClose={onClose} title={tNav('menu')}>
+              <SidebarCollapseProvider collapsed={false}>
+                <ShellSidebar
+                  sections={sections}
+                  contextName={contextName}
+                  account={account}
+                  onNavClick={onClose}
+                  beforeFoot={
+                    <DrawerPublicSite publicSite={account.publicSite} onNavigate={onClose} />
+                  }
+                />
+              </SidebarCollapseProvider>
+            </MobileNavDrawer>
+          )}
+          topChrome={({ onMobileMenuClick, mobileNavOpen }) => (
+            <>
+              <ShellTopBar
+                context={homeHref ? { name: contextName, href: homeHref } : undefined}
+                user={user}
+                account={account}
+                onMobileMenuClick={onMobileMenuClick}
+              />
+              {/* Mounted from the top-chrome slot because that is the slot the
                 frame hands the drawer's opener and state to. It is fixed, so
                 where it sits in the DOM does not move it on screen. */}
-            {bottomTabs ? (
-              <ClubAdminTabBar
-                sections={sections}
-                label={tNav('tabBar')}
-                moreLabel={tNav('more')}
-                moreOpen={mobileNavOpen}
-                onMore={onMobileMenuClick}
-              />
-            ) : null}
-          </>
-        )}
-      >
-        {children}
-        {bottomTabs ? <TabBarSpacer /> : null}
-      </AppShellFrame>
-    </div>
+              {bottomTabs ? (
+                <ClubAdminTabBar
+                  sections={sections}
+                  label={tNav('tabBar')}
+                  moreLabel={tNav('more')}
+                  moreOpen={mobileNavOpen}
+                  onMore={onMobileMenuClick}
+                />
+              ) : null}
+            </>
+          )}
+        >
+          {children}
+          {bottomTabs ? <TabBarSpacer /> : null}
+        </AppShellFrame>
+      </div>
+    </BreadcrumbsProvider>
   );
 }

@@ -15,6 +15,9 @@ import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { slugSchema } from '@/app-layer/schemas/common';
 import { toAvailability, type AvailabilityDto } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
+import { playCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
+import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
@@ -149,7 +152,7 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
 
   const now = new Date();
   const live = club.venues.slice(0, LIVE_TIMES_VENUES);
-  const [seeds, t, tSports, tCities] = await Promise.all([
+  const [seeds, t, tSports, tCities, tNav, me] = await Promise.all([
     runAsSuperuser(async (db) => {
       const out = new Map<string, { date: string; availability: AvailabilityDto }>();
       // One venue at a time: a transaction is one connection, and its queries
@@ -165,6 +168,9 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
     getTranslations('club'),
     getTranslations('sports'),
     getTranslations('cities'),
+    getTranslations('common.nav'),
+    // Request-cached: the layout's chrome asked already.
+    chromeIdentity(),
   ]);
 
   const main = club.venues[0];
@@ -201,6 +207,10 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <div className="in-shell:p-0 mx-auto flex w-full max-w-3xl flex-col gap-6 pb-6 md:px-6 md:pt-6">
+        {/* Signed in: Играй / the club, in the top bar from md (#362). Not
+            inline on a phone: the cover's back link is the page's own way to
+            Играй there, and a second one would say it twice. */}
+        {me ? <PageBreadcrumbs items={playCrumbs(tNav, club.name)} className="hidden" /> : null}
         <header className="flex flex-col gap-4">
           {/* The cover (#366): the first venue's photo that has one, else a
               token-tinted band. The back link is the page's own way to the

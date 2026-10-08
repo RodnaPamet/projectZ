@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { platformCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
 import { monthsBack, shiftMonth, statementMonthOf } from '@/lib/billing/club-fee';
@@ -41,9 +43,12 @@ export default async function PlatformFeesPage() {
   const current = statementMonthOf(new Date());
   const months = monthsBack(shiftMonth(current, -11), current, 12);
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     // No <main>: the platform shell owns it (T19).
     <section>
+      <PageBreadcrumbs items={platformCrumbs(tNav, 'fees')} />
       <header className="mb-6">
         <h1 className="text-content-emphasis text-3xl font-semibold">{t('title')}</h1>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>

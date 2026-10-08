@@ -3,6 +3,9 @@ import { getTranslations } from 'next-intl/server';
 
 import { listVenueFacets, listVenues } from '@/app-layer/repositories/venue';
 import { toVenueSummary, type VenueSummary } from '@/app/api/v1/_lib/dto';
+import { playCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
+import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { Heading } from '@/components/ui/typography';
 import type { V1Page } from '@/lib/data/keys';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -51,7 +54,12 @@ export default async function VenuesPage({
   searchParams: Promise<{ q?: string; city?: string; sport?: string }>;
 }) {
   const sp = await searchParams;
-  const t = await getTranslations('venues');
+  const [t, tNav, me] = await Promise.all([
+    getTranslations('venues'),
+    getTranslations('common.nav'),
+    // Request-cached: the layout's chrome asked already.
+    chromeIdentity(),
+  ]);
 
   // Only what the key carries, and empty is absent — as `query()` in keys.ts
   // treats it. A filter the server applied that the key did not would serve
@@ -129,6 +137,10 @@ export default async function VenuesPage({
       */}
       <div className="bg-bg-page text-content-default safe-area-x">
         <div className="in-shell:p-0 px-6 py-10">
+          {/* Signed in, the shell's top bar shows the trail from md (#362); a
+              visitor's header has none. One crumb, the page's own title, so
+              it is not drawn inline. */}
+          {me ? <PageBreadcrumbs items={playCrumbs(tNav)} className="hidden" /> : null}
           <Heading level={1}>{t('title')}</Heading>
           <VenueList seed={seed} initialFilters={filters} facets={facets} />
         </div>

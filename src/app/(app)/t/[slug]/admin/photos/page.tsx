@@ -6,6 +6,8 @@ import {
   MAX_ALT_LENGTH,
   MAX_GALLERY_PHOTOS,
 } from '@/app-layer/usecases/venue-photos';
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
@@ -54,8 +56,11 @@ export default async function PhotosPage({ params }: { params: Promise<{ slug: s
   const venues = await runInTenantContext(ctx.tenantId, (db) => loadPhotosScreen(db, ctx.tenantId));
   const enabled = mediaUploadsEnabled();
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'photos')} />
       <header className="mb-section">
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>

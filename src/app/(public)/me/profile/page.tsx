@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMe } from '@/app-layer/usecases/me';
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
+import { profileCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
@@ -35,10 +37,11 @@ export default async function ProfilePage() {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/profile');
 
-  const [{ me, platformHref }, mine, notificationSettings] = await Promise.all([
+  const [{ me, platformHref }, mine, notificationSettings, tNav] = await Promise.all([
     playerChrome(),
     getMe(userId),
     getMyNotificationSettings(userId),
+    getTranslations('common.nav'),
   ]);
   if (!me || !mine || !notificationSettings) redirect('/login?next=/me/profile');
 
@@ -48,6 +51,8 @@ export default async function ProfilePage() {
   // (409 VIEWER_CHANGED if the tab outlives a switch of account).
   return (
     <ViewerScope viewerId={userId}>
+      {/* One crumb, the page's own title: the top bar shows it from md. */}
+      <PageBreadcrumbs items={profileCrumbs(tNav)} className="hidden" />
       <ProfileView
         name={me.name}
         email={me.email}

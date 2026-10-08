@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
@@ -47,8 +49,11 @@ export default async function CalendarPage({
   // "всички писти" at a karting club (P51).
   const nouns = combineNouns(day.courts.map((c) => c.noun));
 
+  const tNav = await getTranslations('common.nav');
+
   return (
     <section>
+      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'calendar')} />
       <header className="mb-section">
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">

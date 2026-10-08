@@ -55,7 +55,8 @@
       "secondsRemaining": "Оставащо време: {seconds} сек.",
       "undoWindow": "{label}: оставащо време",
       "switchToDarkTheme": "Превключи към тъмна тема",
-      "switchToLightTheme": "Превключи към светла тема"
+      "switchToLightTheme": "Превключи към светла тема",
+      "breadcrumb": "Навигационна пътека"
     },
     "calendar": {
       "weekdayShort": {
@@ -135,7 +136,8 @@
     "accountMenu": "Меню на акаунта",
     "accountMenuFor": "Меню на акаунта – {name}",
     "expandSidebar": "Разгъни страничната лента",
-    "collapseSidebar": "Свий страничната лента"
+    "collapseSidebar": "Свий страничната лента",
+    "noBreadcrumbs": "Няма навигационна пътека"
   },
   "sports": {
     "TENNIS": "Тенис",
