@@ -63,6 +63,7 @@ function renderProfile(
     showSports?: boolean;
     locale?: 'bg' | 'en';
     deletion?: DeletionStandingView;
+    legal?: { privacy: string | null; terms: string | null; cookies: string | null };
   } = {},
 ) {
   const seed = opts.account ?? account();
@@ -84,6 +85,7 @@ function renderProfile(
               email: { confirmation: true, reminder: true, clubChanges: true },
             }}
             deletion={opts.deletion ?? { kind: 'allowed', credit: [] }}
+            legal={opts.legal ?? { privacy: null, terms: null, cookies: null }}
           />
         </TooltipProvider>
       </SWRConfig>,
@@ -127,6 +129,29 @@ describe('Профил — what every account sees', () => {
     const link = within(row).getByRole('link', { name: p.data.download });
     expect(link).toHaveAttribute('href', '/api/v1/me/export');
     expect(link).toHaveAttribute('download');
+  });
+
+  it('privacy and data: how to delete an account, always; no legal text yet, no link to one', () => {
+    renderProfile();
+    expect(screen.getByTestId('profile-legal-deleteAccount')).toHaveAttribute(
+      'href',
+      '/delete-account',
+    );
+    expect(screen.getByTestId('profile-legal-deleteAccount')).toHaveTextContent(
+      p.legal.deleteAccount,
+    );
+    for (const key of ['privacy', 'terms', 'cookies']) {
+      expect(screen.queryByTestId(`profile-legal-${key}`)).not.toBeInTheDocument();
+    }
+  });
+
+  it('privacy and data: each legal text that exists, linked by its own name (#370)', () => {
+    renderProfile(null, { legal: { privacy: '/privacy', terms: null, cookies: '/cookies' } });
+    expect(screen.getByTestId('profile-legal-privacy')).toHaveAttribute('href', '/privacy');
+    expect(screen.getByTestId('profile-legal-privacy')).toHaveTextContent(p.legal.privacy);
+    expect(screen.getByTestId('profile-legal-cookies')).toHaveAttribute('href', '/cookies');
+    expect(screen.getByTestId('profile-legal-cookies')).toHaveTextContent(p.legal.cookies);
+    expect(screen.queryByTestId('profile-legal-terms')).not.toBeInTheDocument();
   });
 
   it('Изход is a real button, phone-only, and lands on the home page', () => {

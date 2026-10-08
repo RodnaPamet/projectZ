@@ -224,7 +224,7 @@ export async function PilotClubsSection({ clubs }: { clubs: PilotClub[] }) {
   );
 }
 
-export async function ForClubsSection({ privacyHref }: { privacyHref: string }) {
+export async function ForClubsSection({ privacyHref }: { privacyHref: string | null }) {
   const t = await getTranslations('landing.clubs');
   const benefits: Array<{ key: 'diary' | 'free' | 'payAtClub' | 'onboarding'; icon: Icon }> = [
     { key: 'diary', icon: CalendarDays },

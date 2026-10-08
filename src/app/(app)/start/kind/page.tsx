@@ -1,13 +1,15 @@
 import { redirect } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { readMyAccountKind } from '@/app-layer/usecases/account-kind';
 import { resolveLanding } from '@/app-layer/usecases/landing';
 import { SignOutButton } from '@/components/layout/SignOutButton';
-import { Heading } from '@/components/ui/typography';
+import { Caption, Heading, TextLink } from '@/components/ui/typography';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { KIND_CHOOSER_PATH, safeCallbackPath } from '@/lib/auth/landing';
 import { ViewerScope } from '@/lib/data/provider';
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
+import { legalHrefs } from '@/lib/legal/texts';
 
 import { KindChooser } from './KindChooser';
 
@@ -48,7 +50,13 @@ export default async function KindChooserPage({
   if (kind === undefined) redirect('/login');
   if (kind !== null) redirect(next ?? (await resolveLanding(userId)).href);
 
-  const t = await getTranslations('onboarding.kind');
+  const [t, locale] = await Promise.all([getTranslations('onboarding.kind'), getLocale()]);
+  // "Продължавайки, приемате …" (#370): only when both texts exist in this
+  // language, since the sentence links to both. Recording the acceptance is
+  // #462; this is the notice.
+  const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
+  const terms = legal.terms;
+  const privacy = legal.privacy;
 
   return (
     <main className="bg-bg-page text-content-default safe-area-x flex flex-1 flex-col">
@@ -60,6 +68,22 @@ export default async function KindChooserPage({
         <ViewerScope viewerId={userId}>
           <KindChooser next={next} />
         </ViewerScope>
+        {terms && privacy ? (
+          <Caption data-testid="kind-consent">
+            {t.rich('consent', {
+              terms: (chunks) => (
+                <TextLink tone="link" href={terms}>
+                  {chunks}
+                </TextLink>
+              ),
+              privacy: (chunks) => (
+                <TextLink tone="link" href={privacy}>
+                  {chunks}
+                </TextLink>
+              ),
+            })}
+          </Caption>
+        ) : null}
         <div className="mt-auto">
           <SignOutButton />
         </div>

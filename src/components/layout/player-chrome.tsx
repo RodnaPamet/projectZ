@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react';
 
 import { unstable_rethrow } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
+import { legalHrefs } from '@/lib/legal/texts';
 
 import { BottomTabBar } from './BottomTabBar';
 import { ClubAdminShell } from './club-admin-shell';
+import { CookieNotice } from './CookieNotice';
 import {
   clubShell,
   displayName,
@@ -67,11 +70,18 @@ export async function PlayerChrome({
   const { me, landing, kind, modules, platform, platformHref } = await playerChrome();
 
   if (!me || kind === 'signed-out') {
+    // The essential-only notice (#370) is a visitor's: it links to the cookie
+    // policy once the owner's text exists in this language.
+    const locale = await getLocale();
+    const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
     return (
       <div className="flex min-h-dvh flex-col">
         <SiteHeader />
         <main className="flex flex-1 flex-col">{children}</main>
         {footer ? <SiteFooter /> : null}
+        {/* After the footer, before the tab bar's spacer: at the end of the
+            page it has its own room above the bar (CookieNotice). */}
+        <CookieNotice cookiesHref={legal.cookies} />
         <BottomTabBar kind="signed-out" modules={modules} />
       </div>
     );

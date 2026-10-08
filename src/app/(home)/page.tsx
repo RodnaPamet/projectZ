@@ -9,6 +9,8 @@ import { ArrowRight } from '@/components/ui/icons/nucleo';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Eyebrow, Heading } from '@/components/ui/typography';
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
+import { legalHrefs } from '@/lib/legal/texts';
 import { logger } from '@/lib/observability/logger';
 import { siteGraph } from '@/lib/seo/site-jsonld';
 import { siteUrl } from '@/lib/seo/site-url';
@@ -55,12 +57,6 @@ import {
 
 /** og:locale for the page's language. */
 const OG_LOCALE: Record<string, string> = { bg: 'bg_BG', en: 'en_GB' };
-
-/**
- * The privacy page. It arrives with #370; until then the link 404s, which the
- * owner accepted (#369). A plain `<a>`, so nothing prefetches it meanwhile.
- */
-const PRIVACY_HREF = '/privacy';
 
 /** Sports the hero names. A sample of the catalogue, not a claim about any club. */
 const HERO_SPORTS = [
@@ -125,6 +121,10 @@ export default async function HomePage({
     getLocale(),
     pilotClubs(),
   ]);
+  // The contact form links its privacy line to the owner's text once it
+  // exists in this language (#370), and to nothing before: a link to a 404 is
+  // worse than none. A plain `<a>`, so nothing prefetches it.
+  const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
 
   const jsonLd = siteGraph({
     origin: siteUrl(),
@@ -219,7 +219,7 @@ export default async function HomePage({
 
       <PlayersSection />
       <PilotClubsSection clubs={clubs} />
-      <ForClubsSection privacyHref={PRIVACY_HREF} />
+      <ForClubsSection privacyHref={legal.privacy} />
       <ClosingSection />
     </div>
   );

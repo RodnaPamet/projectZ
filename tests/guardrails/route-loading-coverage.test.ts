@@ -50,6 +50,15 @@ const NO_LOADING: Record<string, string> = {
     'redirect-only index (#345, audit M03): it sends a grant holder on to the first platform page the grant opens, whose own loading.tsx is what paints',
   '(design)/design-system':
     'developer-facing component gallery, not linked from the app; no user navigates to it',
+  // The legal pages (#370): a missing text must answer a REAL 404. A
+  // loading.tsx streams a 200 before the page runs, and notFound() after that
+  // is a soft 404 (Next's docs, file-conventions/loading.md, "Status Codes").
+  '(public)/privacy':
+    'a missing text answers HTTP 404 (#370), which a loading boundary would turn into a streamed 200; the page reads one file from disk, nothing to wait on',
+  '(public)/terms':
+    'a missing text answers HTTP 404 (#370), which a loading boundary would turn into a streamed 200; the page reads one file from disk, nothing to wait on',
+  '(public)/cookies':
+    'a missing text answers HTTP 404 (#370), which a loading boundary would turn into a streamed 200; the page reads one file from disk, nothing to wait on',
 };
 
 const pages = globSync(`${APP}/**/page.tsx`)

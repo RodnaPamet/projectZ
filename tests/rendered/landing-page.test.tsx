@@ -66,6 +66,12 @@ jest.mock('@/app-layer/usecases/pilot-clubs', () => ({
   loadPilotClubs: async () => clubs,
 }));
 
+// Which legal texts exist (#370): the privacy one, unless a test says not.
+let privacyHref: string | null = '/privacy';
+jest.mock('@/lib/legal/texts', () => ({
+  legalHrefs: async () => ({ privacy: privacyHref, terms: null, cookies: null }),
+}));
+
 const submitContactAction = jest.fn();
 jest.mock('@/app/(home)/actions', () => ({
   submitContactAction: (...a: unknown[]) => submitContactAction(...a),
@@ -201,6 +207,18 @@ describe.each([
       '/privacy',
     );
     expect(within(section).getByRole('button', { name: f.submit })).toBeInTheDocument();
+  });
+
+  it('with no privacy text yet, the form’s line has no link to a 404 (#370)', async () => {
+    privacyHref = null;
+    try {
+      await renderPage(l);
+      const line = screen.getByTestId('contact-privacy');
+      expect(line).toHaveTextContent(m.clubs.form.privacyNoLink);
+      expect(within(line).queryByRole('link')).toBeNull();
+    } finally {
+      privacyHref = '/privacy';
+    }
   });
 
   it('the closing band links to /venues too', async () => {
