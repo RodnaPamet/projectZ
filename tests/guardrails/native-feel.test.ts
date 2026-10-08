@@ -32,6 +32,28 @@ describe('device chrome', () => {
     expect(LAYOUT.toLowerCase()).toContain(dark!.toLowerCase());
   });
 
+  const MANIFEST = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8')) as {
+    start_url: string;
+    background_color: string;
+    theme_color: string;
+  };
+
+  it('the installed app opens on Играй, not on `/` (#453)', () => {
+    // Signed in, `/` is a 307 to /venues (#449): about 158 ms per launch on the
+    // phone profile (docs/perf/README.md). The owner chose to launch on
+    // /venues, which a signed-out launch shows as the public venue list.
+    expect(MANIFEST.start_url).toBe('/venues');
+  });
+
+  it("the splash and the installed app's chrome are the dark page token (#362)", () => {
+    // The manifest has no light/dark pair; the dark theme is the default.
+    const tokens = readFileSync('src/styles/tokens.css', 'utf8');
+    const dark = /--bg-page:\s*(#[0-9a-f]{6})/i.exec(tokens)?.[1]?.toLowerCase();
+    expect(dark).toBeTruthy();
+    expect(MANIFEST.background_color.toLowerCase()).toBe(dark);
+    expect(MANIFEST.theme_color.toLowerCase()).toBe(dark);
+  });
+
   it('viewport-fit is `cover`, or the safe-area utilities are silent no-ops', () => {
     // env(safe-area-inset-*) returns 0 without it. The .safe-area-* classes would
     // still be applied, still look correct in the source, and do NOTHING — the

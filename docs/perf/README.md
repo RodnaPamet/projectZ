@@ -45,8 +45,9 @@ main 1.18 / 2.59 / 6.67 and 0.94 / 1.67 / 2.67; branch 1.40 / 2.17 / 4.55 and
   heavier page, one round trip later: about 158 ms over typing `/venues` on the phone
   profile's throttled network, about 21 ms on the desktop. Every link to Играй inside the
   app (the shells' wordmark, the platform's "Към сайта", the in-shell 404) goes to
-  `/venues` directly, so only a typed or bookmarked `/` and the installed app's
-  `start_url` (`/`, `public/manifest.webmanifest`) pay it.
+  `/venues` directly, so only a typed or bookmarked `/` pays it. The installed app's
+  `start_url` (`public/manifest.webmanifest`) was `/` and paid it on every launch until
+  #453 moved it to `/venues`; a home-screen install that saved the old one may keep it.
 - **The player journey's steps are new**, so `perf:compare` judges none of them: main's
   loop went through the landing, which a signed-in account no longer sees. Against main's
   steps to the same pages, medians: to `/me/bookings` phone 85 → 90 ms cold and

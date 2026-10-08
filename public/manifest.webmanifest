@@ -2,7 +2,7 @@
   "name": "playerz.bg — book courts, find players",
   "short_name": "playerz",
   "description": "Book a court, find a game, track your form.",
-  "start_url": "/",
+  "start_url": "/venues",
   "display": "standalone",
   "background_color": "#0b0b12",
   "theme_color": "#0b0b12",
