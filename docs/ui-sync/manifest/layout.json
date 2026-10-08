@@ -68,10 +68,10 @@
     {
       "path": "src/components/layout/user-menu.tsx",
       "inflectPath": "src/components/layout/user-menu.tsx",
-      "baseSha": "538fb0c6e45f092da3c6fd6f7f32fb0390e13285",
-      "sha": "538fb0c6e45f092da3c6fd6f7f32fb0390e13285",
+      "baseSha": "6f3072e4e51b38bd78cd2fc7df6d9bf5d7483cf8",
+      "sha": "6f3072e4e51b38bd78cd2fc7df6d9bf5d7483cf8",
       "status": "vendored",
-      "sha256": "aa0ffa97e86f5ac70e894d724fa7a079055cba336933b16ebc8da120d7f8be0f"
+      "sha256": "81f8306778ef7ba87d4db06177b3fa3603cd940d25c445c807d3020e2970a94c"
     }
   ]
 }
