@@ -80,7 +80,7 @@
    *
    * No brand fill is body text in BOTH themes: --brand-default is 4.00:1 on
    * this page, under AA, and --brand-emphasis 3.29:1. So this token carries
-   * its own shade per theme, violet-400 here and upstream's #b83d00 in light.
+   * its own shade per theme, violet-400 here and #9a3412 in light.
    * A `dark:` variant cannot do that swap, because Tailwind keys `dark:` off
    * the OS preference and this app switches on [data-theme].
    *
@@ -409,6 +409,8 @@
      - the focus ring, solid #d04a02 (upstream's translucent one is 1.73:1);
      - the --ctrl-edge-focus ring stop at .85 (upstream's .20 is 1.30:1);
      - --content-subtle #686868 (upstream's #6b6b6b fails a disabled button);
+     - --content-brand #9a3412, one step past upstream's #b83d00 (the
+       active nav label in the phone drawer measured 4.39:1);
      - --content-accent #9a3412, the bell's count (a playerz token).
    Contrast: all text/surface pairs meet WCAG 2.1 AA (4.5:1+), measured.
    ═══════════════════════════════════════════════════════════════════ */
@@ -443,7 +445,16 @@
    */
   --content-subtle: #686868; /* warm medium gray — hints, disabled, tertiary (5.17:1 on bg-default) */
   --content-inverted: #faf9f7; /* warm off-white — text on inverted/dark surfaces */
-  --content-brand: #b83d00; /* upstream's — 5.07:1 on --bg-page, 5.25:1 on --bg-default. Why it differs by theme: see the dark block */
+  /*
+   * DEVIATION: #9a3412, = --brand-emphasis. Upstream's is #b83d00, equal to
+   * ITS --brand-emphasis; the ramp here is one step darker (below), and this
+   * follows it. Measured on real pixels (#362): the sidebar's ACTIVE label
+   * sits on the navy wash, and in the phone nav drawer that wash lies over the
+   * sheet's brand-tinted popup texture (globals.css), so #b83d00 read 4.39:1
+   * there, worst 4.27. Axe reports a gradient background as "incomplete" and
+   * never failed it. #9a3412 is 5.50:1 there, 5.05:1 at the sheet's top.
+   */
+  --content-brand: #9a3412; /* 6.53:1 on --bg-page, 6.77:1 on --bg-default, 6.25:1 on --bg-muted. Why it differs by theme: see the dark block */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
   --border-default: #e5e2de; /* DECORATIVE dividers and card edges only */
@@ -483,7 +494,8 @@
    * upstream's own, unchanged. #1e3a8a sits 155° from the orange, and as the
    * primary's hover edge it measures 9.26:1 on the page and 9.60:1 on a card.
    * The subtle tint is the sidebar's active wash: the active label
-   * (--content-brand) on it measures 4.51:1 over the sidebar (--bg-default).
+   * (--content-brand) on it measures 5.81:1 over the sidebar (--bg-default)
+   * and 5.05:1 over the phone drawer's popup texture at its strongest.
    */
   --brand-secondary-default: #1e3a8a; /* navy — hover edge of the primary button. 9.26:1 on --bg-page */
   --brand-secondary-emphasis: #172554; /* deeper navy — active surfaces. 13.13:1 on --bg-page */

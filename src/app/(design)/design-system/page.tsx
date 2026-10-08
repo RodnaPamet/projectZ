@@ -217,6 +217,13 @@ const PALETTE: ReadonlyArray<{ token: string; role: string; dark: string; light:
     light: '#c2410c (upstream #e06520) · label 4.92:1 (was 3.30)',
   },
   {
+    token: '--content-brand',
+    role: 'Brand text: links, the active menu label',
+    dark: '#a78bfa · 7.21:1 page · 5.56:1 on the active wash',
+    light:
+      '#9a3412 (upstream #b83d00) · 6.53:1 page · 5.05:1 on the wash in the phone drawer (was 3.92)',
+  },
+  {
     token: '--brand-secondary-default',
     role: 'Primary hover edge: the complement, 153° (dark) / 155° (light) from the brand',
     dark: '#facc15 yellow · 12.81:1 page · 12.02:1 card',
@@ -238,7 +245,7 @@ const PALETTE: ReadonlyArray<{ token: string; role: string; dark: string; light:
     token: '--brand-secondary-subtle',
     role: 'Sidebar active wash: purple in dark, on purpose',
     dark: 'violet @ 18% · the active label on it 5.56:1',
-    light: 'navy @ 9% (upstream) · the active label on it 4.51:1',
+    light: 'navy @ 9% (upstream) · the active label on it 5.81:1',
   },
   {
     token: '--nav-band-active',

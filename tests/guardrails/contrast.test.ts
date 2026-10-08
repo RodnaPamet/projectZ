@@ -106,7 +106,9 @@ interface Pairing {
   /**
    * For a translucent bg, what is behind it. A list is a stack of layers,
    * bottom first, each composited onto the one under it: the bell's count sits
-   * on the header's brand wash, which is itself translucent over the page.
+   * on the header's brand wash, which is itself translucent over the page. A
+   * layer written `--token@10%` is that token at 10%, which is what a
+   * `color-mix(in srgb, <below>, var(--token) 10%)` paints.
    */
   backdrop?: string | string[];
   /** Text is AA_NORMAL. Icons, borders and focus rings are AA_NON_TEXT. */
@@ -146,7 +148,7 @@ const PAIRINGS: Pairing[] = [
   // Brand-coloured WORDS have their own token, because no brand fill is body
   // text in both themes: --brand-default is 4.00:1 on the dark page, under AA
   // (#362). `--content-brand` carries its own shade per theme instead
-  // (violet-400 dark, inflect's #b83d00 light).
+  // (violet-400 dark; #9a3412 light, one step past inflect's #b83d00).
   // tests/guardrails/no-raw-brand-text.test.ts bans the fills as text, so this
   // token is the only way brand-coloured text gets written, and it is measured
   // here.
@@ -155,14 +157,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'text',
     why: 'brand-coloured words on the page: the homepage wordmark, the link on the 404',
-    measured: { light: 5.07, dark: 7.21 },
+    measured: { light: 6.53, dark: 7.21 },
   },
   {
     fg: '--content-brand',
     bg: '--bg-default',
     kind: 'text',
     why: 'brand-coloured words in a card',
-    measured: { light: 5.25, dark: 6.77 },
+    measured: { light: 6.77, dark: 6.77 },
   },
   {
     fg: '--content-brand',
@@ -171,7 +173,21 @@ const PAIRINGS: Pairing[] = [
     kind: 'text',
     why: "the sidebar's ACTIVE label on its wash (NAV_ITEM_ACTIVE), over the sidebar",
     // The wash is purple in dark on purpose (#362), and inflect's navy in light.
-    measured: { light: 4.51, dark: 5.56 },
+    measured: { light: 5.81, dark: 5.56 },
+  },
+  //
+  // The same row in the PHONE nav drawer: a Sheet, whose `.surface-popup-texture`
+  // (globals.css) mixes --brand-default into --bg-default, 10% at the sheet's
+  // top. With inflect's light #b83d00 this measured 4.39:1 on real pixels and
+  // 3.92:1 at the top, and axe, which cannot resolve a gradient, said nothing.
+  // Light --content-brand is #9a3412 because of this pairing (tokens.css).
+  {
+    fg: '--content-brand',
+    bg: '--brand-secondary-subtle',
+    backdrop: ['--bg-default', '--brand-default@10%'],
+    kind: 'text',
+    why: "the ACTIVE label on its wash in the phone nav drawer, over the sheet's texture",
+    measured: { light: 5.05, dark: 5.03 },
   },
 
   // ── The inverted surface: text on the primary button ──────────────
@@ -210,7 +226,7 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-muted',
     kind: 'text',
     why: 'the SECONDARY button label on hover, on its darkest stop',
-    measured: { light: 4.85, dark: 6.22 },
+    measured: { light: 6.25, dark: 6.22 },
   },
 
   // ── The Still Surface primary tile (T18) ──────────────────────────
@@ -531,13 +547,16 @@ function backdropOf(
   theme: string,
 ): string | undefined {
   const names = Array.isArray(layers) ? layers : [layers];
-  if (names.length === 1) return tokens.get(names[0]!);
+  if (names.length === 1 && !names[0]!.includes('@')) return tokens.get(names[0]!);
 
   let flat = null as ReturnType<typeof parseColor>;
-  for (const name of names) {
+  for (const layer of names) {
+    // `--token@10%`: the token at that share, as color-mix() paints it.
+    const [, name = layer, share] = /^(--[\w-]+)@(\d+(?:\.\d+)?)%$/.exec(layer) ?? [];
     const value = tokens.get(name);
     const color = value ? parseColor(value) : null;
-    if (!color) throw new Error(`Backdrop layer ${name} (${value}) is not a colour in ${theme}.`);
+    if (!color) throw new Error(`Backdrop layer ${layer} (${value}) is not a colour in ${theme}.`);
+    if (share !== undefined) color.a *= Number(share) / 100;
     flat = flat ? composite(color, flat) : color;
   }
   return `rgba(${flat!.r}, ${flat!.g}, ${flat!.b}, 1)`;
@@ -708,6 +727,21 @@ describe('the contrast calculation is correct', () => {
     expect(backdropOf(['--page', '--wash'], tokens, 'test')).toBe('rgba(127.5, 127.5, 127.5, 1)');
     expect(backdropOf('--page', tokens, 'test')).toBe('#ffffff');
     expect(() => backdropOf(['--page', '--missing'], tokens, 'test')).toThrow(/--missing/);
+  });
+
+  it('reads `--token@NN%` as color-mix() does: the token at that share', () => {
+    // .surface-popup-texture's top stop: color-mix(in srgb, page, brand 10%).
+    const tokens = new Map([
+      ['--page', '#ffffff'],
+      ['--brand', '#000000'],
+    ]);
+    expect(backdropOf(['--page', '--brand@10%'], tokens, 'test')).toBe(
+      'rgba(229.5, 229.5, 229.5, 1)',
+    );
+    expect(backdropOf(['--page', '--brand@50%'], tokens, 'test')).toBe(
+      'rgba(127.5, 127.5, 127.5, 1)',
+    );
+    expect(() => backdropOf(['--page', '--nope@10%'], tokens, 'test')).toThrow(/--nope@10%/);
   });
 
   it('actually FAILS a pairing that is too low', () => {

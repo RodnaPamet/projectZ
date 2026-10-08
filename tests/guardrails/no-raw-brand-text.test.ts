@@ -26,8 +26,8 @@ import ts from 'typescript';
  * same class at 16px in a header was an axe violation, short by 0.02.
  *
  * `text-content-brand` carries its own shade per theme (violet-400 dark,
- * inflect's #b83d00 light), and tests/guardrails/contrast.test.ts pins it at
- * 7.21:1 and 5.07:1.
+ * #9a3412 light, one step past inflect's #b83d00), and contrast.test.ts pins it at
+ * 7.21:1 and 6.53:1.
  * A `dark:` variant cannot do the same job. No `darkMode` is configured, so
  * `dark:` compiles to `@media (prefers-color-scheme: dark)` and follows the OS,
  * while the app follows [data-theme]. Anyone whose two settings differ gets the
@@ -208,7 +208,7 @@ describe('no fixed brand shade colours text, anywhere in src/', () => {
           `dark page (5.07:1 on the light one), and the class cannot say how big the\n` +
           `text is, which decides whether it passes.\n\n` +
           `Use text-content-brand. It changes shade with the theme, and\n` +
-          `tests/guardrails/contrast.test.ts pins it at 5.07:1 light, 7.21:1 dark.\n\n` +
+          `tests/guardrails/contrast.test.ts pins it at 6.53:1 light, 7.21:1 dark.\n\n` +
           `Fills are fine: bg-brand-emphasis, border-[var(--brand-default)]. A dark:\n` +
           `variant is not a fix, because dark: follows the OS and this app follows\n` +
           `[data-theme].`,
