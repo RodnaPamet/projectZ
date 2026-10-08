@@ -188,7 +188,9 @@ test.describe('the frames — desktop', () => {
 
     await rail.getByRole('link', { name: n.moderation }).click();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
-    await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.platform.moderation.title, exact: true }),
+    ).toBeVisible();
 
     // And back to the site (#347): Играй.
     await page.getByTestId('shell-public-link').click();
@@ -241,11 +243,18 @@ test.describe('the frames — desktop', () => {
     await page.goto('/venues');
     await page.locator(RAIL).getByRole('link', { name: n.calendar }).click();
     await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
-    await expect(page.locator('main h1')).toHaveText(bg.admin.calendar.title);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.calendar.title, exact: true }),
+    ).toBeVisible();
 
     await page.getByTestId('shell-public-link').click();
-    // The club's own page (#356), in the same frame.
+    // The club's own page (#356), in the same frame. The URL first, then the
+    // destination's own heading: mid-navigation the old page's h1 can still
+    // be in <main> beside the new one.
     await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
+    await expect(
+      page.getByRole('heading', { level: 1, name: `E2E ${slug}`, exact: true }),
+    ).toBeVisible();
     await expect(page.locator(RAIL).getByRole('link', { name: n.calendar })).toBeVisible();
   });
 

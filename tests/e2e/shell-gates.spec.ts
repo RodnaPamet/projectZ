@@ -113,7 +113,9 @@ test.describe('shell gates', () => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       expect(await status(page, '/platform/moderation')).toBe(200);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await expect(page.locator('main h1')).toHaveText(bg.platform.moderation.title);
+      await expect(
+        page.getByRole('heading', { level: 1, name: bg.platform.moderation.title, exact: true }),
+      ).toBeVisible();
       await expect(page.locator('aside[data-collapsed]')).toBeVisible();
       await expect(page.locator('main')).toHaveCount(1);
 
