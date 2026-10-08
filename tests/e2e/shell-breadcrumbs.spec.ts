@@ -3,13 +3,17 @@ import type { Page } from '@playwright/test';
 import bg from '../../messages/bg.json';
 
 import { expect, test } from './fixtures';
+import { renameTenant } from './utils/create-isolated-tenant';
 import { grantModerator } from './utils/create-player';
+import { LONG_CLUB_NAME, leftSlotClearance } from './utils/top-bar';
 
 /**
  * The top bar's left slot at 1280 px (#362, owner 2026-10-08): the page's
  * breadcrumbs, where upstream's `TopChrome` has them, and no wordmark. The
  * sidebar's header names the app (or the club, or the platform), so the name
- * is on screen once. The phone half is tests/e2e/mobile/shell-breadcrumbs.spec.ts.
+ * is on screen once. Where the bar is narrow, the trail gives way to the right
+ * slot rather than running on under it. The phone half is
+ * tests/e2e/mobile/shell-breadcrumbs.spec.ts.
  */
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -88,5 +92,17 @@ test.describe('the trail in the top bar — desktop', () => {
     await page.goto('/platform/moderation');
     await expectTrail(page, [n.platform, n.moderation]);
     await expect(page.getByTestId('shell-wordmark')).toBeHidden();
+  });
+
+  test('club admin at 768 px, a long name: the trail gives way to the right slot', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    // It ran 69 px under the public link here before the trail could shrink.
+    await renameTenant(isolatedTenant.tenantId, LONG_CLUB_NAME);
+    await page.setViewportSize({ width: 768, height: 800 });
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/reports`);
+    await expectTrail(page, [n.admin, n.reports]);
+    await expect.poll(() => leftSlotClearance(page)).toBeGreaterThanOrEqual(0);
   });
 });

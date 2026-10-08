@@ -76,6 +76,14 @@ export async function createIsolatedTenant(): Promise<IsolatedTenant> {
   });
 }
 
+/** Renames the club, for a spec that needs a name longer than the fixture's. */
+export async function renameTenant(tenantId: string, name: string): Promise<void> {
+  await prisma().$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    await tx.venueOrg.update({ where: { id: tenantId }, data: { name } });
+  });
+}
+
 export async function destroyTenant(tenantId: string): Promise<void> {
   const db = prisma();
   await db.$transaction(async (tx) => {

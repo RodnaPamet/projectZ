@@ -1,5 +1,8 @@
 import bg from '../../../messages/bg.json';
 import { expect, test } from '../fixtures';
+import { renameTenant } from '../utils/create-isolated-tenant';
+import { grantModerator } from '../utils/create-player';
+import { LONG_CLUB_NAME, leftSlotClearance } from '../utils/top-bar';
 
 /**
  * The top bar's left slot on a 393 px phone (#362, owner 2026-10-08): the
@@ -8,7 +11,9 @@ import { expect, test } from '../fixtures';
  * platform's pages), it draws its trail inline, as upstream's pages do
  * (`PageBreadcrumbs`). The top of a section (Играй, Резервации, Профил) and a
  * page with its own back link (a venue, a club, a booking) do not: the title,
- * or the link, already says it. The desktop half is
+ * or the link, already says it. And nothing covers the mark: below `sm` the
+ * club's (or the platform's) name leaves the bar for the drawer's header, as
+ * upstream's switcher leaves it. The desktop half is
  * tests/e2e/shell-breadcrumbs.spec.ts.
  */
 
@@ -26,6 +31,7 @@ test.describe('the top bar’s left slot — phone', () => {
     const wordmark = page.getByTestId('shell-wordmark');
     await expect(wordmark).toBeVisible();
     await expect(wordmark).toHaveText(bg.common.appName);
+    await expect.poll(() => leftSlotClearance(page)).toBeGreaterThanOrEqual(0);
     await expect(page.locator(BAR_TRAIL)).toBeHidden();
     await expect(page.locator('main').locator(INLINE_TRAIL).filter({ visible: true })).toHaveCount(
       0,
@@ -58,5 +64,48 @@ test.describe('the top bar’s left slot — phone', () => {
       `/t/${slug}/admin`,
     );
     await expect(inline.locator('[aria-current="page"]')).toHaveText(n.courts);
+  });
+
+  test('club admin, a long name: nothing covers the wordmark, and the drawer names the club', async ({
+    authedPage: page,
+    isolatedTenant,
+  }) => {
+    await renameTenant(isolatedTenant.tenantId, LONG_CLUB_NAME);
+    await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.admin.courts.title, exact: true }),
+    ).toBeVisible();
+
+    await expect(page.getByTestId('shell-wordmark')).toBeVisible();
+    // It covered the wordmark at every length on a phone, the fixture's own too.
+    await expect(page.getByTestId('shell-context-name')).toBeHidden();
+    await expect.poll(() => leftSlotClearance(page)).toBeGreaterThanOrEqual(0);
+
+    await page.getByTestId('nav-toggle').tap();
+    const drawer = page.getByRole('dialog', { name: n.menu });
+    await expect(drawer.getByText(LONG_CLUB_NAME, { exact: true }).first()).toBeVisible();
+  });
+
+  test('platform: the wordmark, uncovered, and the trail inline over the page', async ({
+    playerPage: page,
+    player,
+    isolatedTenant,
+  }) => {
+    await grantModerator(player.userId, isolatedTenant.userId);
+    await page.goto('/platform/moderation');
+    await expect(
+      page.getByRole('heading', { level: 1, name: bg.platform.moderation.title, exact: true }),
+    ).toBeVisible();
+
+    await expect(page.getByTestId('shell-wordmark')).toBeVisible();
+    await expect(page.getByTestId('shell-context-name')).toBeHidden();
+    await expect.poll(() => leftSlotClearance(page)).toBeGreaterThanOrEqual(0);
+    await expect(page.locator(BAR_TRAIL)).toBeHidden();
+    const inline = page.locator('main').locator(INLINE_TRAIL).filter({ visible: true });
+    await expect(inline.getByRole('link', { name: n.platform })).toHaveAttribute(
+      'href',
+      '/platform',
+    );
+    await expect(inline.locator('[aria-current="page"]')).toHaveText(n.moderation);
   });
 });
