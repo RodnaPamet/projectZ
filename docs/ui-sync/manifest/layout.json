@@ -84,8 +84,8 @@
     {
       "path": "src/components/layout/user-menu.tsx",
       "inflectPath": "src/components/layout/user-menu.tsx",
-      "baseSha": "6f3072e4e51b38bd78cd2fc7df6d9bf5d7483cf8",
-      "sha": "6f3072e4e51b38bd78cd2fc7df6d9bf5d7483cf8",
+      "baseSha": "bd6394b2a30a928edbfdd3c14637fa86596272ce",
+      "sha": "bd6394b2a30a928edbfdd3c14637fa86596272ce",
       "status": "vendored",
       "sha256": "81f8306778ef7ba87d4db06177b3fa3603cd940d25c445c807d3020e2970a94c"
     }
