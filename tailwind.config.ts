@@ -121,7 +121,7 @@ const config: Config = {
           info: 'var(--content-info)',
           attention: 'var(--content-attention)',
           // Brand TEXT. Theme-aware, which no fill token is: violet-400 on dark
-          // (7.21:1 on the page), upstream's #b83d00 on light (5.07:1). A `dark:`
+          // (7.21:1 on the page), #9a3412 on light (6.53:1). A `dark:`
           // variant is no substitute — no `darkMode` is set, so Tailwind keys
           // `dark:` off the OS while the app switches on [data-theme] (#233).
           brand: 'var(--content-brand)',
