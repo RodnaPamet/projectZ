@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import bg from '../../../messages/bg.json';
 import { expect, test } from '../fixtures';
+import { settleAnimations } from '../utils/settle-animations';
 
 /**
  * The club-admin shell on a 393 px phone, as the club's OWNER (T19).
@@ -204,6 +205,7 @@ test.describe('club admin shell — phone', () => {
       await expect(
         page.locator(DRAWER).getByRole('link', { name: bg.common.nav.pricing }),
       ).toBeVisible();
+      await settleAnimations(drawer);
 
       // The rules the desktop shell is held to (admin-shell.spec.ts), with
       // the page behind the drawer included: what is inert must stay so.

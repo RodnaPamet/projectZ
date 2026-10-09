@@ -5,6 +5,7 @@ import bg from '../../messages/bg.json';
 import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { expect, test as base } from './fixtures';
 import { prisma } from './utils/create-isolated-tenant';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * The pricing board at 1280 px, as the club's OWNER (T24).
@@ -225,6 +226,7 @@ test.describe('club admin pricing — desktop', () => {
       // `scrollable-region-focusable` passes without an exemption (#323).
       await page.getByRole('combobox', { name: new RegExp(`^${p.preview.day},`) }).click();
       await expect(page.getByRole('option').first()).toBeVisible();
+      await settleAnimations(page.getByRole('listbox'));
       await expectAxeClean(page);
     });
   }

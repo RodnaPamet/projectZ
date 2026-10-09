@@ -8,6 +8,7 @@ import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
 
 import { expect, test } from './fixtures';
 import { grantModerator } from './utils/create-player';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * The site's frames at 1280 px (#362, owner 2026-10-07): a visitor gets the
@@ -30,10 +31,12 @@ const TAB_BAR = `nav[aria-label="${n.tabBar}"]`;
 const MENU_ROWS = '[role="menu"] a, [role="menu"] [data-testid="user-menu-sign-out"]';
 const COLLAPSE_KEY = `${UI_STORAGE_PREFIX}:sidebar-collapsed`;
 
+/** Opens the account menu and returns it once it has finished fading in (#463). */
 async function openMenu(page: Page) {
   await page.locator('header').getByTestId('top-chrome-user-menu').click();
   const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
   await expect(menu).toBeVisible();
+  await settleAnimations(menu);
   return menu;
 }
 

@@ -8,6 +8,7 @@ import {
   pickFirstTime,
   pickTomorrow,
 } from './venue-booking-journey';
+import { settleAnimations } from './settle-animations';
 
 /**
  * The bell (#367), shared by the 1280 px spec and its 393 px twin: book a
@@ -44,6 +45,7 @@ export async function bookThenOpenTheBell(page: Page, venue: BookableVenue) {
   expect((await marked).status()).toBe(200);
 
   await expect(bell.getByTestId('notifications-count')).toHaveCount(0);
+  await settleAnimations(panel);
   await expectAxeClean(page);
 
   await row.click();

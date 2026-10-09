@@ -5,6 +5,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import bg from '../../../messages/bg.json';
 import { expectAxeClean, streamed } from './booking-detail-journey';
 import { prisma } from './create-isolated-tenant';
+import { settleAnimations } from './settle-animations';
 
 /**
  * "Изтриване на профила" and "Изтегли моите данни" on /me/profile (#370),
@@ -184,6 +185,7 @@ export async function deleteAccountFromProfile(
   await expect(confirm).toBeDisabled();
   await input.fill(bg.profile.delete.dialog.word);
   await expect(confirm).toBeEnabled();
+  await settleAnimations(page.getByRole('dialog'));
   await expectAxeClean(page);
   if (opts.shots) await page.screenshot({ path: opts.shots.dialog });
 

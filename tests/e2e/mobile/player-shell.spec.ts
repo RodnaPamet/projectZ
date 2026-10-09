@@ -6,6 +6,7 @@ import en from '../../../messages/en.json';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import { expect, test } from '../fixtures';
 import { grantModerator } from '../utils/create-player';
+import { settleAnimations } from '../utils/settle-animations';
 
 /**
  * The site's frames on a 393 px phone (#362): the bottom tab bar under the
@@ -86,6 +87,8 @@ async function openDrawer(page: Page) {
   await toggle.tap();
   const drawer = page.getByRole('dialog', { name: n.menu });
   await expect(drawer).toBeVisible();
+  // Slid all the way in, so the axe check over it samples it at rest (#463).
+  await settleAnimations(drawer);
   return drawer;
 }
 
