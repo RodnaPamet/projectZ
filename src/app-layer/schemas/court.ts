@@ -70,8 +70,8 @@ export const courtCreateSchema = z
     /**
      * DERIVED from the resource kinds, never hand-listed: this was a literal
      * copy of six types, which a seventh (TRACK, P51) would have silently
-     * missed. Left out, the sport decides (`defaultResourceType`): COURT, or
-     * the sport's own exclusive type — a karting court is a TRACK.
+     * missed. Left out, the sport decides (`defaultResourceType`, #472): a
+     * football pitch is a FIELD, a tennis court a COURT, a karting one a TRACK.
      */
     resourceType: z.enum(RESOURCE_TYPES).optional(),
     surface: z.enum(['CLAY', 'HARD', 'GRASS', 'ARTIFICIAL_GRASS', 'CARPET', 'WOOD', 'CONCRETE']),

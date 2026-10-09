@@ -4,13 +4,15 @@ import { SPORTS } from './registry';
 import { RESOURCE_KINDS, RESOURCE_TYPES, resourceNoun, type ResourceNoun } from './resource-kinds';
 
 /**
- * WHICH SPORTS A RESOURCE MAY HOLD (P51).
+ * WHICH SPORTS A RESOURCE MAY HOLD (P51), AND WHAT A NEW ONE IS (#472).
  *
  * A TRACK is EXCLUSIVE: karting is always on one, and nothing else is. The
- * other types keep the old, loose rule — a court sport is a COURT unless the
- * club says otherwise (a 5-a-side pitch onboarded as a FIELD) — so no existing
- * club's spec or court changes meaning. The onboarding spec, the courts
- * screen's schema and its edits all decide the type here.
+ * other types are loose: a sport's resource may be stored as any of them, so
+ * a court a spec onboarded as a FIELD, or a FIELD switched to tennis, keeps
+ * its type. A NEW resource follows its sport (owner decision, 2026-10-09):
+ * football, 5-a-side and handball are FIELDs ("игрище"), tennis, padel and
+ * squash COURTs. Rows stored before that are not changed. The onboarding
+ * spec, the courts screen's schema and its edits all decide the type here.
  *
  * What a resource is CALLED is `resource-kinds.ts`, which does not need the
  * sport registry; this module does.
@@ -24,14 +26,13 @@ export function allowedResourceTypes(sport: SportType): readonly ResourceType[] 
 }
 
 /**
- * The type a new court of `sport` gets when nobody says: its exclusive type
- * (karting: TRACK), otherwise COURT — the default onboarding and the courts
- * screen have always used, so a 5-a-side pitch is a FIELD only when a spec
- * says so.
+ * The type a new resource of `sport` gets when nobody says, as the courts
+ * screen (which asks for none) and a spec that leaves it out do: the sport's
+ * own, from the registry. A football or handball pitch is a FIELD, a tennis
+ * court a COURT, a karting track a TRACK (#472).
  */
 export function defaultResourceType(sport: SportType): ResourceType {
-  const own = SPORTS[sport].resourceType;
-  return RESOURCE_KINDS[own].exclusive ? own : 'COURT';
+  return SPORTS[sport].resourceType;
 }
 
 /**
