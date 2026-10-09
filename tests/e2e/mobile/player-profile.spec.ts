@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { expectAxeClean } from '../utils/booking-detail-journey';
 import { setNameAndLevels } from '../utils/profile-journey';
+import { settleAnimations } from '../utils/settle-animations';
 
 /**
  * /me/profile's #359 sections on a 393 px phone: the desktop journey in a
@@ -32,6 +33,7 @@ test.describe('player profile — phone', () => {
     await page.getByRole('main').getByTestId('profile-sports-edit').click();
     await page.getByTestId('profile-sport-pick-PADEL').getByRole('checkbox').click();
     await expect(page.getByTestId('profile-sport-pick-PADEL-meaning')).toBeVisible();
+    await settleAnimations(page.getByRole('dialog'));
     await expectAxeClean(page);
     await expectNoDrift(page);
   });

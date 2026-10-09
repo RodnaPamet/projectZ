@@ -5,6 +5,7 @@ import bg from '../../messages/bg.json';
 import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { expect, test as base } from './fixtures';
 import { prisma } from './utils/create-isolated-tenant';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * The courts board at 1280 px, as the club's OWNER (T23).
@@ -236,6 +237,7 @@ test.describe('club admin courts — desktop', () => {
       // search box and the arrows move through the options.
       await page.getByRole('combobox', { name: new RegExp(`^${c.field.sport},`) }).click();
       await expect(page.getByRole('option').first()).toBeVisible();
+      await settleAnimations(page.getByRole('listbox'));
       await expectAxeClean(page);
     });
   }

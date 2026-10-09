@@ -6,6 +6,7 @@ import bg from '../../../messages/bg.json';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import { expect, test as base } from '../fixtures';
 import { prisma } from '../utils/create-isolated-tenant';
+import { settleAnimations } from '../utils/settle-animations';
 
 /**
  * The club diary on a 393 px phone (Pixel 5), as the club's OWNER (T26).
@@ -273,6 +274,7 @@ test.describe('club admin diary — phone', () => {
 
       await noShowButton(page, club.who).click();
       await expect(page.getByRole('dialog', { name: c.noShow.confirmTitle })).toBeVisible();
+      await settleAnimations(page.getByRole('dialog', { name: c.noShow.confirmTitle }));
       await expectAxeClean(page);
     });
   }

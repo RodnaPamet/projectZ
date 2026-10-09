@@ -5,6 +5,7 @@ import bg from '../../messages/bg.json';
 import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { expect, test as base } from './fixtures';
 import { prisma } from './utils/create-isolated-tenant';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * Players and staff at 1280 px, as the club's OWNER (T25).
@@ -313,6 +314,7 @@ test.describe('club admin players and staff — desktop', () => {
       await expectAxeClean(page);
       await page.getByRole('button', { name: 'Георги Димов' }).click();
       await expect(page.getByRole('dialog', { name: 'Георги Димов' })).toBeVisible();
+      await settleAnimations(page.getByRole('dialog', { name: 'Георги Димов' }));
       await expectAxeClean(page);
 
       await page.goto(`/t/${club.slug}/admin/staff`);

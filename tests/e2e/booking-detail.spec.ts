@@ -9,6 +9,7 @@ import {
   streamed,
 } from './utils/booking-detail-journey';
 import { destroyPlayedClub, seedPlayedClub, type PlayedClub } from './utils/seed-my-bookings';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * The booking detail page at 1280 px (#359): from Предстоящи to a booking,
@@ -70,6 +71,7 @@ test.describe('booking detail — desktop', () => {
       await expectAxeClean(page);
       await page.getByTestId('booking-cancel-button').click();
       await expect(page.getByRole('dialog')).toBeVisible();
+      await settleAnimations(page.getByRole('dialog'));
       await expectAxeClean(page);
     });
   }

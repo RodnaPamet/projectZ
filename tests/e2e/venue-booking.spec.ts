@@ -11,6 +11,7 @@ import {
   pickFirstTime,
   pickTomorrow,
 } from './utils/venue-booking-journey';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * The venue page at 1280 px (#355): from a card on /venues to a booking in
@@ -97,6 +98,7 @@ test.describe('the venue page, 1280 px', () => {
     await pickFirstTime(page);
     await page.getByRole('button', { name: v.book }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
+    await settleAnimations(page.getByRole('dialog'));
     await expectAxeClean(page);
   });
 

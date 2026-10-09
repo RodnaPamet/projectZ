@@ -6,6 +6,7 @@ import bg from '../../messages/bg.json';
 import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { expect, test as base } from './fixtures';
 import { prisma } from './utils/create-isolated-tenant';
+import { settleAnimations } from './utils/settle-animations';
 
 /**
  * The club diary at 1280 px, as the club's OWNER (T26).
@@ -265,6 +266,7 @@ test.describe('club admin diary — desktop', () => {
 
       await noShowButton(page, club.who).click();
       await expect(page.getByRole('dialog', { name: c.noShow.confirmTitle })).toBeVisible();
+      await settleAnimations(page.getByRole('dialog', { name: c.noShow.confirmTitle }));
       await expectAxeClean(page);
       await page.keyboard.press('Escape');
 
