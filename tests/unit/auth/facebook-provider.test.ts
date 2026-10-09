@@ -8,7 +8,6 @@ import type { NextAuthOptions } from 'next-auth';
 import {
   FACEBOOK_GRAPH_VERSION,
   facebookPictureFrom,
-  facebookRefreshesAvatar,
   isFacebookPictureUrl,
 } from '@/lib/auth/facebook';
 
@@ -216,12 +215,6 @@ describe('Facebook pictures are loans, not avatars', () => {
     [null, false],
   ])('%s is Facebook-issued: %s', (url, expected) => {
     expect(isFacebookPictureUrl(url)).toBe(expected);
-  });
-
-  it('a Facebook sign-in refreshes only an empty avatar or an earlier Facebook one', () => {
-    expect(facebookRefreshesAvatar(null)).toBe(true);
-    expect(facebookRefreshesAvatar('https://platform-lookaside.fbsbx.com/old')).toBe(true);
-    expect(facebookRefreshesAvatar('https://lh3.googleusercontent.com/a/x')).toBe(false);
   });
 
   it.each([

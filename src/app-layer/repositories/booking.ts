@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 
+import { avatarUrlOf } from '@/lib/media/avatar-url';
+
 /**
  * Reads that surround a booking write.
  *
@@ -430,7 +432,7 @@ export async function readBookingPlayers(
     players.push({
       participantId: null,
       name: gone(u) ? null : (u?.name ?? null),
-      avatarUrl: gone(u) ? null : (u?.avatarUrl ?? null),
+      avatarUrl: gone(u) ? null : avatarUrlOf(u?.avatarUrl),
       isBooker: true,
       isYou: b.bookedByUserId === viewerId,
       registered: true,
@@ -444,7 +446,7 @@ export async function readBookingPlayers(
       players.push({
         participantId: p.id,
         name: gone(u) ? null : (u?.name ?? null),
-        avatarUrl: gone(u) ? null : (u?.avatarUrl ?? null),
+        avatarUrl: gone(u) ? null : avatarUrlOf(u?.avatarUrl),
         isBooker: false,
         isYou: p.userId === viewerId,
         registered: true,

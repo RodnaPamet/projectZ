@@ -41,8 +41,11 @@ export const FACEBOOK_USERINFO_URL = `https://graph.facebook.com/${FACEBOOK_GRAP
  */
 export const FACEBOOK_SCOPE = 'email public_profile';
 
-/** What `/me` is asked for. Nothing else is read. */
-export const FACEBOOK_USERINFO_FIELDS = 'id,name,email,picture';
+/**
+ * What `/me` is asked for. Nothing else is read. The picture at the size we
+ * keep a copy at (#458, `AVATAR_SIZE`); Graph's default is 50 px.
+ */
+export const FACEBOOK_USERINFO_FIELDS = 'id,name,email,picture.width(256).height(256)';
 
 /**
  * The refusal when Facebook sends no email address — the `?error=` the login
@@ -134,8 +137,9 @@ export function facebookNoEmailRedirect(permission: FacebookEmailPermission): st
  * Graph's `picture` is a SIGNED URL — `platform-lookaside.fbsbx.com/...` with
  * an expiry (`ext`) and a signature (`hash`) — that stops working some weeks
  * after it was issued. Google's `picture` is a stable URL; this one is a loan.
+ * So sign-in keeps a copy of its own (#458, `@/lib/media/avatars`).
  */
-const FACEBOOK_PICTURE_DOMAINS = ['fbsbx.com', 'fbcdn.net'] as const;
+export const FACEBOOK_PICTURE_DOMAINS = ['fbsbx.com', 'fbcdn.net'] as const;
 
 /** Is this a picture URL Facebook issued — one that will expire? */
 export function isFacebookPictureUrl(url: string | null | undefined): boolean {
@@ -166,15 +170,4 @@ export function facebookPictureFrom(profile: unknown): string | null {
     ?.picture?.data;
   if (!data || data.is_silhouette === true) return null;
   return typeof data.url === 'string' && data.url.startsWith('https://') ? data.url : null;
-}
-
-/**
- * Should a Facebook sign-in write the picture it just brought?
- *
- * Only over nothing, or over a picture Facebook issued earlier — which by now
- * may have expired. Never over anything else: a Google picture is stable, and
- * the account's first provider chose it.
- */
-export function facebookRefreshesAvatar(stored: string | null): boolean {
-  return stored === null || isFacebookPictureUrl(stored);
 }

@@ -95,10 +95,11 @@ the cookie policy's text with the owner.
 
 Nothing is kept in sessionStorage, IndexedDB or Cache Storage; the service
 worker is never registered. Inter is self-hosted, Sentry runs on the server,
-and there are no analytics or ads. The only other origins a page loads from
-are images: profile pictures from Google and Facebook on signed-in pages
-(#458 is to keep our own copy) and venue photos from Cloud Storage. They set no
-cookies, though they see the viewer's IP address.
+and there are no analytics or ads. The only other origin a page loads from is
+Cloud Storage, for images: venue photos and our own copies of profile pictures
+(#458: sign-in copies a Google or Facebook picture into the bucket, so no page
+loads one from Google or Meta). It sets no cookies, though it sees the viewer's
+IP address.
 
 A theme is written only when the person picks one: the vendored ThemeProvider
 (inflect #3270) writes in `setTheme` and `toggle`, never on a first visit or

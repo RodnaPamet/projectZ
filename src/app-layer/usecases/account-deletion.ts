@@ -5,6 +5,9 @@ import { tombstoneEmail } from '@/lib/account/deleted-user';
 import { playerCancellableUntil, playerMayCancel } from '@/lib/booking/cutoff';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
+import { purgeAvatarObjects } from '@/lib/media/avatar-objects';
+import { getMediaStorage } from '@/lib/media/storage';
+import { logger } from '@/lib/observability/logger';
 
 import { carryNoShowStanding } from './no-show-carry';
 import { recomputeVenueRating } from './reviews';
@@ -686,9 +689,34 @@ export async function deleteAccount(
 }
 
 /**
+ * The profile picture's copy (#458), after the deletion has committed: every
+ * object under the account's `avatars/{userId}/`. Storage is not part of the
+ * transaction, so it goes once the rows are gone, and a failure here does not
+ * undo a deletion: it is logged, and the daily media sweep deletes a copy that
+ * a deleted account still has. Returns how many objects went.
+ */
+export async function purgeAccountMedia(userId: string): Promise<number> {
+  const storage = getMediaStorage();
+  if (!storage) return 0;
+  try {
+    return await purgeAvatarObjects(storage, userId);
+  } catch (error) {
+    logger.error('account deletion: the profile picture was not deleted from storage', {
+      component: 'account',
+      error: error instanceof Error ? error.name : 'unknown',
+    });
+    return 0;
+  }
+}
+
+/**
  * The signed-in person deletes their own account: `DELETE /api/v1/me`. Every
- * statement in one transaction; on any throw, nothing changed.
+ * statement in one transaction; on any throw, nothing changed. Then the
+ * picture's copy (`purgeAccountMedia`).
  */
 export async function deleteMyAccount(userId: string): Promise<DeletionSummary> {
-  return runAsSuperuser((db) => deleteAccount(db, { userId, by: 'self' }));
+  const summary = await runAsSuperuser((db) => deleteAccount(db, { userId, by: 'self' }));
+  const pictures = await purgeAccountMedia(userId);
+  if (pictures > 0) summary['media.avatars'] = pictures;
+  return summary;
 }

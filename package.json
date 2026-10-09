@@ -41,7 +41,8 @@
     "onboard:club": "tsx scripts/onboard-club.ts",
     "backfill:club-fees": "tsx scripts/backfill-club-fees.ts",
     "report:undecided-accounts": "tsx scripts/report-undecided-accounts.ts",
-    "delete:account": "tsx scripts/delete-account.ts"
+    "delete:account": "tsx scripts/delete-account.ts",
+    "backfill:avatars": "tsx scripts/backfill-avatars.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.2.0",

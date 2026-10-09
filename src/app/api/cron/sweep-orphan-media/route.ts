@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 import { sweepOrphanMedia } from '@/app-layer/usecases/venue-photos';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { sweepOrphanAvatars } from '@/lib/media/avatar-objects';
 import { getMediaStorage } from '@/lib/media/storage';
 import { logger } from '@/lib/observability/logger';
 
@@ -17,7 +18,10 @@ import { logger } from '@/lib/observability/logger';
  *     the delete after the commit failed and was logged;
  *   - a venue or a club removed: `venue_photo` cascades with the venue, and
  *     nothing else knows its objects;
- *   - an upload whose process died between the objects and the row.
+ *   - an upload whose process died between the objects and the row;
+ *   - a profile picture's copy (#458) no live account names: one replaced at
+ *     sign-in whose delete failed, or a deleted account's whose purge failed
+ *     (`sweepOrphanAvatars`).
  *
  * Only objects older than a day are touched, so an upload in flight (objects
  * written, row not yet committed) is never mistaken for one. Rows are read
@@ -64,10 +68,20 @@ export async function POST(req: NextRequest) {
 
   // Machine work with no human actor, across every club: runAsSuperuser, as
   // the other sweeps. It reads `venue_photo.objectKey` and writes nothing.
-  const result = await runAsSuperuser((db) => sweepOrphanMedia(db, storage));
-
-  if (result.deleted > 0 || result.truncated) {
-    logger.info('swept orphaned venue photo objects', { component: 'cron', ...result });
+  const venues = await runAsSuperuser((db) => sweepOrphanMedia(db, storage));
+  if (venues.deleted > 0 || venues.truncated) {
+    logger.info('swept orphaned venue photo objects', { component: 'cron', ...venues });
   }
-  return NextResponse.json(result);
+
+  // And every profile picture's copy no live account names (#458): it reads
+  // `app_user.avatarUrl` and `deletedAt`, and writes nothing.
+  const avatars = await runAsSuperuser((db) => sweepOrphanAvatars(db, storage));
+  if (avatars.deleted > 0 || avatars.truncated) {
+    logger.info('swept orphaned profile picture objects', { component: 'cron', ...avatars });
+  }
+  return NextResponse.json({
+    scanned: venues.scanned + avatars.scanned,
+    deleted: venues.deleted + avatars.deleted,
+    truncated: venues.truncated || avatars.truncated,
+  });
 }

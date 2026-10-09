@@ -22,13 +22,21 @@
 
 const upsert = jest.fn();
 const update = jest.fn();
-
+const updateMany = jest.fn();
 jest.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 jest.mock('@/lib/db/rls-middleware', () => ({
   // The real one binds app_superuser for the transaction. Sign-in has no tenant
   // to bind yet, which is exactly why it runs as superuser — see auth.ts.
-  runAsSuperuser: (fn: (db: unknown) => unknown) => fn({ user: { upsert, update } }),
+  runAsSuperuser: (fn: (db: unknown) => unknown) => fn({ user: { upsert, update, updateMany } }),
 }));
+// The copy itself (fetch, resize, store) has its own tests in
+// tests/unit/media/avatars.test.ts. Here: what sign-in hands it, and how it saves.
+const syncAvatarAtSignIn = jest.fn();
+jest.mock('@/lib/media/avatars', () => ({
+  syncAvatarAtSignIn: (...args: unknown[]) => syncAvatarAtSignIn(...args),
+}));
+const STORAGE = { kind: 'local' };
+jest.mock('@/lib/media/storage', () => ({ getMediaStorage: () => STORAGE }));
 jest.mock('@/lib/auth/sessions', () => ({
   SESSION_MAX_AGE_SECONDS: 604800,
   createUserSession: jest.fn(),
@@ -46,6 +54,7 @@ import {
   FACEBOOK_EMAIL_REQUIRED_REDIRECT,
   FACEBOOK_EMAIL_UNAVAILABLE_REDIRECT,
 } from '@/lib/auth/facebook';
+import { NotOurAvatarError } from '@/lib/media/avatar-url';
 import { logger } from '@/lib/observability/logger';
 
 type SignInArgs = {
@@ -71,6 +80,10 @@ beforeEach(() => {
   upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: null });
   update.mockReset();
   update.mockResolvedValue({});
+  updateMany.mockReset();
+  updateMany.mockResolvedValue({ count: 1 });
+  syncAvatarAtSignIn.mockReset();
+  syncAvatarAtSignIn.mockResolvedValue(undefined);
 });
 
 describe('oauth sign-in without an adapter', () => {
@@ -260,71 +273,71 @@ describe('Facebook sign-in (#361)', () => {
     expect(args.user.email).toBe('ivo@inflect.bg');
   });
 
-  it('creates a first sign-in undecided, with the picture it brought', async () => {
+  it('creates a first sign-in undecided, and never with the provider’s picture URL', async () => {
     await signIn(facebook());
 
     const [call] = upsert.mock.calls[0] as [{ create: Record<string, unknown> }];
     expect(call.create).toMatchObject({
       email: 'ivo@inflect.bg',
       name: 'Ivo',
-      avatarUrl: PICTURE,
+      avatarUrl: null,
       accountKind: null,
     });
   });
 
-  describe('the picture is a signed URL that expires, so each Facebook sign-in re-reads it', () => {
-    it('writes nothing more when the stored picture is the one just brought', async () => {
-      upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: PICTURE });
-      await signIn(facebook());
-      expect(update).not.toHaveBeenCalled();
-    });
+  describe('the picture is copied into our storage (#458)', () => {
+    const KEY = `avatars/cm1appuser0000000000000001/facebook-${'a'.repeat(32)}.webp`;
 
-    it('replaces an earlier Facebook picture', async () => {
+    it('hands the copy the picture it brought and what is stored', async () => {
       upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: EARLIER });
       await signIn(facebook());
-      expect(update).toHaveBeenCalledWith({
-        where: { id: 'app-user-1' },
-        data: { avatarUrl: PICTURE },
-      });
+      expect(syncAvatarAtSignIn).toHaveBeenCalledWith(
+        {
+          provider: 'facebook',
+          userId: 'app-user-1',
+          stored: EARLIER,
+          picture: PICTURE,
+          save: expect.any(Function),
+        },
+        STORAGE,
+      );
     });
 
-    it('fills an account that has no picture', async () => {
-      upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: null });
-      await signIn(facebook());
-      expect(update).toHaveBeenCalledWith({
-        where: { id: 'app-user-1' },
-        data: { avatarUrl: PICTURE },
-      });
+    it('a Google sign-in hands over its picture too', async () => {
+      await signIn(google());
+      expect(syncAvatarAtSignIn).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: 'google', stored: null, picture: 'https://i/p.png' }),
+        STORAGE,
+      );
     });
 
-    it('never replaces a picture from anywhere else', async () => {
+    it('saves only over the value it read, and only our copy or nothing', async () => {
       upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: GOOGLE_PICTURE });
-      await signIn(facebook());
-      expect(update).not.toHaveBeenCalled();
-    });
+      await signIn(google());
+      const [{ save }] = syncAvatarAtSignIn.mock.calls[0] as [
+        { save: (v: string | null) => Promise<boolean> },
+      ];
 
-    it('a silhouette clears an earlier Facebook picture, so the initials show', async () => {
-      upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: EARLIER });
-      await signIn(facebook({ user: { id: '1029384756', email: 'ivo@inflect.bg', image: null } }));
-      expect(update).toHaveBeenCalledWith({
-        where: { id: 'app-user-1' },
-        data: { avatarUrl: null },
+      await expect(save(KEY)).resolves.toBe(true);
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { id: 'app-user-1', avatarUrl: GOOGLE_PICTURE, deletedAt: null },
+        data: { avatarUrl: KEY },
       });
+      updateMany.mockResolvedValue({ count: 0 });
+      await expect(save(null)).resolves.toBe(false);
+      await expect(save(PICTURE)).rejects.toThrow(NotOurAvatarError);
     });
 
-    it('a refresh that fails does not fail the sign-in', async () => {
-      upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: EARLIER });
-      update.mockRejectedValue(new Error('connection reset'));
-
-      const args = facebook();
-      await expect(signIn(args)).resolves.toBe(true);
-      expect(args.user.id).toBe('app-user-1');
+    it('a picture step that fails, even to load, does not fail the sign-in', async () => {
+      syncAvatarAtSignIn.mockRejectedValue(new Error('sharp: could not load'));
+      const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      try {
+        const args = facebook();
+        await expect(signIn(args)).resolves.toBe(true);
+        expect(args.user.id).toBe('app-user-1');
+      } finally {
+        warn.mockRestore();
+      }
     });
-  });
-
-  it('a Google sign-in never touches the picture, whatever it is', async () => {
-    upsert.mockResolvedValue({ id: 'app-user-1', avatarUrl: EARLIER });
-    await signIn(google());
-    expect(update).not.toHaveBeenCalled();
   });
 });
