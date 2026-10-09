@@ -160,7 +160,11 @@ describe('club admin nav, by role', () => {
   it.each([
     ['court', 'Кортове', 'Courts'],
     ['track', 'Писти', 'Tracks'],
-    ['mixed', 'Кортове и писти', 'Courts and tracks'],
+    ['pitch', 'Игрища', 'Pitches'],
+    ['courtTrack', 'Кортове и писти', 'Courts and tracks'],
+    ['courtPitch', 'Кортове и игрища', 'Courts and pitches'],
+    ['pitchTrack', 'Игрища и писти', 'Pitches and tracks'],
+    ['courtPitchTrack', 'Кортове, игрища и писти', 'Courts, pitches and tracks'],
   ] as const)(
     'names the courts screen after what the club plays on (%s): "%s" (P51, #362)',
     (nouns, bgLabel, enLabel) => {

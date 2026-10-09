@@ -28,6 +28,7 @@ import { Caption, Heading, TextLink } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { cityLabel } from '@/lib/geo/cities';
+import { bookingNoun } from '@/lib/sports/resource-kinds';
 import { buildClubJsonLd } from '@/lib/seo/club-jsonld';
 import { clubPath, venuePath } from '@/lib/seo/sitemap';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
@@ -110,7 +111,11 @@ export async function generateMetadata({
     getLocale(),
   ]);
   const main = club.venues[0];
-  const title = t('metaTitle', { name: club.name });
+  // What the club offers, by the venue title's rule (#454): "игрища" at a
+  // football club, "писти" at a karting one, "свободни часове" where no one
+  // word is true of its courts.
+  const noun = bookingNoun(club.venues.flatMap((v) => v.resourceTypes));
+  const title = t(noun === 'court' ? 'metaTitle' : `${noun}.metaTitle`, { name: club.name });
   const description = t('metaDescription', {
     name: club.name,
     count: club.venues.length,

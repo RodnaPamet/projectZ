@@ -87,6 +87,8 @@ export default async function BookingInvitePage({
   const date = format.dateTime(preview.startTs, { dateStyle: 'full', timeZone });
   const from = format.dateTime(preview.startTs, { timeStyle: 'short', timeZone });
   const to = format.dateTime(preview.endTs, { timeStyle: 'short', timeZone });
+  // "Писта" for a karting track, "Игрище" for a field (P51, #454).
+  const noun = resourceNoun(preview.resourceType);
 
   return (
     <div className="bg-bg-page text-content-default safe-area-x flex-1">
@@ -111,9 +113,7 @@ export default async function BookingInvitePage({
             <p className="text-content-muted text-sm">{preview.venueCity}</p>
           </div>
           <div>
-            <Caption>
-              {t(resourceNoun(preview.resourceType) === 'track' ? 'track.court' : 'court')}
-            </Caption>
+            <Caption>{t(noun === 'court' ? 'court' : `${noun}.court`)}</Caption>
             <p className="text-content-default text-sm">
               {preview.courtName} · {tSports(preview.sport as never)}
             </p>

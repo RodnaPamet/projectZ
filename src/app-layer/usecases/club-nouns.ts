@@ -8,9 +8,10 @@ import { RESOURCE_TYPES, resourceNouns, type ResourceNouns } from '@/lib/sports/
  *
  * A karting club has tracks, not courts, and its admin says so: the nav item
  * and the bottom tab for the courts screen, and that screen's tab title, read
- * "Писти" when every resource the club has is a track, "Кортове и писти" when
- * it has both, and "Кортове" otherwise (`resourceNouns`, the one noun table:
- * every type but TRACK reads "корт"). The screen's own heading has followed
+ * "Писти" when every resource the club has is a track, "Игрища" when every one
+ * is a field, "Кортове и игрища" when it has courts and pitches (its nouns in
+ * the order Кортове, игрища, писти), and "Кортове" otherwise (`resourceNouns`,
+ * the one noun table, #454). The screen's own heading has followed
  * the same rule since P51, over the same rows: every resource the club has,
  * archived ones included, so the nav item never names a screen differently
  * from the heading it opens.

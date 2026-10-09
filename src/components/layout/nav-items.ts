@@ -114,14 +114,18 @@ export interface NavSection<T extends NavItem = NavItem> {
 }
 
 /**
- * The courts screen's nav label by the club's resources (P51, #362), in the
- * catalogue's noun layout: the court wording at the plain key, the track and
- * mixed wordings under `track.` and `mixed.` (sport-exhaustiveness).
+ * The courts screen's nav label by the club's resources (P51, #362, #454), in
+ * the catalogue's noun layout: the court wording at the plain key, each other
+ * noun's and each list's under its name (sport-exhaustiveness).
  */
 const COURTS_LABEL: Record<ResourceNouns, string> = {
   court: 'courts',
+  pitch: 'pitch.courts',
   track: 'track.courts',
-  mixed: 'mixed.courts',
+  courtPitch: 'courtPitch.courts',
+  courtTrack: 'courtTrack.courts',
+  pitchTrack: 'pitchTrack.courts',
+  courtPitchTrack: 'courtPitchTrack.courts',
 };
 
 /**
@@ -137,9 +141,10 @@ const COURTS_LABEL: Record<ResourceNouns, string> = {
  * A COACH holds `players.view` and nothing else here, so a coach sees only
  * Players: today's permission-based view, kept until the coach UI decides.
  *
- * `nouns` names the courts screen after what the club plays on (P51, #362):
- * "Писти" at a club of tracks only, "Кортове и писти" at one with both, as
- * the screen's own heading does (`clubResourceNouns`).
+ * `nouns` names the courts screen after what the club plays on (P51, #362,
+ * #454): "Писти" at a club of tracks only, "Игрища" at one of pitches only,
+ * "Кортове и игрища" at one with both, as the screen's own heading does
+ * (`clubResourceNouns`).
  */
 export function clubAdminNav(
   slug: string,

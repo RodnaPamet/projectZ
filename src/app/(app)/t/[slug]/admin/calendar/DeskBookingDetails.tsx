@@ -130,7 +130,9 @@ export default function DeskBookingDetails({
 
         {b && !editing && (
           <dl className="gap-default grid grid-cols-[auto_1fr] gap-x-4">
-            <dt className="text-content-muted">{t(noun === 'track' ? 'track.court' : 'court')}</dt>
+            <dt className="text-content-muted">
+              {t(noun === 'court' ? 'court' : `${noun}.court`)}
+            </dt>
             <dd>{b.resource.name}</dd>
 
             <dt className="text-content-muted">{t('phone')}</dt>

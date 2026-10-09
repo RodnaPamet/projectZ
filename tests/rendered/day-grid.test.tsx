@@ -322,7 +322,9 @@ describe('getting around the diary (audit C07, C08)', () => {
       const mixed = four();
       mixed.courts[3] = { ...mixed.courts[3]!, noun: 'track' };
       grid(nextClub(), mixed);
-      expect(screen.getByText(c.mixed.scroll.hint.replace('{count}', '4'))).toBeInTheDocument();
+      expect(
+        screen.getByText(c.courtTrack.scroll.hint.replace('{count}', '4')),
+      ).toBeInTheDocument();
     });
   });
 });

@@ -1,4 +1,4 @@
-import type { PrismaClient, SportType } from '@prisma/client';
+import type { PrismaClient, ResourceType, SportType } from '@prisma/client';
 
 import { mediaBaseUrl, PHOTO_SELECT, toPhotoView, type PhotoView } from '@/lib/media/photo-view';
 
@@ -13,7 +13,8 @@ import { mediaBaseUrl, PHOTO_SELECT, toPhotoView, type PhotoView } from '@/lib/m
  * only while ACTIVE and given a public address (P41 fills it for every venue;
  * a row it missed is left out rather than linked to a 404). Courts only while
  * ACTIVE, and only what a card shows: the sport, and the price fields the
- * structured data's price range needs.
+ * structured data's price range needs; and their type, which the page's title
+ * names (#454).
  *
  * The fields are picked by hand. `VenueOrg` also carries Stripe and envelope
  * encryption columns; a page that read the whole row would be one refactor
@@ -43,6 +44,8 @@ export interface ClubPageVenue {
   phone: string | null;
   /** Distinct, in court-name order. */
   sports: SportType[];
+  /** Its courts' types, distinct: what the page's title offers to book (#454). */
+  resourceTypes: ResourceType[];
   /** The venue's cover photo (#366), or null. */
   cover: PhotoView | null;
 }
@@ -85,7 +88,7 @@ export async function loadClubPublicPage(db: PrismaClient, slug: string): Promis
       phone: true,
       resources: {
         where: { status: 'ACTIVE' },
-        select: { sport: true },
+        select: { sport: true, resourceType: true },
         orderBy: { name: 'asc' },
         take: 50,
       },
@@ -109,6 +112,7 @@ export async function loadClubPublicPage(db: PrismaClient, slug: string): Promis
             timezone: v.timezone,
             phone: v.phone,
             sports: [...new Set(v.resources.map((r) => r.sport))],
+            resourceTypes: [...new Set(v.resources.map((r) => r.resourceType))],
             cover: v.photos[0] ? toPhotoView(v.photos[0], base) : null,
           },
         ]

@@ -60,7 +60,8 @@ export function CourtsBoard({
   const t = useTranslations('admin.courts');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  // "Добавяне на писта" at a karting club, "…на корт или писта" at one with both.
+  // "Добавяне на писта" at a karting club, "…на корт или игрище" at one with
+  // courts and pitches.
   const nouns = resourceNouns(courts.map((c) => c.resourceType));
 
   return (
@@ -74,13 +75,7 @@ export function CourtsBoard({
           // A club with no venue has nowhere to put a court, and a form whose
           // only select is empty is a worse explanation than not offering it.
           <Button type="button" onClick={() => setAdding(true)} disabled={venues.length === 0}>
-            {t(
-              nouns === 'track'
-                ? 'track.action.add'
-                : nouns === 'mixed'
-                  ? 'mixed.action.add'
-                  : 'action.add',
-            )}
+            {t(nouns === 'court' ? 'action.add' : `${nouns}.action.add`)}
           </Button>
         )}
         {venues.length === 0 && <p className="text-content-muted mt-2 text-sm">{t('needVenue')}</p>}
@@ -166,8 +161,9 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
 
   const archived = status === 'CLOSED';
   const flip = (reopen: boolean) => startTransition(() => setArchived(reopen));
-  // A karting track is a "писта", and the badge and setting agree with it.
-  const track = resourceNoun(court.resourceType) === 'track';
+  // A karting track is a "писта" and a field an "игрище", and the badge and
+  // setting agree with it ("Активна", "Активно").
+  const noun = resourceNoun(court.resourceType);
 
   const money = (cents: number) =>
     format.number(cents / 100, { style: 'currency', currency: 'EUR' });
@@ -186,7 +182,7 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
           className="shrink-0"
           data-court-status={status}
         >
-          {t((track ? `track.status.${status}` : `status.${status}`) as never)}
+          {t((noun === 'court' ? `status.${status}` : `${noun}.status.${status}`) as never)}
         </StatusBadge>
       </div>
 
@@ -194,8 +190,8 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
         <dt>{t('field.setting')}</dt>
         <dd className="text-content-default">
           {court.isIndoor
-            ? t(track ? 'track.setting.indoor' : 'setting.indoor')
-            : t(track ? 'track.setting.outdoor' : 'setting.outdoor')}
+            ? t(noun === 'court' ? 'setting.indoor' : `${noun}.setting.indoor`)
+            : t(noun === 'court' ? 'setting.outdoor' : `${noun}.setting.outdoor`)}
         </dd>
         <dt>{t('field.capacity')}</dt>
         <dd className="text-content-default">{t('capacity', { count: court.capacity })}</dd>
@@ -225,7 +221,7 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
 
       {failed && !pending && (
         <InlineNotice variant="error" className="mt-compact">
-          {t(track ? 'track.archive.failed' : 'archive.failed')}
+          {t(noun === 'court' ? 'archive.failed' : `${noun}.archive.failed`)}
         </InlineNotice>
       )}
 
@@ -237,8 +233,8 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
           showModal={confirming}
           setShowModal={setConfirming}
           tone="warning"
-          title={t(track ? 'track.archive.title' : 'archive.title')}
-          description={t(track ? 'track.archive.confirm' : 'archive.confirm', {
+          title={t(noun === 'court' ? 'archive.title' : `${noun}.archive.title`)}
+          description={t(noun === 'court' ? 'archive.confirm' : `${noun}.archive.confirm`, {
             count: court.upcomingBookings,
           })}
           confirmLabel={t('action.archive')}

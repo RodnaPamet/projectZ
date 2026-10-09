@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 
 import { PROFILE_SPORTS } from '@/lib/profile/limits';
 import { SPORTS } from '@/lib/sports/registry';
-import { RESOURCE_KINDS, RESOURCE_TYPES } from '@/lib/sports/resource-kinds';
+import {
+  combineNouns,
+  NOUN_ORDER,
+  RESOURCE_KINDS,
+  RESOURCE_NOUNS,
+  RESOURCE_TYPES,
+  type ResourceNoun,
+} from '@/lib/sports/resource-kinds';
 
 /**
  * THE NEXT SPORT FAILS LOUDLY WHERE IT IS UNHANDLED (P51).
@@ -12,7 +19,7 @@ import { RESOURCE_KINDS, RESOURCE_TYPES } from '@/lib/sports/resource-kinds';
  *
  *   - the iOS client is GENERATED from openapi/playerz-v1.json, whose enums are
  *     hand-written. A sport missing there is one a shipped app cannot decode;
- *   - a resource type gets a noun ("корт", "писта") in `RESOURCE_KINDS`, and
+ *   - a resource type gets a noun ("корт", "игрище", "писта") in `RESOURCE_KINDS`, and
  *     every message that names a resource needs that noun's wording. A
  *     missing one does not throw: the new kind silently reads as a court.
  *
@@ -23,10 +30,12 @@ import { RESOURCE_KINDS, RESOURCE_TYPES } from '@/lib/sports/resource-kinds';
  *
  * ═══ HOW NOUN WORDING IS LAID OUT ═══
  *
- * A key's plain path is the court wording. The same path with `track.` after
- * the namespace the component binds is the track wording, and with `mixed.`
- * the wording for a list holding both (`admin.courts.title` →
- * `admin.courts.track.title`, `admin.courts.mixed.title`).
+ * A key's plain path is the court wording. The same path with a noun after
+ * the namespace the component binds is that noun's wording, and with a list's
+ * name the wording for a list holding several nouns (`admin.courts.title` →
+ * `admin.courts.track.title`, `admin.courts.pitch.title`,
+ * `admin.courts.courtPitch.title`). A list is named by its nouns in the
+ * owner's order (#454): Кортове, игрища, писти.
  */
 
 function prismaEnum(name: string): string[] {
@@ -60,7 +69,19 @@ const EN = catalogue('en');
 const NOUNS = [...new Set(Object.values(RESOURCE_KINDS).map((k) => k.noun))].filter(
   (n) => n !== 'court',
 );
-const VARIANTS = [...NOUNS, 'mixed'];
+/** The lists of several nouns, each named by its nouns (`courtTrack`). */
+const LISTS: string[] = RESOURCE_NOUNS.filter((n) => !NOUN_ORDER.includes(n as ResourceNoun));
+const VARIANTS = [...NOUNS, ...LISTS];
+
+/** `courtPitchTrack` → `['court', 'pitch', 'track']`. */
+const nounsOf = (list: string) => list.split(/(?=[A-Z])/).map((n) => n.toLowerCase());
+
+/** How each catalogue spells a noun, to find it in a sentence. */
+const STEMS: Record<ResourceNoun, { bg: RegExp; en: RegExp }> = {
+  court: { bg: /корт/i, en: /court/i },
+  pitch: { bg: /игрищ/i, en: /pitch/i },
+  track: { bg: /пист/i, en: /track/i },
+};
 
 /**
  * `a.b.track.c` → `{ variant: 'track', twin: 'a.b.c', at: 2 }`. Never the last
@@ -82,7 +103,7 @@ function missingNounKeys(keys: ReadonlySet<string>, nouns: readonly string[]): s
   const families = new Map<string, number>();
   for (const k of keys) {
     const v = variantOf(k);
-    if (v && v.variant !== 'mixed') families.set(v.twin, v.at);
+    if (v && !LISTS.includes(v.variant)) families.set(v.twin, v.at);
   }
   const missing: string[] = [];
   for (const [twin, at] of families) {
@@ -93,6 +114,24 @@ function missingNounKeys(keys: ReadonlySet<string>, nouns: readonly string[]): s
     }
   }
   return missing;
+}
+
+/**
+ * What is wrong with a list's wording: a noun it holds and does not name, a
+ * noun it names and does not hold, or its nouns out of the owner's order.
+ */
+function listWordingErrors(list: string, text: string, locale: 'bg' | 'en'): string[] {
+  const held = nounsOf(list) as ResourceNoun[];
+  const errors: string[] = [];
+  for (const noun of NOUN_ORDER) {
+    const named = STEMS[noun][locale].test(text);
+    if (held.includes(noun) && !named) errors.push(`does not name the ${noun}`);
+    if (!held.includes(noun) && named) errors.push(`names a ${noun} it does not hold`);
+  }
+  const at = held.map((n) => text.search(STEMS[n][locale])).filter((a) => a >= 0);
+  if (at.some((a, i) => i > 0 && a < at[i - 1]!))
+    errors.push(`not in the order ${held.join(', ')}`);
+  return errors;
 }
 
 describe('every place a sport or a resource type is listed', () => {
@@ -134,16 +173,30 @@ describe('every noun has its wording wherever a message names a resource', () =>
 
   it('found the noun wording', () => {
     expect(variantKeys.length).toBeGreaterThan(20);
+    expect(NOUNS).toEqual(expect.arrayContaining(['pitch', 'track']));
+    expect(LISTS).toContain('courtTrack');
   });
 
-  it('every track or mixed key mirrors a court key', () => {
+  it('every list of nouns has a name, and the name holds its nouns in order', () => {
+    // Every set of nouns a club can have, as `combineNouns` names it.
+    const subsets = NOUN_ORDER.reduce<ResourceNoun[][]>(
+      (all, n) => [...all, ...all.map((s) => [...s, n])],
+      [[]],
+    ).filter((s) => s.length > 0);
+    const named = subsets.map((s) => combineNouns([...s].reverse()));
+    expect([...named].sort()).toEqual([...RESOURCE_NOUNS].sort());
+    for (const s of subsets) expect(nounsOf(combineNouns(s))).toEqual(s);
+    expect(combineNouns([])).toBe('court');
+  });
+
+  it('every noun or list key mirrors a court key', () => {
     const orphans = variantKeys.filter((k) => !BG.has(variantOf(k)!.twin));
     expect(orphans).toEqual([]);
   });
 
   it('every court key with a noun variant has one for EVERY noun', () => {
-    // Today the nouns are court and track. A resource type that brings a new
-    // noun fails here, once per message, until each has its wording.
+    // A resource type that brings a new noun fails here, once per message,
+    // until each has its wording.
     expect(missingNounKeys(new Set(BG.keys()), NOUNS)).toEqual([]);
   });
 
@@ -153,34 +206,56 @@ describe('every noun has its wording wherever a message names a resource', () =>
     expect(missingNounKeys(keys, ['track', 'lane'])).toEqual(['ns.lane.title', 'ns.lane.label']);
   });
 
-  it('a list holding both nouns has wording for a list of one, too', () => {
+  it('a message worded for a list has every list, and every noun alone', () => {
     const missing = variantKeys
-      .filter((k) => variantOf(k)!.variant === 'mixed')
+      .filter((k) => LISTS.includes(variantOf(k)!.variant))
       .flatMap((k) => {
         const { at } = variantOf(k)!;
         const parts = k.split('.');
-        return NOUNS.map((noun) => [...parts.slice(0, at), noun, ...parts.slice(at + 1)].join('.'));
+        return VARIANTS.map((v) => [...parts.slice(0, at), v, ...parts.slice(at + 1)].join('.'));
       })
       .filter((k) => !BG.has(k));
-    expect(missing).toEqual([]);
+    expect([...new Set(missing)]).toEqual([]);
   });
 
-  it('a track never reads "корт"; a list of both names both', () => {
-    // Not every track value names the noun: "Активна" only agrees with it. So
-    // the rule is the absence of the court, and a Bulgarian difference from
-    // the court wording (English "Active" is the same word for both).
+  it('a noun never reads as another; a list names its nouns, in order', () => {
+    // Not every noun's value names it: "Активна" only agrees with "писта". So
+    // the rule for one noun is the absence of the others, and a Bulgarian
+    // difference from the court wording (English "Active" is the same word).
     const wrong: string[] = [];
     for (const k of variantKeys) {
       const { variant, twin } = variantOf(k)!;
       const bg = BG.get(k)!;
       const en = EN.get(k) ?? '';
-      if (variant !== 'mixed') {
-        if (/корт/i.test(bg) || bg === BG.get(twin)) wrong.push(`bg ${k}: ${bg}`);
-        if (/court/i.test(en)) wrong.push(`en ${k}: ${en}`);
-      } else if (!(/корт/i.test(bg) && /пист/i.test(bg))) {
-        wrong.push(`bg ${k}: ${bg}`);
+      if (LISTS.includes(variant)) {
+        for (const e of listWordingErrors(variant, bg, 'bg')) wrong.push(`bg ${k}: ${e}: ${bg}`);
+        for (const e of listWordingErrors(variant, en, 'en')) wrong.push(`en ${k}: ${e}: ${en}`);
+        continue;
+      }
+      for (const other of NOUN_ORDER.filter((n) => n !== variant)) {
+        if (STEMS[other].bg.test(bg)) wrong.push(`bg ${k} names a ${other}: ${bg}`);
+        if (STEMS[other].en.test(en)) wrong.push(`en ${k} names a ${other}: ${en}`);
+      }
+      if (bg === BG.get(twin)) wrong.push(`bg ${k} reads as the court's: ${bg}`);
+    }
+    // And the court wording of the same messages names no other noun.
+    for (const twin of new Set(variantKeys.map((k) => variantOf(k)!.twin))) {
+      for (const other of NOUNS as ResourceNoun[]) {
+        if (STEMS[other].bg.test(BG.get(twin) ?? '')) wrong.push(`bg ${twin} names a ${other}`);
+        if (STEMS[other].en.test(EN.get(twin) ?? '')) wrong.push(`en ${twin} names a ${other}`);
       }
     }
     expect(wrong).toEqual([]);
+  });
+
+  it('negative control: a list out of order, or naming a noun it lacks, is caught', () => {
+    expect(listWordingErrors('courtPitch', 'Кортове и игрища', 'bg')).toEqual([]);
+    expect(listWordingErrors('courtPitch', 'Игрища и кортове', 'bg')).toEqual([
+      'not in the order court, pitch',
+    ]);
+    expect(listWordingErrors('courtPitch', 'Кортове и писти', 'bg')).toEqual([
+      'does not name the pitch',
+      'names a track it does not hold',
+    ]);
   });
 });

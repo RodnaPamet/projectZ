@@ -294,7 +294,7 @@ export function CourtForm({
       <div className="gap-tight flex min-h-11 items-center">
         <Switch id={`${ids}-indoor`} name="isIndoor" defaultChecked={court?.isIndoor} />
         <Label htmlFor={`${ids}-indoor`} className="cursor-pointer py-3">
-          {t(noun === 'track' ? 'track.setting.indoor' : 'setting.indoor')}
+          {t(noun === 'court' ? 'setting.indoor' : `${noun}.setting.indoor`)}
         </Label>
       </div>
 
@@ -302,7 +302,7 @@ export function CourtForm({
 
       <div className="gap-tight flex">
         <Button type="submit" disabled={pending} data-perf-write="submit">
-          {editing ? t('action.save') : t(noun === 'track' ? 'track.action.add' : 'action.add')}
+          {editing ? t('action.save') : t(noun === 'court' ? 'action.add' : `${noun}.action.add`)}
         </Button>
         {onDone && (
           <Button type="button" variant="ghost" onClick={onDone}>

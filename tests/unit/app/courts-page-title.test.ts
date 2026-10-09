@@ -69,7 +69,9 @@ describe('the courts screen’s tab title', () => {
   it.each([
     ['court', bg.admin.courts.metaTitle],
     ['track', bg.admin.courts.track.metaTitle],
-    ['mixed', bg.admin.courts.mixed.metaTitle],
+    ['pitch', bg.admin.courts.pitch.metaTitle],
+    ['courtTrack', bg.admin.courts.courtTrack.metaTitle],
+    ['courtPitch', bg.admin.courts.courtPitch.metaTitle],
   ] as const)('a club of %s reads "%s"', async (nouns, title) => {
     resolveTenantPageContext.mockResolvedValue(OK);
     clubResourceNouns.mockResolvedValue(nouns);
@@ -82,7 +84,14 @@ describe('the courts screen’s tab title', () => {
   it('is "Писти" at a karting club, the heading’s own word', () => {
     expect(bg.admin.courts.track.metaTitle).toBe('Писти');
     expect(bg.admin.courts.track.metaTitle).toBe(bg.admin.courts.track.title);
-    expect(bg.admin.courts.mixed.metaTitle).toBe(bg.admin.courts.mixed.title);
+    expect(bg.admin.courts.courtTrack.metaTitle).toBe(bg.admin.courts.courtTrack.title);
+  });
+
+  it('is "Игрища" at a football club, and "Кортове и игрища" with courts too (#454)', () => {
+    expect(bg.admin.courts.pitch.metaTitle).toBe('Игрища');
+    expect(bg.admin.courts.pitch.metaTitle).toBe(bg.admin.courts.pitch.title);
+    expect(bg.admin.courts.courtPitch.metaTitle).toBe('Кортове и игрища');
+    expect(bg.admin.courts.courtPitch.metaTitle).toBe(bg.admin.courts.courtPitch.title);
   });
 
   it('a visitor the page refuses gets the plain title, and no club is read', async () => {
