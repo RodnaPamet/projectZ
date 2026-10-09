@@ -8474,7 +8474,7 @@
           },
           "avatarUrl": {
             "type": ["string", "null"],
-            "description": "The sign-in provider's picture (Google, Facebook), or null. Not writable: it comes with the sign-in."
+            "description": "Our copy of the sign-in provider's picture (Google, Facebook), served from our media bucket (#458), or null: show the initials. Not writable: it comes with the sign-in."
           },
           "locale": {
             "type": "string",
@@ -9822,7 +9822,7 @@
           },
           "avatarUrl": {
             "type": ["string", "null"],
-            "description": "The sign-in provider's picture, or null."
+            "description": "Our copy of the sign-in provider's picture, served from our media bucket (#458), or null."
           },
           "isBooker": {
             "type": "boolean",

@@ -539,7 +539,8 @@ transaction. What it does to each table, and why, is
 - every session of the account is signed out at once;
 - the person's data is deleted: profile, sports, devices, notifications, email,
   reviews (the ratings are recomputed), invite links, memberships, the club's
-  notes on them;
+  notes on them, and the copy of their profile picture in the media bucket
+  (#458, once the rows are gone; the script prints `media.avatars`);
 - their bookings stay in the clubs' records as "Изтрит потребител", because the
   clubs' statements and the platform fee are computed from them;
 - unused credit at a club is lost (owner decision: warn, then allow). The dry
@@ -569,3 +570,40 @@ script does not touch it. If the person asks for theirs to be erased too:
 ```sql
 DELETE FROM contact_request WHERE lower(email) = 'maria@example.bg';
 ```
+
+## Copying the profile pictures (#458)
+
+Since #458, sign-in keeps its own copy of a Google or Facebook profile picture
+in the media bucket (`avatars/{userId}/…`, docs/media-storage.md) and pages
+show that copy. Accounts that signed in before the deploy still hold the
+provider's URL. Pages no longer show it: the initials stand in, so no viewer's
+IP address reaches Google or Meta. Their next sign-in copies the picture. To
+copy everyone's at once, run this **once, after the deploy**.
+
+Without `--confirm` it is a dry run: it counts the accounts holding a
+provider's URL, by provider, and fetches and writes nothing. With
+`--confirm` it copies them one at a time:
+
+```bash
+npm run backfill:avatars
+npm run backfill:avatars -- --confirm
+```
+
+On the VM, in the migrator image as the other scripts. The env file supplies
+`DIRECT_DATABASE_URL` and the media settings (`MEDIA_STORAGE`, `GCS_BUCKET`,
+`GCS_CREDENTIALS_BASE64`):
+
+```bash
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
+  playerz-migrator:local npx tsx scripts/backfill-avatars.ts
+
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env -w /app \
+  playerz-migrator:local npx tsx scripts/backfill-avatars.ts --confirm
+```
+
+It writes each copy's key only over the URL it read, so an account that signs
+in meanwhile keeps what that sign-in saved. A picture that cannot be copied is
+cleared instead: Facebook's URLs expire within weeks, so expect some
+`not copied, STATUS` lines. The initials show for those, and the person's next
+sign-in copies a fresh picture. Afterwards no stored picture points at Google
+or Meta. It is safe to run again: copies already made are not read.

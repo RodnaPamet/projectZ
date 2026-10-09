@@ -141,7 +141,11 @@ export async function processUpload(input: Buffer): Promise<ProcessedImage> {
   return serially(() => decodeAndResize(input, format));
 }
 
-async function decodeAndResize(input: Buffer, format: ImageFormat): Promise<ProcessedImage> {
+/** The header's size, upright, once the format and the pixel count are checked. */
+async function checkedSize(
+  input: Buffer,
+  format: ImageFormat,
+): Promise<{ width: number; height: number }> {
   let meta: Metadata;
   try {
     meta = await decoder(input).metadata();
@@ -157,8 +161,39 @@ async function decodeAndResize(input: Buffer, format: ImageFormat): Promise<Proc
   if (w0 * h0 > MAX_INPUT_PIXELS) throw new ImageRejectedError('TOO_MANY_PIXELS');
   // EXIF orientations 5–8 are a quarter turn: width and height swap.
   const turned = (meta.orientation ?? 1) >= 5;
-  const width = turned ? h0 : w0;
-  const height = turned ? w0 : h0;
+  return { width: turned ? h0 : w0, height: turned ? w0 : h0 };
+}
+
+/** A profile picture's copy (#458): square, at most this many pixels a side. */
+export const AVATAR_SIZE = 256;
+
+/**
+ * A profile picture as we keep it (#458): one square WebP, at most
+ * `AVATAR_SIZE` a side, cropped to the centre and never enlarged, re-encoded
+ * from pixels, so no metadata of the original survives. The same format and
+ * pixel checks as an upload, and one decode at a time with them; no minimum
+ * size, since a provider's picture can be 50 px.
+ */
+export async function processAvatar(input: Buffer): Promise<Buffer> {
+  if (input.length > MAX_UPLOAD_BYTES) throw new ImageRejectedError('TOO_LARGE');
+  const format = sniffImageFormat(input);
+  if (!format) throw new ImageRejectedError('UNSUPPORTED_TYPE');
+  return serially(async () => {
+    await checkedSize(input, format);
+    try {
+      return await decoder(input)
+        .rotate()
+        .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: 'cover', withoutEnlargement: true })
+        .webp({ quality: 80, effort: 4 })
+        .toBuffer();
+    } catch {
+      throw new ImageRejectedError('UNREADABLE');
+    }
+  });
+}
+
+async function decodeAndResize(input: Buffer, format: ImageFormat): Promise<ProcessedImage> {
+  const { width, height } = await checkedSize(input, format);
   if (width < MIN_DIMENSION || height < MIN_DIMENSION) throw new ImageRejectedError('TOO_SMALL');
 
   try {

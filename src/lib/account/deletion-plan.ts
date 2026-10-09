@@ -71,7 +71,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'avatarUrl',
     action: 'anonymise',
     reason:
-      'Set to null. It is the sign-in provider’s picture URL (Google, Facebook): players upload nothing, so there is no object in our media storage to delete.',
+      'Set to null. It names our copy of the sign-in provider’s picture (#458), and that object is deleted from media storage too: see DELETION_MEDIA.',
   },
   {
     model: 'User',
@@ -790,6 +790,27 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     action: 'keep',
     reason:
       'Counts per day, event and venue, with nothing that names a person (tests/guardrails/usage-no-personal-data.test.ts).',
+  },
+];
+
+/**
+ * What deleting an account does to the person's objects in media storage
+ * (#458), which no table holds: one line per prefix they live under.
+ * `tests/guardrails/account-deletion-plan.test.ts` fails when a prefix that
+ * src/lib/media/keys.ts builds from an account's id is missing here, or when
+ * the deletion stops purging it.
+ */
+export const DELETION_MEDIA: readonly {
+  prefix: string;
+  action: 'delete';
+  reason: string;
+}[] = [
+  {
+    prefix: 'avatars/{userId}/',
+    action: 'delete',
+    reason:
+      'Every copy of the profile picture, deleted once the deletion has committed (purgeAccountMedia, from /me/profile and from scripts/delete-account.ts alike). ' +
+      'Storage is not part of the transaction: a failure is logged, and the daily media sweep deletes every copy a deleted account still has.',
   },
 ];
 

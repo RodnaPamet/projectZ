@@ -93,7 +93,8 @@ describe('GET /api/v1/me/export (#370)', () => {
         data: {
           name: 'Мария Иванова',
           phone: '+359888000111',
-          avatarUrl: 'https://lh3.googleusercontent.com/a/maria',
+          // Our copy of her picture (#458), which the export shows as our URL.
+          avatarUrl: `avatars/${userId}/google-${'b'.repeat(32)}.webp`,
           passwordHash: SECRETS.passwordHash,
           mfaSecret: SECRETS.mfaSecret,
           emailBookingReminders: false,
@@ -323,7 +324,15 @@ describe('GET /api/v1/me/export (#370)', () => {
   });
 
   it('every section is there, with the person’s own data', async () => {
-    const { json } = await download(player);
+    const base = process.env.MEDIA_PUBLIC_BASE_URL;
+    process.env.MEDIA_PUBLIC_BASE_URL = 'https://media.playerz.test';
+    let json: Awaited<ReturnType<typeof download>>['json'];
+    try {
+      ({ json } = await download(player));
+    } finally {
+      if (base === undefined) delete process.env.MEDIA_PUBLIC_BASE_URL;
+      else process.env.MEDIA_PUBLIC_BASE_URL = base;
+    }
     expect(Object.keys(json)).toEqual([
       'format',
       'version',
@@ -346,7 +355,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       id: player.userId,
       name: 'Мария Иванова',
       phone: '+359888000111',
-      avatarUrl: 'https://lh3.googleusercontent.com/a/maria',
+      avatarUrl: `https://media.playerz.test/avatars/${player.userId}/google-${'b'.repeat(32)}.webp`,
       accountKind: 'PLAYER',
       sports: [{ sport: 'TENNIS', level: 3 }],
       playerProfile: { displayName: 'Мария', bio: 'Обичам тенис' },

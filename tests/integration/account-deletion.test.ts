@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { NextRequest } from 'next/server';
 import { decode } from 'next-auth/jwt';
 
@@ -20,6 +24,8 @@ import { AccountDeletedError, checkSession, createUserSession } from '@/lib/auth
 import { hashForLookup } from '@/lib/security/encryption';
 import { statementMonthOf } from '@/lib/billing/club-fee';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { avatarKey, IMMUTABLE_CACHE_CONTROL } from '@/lib/media/keys';
+import { getMediaStorage } from '@/lib/media/storage';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
 import { prismaTestClient, seedTenant, seedVenue, type SeededTenant } from '../helpers/db';
@@ -1082,5 +1088,49 @@ describe('a deleted player’s old bookings cannot be marked no-shows (#370 revi
       tx.booking.findUniqueOrThrow({ where: { id: played.id }, select: { status: true } }),
     );
     expect(row.status).toBe('COMPLETED');
+  });
+});
+
+describe('the profile picture’s copy goes with the account (#458)', () => {
+  const env = { ...process.env };
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'playerz-avatars-'));
+    process.env.MEDIA_STORAGE = 'local';
+    process.env.MEDIA_LOCAL_DIR = dir;
+  });
+  afterEach(async () => {
+    process.env.MEDIA_STORAGE = env.MEDIA_STORAGE;
+    process.env.MEDIA_LOCAL_DIR = env.MEDIA_LOCAL_DIR;
+    if (env.MEDIA_STORAGE === undefined) delete process.env.MEDIA_STORAGE;
+    if (env.MEDIA_LOCAL_DIR === undefined) delete process.env.MEDIA_LOCAL_DIR;
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('every object under avatars/{userId}/ is deleted once the rows are gone', async () => {
+    const club = await seedTenant({});
+    const userId = await seedPlayer(db, club.tenantId, 'pictured');
+    const otherId = await seedPlayer(db, club.tenantId, 'unpictured');
+    const who = await signInAs(db, { userId, memberships: [] });
+    const storage = getMediaStorage()!;
+    const write = (key: string) =>
+      storage.put(key, Buffer.from('webp'), {
+        contentType: 'image/webp',
+        cacheControl: IMMUTABLE_CACHE_CONTROL,
+      });
+    const mine = avatarKey(userId, 'google', 'c'.repeat(64));
+    const older = avatarKey(userId, 'facebook', 'd'.repeat(64));
+    const theirs = avatarKey(otherId, 'google', 'c'.repeat(64));
+    await Promise.all([write(mine), write(older), write(theirs)]);
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: userId }, data: { avatarUrl: mine } }),
+    );
+
+    const { res } = await callDelete(who);
+    expect(res.status).toBe(204);
+
+    expect((await storage.list(`avatars/${userId}/`)).items).toEqual([]);
+    expect((await storage.list(`avatars/${otherId}/`)).items.map((i) => i.key)).toEqual([theirs]);
   });
 });

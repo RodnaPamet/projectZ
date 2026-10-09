@@ -6,6 +6,7 @@ import {
   noShowStanding,
 } from '@/app-layer/usecases/booking-rules';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { avatarUrlOf } from '@/lib/media/avatar-url';
 
 /**
  * "Изтегли моите данни" (#370): what playerz holds about the signed-in person,
@@ -588,7 +589,8 @@ export async function readPersonalData(
       name: user.name,
       email: user.email,
       phone: user.phone,
-      avatarUrl: user.avatarUrl,
+      // Our copy's URL (#458), as every page shows it.
+      avatarUrl: avatarUrlOf(user.avatarUrl),
       language: user.locale,
       accountKind: user.accountKind,
       createdAt: user.createdAt.toISOString(),

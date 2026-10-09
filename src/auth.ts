@@ -13,7 +13,6 @@ import {
   FACEBOOK_USERINFO_URL,
   facebookNoEmailRedirect,
   facebookPictureFrom,
-  facebookRefreshesAvatar,
 } from '@/lib/auth/facebook';
 import { readFacebookEmailPermission } from '@/lib/auth/facebook-permissions';
 import { buildMembershipClaims, type MembershipClaim } from '@/lib/auth/jwt-claims';
@@ -29,6 +28,8 @@ import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
+import { ownAvatar } from '@/lib/media/avatar-url';
+import { getMediaStorage } from '@/lib/media/storage';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -331,7 +332,8 @@ export const authOptions: NextAuthOptions = {
           create: {
             email,
             name: typeof user.name === 'string' ? user.name : null,
-            avatarUrl: typeof user.image === 'string' ? user.image : null,
+            // Never the provider's URL (#458): the copy below fills it.
+            avatarUrl: null,
             // The provider asserted it, and for Google we just checked it.
             emailVerified: new Date(),
             // A first sign-in holds nothing and has decided nothing: the
@@ -349,30 +351,46 @@ export const authOptions: NextAuthOptions = {
         }),
       );
 
-      // ═══ A FACEBOOK PICTURE IS RE-READ AT EVERY FACEBOOK SIGN-IN ═══
+      // ═══ THE PICTURE IS OURS (#458) ═══
       //
-      // `update: {}` keeps what the account's first sign-in wrote, and a
-      // Facebook picture cannot be kept like that: it is a signed URL that
-      // expires (`@/lib/auth/facebook`). So a Facebook sign-in replaces a
-      // stored Facebook picture, or nothing, with the one it just brought —
-      // never a picture from anywhere else. Between sign-ins an expired one
-      // fails to load, and `InitialsAvatar` shows the initials underneath.
+      // The provider's picture is fetched here, on the server, and a copy of
+      // it kept in our media storage (`@/lib/media/avatars`): a provider's URL
+      // would send every viewer's IP address to Google or Meta, and Facebook's
+      // expire. The first sign-in copies it; a Facebook sign-in re-reads
+      // Facebook's, since it may have changed; nothing replaces a picture from
+      // the other provider (`copiesAvatar`). Saved only over the value read
+      // above, so two sign-ins racing cannot write over each other.
       //
-      // Contained: an avatar is not worth failing a sign-in over.
-      if (account.provider === 'facebook') {
-        const fresh = typeof user.image === 'string' ? user.image : null;
-        if (fresh !== row.avatarUrl && facebookRefreshesAvatar(row.avatarUrl)) {
-          try {
-            await runAsSuperuser((db) =>
-              db.user.update({ where: { id: row.id }, data: { avatarUrl: fresh } }),
-            );
-          } catch (error) {
-            logger.warn('facebook sign-in: the picture was not refreshed', {
-              component: 'auth',
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
+      // Contained: a picture is not worth failing a sign-in over, and one that
+      // was not copied leaves the initials. `syncAvatarAtSignIn` never throws;
+      // loading it can (the image library is native), so that is caught too.
+      // Loaded here, so the routes that only read `authOptions` do not load
+      // the image library.
+      try {
+        const { syncAvatarAtSignIn } = await import('@/lib/media/avatars');
+        await syncAvatarAtSignIn(
+          {
+            provider: account.provider,
+            userId: row.id,
+            stored: row.avatarUrl,
+            picture: typeof user.image === 'string' ? user.image : null,
+            save: async (avatarUrl) =>
+              (
+                await runAsSuperuser((db) =>
+                  db.user.updateMany({
+                    where: { id: row.id, avatarUrl: row.avatarUrl, deletedAt: null },
+                    data: { avatarUrl: ownAvatar(avatarUrl) },
+                  }),
+                )
+              ).count === 1,
+          },
+          getMediaStorage(),
+        );
+      } catch (error) {
+        logger.warn('sign-in: the profile picture step failed', {
+          component: 'auth',
+          error: error instanceof Error ? error.name : 'unknown',
+        });
       }
 
       // ═══ A DELETED ACCOUNT'S NO-SHOW STANDING WAITS FOR THIS ADDRESS ═══

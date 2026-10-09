@@ -3,6 +3,7 @@ import type { AccountKind, Locale, Role, SportType } from '@prisma/client';
 import { readMemberships } from '@/app-layer/usecases/landing';
 import { decideLanding, type LandingMembership, type LandingReason } from '@/lib/auth/landing';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { avatarUrlOf } from '@/lib/media/avatar-url';
 
 /**
  * Who the signed-in person is, and where their account sends them:
@@ -101,7 +102,7 @@ export async function getMe(userId: string): Promise<Me | null> {
       id: user.id,
       name: user.name,
       email: user.email,
-      avatarUrl: user.avatarUrl,
+      avatarUrl: avatarUrlOf(user.avatarUrl),
       locale: user.locale,
       sports: user.sportLevels.map((s) => ({ sport: s.sport, level: s.level })),
       accountKind: user.accountKind,

@@ -5,6 +5,7 @@ import {
   ClubAccountDeletionRefusedError,
   deleteAccount,
   deletionStanding,
+  purgeAccountMedia,
   UpcomingBookingsError,
   type ClubCredit,
   type DeletionSummary,
@@ -168,6 +169,10 @@ async function main(): Promise<void> {
   } finally {
     await prisma.$disconnect();
   }
+
+  // The picture's copy, once the rows are gone (#458), as /me/profile does.
+  const pictures = await purgeAccountMedia(account.id);
+  if (pictures > 0) summary['media.avatars'] = pictures;
 
   console.log('\n✓ Deleted. Every session of the account is signed out. Rows changed:\n');
   printSummary(summary);

@@ -7,6 +7,7 @@ import { notifyBookingPlayersChanged } from '@/app-layer/usecases/booking-notifi
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
+import { avatarUrlOf } from '@/lib/media/avatar-url';
 import { logger } from '@/lib/observability/logger';
 import { hashForLookup } from '@/lib/security/encryption';
 
@@ -878,7 +879,7 @@ async function readCoPlayers(
   return ordered
     .flatMap((id) => {
       const u = byId.get(id);
-      return u ? [{ userId: u.id, name: u.name, avatarUrl: u.avatarUrl }] : [];
+      return u ? [{ userId: u.id, name: u.name, avatarUrl: avatarUrlOf(u.avatarUrl) }] : [];
     })
     .slice(0, CO_PLAYERS_LIMIT);
 }

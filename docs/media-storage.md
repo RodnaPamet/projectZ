@@ -1,8 +1,8 @@
 # Venue photos: storage and serving (#366)
 
 Clubs upload a cover and a gallery (up to 12) per venue under **Админ → Снимки и
-информация** (`/t/{slug}/admin/photos`, OWNER and MANAGER). Players keep their Google or
-Facebook picture; they upload nothing.
+информация** (`/t/{slug}/admin/photos`, OWNER and MANAGER). Players upload nothing: sign-in
+keeps a copy of their Google or Facebook picture in the same bucket (#458, below).
 
 This page is for whoever sets the storage up on the VM. Nothing here has been created
 yet: the commands below are to be run once, by a person with owner rights on project
@@ -24,6 +24,25 @@ yet: the commands below are to be run once, by a person with owner rights on pro
 Code: `src/lib/media/` (adapters, keys, image processing, URL building),
 `src/app-layer/usecases/venue-photos.ts`, the route above, `src/app/media/[...key]/route.ts`
 (the local adapter's reader) and the admin screen under `src/app/(app)/t/[slug]/admin/photos/`.
+
+## Profile pictures (#458)
+
+A Google or Facebook picture shown from the provider's own URL sends every viewer's IP
+address to Google or Meta, and Facebook's URLs expire within weeks. So sign-in copies it
+(`src/lib/media/avatars.ts`):
+
+| Step   | What happens                                                                                                                                                                                                                                                                                                |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fetch  | On the server, at sign-in. Only from Google's or Facebook's picture hosts, every redirect included; http(s), an `image/*` answer, at most 2 MB, 4 seconds in all. Asked for at 256 px (Google's `=s256-c`, Facebook's `picture.width(256)`).                                                                |
+| Check  | The upload's checks: the format from the magic bytes, the 50-megapixel ceiling, one decode at a time.                                                                                                                                                                                                       |
+| Store  | One square WebP of at most 256 px, re-encoded from pixels with no metadata, at `avatars/{userId}/{source}-{hash}.webp` (`source` is `google` or `facebook`), create-only and immutable. The name is a hash of the bytes, so the same picture copied again is the same name. `User.avatarUrl` holds the key. |
+| Serve  | Every read builds the URL from `MEDIA_PUBLIC_BASE_URL` (`avatarUrlOf`) and shows the initials for anything that is not our key, such as a provider's URL from before #458.                                                                                                                                  |
+| Update | A Facebook sign-in re-reads the picture: a new one is a new name, saved, and then the old object is deleted. Nothing replaces a picture from the other provider.                                                                                                                                            |
+| Delete | Account deletion deletes every object under `avatars/{userId}/` once its rows are gone. The daily sweep deletes every picture that no live account names and that is over a day old.                                                                                                                        |
+
+A copy that fails never fails the sign-in: the initials show, and the next sign-in tries
+again. With `MEDIA_STORAGE` unset nothing is copied. Accounts from before #458 are copied
+by `scripts/backfill-avatars.ts` (docs/platform-admin-runbook.md).
 
 ## The two adapters
 

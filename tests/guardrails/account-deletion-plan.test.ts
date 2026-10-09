@@ -1,6 +1,6 @@
 import { globSync, readFileSync } from 'node:fs';
 
-import { DELETION_PLAN, NOT_PERSONAL } from '@/lib/account/deletion-plan';
+import { DELETION_MEDIA, DELETION_PLAN, NOT_PERSONAL } from '@/lib/account/deletion-plan';
 
 /**
  * EVERY USER REFERENCE AND EVERY PERSONAL COLUMN IS IN THE DELETION PLAN (#370).
@@ -199,5 +199,29 @@ describe('the account deletion plan covers the schema (#370)', () => {
     expect(
       DELETION_PLAN.some((e) => e.model === 'User' && !e.field && e.action === 'anonymise'),
     ).toBe(true);
+  });
+});
+
+describe('the plan covers the person’s objects in media storage (#458)', () => {
+  // A prefix built from an account's id in keys.ts: `avatars/${userId}/`.
+  const perAccount = [
+    ...readFileSync('src/lib/media/keys.ts', 'utf8').matchAll(/`([a-z]+)\/\$\{userId\}\//g),
+  ].map((m) => `${m[1]}/{userId}/`);
+
+  it('every prefix keys.ts builds from an account’s id is decided', () => {
+    expect(perAccount).toContain('avatars/{userId}/');
+    expect(DELETION_MEDIA.map((e) => e.prefix).sort()).toEqual([...new Set(perAccount)].sort());
+    for (const e of DELETION_MEDIA) expect(e.reason.length).toBeGreaterThan(40);
+  });
+
+  it('both ways of deleting an account purge them once the rows are gone', () => {
+    const usecase = readFileSync('src/app-layer/usecases/account-deletion.ts', 'utf8');
+    expect(usecase).toMatch(/purgeAvatarObjects\(storage, userId\)/);
+    expect(usecase).toMatch(
+      /deleteAccount\(db, \{ userId, by: 'self' \}\)\);\s+const pictures = await purgeAccountMedia\(userId\)/,
+    );
+    expect(readFileSync('scripts/delete-account.ts', 'utf8')).toMatch(
+      /await purgeAccountMedia\(account\.id\)/,
+    );
   });
 });
