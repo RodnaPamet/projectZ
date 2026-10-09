@@ -238,6 +238,65 @@ df -h /
 
 Promoting the staging image, instead of rebuilding, means production runs exactly the bytes that were tested on staging. An urgent fix is the same promotion done mid-week.
 
+## Disk alerts (#440)
+
+`deploy/ops/disk-alert.sh` runs from cron every 15 minutes. It emails
+`ALERT_EMAIL` through Resend in two cases:
+
+- `df /` is above 80%;
+- `playerz-db`, `playerz-redis` or `playerz-pgbouncer` logged `PANIC`,
+  `No space left` or `MISCONF` in the last 20 minutes.
+
+It sends at most one email per condition every 6 hours, and one "OK again"
+when the condition clears. It uses the app's own `RESEND_API_KEY` and
+`EMAIL_FROM`, read from `/opt/playerz/.env` and never printed. The only thing
+it writes on the box is its state directory, `/var/lib/playerz-disk-alert`.
+
+Install from a checkout, on your machine:
+
+```bash
+tar -C deploy/ops -cf - disk-alert.sh playerz-disk-alert.cron | gcloud compute ssh agrent \
+  --zone europe-west1-b --project hazel-design-419410 --command 'set -e; d=$(mktemp -d); tar -C $d -xf -; cd $d
+  sudo install -m 0755 disk-alert.sh /usr/local/sbin/playerz-disk-alert
+  sudo install -m 0644 playerz-disk-alert.cron /etc/cron.d/playerz-disk-alert'
+```
+
+Then add one line to `/opt/playerz/.env`. Setting `ALERT_FROM` there
+overrides the sender, if needed.
+
+```bash
+ALERT_EMAIL=ivo@inflect.bg
+```
+
+Check it on the box:
+
+```bash
+sudo playerz-disk-alert --dry-run                         # sends nothing, writes nothing
+sudo DISK_ALERT_THRESHOLD=1 playerz-disk-alert --dry-run  # what an alert says
+# One real email, with a throwaway state so the next cron run starts clean:
+sudo DISK_ALERT_THRESHOLD=1 DISK_ALERT_STATE_DIR=/tmp/disk-alert-test playerz-disk-alert
+sudo rm -rf /tmp/disk-alert-test
+journalctl -t playerz-disk-alert --since today            # the cron runs
+```
+
+When it fires, the disk-hygiene commands above free what playerz holds:
+rollback images, `docker image prune -f`, and
+`docker builder prune -f --keep-storage 6GB`. `sudo docker system df` shows
+where the rest is. agrent's images and volumes are not ours to prune.
+
+**Container logs are capped** at 10 MB × 3 files per playerz container
+(`x-logging` in `deploy/docker-compose.*.yml` and `ops/sweep.compose.yml`).
+Docker applies the option when it creates a container:
+
+- `playerz-app`, staging and the sweeps get it at their next
+  `up -d --force-recreate`;
+- `playerz-db`, `playerz-redis` and `playerz-pgbouncer` get it at their next
+  recreate, a few seconds' restart. Do that at a quiet hour:
+  `sudo docker compose -f docker-compose.prod.yml up -d --force-recreate db redis pgbouncer`.
+
+agrent's own containers are RodnaPamet/agri-saas#1507. The Docker daemon's
+config is shared and stays as it is.
+
 ## Sign-in (#361)
 
 Everyone signs in with **Google or Facebook**. There is no password sign-in in
@@ -469,6 +528,17 @@ Each run dumps inside `playerz-db`, checks the dump with `pg_restore --list`,
 uploads it, then **downloads it back**, `cmp`s it and `pg_restore --list`s the
 downloaded copy — so a green run means the object in the bucket is readable,
 not merely that something was sent. The local copy is deleted on exit.
+
+Its temp files are capped (#440):
+
+- a run refuses to start with under 2 GB free where it writes
+  (`PLAYERZ_BACKUP_MIN_FREE_MB`);
+- it cannot write a file over 2 GB (`PLAYERZ_BACKUP_MAX_DUMP_MB`, via
+  `ulimit -f`);
+- it deletes the run directories a killed run left, once they are an hour old;
+- gcloud keeps no log files.
+
+After a change to the script, install it again with the command above.
 
 **Installed 2026-10-01.** First object:
 `playerz/2026/10/01/playerz-20261001T112619Z.dump`, 276,641 bytes, 718 TOC

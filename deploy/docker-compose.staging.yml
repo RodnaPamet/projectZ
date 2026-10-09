@@ -15,10 +15,21 @@
 # production keeps playerz:local and moves only on the weekly release.
 name: playerz-staging
 
+# Every container's log is capped (#440): Docker's json-file driver, rotated at
+# 10 MB and kept to 3 files, so one noisy container holds at most 30 MB of the
+# disk this VM shares with agrent. Set per service, never in the daemon's
+# config, which is agrent's too. Applies when a container is (re)created.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   playerz-staging-app:
     image: ${PLAYERZ_STAGING_IMAGE:-playerz:staging}
     container_name: playerz-staging-app
+    logging: *logging
     restart: always
     env_file: .env.staging
     healthcheck:
