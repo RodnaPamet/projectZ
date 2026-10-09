@@ -47,10 +47,21 @@
 # `wget` is enough to POST a header. A cron scheduler would buy minute-aligned
 # firing, which is worth nothing here: the sweep is idempotent, capped at 500
 # bookings per run, and reports `truncated` when a backlog remains.
+# Every container's log is capped (#440): Docker's json-file driver, rotated at
+# 10 MB and kept to 3 files, so one noisy container holds at most 30 MB of the
+# disk this VM shares with agrent. Set per service, never in the daemon's
+# config, which is agrent's too. Applies when a container is (re)created.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   booking-sweep:
     image: alpine:3
     container_name: playerz-booking-sweep
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - playerz-app
@@ -106,6 +117,7 @@ services:
   booking-complete:
     image: alpine:3
     container_name: playerz-booking-complete
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - playerz-app
@@ -155,6 +167,7 @@ services:
   grant-expiry-warn:
     image: alpine:3
     container_name: playerz-grant-expiry-warn
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - playerz-app
@@ -242,6 +255,7 @@ services:
   booking-reminders:
     image: alpine:3
     container_name: playerz-booking-reminders
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - playerz-app
@@ -270,6 +284,7 @@ services:
   email-outbox:
     image: alpine:3
     container_name: playerz-email-outbox
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - playerz-app
@@ -309,6 +324,7 @@ services:
   media-sweep:
     image: alpine:3
     container_name: playerz-media-sweep
+    logging: *logging
     restart: unless-stopped
     depends_on:
       - playerz-app

@@ -32,6 +32,16 @@
 
 name: playerz
 
+# Every container's log is capped (#440): Docker's json-file driver, rotated at
+# 10 MB and kept to 3 files, so one noisy container holds at most 30 MB of the
+# disk this VM shares with agrent. Set per service, never in the daemon's
+# config, which is agrent's too. Applies when a container is (re)created.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   # ── Postgres ──
   #
@@ -42,6 +52,7 @@ services:
   db:
     image: postgis/postgis:16-3.4
     container_name: playerz-db
+    logging: *logging
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-playerz}
@@ -72,6 +83,7 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: playerz-pgbouncer
+    logging: *logging
     restart: always
     depends_on:
       db:
@@ -107,6 +119,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: playerz-redis
+    logging: *logging
     restart: always
     # AUTHENTICATED, because `src/env.ts` refuses to boot in production on a
     # bare `redis://HOST:6379` — and it is right to. Sessions, the rate-limit
@@ -155,6 +168,7 @@ services:
   playerz-app:
     image: ${PLAYERZ_IMAGE:-playerz:local}
     container_name: playerz-app
+    logging: *logging
     restart: always
     env_file: .env
     depends_on:

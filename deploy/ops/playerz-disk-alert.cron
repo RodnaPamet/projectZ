@@ -1,0 +1,10 @@
+# playerz: email the owner before the disk fills (#440).
+#
+# Installed as /etc/cron.d/playerz-disk-alert (a cron.d name has no dot, or
+# cron skips it), beside the script at /usr/local/sbin/playerz-disk-alert. A
+# file of its own, so nothing of agrent's crontab changes. Every 15 minutes, as
+# root: the script reads `docker logs` and /opt/playerz/.env, both root's. Its
+# output goes to the journal: journalctl -t playerz-disk-alert
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+*/15 * * * * root /usr/local/sbin/playerz-disk-alert 2>&1 | logger -t playerz-disk-alert

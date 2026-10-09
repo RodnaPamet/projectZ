@@ -47,6 +47,20 @@
 # process only. `gcloud auth activate-service-account` would instead switch
 # root's active account on a box agrent's operators also use.
 #
+# ═══ ITS TEMP FILES ARE CAPPED (#440) ═══
+#
+# The VM's disk is agrent's too, and it filled once (2026-10-07). So a run:
+#
+#   - refuses to start with less than PLAYERZ_BACKUP_MIN_FREE_MB (2048) free
+#     where it writes: a dump must never be what fills the disk Postgres
+#     checkpoints to;
+#   - cannot write a file over PLAYERZ_BACKUP_MAX_DUMP_MB (2048): `ulimit -f`
+#     holds for the dump and the round-trip copy, and a runaway pg_dump fails
+#     the run instead of the disk (today's dump is under 1 MB);
+#   - deletes the run directories a killed run left behind (the EXIT trap
+#     does not run on SIGKILL or a power cut), once they are an hour old;
+#   - keeps no gcloud log files: everything it says is in the journal.
+#
 # ═══ SECRETS ═══
 #
 # None are printed, and none are needed for the dump itself: `psql`/`pg_dump`
@@ -61,12 +75,16 @@ CONTAINER="${PLAYERZ_DB_CONTAINER:-playerz-db}"
 KEY_FILE="${PLAYERZ_BACKUP_KEY_FILE:-/etc/playerz-db-backup/sa-key.json}"
 # systemd's StateDirectory= creates this 0700; the fallback is for a hand run.
 WORK_ROOT="${STATE_DIRECTORY:-/var/lib/playerz-db-backup}"
+MIN_FREE_MB="${PLAYERZ_BACKUP_MIN_FREE_MB:-2048}"
+MAX_DUMP_MB="${PLAYERZ_BACKUP_MAX_DUMP_MB:-2048}"
 
 export CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE="$KEY_FILE"
 # A private gcloud config dir: gcloud writes logs and caches there, and root's
 # own ~/.config/gcloud is not ours to scribble in.
 export CLOUDSDK_CONFIG="$WORK_ROOT/gcloud"
 export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+# No log files under $CLOUDSDK_CONFIG/logs, which would grow by one a run.
+export CLOUDSDK_CORE_DISABLE_FILE_LOGGING=1
 
 log() { echo "playerz-db-backup: $*"; }
 
@@ -75,6 +93,22 @@ trap 'log "FAILED during: $step (line $LINENO, exit $?)"' ERR
 
 umask 077
 mkdir -p "$WORK_ROOT" "$CLOUDSDK_CONFIG"
+
+step="clear what a killed run left"
+find "$WORK_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'run.*' -mmin +60 -exec rm -rf {} +
+
+step="check free space"
+free_mb="$(df -Pm "$WORK_ROOT" | awk 'NR == 2 { print $4 }')"
+case "$free_mb" in
+  '' | *[!0-9]*) log "FAILED: could not read the free space under $WORK_ROOT"; exit 1 ;;
+esac
+if [ "$free_mb" -lt "$MIN_FREE_MB" ]; then
+  log "FAILED: ${free_mb} MB free under $WORK_ROOT, below the ${MIN_FREE_MB} MB floor; not dumping"
+  exit 1
+fi
+# A cap on every file this run writes (in 1 KiB blocks).
+ulimit -f $((MAX_DUMP_MB * 1024))
+
 work="$(mktemp -d "$WORK_ROOT/run.XXXXXX")"
 # The local copies are deleted on every exit. The bucket is the backup; a
 # second copy on the same disk protects against nothing the disk snapshot

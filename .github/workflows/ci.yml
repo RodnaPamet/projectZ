@@ -94,6 +94,10 @@ jobs:
       - name: Prettier check
         if: needs.preflight.outputs.has_app == 'true'
         run: npx prettier --check . || echo "::warning::Prettier reported unformatted files"
+      # The scripts that run on the shared VM as root (#440): the disk alert,
+      # the backup and its drill. shellcheck is on the runner image already.
+      - name: shellcheck the VM's scripts
+        run: shellcheck deploy/ops/*.sh deploy/*.sh ops/backup/*.sh
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 2: Typecheck
