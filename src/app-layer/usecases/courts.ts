@@ -121,7 +121,8 @@ export async function updateCourt(
     where: { id: courtId },
     // The form has no type field; the sport carries it (P51). A court moved to
     // karting becomes a TRACK and a track moved to squash a COURT, while a
-    // FIELD onboarded for 5-a-side stays a FIELD (`resourceTypeAfter`).
+    // FIELD stays a FIELD, and a COURT a COURT, while the sport allows it
+    // (`resourceTypeAfter`).
     data: { ...input, resourceType: resourceTypeAfter(input.sport, before.resourceType) },
     select: { id: true, ...AUDITED_FIELDS },
   });

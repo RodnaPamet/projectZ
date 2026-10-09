@@ -225,10 +225,10 @@ async function main(): Promise<void> {
       select: { id: true },
     });
 
-    // A karting track is a TRACK, and named one (P51); every other sport keeps
-    // the COURT and the "Корт N" this script has always made.
+    // The sport's own type, and named after it (P51, #472): "Писта N" for
+    // karting, "Игрище N" for football, "Корт N" otherwise.
     const resourceType = defaultResourceType(sport);
-    const noun = resourceNoun(resourceType) === 'track' ? 'Писта' : 'Корт';
+    const noun = { court: 'Корт', pitch: 'Игрище', track: 'Писта' }[resourceNoun(resourceType)];
 
     let created = 0;
     for (let i = 1; i <= courts; i++) {

@@ -66,15 +66,27 @@ describe('which types a sport may use', () => {
     expect(nounForSport('KARTING')).toBe('track');
   });
 
-  it('every other bookable sport: anything but a TRACK, COURT when nobody says', () => {
+  it('every other bookable sport: anything but a TRACK, its own type when nobody says', () => {
     for (const s of bookableSports().filter((x) => !RESOURCE_KINDS[x.resourceType].exclusive)) {
       expect(allowedResourceTypes(s.key)).not.toContain('TRACK');
       expect(allowedResourceTypes(s.key)).toContain('COURT');
-      // The old default, kept: a 5-a-side pitch is a FIELD only when a spec says so.
-      expect(defaultResourceType(s.key)).toBe('COURT');
-      expect(nounForSport(s.key)).toBe('court');
+      // A new resource follows its sport (#472).
+      expect(defaultResourceType(s.key)).toBe(s.resourceType);
     }
     expect(allowedResourceTypes('SQUASH')).toEqual(RESOURCE_TYPES.filter((t) => t !== 'TRACK'));
+  });
+
+  it.each([
+    ['FOOTBALL', 'FIELD', 'pitch'],
+    ['FOOTBALL5', 'FIELD', 'pitch'],
+    ['HANDBALL', 'FIELD', 'pitch'],
+    ['TENNIS', 'COURT', 'court'],
+    ['PADEL', 'COURT', 'court'],
+    ['SQUASH', 'COURT', 'court'],
+    ['KARTING', 'TRACK', 'track'],
+  ] as const)('a new %s resource is a %s, and reads as a %s (#472)', (sport, type, noun) => {
+    expect(defaultResourceType(sport)).toBe(type);
+    expect(nounForSport(sport)).toBe(noun);
   });
 
   it('an edit moves the type only when the sport no longer allows it', () => {

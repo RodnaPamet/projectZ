@@ -34,9 +34,10 @@ export interface SportConfig {
    */
   icon: string;
   /**
-   * What a booking of this sport holds. A court sport's court may also be
-   * stored as another non-exclusive type (a 5-a-side pitch as a FIELD); an
-   * EXCLUSIVE type is this sport's alone, both ways (`src/lib/sports/resources.ts`).
+   * What a booking of this sport holds, and the type a new one is stored as
+   * (#472). A resource may also be stored as another non-exclusive type (a
+   * pitch onboarded as a COURT keeps it); an EXCLUSIVE type is this sport's
+   * alone, both ways (`src/lib/sports/resources.ts`).
    */
   resourceType: ResourceType;
   teamSize: { min: number; max: number; perSide?: number };
