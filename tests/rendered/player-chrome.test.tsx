@@ -540,14 +540,14 @@ describe('a CLUB account on a public page: its club admin’s frame, never a pla
   });
 
   it('courts and a track: "Кортове и писти", the courts screen’s own wording', async () => {
-    clubResourceNouns.mockResolvedValue('mixed');
+    clubResourceNouns.mockResolvedValue('courtTrack');
     await renderChrome();
 
-    expect(within(railNav()).getByRole('link', { name: n.mixed.courts })).toHaveAttribute(
+    expect(within(railNav()).getByRole('link', { name: n.courtTrack.courts })).toHaveAttribute(
       'href',
       `/t/${SLUG}/admin/courts`,
     );
-    expect(n.mixed.courts).toBe(bg.admin.courts.mixed.title);
+    expect(n.courtTrack.courts).toBe(bg.admin.courts.courtTrack.title);
   });
 
   it('what it plays on unreadable: "Кортове", and the frame stands', async () => {

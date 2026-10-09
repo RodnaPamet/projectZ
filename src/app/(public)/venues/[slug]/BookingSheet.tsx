@@ -170,7 +170,7 @@ export function BookingSheet({
       <Sheet.Body className="flex flex-col gap-4">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="text-content-muted">
-            {t(selection.noun === 'track' ? 'track.court' : 'court')}
+            {t(selection.noun === 'court' ? 'court' : `${selection.noun}.court`)}
           </dt>
           <dd className="text-content-emphasis">{selection.courtName}</dd>
           <dt className="text-content-muted">{t('date')}</dt>

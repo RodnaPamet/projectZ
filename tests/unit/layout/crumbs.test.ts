@@ -49,7 +49,8 @@ describe('the trails', () => {
     ]);
     // The courts screen is named after what the club plays on, as in the sidebar.
     expect(clubAdminCrumbs('sofia', t, 'courts', 'track')[1]?.label).toBe(n.track.courts);
-    expect(clubAdminCrumbs('sofia', t, 'courts', 'mixed')[1]?.label).toBe(n.mixed.courts);
+    expect(clubAdminCrumbs('sofia', t, 'courts', 'courtTrack')[1]?.label).toBe(n.courtTrack.courts);
+    expect(clubAdminCrumbs('sofia', t, 'courts', 'pitch')[1]?.label).toBe(n.pitch.courts);
   });
 
   it('the platform: Платформа, the page, and a leaf below it', () => {

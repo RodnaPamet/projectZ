@@ -129,6 +129,7 @@ export function InvitePlayersSheet({
   const spotsLeft = participants.data?.spotsLeft ?? b.spotsLeft;
   const liveLinks = participants.data?.liveInviteLinks ?? 0;
   const full = spotsLeft <= 0;
+  const noun = resourceNoun(b.resource.resourceType);
   const shareData = (url: string) => ({
     title: t('shareTitle'),
     text: t('shareText', { venue: b.venue.name, date, time }),
@@ -188,7 +189,7 @@ export function InvitePlayersSheet({
           <Caption data-testid="invite-spots-left">{t('spotsLeft', { count: spotsLeft })}</Caption>
           {full ? (
             <InlineNotice variant="info" data-testid="invite-full">
-              {t(resourceNoun(b.resource.resourceType) === 'track' ? 'track.full' : 'full')}
+              {t(noun === 'court' ? 'full' : `${noun}.full`)}
             </InlineNotice>
           ) : null}
           <Button

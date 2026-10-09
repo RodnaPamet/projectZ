@@ -406,24 +406,13 @@ export function DayGrid({
           {edges.overflow && (
             <div className="gap-tight flex flex-wrap items-center" data-diary-courts-hint>
               <Caption>
-                {t(
-                  nouns === 'track'
-                    ? 'track.scroll.hint'
-                    : nouns === 'mixed'
-                      ? 'mixed.scroll.hint'
-                      : 'scroll.hint',
-                  { count: courts.length },
-                )}
+                {t(nouns === 'court' ? 'scroll.hint' : `${nouns}.scroll.hint`, {
+                  count: courts.length,
+                })}
               </Caption>
               <div
                 role="group"
-                aria-label={t(
-                  nouns === 'track'
-                    ? 'track.scroll.jumpTo'
-                    : nouns === 'mixed'
-                      ? 'mixed.scroll.jumpTo'
-                      : 'scroll.jumpTo',
-                )}
+                aria-label={t(nouns === 'court' ? 'scroll.jumpTo' : `${nouns}.scroll.jumpTo`)}
                 className="gap-tight flex flex-wrap"
               >
                 {courts.map((court) => (

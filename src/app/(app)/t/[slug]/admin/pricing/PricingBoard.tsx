@@ -128,16 +128,11 @@ export function PricingBoard({
 
   const court = courts.find((c) => c.id === courtId);
   const rules = rulesByCourt[courtId] ?? NO_RULES;
-  // The picker is "Писта" at a karting club and "Корт или писта" at one with
-  // both (P51); the empty state speaks of the court picked.
+  // The picker is "Писта" at a karting club and "Корт или игрище" at one with
+  // courts and pitches (P51, #454); the empty state speaks of the court picked.
   const nouns = combineNouns(courts.map((c) => c.noun));
-  const courtLabel = t(
-    nouns === 'track'
-      ? 'track.field.court'
-      : nouns === 'mixed'
-        ? 'mixed.field.court'
-        : 'field.court',
-  );
+  const courtLabel = t(nouns === 'court' ? 'field.court' : `${nouns}.field.court`);
+  const emptyNoun = court?.noun ?? 'court';
 
   /**
    * ═══ DELETE IS OPTIMISTIC, AND HONEST ABOUT FAILING ═══
@@ -255,7 +250,7 @@ export function PricingBoard({
 
         {visible.length === 0 && !adding ? (
           <EmptyState
-            title={t(court?.noun === 'track' ? 'track.empty.title' : 'empty.title')}
+            title={t(emptyNoun === 'court' ? 'empty.title' : `${emptyNoun}.empty.title`)}
             description={t('empty.description')}
           />
         ) : (

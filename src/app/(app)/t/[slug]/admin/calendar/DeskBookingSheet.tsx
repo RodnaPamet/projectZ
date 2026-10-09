@@ -94,13 +94,12 @@ export default function DeskBookingSheet({
 
   const [courtId, setCourtId] = useState(draft.courtId);
   const court = bookable.find((c) => c.id === courtId) ?? bookable[0];
-  // P51: the picker is "Писта" at a karting club, "Корт или писта" at one with
-  // both; what is said about the chosen one follows its own noun.
+  // P51, #454: the picker is "Писта" at a karting club, "Корт или игрище" at
+  // one with courts and pitches; what is said about the chosen one follows its
+  // own noun.
   const pickerNouns = combineNouns(bookable.map((c) => c.noun));
-  const courtLabel = t(
-    pickerNouns === 'track' ? 'track.court' : pickerNouns === 'mixed' ? 'mixed.court' : 'court',
-  );
-  const track = court?.noun === 'track';
+  const courtLabel = t(pickerNouns === 'court' ? 'court' : `${pickerNouns}.court`);
+  const noun = court?.noun ?? 'court';
   const durations = court?.durations ?? [60];
   const [chosenDuration, setDuration] = useState<number | null>(null);
   const duration =
@@ -363,7 +362,7 @@ export default function DeskBookingSheet({
 
         {!repeat && occurrences[0]?.status === 'unavailable' && (
           <InlineNotice variant="warning">
-            {t(track ? 'track.unavailable' : 'unavailable')}
+            {t(noun === 'court' ? 'unavailable' : `${noun}.unavailable`)}
           </InlineNotice>
         )}
         {!repeat && occurrences[0]?.status === 'taken' && (
@@ -407,8 +406,8 @@ export default function DeskBookingSheet({
           <InlineNotice variant="error" onDismiss={() => setError(null)}>
             {/* The one refusal that names the court says "Пистата" for a track. */}
             {t(
-              (track && error === 'SLOT_NOT_BOOKABLE'
-                ? 'track.error.SLOT_NOT_BOOKABLE'
+              (noun !== 'court' && error === 'SLOT_NOT_BOOKABLE'
+                ? `${noun}.error.SLOT_NOT_BOOKABLE`
                 : `error.${error}`) as never,
             )}
           </InlineNotice>

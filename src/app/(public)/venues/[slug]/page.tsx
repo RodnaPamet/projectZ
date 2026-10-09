@@ -121,16 +121,7 @@ export async function generateMetadata({
   // писта" at a karting track, "игрище" at a football venue, "час" where no
   // one word is true. The resource-kinds table decides.
   const noun = bookingNoun(venue.resources.map((r) => r.resourceType));
-  const title = t(
-    noun === 'track'
-      ? 'track.metaTitle'
-      : noun === 'field'
-        ? 'field.metaTitle'
-        : noun === 'time'
-          ? 'time.metaTitle'
-          : 'metaTitle',
-    { name: venue.name },
-  );
+  const title = t(noun === 'court' ? 'metaTitle' : `${noun}.metaTitle`, { name: venue.name });
   const description = t('metaDescription', {
     name: venue.name,
     address: venue.addressLine,

@@ -152,8 +152,9 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
     : null;
 
   const state = cancelState(b, now);
-  // A karting track is a "писта", in the row label and the cancel dialog (P51).
-  const track = resourceNoun(b.resource.resourceType) === 'track';
+  // A karting track is a "писта" and a field an "игрище", in the row label and
+  // the cancel dialog (P51, #454).
+  const noun = resourceNoun(b.resource.resourceType);
   const passed = state === 'passed' || cancelError === 'CUTOFF_PASSED';
 
   async function confirmCancel() {
@@ -205,7 +206,7 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
             {from} – {to}
           </span>
         </Row>
-        <Row label={td(track ? 'track.court' : 'court')}>
+        <Row label={td(noun === 'court' ? 'court' : `${noun}.court`)}>
           {b.resource.name} · {tSports(b.resource.sport as never)}
         </Row>
         <Row label={td('price')}>
@@ -291,11 +292,14 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
           setShowModal={setConfirming}
           tone="danger"
           title={td('confirm.title')}
-          description={td(track ? 'track.confirm.description' : 'confirm.description', {
-            venue: b.venue.name,
-            date,
-            time: from,
-          })}
+          description={td(
+            noun === 'court' ? 'confirm.description' : `${noun}.confirm.description`,
+            {
+              venue: b.venue.name,
+              date,
+              time: from,
+            },
+          )}
           confirmLabel={td('confirm.yes')}
           cancelLabel={td('confirm.no')}
           // Returns nothing, so the dialog closes at once and the badge turns

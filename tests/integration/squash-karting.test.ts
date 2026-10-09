@@ -464,7 +464,7 @@ describe("the club's statement", () => {
   it('names its court column after what the club has: "Писта", or both', async () => {
     const both = await onboard();
     expect(await header(both.venue.tenantId)).toMatchObject({
-      nouns: 'mixed',
+      nouns: 'courtTrack',
       columns: expect.arrayContaining(['Корт / писта']),
     });
   });

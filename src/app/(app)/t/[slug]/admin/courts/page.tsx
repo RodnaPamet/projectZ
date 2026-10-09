@@ -16,8 +16,9 @@ import { CourtsBoard, type CourtRow } from './CourtsBoard';
 
 /**
  * The tab title says what the club plays on, as the screen's heading and its
- * nav item do (P51, #362): "Писти" at a karting club, "Кортове и писти" at one
- * with both. A visitor the page refuses gets the plain title; the page answers
+ * nav item do (P51, #362, #454): "Писти" at a karting club, "Игрища" at a
+ * football one, "Кортове и игрища" at one with courts and pitches. A visitor
+ * the page refuses gets the plain title; the page answers
  * them with its 404.
  */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -27,9 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   ]);
   const nouns = result.kind === 'ok' ? await clubResourceNouns(result.ctx.tenantId) : 'court';
   return {
-    title: t(
-      nouns === 'track' ? 'track.metaTitle' : nouns === 'mixed' ? 'mixed.metaTitle' : 'metaTitle',
-    ),
+    title: t(nouns === 'court' ? 'metaTitle' : `${nouns}.metaTitle`),
   };
 }
 
@@ -106,8 +105,9 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
     upcomingBookings: upcoming.get(c.id) ?? 0,
   }));
 
-  // "Писти" at a karting club, "Кортове и писти" at one with both (P51), as
-  // the tab title and the club nav name the screen (#362).
+  // "Писти" at a karting club, "Игрища" at a football one, "Кортове и игрища"
+  // at one with courts and pitches (P51, #454), as the tab title and the club
+  // nav name the screen (#362).
   const nouns = resourceNouns(rows.map((r) => r.resourceType));
 
   const tNav = await getTranslations('common.nav');
@@ -116,17 +116,9 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
     <section>
       <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'courts', nouns)} />
       <header className="mb-section">
-        <Heading level={1}>
-          {t(nouns === 'track' ? 'track.title' : nouns === 'mixed' ? 'mixed.title' : 'title')}
-        </Heading>
+        <Heading level={1}>{t(nouns === 'court' ? 'title' : `${nouns}.title`)}</Heading>
         <p className="text-content-muted mt-1 text-sm">
-          {t(
-            nouns === 'track'
-              ? 'track.subtitle'
-              : nouns === 'mixed'
-                ? 'mixed.subtitle'
-                : 'subtitle',
-          )}
+          {t(nouns === 'court' ? 'subtitle' : `${nouns}.subtitle`)}
         </p>
       </header>
 
@@ -135,14 +127,9 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
         // route was redesigned to avoid. Saying so is cheaper than paging a
         // screen no real club needs paged.
         <InlineNotice variant="info" className="mb-default">
-          {t(
-            nouns === 'track'
-              ? 'track.truncated'
-              : nouns === 'mixed'
-                ? 'mixed.truncated'
-                : 'truncated',
-            { limit: COURT_LIST_LIMIT },
-          )}
+          {t(nouns === 'court' ? 'truncated' : `${nouns}.truncated`, {
+            limit: COURT_LIST_LIMIT,
+          })}
         </InlineNotice>
       )}
 

@@ -62,13 +62,10 @@ export function StatementView({
     },
     {
       id: 'court',
-      // "Писта" at a karting club, "Корт / писта" at one with both (P51).
+      // "Писта" at a karting club, "Корт / игрище" at one with courts and
+      // pitches (P51, #454).
       header: t(
-        statement.courtNouns === 'track'
-          ? 'track.column.court'
-          : statement.courtNouns === 'mixed'
-            ? 'mixed.column.court'
-            : 'column.court',
+        statement.courtNouns === 'court' ? 'column.court' : `${statement.courtNouns}.column.court`,
       ),
       cell: ({ row }) => (
         <span className="grid">

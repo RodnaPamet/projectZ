@@ -279,9 +279,10 @@ export interface ClubStatement {
   /** True when the month had more lines than `STATEMENT_LINE_CAP`; the totals are still whole. */
   linesTruncated: boolean;
   /**
-   * What the court column is called (P51): `track` at a karting club, `mixed`
-   * at one with courts and tracks, else `court`. From the club's resources,
-   * archived ones included, since a statement can hold lines for them.
+   * What the court column is called (P51, #454): `track` at a karting club,
+   * `pitch` at a football one, a list (`courtPitch`) at one with several, else
+   * `court`. From the club's resources, archived ones included, since a
+   * statement can hold lines for them.
    */
   courtNouns: ResourceNouns;
 }

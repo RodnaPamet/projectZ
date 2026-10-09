@@ -55,9 +55,10 @@ export function bookingHref(bookingId: string): string {
   return `/me/bookings/${encodeURIComponent(bookingId)}`;
 }
 
-/** The label of the court line: "Корт", or "Писта" for a karting track. */
-function courtLabel(facts: BookingFacts): 'court' | 'track.court' {
-  return resourceNoun(facts.resourceType) === 'track' ? 'track.court' : 'court';
+/** The label of the court line: "Корт", "Игрище" for a field, "Писта" for a karting track. */
+function courtLabel(facts: BookingFacts): string {
+  const noun = resourceNoun(facts.resourceType);
+  return noun === 'court' ? 'court' : `${noun}.court`;
 }
 
 /** One line of text: no line breaks, so a venue name cannot add lines. */

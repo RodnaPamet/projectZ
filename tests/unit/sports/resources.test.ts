@@ -29,9 +29,10 @@ describe('resource kinds', () => {
     expect(RESOURCE_TYPES).toEqual(Object.values(ResourceType));
   });
 
-  it('call a TRACK a track and every other type a court', () => {
+  it('call a TRACK a track, a FIELD a pitch, and every other type a court', () => {
     expect(resourceNoun('TRACK')).toBe('track');
-    for (const t of RESOURCE_TYPES.filter((x) => x !== 'TRACK')) {
+    expect(resourceNoun('FIELD')).toBe('pitch');
+    for (const t of RESOURCE_TYPES.filter((x) => x !== 'TRACK' && x !== 'FIELD')) {
       expect(resourceNoun(t)).toBe('court');
     }
   });
@@ -43,13 +44,18 @@ describe('resource kinds', () => {
     expect(resourceNoun('toString')).toBe('court');
   });
 
-  it('name a list by its one noun, `mixed` for both, and courts when empty', () => {
+  it('name a list by its one noun, by its nouns in order, and courts when empty', () => {
     expect(resourceNouns([])).toBe('court');
-    expect(resourceNouns(['COURT', 'FIELD'])).toBe('court');
+    expect(resourceNouns(['COURT', 'TABLE'])).toBe('court');
+    expect(resourceNouns(['FIELD', 'FIELD'])).toBe('pitch');
     expect(resourceNouns(['TRACK', 'TRACK'])).toBe('track');
-    expect(resourceNouns(['COURT', 'TRACK'])).toBe('mixed');
+    expect(resourceNouns(['COURT', 'TRACK'])).toBe('courtTrack');
+    // Кортове, игрища, писти (#454), whatever order the rows come in.
+    expect(resourceNouns(['FIELD', 'COURT'])).toBe('courtPitch');
+    expect(resourceNouns(['TRACK', 'FIELD'])).toBe('pitchTrack');
+    expect(resourceNouns(['TRACK', 'FIELD', 'LOBBY'])).toBe('courtPitchTrack');
     expect(combineNouns(['track'])).toBe('track');
-    expect(combineNouns(['court', 'track', 'court'])).toBe('mixed');
+    expect(combineNouns(['court', 'track', 'court'])).toBe('courtTrack');
   });
 });
 

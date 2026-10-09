@@ -81,8 +81,20 @@
       "track": {
         "courts": "Tracks"
       },
-      "mixed": {
+      "pitch": {
+        "courts": "Pitches"
+      },
+      "courtTrack": {
         "courts": "Courts and tracks"
+      },
+      "courtPitch": {
+        "courts": "Courts and pitches"
+      },
+      "pitchTrack": {
+        "courts": "Pitches and tracks"
+      },
+      "courtPitchTrack": {
+        "courts": "Courts, pitches and tracks"
       },
       "pricing": "Pricing",
       "players": "Players",
@@ -219,7 +231,7 @@
     "track": {
       "metaTitle": "{name} — book a track | playerz.bg"
     },
-    "field": {
+    "pitch": {
       "metaTitle": "{name} — book a pitch | playerz.bg"
     },
     "time": {
@@ -258,6 +270,9 @@
       "track": {
         "court": "Track"
       },
+      "pitch": {
+        "court": "Pitch"
+      },
       "date": "Date",
       "time": "Time",
       "duration": "Duration",
@@ -295,6 +310,15 @@
   },
   "club": {
     "metaTitle": "{name} — courts and booking | playerz.bg",
+    "track": {
+      "metaTitle": "{name} — tracks and booking | playerz.bg"
+    },
+    "pitch": {
+      "metaTitle": "{name} — pitches and booking | playerz.bg"
+    },
+    "time": {
+      "metaTitle": "{name} — free slots and booking | playerz.bg"
+    },
     "metaDescription": "{name}: {count, plural, one {# venue} other {# venues}}{city, select, none {} other { in {city}}}. Free times and online booking, pay at the club.",
     "back": "To the venues",
     "sportsLabel": "Sports",
@@ -508,7 +532,7 @@
     "courts": {
       "metaTitle": "Courts",
       "title": "Courts",
-      "subtitle": "The club's playing surfaces, their pricing and capacity.",
+      "subtitle": "The club's courts, their pricing and capacity.",
       "truncated": "Showing the first {limit} courts. This club has more.",
       "empty": {
         "title": "No courts yet",
@@ -584,13 +608,63 @@
           "failed": "The track's status was not changed. Try again."
         }
       },
-      "mixed": {
+      "pitch": {
+        "metaTitle": "Pitches",
+        "title": "Pitches",
+        "subtitle": "The club's pitches, their pricing and capacity.",
+        "truncated": "Showing the first {limit} pitches. This club has more.",
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CLOSED": "Closed"
+        },
+        "setting": {
+          "indoor": "Indoor",
+          "outdoor": "Outdoor"
+        },
+        "action": {
+          "add": "Add pitch"
+        },
+        "archive": {
+          "confirm": "{count, plural, one {This pitch has # upcoming booking. Archiving does not cancel it. Continue?} other {This pitch has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+          "title": "Archive this pitch?",
+          "failed": "The pitch's status was not changed. Try again."
+        }
+      },
+      "courtTrack": {
         "metaTitle": "Courts and tracks",
         "title": "Courts and tracks",
         "subtitle": "The club's courts and tracks, their pricing and capacity.",
         "truncated": "Showing the first {limit} courts and tracks. This club has more.",
         "action": {
           "add": "Add a court or track"
+        }
+      },
+      "courtPitch": {
+        "metaTitle": "Courts and pitches",
+        "title": "Courts and pitches",
+        "subtitle": "The club's courts and pitches, their pricing and capacity.",
+        "truncated": "Showing the first {limit} courts and pitches. This club has more.",
+        "action": {
+          "add": "Add a court or pitch"
+        }
+      },
+      "pitchTrack": {
+        "metaTitle": "Pitches and tracks",
+        "title": "Pitches and tracks",
+        "subtitle": "The club's pitches and tracks, their pricing and capacity.",
+        "truncated": "Showing the first {limit} pitches and tracks. This club has more.",
+        "action": {
+          "add": "Add a pitch or track"
+        }
+      },
+      "courtPitchTrack": {
+        "metaTitle": "Courts, pitches and tracks",
+        "title": "Courts, pitches and tracks",
+        "subtitle": "The club's courts, pitches and tracks, their pricing and capacity.",
+        "truncated": "Showing the first {limit} courts, pitches and tracks. This club has more.",
+        "action": {
+          "add": "Add a court, pitch or track"
         }
       }
     },
@@ -691,9 +765,32 @@
           "title": "No rules for this track"
         }
       },
-      "mixed": {
+      "pitch": {
+        "field": {
+          "court": "Pitch"
+        },
+        "empty": {
+          "title": "No rules for this pitch"
+        }
+      },
+      "courtTrack": {
         "field": {
           "court": "Court or track"
+        }
+      },
+      "courtPitch": {
+        "field": {
+          "court": "Court or pitch"
+        }
+      },
+      "pitchTrack": {
+        "field": {
+          "court": "Pitch or track"
+        }
+      },
+      "courtPitchTrack": {
+        "field": {
+          "court": "Court, pitch or track"
         }
       }
     },
@@ -881,6 +978,13 @@
               "SLOT_NOT_BOOKABLE": "The track cannot be booked then."
             }
           },
+          "pitch": {
+            "court": "Pitch",
+            "unavailable": "The pitch cannot be booked then: it is closed, or the time is off its schedule.",
+            "error": {
+              "SLOT_NOT_BOOKABLE": "The pitch cannot be booked then."
+            }
+          },
           "date": "Date",
           "time": "Start time",
           "duration": "Length",
@@ -927,8 +1031,17 @@
             "BAD_REQUEST": "Check the fields: the name and phone are required.",
             "generic": "Could not save. Try again."
           },
-          "mixed": {
+          "courtTrack": {
             "court": "Court or track"
+          },
+          "courtPitch": {
+            "court": "Court or pitch"
+          },
+          "pitchTrack": {
+            "court": "Pitch or track"
+          },
+          "courtPitchTrack": {
+            "court": "Court, pitch or track"
           }
         },
         "detail": {
@@ -937,6 +1050,9 @@
           "court": "Court",
           "track": {
             "court": "Track"
+          },
+          "pitch": {
+            "court": "Pitch"
           },
           "phone": "Phone",
           "player": "playerz account",
@@ -968,11 +1084,39 @@
           "jumpTo": "Show track"
         }
       },
-      "mixed": {
+      "pitch": {
+        "subtitle": "One day, every pitch. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} pitches: scroll sideways or pick a pitch.",
+          "jumpTo": "Show pitch"
+        }
+      },
+      "courtTrack": {
         "subtitle": "One day, every court and track. Times are on the club's clock.",
         "scroll": {
           "hint": "{count} courts and tracks: scroll sideways or pick one.",
           "jumpTo": "Show court or track"
+        }
+      },
+      "courtPitch": {
+        "subtitle": "One day, every court and pitch. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} courts and pitches: scroll sideways or pick one.",
+          "jumpTo": "Show court or pitch"
+        }
+      },
+      "pitchTrack": {
+        "subtitle": "One day, every pitch and track. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} pitches and tracks: scroll sideways or pick one.",
+          "jumpTo": "Show pitch or track"
+        }
+      },
+      "courtPitchTrack": {
+        "subtitle": "One day, every court, pitch and track. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} courts, pitches and tracks: scroll sideways or pick one.",
+          "jumpTo": "Show court, pitch or track"
         }
       }
     },
@@ -1158,6 +1302,12 @@
           "description": "{venue}, {date} at {time}. The track will be freed for other players."
         }
       },
+      "pitch": {
+        "court": "Pitch",
+        "confirm": {
+          "description": "{venue}, {date} at {time}. The pitch will be freed for other players."
+        }
+      },
       "price": "Price",
       "payAtClub": "Pay at the club",
       "address": "Address",
@@ -1193,6 +1343,9 @@
       "full": "Every place on the court is taken.",
       "track": {
         "full": "Every place on the track is taken."
+      },
+      "pitch": {
+        "full": "Every place on the pitch is taken."
       },
       "sheetTitle": "Invite players",
       "sheetDescription": "Add up to {count, plural, one {# player} other {# players}}. Payment stays at the club.",
@@ -1698,6 +1851,9 @@
     "track": {
       "court": "Track"
     },
+    "pitch": {
+      "court": "Pitch"
+    },
     "payAtClub": "Payment is at the club.",
     "join": "Join",
     "signInToJoin": "Sign in to join",
@@ -1769,6 +1925,9 @@
       "track": {
         "court": "Track"
       },
+      "pitch": {
+        "court": "Pitch"
+      },
       "when": "When",
       "zone": "Time zone",
       "payment": "Payment",
@@ -1828,9 +1987,29 @@
           "court": "Track"
         }
       },
-      "mixed": {
+      "pitch": {
+        "column": {
+          "court": "Pitch"
+        }
+      },
+      "courtTrack": {
         "column": {
           "court": "Court / track"
+        }
+      },
+      "courtPitch": {
+        "column": {
+          "court": "Court / pitch"
+        }
+      },
+      "pitchTrack": {
+        "column": {
+          "court": "Pitch / track"
+        }
+      },
+      "courtPitchTrack": {
+        "column": {
+          "court": "Court / pitch / track"
         }
       },
       "kind": {
@@ -1846,8 +2025,20 @@
       "track": {
         "court": "Track"
       },
-      "mixed": {
+      "pitch": {
+        "court": "Pitch"
+      },
+      "courtTrack": {
         "court": "Court / track"
+      },
+      "courtPitch": {
+        "court": "Court / pitch"
+      },
+      "pitchTrack": {
+        "court": "Pitch / track"
+      },
+      "courtPitchTrack": {
+        "court": "Court / pitch / track"
       },
       "kind": "Type",
       "price": "Price ({currency})",

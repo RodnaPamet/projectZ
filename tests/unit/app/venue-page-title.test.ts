@@ -106,7 +106,7 @@ describe('the venue page’s title', () => {
 describe('bookingNoun, the table’s rule', () => {
   it('one word per kind, a time for a mix, a court for none or an unknown type', () => {
     expect(bookingNoun(['TRACK'])).toBe('track');
-    expect(bookingNoun(['FIELD', 'FIELD'])).toBe('field');
+    expect(bookingNoun(['FIELD', 'FIELD'])).toBe('pitch');
     expect(bookingNoun(['COURT'])).toBe('court');
     expect(bookingNoun(['COURT', 'TRACK'])).toBe('time');
     expect(bookingNoun(['TABLE', 'BOARD_TABLE'])).toBe('time');

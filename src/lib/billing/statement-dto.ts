@@ -53,7 +53,7 @@ export interface ClubStatementDto {
   totals: StatementTotalsDto;
   lines: StatementLineDto[];
   linesTruncated: boolean;
-  /** The court column's noun (P51): `court`, `track` (a karting club) or `mixed`. */
+  /** The court column's nouns (P51, #454): `court`, `pitch`, `track`, or a list (`courtPitch`). */
   courtNouns: ResourceNouns;
 }
 

@@ -281,7 +281,7 @@ describe('squash and karting on the courts screen (P51)', () => {
     unmount();
 
     board([court(), track()]);
-    expect(screen.getByRole('button', { name: c.mixed.action.add })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: c.courtTrack.action.add })).toBeInTheDocument();
     // Each card still speaks for itself.
     const [padel, karting] = screen.getAllByRole('listitem');
     expect(badge(padel!)).toHaveTextContent(c.status.ACTIVE);

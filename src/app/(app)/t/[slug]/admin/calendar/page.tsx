@@ -65,13 +65,7 @@ export default async function CalendarPage({
       <header className="mb-section">
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">
-          {t(
-            nouns === 'track'
-              ? 'track.subtitle'
-              : nouns === 'mixed'
-                ? 'mixed.subtitle'
-                : 'subtitle',
-          )}
+          {t(nouns === 'court' ? 'subtitle' : `${nouns}.subtitle`)}
         </p>
       </header>
 
