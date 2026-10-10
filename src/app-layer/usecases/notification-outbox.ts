@@ -84,6 +84,19 @@ export interface Delivery {
     locale: 'bg' | 'en';
     /** After this the row is skipped, not sent (a reminder after the start). */
     expiresAt?: Date | null;
+    /**
+     * Not sent before this (#375: a message's email waits about ten minutes,
+     * and the drain re-checks that it is still unread then).
+     */
+    notBefore?: Date | null;
+    /**
+     * At most one email of this category about this `refId` per this many
+     * milliseconds (#375: one an hour per conversation). A row already
+     * PENDING or SENT inside the window means none is written now. Serialised
+     * per (person, ref) with a transaction-scoped advisory lock, so two
+     * messages landing together cannot both pass the check.
+     */
+    atMostOncePer?: number | null;
   } | null;
 }
 
@@ -111,6 +124,22 @@ export async function deliver(d: Delivery): Promise<{ bell: boolean; email: bool
       });
 
       let email = false;
+      if (d.email && d.email.atMostOncePer && d.refId) {
+        await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outbox:${d.userId}:${d.email.category}:${d.refId}`}))`;
+        // guardrail-allow: cross-tenant — the person's own outbox rows, owner-only
+        // under RLS (`email_outbox_owner_only`); an email belongs to no club.
+        const recent = await db.emailOutbox.count({
+          where: {
+            userId: d.userId,
+            category: d.email.category,
+            refType: d.refType ?? null,
+            refId: d.refId,
+            status: { in: ['PENDING', 'SENT'] },
+            createdAt: { gt: new Date(Date.now() - d.email.atMostOncePer) },
+          },
+        });
+        if (recent > 0) return { bell: bell.count > 0, email: false };
+      }
       if (d.email) {
         const out = await db.emailOutbox.createMany({
           data: [
@@ -126,6 +155,7 @@ export async function deliver(d: Delivery): Promise<{ bell: boolean; email: bool
               refType: d.refType ?? null,
               refId: d.refId ?? null,
               expiresAt: d.email.expiresAt ?? null,
+              ...(d.email.notBefore ? { nextAttemptAt: d.email.notBefore } : {}),
             },
           ],
           skipDuplicates: true,
@@ -177,10 +207,13 @@ function wants(
     emailBookingConfirmations: boolean;
     emailBookingReminders: boolean;
     emailClubChanges: boolean;
+    emailMessages: boolean;
   },
   category: string,
 ): boolean {
   switch (category) {
+    case 'messages':
+      return user.emailMessages;
     case 'confirmation':
       return user.emailBookingConfirmations;
     case 'reminder':
@@ -248,6 +281,7 @@ export async function drainEmailOutbox(
           emailBookingConfirmations: true,
           emailBookingReminders: true,
           emailClubChanges: true,
+          emailMessages: true,
         },
         take: userIds.length,
       }),
@@ -263,6 +297,14 @@ export async function drainEmailOutbox(
   );
   const userById = new Map(users.map((u) => [u.id, u]));
   const bookingById = new Map(bookings.map((b) => [b.id, b]));
+  // A message's email goes only while the message is still unread (#375).
+  const stillUnread = await unreadAtSendTime(
+    claimed.flatMap((c) =>
+      c.category === 'messages' && c.refType === 'conversation' && c.userId && c.refId
+        ? [{ userId: c.userId, conversationId: c.refId }]
+        : [],
+    ),
+  );
 
   let configLogged = false;
 
@@ -271,7 +313,13 @@ export async function drainEmailOutbox(
     // The operator's enquiry email: the inbox as configured NOW.
     const operator = row.category === 'contact' && row.userId === null;
     const to = operator ? contactInboxAddress() : (user?.email ?? null);
-    const skip = skipReason(row, now, operator ? to : user, bookingById);
+    const skip =
+      skipReason(row, now, operator ? to : user, bookingById) ??
+      (row.category === 'messages' &&
+      row.refType === 'conversation' &&
+      !stillUnread.has(`${row.userId}:${row.refId}`)
+        ? 'read'
+        : null);
     if (skip || !to) {
       await finish(row.id, { status: 'SKIPPED', lastError: skip ?? 'no-address' });
       result.skipped++;
@@ -342,6 +390,7 @@ function skipReason(
         emailBookingConfirmations: boolean;
         emailBookingReminders: boolean;
         emailClubChanges: boolean;
+        emailMessages: boolean;
       }
     | string
     | null
@@ -368,6 +417,58 @@ function skipReason(
     if (row.category === 'reminder' && b.startTs.getTime() <= now.getTime()) return 'started';
   }
   return null;
+}
+
+/**
+ * Which of these (person, conversation) pairs still have something unread for
+ * the person, as `${userId}:${conversationId}`: the drain sends a message's
+ * email only then (#375). One read for the whole batch.
+ *
+ *   a player in it   a message from somebody else after their read pointer
+ *   club staff       the player's newest message, read by no colleague and
+ *                    answered by none: the club is one inbox, and an email
+ *                    about what a colleague already handled is noise
+ *
+ * A blocked or closed conversation sends nothing.
+ */
+async function unreadAtSendTime(
+  pairs: Array<{ userId: string; conversationId: string }>,
+): Promise<Set<string>> {
+  if (pairs.length === 0) return new Set();
+  // guardrail-allow: cross-tenant — the conversations named by the outbox
+  // rows just claimed, and their read pointers; machine work with no session.
+  const rows = await runAsSuperuser(
+    (db) => db.$queryRaw<Array<{ uid: string; cid: string }>>`
+      SELECT x.uid, x.cid
+        FROM unnest(${pairs.map((p) => p.userId)}::text[],
+                    ${pairs.map((p) => p.conversationId)}::text[]) AS x(uid, cid)
+        JOIN "conversation" c ON c."id" = x.cid AND c."blockedAt" IS NULL
+       WHERE EXISTS (
+               SELECT 1 FROM "conversation_participant" p
+                 JOIN "chat_message" m ON m."conversationId" = p."conversationId"
+                WHERE p."conversationId" = x.cid AND p."userId" = x.uid
+                  AND p."role" IN ('MEMBER', 'PLAYER')
+                  AND m."deletedAt" IS NULL AND m."senderId" <> x.uid
+                  AND (p."lastReadAt" IS NULL OR m."createdAt" > p."lastReadAt"))
+          OR (
+               NOT EXISTS (
+                 SELECT 1 FROM "conversation_participant" p
+                  WHERE p."conversationId" = x.cid AND p."userId" = x.uid
+                    AND p."role" IN ('MEMBER', 'PLAYER'))
+               AND EXISTS (
+                 SELECT 1 FROM "chat_message" m
+                  WHERE m."conversationId" = x.cid AND m."deletedAt" IS NULL
+                    AND m."senderTenantId" IS NULL
+                    AND m."createdAt" > COALESCE(
+                      (SELECT max(s."lastReadAt") FROM "conversation_participant" s
+                        WHERE s."conversationId" = x.cid AND s."role" = 'STAFF'),
+                      'epoch'::timestamp)
+                    AND m."createdAt" > COALESCE(
+                      (SELECT max(r."createdAt") FROM "chat_message" r
+                        WHERE r."conversationId" = x.cid AND r."senderTenantId" IS NOT NULL),
+                      'epoch'::timestamp)))`,
+  );
+  return new Set(rows.map((r) => `${r.uid}:${r.cid}`));
 }
 
 async function finish(id: string, data: Prisma.EmailOutboxUpdateInput): Promise<void> {

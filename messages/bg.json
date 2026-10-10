@@ -1836,7 +1836,8 @@
       "clubChanges": "Отмяна от клуба",
       "saveFailed": "Настройката не беше запазена. Опитайте отново.",
       "edit": "Промени",
-      "editLabel": "Промени известията"
+      "editLabel": "Промени известията",
+      "messages": "Непрочетени съобщения"
     },
     "data": {
       "row": "Копие на данните ви",
@@ -2001,6 +2002,26 @@
       "email": "Имейл",
       "message": "Съобщение",
       "link": "Всички запитвания"
+    },
+    "message": {
+      "link": "Прочетете и отговорете: {url}",
+      "footer": "Получавате този имейл, защото имате непрочетено съобщение в playerz.bg.",
+      "fromPlayer": {
+        "subject": "{name} ви писа в playerz.bg",
+        "intro": "{name} ви изпрати съобщение в playerz.bg."
+      },
+      "request": {
+        "subject": "{name} иска да ви пише в playerz.bg",
+        "intro": "{name} иска да ви пише. Заявката ви чака в «Заявки»."
+      },
+      "toClub": {
+        "subject": "Ново съобщение до {club} от {name}",
+        "intro": "{name} писа на {club} в playerz.bg."
+      },
+      "fromClub": {
+        "subject": "{club} ви писа в playerz.bg",
+        "intro": "{name} ви писа от името на {club}."
+      }
     }
   },
   "billing": {

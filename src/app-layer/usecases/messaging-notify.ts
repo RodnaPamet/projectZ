@@ -1,4 +1,5 @@
 import { translateFor } from '@/lib/i18n/server-messages';
+import { absoluteUrl } from '@/lib/seo/site-url';
 import { dedupeKey } from '@/lib/notifications/dedupe';
 import { conversationPath } from '@/lib/messaging/paths';
 import { logger } from '@/lib/observability/logger';
@@ -28,11 +29,57 @@ import { deliver } from './notification-outbox';
  * so the first message after they last read the conversation rings, and the
  * next one after they read it again rings again. Reading the conversation
  * marks its bell rows read (`markReadFor`).
+ *
+ * ═══ THE EMAIL WAITS, AND ASKS AGAIN ═══
+ *
+ * With the bell, an email is queued (the owner's rule, #375): not sent before
+ * `EMAIL_DELAY_MS` (about ten minutes), and only if the message is still
+ * unread then — the drain asks (`unreadAtSendTime`) and skips it as 'read'
+ * otherwise; at most one per conversation per hour (`atMostOncePer`); and
+ * only to people who leave «Съобщения» on in Профил, which the drain also
+ * re-reads at send time. It says who wrote and links the conversation; it
+ * never carries the text, which is ciphertext at rest and stays on playerz.
  */
+
+/** How long a message's email waits for the message to be read first. */
+export const EMAIL_DELAY_MS = 10 * 60_000;
+/** At most one message email per conversation per person in this long. */
+export const EMAIL_WINDOW_MS = 60 * 60_000;
 
 /** The copy is the recipient's language; a name is one line of text. */
 function oneLine(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').trim();
+}
+
+async function emailCopy(
+  locale: string,
+  audience: MessageAudience,
+  side: 'player' | 'club',
+  href: string,
+): Promise<{ subject: string; text: string }> {
+  const someone = await translateFor(locale, 'notifications.message.someone');
+  const name = audience.senderName?.trim() ? oneLine(audience.senderName) : someone;
+  const club = audience.club ? oneLine(audience.club.name) : '';
+  const event =
+    audience.type === 'DM'
+      ? audience.request
+        ? 'request'
+        : 'fromPlayer'
+      : side === 'club'
+        ? 'toClub'
+        : 'fromClub';
+  const values = { name, club };
+  const [subject, intro, link, footer, settings] = await Promise.all([
+    translateFor(locale, `emails.message.${event}.subject`, values),
+    translateFor(locale, `emails.message.${event}.intro`, values),
+    translateFor(locale, 'emails.message.link', { url: absoluteUrl(href) }),
+    translateFor(locale, 'emails.message.footer'),
+    translateFor(locale, 'emails.labels.settings', { url: absoluteUrl('/me/profile') }),
+  ]);
+  return {
+    subject: oneLine(subject),
+    text: [intro, '', link, '', '—', footer, settings].join('\n'),
+  };
 }
 
 async function bellCopy(
@@ -82,8 +129,13 @@ export async function notifyNewMessage(input: {
 
     // One recipient at a time: each is their own transaction (`deliver` binds
     // to that person), and one failing must not cost the others theirs.
+    const now = Date.now();
     for (const r of audience.recipients) {
-      const { title, body } = await bellCopy(r.locale, audience, r.side);
+      const href = conversationHref(r.side, input.conversationId, audience.club?.slug ?? null);
+      const [{ title, body }, email] = await Promise.all([
+        bellCopy(r.locale, audience, r.side),
+        emailCopy(r.locale, audience, r.side, href),
+      ]);
       await deliver({
         userId: r.userId,
         tenantId: audience.club?.tenantId ?? null,
@@ -95,9 +147,17 @@ export async function notifyNewMessage(input: {
         ),
         title,
         body,
-        href: conversationHref(r.side, input.conversationId, audience.club?.slug ?? null),
+        href,
         refType: 'conversation',
         refId: input.conversationId,
+        email: {
+          category: 'messages',
+          subject: email.subject,
+          text: email.text,
+          locale: r.locale === 'en' ? 'en' : 'bg',
+          notBefore: new Date(now + EMAIL_DELAY_MS),
+          atMostOncePer: EMAIL_WINDOW_MS,
+        },
       });
     }
   } catch (err) {

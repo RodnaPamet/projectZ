@@ -789,10 +789,10 @@ describe('notifications (#367)', () => {
 
     it('all on by default; one switch at a time; strict', async () => {
       expect((await get(booker)).body.data).toEqual({
-        email: { confirmation: true, reminder: true, clubChanges: true },
+        email: { confirmation: true, reminder: true, clubChanges: true, messages: true },
       });
       expect((await patch(booker, { email: { reminder: false } })).body.data).toEqual({
-        email: { confirmation: true, reminder: false, clubChanges: true },
+        email: { confirmation: true, reminder: false, clubChanges: true, messages: true },
       });
       expect((await get(friend)).body.data).toMatchObject({ email: { reminder: true } });
       expect((await patch(booker, { email: {} })).status).toBe(400);

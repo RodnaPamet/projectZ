@@ -595,6 +595,7 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
       emailBookingConfirmations: false,
       emailBookingReminders: false,
       emailClubChanges: false,
+      emailMessages: false,
       accountKind: 'PLAYER',
       sessionVersion: before.sessionVersion + 1,
     });

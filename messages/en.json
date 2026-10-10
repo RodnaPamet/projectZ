@@ -1836,7 +1836,8 @@
       "clubChanges": "Cancelled by the club",
       "saveFailed": "The setting was not saved. Please try again.",
       "edit": "Change",
-      "editLabel": "Change notifications"
+      "editLabel": "Change notifications",
+      "messages": "Unread messages"
     },
     "data": {
       "row": "A copy of your data",
@@ -2001,6 +2002,26 @@
       "email": "Email",
       "message": "Message",
       "link": "All enquiries"
+    },
+    "message": {
+      "link": "Read and reply: {url}",
+      "footer": "You are getting this email because you have an unread message on playerz.bg.",
+      "fromPlayer": {
+        "subject": "{name} wrote to you on playerz.bg",
+        "intro": "{name} sent you a message on playerz.bg."
+      },
+      "request": {
+        "subject": "{name} would like to message you on playerz.bg",
+        "intro": "{name} would like to message you. The request is waiting in Requests."
+      },
+      "toClub": {
+        "subject": "New message to {club} from {name}",
+        "intro": "{name} wrote to {club} on playerz.bg."
+      },
+      "fromClub": {
+        "subject": "{club} wrote to you on playerz.bg",
+        "intro": "{name} wrote to you for {club}."
+      }
     }
   },
   "billing": {

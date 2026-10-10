@@ -662,6 +662,7 @@ export async function deleteAccount(
       emailBookingConfirmations: false,
       emailBookingReminders: false,
       emailClubChanges: false,
+      emailMessages: false,
       locale: DEFAULT_LOCALE,
       sessionVersion: { increment: 1 },
       deletedAt: now,
