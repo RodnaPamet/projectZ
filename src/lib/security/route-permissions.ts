@@ -61,6 +61,14 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'courts.manage',
   },
+  {
+    // The club's shared inbox (#375): answering for the club, starting a
+    // conversation, retracting, blocking. Its reads ask the same permission
+    // in the route (`clubActor`).
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:conversations|messages)(?:\/|$)/,
+    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
+    permission: 'messages.club',
+  },
 
   // ── Payouts / Stripe Connect ──────────────────────────────────────
   //

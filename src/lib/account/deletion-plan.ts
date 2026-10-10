@@ -731,24 +731,39 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason: 'A conversation other people are in; the id names a tombstone.',
   },
   {
+    model: 'Conversation',
+    field: 'playerUserId',
+    action: 'keep',
+    reason:
+      'The player of a club conversation (#375). The club keeps the conversation, which then names "Изтрит потребител" and takes no new messages; the id names a tombstone, and `pairKey` holds the same id for the same reason.',
+  },
+  {
+    model: 'Conversation',
+    field: 'blockedByUserId',
+    action: 'keep',
+    reason:
+      'Who pressed a club conversation’s block (#375). The block is the side’s, not the person’s, and stands; the id names a tombstone.',
+  },
+  {
     model: 'ConversationParticipant',
     field: 'userId',
     action: 'anonymise',
     reason:
-      'The account leaves every conversation (leftAt set). The row stays, so it does not vanish from the others’ history (the schema’s rule).',
+      'The account leaves every conversation (leftAt set). The row stays, so it does not vanish from the others’ history (the schema’s rule); the others see "Изтрит потребител" and cannot write to it any more.',
   },
   {
     model: 'ChatMessage',
     field: 'senderId',
     action: 'keep',
-    reason: 'The message stays as a tombstone in the others’ scrollback; the id names a tombstone.',
+    reason:
+      'The message stays as a tombstone in the others’ scrollback, its sender shown as "Изтрит потребител"; the id names a tombstone.',
   },
   {
     model: 'ChatMessage',
     field: 'body',
     action: 'anonymise',
     reason:
-      'Emptied, attachments cleared and deletedAt set on the account’s messages: the schema’s own soft delete, "message deleted".',
+      'The ciphertext is emptied, attachments cleared and deletedAt set on every message the account sent, as a player or for a club: the schema’s own soft delete, "message deleted". What the others wrote to them stays theirs.',
   },
   {
     model: 'UserBlock',

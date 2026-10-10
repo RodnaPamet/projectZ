@@ -513,6 +513,25 @@
         "title": "You are no longer in this game",
         "body": "{venue} · {when}"
       }
+    },
+    "message": {
+      "someone": "A player",
+      "fromPlayer": {
+        "title": "New message from {name}",
+        "body": "Open the conversation in Messages."
+      },
+      "request": {
+        "title": "{name} would like to message you",
+        "body": "The request is waiting in Requests."
+      },
+      "toClub": {
+        "title": "New message from {name}",
+        "body": "To {club}"
+      },
+      "fromClub": {
+        "title": "{club} wrote to you",
+        "body": "{name} · {club}"
+      }
     }
   },
   "notFound": {

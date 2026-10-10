@@ -46,6 +46,7 @@ filter:
     - Desk
     - Devices
     - Me
+    - Messages
     - Payments
     - Payouts
     - Realtime

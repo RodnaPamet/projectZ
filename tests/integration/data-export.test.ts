@@ -349,8 +349,9 @@ describe('GET /api/v1/me/export (#370)', () => {
       'notifications',
       'notificationSettings',
       'inviteLinks',
+      'messages',
     ]);
-    expect(json.version).toBe(2);
+    expect(json.version).toBe(3);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',

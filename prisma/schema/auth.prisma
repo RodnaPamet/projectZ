@@ -137,6 +137,11 @@ model User {
   emailBookingReminders     Boolean @default(true)
   emailClubChanges          Boolean @default(true)
 
+  /// "Показвай ме в търсенето" (#375): whether other players find this person
+  /// by name when starting a conversation. On by default. Off, they can still
+  /// be written to by the people they have played with or already talk to.
+  searchable Boolean @default(true)
+
   /// Bumped to invalidate every issued session (password change, forced
   /// logout). A JWT carrying a stale version is rejected.
   sessionVersion Int @default(0)

@@ -80,7 +80,6 @@ const USE_CASES = globSync('src/app-layer/usecases/*.ts')
  */
 const NOT_WIRED_YET: Record<string, string> = {
   gamification: 'XP and achievements have no surface yet',
-  messaging: 'DM routes unbuilt; the Centrifugo transport and RLS shape are done and tested',
   ratings: 'openskill scoring is done; match results have no route to arrive through',
   session: 'open-play sessions have no routes yet',
   tournaments: 'bracket generation is done; no routes',
