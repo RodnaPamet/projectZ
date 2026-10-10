@@ -99,7 +99,7 @@ describe('RLS isolation', () => {
     expect(rows).toHaveLength(2);
   });
 
-  it('7. UserSession policy is asymmetric — read a NULL-tenant session, never re-parent it', async () => {
+  it('7. UserSession: a NULL-tenant session is neither readable nor re-parentable by app_user', async () => {
     const a = await seedTenant();
     const b = await seedTenant();
 
@@ -134,14 +134,17 @@ describe('RLS isolation', () => {
       ),
     ).rejects.toThrow(/row-level security/i);
 
+    // Nor read one. Until P58 (#488) USING kept a NULL branch, so every
+    // app_user session, even one bound to another club, read every pre-tenant
+    // session and could delete it. Every session read is on the superuser
+    // path (sign-in, checkSession, refresh, sign-out), so nothing needs it.
     const readBack = await asAppUser(prisma, a.tenantId, (tx) =>
       tx.userSession.findMany({ where: { id: session.id } }),
     );
-    expect(readBack).toHaveLength(1);
+    expect(readBack).toHaveLength(0);
 
-    // But WITH CHECK deliberately omits the NULL branch: you may READ a
-    // pre-tenant session, you may never WRITE one into a tenant that isn't
-    // yours. A symmetric policy here would let a session be re-parented.
+    // And never move it into a tenant: the row is invisible to UPDATE, and
+    // WITH CHECK refuses any tenant that is not the bound one.
     await expect(
       asAppUser(prisma, a.tenantId, (tx) =>
         tx.userSession.update({ where: { id: session.id }, data: { tenantId: b.tenantId } }),
