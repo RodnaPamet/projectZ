@@ -82,7 +82,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // SlotTakenError below.
   SlotNotBookableError: { status: 400, code: 'SLOT_NOT_BOOKABLE' },
   ShareSumMismatchError: { status: 400, code: 'SHARE_SUM_MISMATCH' },
-  EmptyMessageError: { status: 400, code: 'EMPTY_MESSAGE' },
   UnsupportedCapabilityError: { status: 400, code: 'UNSUPPORTED_CAPABILITY' },
   GuestContactRequiredError: { status: 400, code: 'GUEST_CONTACT_REQUIRED' },
   // A weekly series that runs backwards, past a year, or skips every week (#364).
@@ -102,8 +101,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // ── 403: you may not, and retrying will not help ──────────────────
   AccountLockedError: { status: 403, code: 'ACCOUNT_LOCKED' },
   StravaTosViolationError: { status: 403, code: 'STRAVA_TOS_VIOLATION' },
-  NotAParticipantError: { status: 403, code: 'NOT_A_PARTICIPANT' },
-  UserBlockedError: { status: 403, code: 'USER_BLOCKED' },
   // You cannot review a venue you never visited. A precondition on the actor,
   // not on the payload — hence 403 rather than 400.
   NoProofOfVisitError: { status: 403, code: 'NO_PROOF_OF_VISIT' },
