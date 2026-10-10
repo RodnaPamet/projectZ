@@ -110,7 +110,16 @@ function useNow(serverNow: number): number {
  * sat open, says the same as the disabled state does. On success both tabs of
  * the list are refreshed, so going back shows the booking under Минали.
  */
-export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: number }) {
+export function BookingDetail({
+  seed,
+  serverNow,
+  messaging = false,
+}: {
+  seed: Detail;
+  serverNow: number;
+  /** The messaging module is on (#375): "Пиши" beside each other player. */
+  messaging?: boolean;
+}) {
   const t = useTranslations('myBookings');
   const td = useTranslations('myBookings.detail');
   const tSports = useTranslations('sports');
@@ -244,7 +253,7 @@ export function BookingDetail({ seed, serverNow }: { seed: Detail; serverNow: nu
         ) : null}
       </div>
 
-      <BookingPlayers booking={b} date={date} time={from} />
+      <BookingPlayers booking={b} date={date} time={from} messaging={messaging} />
 
       {state !== 'none' || cancelError ? (
         <section className="gap-tight flex flex-col" data-testid="booking-cancel">

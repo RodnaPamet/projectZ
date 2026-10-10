@@ -9,6 +9,8 @@ import { useV1SWR } from '@/lib/data/use-v1-swr';
 export interface AccountPatch {
   name?: string;
   sports?: Array<{ sport: string; level: number }>;
+  /** "Показвай ме в търсенето" (#375). */
+  searchable?: boolean;
 }
 
 /**
@@ -35,6 +37,7 @@ export function useAccount(seed: MeDto) {
       ...current,
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.sports !== undefined ? { sports: patch.sports as MeDto['sports'] } : {}),
+      ...(patch.searchable !== undefined ? { searchable: patch.searchable } : {}),
     }),
     fallback: seed,
   });

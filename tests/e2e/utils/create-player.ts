@@ -46,6 +46,11 @@ export async function destroyPlayer(userId: string): Promise<void> {
       await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
       // The bell's rows name a person, not a foreign key (#367): clear them too.
       await tx.notification.deleteMany({ where: { userId } });
+      // So do conversations (#375): theirs go, with every message in them.
+      await tx.conversation.deleteMany({ where: { participants: { some: { userId } } } });
+      await tx.userBlock.deleteMany({
+        where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+      });
       await tx.user.deleteMany({ where: { id: userId } });
     });
   } catch (err) {

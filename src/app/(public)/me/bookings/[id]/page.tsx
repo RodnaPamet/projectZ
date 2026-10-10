@@ -42,7 +42,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   const userId = await requireSignedIn();
   if (!userId) redirect(`/login?next=${encodeURIComponent(`/me/bookings/${id}`)}`);
 
-  const { kind, landing } = await playerChrome();
+  const { kind, landing, modules } = await playerChrome();
   if (kind === 'club' && landing) redirect(landing.href);
 
   const [booking, tNav] = await Promise.all([
@@ -59,7 +59,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
           way back there, and a second one would say it twice. */}
       <PageBreadcrumbs items={bookingsCrumbs(tNav, seed.venue.name)} className="hidden" />
       <ViewerScope viewerId={userId}>
-        <BookingDetail seed={seed} serverNow={renderedAt()} />
+        <BookingDetail seed={seed} serverNow={renderedAt()} messaging={modules.messaging} />
       </ViewerScope>
     </div>
   );

@@ -49,7 +49,14 @@ import { TabBar, TabBarLink } from './tab-bar';
  * passes `spacer={false}` and pads the end of its `<main>` itself, as the club
  * admin's shell does.
  */
-const HIDDEN_ON = [/^\/login(?:\/|$)/, /^\/invite\//, /^\/offline(?:\/|$)/];
+const HIDDEN_ON = [
+  /^\/login(?:\/|$)/,
+  /^\/invite\//,
+  /^\/offline(?:\/|$)/,
+  // An open conversation (#375): the composer owns the foot of the screen, as
+  // in every messaging app; "‹ Съобщения" at its top is the way out.
+  /^\/messages\/(?!new(?:\/|$))[^/]+\/?$/,
+];
 
 export function isTabBarHidden(pathname: string): boolean {
   return HIDDEN_ON.some((re) => re.test(pathname));

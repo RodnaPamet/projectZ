@@ -8,6 +8,7 @@ import { useState } from 'react';
 import type { BookingPlayerDto, MyBookingDetailDto } from '@/app/api/v1/_lib/dto';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { StartConversationButton } from '@/components/messages/StartConversationButton';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption, Heading } from '@/components/ui/typography';
@@ -59,7 +60,8 @@ export function bookingPlayerReads(bookingId: string) {
  *   anyone, after the start    the list, and nothing to press
  *
  * Names and avatars only: the DTO carries no email, phone or user id for
- * anybody. Removing and leaving ask first (ConfirmDialog), then refresh the
+ * anybody. "Пиши" (#375, while messaging is on) opens the conversation with a
+ * player by their place on this booking, never by an id. Removing and leaving ask first (ConfirmDialog), then refresh the
  * booking, its players and both tabs of the list. Leaving takes the caller
  * back to Резервации, since the booking is no longer theirs to open.
  */
@@ -67,11 +69,14 @@ export function BookingPlayers({
   booking: b,
   date,
   time,
+  messaging = false,
 }: {
   booking: MyBookingDetailDto;
   /** The game's date and start, in the venue's zone, for the share text. */
   date: string;
   time: string;
+  /** The messaging module is on (#375): each other player gets "Пиши". */
+  messaging?: boolean;
 }) {
   const t = useTranslations('myBookings.players');
   const td = useTranslations('myBookings.detail');
@@ -146,6 +151,15 @@ export function BookingPlayers({
                 <Caption className="shrink-0">{td('booker')}</Caption>
               ) : !p.registered ? (
                 <Caption className="shrink-0">{td('guest')}</Caption>
+              ) : null}
+              {messaging && !p.isYou && p.registered && !p.deleted ? (
+                <StartConversationButton
+                  to={{ bookingId: b.id, participantId: p.participantId }}
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  testId="booking-player-write"
+                />
               ) : null}
               {b.playersOpen && isBooker && !p.isBooker && p.participantId ? (
                 <Button

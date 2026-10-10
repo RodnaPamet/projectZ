@@ -9,7 +9,7 @@ import { persistMyLocale } from '@/lib/i18n/persist-my-locale';
 
 import { AccountMenuRows } from './account-links';
 import { useCurrentBreadcrumbs } from './breadcrumbs-store';
-import { HeaderActions } from './header-actions';
+import { HeaderActions, type HeaderMessages } from './header-actions';
 import { NavBar, NavBarMobileMenu } from './nav-bar';
 import { SIGNED_IN_HOME, type ShellAccount } from './nav-items';
 import { UserMenu } from './user-menu';
@@ -82,12 +82,15 @@ export function ShellTopBar({
   context,
   user,
   account,
+  messages = null,
   onMobileMenuClick,
 }: {
   /** The club's (or the platform's) name, linking back to the shell's own start. */
   context?: { name: string; href: string };
   user: { userId: string; name: string | null; email: string | null };
   account: Pick<ShellAccount, 'publicSite'>;
+  /** The messages icon's inbox (#375), or null while the module is off. */
+  messages?: HeaderMessages | null;
   onMobileMenuClick: () => void;
 }) {
   const t = useTranslations('common');
@@ -130,7 +133,7 @@ export function ShellTopBar({
               {context.name}
             </Link>
           ) : null}
-          <HeaderActions viewerId={user.userId} />
+          <HeaderActions viewerId={user.userId} messages={messages} />
           <UserMenu
             displayName={user.name ?? user.email}
             displayEmail={user.email}

@@ -380,6 +380,38 @@ export async function messageAudience(
   });
 }
 
+/**
+ * Who is at a place on one of the caller's bookings (#375): the booker for
+ * `participantId: null`, else that added player. Null unless the caller is on
+ * the booking themselves (its booker, or a player on it), the place holds a
+ * person with an account, and that person is not the caller.
+ */
+export async function coPlayerAt(
+  viewerId: string,
+  bookingId: string,
+  participantId: string | null,
+): Promise<string | null> {
+  // guardrail-allow: cross-tenant — one booking by id, kept only if the
+  // caller is on it; its players, as the booking's own player list shows them.
+  const b = await runAsSuperuser((db) =>
+    db.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        bookedByUserId: true,
+        participants: { select: { id: true, userId: true }, take: 100 },
+      },
+    }),
+  );
+  if (!b) return null;
+  const onIt = b.bookedByUserId === viewerId || b.participants.some((p) => p.userId === viewerId);
+  if (!onIt) return null;
+  const target =
+    participantId === null
+      ? b.bookedByUserId
+      : (b.participants.find((p) => p.id === participantId)?.userId ?? null);
+  return target && target !== viewerId ? target : null;
+}
+
 /** A club a player can write to: active, by its slug. */
 export async function activeClubBySlug(slug: string): Promise<ClubName | null> {
   // guardrail-allow: cross-tenant — one club by its public slug, as its public page reads it.

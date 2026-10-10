@@ -8,6 +8,7 @@ import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
 import { playCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
+import { WriteToClub } from '@/components/messages/WriteToClub';
 import { splitPhotos } from '@/lib/media/photo-view';
 import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -224,6 +225,8 @@ export default async function VenuePage({
           sports={sports}
           cover={cover}
         />
+        {/* #375: a signed-in player writes to the venue's club, while messaging is on. */}
+        <WriteToClub clubSlug={clubSlug} className="in-shell:px-0 -mt-2 px-6 md:px-0" />
         {/* The second stage (#403): only the slots wait for the day's
             availability; the header above is already on screen. */}
         <Suspense fallback={<VenueSlotsSkeleton />}>

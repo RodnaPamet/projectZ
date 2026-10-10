@@ -16,6 +16,7 @@ import {
 import { NotificationSettingsRow } from '@/components/profile/NotificationSettingsRow';
 import { PersonalDataSection } from '@/components/profile/PersonalDataSection';
 import { SportLevelsSection } from '@/components/profile/SportLevelsSection';
+import { SearchVisibilityRow } from '@/components/profile/SearchVisibilityRow';
 import { useAccount } from '@/components/profile/use-account';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -159,6 +160,9 @@ export function ProfileView({
       ) : null}
 
       <Section title={t('privacy')}>
+        {/* #375: whether other players find this account by name. A player's
+            setting: a club or coach account is never in player search. */}
+        {seed.accountKind === 'PLAYER' ? <SearchVisibilityRow seed={seed} /> : null}
         {/* #370: everything playerz holds about the account, as a file. */}
         <DataExportRow href={V1.exportMyData()} />
         {/* The owner's texts, once they exist in this language; how to delete

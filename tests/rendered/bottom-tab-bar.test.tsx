@@ -151,9 +151,21 @@ describe('BottomTabBar — the Игри tab waits for its module', () => {
     expect(within(bar()).queryByRole('link', { name: n.games })).not.toBeInTheDocument();
   });
 
-  it('Съобщения is never a tab: it waits in the sidebar (#375)', () => {
+  it('Съобщения is a tab once its module is on, before Профил (#375)', () => {
     renderBar('player', { modules: EVERY_MODULE });
-    expect(within(bar()).queryByRole('link', { name: n.messages })).not.toBeInTheDocument();
+    expect(tabs()).toEqual([
+      [n.play, '/venues'],
+      [n.games, '/games'],
+      [n.bookings, '/me/bookings'],
+      [n.messages, '/messages'],
+      [n.profile, '/me/profile'],
+    ]);
+  });
+
+  it('an open conversation hides the bar; the inbox and a new one keep it (#375)', () => {
+    expect(isTabBarHidden('/messages/cabc123')).toBe(true);
+    expect(isTabBarHidden('/messages')).toBe(false);
+    expect(isTabBarHidden('/messages/new')).toBe(false);
   });
 });
 

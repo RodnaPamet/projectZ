@@ -53,6 +53,11 @@ export interface Me {
    * (#359, Q37). In the sport enum's order; empty until they pick some.
    */
   sports: Array<{ sport: SportType; level: number }>;
+  /**
+   * "Показвай ме в търсенето" (#375): whether other players find this person
+   * by name to write to them. On by default.
+   */
+  searchable: boolean;
   /** Null = undecided: an account #263's migration would not decide by rule. */
   accountKind: AccountKind | null;
   landing: {
@@ -74,6 +79,7 @@ export async function getMe(userId: string): Promise<Me | null> {
         avatarUrl: true,
         locale: true,
         accountKind: true,
+        searchable: true,
         deletedAt: true,
         // The person's own levels (#359), by the session-derived id like
         // everything else here; the enum's order, so the list is stable.
@@ -105,6 +111,7 @@ export async function getMe(userId: string): Promise<Me | null> {
       avatarUrl: avatarUrlOf(user.avatarUrl),
       locale: user.locale,
       sports: user.sportLevels.map((s) => ({ sport: s.sport, level: s.level })),
+      searchable: user.searchable,
       accountKind: user.accountKind,
       landing: {
         reason: decision.reason,

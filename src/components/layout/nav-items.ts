@@ -392,7 +392,7 @@ export function playerChromeKind(
 export interface ChromeModules {
   /** Module 2, open play (#376): Игри, in the sidebar and as a tab. */
   openPlay: boolean;
-  /** Module 1, messaging (#375): Съобщения, in the sidebar. */
+  /** Module 1, messaging (#375): Съобщения, in the sidebar and the tab bar, and the header's icon. */
   messaging: boolean;
 }
 
@@ -509,11 +509,18 @@ export function platformSections(
  * The bottom tab bar's tabs, below `md`. Every tab is a page.
  *
  * Signed in, the tabs are RESOLVED from the sidebar's own items, agrent's
- * pattern (#362): Играй · (Игри) · Резервации · Профил, so the bar can never
- * offer a page the sidebar does not. Съобщения and the platform stay in the
- * drawer. A CLUB account wears its admin's bar (`ClubAdminTabBar`).
+ * pattern (#362): Играй · (Игри) · Резервации · (Съобщения) · Профил, so the
+ * bar can never offer a page the sidebar does not. Съобщения is a tab once its
+ * module is on (#375); the platform stays in the drawer. A CLUB account wears
+ * its admin's bar (`ClubAdminTabBar`).
  */
-const TAB_HREFS: readonly string[] = [PLAY.href, GAMES.href, BOOKINGS.href, PROFILE.href];
+const TAB_HREFS: readonly string[] = [
+  PLAY.href,
+  GAMES.href,
+  BOOKINGS.href,
+  MESSAGES.href,
+  PROFILE.href,
+];
 
 export function playerTabs(
   kind: Exclude<PlayerChromeKind, 'club'>,

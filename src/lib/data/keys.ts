@@ -168,6 +168,24 @@ export const KEYS = {
   /** One club's statement, from the platform (#372). */
   platformClubStatement: (clubId: string, params: { month: string; reason: string }) =>
     `${BASE}/platform/fees/${seg(clubId)}/statement${query(params)}`,
+  /**
+   * An inbox, newest first, by cursor (#375): the player's own
+   * (`tab=requests` is «Заявки»), or a club's shared one.
+   */
+  conversations: (side: InboxSide, params: { tab?: 'conversations' | 'requests' } = {}) =>
+    paged(`${inboxBase(side)}/conversations`, params),
+  /**
+   * One conversation and its newest page of messages, which an open screen
+   * re-reads every 5 seconds; `before` is a page of older ones.
+   */
+  conversation: (side: InboxSide, id: string, params: { before?: string } = {}) =>
+    `${inboxBase(side)}/conversations/${seg(id)}${query(params)}`,
+  /** How much is waiting: the header's messages icon. */
+  conversationsUnread: (side: InboxSide) => `${inboxBase(side)}/conversations/unread`,
+  /** Players by name, for a new conversation (#375): public cards. */
+  players: (q: string) => `${BASE}/players${query({ q })}`,
+  /** One player's public card. */
+  player: (id: string) => `${BASE}/players/${seg(id)}`,
 } as const;
 
 /** Writes: the URLs `useV1Mutation` posts to. */
@@ -227,7 +245,31 @@ export const V1 = {
     `${BASE}/platform/fees/${seg(clubId)}/statement/csv${query(params)}`,
   /** `PUT { feePercent, feeStartsOn, reason }`: a club's fee terms (#372). */
   clubFeeTerms: (clubId: string) => `${BASE}/platform/fees/${seg(clubId)}/terms`,
+  /** Open a conversation (#375): `{ playerId }` or `{ club }` for a player; `{ playerId }` for a club. */
+  openConversation: (side: InboxSide) => `${inboxBase(side)}/conversations`,
+  sendMessage: (side: InboxSide, id: string) =>
+    `${inboxBase(side)}/conversations/${seg(id)}/messages`,
+  markConversationRead: (side: InboxSide, id: string) =>
+    `${inboxBase(side)}/conversations/${seg(id)}/read`,
+  /** Block (POST) or lift the caller's side's block (DELETE). */
+  blockConversation: (side: InboxSide, id: string) =>
+    `${inboxBase(side)}/conversations/${seg(id)}/block`,
+  retractMessage: (side: InboxSide, messageId: string) =>
+    `${inboxBase(side)}/messages/${seg(messageId)}`,
+  /** A request in «Заявки» (a player's only). */
+  acceptRequest: (id: string) => `${BASE}/me/conversations/${seg(id)}/accept`,
+  declineRequest: (id: string) => `${BASE}/me/conversations/${seg(id)}/decline`,
 } as const;
+
+/**
+ * Whose inbox a messaging screen is (#375): the signed-in player's own, under
+ * `/me`, or a club's shared one, under the club's admin.
+ */
+export type InboxSide = { kind: 'me' } | { kind: 'club'; slug: string };
+
+function inboxBase(side: InboxSide): string {
+  return side.kind === 'me' ? `${BASE}/me` : `${BASE}/t/${seg(side.slug)}/admin`;
+}
 
 /**
  * A matcher for `mutate(matcher)`: every PLAIN key under a prefix.

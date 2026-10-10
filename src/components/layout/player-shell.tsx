@@ -8,7 +8,12 @@ import { AppShellFrame } from './AppShellFrame';
 import { BottomTabBar, isTabBarHidden } from './BottomTabBar';
 import { BreadcrumbsProvider } from './breadcrumbs-store';
 import { MobileNavDrawer } from './MobileNavDrawer';
-import type { ChromeModules, ShellAccount, ShellNavSection } from './nav-items';
+import {
+  MODULE_HREFS,
+  type ChromeModules,
+  type ShellAccount,
+  type ShellNavSection,
+} from './nav-items';
 import { ShellSidebar } from './shell-sidebar';
 import { ShellTopBar } from './shell-top-bar';
 import { SidebarCollapseProvider } from './sidebar-collapse-context';
@@ -97,7 +102,14 @@ export function PlayerShell({
           )}
           topChrome={({ onMobileMenuClick }) => (
             <>
-              <ShellTopBar user={user} account={account} onMobileMenuClick={onMobileMenuClick} />
+              <ShellTopBar
+                user={user}
+                account={account}
+                messages={
+                  modules.messaging ? { href: MODULE_HREFS.messaging, side: { kind: 'me' } } : null
+                }
+                onMobileMenuClick={onMobileMenuClick}
+              />
               <BottomTabBar kind={kind} modules={modules} spacer={false} />
             </>
           )}

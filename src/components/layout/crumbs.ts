@@ -2,7 +2,14 @@ import type { BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { PLAY_PATH } from '@/lib/auth/landing';
 import type { ResourceNouns } from '@/lib/sports/resource-kinds';
 
-import { clubAdminHref, clubAdminNav, PLATFORM_HREF, platformNav, PROFILE_HREF } from './nav-items';
+import {
+  clubAdminHref,
+  clubAdminNav,
+  MODULE_HREFS,
+  PLATFORM_HREF,
+  platformNav,
+  PROFILE_HREF,
+} from './nav-items';
 
 /**
  * EVERY SHELL PAGE'S BREADCRUMBS (#362, owner 2026-10-08: the top bar's left
@@ -34,6 +41,11 @@ export function playCrumbs(t: NavT, page?: string | null): BreadcrumbItem[] {
 /** Резервации, and one booking (its venue's name, the page's heading). */
 export function bookingsCrumbs(t: NavT, booking?: string | null): BreadcrumbItem[] {
   return [{ label: t('bookings'), href: '/me/bookings' }, ...leaf(booking)];
+}
+
+/** Съобщения (#375), and a page under it: a conversation, or a new one. */
+export function messagesCrumbs(t: NavT, page?: string | null): BreadcrumbItem[] {
+  return [{ label: t('messages'), href: MODULE_HREFS.messaging }, ...leaf(page)];
 }
 
 /** Профил. */

@@ -19,3 +19,9 @@ export const MAX_BODY_LENGTH = 4000;
  * unreachable.
  */
 export const BODY_VALIDATOR_MAX = 8000;
+
+/** How often an open conversation asks for what is new (Agrent's ThreadClient). */
+export const CONVERSATION_REFRESH_MS = 5_000;
+
+/** How often an open inbox, and the header's messages icon, re-read. */
+export const INBOX_REFRESH_MS = 30_000;
