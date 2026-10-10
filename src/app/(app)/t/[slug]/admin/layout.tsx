@@ -8,6 +8,7 @@ import { ClubAdminShell } from '@/components/layout/club-admin-shell';
 import { clubShell } from '@/components/layout/nav-items';
 import { resolveTenantPageContext, signedInIdentity } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
+import { readModules } from '@/lib/modules';
 
 /**
  * The club-admin shell: sidebar on a desktop, a left drawer on a phone (T19).
@@ -85,6 +86,7 @@ export default async function ClubAdminLayout({
     t,
     tRole,
     nouns,
+    modules: readModules(),
   });
   if (!club.opensAdmin) notFound();
 
@@ -97,6 +99,7 @@ export default async function ClubAdminLayout({
       account={club.account}
       bottomTabs
       fullBleedSegment="calendar"
+      messages={club.messages}
     >
       {children}
     </ClubAdminShell>

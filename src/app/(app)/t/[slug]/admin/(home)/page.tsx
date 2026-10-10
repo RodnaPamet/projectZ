@@ -12,6 +12,7 @@ import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Eyebrow, Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
+import { readModules } from '@/lib/modules';
 
 export async function generateMetadata() {
   const t = await getTranslations('admin.home');
@@ -53,7 +54,7 @@ export default async function ClubAdminHomePage({ params }: { params: Promise<{ 
     getTranslations('common'),
     clubResourceNouns(ctx.tenantId),
   ]);
-  const sections = visibleSections(clubAdminNav(ctx.tenantSlug, nouns), (item) =>
+  const sections = visibleSections(clubAdminNav(ctx.tenantSlug, nouns, readModules()), (item) =>
     ctx.permissions.includes(item.requires),
   );
   if (sections.length === 0) notFound();

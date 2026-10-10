@@ -141,6 +141,9 @@ const COURTS_LABEL: Record<ResourceNouns, string> = {
  * A COACH holds `players.view` and nothing else here, so a coach sees only
  * Players: today's permission-based view, kept until the coach UI decides.
  *
+ * Съобщения (#375), the club's shared inbox, sits beside the diary once the
+ * messaging module is on: OWNER, MANAGER and STAFF hold `messages.club`.
+ *
  * `nouns` names the courts screen after what the club plays on (P51, #362,
  * #454): "Писти" at a club of tracks only, "Игрища" at one of pitches only,
  * "Кортове и игрища" at one with both, as the screen's own heading does
@@ -149,6 +152,7 @@ const COURTS_LABEL: Record<ResourceNouns, string> = {
 export function clubAdminNav(
   slug: string,
   nouns: ResourceNouns = 'court',
+  modules: ChromeModules = MODULES_OFF,
 ): NavSection<ClubNavItem>[] {
   const href = (page: string) => `/t/${slug}/admin/${page}`;
   return [
@@ -161,6 +165,17 @@ export function clubAdminNav(
           requires: 'bookings.view_all',
           prefetch: 'auto',
         },
+        ...(modules.messaging
+          ? [
+              {
+                href: href('messages'),
+                labelKey: 'messages',
+                iconKey: 'messages' as const,
+                requires: 'messages.club' as const,
+                prefetch: 'auto' as const,
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -617,6 +632,11 @@ export function playerAccount(
 /** What `ClubAdminShell` draws for one club, decided on the server. */
 export interface ClubShellData {
   sections: ShellNavSection[];
+  /**
+   * The top bar's messages icon (#375): the club's inbox, for a role that
+   * reads it while the module is on; null otherwise.
+   */
+  messages: { href: string; side: { kind: 'club'; slug: string } } | null;
   /** Whether the role opens any admin page: the admin layout answers 404 when not. */
   opensAdmin: boolean;
   /** The club admin's home (`/t/{slug}/admin`), which the club's name in the top bar links to. */
@@ -659,14 +679,24 @@ export function clubShell(
     tRole: (key: string) => string;
     /** What the club plays on, for the courts screen's label (`clubResourceNouns`). */
     nouns?: ResourceNouns;
+    /** The modules switched on (`readModules`): Съобщения waits for its own (#375). */
+    modules?: ChromeModules;
   },
 ): ClubShellData {
-  const admin = visibleSections(clubAdminNav(ctx.tenantSlug, opts.nouns), (item) =>
+  const modules = opts.modules ?? MODULES_OFF;
+  const admin = visibleSections(clubAdminNav(ctx.tenantSlug, opts.nouns, modules), (item) =>
     ctx.permissions.includes(item.requires),
   );
   const opensAdmin = admin.length > 0;
+  const inbox = modules.messaging && ctx.permissions.includes('messages.club');
   return {
     sections: toShellSections([...admin, ...platformSections(opts.platform)], opts.t),
+    messages: inbox
+      ? {
+          href: `${clubAdminHref(ctx.tenantSlug)}/messages`,
+          side: { kind: 'club', slug: ctx.tenantSlug },
+        }
+      : null,
     opensAdmin,
     homeHref: clubAdminHref(ctx.tenantSlug),
     contextName: ctx.tenantName,

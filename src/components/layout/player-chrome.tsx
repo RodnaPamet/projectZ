@@ -7,6 +7,7 @@ import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
 import { legalHrefs } from '@/lib/legal/texts';
+import { readModules } from '@/lib/modules';
 
 import { BottomTabBar } from './BottomTabBar';
 import { ClubAdminShell } from './club-admin-shell';
@@ -109,6 +110,7 @@ export async function PlayerChrome({
         user={user}
         account={club?.account ?? noClubAccount(user, platformHref, tNav)}
         bottomTabs
+        messages={club?.messages ?? null}
       >
         {children}
       </ClubAdminShell>
@@ -177,5 +179,5 @@ async function clubFrame(
     chromeReadFailed('resource-nouns', err);
     return 'court' as const;
   });
-  return clubShell(result.ctx, { ...opts, nouns });
+  return clubShell(result.ctx, { ...opts, nouns, modules: readModules() });
 }

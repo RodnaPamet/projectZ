@@ -121,6 +121,7 @@ export function PlayersBoard({
   players,
   canAdjustCredit,
   canLiftNoShowBlock,
+  canMessage = false,
   noShowWindowDays,
 }: {
   slug: string;
@@ -129,6 +130,8 @@ export function PlayersBoard({
   canAdjustCredit: boolean;
   /** `bookings.view_all` — the desk. A COACH sees the block but cannot lift it. */
   canLiftNoShowBlock: boolean;
+  /** "Пиши" in a player's sheet (#375): messaging is on and the role holds `messages.club`. */
+  canMessage?: boolean;
   noShowWindowDays: number;
 }) {
   const t = useTranslations('admin.players');
@@ -330,6 +333,7 @@ export function PlayersBoard({
           player={current}
           canAdjustCredit={canAdjustCredit}
           canLiftNoShowBlock={canLiftNoShowBlock}
+          canMessage={canMessage}
           noShowWindowDays={noShowWindowDays}
           open={sheetOpen}
           setOpen={setSheetOpen}
