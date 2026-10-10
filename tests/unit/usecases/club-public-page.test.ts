@@ -121,10 +121,9 @@ describe('module-gated entries (#362)', () => {
     expect(playerTabs('signed-out', on).map((t) => t.href)).not.toContain('/games');
   });
 
-  it('messaging on: Съобщения in the sidebar and a tab (#375), for a signed-in account only', () => {
+  it('messaging on: Съобщения in the sidebar, never a tab', () => {
     const on = { openPlay: false, messaging: true };
     expect(sidebar('player', on)).toContain('/messages');
-    expect(playerTabs('player', on).map((t) => t.href)).toContain('/messages');
-    expect(playerTabs('signed-out', on).map((t) => t.href)).not.toContain('/messages');
+    expect(playerTabs('player', on).map((t) => t.href)).not.toContain('/messages');
   });
 });
