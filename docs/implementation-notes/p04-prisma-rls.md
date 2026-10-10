@@ -44,27 +44,32 @@ explicitly instead:
 A unit test asserts that malformed input raises **before a single statement
 is issued**.
 
-## The UserSession policy is deliberately asymmetric
+## The UserSession policy is tenant-only (P58)
 
 `UserSession.tenantId` is nullable: a session exists between sign-in and
-tenant selection.
+tenant selection, and in practice every session row is NULL-tenant (both
+sign-in paths pass `tenantId: null`).
+
+P04 shipped an asymmetric policy: `USING ("tenantId" IS NULL OR …)` so a
+pre-tenant session was readable, and a tenant-only `WITH CHECK`. The claim
+that this meant `app_user` "can never re-parent an existing session" held for
+INSERT only. `USING` also governs UPDATE and DELETE, so every `app_user`
+session, bound to any club or none, could read every session row (token
+hashes included) and delete it (#488).
+
+No `app_user` path ever needed the NULL branch: sign-in, `checkSession`,
+refresh, sign-out, the MFA step-up, the data export and account deletion all
+run on `runAsSuperuser`. P58 therefore keys the policy on the tenant alone:
 
 ```sql
-USING      ("tenantId" IS NULL OR "tenantId" = current_setting('app.tenant_id', true))
+USING      ("tenantId" = current_setting('app.tenant_id', true))
 WITH CHECK ("tenantId" = current_setting('app.tenant_id', true))
 ```
 
-`USING` allows the NULL branch so a pre-tenant session is **readable** —
-otherwise nobody could ever get far enough to pick a tenant. `WITH CHECK`
-omits it, so a tenant-bound `app_user` can never **write** a row into a
-tenant that isn't theirs, and can never re-parent an existing session.
-
-This bit our own test first: the original spec had `app_user` minting the
-NULL-tenant session, which the policy correctly rejected. The policy was
-right and the test was modelling the wrong actor — a pre-tenant session is
-minted at sign-in, _outside_ any tenant context. The test now proves both
-halves: a superuser mints it, a tenant-bound user can read it, and a
-tenant-bound user is refused when it tries to mint one or re-parent it.
+A pre-tenant session is minted and read _outside_ any tenant context, on the
+superuser path. `tests/integration/null-tenant-rls.test.ts` proves both
+halves: the real sign-in, refresh and sign-out routes still work, and no
+`app_user` binding reads, deletes or re-tenants a NULL-tenant session.
 
 ## Why FORCE, not just ENABLE
 

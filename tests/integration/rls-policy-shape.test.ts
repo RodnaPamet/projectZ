@@ -133,9 +133,9 @@ describe('installed RLS policy shape', () => {
   });
 
   it('NO WITH CHECK accepts a NULL tenant', async () => {
-    // USING may admit NULL where platform-level rows are meant to be readable
-    // (xp_event, match_result; not reports, see below). WITH CHECK must not: it lets any session insert an unowned row and then
-    // claim it from another tenant. That is the two-step re-parenting attack
+    // WITH CHECK must not admit a NULL tenant: it lets any session insert an
+    // unowned row and then claim it from another tenant. (USING no longer
+    // admits one either; see the next test.) That is the two-step re-parenting attack
     // the asymmetric user_session policy was written to block.
     // ─── One documented exemption, and why it is not the same thing ───
     //
@@ -171,6 +171,75 @@ describe('installed RLS policy shape', () => {
     );
 
     expect(laundering.map((p) => `${p.tablename}.${p.policyname}`)).toEqual([]);
+  });
+
+  it('NO USING admits a NULL tenant (#483, #488)', async () => {
+    // USING governs SELECT, UPDATE and DELETE. `"tenantId" IS NULL OR …` let
+    // every app_user session, bound to any club or none, read a platform-level
+    // row, delete it, or UPDATE it into its own club (the new row passes a
+    // tenant-only WITH CHECK). P57 and P58 removed the last of them. A
+    // platform-level row is reached through the BYPASSRLS bindings; a branch
+    // for its own person would key on app.user_id, not on the NULL.
+    const open = (await policies()).filter(
+      (p) => p.policyname !== 'superuser_bypass' && /"tenantId" IS NULL/i.test(p.qual ?? ''),
+    );
+
+    expect(open.map((p) => `${p.tablename}.${p.policyname} (${p.cmd})`)).toEqual([]);
+  });
+
+  it('user_session, xp_event, match_result and match_participant are tenant-only (#488)', async () => {
+    // Every session row is NULL-tenant (both sign-in paths pass null), so the
+    // P04 NULL branch exposed every session, token hashes included, to every
+    // app_user, and let it sign anyone out. xp_event and match_result had the
+    // same USING, and match_participant inherited it through its match.
+    //
+    // P58 keys all four on the tenant alone. No app_user path reads a
+    // NULL-tenant row of any of them: sessions are read and written only on
+    // runAsSuperuser (sign-in, checkSession, refresh, sign-out, step-up,
+    // export, deletion), and nothing in src/ binds app_user around XP or
+    // matches. A branch for the row's own person (`app.user_id`) has to
+    // change this pin on purpose.
+    const tenantOnly = `("tenantId" = current_setting('app.tenant_id'::text, true))`;
+    const viaMatch =
+      `(EXISTS ( SELECT 1\n` +
+      `   FROM match_result m\n` +
+      `  WHERE ((m.id = match_participant."matchId") AND (m."tenantId" = current_setting('app.tenant_id'::text, true)))))`;
+    const rows = (await policies()).filter(
+      (p) =>
+        ['user_session', 'xp_event', 'match_result', 'match_participant'].includes(p.tablename) &&
+        p.policyname !== 'superuser_bypass',
+    );
+
+    expect(rows).toEqual([
+      {
+        tablename: 'match_participant',
+        policyname: 'match_participant_tenant_isolation',
+        cmd: 'ALL',
+        qual: viaMatch,
+        with_check: viaMatch,
+      },
+      {
+        tablename: 'match_result',
+        policyname: 'match_result_tenant_isolation',
+        cmd: 'ALL',
+        qual: tenantOnly,
+        with_check: tenantOnly,
+      },
+      {
+        tablename: 'user_session',
+        policyname: 'tenant_isolation',
+        cmd: 'ALL',
+        qual: tenantOnly,
+        with_check: tenantOnly,
+      },
+      {
+        tablename: 'xp_event',
+        policyname: 'xp_event_tenant_isolation',
+        cmd: 'ALL',
+        qual: tenantOnly,
+        with_check: tenantOnly,
+      },
+    ]);
   });
 
   it('moderation_case and content_report admit NO NULL-tenant row to app_user (#483)', async () => {
