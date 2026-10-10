@@ -7,6 +7,7 @@ import {
 } from '@/app-layer/usecases/booking-rules';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
+import { decryptField } from '@/lib/security/encryption';
 
 /**
  * "Изтегли моите данни" (#370): what playerz holds about the signed-in person,
@@ -25,6 +26,12 @@ import { avatarUrlOf } from '@/lib/media/avatar-url';
  *                  count now, and whether online booking is blocked
  *   reviews, notifications (the bell and the emails), notificationSettings,
  *   inviteLinks
+ *   messages       (#375) whether they are shown in player search, who they
+ *                  blocked, and every conversation they are in — with another
+ *                  player or with a club — with every message in it still
+ *                  there, theirs and the other side's: they were party to all
+ *                  of it, and a conversation of one voice says nothing. A
+ *                  retracted message is listed as retracted, without text.
  *
  * ═══ WHAT IS NOT IN IT, AND WHY ═══
  *
@@ -114,7 +121,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 2;
+  version: 3;
   exportedAt: string;
   profile: {
     id: string;
@@ -256,6 +263,25 @@ export interface PersonalDataExport {
     expiresAt: string;
     revokedAt: string | null;
   }>;
+  messages: {
+    /** "Показвай ме в търсенето". */
+    shownInPlayerSearch: boolean;
+    /** The players this person blocked. */
+    blocked: Array<{ name: string | null; at: string }>;
+    conversations: Array<{
+      /** A player, or a club. */
+      with: { kind: 'player' | 'club'; name: string | null; deletedAccount: boolean };
+      startedAt: string;
+      messages: Array<{
+        mine: boolean;
+        /** Who wrote it: a person's name, and the club a staff reply was for. */
+        from: { name: string | null; club: string | null };
+        text: string | null;
+        retracted: boolean;
+        at: string;
+      }>;
+    }>;
+  };
 }
 
 export interface ExportedBooking {
@@ -361,6 +387,7 @@ export async function readPersonalData(
       emailBookingConfirmations: true,
       emailBookingReminders: true,
       emailClubChanges: true,
+      searchable: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
       profile: {
@@ -425,6 +452,8 @@ export async function readPersonalData(
       take: EXPORT_ROW_CAP,
     }),
   ]);
+
+  const messaging = await readMessaging(db, userId);
 
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own sessions, by their id.
@@ -582,7 +611,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 2,
+    version: 3,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -723,6 +752,127 @@ export async function readPersonalData(
       expiresAt: l.expiresAt.toISOString(),
       revokedAt: iso(l.revokedAt),
     })),
+    messages: { shownInPlayerSearch: user.searchable, ...messaging },
+  };
+}
+
+/**
+ * The person's conversations (#375): three reads for all of them — their
+ * participant rows with the conversations and messages, then the names of
+ * the people and clubs on them. Bodies are decrypted here, as the screens
+ * decrypt them; a body that does not open is listed without text.
+ */
+async function readMessaging(
+  db: PrismaClient,
+  userId: string,
+): Promise<Omit<PersonalDataExport['messages'], 'shownInPlayerSearch'>> {
+  const [rows, blocks] = await Promise.all([
+    db.conversationParticipant.findMany({
+      where: { userId, role: { in: ['MEMBER', 'PLAYER'] } },
+      select: {
+        conversation: {
+          select: {
+            type: true,
+            tenantId: true,
+            createdAt: true,
+            participants: { select: { userId: true, role: true }, take: 10 },
+            messages: {
+              select: {
+                senderId: true,
+                senderTenantId: true,
+                body: true,
+                deletedAt: true,
+                createdAt: true,
+              },
+              orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+              take: EXPORT_ROW_CAP,
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    db.userBlock.findMany({
+      where: { blockerId: userId },
+      select: { blockedId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+  ]);
+
+  const peopleIds = new Set<string>(blocks.map((b) => b.blockedId));
+  const clubIds = new Set<string>();
+  for (const r of rows) {
+    const c = r.conversation;
+    for (const p of c.participants) peopleIds.add(p.userId);
+    for (const m of c.messages) {
+      peopleIds.add(m.senderId);
+      if (m.senderTenantId) clubIds.add(m.senderTenantId);
+    }
+    if (c.type === 'CLUB' && c.tenantId) clubIds.add(c.tenantId);
+  }
+  const [people, clubs] = await Promise.all([
+    db.user.findMany({
+      where: { id: { in: [...peopleIds] } },
+      select: { id: true, name: true, deletedAt: true },
+      take: peopleIds.size,
+    }),
+    // guardrail-allow: cross-tenant — the names of the clubs the person talks to.
+    db.venueOrg.findMany({
+      where: { id: { in: [...clubIds] } },
+      select: { id: true, name: true },
+      take: clubIds.size,
+    }),
+  ]);
+  const person = new Map(people.map((u) => [u.id, u]));
+  const clubName = new Map(clubs.map((c) => [c.id, c.name]));
+  const nameOf = (id: string) => {
+    const u = person.get(id);
+    return u && !u.deletedAt ? u.name : null;
+  };
+  const text = (body: string): string | null => {
+    if (!body) return null;
+    try {
+      return decryptField(body);
+    } catch {
+      return null;
+    }
+  };
+
+  return {
+    blocked: blocks.map((b) => ({ name: nameOf(b.blockedId), at: b.createdAt.toISOString() })),
+    conversations: rows.map(({ conversation: c }) => {
+      const otherId =
+        c.type === 'DM'
+          ? (c.participants.find((p) => p.role === 'MEMBER' && p.userId !== userId)?.userId ?? null)
+          : null;
+      return {
+        with:
+          c.type === 'CLUB'
+            ? {
+                kind: 'club' as const,
+                name: clubName.get(c.tenantId ?? '') ?? null,
+                deletedAccount: false,
+              }
+            : {
+                kind: 'player' as const,
+                name: otherId ? nameOf(otherId) : null,
+                deletedAccount: otherId ? (person.get(otherId)?.deletedAt ?? null) !== null : true,
+              },
+        startedAt: c.createdAt.toISOString(),
+        messages: c.messages.map((m) => ({
+          mine: m.senderId === userId,
+          from: {
+            name: nameOf(m.senderId),
+            club: m.senderTenantId ? (clubName.get(m.senderTenantId) ?? null) : null,
+          },
+          text: m.deletedAt ? null : text(m.body),
+          retracted: m.deletedAt !== null,
+          at: m.createdAt.toISOString(),
+        })),
+      };
+    }),
   };
 }
 

@@ -1,9 +1,14 @@
 enum ConversationType {
+  /// Player ↔ player (#375). No tenant: the two may have met at different clubs.
   DM
   GROUP
   SESSION
   VENUE_CHANNEL
   COACH_THREAD
+  /// Player ↔ club (#375, P54). The club side is the CLUB, not a person: every
+  /// active OWNER, MANAGER and STAFF of `tenantId` reads and answers one shared
+  /// inbox. A new value, so rolling back past P54 runs deploy/rollback/p54-park.sql.
+  CLUB
 }
 
 /// One conversation model for everything.
@@ -12,17 +17,54 @@ enum ConversationType {
 /// announcements, coach threads) — means four inboxes, four unread counts,
 /// four blocking implementations, and four places to fix the next XSS. Users
 /// experience one messaging system, so it is one model.
+///
+/// ═══ WHO MAY READ ONE (P54) ═══
+///
+/// A conversation is PRIVATE TO PEOPLE, not to a club (agri-saas #1323): the
+/// RLS policy `conversation_audience` admits a person-participant (a DM's two
+/// players, a club conversation's player) and, for a CLUB conversation, an
+/// active OWNER/MANAGER/STAFF of that club acting for it (`app.tenant_id` bound
+/// to the club AND a staff membership there). Nobody else, whatever tenant
+/// their request happens to be bound to. See src/app-layer/usecases/messaging.ts.
 model Conversation {
   id   String           @id @default(cuid())
   type ConversationType
 
-  /// NULLABLE — a DM between two players who met at different clubs belongs to
-  /// no tenant. That makes the RLS policy ASYMMETRIC, exactly like UserSession
-  /// in P04: readable when null, never WRITABLE into a tenant that isn't yours.
+  /// NULL for a DM, which belongs to no club. For a CLUB conversation it is the
+  /// club, and it is what the staff half of the RLS policy keys on.
   tenantId String?
 
   title       String?
   createdById String
+
+  /// The pair this conversation is between, so there is ONE per pair (P54):
+  /// `dm:<lower id>:<higher id>` for a DM, `club:<tenantId>:<player id>` for a
+  /// club conversation. Unique, so two "Пиши" taps racing each other insert
+  /// once and both get the same conversation back (`createMany` with
+  /// `skipDuplicates`, agri-saas #1418), instead of the second one a 409.
+  /// Null on the older kinds, which nothing creates.
+  pairKey String? @unique
+
+  /// The player of a CLUB conversation; null for a DM. Denormalised from the
+  /// participant row so the club inbox can name its players without a join.
+  playerUserId String?
+
+  /// When the conversation stopped being a REQUEST (#375): a stranger's first
+  /// message waits in the recipient's «Заявки», one message only, until they
+  /// accept or answer it. Set at creation when the two are not strangers (a
+  /// shared booking, or a CLUB conversation, which is never a request).
+  acceptedAt DateTime?
+  /// The recipient declined the request. It ends QUIETLY: it leaves their
+  /// «Заявки», and the sender is told nothing and cannot send again.
+  declinedAt DateTime?
+
+  /// A CLUB conversation blocked by one side (#375): no new messages either
+  /// way until the same side lifts it. `blockedSide` is CLUB or PLAYER and
+  /// `blockedByUserId` the person who pressed it. A DM is blocked by
+  /// `UserBlock`, which follows the person everywhere, and never by these.
+  blockedAt       DateTime?
+  blockedSide     String?
+  blockedByUserId String?
 
   lastMessageAt DateTime  @default(now())
   archivedAt    DateTime?
@@ -36,17 +78,35 @@ model Conversation {
   @@index([tenantId])
   @@index([lastMessageAt])
   @@index([createdById])
+  /// The club inbox: newest first, one club (P54).
+  @@index([tenantId, lastMessageAt(sort: Desc), id(sort: Desc)])
+  @@index([playerUserId])
   @@map("conversation")
 }
 
+/// Who is in a conversation, and how far each of them has read.
+///
+/// `role` (P54):
+///   MEMBER  one of a DM's two players
+///   PLAYER  the player of a CLUB conversation
+///   STAFF   a club staff member's own read pointer on a CLUB conversation.
+///           NOT membership: a staff row never grants access (the policy reads
+///           the staff membership, so somebody who leaves the club loses the
+///           inbox with it). It exists so that each person's unread count is
+///           their own, never "one colleague opened it, so it is read for all"
+///           (agri-saas #1298).
 model ConversationParticipant {
   conversationId String
   userId         String
 
   role              String    @default("MEMBER")
   joinedAt          DateTime  @default(now())
-  /// Null = never read anything. Only ever moves FORWARD (see markRead).
+  /// Unused since P54, which moved the pointer to `lastReadAt`: a timestamp
+  /// compares with `createdAt` without reading the message it names.
   lastReadMessageId String?
+  /// How far this person has read: every message at or before it is read.
+  /// Null = never read anything. Only ever moves FORWARD (`markReadFor`).
+  lastReadAt        DateTime?
   mutedUntil        DateTime?
   /// Set on leave. The row is KEPT, not deleted — a departed member must not
   /// silently vanish from the history of a conversation they were part of.
@@ -64,23 +124,37 @@ model ChatMessage {
   conversationId String
   senderId       String
 
-  /// NOT encrypted. Sanitised by the messaging use case, which no route calls
-  /// yet. Chat is the highest-risk surface in the product: text one user
-  /// writes and another user's BROWSER renders.
+  /// The club a staff member wrote FOR (#375): every staff reply is the club's,
+  /// and names who wrote it («Иван · Тенис клуб Левски»). Null for a player.
+  senderTenantId String?
+
+  /// CIPHERTEXT (P54): the `v1:` AES-256-GCM envelope of the sanitised text,
+  /// under the global key derived from DATA_ENCRYPTION_KEY (`encryptField`), so
+  /// both sides of a conversation can read it whoever wrote it (agri-saas
+  /// #1248). Sanitised BEFORE it is encrypted, by the messaging use case, the
+  /// only writer: chat is text one user writes and another user's BROWSER
+  /// renders. A CHECK (`chat_message_body_is_envelope`) refuses anything but
+  /// the envelope or '', the tombstone a retraction leaves.
   body String
 
   attachmentsJson Json?
   replyToId       String?
 
+  /// The sender's `Idempotency-Key`: a retried send returns the message it
+  /// already made instead of saying it twice. Unique per sender.
+  clientMutationId String?
+
   editedAt  DateTime?
   /// SOFT delete. A hard delete leaves a hole in every other participant's
-  /// scrollback and breaks replyTo. A tombstone renders as "message deleted".
+  /// scrollback and breaks replyTo. A tombstone renders as "message deleted",
+  /// and its body is emptied with it.
   deletedAt DateTime?
 
   createdAt DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  @@unique([senderId, clientMutationId])
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@map("chat_message")
@@ -91,6 +165,9 @@ model ChatMessage {
 /// If a block were tenant-scoped, someone you blocked at one venue could
 /// message you from another. That is not a blocking feature; it is a
 /// loophole with extra steps.
+///
+/// Readable only by the two people it names, writable only by the blocker
+/// (RLS since P54): who blocked whom is nobody else's business.
 model UserBlock {
   blockerId String
   blockedId String

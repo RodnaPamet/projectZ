@@ -50,6 +50,13 @@ export const PERMISSIONS = [
   // ── Money ─────────────────────────────────────────────────────────
   'payments.refund',
   'payments.view',
+
+  // ── Messages (#375) ───────────────────────────────────────────────
+  // The club's shared inbox: read it, answer for the club, start a
+  // conversation with a player on the club's list. OWNER, MANAGER and STAFF
+  // (the owner's decision); the P54 policy asks the same roles of the
+  // database. Not a COACH: coach conversations wait for #377.
+  'messages.club',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -86,6 +93,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'players.credit_adjust',
     'payments.refund',
     'payments.view',
+    'messages.club',
     // NOT admin.owner_management, NOT admin.tenant_lifecycle — a manager
     // must not be able to promote themselves to owner or close the club.
   ],
@@ -100,6 +108,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'openplay.join',
     'players.view',
     'payments.view',
+    'messages.club',
     // Front-desk staff can take and cancel bookings, but NOT issue refunds
     // (payments.refund) — money movement needs a manager.
   ],

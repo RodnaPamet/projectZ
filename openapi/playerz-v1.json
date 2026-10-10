@@ -72,6 +72,10 @@
     {
       "name": "Billing",
       "description": "The club fee (#372): a club's monthly statement of playerz's fee on its played online bookings, as JSON and as a CSV. OWNER and MANAGER (`admin.billing_manage`) only."
+    },
+    {
+      "name": "Messages",
+      "description": "Conversations between players, and with clubs, and the club’s shared inbox (#375)."
     }
   ],
   "paths": {
@@ -2877,7 +2881,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 2`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile`; `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`.\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 3`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile`; `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -6777,6 +6781,2379 @@
           },
           "429": {
             "description": "`RATE_LIMITED` — too many writes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations": {
+      "get": {
+        "operationId": "listMyConversations",
+        "summary": "My conversations",
+        "description": "The caller’s inbox (#375), most recently active first, each with the caller’s unread count and a preview of the last message. `tab=requests` is «Заявки»: requests TO the caller from players they never played with, until accepted or declined. A conversation nobody has written in is in neither. Keyset-paginated, 50 a page.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tab",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["conversations", "requests"],
+              "default": "conversations"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque: `nextCursor` from the previous page.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of conversations.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationPageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "openConversation",
+        "summary": "Open a conversation with a player or a club",
+        "description": "The conversation with `playerId`, or with the club whose slug is `club`: the one there is, or a new one (201). Idempotent, also when two opens race. With a player the caller never played with, it is a request: one message until it is accepted. A player hidden from search can be written to only by people they played with or already talk to.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The conversation that already existed.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenedConversationEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A new conversation.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenedConversationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`CANNOT_MESSAGE_SELF`, or `VALIDATION_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`PLAYER_NOT_FOUND` — no such player, a block either way, or a hidden player the caller never played with: deliberately indistinguishable. `CLUB_NOT_FOUND` — no active club with this slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 20 new requests to strangers a day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/unread": {
+      "get": {
+        "operationId": "getMyUnreadConversations",
+        "summary": "How much is waiting",
+        "description": "The number of conversations, and of requests, with something the caller has not read. The header’s messages icon shows their sum.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The counts.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadConversationsEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}": {
+      "get": {
+        "operationId": "getMyConversation",
+        "summary": "One conversation",
+        "description": "Who it is with, where it stands for the caller (`state`, `canSend`), and the newest 50 messages, oldest first; `before` pages backwards. Every sender is named; a staff reply carries the club. A retracted message keeps its place with no text. An open screen asks every 5 seconds: nothing is pushed.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "description": "Opaque: `olderCursor` from the newer page, for the page of older messages.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The conversation.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}/messages": {
+      "post": {
+        "operationId": "sendMyMessage",
+        "summary": "Send a message",
+        "description": "Sanitised, measured after sanitising (at most 4000 characters), and stored encrypted. Answering a request accepts it.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Makes a retry safe: the same key from the same sender answers the first message (`replayed: true`) instead of sending it again. 1 to 128 characters.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A replay: this `Idempotency-Key` already sent the message, and nothing new was said (`replayed: true`).",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentMessageEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Sent. The other side is told after it is stored.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentMessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`MESSAGE_EMPTY` (nothing left after sanitising), `MESSAGE_TOO_LONG` (over 4000 characters after sanitising), or `VALIDATION_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`CONVERSATION_BLOCKED` — the caller blocked this player, or a side blocked this club conversation. `PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQUEST_PENDING` — the caller’s request already carries its one message; they may write again once it is accepted (a quiet decline reads the same). `RECIPIENT_GONE` — the other player deleted their account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 30 messages a minute per sender (for a club, per club).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}/read": {
+      "post": {
+        "operationId": "markMyConversationRead",
+        "summary": "Mark a conversation read",
+        "description": "Everything up to now is read. Monotonic: a late answer from another tab never moves it back. The bell’s rows about the conversation are marked read too.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadAtEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}/accept": {
+      "post": {
+        "operationId": "acceptMyConversation",
+        "summary": "Accept a request",
+        "description": "From now on both may write. Idempotent. `409 NOT_A_REQUEST` for anything that is not a request to the caller.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`NOT_A_REQUEST`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}/decline": {
+      "post": {
+        "operationId": "declineMyConversation",
+        "summary": "Decline a request",
+        "description": "Quiet: it leaves «Заявки», the sender is told nothing and cannot write again. Idempotent. `409 NOT_A_REQUEST` for anything that is not an open request to the caller.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeclinedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`NOT_A_REQUEST`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}/block": {
+      "post": {
+        "operationId": "blockMyConversation",
+        "summary": "Block",
+        "description": "No new messages either way. With a player it blocks the PERSON everywhere: they no longer see the conversation or find the caller in search, and are not told. With a club it blocks the conversation until the caller lifts it. Idempotent.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockStateEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unblockMyConversation",
+        "summary": "Lift a block",
+        "description": "Lifts the caller’s own block. A club conversation blocked by the club stays blocked: `403 BLOCKED_BY_OTHER_SIDE`.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Not blocked by the caller.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockStateEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BLOCKED_BY_OTHER_SIDE`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation the caller is in has this id; also what a person blocked by the other player is told, deliberately indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/messages/{id}": {
+      "delete": {
+        "operationId": "retractMyMessage",
+        "summary": "Retract a message",
+        "description": "One of the caller’s own messages: it stays in place as “deleted”, its text gone. Idempotent.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Message id, as `Message.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retracted.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetractedMessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`MESSAGE_NOT_SENDER` — not the caller’s message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`MESSAGE_NOT_FOUND`, or `CONVERSATION_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players": {
+      "get": {
+        "operationId": "searchPlayers",
+        "summary": "Find players by name",
+        "description": "For a new conversation (#375). At most 20, each the public card: name, picture, sports with levels — never an email, a phone or a booking. Never a player who switched off “Показвай ме в търсенето”, a deleted account, a club or coach account, the caller, or anybody in a block with the caller. Fewer than 2 characters answers an empty list.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The players.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerCardListEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `q` over 80 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players/{id}": {
+      "get": {
+        "operationId": "getPlayerCard",
+        "summary": "A player’s public card",
+        "description": "Name, picture, sports with levels — to anybody who could write to them.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The player’s id, as `PlayerCard.userId`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The card.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerCardEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`PLAYER_NOT_FOUND` — nobody, a block either way, or a hidden player the caller never played with or talks to.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations": {
+      "get": {
+        "operationId": "listClubConversations",
+        "summary": "The club’s inbox",
+        "description": "Every conversation players have with the club (#375), most recently active first, each with the CALLER’s unread count: a colleague reading it does not read it for them. OWNER, MANAGER and STAFF (`messages.club`).",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque: `nextCursor` from the previous page.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of conversations.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationPageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "openClubConversation",
+        "summary": "Write to a player",
+        "description": "Open the club’s conversation with a player on its Играчи list: an active player membership, a booking, or the club’s notes. Idempotent; 201 when new.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenClubConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The conversation that already existed.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenedConversationEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A new conversation.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenedConversationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do). `NOT_A_CLUB_PLAYER` — the player is not on the club’s list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`PLAYER_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations/unread": {
+      "get": {
+        "operationId": "getClubUnreadConversations",
+        "summary": "How much is waiting in the club’s inbox",
+        "description": "Conversations with a player’s message the caller has not read. `requests` is always 0: a club has no requests.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The counts.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadConversationsEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations/{id}": {
+      "get": {
+        "operationId": "getClubConversation",
+        "summary": "One of the club’s conversations",
+        "description": "As `getMyConversation`, read by the club: each reply names the colleague who wrote it.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "description": "Opaque: `olderCursor` from the newer page, for the page of older messages.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The conversation.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation of THIS club has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations/{id}/messages": {
+      "post": {
+        "operationId": "sendClubMessage",
+        "summary": "Answer for the club",
+        "description": "The player sees who wrote it and for which club («Иван · Тенис клуб Левски»).",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Makes a retry safe: the same key from the same sender answers the first message (`replayed: true`) instead of sending it again. 1 to 128 characters.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A replay: this `Idempotency-Key` already sent the message, and nothing new was said (`replayed: true`).",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentMessageEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Sent. The other side is told after it is stored.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SentMessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`MESSAGE_EMPTY` (nothing left after sanitising), `MESSAGE_TOO_LONG` (over 4000 characters after sanitising), or `VALIDATION_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`CONVERSATION_BLOCKED` — a block stops new messages either way; `FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation of THIS club has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`RECIPIENT_GONE` — the player deleted their account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 30 messages a minute per sender (for a club, per club).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations/{id}/read": {
+      "post": {
+        "operationId": "markClubConversationRead",
+        "summary": "Mark a club conversation read",
+        "description": "The caller’s OWN pointer: each staff member has their own unread count.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadAtEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation of THIS club has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations/{id}/block": {
+      "post": {
+        "operationId": "blockClubConversation",
+        "summary": "Block a player’s conversation",
+        "description": "No new messages either way until the club lifts it. Idempotent.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockStateEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation of THIS club has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unblockClubConversation",
+        "summary": "Lift the club’s block",
+        "description": "`403 BLOCKED_BY_OTHER_SIDE` when it was the player who blocked.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Not blocked by the club.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockStateEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do). `BLOCKED_BY_OTHER_SIDE`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — no conversation of THIS club has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/messages/{id}": {
+      "delete": {
+        "operationId": "retractClubMessage",
+        "summary": "Retract a reply",
+        "description": "Only the person who wrote it: a colleague’s reply is not theirs to retract.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Message id, as `Message.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retracted.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetractedMessageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed id or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do). `MESSAGE_NOT_SENDER`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`MESSAGE_NOT_FOUND`, or `CONVERSATION_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10965,7 +13342,8 @@
           "bookings",
           "reviews",
           "notificationSettings",
-          "inviteLinks"
+          "inviteLinks",
+          "messages"
         ],
         "properties": {
           "format": {
@@ -10974,7 +13352,7 @@
           },
           "version": {
             "type": "integer",
-            "const": 1
+            "const": 3
           },
           "exportedAt": {
             "type": "string",
@@ -11269,6 +13647,584 @@
                   "format": "date-time"
                 }
               }
+            }
+          },
+          "messages": {
+            "type": "object",
+            "description": "Messages (#375): whether the person is shown in player search, the players they blocked, and every conversation they are in, with every message still there — theirs and the other side’s. A retracted message is listed without text.",
+            "required": ["shownInPlayerSearch", "blocked", "conversations"],
+            "properties": {
+              "shownInPlayerSearch": {
+                "type": "boolean"
+              },
+              "blocked": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "at"],
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"]
+                    },
+                    "at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              },
+              "conversations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["with", "startedAt", "messages"],
+                  "properties": {
+                    "with": {
+                      "type": "object",
+                      "required": ["kind", "name", "deletedAccount"],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["player", "club"]
+                        },
+                        "name": {
+                          "type": ["string", "null"]
+                        },
+                        "deletedAccount": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "startedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["mine", "from", "text", "retracted", "at"],
+                        "properties": {
+                          "mine": {
+                            "type": "boolean"
+                          },
+                          "from": {
+                            "type": "object",
+                            "required": ["name", "club"],
+                            "properties": {
+                              "name": {
+                                "type": ["string", "null"]
+                              },
+                              "club": {
+                                "type": ["string", "null"]
+                              }
+                            }
+                          },
+                          "text": {
+                            "type": ["string", "null"]
+                          },
+                          "retracted": {
+                            "type": "boolean"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ConversationCounterpart": {
+        "title": "ConversationCounterpart",
+        "description": "The other side, as the caller sees it: a player (a deleted account has `name: null`, `deleted: true` — show «Изтрит потребител»), or a club.",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "userId", "name", "avatarUrl", "deleted"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "player"
+              },
+              "userId": {
+                "type": "string"
+              },
+              "name": {
+                "type": ["string", "null"]
+              },
+              "avatarUrl": {
+                "type": ["string", "null"]
+              },
+              "deleted": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "clubId", "slug", "name"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "club"
+              },
+              "clubId": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "ConversationSummary": {
+        "type": "object",
+        "title": "ConversationSummary",
+        "required": [
+          "id",
+          "kind",
+          "counterpart",
+          "state",
+          "lastMessageAt",
+          "lastMessage",
+          "unreadCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["player", "club"]
+          },
+          "counterpart": {
+            "$ref": "#/components/schemas/ConversationCounterpart"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["active", "pending", "request", "declined", "blocked", "closed"],
+            "description": "`active` both may write; `pending` the caller’s request, waiting (also after a quiet decline); `request` a request to the caller; `declined` one the caller declined (answering accepts it); `blocked`; `closed` the other player deleted their account."
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastMessage": {
+            "type": ["object", "null"],
+            "required": ["preview", "mine", "deleted"],
+            "properties": {
+              "preview": {
+                "type": ["string", "null"],
+                "maxLength": 140,
+                "description": "The start of the text, on one line. Null for a retracted message."
+              },
+              "mine": {
+                "type": "boolean"
+              },
+              "deleted": {
+                "type": "boolean"
+              }
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ConversationPage": {
+        "type": "object",
+        "title": "ConversationPage",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "ConversationPageEnvelope": {
+        "type": "object",
+        "title": "ConversationPageEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationPage"
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "title": "Message",
+        "required": ["id", "mine", "fromClub", "sender", "body", "deleted", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "Sent by the caller, the person."
+          },
+          "fromClub": {
+            "type": "boolean",
+            "description": "A staff reply, written for the club."
+          },
+          "sender": {
+            "type": "object",
+            "required": ["name", "deleted", "clubName"],
+            "properties": {
+              "name": {
+                "type": ["string", "null"]
+              },
+              "deleted": {
+                "type": "boolean"
+              },
+              "clubName": {
+                "type": ["string", "null"],
+                "description": "The club a staff reply was written for."
+              }
+            }
+          },
+          "body": {
+            "type": ["string", "null"],
+            "description": "Null for a retracted message."
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "title": "Conversation",
+        "required": [
+          "id",
+          "kind",
+          "counterpart",
+          "state",
+          "blockedByMe",
+          "canSend",
+          "unreadCount",
+          "olderCursor",
+          "messages"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["player", "club"]
+          },
+          "counterpart": {
+            "$ref": "#/components/schemas/ConversationCounterpart"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["active", "pending", "request", "declined", "blocked", "closed"],
+            "description": "`active` both may write; `pending` the caller’s request, waiting (also after a quiet decline); `request` a request to the caller; `declined` one the caller declined (answering accepts it); `blocked`; `closed` the other player deleted their account."
+          },
+          "blockedByMe": {
+            "type": "boolean"
+          },
+          "canSend": {
+            "type": "boolean",
+            "description": "Whether the composer may send now. The server decides again on send."
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "olderCursor": {
+            "type": ["string", "null"]
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "ConversationEnvelope": {
+        "type": "object",
+        "title": "ConversationEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Conversation"
+          }
+        }
+      },
+      "OpenConversationRequest": {
+        "title": "OpenConversationRequest",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["playerId"],
+            "properties": {
+              "playerId": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["club"],
+            "properties": {
+              "club": {
+                "type": "string",
+                "description": "The club’s slug."
+              }
+            }
+          }
+        ]
+      },
+      "OpenClubConversationRequest": {
+        "type": "object",
+        "title": "OpenClubConversationRequest",
+        "additionalProperties": false,
+        "required": ["playerId"],
+        "properties": {
+          "playerId": {
+            "type": "string"
+          }
+        }
+      },
+      "OpenedConversationEnvelope": {
+        "type": "object",
+        "title": "OpenedConversationEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["id", "created"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "created": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "title": "SendMessageRequest",
+        "additionalProperties": false,
+        "required": ["body"],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "Plain text. Markup is removed, and the limit is measured after that: the request validator itself accepts up to 8000 so that `MESSAGE_TOO_LONG` is the answer a client sees."
+          }
+        }
+      },
+      "SentMessageEnvelope": {
+        "type": "object",
+        "title": "SentMessageEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["id", "createdAt", "replayed"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "replayed": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "UnreadConversationsEnvelope": {
+        "type": "object",
+        "title": "UnreadConversationsEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["conversations", "requests"],
+            "properties": {
+              "conversations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      },
+      "ReadAtEnvelope": {
+        "type": "object",
+        "title": "ReadAtEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["readAt"],
+            "properties": {
+              "readAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "AcceptedEnvelope": {
+        "type": "object",
+        "title": "AcceptedEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["acceptedAt"],
+            "properties": {
+              "acceptedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "DeclinedEnvelope": {
+        "type": "object",
+        "title": "DeclinedEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["declinedAt"],
+            "properties": {
+              "declinedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "BlockStateEnvelope": {
+        "type": "object",
+        "title": "BlockStateEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["blocked"],
+            "properties": {
+              "blocked": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "RetractedMessageEnvelope": {
+        "type": "object",
+        "title": "RetractedMessageEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PlayerCard": {
+        "type": "object",
+        "title": "PlayerCard",
+        "description": "What anyone may see of a player (#375). Never an email, a phone or a booking.",
+        "required": ["userId", "name", "avatarUrl", "sports"],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["sport", "level"],
+              "properties": {
+                "sport": {
+                  "$ref": "#/components/schemas/SportType"
+                },
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 7
+                }
+              }
+            }
+          }
+        }
+      },
+      "PlayerCardEnvelope": {
+        "type": "object",
+        "title": "PlayerCardEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PlayerCard"
+          }
+        }
+      },
+      "PlayerCardListEnvelope": {
+        "type": "object",
+        "title": "PlayerCardListEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerCard"
             }
           }
         }

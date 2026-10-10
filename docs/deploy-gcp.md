@@ -101,8 +101,8 @@ There is no registry. The image is built on the box from a clone.
 ```bash
 # Keep the running image as the way back. Migrations here have been additive, so
 # the previous image runs against the new schema; re-tag and recreate to roll back.
-# Two exceptions, p37 and p51 (its rows, not its schema): see "Rolling back past
-# p37" and "Rolling back past p51" below.
+# Three exceptions, p37, and p51 and p54 (their rows, not their schema): see
+# "Rolling back past p37", "Rolling back past p51" and "… past p54" below.
 sudo docker tag playerz:local playerz:rollback-$(date +%s)
 
 cd /opt/playerz/repo && sudo git fetch --all && sudo git reset --hard origin/main
@@ -183,6 +183,29 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 Until the pilot clubs are onboarded and a player picks squash, nothing uses the
 new values and the park finds nothing to do; it is still the safe step. On
 staging, the same with `playerz_staging`.
+
+### Rolling back past p54
+
+`20261010120000_p54_messaging` (#375) adds the enum value `CLUB` to
+`ConversationType`, the conversations between a player and a club. The images
+before it never read a conversation, so nothing breaks today; the park is the
+same precaution as p51's, for the first rollback image that does:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p54-park.sql
+```
+
+It relabels each club conversation `VENUE_CHANNEL` and remembers it. After
+rolling forward again, with the p54 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p54-unpark.sql
+```
+
+The rest of p54 stays: its columns are new and unmapped in the old image, and
+its row security only narrows who reads a conversation.
 
 `SKIP_ENV_VALIDATION=1` is for the **build** only. Next imports every route
 module to collect metadata, and `src/env.ts` would refuse at import time for

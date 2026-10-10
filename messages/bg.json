@@ -513,6 +513,25 @@
         "title": "Вече не сте в тази игра",
         "body": "{venue} · {when}"
       }
+    },
+    "message": {
+      "someone": "Играч",
+      "fromPlayer": {
+        "title": "Ново съобщение от {name}",
+        "body": "Отворете разговора в Съобщения."
+      },
+      "request": {
+        "title": "{name} иска да ви пише",
+        "body": "Заявката ви чака в «Заявки»."
+      },
+      "toClub": {
+        "title": "Ново съобщение от {name}",
+        "body": "До {club}"
+      },
+      "fromClub": {
+        "title": "{club} ви писа",
+        "body": "{name} · {club}"
+      }
     }
   },
   "notFound": {

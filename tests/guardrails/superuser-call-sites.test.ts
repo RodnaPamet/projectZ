@@ -207,6 +207,13 @@ const ALLOWED: Record<string, string> = {
     'ids on the claimed rows, and records the outcome per row by id. Cron work with no ' +
     'session, like the sweeps. The rows themselves are WRITTEN bound to the recipient ' +
     '(runAsUserOnly, owner-only RLS); only the drain bypasses.',
+  'src/app-layer/usecases/messaging-directory.ts':
+    'messaging (#375): the reads that span people and clubs by their nature — whether two ' +
+    'players shared a booking at ANY club, a player\u2019s public card (sports and levels are ' +
+    'owner-only under RLS), the names of the clubs and people on a page the caller already ' +
+    'saw under RLS, a club by its public slug, and who to notify after a message committed ' +
+    '(the club\u2019s staff memberships). Keyed on ids the caller holds, or a name search that ' +
+    'returns only the public card. Read-only. messaging.ts itself never bypasses RLS.',
 };
 
 describe('the BYPASSRLS surface is pinned', () => {

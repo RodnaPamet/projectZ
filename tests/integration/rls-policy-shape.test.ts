@@ -150,7 +150,18 @@ describe('installed RLS policy shape', () => {
     // rather than in RLS. That is a defence-in-depth gap worth closing with
     // participant-keyed policies; it is NOT the laundering hole this test is
     // about, and tightening it here would break the feature.
-    const CONVERSATION_KEYED = new Set(['chat_message', 'conversation_participant']);
+    //
+    // P54 (#375) closed that gap: all three are keyed on the PERSON now
+    // (`app.user_id`, participant rows, a club's staff membership), and
+    // `conversation` joins the exemption because its INSERT check admits a
+    // DM's NULL tenant by design. It is not laundering: nothing reads a
+    // conversation by its tenant alone, and its tenant can never change
+    // afterwards (`conversation_identity_immutable_trg`).
+    const CONVERSATION_KEYED = new Set([
+      'chat_message',
+      'conversation_participant',
+      'conversation',
+    ]);
 
     const laundering = (await policies()).filter(
       (p) =>

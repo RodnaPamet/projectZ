@@ -60,16 +60,14 @@ const GLOBAL_MODELS = new Set([
   'playerSportLevel',
   //
   // `conversation.tenantId` is NULLABLE: a DM between two players who met at
-  // different clubs belongs to no tenant. Its RLS policy is asymmetric (the
-  // P04 UserSession shape) — readable when null, never writable into a tenant
-  // that isn't yours.
+  // different clubs belongs to no tenant. Since P54 (#375) a conversation is
+  // private to PEOPLE, not to a club: its policies key on `app.user_id` (a
+  // participant) and, for a CLUB conversation, on a staff membership of the
+  // bound club — so a tenantId filter is neither needed nor sufficient.
   'conversation',
   //
-  // These two hang off a conversation, which RLS already gates. Their access
-  // control is PARTICIPANT-BASED and enforced in the usecase layer
-  // (assertActiveParticipant), because RLS cannot express "is this user a
-  // participant" without a join that would be a performance disaster on every
-  // message read.
+  // These two hang off a conversation and are readable exactly when it is
+  // (P54's `messaging_can_read`); writes are keyed on the person.
   'conversationParticipant',
   'chatMessage',
   //
