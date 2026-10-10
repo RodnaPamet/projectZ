@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Heading } from '@/components/ui/typography';
+import { StartConversationButton } from '@/components/messages/StartConversationButton';
 
 import { adjustCreditAction, clearNoShowBlockAction } from './actions';
 import type { PlayerRow } from './PlayersBoard';
@@ -26,6 +27,7 @@ export default function PlayerSheet({
   player,
   canAdjustCredit,
   canLiftNoShowBlock,
+  canMessage = false,
   noShowWindowDays,
   open,
   setOpen,
@@ -35,6 +37,8 @@ export default function PlayerSheet({
   player: PlayerRow;
   canAdjustCredit: boolean;
   canLiftNoShowBlock: boolean;
+  /** "Пиши" (#375): the club's inbox is on, and the role reads it (`messages.club`). */
+  canMessage?: boolean;
   noShowWindowDays: number;
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
@@ -50,6 +54,14 @@ export default function PlayerSheet({
     <Sheet open={open} onOpenChange={setOpen} title={title} size="sm">
       <Sheet.Header title={title} description={player.name ? player.email : undefined} />
       <Sheet.Body className="gap-section grid content-start">
+        {canMessage && !player.deleted ? (
+          <StartConversationButton
+            to={{ playerId: player.playerUserId }}
+            side={{ kind: 'club', slug }}
+            className="justify-self-start"
+            testId="player-write"
+          />
+        ) : null}
         <p className="text-content-muted">
           {t('field.credit')}:{' '}
           <span className="text-content-emphasis tabular-nums">

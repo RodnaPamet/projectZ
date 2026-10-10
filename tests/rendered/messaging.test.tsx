@@ -195,7 +195,7 @@ describe('InboxList', () => {
       nextCursor: null,
     };
     installFakeFetch(() => ok(page));
-    wrap(<InboxList side={ME} seed={page} hrefFor={(id) => `/messages/${id}`} />);
+    wrap(<InboxList side={ME} seed={page} />);
     const rows = within(screen.getByTestId('inbox-list')).getAllByTestId('inbox-row');
     expect(rows[0]).toHaveAttribute('href', '/messages/cv1');
     expect(rows[0]).toHaveTextContent('Мария');
@@ -207,7 +207,7 @@ describe('InboxList', () => {
   it('an empty «Заявки» says what arrives there', () => {
     const page = { items: [], nextCursor: null };
     installFakeFetch(() => ok(page));
-    wrap(<InboxList side={ME} tab="requests" seed={page} hrefFor={(id) => `/messages/${id}`} />);
+    wrap(<InboxList side={ME} tab="requests" seed={page} />);
     expect(screen.getByTestId('inbox-empty')).toHaveTextContent(
       messages.messaging.inbox.emptyRequests,
     );

@@ -16,6 +16,7 @@ import { Caption } from '@/components/ui/typography';
 import { KEYS, type InboxSide, type V1Page } from '@/lib/data/keys';
 import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
 import { INBOX_REFRESH_MS } from '@/lib/messaging/limits';
+import { conversationPath } from '@/lib/messaging/paths';
 
 /**
  * An inbox (#375), ported from Agrent's `ThreadsClient`: the newest
@@ -31,13 +32,11 @@ export function InboxList({
   side,
   tab = 'conversations',
   seed,
-  hrefFor,
   emptyAction,
 }: {
   side: InboxSide;
   tab?: 'conversations' | 'requests';
   seed?: V1Page<ConversationSummaryDto>;
-  hrefFor: (id: string) => string;
   /** The empty list's way forward ("Ново съобщение"), if any. */
   emptyAction?: { label: string; href: string };
 }) {
@@ -71,8 +70,20 @@ export function InboxList({
     return (
       <EmptyState
         icon={Msgs}
-        title={tab === 'requests' ? t('emptyRequests') : t('empty')}
-        description={tab === 'requests' ? t('emptyRequestsBody') : t('emptyBody')}
+        title={
+          side.kind === 'club'
+            ? t('emptyClub')
+            : tab === 'requests'
+              ? t('emptyRequests')
+              : t('empty')
+        }
+        description={
+          side.kind === 'club'
+            ? t('emptyClubBody')
+            : tab === 'requests'
+              ? t('emptyRequestsBody')
+              : t('emptyBody')
+        }
         primaryAction={
           emptyAction ? { label: emptyAction.label, href: emptyAction.href } : undefined
         }
@@ -102,7 +113,7 @@ export function InboxList({
             return (
               <li key={c.id}>
                 <Link
-                  href={hrefFor(c.id)}
+                  href={conversationPath(side, c.id)}
                   className="hover:bg-bg-muted flex min-h-16 items-center gap-3 px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset"
                   data-testid="inbox-row"
                 >

@@ -1,5 +1,6 @@
 import { translateFor } from '@/lib/i18n/server-messages';
 import { dedupeKey } from '@/lib/notifications/dedupe';
+import { conversationPath } from '@/lib/messaging/paths';
 import { logger } from '@/lib/observability/logger';
 
 import { messageAudience, type MessageAudience } from './messaging-directory';
@@ -64,9 +65,10 @@ export function conversationHref(
   conversationId: string,
   clubSlug: string | null,
 ): string {
-  return side === 'club' && clubSlug
-    ? `/t/${clubSlug}/admin/messages/${conversationId}`
-    : `/messages/${conversationId}`;
+  return conversationPath(
+    side === 'club' && clubSlug ? { kind: 'club', slug: clubSlug } : { kind: 'me' },
+    conversationId,
+  );
 }
 
 export async function notifyNewMessage(input: {

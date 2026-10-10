@@ -77,7 +77,6 @@ export function MessagesTabs({
         side={ME}
         tab={tab}
         seed={tab === initialTab ? seed : undefined}
-        hrefFor={(id) => `/messages/${id}`}
         emptyAction={
           tab === 'conversations' ? { label: t('tabs.new'), href: '/messages/new' } : undefined
         }

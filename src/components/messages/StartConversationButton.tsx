@@ -8,8 +8,9 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { Msgs } from '@/components/ui/icons/nucleo';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import type { ApiClientError } from '@/lib/data/errors';
-import { V1 } from '@/lib/data/keys';
+import { V1, type InboxSide } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
+import { conversationPath } from '@/lib/messaging/paths';
 
 /**
  * "Пиши" and "Пиши на клуба" (#375): open the conversation with a player or a
@@ -22,6 +23,7 @@ import { useV1Mutation } from '@/lib/data/use-v1-mutation';
  */
 export function StartConversationButton({
   to,
+  side = ME,
   label,
   variant = 'secondary',
   size,
@@ -30,6 +32,11 @@ export function StartConversationButton({
 }: {
   /** A player by id, a club by its slug, or a player by their place on a booking. */
   to: { playerId: string } | { club: string } | { bookingId: string; participantId: string | null };
+  /**
+   * Who is writing: the player (default), or a club's staff from its admin —
+   * where only `{ playerId }` applies, and only for a player on the club's list.
+   */
+  side?: InboxSide;
   label?: string;
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
@@ -41,7 +48,7 @@ export function StartConversationButton({
   const [error, setError] = useState<string | null>(null);
 
   const open = useV1Mutation<void, { id: string; created: boolean }>({
-    url: () => V1.openConversation({ kind: 'me' }),
+    url: () => V1.openConversation(side),
     body: () => to,
     revalidate: false,
   });
@@ -59,7 +66,7 @@ export function StartConversationButton({
           open
             .trigger()
             .then((r) => {
-              if (r) router.push(`/messages/${r.id}`);
+              if (r) router.push(conversationPath(side, r.id));
             })
             .catch((err: ApiClientError) => setError(err.code));
         }}
@@ -76,10 +83,13 @@ export function StartConversationButton({
   );
 }
 
+const ME = { kind: 'me' } as const;
+
 const START_ERRORS = [
   'PLAYER_NOT_FOUND',
   'CLUB_NOT_FOUND',
   'PLAYER_ACCOUNT_REQUIRED',
   'RATE_LIMITED',
   'CANNOT_MESSAGE_SELF',
+  'NOT_A_CLUB_PLAYER',
 ];

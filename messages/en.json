@@ -1211,6 +1211,14 @@
       "title": "Reports and fee",
       "subtitle": "The monthly statement of playerz's fee on the online bookings that were played.",
       "month": "Month"
+    },
+    "messages": {
+      "metaTitle": "Messages",
+      "title": "Messages",
+      "subtitle": "Players' conversations with the club. All staff see and answer them, and each reply shows who wrote it.",
+      "conversationMetaTitle": "Conversation",
+      "back": "Messages",
+      "unnamed": "Unnamed player"
     }
   },
   "invite": {
@@ -2164,7 +2172,9 @@
       "pending": "Waiting",
       "blocked": "Blocked",
       "unread": "{count, plural, one {# unread message} other {# unread messages}}",
-      "more": "Show more"
+      "more": "Show more",
+      "emptyClub": "No messages yet",
+      "emptyClubBody": "Players' messages to the club arrive here. You can message a player from the Players list."
     },
     "conversation": {
       "metaTitle": "Conversation",
@@ -2216,7 +2226,8 @@
         "PLAYER_ACCOUNT_REQUIRED": "Messages are for player accounts.",
         "RATE_LIMITED": "You have sent many requests today. Try again tomorrow.",
         "CANNOT_MESSAGE_SELF": "You cannot message yourself.",
-        "UNKNOWN": "The conversation did not open. Please try again."
+        "UNKNOWN": "The conversation did not open. Please try again.",
+        "NOT_A_CLUB_PLAYER": "A club can only message players on its list."
       }
     },
     "card": {

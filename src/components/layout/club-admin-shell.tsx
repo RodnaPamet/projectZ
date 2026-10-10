@@ -11,6 +11,7 @@ import { ClubAdminTabBar } from './club-admin-tab-bar';
 import { MobileNavDrawer } from './MobileNavDrawer';
 import type { ShellAccount, ShellNavSection } from './nav-items';
 import { ShellSidebar } from './shell-sidebar';
+import type { HeaderMessages } from './header-actions';
 import { ShellTopBar } from './shell-top-bar';
 import { SidebarCollapseProvider } from './sidebar-collapse-context';
 import { TabBarSpacer } from './tab-bar';
@@ -87,6 +88,7 @@ export function ClubAdminShell({
   account,
   bottomTabs = false,
   fullBleedSegment,
+  messages = null,
   children,
 }: {
   sections: ShellNavSection[];
@@ -103,6 +105,8 @@ export function ClubAdminShell({
   bottomTabs?: boolean;
   /** The child segment that renders edge to edge, e.g. `'calendar'`. */
   fullBleedSegment?: string;
+  /** The top bar's messages icon (#375): the club's inbox, or null. */
+  messages?: HeaderMessages | null;
   children: ReactNode;
 }) {
   const segment = useSelectedLayoutSegment();
@@ -146,6 +150,7 @@ export function ClubAdminShell({
                 context={homeHref ? { name: contextName, href: homeHref } : undefined}
                 user={user}
                 account={account}
+                messages={messages}
                 onMobileMenuClick={onMobileMenuClick}
               />
               {/* Mounted from the top-chrome slot because that is the slot the

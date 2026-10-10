@@ -11,6 +11,7 @@ import { clubAdminCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { readModules } from '@/lib/modules';
 
 import { PlayersBoard, type PlayerRow } from './PlayersBoard';
 
@@ -85,6 +86,7 @@ export default async function PlayersPage({ params }: { params: Promise<{ slug: 
         players={rows}
         canAdjustCredit={ctx.permissions.includes('players.credit_adjust')}
         canLiftNoShowBlock={ctx.permissions.includes('bookings.view_all')}
+        canMessage={readModules().messaging && ctx.permissions.includes('messages.club')}
         noShowWindowDays={NO_SHOW_WINDOW_DAYS}
       />
     </section>

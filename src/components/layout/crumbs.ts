@@ -5,6 +5,7 @@ import type { ResourceNouns } from '@/lib/sports/resource-kinds';
 import {
   clubAdminHref,
   clubAdminNav,
+  type ChromeModules,
   MODULE_HREFS,
   PLATFORM_HREF,
   platformNav,
@@ -26,6 +27,8 @@ import {
  * The last crumb is the page itself: the vendored `Breadcrumbs` draws it as
  * the current page, never as a link, whatever its href.
  */
+
+const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true };
 
 /** `common.nav`, as the server page holds it. */
 type NavT = (key: string) => string;
@@ -55,7 +58,7 @@ export function profileCrumbs(t: NavT): BreadcrumbItem[] {
 
 /** The club admin's pages, by their segment under `/t/{slug}/admin`. */
 export type ClubAdminPage =
-  'calendar' | 'courts' | 'pricing' | 'photos' | 'players' | 'staff' | 'reports';
+  'calendar' | 'messages' | 'courts' | 'pricing' | 'photos' | 'players' | 'staff' | 'reports';
 
 /**
  * Администрация (the club admin's home), and one of its pages under the
@@ -70,7 +73,8 @@ export function clubAdminCrumbs(
   const home: BreadcrumbItem = { label: t('admin'), href: clubAdminHref(slug) };
   if (!page) return [home];
   const href = `${clubAdminHref(slug)}/${page}`;
-  const item = clubAdminNav(slug, nouns)
+  // Every module on: a crumb names a page that exists, whatever the flags say.
+  const item = clubAdminNav(slug, nouns, EVERY_MODULE)
     .flatMap((s) => s.items)
     .find((i) => i.href === href);
   if (!item) throw new Error(`clubAdminCrumbs: no club admin page "${page}"`);
