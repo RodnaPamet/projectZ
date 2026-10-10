@@ -133,8 +133,8 @@ describe('installed RLS policy shape', () => {
   });
 
   it('NO WITH CHECK accepts a NULL tenant', async () => {
-    // USING may admit NULL — platform-level rows are meant to be readable.
-    // WITH CHECK must not: it lets any session insert an unowned row and then
+    // USING may admit NULL where platform-level rows are meant to be readable
+    // (xp_event, match_result; not reports, see below). WITH CHECK must not: it lets any session insert an unowned row and then
     // claim it from another tenant. That is the two-step re-parenting attack
     // the asymmetric user_session policy was written to block.
     // ─── One documented exemption, and why it is not the same thing ───
@@ -171,6 +171,41 @@ describe('installed RLS policy shape', () => {
     );
 
     expect(laundering.map((p) => `${p.tablename}.${p.policyname}`)).toEqual([]);
+  });
+
+  it('moderation_case and content_report admit NO NULL-tenant row to app_user (#483)', async () => {
+    // A platform-level report (tenantId NULL; every message report, #375)
+    // names the subject and, on content_report, the reporter and their words.
+    // P17's USING read `"tenantId" IS NULL OR …`, so every app_user session
+    // read them all, bound to any club or none. USING also governs UPDATE and
+    // DELETE: any club could delete one, or move it into its own tenant.
+    //
+    // P57 keys both on the tenant alone. No app_user path reads a platform
+    // report, the reporter's own included: filing goes through runAsSuperuser
+    // and the queue through asPlatformAdmin, both BYPASSRLS. A branch added
+    // here later (say, a reporter reading their own report on `app.user_id`)
+    // has to change this pin on purpose.
+    const tenantOnly = `("tenantId" = current_setting('app.tenant_id'::text, true))`;
+    const rows = (await policies()).filter((p) =>
+      ['moderation_case', 'content_report'].includes(p.tablename),
+    );
+
+    expect(rows).toEqual([
+      {
+        tablename: 'content_report',
+        policyname: 'content_report_tenant_isolation',
+        cmd: 'ALL',
+        qual: tenantOnly,
+        with_check: tenantOnly,
+      },
+      {
+        tablename: 'moderation_case',
+        policyname: 'moderation_case_tenant_isolation',
+        cmd: 'ALL',
+        qual: tenantOnly,
+        with_check: tenantOnly,
+      },
+    ]);
   });
 
   it('password_reset_token is reachable only by the superuser path', async () => {
