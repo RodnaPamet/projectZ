@@ -15,6 +15,7 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
 
 import {
   activeClubBySlug,
+  coPlayerAt,
   isLivePlayer,
   namesFor,
   playerCardById,
@@ -839,6 +840,22 @@ export async function openPlayerConversation(
       ],
     }),
   );
+}
+
+/**
+ * "Пиши" on a booking's player list (#375): the conversation with the person
+ * at that place, found through the booking so the list never carries a user
+ * id. They are on one booking together, so it is not a request unless the
+ * booking was cancelled.
+ */
+export async function openCoPlayerConversation(
+  actor: Extract<MessagingActor, { kind: 'player' }>,
+  bookingId: string,
+  participantId: string | null,
+): Promise<{ id: string; created: boolean }> {
+  const target = await coPlayerAt(actor.userId, bookingId, participantId);
+  if (!target) throw playerNotFound();
+  return openPlayerConversation(actor, target);
 }
 
 /** A player opens their conversation with a club ("Пиши на клуба"), by the club's slug. */

@@ -10835,7 +10835,8 @@
           "accountKind",
           "landing",
           "avatarUrl",
-          "sports"
+          "sports",
+          "searchable"
         ],
         "properties": {
           "id": {
@@ -10886,6 +10887,10 @@
                 "description": "Set when `reason` is `club`, or `undecided` with a live club; null otherwise."
               }
             }
+          },
+          "searchable": {
+            "type": "boolean",
+            "description": "“Показвай ме в търсенето” (#375): whether other players find this person by name to write to them. On by default; off, only people they played with or already talk to can write."
           }
         }
       },
@@ -11586,6 +11591,10 @@
             "items": {
               "$ref": "#/components/schemas/SportLevel"
             }
+          },
+          "searchable": {
+            "type": "boolean",
+            "description": "“Показвай ме в търсенето” (#375)."
           }
         }
       },
@@ -13998,8 +14007,24 @@
                 "description": "The club’s slug."
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["bookingId", "participantId"],
+            "properties": {
+              "bookingId": {
+                "type": "string",
+                "description": "One of the caller’s bookings, as `MyBooking.id`."
+              },
+              "participantId": {
+                "type": ["string", "null"],
+                "description": "The place on it, as `BookingPlayer.participantId`; null for the booker."
+              }
+            }
           }
-        ]
+        ],
+        "description": "A player by id; a club by its slug; or a player on one of the caller’s bookings by their place on it, so the booking’s player list never carries a user id."
       },
       "OpenClubConversationRequest": {
         "type": "object",

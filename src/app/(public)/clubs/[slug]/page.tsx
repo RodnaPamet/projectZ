@@ -19,6 +19,7 @@ import { playCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
+import { WriteToClub } from '@/components/messages/WriteToClub';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -281,6 +282,8 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
                 ))}
               </ul>
             )}
+            {/* #375: a signed-in player writes to the club, while messaging is on. */}
+            <WriteToClub clubSlug={club.slug} className="self-start pt-1" />
           </div>
         </header>
 

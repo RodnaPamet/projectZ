@@ -7,6 +7,7 @@ import type {
   ConversationView,
   MessagingActor,
 } from '@/app-layer/usecases/messaging';
+import type { PlayerCard } from '@/app-layer/usecases/messaging-directory';
 import { AppError, UnauthorizedError, ValidationError } from '@/lib/errors/types';
 
 /**
@@ -64,6 +65,9 @@ export function cursorParam(req: NextRequest, name: string): string | null {
 }
 
 // ─── Wire shapes ────────────────────────────────────────────────────────
+
+/** A player's public card: name, picture, sports with levels. Dates-free, so as is. */
+export type PlayerCardDto = PlayerCard;
 
 export type ConversationSummaryDto = Omit<ConversationSummary, 'lastMessageAt'> & {
   lastMessageAt: string;

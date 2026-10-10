@@ -4,6 +4,7 @@ import { openConversationBodySchema } from '@/app-layer/schemas/messaging';
 import {
   listConversations,
   openClubConversation,
+  openCoPlayerConversation,
   openPlayerConversation,
 } from '@/app-layer/usecases/messaging';
 import { parseJsonBody } from '@/app/api/v1/_lib/body';
@@ -33,7 +34,9 @@ async function getHandler(req: NextRequest) {
 
 /**
  * POST /api/v1/me/conversations — open the conversation with a player
- * (`{ playerId }`) or a club (`{ club: slug }`): the one there is, or a new
+ * (`{ playerId }`), a club (`{ club: slug }`), or a player on one of the
+ * caller's bookings (`{ bookingId, participantId }`, null for the booker): the
+ * one there is, or a new
  * one. Idempotent: 200 with `created: false` for an existing one, 201 when
  * this call made it. A player who cannot be written to is 404 PLAYER_NOT_FOUND,
  * indistinguishable from one who does not exist.
@@ -45,7 +48,9 @@ async function postHandler(req: NextRequest) {
   const result =
     'playerId' in body
       ? await openPlayerConversation(actor, body.playerId)
-      : await openClubConversation(actor, body.club);
+      : 'club' in body
+        ? await openClubConversation(actor, body.club)
+        : await openCoPlayerConversation(actor, body.bookingId, body.participantId);
   return ok(result, { status: result.created ? 201 : 200 });
 }
 

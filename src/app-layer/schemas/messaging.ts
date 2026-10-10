@@ -22,10 +22,16 @@ export const sendMessageBodySchema = z
   .object({ body: z.string().min(1).max(BODY_VALIDATOR_MAX) })
   .strict();
 
-/** `POST /api/v1/me/conversations`: a player, or a club by its slug. */
+/**
+ * `POST /api/v1/me/conversations`: a player by id, a club by its slug, or a
+ * player on one of the caller's bookings by their place on it — the booker
+ * (`participantId: null`) or an added player — so the booking's player list
+ * never has to carry a user id.
+ */
 export const openConversationBodySchema = z.union([
   z.object({ playerId: messagingIdSchema }).strict(),
   z.object({ club: z.string().regex(/^[a-z0-9-]{1,80}$/) }).strict(),
+  z.object({ bookingId: messagingIdSchema, participantId: messagingIdSchema.nullable() }).strict(),
 ]);
 
 /** `POST /api/v1/t/{slug}/admin/conversations`: a player on the club's list. */

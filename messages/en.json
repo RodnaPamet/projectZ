@@ -128,7 +128,8 @@
       "sectionFinance": "Finance",
       "reports": "Reports and fee",
       "fees": "Club fees",
-      "contactRequests": "Enquiries"
+      "contactRequests": "Enquiries",
+      "messagesUnread": "{count, plural, one {# unread conversation} other {# unread conversations}}"
     },
     "footer": {
       "label": "Footer",
@@ -1858,6 +1859,11 @@
       "terms": "Terms of use",
       "cookies": "Cookie policy",
       "deleteAccount": "How to delete your account"
+    },
+    "searchVisibility": {
+      "label": "Show me in search",
+      "hint": "Other players find you by name to message you. Turned off, only people you have played with or already talk to can message you.",
+      "failed": "The setting was not saved. Please try again."
     }
   },
   "bookingInvite": {
@@ -2133,6 +2139,100 @@
       "title": "After deletion",
       "body": "Deletion can’t be undone. If you later sign in again with the same Google or Facebook account, you start with a new, empty account: the old one is not brought back.",
       "facebook": "If you signed in with Facebook, you can also remove playerz.bg’s access in your Facebook settings. That does not delete your playerz.bg account, though: delete it here."
+    }
+  },
+  "messaging": {
+    "metaTitle": "Messages",
+    "title": "Messages",
+    "new": "New message",
+    "coachNotice": "Messages for coaches come with the coach profile. Until then, messages are sent from a player account.",
+    "tabs": {
+      "label": "Conversations or requests",
+      "conversations": "Conversations",
+      "requests": "Requests",
+      "new": "New message"
+    },
+    "inbox": {
+      "error": "Your messages did not load. Please try again.",
+      "empty": "No conversations yet",
+      "emptyBody": "Find a player by name, or message a club from its page.",
+      "emptyRequests": "No requests",
+      "emptyRequestsBody": "First messages from players you have not played with yet arrive here.",
+      "unnamed": "Unnamed player",
+      "deleted": "Message deleted",
+      "you": "You",
+      "pending": "Waiting",
+      "blocked": "Blocked",
+      "unread": "{count, plural, one {# unread message} other {# unread messages}}",
+      "more": "Show more"
+    },
+    "conversation": {
+      "metaTitle": "Conversation",
+      "back": "Messages",
+      "unnamed": "Unnamed player",
+      "kindClub": "Club",
+      "kindPlayer": "Player",
+      "older": "Show earlier",
+      "empty": "No messages yet. Write the first one.",
+      "you": "You",
+      "deleted": "Message deleted",
+      "remove": "Delete",
+      "accept": "Accept",
+      "decline": "Decline",
+      "placeholder": "Write a message…",
+      "send": "Send",
+      "tooLong": "That message is too long: at most {max} characters.",
+      "sendError": {
+        "REQUEST_PENDING": "Your request is still waiting. You can write again once it is accepted.",
+        "CONVERSATION_BLOCKED": "You cannot write in this conversation.",
+        "RECIPIENT_GONE": "This person is no longer on playerz.",
+        "RATE_LIMITED": "You are sending too fast. Wait a moment and try again.",
+        "MESSAGE_TOO_LONG": "That message is too long.",
+        "CONVERSATION_NOT_FOUND": "This conversation is no longer available.",
+        "UNKNOWN": "The message was not sent. Please try again."
+      },
+      "removeConfirm": {
+        "title": "Delete this message?",
+        "description": "A note that it was deleted stays in its place. This cannot be undone.",
+        "yes": "Delete",
+        "no": "Cancel"
+      },
+      "notice": {
+        "request": "{name} would like to message you. You have not played together yet. Accept or reply, and you can write freely.",
+        "firstIsRequest": "You have not played together yet, so your first message reaches {name} as a request. You can write again once they accept it.",
+        "pending": "Your request was sent. You can write again once {name} accepts it.",
+        "declined": "You declined this request. Replying accepts it.",
+        "blockedByMe": "You blocked {name}. Neither of you can write.",
+        "blocked": "You cannot write in this conversation.",
+        "closed": "This person is no longer on playerz."
+      }
+    },
+    "start": {
+      "write": "Message",
+      "writeToClub": "Message the club",
+      "error": {
+        "PLAYER_NOT_FOUND": "This player cannot be messaged.",
+        "CLUB_NOT_FOUND": "This club does not take messages.",
+        "PLAYER_ACCOUNT_REQUIRED": "Messages are for player accounts.",
+        "RATE_LIMITED": "You have sent many requests today. Try again tomorrow.",
+        "CANNOT_MESSAGE_SELF": "You cannot message yourself.",
+        "UNKNOWN": "The conversation did not open. Please try again."
+      }
+    },
+    "card": {
+      "unnamed": "Unnamed player",
+      "sports": "Sports",
+      "noSports": "No sports given."
+    },
+    "search": {
+      "metaTitle": "New message",
+      "title": "New message",
+      "placeholder": "Search players by name",
+      "hint": "Type at least {min} letters of the name.",
+      "error": "The search failed. Please try again.",
+      "none": "No such player",
+      "noneBody": "Check the name. Some players chose not to appear in search.",
+      "unnamed": "Unnamed player"
     }
   }
 }

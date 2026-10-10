@@ -65,10 +65,12 @@ export const updateMeBodySchema = z
         message: 'Each sport at most once',
       })
       .optional(),
+    /** "Показвай ме в търсенето" (#375). */
+    searchable: z.boolean().optional(),
   })
   .strict()
-  .refine((b) => b.name !== undefined || b.sports !== undefined, {
-    message: 'Nothing to change: send `name`, `sports`, or both',
+  .refine((b) => b.name !== undefined || b.sports !== undefined || b.searchable !== undefined, {
+    message: 'Nothing to change: send `name`, `sports`, `searchable`, or any of them',
   });
 
 export type UpdateMeBody = z.infer<typeof updateMeBodySchema>;

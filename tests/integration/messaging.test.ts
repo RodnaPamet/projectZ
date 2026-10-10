@@ -11,6 +11,7 @@ import {
   MAX_BODY_LENGTH,
   openClubConversation,
   openClubConversationWithPlayer,
+  openCoPlayerConversation,
   openPlayerConversation,
   retractMessage,
   sendMessage,
@@ -174,6 +175,35 @@ describe('messaging (#375)', () => {
     await sendMessage(a, id, 'Аз съм навън до 18.');
     expect((await listConversations(b)).items.map((c) => c.id)).toEqual([id]);
     expect((await getConversation(b, id)).state).toBe('active');
+  });
+
+  it('"Пиши" on a booking opens the conversation by the place on it, never by an id', async () => {
+    const a = await playerNamed('Ана');
+    const b = await playerNamed('Борис', { searchable: false });
+    const stranger = await playerNamed('Непознат');
+    await playedTogether(a.userId, b.userId);
+    const { bookingId, participantId } = await asAppSuperuser(db, async (tx) => {
+      const p = await tx.bookingParticipant.findFirstOrThrow({ where: { userId: b.userId } });
+      return { bookingId: p.bookingId, participantId: p.id };
+    });
+
+    // The booker writes to the added player, who is hidden from search.
+    const { id } = await openCoPlayerConversation(a, bookingId, participantId);
+    // …and the added player to the booker (participantId null), the same one.
+    expect((await openCoPlayerConversation(b, bookingId, null)).id).toBe(id);
+    await sendMessage(b, id, 'Добра игра!');
+    expect((await getConversation(a, id)).state).toBe('active');
+
+    // Somebody not on the booking learns nothing from it.
+    await expect(
+      openCoPlayerConversation(stranger, bookingId, participantId),
+    ).rejects.toMatchObject({
+      code: 'PLAYER_NOT_FOUND',
+    });
+    // And nobody writes to their own place.
+    await expect(openCoPlayerConversation(b, bookingId, participantId)).rejects.toMatchObject({
+      code: 'PLAYER_NOT_FOUND',
+    });
   });
 
   // ── Search and the card ────────────────────────────────────────────────

@@ -44,8 +44,14 @@ export async function updateMyProfile(userId: string, body: UpdateMeBody): Promi
       );
     }
 
-    if (body.name !== undefined) {
-      await db.user.update({ where: { id: userId }, data: { name: body.name } });
+    if (body.name !== undefined || body.searchable !== undefined) {
+      await db.user.update({
+        where: { id: userId },
+        data: {
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(body.searchable !== undefined ? { searchable: body.searchable } : {}),
+        },
+      });
     }
 
     if (body.sports !== undefined) {

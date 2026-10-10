@@ -51,6 +51,7 @@ const account = (over: Partial<MeDto> = {}): MeDto => ({
   avatarUrl: null,
   locale: 'bg',
   sports: [],
+  searchable: true,
   accountKind: 'PLAYER',
   landing: { reason: 'player', club: null },
   ...over,
