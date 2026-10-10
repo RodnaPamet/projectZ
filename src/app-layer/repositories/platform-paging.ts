@@ -114,7 +114,8 @@ export async function tenantPageIds(
 }
 
 /**
- * One page of OPEN review-case ids, oldest first — the order a queue is worked.
+ * One page of OPEN case ids, oldest first — the order a queue is worked: reviews,
+ * and the messages and conversations people reported (#375).
  *
  * Across every club, like `tenantPageIds`, and for the same reason: the only
  * binding that reaches it is `asPlatformAdmin`. Seeks on (createdAt, id) under
@@ -129,13 +130,15 @@ export async function moderationQueuePageIds(
   const rows = after
     ? await db.$queryRaw<{ id: string }[]>`
         SELECT id FROM moderation_case
-         WHERE status = 'OPEN' AND "subjectType" = 'REVIEW'
+         WHERE status = 'OPEN'
+           AND "subjectType" IN ('REVIEW', 'CHAT_MESSAGE', 'CONVERSATION')
            AND ("createdAt", id) > (${after.createdAt}::timestamptz, ${after.id})
          ORDER BY "createdAt" ASC, id ASC
          LIMIT ${limit + 1}`
     : await db.$queryRaw<{ id: string }[]>`
         SELECT id FROM moderation_case
-         WHERE status = 'OPEN' AND "subjectType" = 'REVIEW'
+         WHERE status = 'OPEN'
+           AND "subjectType" IN ('REVIEW', 'CHAT_MESSAGE', 'CONVERSATION')
          ORDER BY "createdAt" ASC, id ASC
          LIMIT ${limit + 1}`;
 

@@ -3,6 +3,8 @@ import { Prisma, type PrismaClient, type SportType } from '@prisma/client';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
 
+import { reportContent } from './reviews';
+
 /**
  * Messaging's reads ACROSS people and clubs (#375): who can be found, who can
  * be written to, and the names on a conversation.
@@ -410,6 +412,24 @@ export async function coPlayerAt(
       ? b.bookedByUserId
       : (b.participants.find((p) => p.id === participantId)?.userId ?? null);
   return target && target !== viewerId ? target : null;
+}
+
+/**
+ * File a report into the platform's moderation queue (#375): the content
+ * report, and the one OPEN case for the subject (`reportContent`, the review
+ * queue's own writer). Platform-level, with no club: a report about a club's
+ * reply is for the platform to judge, not for that club's staff to read. The
+ * caller has already proved the reporter can read the subject.
+ */
+export async function fileChatReport(input: {
+  subjectType: 'CHAT_MESSAGE' | 'CONVERSATION';
+  subjectId: string;
+  reporterUserId: string;
+  reason: string;
+}): Promise<{ caseId: string }> {
+  // guardrail-allow: cross-tenant — one report and its case, platform-level
+  // (no club), about a subject the reporter was shown under RLS.
+  return runAsSuperuser((db) => reportContent(db, input));
 }
 
 /** A club a player can write to: active, by its slug. */

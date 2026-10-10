@@ -8,7 +8,7 @@ import type { ConversationDto, MessageDto } from '@/app/api/v1/_lib/messaging';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useEnterSubmit } from '@/components/ui/hooks';
-import { ChevronLeft, PaperPlane } from '@/components/ui/icons/nucleo';
+import { ChevronLeft, Flag, PaperPlane } from '@/components/ui/icons/nucleo';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +20,9 @@ import { useViewerId } from '@/lib/data/provider';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 import { CONVERSATION_REFRESH_MS, MAX_BODY_LENGTH } from '@/lib/messaging/limits';
+import type { ReportReason } from '@/lib/messaging/report';
+
+import { ReportDialog } from './ReportDialog';
 
 /**
  * One conversation, oldest message at the top (#375), ported from Agrent's
@@ -45,6 +48,15 @@ import { CONVERSATION_REFRESH_MS, MAX_BODY_LENGTH } from '@/lib/messaging/limits
  * visible — on opening, and when the poll brings something new. The endpoint
  * is monotonic, so two tabs or a slow answer cannot rewind it; that is why
  * nothing here coordinates.
+ *
+ * ═══ BLOCK AND REPORT ═══
+ *
+ * «Блокирай» stops new messages both ways, as Agrent's does: with a player it
+ * blocks the PERSON (the blocked one loses sight of the conversation, and is
+ * not told); in a club conversation it blocks that conversation, until the
+ * side that pressed it lifts it. No confirmation: it is undone from the same
+ * button. «Сигнал» sends a message, or the whole conversation, to the
+ * platform's moderators (`ReportDialog`).
  *
  * ═══ ONE SCREEN, BOTH INBOXES ═══
  *
@@ -105,6 +117,12 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
   // back a cursor already walked past.
   const [walkedCursor, setWalkedCursor] = useState<string | null | undefined>(undefined);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // What the report dialog is about, and a fresh key for each opening.
+  const [reporting, setReporting] = useState<{ messageId: string | null; key: number } | null>(
+    null,
+  );
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blockError, setBlockError] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -144,6 +162,37 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
     }),
     fallback: seed,
   });
+
+  const block = useV1Mutation<void, unknown, ConversationDto>({
+    url: () => V1.blockConversation(side, seed.id),
+    method: 'POST',
+    target: { key },
+    update: (visible) => ({ ...visible, state: 'blocked', blockedByMe: true, canSend: false }),
+    fallback: seed,
+    related,
+  });
+  const unblock = useV1Mutation<void, unknown, ConversationDto>({
+    url: () => V1.blockConversation(side, seed.id),
+    method: 'DELETE',
+    target: { key },
+    update: (visible) => ({ ...visible, state: 'active', blockedByMe: false, canSend: true }),
+    fallback: seed,
+    related,
+  });
+
+  const report = useV1Mutation<{ messageId: string | null; reason: ReportReason; details: string }>(
+    {
+      url: ({ messageId }) =>
+        messageId ? V1.reportMessage(side, messageId) : V1.reportConversation(side, seed.id),
+      body: ({ reason, details }) => (details ? { reason, details } : { reason }),
+      revalidate: false,
+    },
+  );
+
+  const openReport = (messageId: string | null) => {
+    setReporting((prev) => ({ messageId, key: (prev?.key ?? 0) + 1 }));
+    setReportOpen(true);
+  };
 
   const respond = useV1Mutation<{ accept: boolean }, unknown, ConversationDto>({
     url: ({ accept }) => (accept ? V1.acceptRequest(seed.id) : V1.declineRequest(seed.id)),
@@ -252,7 +301,51 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
           </Heading>
           <Caption>{c.counterpart.kind === 'club' ? t('kindClub') : t('kindPlayer')}</Caption>
         </div>
+        <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-1">
+          {c.state === 'blocked' && c.blockedByMe ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setBlockError(false);
+                unblock.trigger().catch(() => setBlockError(true));
+              }}
+              data-testid="conversation-unblock"
+            >
+              {t('unblock')}
+            </Button>
+          ) : c.state !== 'blocked' && c.state !== 'closed' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setBlockError(false);
+                block.trigger().catch(() => setBlockError(true));
+              }}
+              data-testid="conversation-block"
+            >
+              {t('block')}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={<Flag aria-hidden="true" />}
+            onClick={() => openReport(null)}
+            data-testid="conversation-report"
+          >
+            {t('report')}
+          </Button>
+        </div>
       </div>
+      {blockError ? (
+        <InlineNotice variant="error" className="mt-2" data-testid="conversation-block-error">
+          {t('blockFailed')}
+        </InlineNotice>
+      ) : null}
 
       <div
         ref={listRef}
@@ -300,6 +393,13 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
               })}
               deletedLabel={t('deleted')}
               removeLabel={t('remove')}
+              reportLabel={t('reportMessage')}
+              onReport={
+                // Somebody else's line — and for a club, not a colleague's.
+                !m.mine && !m.deleted && !(side.kind === 'club' && m.fromClub)
+                  ? () => openReport(m.id)
+                  : null
+              }
               onRemove={
                 m.mine && !m.deleted && !m.id.startsWith('pending-')
                   ? (target) => {
@@ -385,6 +485,18 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
         </InlineNotice>
       ) : null}
 
+      {reporting ? (
+        <ReportDialog
+          key={reporting.key}
+          open={reportOpen}
+          setOpen={setReportOpen}
+          subject={reporting.messageId ? 'message' : 'conversation'}
+          onSubmit={({ reason, details }) =>
+            report.trigger({ messageId: reporting.messageId, reason, details })
+          }
+        />
+      ) : null}
+
       {retracting ? (
         <ConfirmDialog
           showModal={retractOpen}
@@ -434,6 +546,8 @@ function Bubble({
   deletedLabel,
   removeLabel,
   onRemove,
+  reportLabel,
+  onReport,
 }: {
   m: MessageDto;
   sender: string;
@@ -441,6 +555,8 @@ function Bubble({
   deletedLabel: string;
   removeLabel: string;
   onRemove: ((m: MessageDto) => void) | null;
+  reportLabel: string;
+  onReport: (() => void) | null;
 }) {
   return (
     <div
@@ -471,6 +587,17 @@ function Bubble({
           data-testid="conversation-remove"
         >
           {removeLabel}
+        </Button>
+      ) : null}
+      {onReport ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onReport}
+          data-testid="conversation-report-message"
+        >
+          {reportLabel}
         </Button>
       ) : null}
     </div>

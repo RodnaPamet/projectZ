@@ -236,3 +236,58 @@ describe('PlayerCardView', () => {
     expect(card.textContent).not.toMatch(/@|\+359/);
   });
 });
+
+describe('ConversationView — block and report (#375)', () => {
+  it('reports a message with a reason and the person’s words, through the report dialog', async () => {
+    const seed = conversation({
+      messages: [msg({ id: 'theirs' }), msg({ id: 'mine', mine: true })],
+    });
+    const calls = installFakeFetch((x) =>
+      x.method === 'POST' && x.url.endsWith('/report') ? ok({ reported: true }, 201) : ok(seed),
+    );
+    wrap(<ConversationView side={ME} seed={seed} back={{ href: '/messages', label: c.back }} />);
+
+    // Only the other side's line can be reported.
+    const reportButtons = screen.getAllByTestId('conversation-report-message');
+    expect(reportButtons).toHaveLength(1);
+    fireEvent.click(reportButtons[0]!);
+
+    const dialog = await screen.findByTestId('report-dialog');
+    expect(screen.getByTestId('report-submit')).toBeDisabled();
+    fireEvent.click(within(dialog).getByTestId('report-reason-abuse'));
+    fireEvent.change(within(dialog).getByTestId('report-details'), {
+      target: { value: 'Обижда ме' },
+    });
+    fireEvent.click(screen.getByTestId('report-submit'));
+
+    expect(await screen.findByTestId('report-sent')).toHaveTextContent(
+      messages.messaging.report.sent,
+    );
+    const sent = calls.find((x) => x.method === 'POST' && x.url.endsWith('/report'));
+    expect(sent?.url).toBe('/api/v1/me/messages/theirs/report');
+    expect(sent?.body).toEqual({ reason: 'abuse', details: 'Обижда ме' });
+  });
+
+  it('blocks at once, says so, and offers the way back', async () => {
+    const seed = conversation();
+    let blocked = false;
+    const calls = installFakeFetch((x) => {
+      if (x.url.endsWith('/block')) {
+        blocked = x.method === 'POST';
+        return ok({ blocked });
+      }
+      return ok(blocked ? { ...seed, state: 'blocked', blockedByMe: true, canSend: false } : seed);
+    });
+    wrap(<ConversationView side={ME} seed={seed} back={{ href: '/messages', label: c.back }} />);
+
+    fireEvent.click(screen.getByTestId('conversation-block'));
+    expect(await screen.findByTestId('conversation-notice-blockedByMe')).toBeInTheDocument();
+    expect(screen.queryByTestId('conversation-composer')).not.toBeInTheDocument();
+    expect(
+      calls.some((x) => x.method === 'POST' && x.url.endsWith('/conversations/cv1/block')),
+    ).toBe(true);
+
+    fireEvent.click(screen.getByTestId('conversation-unblock'));
+    await waitFor(() => expect(screen.getByTestId('conversation-composer')).toBeInTheDocument());
+  });
+});

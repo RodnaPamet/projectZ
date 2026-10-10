@@ -101,8 +101,8 @@ There is no registry. The image is built on the box from a clone.
 ```bash
 # Keep the running image as the way back. Migrations here have been additive, so
 # the previous image runs against the new schema; re-tag and recreate to roll back.
-# Three exceptions, p37, and p51 and p54 (their rows, not their schema): see
-# "Rolling back past p37", "Rolling back past p51" and "… past p54" below.
+# Four exceptions, p37, and p51, p54 and p55 (their rows, not their schema):
+# see "Rolling back past p37", "… past p51", "… past p54" and "… past p55".
 sudo docker tag playerz:local playerz:rollback-$(date +%s)
 
 cd /opt/playerz/repo && sudo git fetch --all && sudo git reset --hard origin/main
@@ -206,6 +206,27 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 
 The rest of p54 stays: its columns are new and unmapped in the old image, and
 its row security only narrows who reads a conversation.
+
+### Rolling back past p55
+
+`20261010150000_p55_messaging_reports` (#375) adds `CONVERSATION` to
+`ModerationSubject`: a report about a whole conversation. Park those reports
+and their cases before starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p55-park.sql
+```
+
+and give them back after rolling forward again, with the p55 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p55-unpark.sql
+```
+
+A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
+column is text, and the previous image reads it as blocked by the other side.
 
 `SKIP_ENV_VALIDATION=1` is for the **build** only. Next imports every route
 module to collect metadata, and `src/env.ts` would refuse at import time for

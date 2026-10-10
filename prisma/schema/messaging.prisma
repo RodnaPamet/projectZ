@@ -61,7 +61,9 @@ model Conversation {
   /// A CLUB conversation blocked by one side (#375): no new messages either
   /// way until the same side lifts it. `blockedSide` is CLUB or PLAYER and
   /// `blockedByUserId` the person who pressed it. A DM is blocked by
-  /// `UserBlock`, which follows the person everywhere, and never by these.
+  /// `UserBlock`, which follows the person everywhere, and never by these —
+  /// except PLATFORM (P55): a moderator closed the conversation, of either
+  /// kind, after a report. Nobody in it can lift that.
   blockedAt       DateTime?
   blockedSide     String?
   blockedByUserId String?

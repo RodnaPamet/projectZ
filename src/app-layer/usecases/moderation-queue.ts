@@ -2,6 +2,8 @@ import type { PrismaClient, ReviewStatus } from '@prisma/client';
 
 import { moderationQueuePageIds, type SeekCursor } from '@/app-layer/repositories/platform-paging';
 
+import { chatCaseItems, type ChatQueueItem } from './moderation-messages';
+
 /**
  * The review moderation queue, as a platform moderator reads it.
  *
@@ -26,7 +28,14 @@ import { moderationQueuePageIds, type SeekCursor } from '@/app-layer/repositorie
 
 export const QUEUE_PAGE_SIZE = 50;
 
-export interface QueueItem {
+/**
+ * A case in the queue: a review, or (#375) a reported message or
+ * conversation — `moderation-messages.ts` builds those.
+ */
+export type QueueItem = ReviewQueueItem | ChatQueueItem;
+
+export interface ReviewQueueItem {
+  subject: 'REVIEW';
   caseId: string;
   /** Why it is here: a category, `classifier_unavailable`, or `user_report`. */
   reason: string;
@@ -55,16 +64,18 @@ function toScores(raw: unknown): Record<string, number> {
 }
 
 /**
- * One page of OPEN review cases, oldest first — the order a queue is worked in.
+ * One page of OPEN cases, oldest first — the order a queue is worked in:
+ * reviews, and since #375 reported messages and conversations.
  *
  * Five reads for a whole page — the ids, then cases, reviews, venues and clubs
- * by id — never one per case. Each is bounded by the page.
+ * by id — never one per case, and the chat cases' own handful
+ * (`chatCaseItems`). Each is bounded by the page.
  *
  * `nextCursor` comes from the page's IDS, not from the items: a case whose
  * review has gone is skipped below, and a cursor taken from the last item
  * shown would re-read it and every case after it on the next page.
  */
-export async function listReviewCases(
+export async function listModerationCases(
   db: PrismaClient,
   opts: { limit?: number; after?: SeekCursor } = {},
 ): Promise<{ items: QueueItem[]; nextCursor: string | null }> {
@@ -82,6 +93,7 @@ export async function listReviewCases(
     select: {
       id: true,
       tenantId: true,
+      subjectType: true,
       subjectId: true,
       reason: true,
       scoresJson: true,
@@ -89,10 +101,13 @@ export async function listReviewCases(
     },
     take: ids.length,
   });
+  const chat = await chatCaseItems(db, cases);
 
   // guardrail-allow: cross-tenant — the reviews those cases are about, by id.
   const reviews = await db.review.findMany({
-    where: { id: { in: cases.map((c) => c.subjectId) } },
+    where: {
+      id: { in: cases.flatMap((c) => (c.subjectType === 'REVIEW' ? [c.subjectId] : [])) },
+    },
     select: {
       id: true,
       tenantId: true,
@@ -137,6 +152,11 @@ export async function listReviewCases(
     const c = caseById.get(id);
     // Resolved between the id read and this one, by another moderator.
     if (!c) continue;
+    if (c.subjectType !== 'REVIEW') {
+      const item = chat.get(c.id);
+      if (item) items.push(item);
+      continue;
+    }
     const review = reviewById.get(c.subjectId);
     // A case whose review has gone — the venue was deleted, and the review
     // with it by cascade — has nothing to decide. It stays OPEN in the table,
@@ -147,6 +167,7 @@ export async function listReviewCases(
     if (!venue || !club) continue;
 
     items.push({
+      subject: 'REVIEW',
       caseId: c.id,
       reason: c.reason,
       openedAt: c.createdAt,

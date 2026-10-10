@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { PlatformCapability } from '@prisma/client';
 
-import { listReviewCases, QUEUE_PAGE_SIZE } from '@/app-layer/usecases/moderation-queue';
+import { listModerationCases, QUEUE_PAGE_SIZE } from '@/app-layer/usecases/moderation-queue';
 import { asPlatformAdmin } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
@@ -85,7 +85,7 @@ async function handler(req: NextRequest) {
         if (!anchor) throw new UnknownPlatformCursorError();
         after = anchor;
       }
-      return listReviewCases(db, { limit: QUEUE_PAGE_SIZE, after });
+      return listModerationCases(db, { limit: QUEUE_PAGE_SIZE, after });
     },
   );
 

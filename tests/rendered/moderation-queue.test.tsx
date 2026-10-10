@@ -43,6 +43,11 @@ const moderation = (messages as unknown as { platform: { moderation: Record<stri
   empty: { title: string };
   reason: { label: string };
   note: { label: string };
+  chat: {
+    titleMessage: string;
+    removeMessage: string;
+    reason: Record<string, string>;
+  };
 };
 
 const REASON = 'review moderation shift 2026-09-29';
@@ -82,6 +87,7 @@ function installFakeFetch(handler: FakeHandler): FakeCall[] {
 }
 
 const item = (caseId: string, body: string) => ({
+  subject: 'REVIEW' as const,
   caseId,
   reason: 'harassment',
   openedAt: '2026-09-29T10:00:00Z',
@@ -374,5 +380,63 @@ describe('the second factor (#262)', () => {
     const card = screen.getByText('the owner is a thief').closest('li')!;
     expect(within(card).getByLabelText(moderation.note.label)).toHaveValue('abusive and unfounded');
     expect(within(card).getByRole('alert')).toHaveTextContent(moderation.error.STEP_UP_REQUIRED!);
+  });
+});
+
+describe('a reported message (#375)', () => {
+  const chat = {
+    subject: 'CHAT_MESSAGE' as const,
+    caseId: 'm1',
+    reason: 'user_report',
+    openedAt: '2026-10-10T10:00:00Z',
+    conversation: { id: 'cv1', kind: 'player' as const, club: null, closed: false },
+    messages: [
+      {
+        id: 'a',
+        from: { name: 'Ана', deleted: false, clubName: null },
+        body: 'Здравейте',
+        deleted: false,
+        createdAt: '2026-10-10T09:00:00Z',
+        reported: false,
+      },
+      {
+        id: 'b',
+        from: { name: 'Борис', deleted: false, clubName: null },
+        body: 'ти си никой',
+        deleted: false,
+        createdAt: '2026-10-10T09:01:00Z',
+        reported: true,
+      },
+    ],
+    reports: [{ reason: 'abuse — обижда ме', at: '2026-10-10T09:02:00Z' }],
+  };
+
+  it('shows the conversation, the reported line marked, what the report said, and removes it through its own route', async () => {
+    const calls = installFakeFetch((c) =>
+      c.method === 'POST'
+        ? ok({ caseId: 'm1', status: 'REJECTED', removed: 'message' })
+        : ok({ items: [chat], nextCursor: null }),
+    );
+    mount();
+    await userEvent.type(screen.getByLabelText(moderation.reason.label), REASON);
+    await userEvent.click(screen.getByRole('button', { name: moderation.open }));
+    const card = await screen.findByTestId('moderation-chat-case');
+
+    expect(card).toHaveTextContent(moderation.chat.titleMessage);
+    expect(card).toHaveTextContent(`${moderation.chat.reason.abuse} — обижда ме`);
+    expect(card.querySelector('[data-reported="true"]')).toHaveTextContent('ти си никой');
+
+    await userEvent.type(
+      within(card).getByLabelText(moderation.note.label),
+      'insults, removed per policy',
+    );
+    await userEvent.click(
+      within(card).getByRole('button', { name: moderation.chat.removeMessage }),
+    );
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST')?.url).toBe(
+        '/api/v1/platform/moderation/message-cases/m1/resolve',
+      ),
+    );
   });
 });
