@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 
 import { Prisma, type PrismaClient } from '@prisma/client';
 
@@ -776,9 +776,10 @@ async function createOrFind(
 
 /** A cuid-shaped id (`c` + 24 base-36 characters), as `@default(cuid())` makes. */
 function newConversationId(): string {
-  const bytes = randomBytes(24);
   let out = 'c';
-  for (const b of bytes) out += (b % 36).toString(36);
+  // `randomInt` draws each character uniformly; a byte taken modulo 36 would
+  // favour the first few characters.
+  for (let i = 0; i < 24; i++) out += randomInt(36).toString(36);
   return out;
 }
 
