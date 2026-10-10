@@ -15,7 +15,7 @@ import { PROFILE_ROW } from './ProfileSection';
 
 const NotificationSettingsSheet = dynamic(() => import('./NotificationSettingsSheet'));
 
-const CATEGORY_COUNT = 3;
+const CATEGORY_COUNT = 4;
 
 /**
  * "Известия" in the profile's Настройки (#367, Q22): which emails to get.

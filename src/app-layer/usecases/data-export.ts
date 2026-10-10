@@ -255,7 +255,12 @@ export interface PersonalDataExport {
     }>;
   };
   notificationSettings: {
-    email: { bookingConfirmations: boolean; bookingReminders: boolean; clubChanges: boolean };
+    email: {
+      bookingConfirmations: boolean;
+      bookingReminders: boolean;
+      clubChanges: boolean;
+      messages: boolean;
+    };
   };
   inviteLinks: Array<{
     bookingId: string;
@@ -387,6 +392,7 @@ export async function readPersonalData(
       emailBookingConfirmations: true,
       emailBookingReminders: true,
       emailClubChanges: true,
+      emailMessages: true,
       searchable: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
@@ -744,6 +750,7 @@ export async function readPersonalData(
         bookingConfirmations: user.emailBookingConfirmations,
         bookingReminders: user.emailBookingReminders,
         clubChanges: user.emailClubChanges,
+        messages: user.emailMessages,
       },
     },
     inviteLinks: links.map((l) => ({

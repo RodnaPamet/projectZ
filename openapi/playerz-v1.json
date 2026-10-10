@@ -6060,7 +6060,7 @@
       "get": {
         "operationId": "getMyNotificationSettings",
         "summary": "Which emails I get",
-        "description": "The caller's email settings (#367, Q22), one switch per category: `confirmation` (a booking is confirmed, or the club books a weekly slot for you), `reminder` (3 hours before a game) and `clubChanges` (the club cancels a booking or a series). All on by default. The bell has no switch: it always shows everything.",
+        "description": "The caller's email settings (#367, Q22), one switch per category: `confirmation` (a booking is confirmed, or the club books a weekly slot for you), `reminder` (3 hours before a game) and `clubChanges` (the club cancels a booking or a series) and `messages` (#375: a message still unread after about ten minutes, at most one an hour per conversation). All on by default. The bell has no switch: it always shows everything.",
         "tags": ["Me"],
         "security": [
           {
@@ -13178,7 +13178,7 @@
         "properties": {
           "email": {
             "type": "object",
-            "required": ["confirmation", "reminder", "clubChanges"],
+            "required": ["confirmation", "reminder", "clubChanges", "messages"],
             "properties": {
               "confirmation": {
                 "type": "boolean"
@@ -13188,6 +13188,10 @@
               },
               "clubChanges": {
                 "type": "boolean"
+              },
+              "messages": {
+                "type": "boolean",
+                "description": "«Съобщения» (#375): an email about a message still unread after about ten minutes, at most one an hour per conversation."
               }
             }
           }
@@ -13221,6 +13225,9 @@
                 "type": "boolean"
               },
               "clubChanges": {
+                "type": "boolean"
+              },
+              "messages": {
                 "type": "boolean"
               }
             }
@@ -14132,7 +14139,7 @@
             "properties": {
               "email": {
                 "type": "object",
-                "required": ["bookingConfirmations", "bookingReminders", "clubChanges"],
+                "required": ["bookingConfirmations", "bookingReminders", "clubChanges", "messages"],
                 "properties": {
                   "bookingConfirmations": {
                     "type": "boolean"
@@ -14141,6 +14148,9 @@
                     "type": "boolean"
                   },
                   "clubChanges": {
+                    "type": "boolean"
+                  },
+                  "messages": {
                     "type": "boolean"
                   }
                 }

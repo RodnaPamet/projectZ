@@ -564,7 +564,7 @@ function Bubble({
       data-testid="conversation-message"
       data-mine={m.mine ? 'true' : 'false'}
     >
-      <Caption className="flex items-center gap-2">
+      <Caption className="flex flex-wrap items-center gap-x-2">
         <span>{sender}</span>
         <span aria-hidden="true">·</span>
         <time dateTime={m.createdAt}>{time}</time>

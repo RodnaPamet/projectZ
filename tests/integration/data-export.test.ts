@@ -368,7 +368,12 @@ describe('GET /api/v1/me/export (#370)', () => {
       expect.objectContaining({ venue: 'Алфа Кортове', rating: 4, text: 'Хубави кортове' }),
     ]);
     expect(json.notificationSettings).toEqual({
-      email: { bookingConfirmations: true, bookingReminders: false, clubChanges: true },
+      email: {
+        bookingConfirmations: true,
+        bookingReminders: false,
+        clubChanges: true,
+        messages: true,
+      },
     });
     expect(json.inviteLinks).toEqual([expect.objectContaining({ bookingId: mineId })]);
   });

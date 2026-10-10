@@ -83,7 +83,7 @@ function renderProfile(
             account={seed}
             showSports={opts.showSports ?? true}
             notificationSettings={{
-              email: { confirmation: true, reminder: true, clubChanges: true },
+              email: { confirmation: true, reminder: true, clubChanges: true, messages: true },
             }}
             deletion={opts.deletion ?? { kind: 'allowed', credit: [] }}
             legal={opts.legal ?? { privacy: null, terms: null, cookies: null }}

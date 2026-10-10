@@ -164,25 +164,28 @@ export async function markMyNotificationsRead(input: {
 
 export interface NotificationSettings {
   /** The bell is always on; these switch the emails only. */
-  email: { confirmation: boolean; reminder: boolean; clubChanges: boolean };
+  email: { confirmation: boolean; reminder: boolean; clubChanges: boolean; messages: boolean };
 }
 
 const SETTINGS_SELECT = {
   emailBookingConfirmations: true,
   emailBookingReminders: true,
   emailClubChanges: true,
+  emailMessages: true,
 } as const;
 
 function toSettings(u: {
   emailBookingConfirmations: boolean;
   emailBookingReminders: boolean;
   emailClubChanges: boolean;
+  emailMessages: boolean;
 }): NotificationSettings {
   return {
     email: {
       confirmation: u.emailBookingConfirmations,
       reminder: u.emailBookingReminders,
       clubChanges: u.emailClubChanges,
+      messages: u.emailMessages,
     },
   };
 }
@@ -206,6 +209,7 @@ export async function updateMyNotificationSettings(
     ...(patch.confirmation !== undefined ? { emailBookingConfirmations: patch.confirmation } : {}),
     ...(patch.reminder !== undefined ? { emailBookingReminders: patch.reminder } : {}),
     ...(patch.clubChanges !== undefined ? { emailClubChanges: patch.clubChanges } : {}),
+    ...(patch.messages !== undefined ? { emailMessages: patch.messages } : {}),
   };
   const u = await runAsUserOnly(userId, (db) =>
     db.user.update({ where: { id: userId }, data, select: SETTINGS_SELECT }).catch(() => null),

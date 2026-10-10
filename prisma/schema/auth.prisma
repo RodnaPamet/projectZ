@@ -136,6 +136,9 @@ model User {
   emailBookingConfirmations Boolean @default(true)
   emailBookingReminders     Boolean @default(true)
   emailClubChanges          Boolean @default(true)
+  /// «Съобщения» (#375): an email about a message still unread after about ten
+  /// minutes, at most one an hour per conversation. On by default.
+  emailMessages             Boolean @default(true)
 
   /// "Показвай ме в търсенето" (#375): whether other players find this person
   /// by name when starting a conversation. On by default. Off, they can still

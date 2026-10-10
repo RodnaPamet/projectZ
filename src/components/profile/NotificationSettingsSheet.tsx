@@ -10,7 +10,13 @@ import { Sheet } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 
 export type EmailCategory = keyof NotificationSettings['email'];
-export const EMAIL_CATEGORIES: EmailCategory[] = ['confirmation', 'reminder', 'clubChanges'];
+export const EMAIL_CATEGORIES: EmailCategory[] = [
+  'confirmation',
+  'reminder',
+  'clubChanges',
+  // #375: a message still unread after about ten minutes.
+  'messages',
+];
 
 /**
  * The email switches (#367), in the vendored `Sheet`: one vendored `Switch`
@@ -36,6 +42,7 @@ export default function NotificationSettingsSheet({
     confirmation: t('confirmation'),
     reminder: t('reminder'),
     clubChanges: t('clubChanges'),
+    messages: t('messages'),
   };
 
   return (
