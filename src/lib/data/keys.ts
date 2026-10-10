@@ -256,6 +256,14 @@ export const V1 = {
     `${inboxBase(side)}/conversations/${seg(id)}/block`,
   retractMessage: (side: InboxSide, messageId: string) =>
     `${inboxBase(side)}/messages/${seg(messageId)}`,
+  /** Report to the platform's moderators (#375): `{ reason, details? }`. */
+  reportMessage: (side: InboxSide, messageId: string) =>
+    `${inboxBase(side)}/messages/${seg(messageId)}/report`,
+  reportConversation: (side: InboxSide, id: string) =>
+    `${inboxBase(side)}/conversations/${seg(id)}/report`,
+  /** A moderator decides a reported message or conversation. */
+  resolveMessageCase: (caseId: string) =>
+    `${BASE}/platform/moderation/message-cases/${seg(caseId)}/resolve`,
   /** A request in «Заявки» (a player's only). */
   acceptRequest: (id: string) => `${BASE}/me/conversations/${seg(id)}/accept`,
   declineRequest: (id: string) => `${BASE}/me/conversations/${seg(id)}/decline`,

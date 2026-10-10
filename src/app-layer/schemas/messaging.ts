@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { REPORT_DETAILS_MAX, REPORT_REASONS } from '@/lib/messaging/report';
 import { BODY_VALIDATOR_MAX } from '@/lib/messaging/limits';
 
 /**
@@ -39,3 +40,17 @@ export const openClubConversationBodySchema = z.object({ playerId: messagingIdSc
 
 /** `Idempotency-Key`: optional on a send, at most 128 characters. */
 export const idempotencyKeySchema = z.string().trim().min(1).max(128);
+
+/**
+ * `POST …/report` (#375): a category, and optionally the reporter's own words.
+ * The words are bounded generously here and cut to the limit after sanitising.
+ */
+export const reportBodySchema = z
+  .object({
+    reason: z.enum(REPORT_REASONS),
+    details: z
+      .string()
+      .max(REPORT_DETAILS_MAX * 2)
+      .optional(),
+  })
+  .strict();

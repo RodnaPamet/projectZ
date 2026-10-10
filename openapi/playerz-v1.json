@@ -9164,6 +9164,586 @@
           }
         }
       }
+    },
+    "/me/messages/{id}/report": {
+      "post": {
+        "operationId": "reportMyMessage",
+        "summary": "Report a message",
+        "description": "Into the platform moderation queue (#375), beside reviews. The other side is not told; the moderator never sees who reported.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed. One case per subject however many report it; reporting twice is one report.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`, or `REPORT_OWN_MESSAGE` — not one’s own message (for a club, not the club’s own reply).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`MESSAGE_NOT_FOUND`, or `CONVERSATION_NOT_FOUND` — nothing the caller can read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/conversations/{id}/report": {
+      "post": {
+        "operationId": "reportMyConversation",
+        "summary": "Report a conversation",
+        "description": "Into the platform moderation queue (#375), beside reviews. The other side is not told; the moderator never sees who reported.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed. One case per subject however many report it; reporting twice is one report.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — nothing the caller can read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/messages/{id}/report": {
+      "post": {
+        "operationId": "reportClubMessage",
+        "summary": "Report a player’s message, for the club",
+        "description": "Into the platform moderation queue (#375), beside reviews. The other side is not told; the moderator never sees who reported.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed. One case per subject however many report it; reporting twice is one report.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`, or `REPORT_OWN_MESSAGE` — not one’s own message (for a club, not the club’s own reply).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`MESSAGE_NOT_FOUND`, or `CONVERSATION_NOT_FOUND` — nothing the caller can read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/conversations/{id}/report": {
+      "post": {
+        "operationId": "reportClubConversation",
+        "summary": "Report a conversation, for the club",
+        "description": "Into the platform moderation queue (#375), beside reviews. The other side is not told; the moderator never sees who reported.",
+        "tags": ["Messages"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club’s slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed. One case per subject however many report it; reporting twice is one report.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` — the caller holds no `messages.club` at this club (OWNER, MANAGER and STAFF do).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CONVERSATION_NOT_FOUND` — nothing the caller can read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/moderation/message-cases/{id}/resolve": {
+      "post": {
+        "operationId": "resolvePlatformMessageCase",
+        "summary": "Decide a reported message or conversation",
+        "tags": ["Platform"],
+        "description": "A moderator decides a reported message or conversation (#375). `APPROVE` keeps it; `REJECT` removes the message (a tombstone keeps its place) or closes the conversation for both sides, for good. Same capability (REVIEW_MODERATE), step-up and note as deciding a review; the audit row is PLATFORM_MESSAGE_APPROVED or _REJECTED. A review case is `404 CASE_NOT_FOUND` here.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The case id, `caseId` in the queue.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveModerationCaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decided.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformMessageResolutionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — `decision` is not `APPROVE` or `REJECT`. `REASON_REQUIRED` — `note` was absent or shorter than 12 characters. `REASON_TOO_LONG` — `note` exceeded 500 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `REVIEW_MODERATE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the moderator has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`CASE_NOT_FOUND` — no case with that id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CASE_ALREADY_RESOLVED` — the case is not OPEN; another moderator decided it first. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10617,85 +11197,18 @@
         }
       },
       "PlatformModerationCase": {
-        "type": "object",
         "title": "PlatformModerationCase",
-        "description": "One open case about a review. No author: whether a review is abuse does not depend on who wrote it, and showing a name invites the idea that it should.",
-        "required": ["caseId", "reason", "openedAt", "scores", "review", "venue", "club"],
-        "properties": {
-          "caseId": {
-            "type": "string",
-            "description": "Pass to `/resolve`. Also the cursor value."
+        "description": "One open case: a review, or (#375) a reported message or conversation. `subject` says which.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PlatformModerationReviewCase"
           },
-          "reason": {
-            "type": "string",
-            "description": "Why it is queued: a classifier category, `classifier_unavailable`, or `user_report`. An open string."
-          },
-          "openedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "scores": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            },
-            "description": "Classifier score per category, 0–1. Empty when no classifier ran."
-          },
-          "review": {
-            "type": "object",
-            "required": ["id", "rating", "body", "status", "createdAt"],
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "rating": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 5
-              },
-              "body": {
-                "type": ["string", "null"],
-                "description": "As stored, after sanitising."
-              },
-              "status": {
-                "type": "string",
-                "description": "`PENDING_REVIEW` for a held review, `PUBLISHED` for a reported live one, `REJECTED` for an automatic rejection awaiting a human. An open string."
-              },
-              "createdAt": {
-                "type": "string",
-                "format": "date-time"
-              }
-            }
-          },
-          "venue": {
-            "type": "object",
-            "required": ["id", "name"],
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              }
-            }
-          },
-          "club": {
-            "type": "object",
-            "required": ["id", "slug", "name"],
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "slug": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              }
-            }
+          {
+            "$ref": "#/components/schemas/PlatformModerationChatCase"
           }
+        ],
+        "discriminator": {
+          "propertyName": "subject"
         }
       },
       "PlatformModerationCasePage": {
@@ -14251,6 +14764,278 @@
             "items": {
               "$ref": "#/components/schemas/PlayerCard"
             }
+          }
+        }
+      },
+      "ReportRequest": {
+        "type": "object",
+        "title": "ReportRequest",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": ["spam", "abuse", "inappropriate", "other"]
+          },
+          "details": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "The reporter’s own words, optional; cut to 500 characters after sanitising."
+          }
+        }
+      },
+      "ReportedEnvelope": {
+        "type": "object",
+        "title": "ReportedEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["reported"],
+            "properties": {
+              "reported": {
+                "type": "boolean",
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "PlatformModerationReviewCase": {
+        "type": "object",
+        "title": "PlatformModerationReviewCase",
+        "description": "One open case about a review. No author: whether a review is abuse does not depend on who wrote it, and showing a name invites the idea that it should.",
+        "required": [
+          "subject",
+          "caseId",
+          "reason",
+          "openedAt",
+          "scores",
+          "review",
+          "venue",
+          "club"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "const": "REVIEW"
+          },
+          "caseId": {
+            "type": "string",
+            "description": "Pass to `/resolve`. Also the cursor value."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why it is queued: a classifier category, `classifier_unavailable`, or `user_report`. An open string."
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "description": "Classifier score per category, 0–1. Empty when no classifier ran."
+          },
+          "review": {
+            "type": "object",
+            "required": ["id", "rating", "body", "status", "createdAt"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "body": {
+                "type": ["string", "null"],
+                "description": "As stored, after sanitising."
+              },
+              "status": {
+                "type": "string",
+                "description": "`PENDING_REVIEW` for a held review, `PUBLISHED` for a reported live one, `REJECTED` for an automatic rejection awaiting a human. An open string."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "club": {
+            "type": "object",
+            "required": ["id", "slug", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PlatformModerationChatCase": {
+        "type": "object",
+        "title": "PlatformModerationChatCase",
+        "description": "A reported message or conversation (#375): the conversation’s latest lines (the reported one marked), who wrote each, and what the reports said — never who reported.",
+        "required": [
+          "subject",
+          "caseId",
+          "reason",
+          "openedAt",
+          "conversation",
+          "messages",
+          "reports"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "enum": ["CHAT_MESSAGE", "CONVERSATION"]
+          },
+          "caseId": {
+            "type": "string",
+            "description": "Pass to `/platform/moderation/message-cases/{id}/resolve`. Also the cursor value."
+          },
+          "reason": {
+            "type": "string",
+            "description": "`user_report`."
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "conversation": {
+            "type": "object",
+            "required": ["id", "kind", "club", "closed"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["player", "club"]
+              },
+              "club": {
+                "type": ["object", "null"],
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "closed": {
+                "type": "boolean",
+                "description": "A moderator already closed it."
+              }
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "from", "body", "deleted", "createdAt", "reported"],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "from": {
+                  "type": "object",
+                  "required": ["name", "deleted", "clubName"],
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"]
+                    },
+                    "deleted": {
+                      "type": "boolean"
+                    },
+                    "clubName": {
+                      "type": ["string", "null"]
+                    }
+                  }
+                },
+                "body": {
+                  "type": ["string", "null"]
+                },
+                "deleted": {
+                  "type": "boolean"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "reported": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["reason", "at"],
+              "properties": {
+                "reason": {
+                  "type": "string",
+                  "description": "A category (`spam`, `abuse`, `inappropriate`, `other`), then ` — ` and the reporter’s words when given."
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PlatformMessageResolution": {
+        "type": "object",
+        "title": "PlatformMessageResolution",
+        "required": ["caseId", "status", "removed"],
+        "properties": {
+          "caseId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["APPROVED", "REJECTED"]
+          },
+          "removed": {
+            "type": ["string", "null"],
+            "enum": ["message", "conversation", null]
+          }
+        }
+      },
+      "PlatformMessageResolutionEnvelope": {
+        "type": "object",
+        "title": "PlatformMessageResolutionEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PlatformMessageResolution"
           }
         }
       }

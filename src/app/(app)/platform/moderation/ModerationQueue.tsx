@@ -20,7 +20,8 @@ import { needsSkeleton, useV1SWR, useV1SWRInfinite } from '@/lib/data/use-v1-swr
 import { StepUpForm } from '../StepUpForm';
 
 /**
- * The review moderation queue.
+ * The moderation queue: reviews, and (#375) reported messages and
+ * conversations, oldest first.
  *
  * ═══ IT CALLS THE PLATFORM API, AND HOLDS NOTHING ITSELF ═══
  *
@@ -79,7 +80,8 @@ const MIN_REASON = 12;
  */
 const QUEUE_TIME_ZONE = 'Europe/Sofia';
 
-interface CaseItem {
+interface ReviewCaseItem {
+  subject: 'REVIEW';
   caseId: string;
   reason: string;
   openedAt: string;
@@ -88,6 +90,34 @@ interface CaseItem {
   venue: { id: string; name: string };
   club: { id: string; slug: string; name: string };
 }
+
+/** A reported message or conversation (#375). */
+interface ChatCaseItem {
+  subject: 'CHAT_MESSAGE' | 'CONVERSATION';
+  caseId: string;
+  reason: string;
+  openedAt: string;
+  conversation: {
+    id: string;
+    kind: 'player' | 'club';
+    club: { name: string } | null;
+    closed: boolean;
+  };
+  messages: Array<{
+    id: string;
+    from: { name: string | null; deleted: boolean; clubName: string | null };
+    body: string | null;
+    deleted: boolean;
+    createdAt: string;
+    reported: boolean;
+  }>;
+  reports: Array<{ reason: string; at: string }>;
+}
+
+type CaseItem = ReviewCaseItem | ChatCaseItem;
+
+const isChatCase = (item: CaseItem): item is ChatCaseItem =>
+  item.subject === 'CHAT_MESSAGE' || item.subject === 'CONVERSATION';
 
 type Decision = 'APPROVE' | 'REJECT';
 
@@ -148,11 +178,16 @@ export function ModerationQueue() {
   const { data, error, isValidating, setSize, mutate } = list;
 
   const resolve = useV1Mutation<
-    { caseId: string; decision: Decision; note: string },
+    { caseId: string; subject: CaseItem['subject']; decision: Decision; note: string },
     unknown,
     V1Page<CaseItem>[]
   >({
-    url: ({ caseId }) => V1.resolveCase(caseId),
+    // A review's decision moves a venue's rating; a message's does not, and has
+    // its own route so the audit row names it (#375).
+    url: ({ caseId, subject }) =>
+      subject === 'CHAT_MESSAGE' || subject === 'CONVERSATION'
+        ? V1.resolveMessageCase(caseId)
+        : V1.resolveCase(caseId),
     body: ({ decision, note }) => ({ decision, note }),
     target: getKey ? { infinite: mutate, getKey } : undefined,
     update: (pages, { caseId }) =>
@@ -179,12 +214,12 @@ export function ModerationQueue() {
     await mutate();
   }
 
-  async function decide(caseId: string, decision: Decision) {
+  async function decide(caseId: string, subject: CaseItem['subject'], decision: Decision) {
     const note = (notes[caseId] ?? '').trim();
     setNotice(null);
     setCardErrors(({ [caseId]: _cleared, ...rest }) => rest);
     try {
-      await resolve.trigger({ caseId, decision, note });
+      await resolve.trigger({ caseId, subject, decision, note });
       setNotes(({ [caseId]: _done, ...rest }) => rest);
     } catch (e) {
       // 409: another moderator decided it first. It has left the queue either
@@ -270,16 +305,27 @@ export function ModerationQueue() {
           <EmptyState title={t('empty.title')} description={t('empty.description')} />
         ) : (
           <ul className="grid gap-4">
-            {items.map((item) => (
-              <CaseCard
-                key={item.caseId}
-                item={item}
-                note={notes[item.caseId] ?? ''}
-                onNote={(v) => setNotes((prev) => ({ ...prev, [item.caseId]: v }))}
-                error={cardErrors[item.caseId] ?? null}
-                onDecide={(decision) => void decide(item.caseId, decision)}
-              />
-            ))}
+            {items.map((item) =>
+              !isChatCase(item) ? (
+                <CaseCard
+                  key={item.caseId}
+                  item={item}
+                  note={notes[item.caseId] ?? ''}
+                  onNote={(v) => setNotes((prev) => ({ ...prev, [item.caseId]: v }))}
+                  error={cardErrors[item.caseId] ?? null}
+                  onDecide={(decision) => void decide(item.caseId, item.subject, decision)}
+                />
+              ) : (
+                <ChatCaseCard
+                  key={item.caseId}
+                  item={item}
+                  note={notes[item.caseId] ?? ''}
+                  onNote={(v) => setNotes((prev) => ({ ...prev, [item.caseId]: v }))}
+                  error={cardErrors[item.caseId] ?? null}
+                  onDecide={(decision) => void decide(item.caseId, item.subject, decision)}
+                />
+              ),
+            )}
           </ul>
         ))}
 
@@ -306,7 +352,7 @@ function CaseCard({
   error,
   onDecide,
 }: {
-  item: CaseItem;
+  item: ReviewCaseItem;
   note: string;
   onNote: (note: string) => void;
   error: string | null;
@@ -403,6 +449,142 @@ function CaseCard({
             onClick={() => onDecide('REJECT')}
           >
             {t('reject')}
+          </Button>
+        </div>
+        {error && <InlineNotice variant="error">{t(`error.${error}` as never)}</InlineNotice>}
+      </div>
+    </li>
+  );
+}
+
+/** `abuse — what they said` → the category, and the reporter's words. */
+function splitReport(reason: string): { category: string; words: string | null } {
+  const at = reason.indexOf(' — ');
+  return at < 0
+    ? { category: reason, words: null }
+    : { category: reason.slice(0, at), words: reason.slice(at + 3) };
+}
+
+const REPORT_CATEGORIES = new Set(['spam', 'abuse', 'inappropriate', 'other']);
+
+/**
+ * A reported message or conversation (#375): the conversation's latest lines
+ * with the reported one marked, who wrote each, and what the reports said —
+ * never who reported. «Остави» keeps it; «Премахни» removes the message, or
+ * closes the conversation for both sides.
+ */
+function ChatCaseCard({
+  item,
+  note,
+  onNote,
+  error,
+  onDecide,
+}: {
+  item: ChatCaseItem;
+  note: string;
+  onNote: (note: string) => void;
+  error: string | null;
+  onDecide: (decision: Decision) => void;
+}) {
+  const t = useTranslations('platform.moderation');
+  const tChat = useTranslations('platform.moderation.chat');
+  const tCommon = useTranslations('common');
+  const format = useFormatter();
+  const noteReady = note.trim().length >= MIN_REASON;
+  const noteId = `note-${item.caseId}`;
+  const when = (iso: string) =>
+    format.dateTime(new Date(iso), {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: QUEUE_TIME_ZONE,
+    });
+
+  return (
+    <li
+      className="border-border-subtle bg-bg-default rounded-lg border p-4"
+      data-testid="moderation-chat-case"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-content-emphasis font-medium">
+            {item.subject === 'CHAT_MESSAGE' ? tChat('titleMessage') : tChat('titleConversation')}
+          </p>
+          <p className="text-content-muted text-sm">
+            {item.conversation.kind === 'club' && item.conversation.club
+              ? tChat('withClub', { club: item.conversation.club.name })
+              : tChat('betweenPlayers')}{' '}
+            · {t('opened', { when: when(item.openedAt) })}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <StatusBadge variant="warning">{t('flag.user_report')}</StatusBadge>
+          {item.conversation.closed ? (
+            <StatusBadge variant="neutral">{tChat('closed')}</StatusBadge>
+          ) : null}
+        </div>
+      </div>
+
+      <ul className="mt-3 grid gap-1" aria-label={tChat('reportsLabel')}>
+        {item.reports.map((r, i) => {
+          const { category, words } = splitReport(r.reason);
+          return (
+            <li key={i} className="text-content-default text-sm">
+              <span className="font-medium">
+                {REPORT_CATEGORIES.has(category)
+                  ? tChat(`reason.${category}` as never)
+                  : tChat('reason.other')}
+              </span>
+              {words ? <span className="text-content-muted"> — {words}</span> : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      <ol
+        className="border-border-subtle mt-3 grid max-h-80 gap-2 overflow-y-auto border-l-2 pl-3"
+        aria-label={tChat('contextLabel')}
+      >
+        {item.messages.map((m) => (
+          <li
+            key={m.id}
+            className={m.reported ? 'bg-bg-warning rounded-md p-2' : ''}
+            data-reported={m.reported ? 'true' : undefined}
+          >
+            <p className="text-content-muted text-xs">
+              {m.from.deleted ? tCommon('deletedUser') : (m.from.name ?? tChat('unnamed'))}
+              {m.from.clubName ? ` · ${m.from.clubName}` : ''} · {when(m.createdAt)}
+              {m.reported ? ` · ${tChat('reported')}` : ''}
+            </p>
+            <p
+              className={`text-sm whitespace-pre-wrap ${m.deleted ? 'text-content-muted italic' : 'text-content-default'}`}
+            >
+              {m.deleted ? tChat('deleted') : m.body}
+            </p>
+          </li>
+        ))}
+      </ol>
+
+      <div className="border-border-subtle mt-4 grid gap-1.5 border-t pt-3">
+        <Label htmlFor={noteId}>{t('note.label')}</Label>
+        <Textarea
+          id={noteId}
+          rows={2}
+          value={note}
+          onChange={(e) => onNote(e.target.value)}
+          maxLength={500}
+        />
+        <p className="text-content-muted text-sm">{t('note.hint', { min: MIN_REASON })}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={!noteReady} onClick={() => onDecide('APPROVE')}>
+            {tChat('keep')}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={!noteReady}
+            onClick={() => onDecide('REJECT')}
+          >
+            {item.subject === 'CHAT_MESSAGE' ? tChat('removeMessage') : tChat('closeConversation')}
           </Button>
         </div>
         {error && <InlineNotice variant="error">{t(`error.${error}` as never)}</InlineNotice>}

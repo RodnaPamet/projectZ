@@ -429,7 +429,7 @@ export async function reportContent(
   db: PrismaClient,
   input: {
     tenantId?: string;
-    subjectType: 'REVIEW' | 'CHAT_MESSAGE' | 'PROFILE';
+    subjectType: 'REVIEW' | 'CHAT_MESSAGE' | 'PROFILE' | 'CONVERSATION';
     subjectId: string;
     reporterUserId: string;
     reason: string;

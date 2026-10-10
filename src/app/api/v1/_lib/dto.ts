@@ -5,6 +5,7 @@ import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/
 
 import { playerCancellableUntil } from '@/lib/booking/cutoff';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
+import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
 
 /**
  * Wire shapes for v1.
@@ -737,7 +738,10 @@ export function toReview(r: {
   };
 }
 
-export interface ModerationCaseItemDto {
+export type ModerationCaseItemDto = ReviewCaseItemDto | ChatCaseItemDto;
+
+export interface ReviewCaseItemDto {
+  subject: 'REVIEW';
   caseId: string;
   reason: string;
   openedAt: string;
@@ -747,22 +751,49 @@ export interface ModerationCaseItemDto {
   club: { id: string; slug: string; name: string };
 }
 
+/** A reported message or conversation (#375): its conversation's latest lines, and what the reports said. */
+export interface ChatCaseItemDto {
+  subject: 'CHAT_MESSAGE' | 'CONVERSATION';
+  caseId: string;
+  reason: string;
+  openedAt: string;
+  conversation: {
+    id: string;
+    kind: 'player' | 'club';
+    club: { name: string } | null;
+    closed: boolean;
+  };
+  messages: Array<{
+    id: string;
+    from: { name: string | null; deleted: boolean; clubName: string | null };
+    body: string | null;
+    deleted: boolean;
+    createdAt: string;
+    reported: boolean;
+  }>;
+  reports: Array<{ reason: string; at: string }>;
+}
+
 /**
  * One case in the platform moderation queue.
  *
  * No author, deliberately — see `listReviewCases`. Whether a review is abuse
  * does not depend on who wrote it.
  */
-export function toModerationCaseItem(c: {
-  caseId: string;
-  reason: string;
-  openedAt: Date;
-  scores: Record<string, number>;
-  review: { id: string; rating: number; body: string | null; status: string; createdAt: Date };
-  venue: { id: string; name: string };
-  club: { id: string; slug: string; name: string };
-}): ModerationCaseItemDto {
+export function toModerationCaseItem(c: QueueItem): ModerationCaseItemDto {
+  if (c.subject !== 'REVIEW') {
+    return {
+      subject: c.subject,
+      caseId: c.caseId,
+      reason: c.reason,
+      openedAt: rfc3339(c.openedAt),
+      conversation: c.conversation,
+      messages: c.messages.map((m) => ({ ...m, createdAt: rfc3339(m.createdAt) })),
+      reports: c.reports.map((r) => ({ reason: r.reason, at: rfc3339(r.at) })),
+    };
+  }
   return {
+    subject: 'REVIEW',
     caseId: c.caseId,
     reason: c.reason,
     openedAt: rfc3339(c.openedAt),

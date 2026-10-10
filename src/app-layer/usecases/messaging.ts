@@ -7,6 +7,7 @@ import { runAsUserOnly, runInUserContext } from '@/lib/db/rls-middleware';
 import { AppError, RateLimitedError } from '@/lib/errors/types';
 import { decodeCursor, encodeCursor, keysetBefore } from '@/lib/messaging/cursor';
 import { MAX_BODY_LENGTH } from '@/lib/messaging/limits';
+import { REPORT_DETAILS_MAX, REPORT_REASONS, type ReportReason } from '@/lib/messaging/report';
 import { logger } from '@/lib/observability/logger';
 import { decryptField, encryptField } from '@/lib/security/encryption';
 import { checkRateLimit, type RateLimitConfig } from '@/lib/security/rate-limit';
@@ -16,6 +17,7 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
 import {
   activeClubBySlug,
   coPlayerAt,
+  fileChatReport,
   isLivePlayer,
   namesFor,
   playerCardById,
@@ -318,6 +320,10 @@ function standing(
   facts: { iBlocked: boolean; otherDeleted: boolean; iHaveSent: boolean },
 ): { state: ConversationState; blockedByMe: boolean; canSend: boolean } {
   if (facts.otherDeleted) return { state: 'closed', blockedByMe: false, canSend: false };
+  // A moderator closed it after a report (P55): for both sides, for good.
+  if (c.blockedAt && c.blockedSide === 'PLATFORM') {
+    return { state: 'blocked', blockedByMe: false, canSend: false };
+  }
 
   if (c.type === 'CLUB') {
     if (c.blockedAt) {
@@ -1133,7 +1139,9 @@ async function sendInTransaction(
     }
   }
 
-  if (c.type === 'CLUB' && c.blockedAt) {
+  // A club conversation blocked by a side, or any conversation a moderator
+  // closed (P55). A DM's person block is checked below.
+  if (c.blockedAt) {
     throw new MessagingError('CONVERSATION_BLOCKED', 403, 'This conversation is blocked.');
   }
 
@@ -1280,6 +1288,74 @@ export async function declineRequest(
     await markReadFor(db, actor, conversationId, now);
     return { declinedAt: now };
   });
+}
+
+// ─── Report ─────────────────────────────────────────────────────────────
+
+export { REPORT_DETAILS_MAX, REPORT_REASONS, type ReportReason };
+
+export interface ReportInput {
+  reason: ReportReason;
+  details?: string | null;
+}
+
+/** `spam`, or `abuse — what they said`: one line for the moderator, the category first. */
+function reportReason(input: ReportInput): string {
+  const details = sanitizePlainText(input.details ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, REPORT_DETAILS_MAX);
+  return details ? `${input.reason} — ${details}` : input.reason;
+}
+
+/**
+ * Report a message to the platform's moderators (#375): it joins the queue
+ * reviews already go to (REVIEW_MODERATE), one case per message however many
+ * people report it. Only somebody who can read the message may report it, and
+ * never their own (nor, for a club, the club's own reply). The other side is
+ * not told.
+ */
+export async function reportMessage(
+  actor: MessagingActor,
+  messageId: string,
+  input: ReportInput,
+): Promise<{ reported: true }> {
+  await bound(actor, async (db) => {
+    const m = await db.chatMessage.findFirst({
+      where: { id: messageId },
+      select: { conversationId: true, senderId: true, senderTenantId: true },
+    });
+    if (!m) throw new MessagingError('MESSAGE_NOT_FOUND', 404, 'That message was not found.');
+    await requireConversation(db, actor, m.conversationId);
+    const own =
+      m.senderId === actor.userId || (actor.kind === 'club' && m.senderTenantId === actor.tenantId);
+    if (own) {
+      throw new MessagingError('REPORT_OWN_MESSAGE', 400, 'You cannot report your own message.');
+    }
+  });
+  await fileChatReport({
+    subjectType: 'CHAT_MESSAGE',
+    subjectId: messageId,
+    reporterUserId: actor.userId,
+    reason: reportReason(input),
+  });
+  return { reported: true };
+}
+
+/** Report a whole conversation (#375), as `reportMessage`. */
+export async function reportConversation(
+  actor: MessagingActor,
+  conversationId: string,
+  input: ReportInput,
+): Promise<{ reported: true }> {
+  await bound(actor, (db) => requireConversation(db, actor, conversationId));
+  await fileChatReport({
+    subjectType: 'CONVERSATION',
+    subjectId: conversationId,
+    reporterUserId: actor.userId,
+    reason: reportReason(input),
+  });
+  return { reported: true };
 }
 
 // ─── Block ──────────────────────────────────────────────────────────────

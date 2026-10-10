@@ -17,6 +17,9 @@ enum ModerationSubject {
   REVIEW
   CHAT_MESSAGE
   PROFILE
+  /// A whole conversation (#375, P55): reported from its screen. A new value,
+  /// so rolling back past P55 runs deploy/rollback/p55-park.sql.
+  CONVERSATION
 }
 
 /// The human review queue — the backstop the classifier is not.

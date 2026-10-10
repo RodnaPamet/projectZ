@@ -1416,9 +1416,9 @@
   "platform": {
     "name": "Platform",
     "moderation": {
-      "metaTitle": "Review moderation — playerz.bg",
-      "title": "Review moderation",
-      "subtitle": "Reviews the classifier held back, or that players reported, from every club. Oldest first.",
+      "metaTitle": "Moderation — playerz.bg",
+      "title": "Moderation",
+      "subtitle": "Reviews held by the classifier or reported by players, and reports about messages and conversations, from every club. Oldest first.",
       "reason": {
         "label": "Why are you opening the queue?",
         "hint": "At least {min} characters. It is written to the platform audit log with every page you load — a ticket or shift reference is ideal."
@@ -1428,7 +1428,7 @@
       "more": "Load more",
       "empty": {
         "title": "Nothing waiting",
-        "description": "Every review that needed a human has been decided."
+        "description": "Everything that needed a person has been decided."
       },
       "resolvedElsewhere": "That case had already been decided by another moderator. Nothing was changed.",
       "opened": "in the queue since {when}",
@@ -1479,6 +1479,27 @@
         "STEP_UP_REQUIRED": "Confirm with a code from your app to continue, then try again.",
         "MFA_ENROLMENT_REQUIRED": "Moderation needs two-step verification. Turn it on under Security, and the queue opens.",
         "UNKNOWN": "Something went wrong. Nothing was changed."
+      },
+      "chat": {
+        "titleMessage": "Reported message",
+        "titleConversation": "Reported conversation",
+        "withClub": "Conversation with {club}",
+        "betweenPlayers": "Conversation between players",
+        "closed": "closed",
+        "reportsLabel": "Reports",
+        "contextLabel": "The latest messages in the conversation",
+        "unnamed": "Unnamed player",
+        "reported": "reported",
+        "deleted": "Message deleted",
+        "reason": {
+          "spam": "Spam or advertising",
+          "abuse": "Insults or harassment",
+          "inappropriate": "Inappropriate content",
+          "other": "Something else"
+        },
+        "keep": "Keep",
+        "removeMessage": "Remove the message",
+        "closeConversation": "Close the conversation"
       }
     },
     "usage": {
@@ -2215,7 +2236,12 @@
         "blockedByMe": "You blocked {name}. Neither of you can write.",
         "blocked": "You cannot write in this conversation.",
         "closed": "This person is no longer on playerz."
-      }
+      },
+      "block": "Block",
+      "unblock": "Unblock",
+      "report": "Report",
+      "reportMessage": "Report",
+      "blockFailed": "That did not work. Please try again."
     },
     "start": {
       "write": "Message",
@@ -2244,6 +2270,24 @@
       "none": "No such player",
       "noneBody": "Check the name. Some players chose not to appear in search.",
       "unnamed": "Unnamed player"
+    },
+    "report": {
+      "titleMessage": "Report a message",
+      "titleConversation": "Report a conversation",
+      "description": "Your report goes to playerz's moderators. The other side is not told, and moderators do not see who reported.",
+      "reasonLabel": "What is wrong?",
+      "reason": {
+        "spam": "Spam or advertising",
+        "abuse": "Insults or harassment",
+        "inappropriate": "Inappropriate content",
+        "other": "Something else"
+      },
+      "detailsLabel": "Anything else moderators should know (optional)",
+      "submit": "Send report",
+      "cancel": "Cancel",
+      "close": "Close",
+      "sent": "Thank you. Moderators will review your report.",
+      "failed": "The report was not sent. Please try again."
     }
   }
 }
