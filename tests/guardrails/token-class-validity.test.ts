@@ -1,10 +1,9 @@
 import { globSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 
-import { __unstable__loadDesignSystem } from '@tailwindcss/node';
 import ts from 'typescript';
 
 import { treeFiles } from '../helpers/scan-floor';
+import { deadClasses } from '../helpers/tailwind';
 
 /**
  * EVERY COLOUR, BORDER, RING AND ANIMATION CLASS RESOLVES TO CSS (T29).
@@ -89,21 +88,9 @@ function candidatesIn(file: string, src: string): Array<{ cls: string; line: num
   return out;
 }
 
-type DesignSystem = Awaited<ReturnType<typeof __unstable__loadDesignSystem>>;
-let ds: DesignSystem;
-
-beforeAll(async () => {
-  const globals = path.resolve('src/app/globals.css');
-  ds = await __unstable__loadDesignSystem(readFileSync(globals, 'utf8'), {
-    base: path.dirname(globals),
-  });
-}, 60_000);
-
-/** The classes among `classes` that produce no CSS. */
-const dead = (classes: string[]) => {
-  const css = ds.candidatesToCss(classes);
-  return classes.filter((_, i) => css[i] == null);
-};
+// Compiled in a plain Node process (#312): jest 30.5 refuses the module hooks
+// @tailwindcss/node registers. The same design system, the same answer.
+const dead = (classes: string[]) => deadClasses(classes);
 
 describe('the scan is not vacuous', () => {
   it('reads every source file', () => {
