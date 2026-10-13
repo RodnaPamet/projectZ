@@ -22,7 +22,18 @@ import {
 test.use({ viewport: { width: 1280, height: 800 } });
 
 const MAIN_NAV = `aside nav[aria-label="${bg.common.ui.mainNav}"]`;
-const PAGES = ['calendar', 'courts', 'pricing', 'photos', 'players', 'staff', 'reports'] as const;
+// Съобщения is the club's inbox (#375): the messaging module is on, as it is
+// in production since 2026-10-13 (playwright.config.ts).
+const PAGES = [
+  'calendar',
+  'messages',
+  'courts',
+  'pricing',
+  'photos',
+  'players',
+  'staff',
+  'reports',
+] as const;
 const COLLAPSE_KEY = `${UI_STORAGE_PREFIX}:sidebar-collapsed`;
 
 test.describe('club admin shell — desktop', () => {
@@ -119,18 +130,20 @@ test.describe('club admin shell — desktop', () => {
     isolatedTenant,
   }) => {
     const slug = isolatedTenant.tenantSlug;
-    // The club admin's home offers staff its two pages, as the rail does.
+    // The club admin's home offers staff its three pages, as the rail does.
     await page.goto(`/t/${slug}/admin`);
     await expect(
       page.getByRole('heading', { level: 1, name: bg.admin.home.title, exact: true }),
     ).toBeVisible();
     await expect(page.locator('main').getByRole('link')).toHaveText([
       bg.common.nav.calendar,
+      bg.common.nav.messages,
       bg.common.nav.players,
     ]);
     const nav = page.locator(MAIN_NAV);
-    await expect(nav.getByRole('link')).toHaveCount(2);
+    await expect(nav.getByRole('link')).toHaveCount(3);
     await expect(nav.locator(`a[href="/t/${slug}/admin/calendar"]`)).toBeVisible();
+    await expect(nav.locator(`a[href="/t/${slug}/admin/messages"]`)).toBeVisible();
     await expect(nav.locator(`a[href="/t/${slug}/admin/players"]`)).toBeVisible();
 
     // By URL: the app's not-found, INSIDE the admin shell, not a bare page.
@@ -167,6 +180,7 @@ test.describe('club admin shell — desktop', () => {
     const pages = page.locator('main').getByRole('link');
     await expect(pages).toHaveText([
       bg.common.nav.calendar,
+      bg.common.nav.messages,
       bg.common.nav.courts,
       bg.common.nav.pricing,
       bg.common.nav.photos,

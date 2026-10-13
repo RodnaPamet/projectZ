@@ -1,7 +1,7 @@
 import { expect, type Browser, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
-import { signIn } from '../fixtures';
+import { signIn, testClientIp } from '../fixtures';
 import { streamed } from './booking-detail-journey';
 import { prisma } from './create-isolated-tenant';
 import type { E2EPlayer } from './create-player';
@@ -17,8 +17,8 @@ import type { PlayedClub } from './seed-my-bookings';
  *      is a request the booker answers (owner decision 2026-10-13, rule 1).
  *   4. The second player is on the booking, and both are in the game's chat.
  *
- * The pages answer whatever MODULE_OPEN_PLAY says (the flag only hides the
- * links), so this runs against the default server.
+ * Needs MODULE_OPEN_PLAY=1 on the server: without it a booking's page has no
+ * open-play section at all. playwright.config.ts sets it, as production does.
  */
 
 const g = bg.games;
@@ -61,6 +61,11 @@ export async function openAskAcceptChat(
   const shot = (path: string) => ({ path, fullPage: opts.viewport.width >= 768 });
   const main = page.getByRole('main');
 
+  // Each browser is its own client. Every mutating API route shares one
+  // 60-a-minute budget per client address, and from the loopback the whole
+  // suite is one client: in CI the ask below was refused with 429 (#533).
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': testClientIp() });
+
   // ── 1. The booker opens the game ──
   await page.goto(`/me/bookings/${bookingId}`);
   await streamed(page);
@@ -74,7 +79,11 @@ export async function openAskAcceptChat(
   if (shots.opened) await page.screenshot(shot(shots.opened));
 
   // ── 2. The second player finds it on Игри and asks ──
-  const context = await browser.newContext({ viewport: opts.viewport, locale: 'bg-BG' });
+  const context = await browser.newContext({
+    viewport: opts.viewport,
+    locale: 'bg-BG',
+    extraHTTPHeaders: { 'x-forwarded-for': testClientIp() },
+  });
   const other = await context.newPage();
   try {
     await signIn(other, friend);
