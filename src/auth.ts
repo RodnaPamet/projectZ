@@ -28,6 +28,7 @@ import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { acceptedCurrentVersions } from '@/app-layer/usecases/legal-acceptance';
+import { phoneClaimFor } from '@/app-layer/usecases/phone-claim';
 import { chosenLocale } from '@/lib/i18n/chosen-locale';
 import { encodeLegalVersions } from '@/lib/legal/versions';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
@@ -460,6 +461,8 @@ export const authOptions: NextAuthOptions = {
         // the middleware can send it to the acceptance step without a database
         // read. Empty while no version is in force.
         token.legal = encodeLegalVersions(await acceptedCurrentVersions(user.id));
+        // And where it stands on the phone number (#500): the one-time ask.
+        token.phone = await phoneClaimFor(user.id);
 
         // Default to the first membership; the tenant switcher re-mints.
         const first = memberships[0];
@@ -559,6 +562,9 @@ export const authOptions: NextAuthOptions = {
           // the first-sign-in screen refresh the session once they have
           // recorded it. Read from the database, as everything here.
           token.legal = encodeLegalVersions(await acceptedCurrentVersions(token.sub));
+          // And the phone number (#500): the step refreshes the session once
+          // a number is confirmed, and the kind chooser once a kind is chosen.
+          token.phone = await phoneClaimFor(token.sub);
         }
       }
 

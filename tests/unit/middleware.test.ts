@@ -274,3 +274,59 @@ describe('middleware and new terms to accept (#462)', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 });
+
+describe('middleware and the one-time ask for a phone number (#500)', () => {
+  const html = (path: string, cookie?: string) =>
+    middleware(
+      new NextRequest(`https://playerz.bg${path}`, {
+        headers: { accept: 'text/html', ...(cookie ? { cookie } : {}) },
+      }),
+    );
+  const before = process.env.REQUIRE_PHONE;
+
+  beforeEach(() => {
+    process.env.REQUIRE_PHONE = '1';
+  });
+  afterEach(() => {
+    if (before === undefined) delete process.env.REQUIRE_PHONE;
+    else process.env.REQUIRE_PHONE = before;
+  });
+
+  it('a player with no number is sent to the phone step once, and back afterwards', async () => {
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [], phone: 'ask' });
+    const res = await html('/games?tab=mine');
+    expect(res.status).toBe(307);
+    const to = new URL(res.headers.get('location')!);
+    expect(to.pathname).toBe('/start/phone');
+    expect(to.searchParams.get('next')).toBe('/games?tab=mine');
+  });
+
+  it('«Не сега» in this browser, a confirmed number, or a club’s account: not asked', async () => {
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [], phone: 'ask' });
+    expect((await html('/games', 'pz_phone_later=1')).headers.get('location')).toBeNull();
+    for (const phone of ['ok', 'na']) {
+      mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [], phone });
+      expect((await html('/games')).headers.get('location')).toBeNull();
+    }
+  });
+
+  it('with the rule off nobody is asked', async () => {
+    process.env.REQUIRE_PHONE = '0';
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [], phone: 'ask' });
+    expect((await html('/games')).headers.get('location')).toBeNull();
+    delete process.env.REQUIRE_PHONE;
+    expect((await html('/games')).headers.get('location')).toBeNull();
+  });
+
+  it('the step itself, the API and a signed-out visitor are never redirected', async () => {
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [], phone: 'ask' });
+    for (const path of ['/start/phone', '/api/v1/me', '/me/profile']) {
+      expect({ path, location: (await html(path)).headers.get('location') }).toEqual({
+        path,
+        location: null,
+      });
+    }
+    mockedGetToken.mockResolvedValue(null);
+    expect((await html('/venues')).headers.get('location')).toBeNull();
+  });
+});

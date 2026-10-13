@@ -74,6 +74,12 @@ export interface TokenClaims {
    * the person, so a stale claim costs a redirect and decides nothing.
    */
   legal?: string;
+  /**
+   * Where the account stands on the phone number (#500): `ok`, `ask` or `na`
+   * (src/lib/auth/phone-ask.ts). A hint for the one-time ask, never a
+   * permission: the gates read the database.
+   */
+  phone?: string;
 }
 
 /** Routes anyone may see, signed in or not. */

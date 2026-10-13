@@ -32,6 +32,15 @@ jest.mock('next/navigation', () => ({
   redirect: (to: string) => redirect(to),
 }));
 
+const refreshSession = jest.fn();
+jest.mock('@/lib/auth/refresh-session', () => ({
+  refreshSession: (...args: unknown[]) => refreshSession(...args),
+}));
+const loadPage = jest.fn();
+jest.mock('@/lib/navigation/load-page', () => ({
+  loadPage: (...args: unknown[]) => loadPage(...args),
+}));
+
 let locale: 'bg' | 'en' = 'bg';
 jest.mock('next-intl/server', () => {
   const { createTranslator } = jest.requireActual('next-intl');
@@ -82,8 +91,18 @@ const type = (testId: string, value: string) =>
 beforeEach(() => {
   replace.mockReset();
   redirect.mockClear();
+  refreshSession.mockReset();
+  refreshSession.mockResolvedValue(undefined);
+  loadPage.mockReset();
+  document.cookie = 'pz_phone_later=; path=/; max-age=0';
   standing.mockReset();
-  standing.mockResolvedValue({ required: true, verified: false, number: null, verifiedAt: null });
+  standing.mockResolvedValue({
+    required: true,
+    applies: true,
+    verified: false,
+    number: null,
+    verifiedAt: null,
+  });
   signedIn = 'usr_new';
   locale = 'bg';
   pathname = '/games';
@@ -136,7 +155,12 @@ describe('the phone step', () => {
     fireEvent.click(screen.getByTestId('phone-confirm'));
 
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith('/venues/alfa?day=2026-10-20&confirm=1'),
+      expect(loadPage).toHaveBeenCalledWith('/venues/alfa?day=2026-10-20&confirm=1'),
+    );
+    // The session learns the number is confirmed BEFORE the next page loads,
+    // or that page would send the person straight back here.
+    expect(refreshSession.mock.invocationCallOrder[0]!).toBeLessThan(
+      loadPage.mock.invocationCallOrder[0]!,
     );
     expect(calls.at(-1)).toMatchObject({
       method: 'POST',
@@ -144,6 +168,22 @@ describe('the phone step', () => {
       // The challenge the send answered goes back with the code.
       body: { phone: '0888 123 456', code: '314 159', challenge: 'chal-1' },
     });
+  });
+
+  it('a session that will not refresh does not keep a person whose number is confirmed', async () => {
+    refreshSession.mockRejectedValue(new Error('offline'));
+    installFakeFetch((c) =>
+      c.url.endsWith('/start')
+        ? ok({ sent: true, number: '+35988*****56', challenge: 'chal-1' })
+        : ok({ id: 'usr_new' }),
+    );
+    mount('/games');
+    type('phone-input', '0888 123 456');
+    fireEvent.click(screen.getByTestId('phone-send'));
+    await screen.findByTestId('phone-step-code');
+    type('phone-code-input', '314159');
+    fireEvent.click(screen.getByTestId('phone-confirm'));
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith('/games'));
   });
 
   it.each([
@@ -177,7 +217,7 @@ describe('the phone step', () => {
     fireEvent.click(screen.getByTestId('phone-confirm'));
 
     expect(await screen.findByTestId('phone-error')).toHaveTextContent(s.error[code]);
-    expect(replace).not.toHaveBeenCalled();
+    expect(loadPage).not.toHaveBeenCalled();
   });
 
   it('too many attempts is its own message, whatever the code in the body', () => {
@@ -206,7 +246,7 @@ describe('the phone step', () => {
 
     type('phone-code-input', '271828');
     fireEvent.click(screen.getByTestId('phone-confirm'));
-    await waitFor(() => expect(replace).toHaveBeenCalled());
+    await waitFor(() => expect(loadPage).toHaveBeenCalled());
     // The first code is dead once a second was sent; so is its challenge.
     expect(calls.at(-1)!.body).toEqual({
       phone: '0888 123 456',
@@ -246,14 +286,61 @@ describe('/start/phone', () => {
     await page('/games');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(s.title);
     expect(screen.getByTestId('phone-privacy')).toHaveTextContent(s.privacy);
-    expect(screen.getByTestId('phone-later')).toHaveAttribute('href', '/games');
     expect(screen.getByTestId('phone-later')).toHaveTextContent(s.later);
   });
 
-  it('an account that has confirmed a number is sent straight on', async () => {
-    standing.mockResolvedValue({ required: true, verified: true, number: '+35988*****56' });
-    await expect(page('/games?tab=mine')).rejects.toThrow('REDIRECT /games?tab=mine');
-    await expect(page()).rejects.toThrow('REDIRECT /me/bookings');
+  it('«Не сега» is remembered in this browser, and goes on to where the person was going', async () => {
+    installFakeFetch(() => ok({}));
+    await page('/games?tab=mine');
+    fireEvent.click(screen.getByTestId('phone-later'));
+    expect(document.cookie).toContain('pz_phone_later=1');
+    expect(loadPage).toHaveBeenCalledWith('/games?tab=mine');
+    // Nothing was confirmed, and nothing is asked of the server.
+    expect(refreshSession).not.toHaveBeenCalled();
+  });
+
+  it('an account with a number already is asked nothing: its session is refreshed and it goes on', async () => {
+    standing.mockResolvedValue({
+      required: true,
+      applies: true,
+      verified: true,
+      number: '+35988*****56',
+      verifiedAt: new Date(),
+    });
+    await page('/games?tab=mine');
+    expect(screen.queryByTestId('phone-step-number')).toBeNull();
+    expect(screen.getByTestId('phone-continuing')).toHaveTextContent(s.continuing);
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith('/games?tab=mine'));
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('nor is an account the rule is not for: a club’s, or one still choosing its kind', async () => {
+    standing.mockResolvedValue({
+      required: true,
+      applies: false,
+      verified: false,
+      number: null,
+      verifiedAt: null,
+    });
+    await page();
+    expect(screen.queryByTestId('phone-step-number')).toBeNull();
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith('/me/bookings'));
+  });
+
+  it('and if that refresh fails it offers to try again, not a loop', async () => {
+    standing.mockResolvedValue({
+      required: true,
+      applies: false,
+      verified: false,
+      number: null,
+      verifiedAt: null,
+    });
+    refreshSession.mockRejectedValueOnce(new Error('offline'));
+    await page('/games');
+    expect(await screen.findByTestId('phone-error')).toBeInTheDocument();
+    expect(loadPage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('phone-retry'));
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith('/games'));
   });
 
   it('signed out, it goes to sign-in and back here', async () => {
@@ -266,7 +353,8 @@ describe('/start/phone', () => {
   it('a destination off this site is not kept', async () => {
     installFakeFetch(() => ok({}));
     await page('https://evil.example/x');
-    expect(screen.getByTestId('phone-later')).toHaveAttribute('href', '/me/bookings');
+    fireEvent.click(screen.getByTestId('phone-later'));
+    expect(loadPage).toHaveBeenCalledWith('/me/bookings');
   });
 
   it('in English', async () => {

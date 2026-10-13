@@ -6,6 +6,7 @@ import {
   signPhoneChallenge,
 } from '@/lib/account/phone-challenge';
 import { maskPhone, phoneFingerprint } from '@/lib/account/phone-fingerprint';
+import { phoneClaim } from '@/lib/auth/phone-ask';
 import { normalizePhone } from '@/lib/booking/phone';
 import { runAsUserOnly } from '@/lib/db/rls-middleware';
 import { RateLimitedError } from '@/lib/errors/types';
@@ -144,6 +145,8 @@ function e164OrThrow(raw: string): string {
 export interface PhoneStanding {
   /** Is a confirmed number required before booking, joining a game or writing? */
   required: boolean;
+  /** Is this an account that is asked for one: a player or a coach? */
+  applies: boolean;
   verified: boolean;
   /** The confirmed number with its middle hidden (`+35988*****56`), or null. */
   number: string | null;
@@ -155,7 +158,7 @@ export async function phoneStanding(userId: string): Promise<PhoneStanding | nul
   const user = await runAsUserOnly(userId, (db) =>
     db.user.findUnique({
       where: { id: userId },
-      select: { phone: true, phoneVerifiedAt: true, deletedAt: true },
+      select: { phone: true, phoneVerifiedAt: true, accountKind: true, deletedAt: true },
     }),
   );
   if (!user || user.deletedAt) return null;
@@ -169,7 +172,13 @@ export async function phoneStanding(userId: string): Promise<PhoneStanding | nul
       number = null;
     }
   }
-  return { required: phoneRequired(), verified, number, verifiedAt: user.phoneVerifiedAt };
+  return {
+    required: phoneRequired(),
+    applies: phoneClaim(user) !== 'na',
+    verified,
+    number,
+    verifiedAt: user.phoneVerifiedAt,
+  };
 }
 
 /** Send a code to the number. Says nothing about whether the number is known. */

@@ -2206,6 +2206,8 @@
       },
       "privacy": "The number confirms the account is yours. Other players never see it. A club sees it only while you have an upcoming booking there, so it can call you about it.",
       "later": "Not now",
+      "continuing": "Continuing…",
+      "retry": "Try again",
       "error": {
         "PHONE_INVALID": "That is not a number we can text. Check it and try again.",
         "PHONE_CODE_WRONG": "That is not the code. Check the SMS and try again.",
