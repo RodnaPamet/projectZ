@@ -75,6 +75,7 @@ export type BookingBellEvent =
   | 'cancelledByClub'
   | 'cancelledByBooker'
   | 'seriesCreated'
+  | 'seriesMoved'
   | 'seriesCancelled'
   | 'playerJoined'
   | 'playerLeft'
@@ -113,7 +114,8 @@ export async function bellCopy(
   return { title, body };
 }
 
-export type BookingEmailEvent = 'confirmed' | 'reminder' | 'cancelledByClub' | 'seriesCreated';
+export type BookingEmailEvent =
+  'confirmed' | 'reminder' | 'cancelledByClub' | 'seriesCreated' | 'seriesMoved';
 
 /**
  * A booking email. The labelled lines are the owner's list (Q22): venue,

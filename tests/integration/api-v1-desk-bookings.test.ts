@@ -4,8 +4,14 @@ import { NextRequest } from 'next/server';
 import { GET as myBookingsRoute } from '@/app/api/v1/me/bookings/route';
 import { GET as customersRoute } from '@/app/api/v1/t/[slug]/admin/customers/route';
 import { POST as seriesCancelRoute } from '@/app/api/v1/t/[slug]/admin/booking-series/[id]/cancel/route';
-import { GET as seriesGetRoute } from '@/app/api/v1/t/[slug]/admin/booking-series/[id]/route';
-import { POST as seriesRoute } from '@/app/api/v1/t/[slug]/admin/booking-series/route';
+import {
+  GET as seriesGetRoute,
+  PATCH as seriesMoveRoute,
+} from '@/app/api/v1/t/[slug]/admin/booking-series/[id]/route';
+import {
+  GET as seriesListRoute,
+  POST as seriesRoute,
+} from '@/app/api/v1/t/[slug]/admin/booking-series/route';
 import {
   GET as deskGetRoute,
   PATCH as deskPatchRoute,
@@ -763,5 +769,124 @@ describe('desk bookings and weekly series (#364)', () => {
     expect((got.body.data as unknown as { customer: { userId: string } }).customer.userId).toBe(
       player.userId,
     );
+  });
+
+  // ─── moving a series (#415) ─────────────────────────────────────────
+
+  describe('moving a series from a date on (#415)', () => {
+    const move = (id: string, body: Record<string, unknown>) => {
+      const slug = club.tenant.tenantSlug;
+      return seriesMoveRoute(
+        new NextRequest(url(slug, `booking-series/${id}`), {
+          method: 'PATCH',
+          headers: headers(club.staff),
+          body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ slug, id }) },
+      ).then(read);
+    };
+    const list = () => {
+      const slug = club.tenant.tenantSlug;
+      return seriesListRoute(
+        new NextRequest(url(slug, 'booking-series'), { headers: headers(club.staff) }),
+        {
+          params: Promise.resolve({ slug }),
+        },
+      ).then(read);
+    };
+    const startsOf = (seriesId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.booking.findMany({
+          where: { seriesId, status: { in: ['PENDING', 'CONFIRMED'] } },
+          select: { startTs: true },
+          orderBy: { startTs: 'asc' },
+        }),
+      ).then((rows) => rows.map((r) => formatInTimeZone(r.startTs, ZONE, 'yyyy-MM-dd HH:mm')));
+
+    async function fourWeeks() {
+      const made = await series({ ...slot('2036-07-16'), repeat: { weeks: 4 }, customer: walkIn });
+      expect(made.status).toBe(201);
+      return made.body.data!.id!;
+    }
+
+    it('moves every week from the first, keeping the series', async () => {
+      const id = await fourWeeks();
+      const res = await move(id, {
+        fromDate: '2036-07-16',
+        startTime: '19:00',
+        durationMinutes: 60,
+        resourceId: club.resourceId,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ id, moved: 4, split: false });
+      expect(await startsOf(id)).toEqual([
+        '2036-07-16 19:00',
+        '2036-07-23 19:00',
+        '2036-07-30 19:00',
+        '2036-08-06 19:00',
+      ]);
+    });
+
+    it('from a later week, splits: the earlier weeks keep the old series', async () => {
+      const id = await fourWeeks();
+      const before = await startsOf(id);
+      const res = await move(id, {
+        fromDate: '2036-07-30',
+        startTime: '20:00',
+        durationMinutes: 60,
+        resourceId: club.resourceId,
+      });
+
+      expect(res.status).toBe(200);
+      const moved = res.body.data as unknown as { id: string; moved: number; split: boolean };
+      expect(moved).toMatchObject({ moved: 2, split: true });
+      expect(moved.id).not.toBe(id);
+      expect(await startsOf(id)).toEqual(before.slice(0, 2));
+      expect(await startsOf(moved.id)).toEqual(['2036-07-30 20:00', '2036-08-06 20:00']);
+    });
+
+    it('a longer slot on the same court, over its own old one, is fine', async () => {
+      const id = await fourWeeks();
+      const res = await move(id, {
+        fromDate: '2036-07-16',
+        startTime: '10:00',
+        durationMinutes: 120,
+        resourceId: club.resourceId,
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('refuses the whole move when one week clashes, and moves nothing', async () => {
+      const id = await fourWeeks();
+      const before = await startsOf(id);
+      const blocker = await desk({ ...slot('2036-07-23'), startTime: '19:00', customer: walkIn });
+      expect(blocker.status).toBe(201);
+
+      const res = await move(id, {
+        fromDate: '2036-07-16',
+        startTime: '19:00',
+        durationMinutes: 60,
+        resourceId: club.resourceId,
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toMatchObject({
+        code: 'SERIES_CLASH',
+        details: { clashes: [{ date: '2036-07-23', reason: 'taken' }] },
+      });
+      expect(await startsOf(id)).toEqual(before);
+    });
+
+    it('lists the live series with what is left', async () => {
+      await fourWeeks();
+      const res = await list();
+      expect(res.status).toBe(200);
+      const items = (
+        res.body.data as unknown as { items: Array<{ weeksLeft: number; nextDate: string }> }
+      ).items;
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({ weeksLeft: 4, nextDate: '2036-07-16' });
+    });
   });
 });

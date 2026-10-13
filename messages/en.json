@@ -498,6 +498,10 @@
         "title": "The club booked a weekly slot for you",
         "body": "{venue}, {court} · first game {when}"
       },
+      "seriesMoved": {
+        "title": "The club moved your weekly slot",
+        "body": "{venue}, {court} · from {when}"
+      },
       "seriesCancelled": {
         "title": "The club cancelled your weekly games",
         "body": "{venue}, {court} · from {date} on"
@@ -1187,6 +1191,38 @@
         "markBooking": "Nobody came",
         "confirmTitle": "Mark {name} as not having come?",
         "confirmBody": "The game from {start} to {end}. The absence counts against the player, as the booker's no-show does."
+      },
+      "series": {
+        "metaTitle": "Weekly series — playerz.bg",
+        "title": "Weekly series",
+        "subtitle": "The desk’s weekly bookings that still have weeks ahead. Move a series to another time or court from a date on.",
+        "open": "Series",
+        "empty": "No series with weeks ahead",
+        "linked": "linked",
+        "minutes": "min",
+        "left": "{count, plural, one {# week left} other {# weeks left}}",
+        "next": "next {date}",
+        "move": "Move",
+        "moved": "{count, plural, one {# week moved.} other {# weeks moved.}}",
+        "form": {
+          "title": "Move {name}’s series",
+          "description": "Every upcoming week from the date on moves to the new time and court. If any week is taken, nothing moves.",
+          "from": "From",
+          "court": "Court",
+          "time": "Time",
+          "duration": "Length (min)",
+          "submit": "Move",
+          "cancel": "Cancel"
+        },
+        "error": {
+          "load": "The series did not load. Try again.",
+          "move": "The series was not moved. Try again.",
+          "clash": "These weeks can’t move:",
+          "reason": {
+            "taken": "taken",
+            "unavailable": "outside opening hours"
+          }
+        }
       }
     },
     "photos": {
@@ -2145,6 +2181,10 @@
       "seriesCreated": {
         "subject": "A weekly slot for you: {venue}",
         "intro": "The club booked a weekly slot for you. The first game is:"
+      },
+      "seriesMoved": {
+        "subject": "Your weekly slot moved: {venue}",
+        "intro": "The club moved your weekly slot. The first game at the new time is:"
       },
       "seriesCancelled": {
         "subject": "The club cancelled your weekly games: {venue}",

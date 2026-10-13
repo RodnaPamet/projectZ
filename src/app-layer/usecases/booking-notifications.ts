@@ -266,6 +266,53 @@ export async function notifySeriesCreated(input: {
   });
 }
 
+/**
+ * A linked player's weekly series moved to another time or court (#415): one
+ * notice for the move, showing its first moved week.
+ */
+export async function notifySeriesMoved(input: {
+  tenantId: string;
+  seriesId: string;
+  fromDate: string;
+  now?: Date;
+}): Promise<void> {
+  await guarded('series-moved', input.seriesId, async () => {
+    // guardrail-allow: cross-tenant — the series the caller just moved, in its tenant.
+    const first = await runAsSuperuser((db) =>
+      db.booking.findFirst({
+        where: {
+          tenantId: input.tenantId,
+          seriesId: input.seriesId,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+        },
+        orderBy: { startTs: 'asc' },
+        select: BOOKING_SELECT,
+      }),
+    );
+    if (!first?.bookedByUserId) return;
+    const r = (await readRecipients([first.bookedByUserId])).get(first.bookedByUserId);
+    if (!r) return;
+    const facts = factsOf(first);
+    await send({
+      recipient: r,
+      tenantId: first.tenantId,
+      kind: 'BOOKING_CONFIRMED',
+      key: dedupeKey(
+        'series',
+        input.seriesId,
+        `moved:${input.fromDate}:${(input.now ?? new Date()).getTime()}`,
+      ),
+      bell: 'seriesMoved',
+      facts,
+      email: {
+        category: 'clubChanges',
+        render: () => bookingEmail(r.locale, 'seriesMoved', facts, input.now),
+        expiresAt: first.startTs,
+      },
+    });
+  });
+}
+
 // ─── Cancelled ──────────────────────────────────────────────────────────
 
 /**
