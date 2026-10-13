@@ -99,3 +99,19 @@ describe('toggle controls get a 44 px hit-target on a coarse pointer', () => {
     }
   });
 });
+
+describe("sonner's toast close button gets the same hit-target (#285)", () => {
+  const block = coarseBlocks(GLOBALS_CSS).join('\n');
+
+  it('[data-close-button]::before is 44 px square, centred and invisible', () => {
+    // Sonner draws the button at 20 px with position: absolute, which already
+    // contains the ::before, so no position rule is added (it would move the
+    // button out of its corner).
+    const rule = ruleFor(block, '[data-sonner-toast] [data-close-button]::before');
+    expect(rule).not.toBeNull();
+    expect(rule).toMatch(/width:\s*44px/);
+    expect(rule).toMatch(/height:\s*44px/);
+    expect(rule).toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+    expect(rule).toMatch(/background:\s*transparent/);
+  });
+});

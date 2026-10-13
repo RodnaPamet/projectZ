@@ -31,19 +31,24 @@ export default function AppError({
   const t = useTranslations('common');
 
   return (
-    <main className="safe-area-top safe-area-x flex min-h-dvh items-center justify-center p-6">
-      <ErrorState
-        description={t('error.body')}
-        onRetry={retry}
-        retryLabel={t('retry')}
-        data-testid="route-error"
-      >
-        {error.digest && (
-          <p className="text-content-muted w-full text-xs tabular-nums">
-            {t('error.errorId', { id: error.digest })}
-          </p>
-        )}
-      </ErrorState>
+    // The notch insets and the gutter on DIFFERENT elements (#288, #295):
+    // `.safe-area-x` is unlayered, so on one element it would replace `p-6`'s
+    // sides instead of adding to them.
+    <main className="safe-area-top safe-area-x flex min-h-dvh">
+      <div className="flex flex-1 items-center justify-center p-6">
+        <ErrorState
+          description={t('error.body')}
+          onRetry={retry}
+          retryLabel={t('retry')}
+          data-testid="route-error"
+        >
+          {error.digest && (
+            <p className="text-content-muted w-full text-xs tabular-nums">
+              {t('error.errorId', { id: error.digest })}
+            </p>
+          )}
+        </ErrorState>
+      </div>
     </main>
   );
 }
