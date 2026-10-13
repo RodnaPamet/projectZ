@@ -92,6 +92,13 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // the client's number straight to the use case, which owns the range.
   InvalidRatingError: { status: 400, code: 'INVALID_RATING' },
 
+  // The phone step (#500): not a number that can get a code, or not the code.
+  // `PHONE_CODE_EXPIRED` also covers "no code was sent to this number": ask
+  // for a new one either way.
+  PhoneInvalidError: { status: 400, code: 'PHONE_INVALID' },
+  PhoneCodeWrongError: { status: 400, code: 'PHONE_CODE_WRONG' },
+  PhoneCodeExpiredError: { status: 400, code: 'PHONE_CODE_EXPIRED' },
+
   // ── 402: the rule is about money, and the client can fix it ───────
   //
   // Not 403. A wallet that is short is not a permissions problem, and a client
@@ -118,6 +125,10 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // the same answer at every slug. No clientMessage: the use case already wrote
   // it in the caller's own language, and it is the sentence they need.
   PlayerAccountRequiredError: { status: 403, code: 'PLAYER_ACCOUNT_REQUIRED' },
+  // Booking, asking to join a game or writing a message needs a confirmed
+  // phone number (#500). The cure is the phone step (`POST /me/phone/start`,
+  // then `/confirm`), after which the same request succeeds.
+  PhoneRequiredError: { status: 403, code: 'PHONE_REQUIRED' },
   // Three no-shows in 90 days at this club block ONLINE booking there until
   // staff lift it (#354). About the caller's standing at THIS club, so — unlike
   // the account refusal above — it is only reachable once the club is known.
@@ -235,6 +246,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // These are the ones a mobile client MUST distinguish, because every one of
   // them is "try again with fresh data", not "you did something wrong".
   SlotTakenError: { status: 409, code: 'SLOT_TAKEN' },
+  // The number already confirms another account (#500). Said only after the
+  // code proved the caller holds the phone.
+  PhoneInUseError: { status: 409, code: 'PHONE_IN_USE' },
   TournamentStateError: { status: 409, code: 'TOURNAMENT_STATE' },
   IdempotencyRaceError: { status: 409, code: 'IDEMPOTENCY_RACE' },
   // The expiry sweeper (or another tab) moved the booking out of a cancellable
@@ -367,6 +381,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // ── 503: ours, not theirs, and retryable ──────────────────────────
   EngineUnavailableError: { status: 503, code: 'ENGINE_UNAVAILABLE' },
   ModerationUnavailableError: { status: 503, code: 'MODERATION_UNAVAILABLE' },
+  // The SMS provider is not configured, or did not answer (#500). Nothing
+  // was confirmed; the person may try again.
+  PhoneVerifyUnavailableError: { status: 503, code: 'PHONE_VERIFY_UNAVAILABLE' },
 
   // ── Deliberately ABSENT ───────────────────────────────────────────
   //

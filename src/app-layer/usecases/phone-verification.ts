@@ -1,0 +1,266 @@
+import { maskPhone, phoneFingerprint } from '@/lib/account/phone-fingerprint';
+import { normalizePhone } from '@/lib/booking/phone';
+import { runAsUserOnly } from '@/lib/db/rls-middleware';
+import { RateLimitedError } from '@/lib/errors/types';
+import { resolveLocale } from '@/lib/i18n/locales';
+import { logger } from '@/lib/observability/logger';
+import { decryptField, encryptField } from '@/lib/security/encryption';
+import { checkRateLimit, type RateLimitConfig } from '@/lib/security/rate-limit';
+import { phoneRequired, phoneVerifier } from '@/lib/sms/phone-verifier';
+
+import { inheritNoShowStandingByPhone } from './no-show-carry';
+
+/**
+ * A phone number, confirmed by an SMS code (#500; owner decisions 2026-10-13).
+ *
+ * ═══ WHY ═══
+ *
+ * A blocked person makes a new account with a new address. A phone number is
+ * harder to replace, so: every player and coach confirms one before their
+ * first booking, join request or message; a number confirms ONE account at a
+ * time; and a number that belonged to an account with a no-show standing,
+ * a deleted one included, brings that standing to the account that confirms
+ * it next.
+ *
+ * ═══ THE TWO STEPS ═══
+ *
+ *   start     the person types a number; a code is sent to it by SMS
+ *   confirm   the person types the code; the number becomes the account's
+ *
+ * The code is Twilio Verify's from start to end (src/lib/sms/phone-verifier.ts):
+ * playerz never holds one. What playerz adds is its own limits, on the person
+ * and on the number, so a signed-in account cannot use the step to text the
+ * same stranger again and again.
+ *
+ * ═══ "THIS NUMBER IS TAKEN" IS SAID ONLY TO ITS HOLDER ═══
+ *
+ * `start` sends a code to any valid number and says nothing about it. Whether
+ * another account holds the number is answered at `confirm`, after the code
+ * has proved the caller holds the phone: otherwise the step would tell anyone
+ * who asks whether a given number has a playerz account.
+ *
+ * ═══ WHAT IS STORED (P65) ═══
+ *
+ * `phone` encrypted, `phoneHash` (the keyed fingerprint, UNIQUE) and
+ * `phoneVerifiedAt`. All three together or none. Changing the number is the
+ * same two steps with the new one; the old number is then free.
+ *
+ * Bound to the person (`runAsUserOnly`), never the superuser handle: the
+ * account's own row is all this writes, and "is the number taken" is one
+ * lookup by a keyed fingerprint under a UNIQUE index, which returns an id and
+ * nothing else. The carried standing is taken over in no-show-carry.ts, as it
+ * is at sign-in.
+ */
+
+export class PhoneInvalidError extends Error {
+  constructor() {
+    super('That is not a phone number that can receive a code.');
+    this.name = 'PhoneInvalidError';
+  }
+}
+
+export class PhoneCodeWrongError extends Error {
+  constructor() {
+    super('That is not the code we sent.');
+    this.name = 'PhoneCodeWrongError';
+  }
+}
+
+export class PhoneCodeExpiredError extends Error {
+  constructor() {
+    super('The code has expired, or none was sent to this number. Ask for a new one.');
+    this.name = 'PhoneCodeExpiredError';
+  }
+}
+
+export class PhoneInUseError extends Error {
+  constructor() {
+    super('This number already confirms another account.');
+    this.name = 'PhoneInUseError';
+  }
+}
+
+export class PhoneVerifyUnavailableError extends Error {
+  constructor() {
+    super('Phone confirmation is not available right now.');
+    this.name = 'PhoneVerifyUnavailableError';
+  }
+}
+
+/** Booking, asking to join a game or writing a message without a confirmed number (#500). */
+export class PhoneRequiredError extends Error {
+  constructor() {
+    super('Confirm a phone number first.');
+    this.name = 'PhoneRequiredError';
+  }
+}
+
+/** Codes one account may ask for: a few, then a pause. Twilio has its own limits beneath. */
+export const PHONE_START_PER_USER: RateLimitConfig = { maxAttempts: 5, windowMs: 60 * 60_000 };
+/** Codes one NUMBER may be sent, whoever asks: nobody is texted more than this by us. */
+export const PHONE_START_PER_NUMBER: RateLimitConfig = { maxAttempts: 3, windowMs: 60 * 60_000 };
+export const PHONE_START_PER_NUMBER_DAILY: RateLimitConfig = {
+  maxAttempts: 6,
+  windowMs: 24 * 60 * 60_000,
+};
+/** Guesses one account may make. Twilio stops a single code after five. */
+export const PHONE_CONFIRM_PER_USER: RateLimitConfig = { maxAttempts: 10, windowMs: 60 * 60_000 };
+
+async function limited(key: string, config: RateLimitConfig, message: string): Promise<void> {
+  const r = await checkRateLimit(key, config);
+  if (!r.allowed) throw new RateLimitedError(message);
+}
+
+function verifierOrThrow() {
+  const verifier = phoneVerifier();
+  if (!verifier) {
+    logger.error('the phone step was used with no verifier configured (TWILIO_* unset)', {
+      component: 'phone-verify',
+    });
+    throw new PhoneVerifyUnavailableError();
+  }
+  return verifier;
+}
+
+function e164OrThrow(raw: string): string {
+  const e164 = normalizePhone(raw);
+  if (!e164) throw new PhoneInvalidError();
+  return e164;
+}
+
+export interface PhoneStanding {
+  /** Is a confirmed number required before booking, joining a game or writing? */
+  required: boolean;
+  verified: boolean;
+  /** The confirmed number with its middle hidden (`+35988*****56`), or null. */
+  number: string | null;
+  verifiedAt: Date | null;
+}
+
+/** What the account's own screens show about its number. Null: no such account. */
+export async function phoneStanding(userId: string): Promise<PhoneStanding | null> {
+  const user = await runAsUserOnly(userId, (db) =>
+    db.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneVerifiedAt: true, deletedAt: true },
+    }),
+  );
+  if (!user || user.deletedAt) return null;
+  const verified = user.phoneVerifiedAt !== null && user.phone !== null;
+  let number: string | null = null;
+  if (verified) {
+    try {
+      number = maskPhone(decryptField(user.phone!));
+    } catch {
+      // A value this key cannot read (a rotated key): confirmed, shown as hidden.
+      number = null;
+    }
+  }
+  return { required: phoneRequired(), verified, number, verifiedAt: user.phoneVerifiedAt };
+}
+
+/** Send a code to the number. Says nothing about whether the number is known. */
+export async function startPhoneVerification(
+  userId: string,
+  rawPhone: string,
+  rawLocale: unknown,
+): Promise<{ sent: true; number: string }> {
+  const verifier = verifierOrThrow();
+  const e164 = e164OrThrow(rawPhone);
+  const fingerprint = phoneFingerprint(e164);
+
+  await limited(
+    `phone-start:u:${userId}`,
+    PHONE_START_PER_USER,
+    'Too many codes asked for. Try again in an hour.',
+  );
+  await limited(
+    `phone-start:n:${fingerprint}`,
+    PHONE_START_PER_NUMBER,
+    'Too many codes sent to this number. Try again in an hour.',
+  );
+  await limited(
+    `phone-start:nd:${fingerprint}`,
+    PHONE_START_PER_NUMBER_DAILY,
+    'Too many codes sent to this number today.',
+  );
+
+  const started = await verifier.start(e164, resolveLocale(rawLocale));
+  if (!started.ok) {
+    if (started.reason === 'invalid') throw new PhoneInvalidError();
+    if (started.reason === 'limited') {
+      throw new RateLimitedError('Too many codes sent to this number. Try again later.');
+    }
+    throw new PhoneVerifyUnavailableError();
+  }
+  return { sent: true, number: maskPhone(e164) };
+}
+
+/**
+ * Check the code and make the number the account's. On success the account
+ * also takes over any no-show standing the number carries from a deleted
+ * account; `inherited` says how many missed bookings came with it.
+ */
+export async function confirmPhoneVerification(
+  userId: string,
+  rawPhone: string,
+  code: string,
+): Promise<{ verified: true; number: string; inherited: number }> {
+  const verifier = verifierOrThrow();
+  const e164 = e164OrThrow(rawPhone);
+  const fingerprint = phoneFingerprint(e164);
+
+  await limited(
+    `phone-confirm:u:${userId}`,
+    PHONE_CONFIRM_PER_USER,
+    'Too many attempts. Try again in an hour.',
+  );
+
+  const checked = await verifier.check(e164, code);
+  if (!checked.ok) {
+    if (checked.reason === 'wrong') throw new PhoneCodeWrongError();
+    if (checked.reason === 'expired') throw new PhoneCodeExpiredError();
+    if (checked.reason === 'limited') {
+      throw new RateLimitedError('Too many wrong codes. Ask for a new one.');
+    }
+    throw new PhoneVerifyUnavailableError();
+  }
+
+  // The caller holds the phone. Now, and only now, may they learn it is taken.
+  await runAsUserOnly(userId, async (db) => {
+    const holder = await db.user.findUnique({
+      where: { phoneHash: fingerprint },
+      select: { id: true },
+    });
+    if (holder && holder.id !== userId) throw new PhoneInUseError();
+    try {
+      const { count } = await db.user.updateMany({
+        where: { id: userId, deletedAt: null },
+        data: { phone: encryptField(e164), phoneHash: fingerprint, phoneVerifiedAt: new Date() },
+      });
+      // A session whose account was deleted meanwhile: nothing to confirm.
+      if (count === 0) throw new PhoneVerifyUnavailableError();
+    } catch (err) {
+      // Two accounts confirming one number at the same moment: the UNIQUE
+      // index decides, and the loser is told what the check above would have.
+      if ((err as { code?: string }).code === 'P2002') throw new PhoneInUseError();
+      throw err;
+    }
+  });
+
+  const inherited = await inheritNoShowStandingByPhone(userId, fingerprint);
+  return { verified: true, number: maskPhone(e164), inherited };
+}
+
+/**
+ * The gate (#500): throws `PhoneRequiredError` when the rule is on and this
+ * account has no confirmed number. Called by booking, asking to join a game
+ * and writing a message, before they do anything.
+ */
+export async function assertPhoneConfirmed(userId: string): Promise<void> {
+  if (!phoneRequired()) return;
+  const user = await runAsUserOnly(userId, (db) =>
+    db.user.findUnique({ where: { id: userId }, select: { phoneVerifiedAt: true } }),
+  );
+  if (!user?.phoneVerifiedAt) throw new PhoneRequiredError();
+}

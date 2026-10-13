@@ -131,7 +131,9 @@ export interface PersonalDataExport {
     id: string;
     name: string | null;
     email: string;
+    /** The number the caller confirmed by SMS code (#500), or null. */
     phone: string | null;
+    phoneConfirmedAt: string | null;
     avatarUrl: string | null;
     language: string;
     accountKind: string | null;
@@ -406,6 +408,20 @@ function exportOwnBooking(b: OwnBookingRow): ExportedOwnBooking {
   };
 }
 
+/**
+ * The confirmed number as the person typed it (#500): the column holds it
+ * encrypted. A value this key cannot read is left out rather than exported as
+ * ciphertext.
+ */
+function readablePhone(stored: string | null): string | null {
+  if (!stored) return null;
+  try {
+    return decryptField(stored);
+  } catch {
+    return null;
+  }
+}
+
 /** The export, read inside the caller's (superuser) binding. Null: no such account. */
 export async function readPersonalData(
   db: PrismaClient,
@@ -419,6 +435,7 @@ export async function readPersonalData(
       name: true,
       email: true,
       phone: true,
+      phoneVerifiedAt: true,
       avatarUrl: true,
       locale: true,
       accountKind: true,
@@ -665,7 +682,8 @@ export async function readPersonalData(
       id: user.id,
       name: user.name,
       email: user.email,
-      phone: user.phone,
+      phone: readablePhone(user.phone),
+      phoneConfirmedAt: iso(user.phoneVerifiedAt),
       // Our copy's URL (#458), as every page shows it.
       avatarUrl: avatarUrlOf(user.avatarUrl),
       language: user.locale,

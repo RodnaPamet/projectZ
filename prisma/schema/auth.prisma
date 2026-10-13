@@ -122,14 +122,22 @@ model VenueOrg {
 
 /// GLOBAL identity. No tenantId — deliberately. See the header note.
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String?
-  emailVerified DateTime?
-  name          String?
-  phone         String?
-  avatarUrl     String?
-  locale        Locale    @default(bg)
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?
+  emailVerified   DateTime?
+  name            String?
+  /// The number the person confirmed by SMS code (#500), ENCRYPTED (field
+  /// encryption). Null until confirmed; nothing else writes it.
+  phone           String?
+  /// A keyed fingerprint of that number in E.164
+  /// (src/lib/account/phone-fingerprint.ts). UNIQUE: one number confirms one
+  /// account at a time. Cleared when the account is deleted (CHECK
+  /// app_user_deleted_has_no_phone, P65).
+  phoneHash       String?   @unique
+  phoneVerifiedAt DateTime? @db.Timestamptz(3)
+  avatarUrl       String?
+  locale          Locale    @default(bg)
 
   /// Which emails this person wants (#367, Q22). The bell always gets
   /// everything; these switch only the email. On by default.

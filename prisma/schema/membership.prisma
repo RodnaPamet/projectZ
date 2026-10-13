@@ -53,6 +53,10 @@ model NoShowCarry {
   id                String   @id @default(cuid())
   tenantId          String
   fingerprint       String
+  /// The keyed fingerprint of the phone number the deleted account had
+  /// confirmed (#500, P65), or null: the standing passes to the next account
+  /// that confirms the number, as `fingerprint` passes it by address.
+  phoneFingerprint  String?
   /// The tombstone it came from.
   deletedUserId     String
   /// The account that took it over, once one exists.
@@ -62,6 +66,7 @@ model NoShowCarry {
   createdAt         DateTime @default(now())
 
   @@index([fingerprint])
+  @@index([phoneFingerprint])
   @@index([tenantId, inheritedByUserId])
   @@index([inheritedByUserId])
   @@index([startedAt])

@@ -20,8 +20,9 @@ import { loadClubStatement } from '@/app-layer/usecases/club-fees';
 import { getMyBooking } from '@/app-layer/usecases/my-bookings';
 import { SessionRevokedError, authOptions } from '@/auth';
 import { tombstoneEmail } from '@/lib/account/deleted-user';
+import { phoneFingerprint } from '@/lib/account/phone-fingerprint';
 import { AccountDeletedError, checkSession, createUserSession } from '@/lib/auth/sessions';
-import { hashForLookup } from '@/lib/security/encryption';
+import { encryptField, hashForLookup } from '@/lib/security/encryption';
 import { statementMonthOf } from '@/lib/billing/club-fee';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarKey, IMMUTABLE_CACHE_CONTROL } from '@/lib/media/keys';
@@ -294,7 +295,10 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
         where: { id: userId },
         data: {
           name: 'Иван Петров',
-          phone: '+359888123456',
+          // A confirmed number (#500), as the phone step stores it.
+          phone: encryptField('+359888123456'),
+          phoneHash: phoneFingerprint('+359888123456'),
+          phoneVerifiedAt: new Date(),
           avatarUrl: 'https://lh3.googleusercontent.com/a/leaving',
           emailVerified: new Date(),
           mfaSecret: 'v1:not-a-real-envelope', // pragma: allowlist secret
@@ -595,6 +599,8 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
       email: tombstoneEmail(userId),
       name: null,
       phone: null,
+      phoneHash: null,
+      phoneVerifiedAt: null,
       avatarUrl: null,
       passwordHash: null,
       emailVerified: null,

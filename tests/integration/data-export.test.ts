@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 
 import { GET as exportRoute } from '@/app/api/v1/me/export/route';
 import { DELETE as deleteMe } from '@/app/api/v1/me/route';
+import { phoneFingerprint } from '@/lib/account/phone-fingerprint';
+import { encryptField } from '@/lib/security/encryption';
 import { clearAllRateLimits } from '@/lib/security/rate-limit';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
@@ -92,7 +94,10 @@ describe('GET /api/v1/me/export (#370)', () => {
         where: { id: userId },
         data: {
           name: 'Мария Иванова',
-          phone: '+359888000111',
+          // The number the account confirmed (#500): stored encrypted.
+          phone: encryptField('+359888000111'),
+          phoneHash: phoneFingerprint('+359888000111'),
+          phoneVerifiedAt: new Date('2026-10-20T09:00:00Z'),
           // Our copy of her picture (#458), which the export shows as our URL.
           avatarUrl: `avatars/${userId}/google-${'b'.repeat(32)}.webp`,
           passwordHash: SECRETS.passwordHash,
@@ -366,6 +371,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       id: player.userId,
       name: 'Мария Иванова',
       phone: '+359888000111',
+      phoneConfirmedAt: '2026-10-20T09:00:00.000Z',
       avatarUrl: `https://media.playerz.test/avatars/${player.userId}/google-${'b'.repeat(32)}.webp`,
       accountKind: 'PLAYER',
       sports: [{ sport: 'TENNIS', level: 3 }],
