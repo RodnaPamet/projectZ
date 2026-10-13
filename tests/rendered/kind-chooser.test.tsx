@@ -17,6 +17,13 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// Continuing also has next-auth re-read the account into the session token
+// (#462: the terms the screen links were just accepted).
+const refreshSession = jest.fn();
+jest.mock('@/lib/auth/refresh-session', () => ({
+  refreshSession: (...args: unknown[]) => refreshSession(...args),
+}));
+
 /**
  * #360: "Играч или треньор?" against the REAL Bulgarian catalogue and a fake
  * v1. Nothing is chosen for the person; the choice is posted once; a player
@@ -41,6 +48,8 @@ function mount(next: string | null = null) {
 
 beforeEach(() => {
   replace.mockReset();
+  refreshSession.mockReset();
+  refreshSession.mockResolvedValue(undefined);
   __resetSessionExpiryForTests();
   __resetViewerForTests();
 });
@@ -66,6 +75,21 @@ describe('the kind chooser', () => {
     const post = calls.find((c) => c.method === 'POST')!;
     expect(post.url).toBe('/api/v1/me/account-kind');
     expect(post.body).toEqual({ kind: 'PLAYER' });
+    // The session is refreshed before leaving (#462), so the next page is not
+    // held back for terms this very step accepted.
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(refreshSession.mock.invocationCallOrder[0]!).toBeLessThan(
+      replace.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('a session that will not refresh does not keep the person on the question', async () => {
+    refreshSession.mockRejectedValue(new Error('offline'));
+    installFakeFetch(() => ok({ accountKind: 'PLAYER' }));
+    mount();
+    fireEvent.click(screen.getByTestId('kind-PLAYER'));
+    fireEvent.click(screen.getByTestId('kind-continue'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/venues'));
   });
 
   it('goes back to where it was sent from', async () => {

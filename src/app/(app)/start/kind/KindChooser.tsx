@@ -13,7 +13,7 @@ import { PLAY_PATH, PLAYER_HOME } from '@/lib/auth/landing';
 import { isApiClientError } from '@/lib/data/errors';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
-import { refreshSession } from '@/lib/i18n/persist-my-locale';
+import { refreshSession } from '@/lib/auth/refresh-session';
 
 export type ChoosableKind = 'PLAYER' | 'COACH';
 export type KindErrorKey = 'ALREADY_SET' | 'NOT_ALLOWED' | 'FAILED';

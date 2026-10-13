@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
-import { refreshSession } from '@/lib/i18n/persist-my-locale';
+import { refreshSession } from '@/lib/auth/refresh-session';
 import { loadPage } from '@/lib/navigation/load-page';
 
 /**
