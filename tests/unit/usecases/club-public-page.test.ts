@@ -99,8 +99,10 @@ describe('loadClubPublicPage', () => {
 });
 
 describe('module-gated entries (#362)', () => {
-  const sidebar = (kind: 'player' | 'coach', modules = { openPlay: false, messaging: false }) =>
-    playerShellNav(kind, { modules }).flatMap((s) => s.items.map((i) => i.href));
+  const sidebar = (
+    kind: 'player' | 'coach',
+    modules = { openPlay: false, messaging: false, coaches: false },
+  ) => playerShellNav(kind, { modules }).flatMap((s) => s.items.map((i) => i.href));
 
   it('modules off by default: no Игри and no Съобщения anywhere', () => {
     const hrefs = [
@@ -114,7 +116,7 @@ describe('module-gated entries (#362)', () => {
   });
 
   it('openPlay on: Игри in the sidebar and the tabs, for a signed-in account only', () => {
-    const on = { openPlay: true, messaging: false };
+    const on = { openPlay: true, messaging: false, coaches: false };
     expect(playerTabs('player', on).map((t) => t.href)).toContain('/games');
     expect(sidebar('player', on)).toContain('/games');
     expect(sidebar('coach', on)).toContain('/games');
@@ -122,7 +124,7 @@ describe('module-gated entries (#362)', () => {
   });
 
   it('messaging on: Съобщения in the sidebar, never a tab', () => {
-    const on = { openPlay: false, messaging: true };
+    const on = { openPlay: false, messaging: true, coaches: false };
     expect(sidebar('player', on)).toContain('/messages');
     expect(playerTabs('player', on).map((t) => t.href)).not.toContain('/messages');
   });

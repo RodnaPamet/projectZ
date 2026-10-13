@@ -16,6 +16,7 @@ import {
   type CoachProfileState,
   type CoachSportInput,
 } from '@/lib/coaches/profile';
+import { runAsUserOnly } from '@/lib/db/rls-middleware';
 import { sanitizePlainText } from '@/lib/security/sanitize';
 
 /**
@@ -162,6 +163,20 @@ async function read(db: PrismaClient, userId: string): Promise<MyCoachProfile> {
 export async function myCoachProfile(db: PrismaClient, userId: string): Promise<MyCoachProfile> {
   await requireCoach(db, userId);
   return read(db, userId);
+}
+
+/**
+ * The same, for a page: binds to the caller itself, and answers null for an
+ * account that is not a coach's (the page sends it elsewhere; the API says
+ * 403).
+ */
+export async function readMyCoachProfile(userId: string): Promise<MyCoachProfile | null> {
+  try {
+    return await runAsUserOnly(userId, (db) => myCoachProfile(db, userId));
+  } catch (err) {
+    if (err instanceof CoachAccountRequiredError) return null;
+    throw err;
+  }
 }
 
 /** How many addresses are tried before one is made unique by force. */

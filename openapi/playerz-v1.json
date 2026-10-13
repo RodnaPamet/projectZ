@@ -12251,7 +12251,7 @@
         "operationId": "listPlatformCoachApplications",
         "summary": "Coach profiles sent for approval",
         "tags": ["Platform"],
-        "description": "The coaches' profiles sent to the platform owner (#545): who, which sports and levels, and whether a certificate is on file. A draft is never listed: nothing was sent.\n\n**Needs `COACH_APPROVE` and a second-factor step-up.** The capability that decides also opens certificates, so the reads run under it too, as the moderation queue's do.\n\nEvery page writes a `PLATFORM_COACH_APPLICATION_LIST` audit row with the stated reason. 50 per page.",
+        "description": "The coaches' profiles sent to the platform owner (#545): each with everything the owner reads to decide: the name on the account, the text, the qualifications, the sports and levels, the last decision's note, and what was uploaded as a certificate (its details, not the file). A draft is never listed: nothing was sent.\n\n**Needs `COACH_APPROVE` and a second-factor step-up.** The capability that decides also opens certificates, so the reads run under it too, as the moderation queue's do.\n\nEvery page writes a `PLATFORM_COACH_APPLICATION_LIST` audit row with the stated reason. 50 per page.",
         "security": [
           {
             "bearerAuth": []
@@ -19064,7 +19064,10 @@
           "submittedAt",
           "decidedAt",
           "sports",
-          "hasCertificate"
+          "bio",
+          "qualifications",
+          "decisionNote",
+          "certificate"
         ],
         "properties": {
           "userId": {
@@ -19096,9 +19099,18 @@
               "$ref": "#/components/schemas/CoachSportLevels"
             }
           },
-          "hasCertificate": {
-            "type": "boolean",
-            "description": "Whether a certificate is on file. A removed coach's is deleted."
+          "bio": {
+            "type": ["string", "null"]
+          },
+          "qualifications": {
+            "type": ["string", "null"]
+          },
+          "decisionNote": {
+            "type": ["string", "null"],
+            "description": "The note with the last decline or removal."
+          },
+          "certificate": {
+            "$ref": "#/components/schemas/CoachCertificateInfo"
           }
         }
       },
@@ -19134,12 +19146,11 @@
           "submittedAt",
           "decidedAt",
           "sports",
-          "hasCertificate",
           "bio",
           "qualifications",
           "decisionNote",
-          "decidedByUserId",
           "certificate",
+          "decidedByUserId",
           "upcomingLessons"
         ],
         "properties": {
@@ -19172,10 +19183,6 @@
               "$ref": "#/components/schemas/CoachSportLevels"
             }
           },
-          "hasCertificate": {
-            "type": "boolean",
-            "description": "Whether a certificate is on file. A removed coach's is deleted."
-          },
           "bio": {
             "type": ["string", "null"]
           },
@@ -19186,12 +19193,12 @@
             "type": ["string", "null"],
             "description": "The note with the last decline or removal."
           },
+          "certificate": {
+            "$ref": "#/components/schemas/CoachCertificateInfo"
+          },
           "decidedByUserId": {
             "type": ["string", "null"],
             "description": "The platform admin who made the last decision."
-          },
-          "certificate": {
-            "$ref": "#/components/schemas/CoachCertificateInfo"
           },
           "upcomingLessons": {
             "type": "integer",

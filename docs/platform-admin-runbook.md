@@ -76,6 +76,8 @@ bootstrap themselves.
 | `TENANT_SUSPEND`  | suspend, close or reopen a club (#254) — an enabled write  |
 | `REVIEW_MODERATE` | work the review moderation queue — an enabled write        |
 | `CLUB_FEE_MANAGE` | set a club's fee and free period (#372) — an enabled write |
+| `CONTACT_READ`    | read the landing page's club enquiries (#369)              |
+| `COACH_APPROVE`   | decide who may teach (#545) — an enabled write             |
 
 **Every write needs a second factor (#262).** A write capability is usable only
 from a session that has stepped up with its holder's authenticator in the last
@@ -182,6 +184,63 @@ are up.
 before it is shown. When `ANTHROPIC_API_KEY` is unset, or the API is down, the
 review is held for a human rather than published unchecked — so without a key,
 every text review lands here. Star-only reviews are never queued.
+
+### Approving coaches (#545)
+
+A coach fills in a profile and uploads a certificate; the platform owner
+approves or declines. Give whoever does this `COACH_APPROVE`. Nothing else
+implies it, and it should not travel with capabilities it does not need:
+
+```bash
+npm run grant:platform-admin -- \
+  --user owner@playerz.bg \
+  --granted-by bob@playerz.bg \
+  --capabilities COACH_APPROVE \
+  --expires 2026-12-31 \
+  --reason "approving the pilot's coaches"
+```
+
+A grant is immutable, so someone who already holds one is **revoked and granted
+again** with the full list they should now have (see [Revoking](#revoking)).
+
+**They must then enrol a second factor** at `/platform/security`. `COACH_APPROVE`
+is a write capability, and it is also the only way anybody but the coach reads
+the certificate, so the reads need the step-up as much as the decision does.
+Until then the page answers `MFA_ENROLMENT_REQUIRED` and shows nothing.
+
+The queue is the page `/platform/coaches`: a reason once, then the profiles that
+are waiting, oldest first; the approved and the declined are one switch away.
+Each card is everything needed to decide, except the certificate.
+
+- **The certificate** is a personal document. It is stored sealed, in the
+  database, and is never shown to a club, a player, or back to the coach.
+  "Изтегли сертификата" downloads it, and **every download writes an audit row**
+  naming the admin and the coach (`PLATFORM_COACH_CERTIFICATE_OPEN`). Do not keep
+  the downloaded file: it is deleted here when the coach is removed or deletes
+  their account, and a copy on a laptop is not.
+- **Одобри** approves. The note stays in the audit trail.
+- **Откажи** declines. **The coach is shown the note and receives it by email**,
+  so write it to them: what to correct. They may send the profile again.
+- **Спри треньора**, on an approved coach, declines the profile, **deletes the
+  certificate** and ends the coach's links to venues. It is refused while the
+  coach has a lesson still to teach.
+
+The coach is told every outcome in the bell and by email. When
+`CONTACT_INBOX_EMAIL` is set, that inbox gets one line each time a profile is
+sent; it names nobody.
+
+The same over HTTP:
+
+```
+GET  /api/v1/platform/coaches?reason=<why>[&status=SUBMITTED|APPROVED|DECLINED][&cursor=<opaque>]
+GET  /api/v1/platform/coaches/{userId}?reason=<why>
+GET  /api/v1/platform/coaches/{userId}/certificate?reason=<why>
+POST /api/v1/platform/coaches/{userId}/decision   {"decision":"APPROVE"|"DECLINE"|"REMOVE","note":"…"}
+```
+
+A profile can only become approved or declined inside a platform admin's
+audited transaction: the database refuses it from any other writer (P72), the
+coach's own included.
 
 ---
 

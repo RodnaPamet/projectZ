@@ -12,6 +12,8 @@ export interface FakeCall {
   method: string;
   headers: Record<string, string>;
   body: unknown;
+  /** A multipart body, as sent (a file upload); `body` is then undefined. */
+  form?: FormData;
 }
 
 export interface FakeAnswer {
@@ -42,6 +44,7 @@ export function installFakeFetch(handler: FakeHandler): FakeCall[] {
       method: init?.method ?? 'GET',
       headers: { ...(init?.headers as Record<string, string> | undefined) },
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      ...(init?.body instanceof FormData ? { form: init.body } : {}),
     };
     calls.push(call);
     if (init?.signal?.aborted) {

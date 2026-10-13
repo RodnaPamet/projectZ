@@ -66,6 +66,7 @@ function renderProfile(
     locale?: 'bg' | 'en';
     deletion?: DeletionStandingView;
     legal?: { privacy: string | null; terms: string | null; cookies: string | null };
+    coachHref?: string | null;
   } = {},
 ) {
   const seed = opts.account ?? account();
@@ -81,6 +82,7 @@ function renderProfile(
             name={seed.name}
             email="ivo@example.bg"
             platformHref={platformHref}
+            coachHref={opts.coachHref ?? null}
             account={seed}
             showSports={opts.showSports ?? true}
             notificationSettings={{
@@ -173,6 +175,24 @@ describe('Профил — what every account sees', () => {
   it('no Платформа without a live grant', () => {
     renderProfile(null);
     expect(screen.queryByTestId('profile-platform')).not.toBeInTheDocument();
+  });
+});
+
+describe('Профил — a coach (#545)', () => {
+  it('the way to the coach profile, when the page was given one', () => {
+    renderProfile(null, { account: account({ accountKind: 'COACH' }), coachHref: '/me/coach' });
+    const row = screen.getByTestId('profile-coach');
+    expect(row).toHaveAttribute('href', '/me/coach');
+    expect(row).toHaveTextContent(bg.profile.coach.row);
+    expect(screen.getByRole('heading', { level: 2, name: bg.profile.coach.title })).toBeVisible();
+  });
+
+  it('none for anyone else, and none while the module is off', () => {
+    renderProfile(null);
+    expect(screen.queryByTestId('profile-coach')).toBeNull();
+    // A coach, but the page gave no address: the module is off.
+    renderProfile(null, { account: account({ accountKind: 'COACH' }) });
+    expect(screen.queryByTestId('profile-coach')).toBeNull();
   });
 });
 

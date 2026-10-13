@@ -88,6 +88,11 @@ interface CertificateMeta {
   uploadedAt: Date;
 }
 
+/**
+ * A profile as the queue lists it: everything the owner reads to decide,
+ * so deciding takes one audited read of the list and one of the certificate,
+ * not a third per coach.
+ */
 export interface CoachApplicationItem {
   userId: string;
   name: string | null;
@@ -96,19 +101,21 @@ export interface CoachApplicationItem {
   submittedAt: Date | null;
   decidedAt: Date | null;
   sports: CoachSportInput[];
-  hasCertificate: boolean;
-}
-
-export interface CoachApplication extends CoachApplicationItem {
   bio: string | null;
   qualifications: string | null;
   /** The note with the last decline or removal. */
   decisionNote: string | null;
-  decidedByUserId: string | null;
+  /** What was uploaded; the file itself is `openCoachCertificate`. */
   certificate: CertificateMeta | null;
+}
+
+export interface CoachApplication extends CoachApplicationItem {
+  decidedByUserId: string | null;
   /** Lessons still to be taught: a removal is refused while there are any. */
   upcomingLessons: number;
 }
+
+const CERT_META = { fileName: true, mimeType: true, byteSize: true, uploadedAt: true } as const;
 
 const SPORTS = {
   select: { sport: true, levelMin: true, levelMax: true },
@@ -175,6 +182,9 @@ export async function listCoachApplications(
       status: true,
       submittedAt: true,
       decidedAt: true,
+      bio: true,
+      qualifications: true,
+      decisionNote: true,
       sports: SPORTS,
     },
     orderBy: [{ [by]: dir }, { userId: dir }],
@@ -186,11 +196,17 @@ export async function listCoachApplications(
     namesOf(db, ids),
     db.coachCertificate.findMany({
       where: { userId: { in: ids } },
-      select: { userId: true },
+      // Never `content`: the list carries what was uploaded, not the file.
+      select: { userId: true, ...CERT_META },
       take: COACH_QUEUE_PAGE_SIZE,
     }),
   ]);
-  const withCertificate = new Set(certificates.map((c) => c.userId));
+  const certificateOf = new Map(
+    certificates.map(({ userId, ...meta }) => [
+      userId,
+      { ...meta, mimeType: meta.mimeType as CertificateMime },
+    ]),
+  );
   return {
     items: page.map((r) => ({
       userId: r.userId,
@@ -200,7 +216,10 @@ export async function listCoachApplications(
       submittedAt: r.submittedAt,
       decidedAt: r.decidedAt,
       sports: r.sports,
-      hasCertificate: withCertificate.has(r.userId),
+      bio: r.bio,
+      qualifications: r.qualifications,
+      decisionNote: r.decisionNote,
+      certificate: certificateOf.get(r.userId) ?? null,
     })),
     nextCursor: rows.length > limit ? (page.at(-1)?.userId ?? null) : null,
   };
@@ -238,10 +257,7 @@ export async function coachApplication(
         sports: SPORTS,
       },
     }),
-    db.coachCertificate.findUnique({
-      where: { userId },
-      select: { fileName: true, mimeType: true, byteSize: true, uploadedAt: true },
-    }),
+    db.coachCertificate.findUnique({ where: { userId }, select: CERT_META }),
     namesOf(db, [userId]),
     upcomingLessons(db, userId, now),
   ]);
@@ -258,7 +274,6 @@ export async function coachApplication(
     bio: profile.bio,
     qualifications: profile.qualifications,
     sports: profile.sports,
-    hasCertificate: certificate !== null,
     certificate: certificate
       ? { ...certificate, mimeType: certificate.mimeType as CertificateMime }
       : null,

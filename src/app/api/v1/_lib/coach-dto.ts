@@ -47,18 +47,17 @@ export function toCoachApplicationItem(i: CoachApplicationItem) {
     submittedAt: at(i.submittedAt),
     decidedAt: at(i.decidedAt),
     sports: i.sports.map((s) => ({ sport: s.sport, levelMin: s.levelMin, levelMax: s.levelMax })),
-    hasCertificate: i.hasCertificate,
+    bio: i.bio,
+    qualifications: i.qualifications,
+    decisionNote: i.decisionNote,
+    certificate: certificate(i.certificate),
   };
 }
 
 export function toCoachApplication(a: CoachApplication) {
   return {
     ...toCoachApplicationItem(a),
-    bio: a.bio,
-    qualifications: a.qualifications,
-    decisionNote: a.decisionNote,
     decidedByUserId: a.decidedByUserId,
-    certificate: certificate(a.certificate),
     upcomingLessons: a.upcomingLessons,
   };
 }

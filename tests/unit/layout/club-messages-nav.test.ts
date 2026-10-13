@@ -13,7 +13,7 @@ import { getPermissionsForRole } from '@/lib/permissions';
  * The club's Съобщения (#375): an admin nav item and the top bar's icon, for OWNER, MANAGER and STAFF, while the messaging module is on — and
  * nowhere while it is off, which is how it ships.
  */
-const ON = { openPlay: false, messaging: true };
+const ON = { openPlay: false, messaging: true, coaches: false };
 const hrefs = (modules = MODULES_OFF) =>
   clubAdminNav('levski', 'court', modules).flatMap((s) => s.items.map((i) => i.href));
 

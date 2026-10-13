@@ -49,12 +49,14 @@ export type NavIconKey =
   | 'usage'
   | 'security'
   | 'contactRequests'
+  | 'coaches'
   // The player shell and the bottom tab bar (#362).
   | 'discover'
   | 'games'
   | 'bookings'
   | 'messages'
   | 'profile'
+  | 'coachProfile'
   | 'signIn';
 
 export interface NavItem {
@@ -299,6 +301,15 @@ export function platformNav(): NavSection<PlatformNavItem>[] {
           prefetch: 'auto',
         },
         {
+          // The coaches' profiles sent for approval (#545). COACH_APPROVE is a
+          // write capability, so the page asks for a step-up before it reads.
+          href: '/platform/coaches',
+          labelKey: 'coaches',
+          iconKey: 'coaches',
+          requires: 'COACH_APPROVE',
+          prefetch: 'auto',
+        },
+        {
           // The landing page's club enquiries (#369).
           href: '/platform/contact-requests',
           labelKey: 'contactRequests',
@@ -421,10 +432,12 @@ export interface ChromeModules {
   openPlay: boolean;
   /** Module 1, messaging (#375): Съобщения, in the sidebar, and the header's messages icon. */
   messaging: boolean;
+  /** Module 3, coaches (#377): a coach's own «Профил на треньор», in the sidebar and on Профил. */
+  coaches: boolean;
 }
 
 /** Every module off: what ships until a flag is switched on. */
-export const MODULES_OFF: ChromeModules = { openPlay: false, messaging: false };
+export const MODULES_OFF: ChromeModules = { openPlay: false, messaging: false, coaches: false };
 
 /**
  * Where each module's entry points once the module ships. Nothing is behind
@@ -434,6 +447,7 @@ export const MODULES_OFF: ChromeModules = { openPlay: false, messaging: false };
 export const MODULE_HREFS = {
   openPlay: '/games',
   messaging: '/messages',
+  coaches: '/me/coach',
 } as const satisfies Record<keyof ChromeModules, string>;
 
 /** A link in the player chrome. `labelKey` is under `common.nav`, as for the admin. */
@@ -471,6 +485,12 @@ const MESSAGES: PlayerLink = {
   iconKey: 'messages',
 };
 const PROFILE: PlayerLink = { href: PROFILE_HREF, labelKey: 'profile', iconKey: 'profile' };
+/** A coach's own profile and its standing with the platform (#545). */
+const COACH_PROFILE: PlayerLink = {
+  href: MODULE_HREFS.coaches,
+  labelKey: 'coachProfile',
+  iconKey: 'coachProfile',
+};
 const SIGN_IN: PlayerLink = { href: '/login', labelKey: 'signIn', iconKey: 'signIn' };
 
 /**
@@ -482,10 +502,11 @@ export const PUBLIC_HEADER_LINKS: readonly PlayerLink[] = [PLAY];
 /**
  * THE ITEMS EACH SIGNED-IN KIND'S SIDEBAR STARTS WITH, one list per kind.
  *
- * Игри and Съобщения wait for their modules (#376, #375). A coach has a
- * player's items until the coach module (#377) ships coach pages: that is the
- * line to change then, and nothing else has to. A CLUB account is not here:
- * its sidebar is its club's admin (`clubAdminNav`), built by `clubShell`.
+ * Игри and Съобщения wait for their modules (#376, #375). A coach plays too
+ * (#377, owner decision 3), so a coach has every item a player has, and with
+ * the coaches module on, «Профил на треньор» before Профил. A CLUB account is
+ * not here: its sidebar is its club's admin (`clubAdminNav`), built by
+ * `clubShell`.
  */
 export const SIGNED_IN_NAV: Record<'player' | 'coach', (modules: ChromeModules) => PlayerLink[]> = {
   player: (m) => [
@@ -495,7 +516,12 @@ export const SIGNED_IN_NAV: Record<'player' | 'coach', (modules: ChromeModules) 
     ...(m.messaging ? [MESSAGES] : []),
     PROFILE,
   ],
-  coach: (m) => SIGNED_IN_NAV.player(m),
+  coach: (m) => {
+    const items = SIGNED_IN_NAV.player(m);
+    if (!m.coaches) return items;
+    const at = items.indexOf(PROFILE);
+    return [...items.slice(0, at), COACH_PROFILE, ...items.slice(at)];
+  },
 };
 
 /**

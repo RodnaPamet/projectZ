@@ -1,3 +1,4 @@
+import { certificateSize } from '@/lib/coaches/certificate-limits';
 import {
   CERTIFICATE_MAX_BYTES,
   CertificateRefusedError,
@@ -93,6 +94,19 @@ describe('the name it is kept under', () => {
     expect(name).toBe(expected);
     // Nothing a download header could be broken with.
     expect(name).not.toMatch(/[\r\n"\\/]/);
+  });
+});
+
+describe('the size a person reads', () => {
+  it.each([
+    [1, { value: 1, unit: 'KB' }],
+    [54_321, { value: 53, unit: 'KB' }],
+    [1024 * 1024 - 1, { value: 1024, unit: 'KB' }],
+    [1024 * 1024, { value: 1, unit: 'MB' }],
+    [1_572_864, { value: 1.5, unit: 'MB' }],
+    [5 * 1024 * 1024, { value: 5, unit: 'MB' }],
+  ])('%d bytes', (bytes, expected) => {
+    expect(certificateSize(bytes)).toEqual(expected);
   });
 });
 
