@@ -80,6 +80,10 @@
     {
       "name": "Games",
       "description": "Open play (#376): a booker opens their booking to other players, who ask to join; the booker accepts or declines each. Payment stays at the club."
+    },
+    {
+      "name": "Coaches",
+      "description": "Finding a coach: the public list, a coach's page, and the coaches at a venue (#547)."
     }
   ],
   "paths": {
@@ -13674,6 +13678,182 @@
           }
         }
       }
+    },
+    "/coaches": {
+      "get": {
+        "operationId": "listCoaches",
+        "summary": "The coaches a player can book",
+        "tags": ["Coaches"],
+        "description": "**Public: no sign-in.** A coach is listed when the platform approved their profile and they teach at one venue or more where a lesson can actually be booked: the venue and its club are open, and the coach has set a rate, a lesson length and weekly hours there (#547).\n\nOrdered by the page address. Weekly hours are not listed: booking a lesson answers \"when\", against the courts and the coach's other lessons.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Only coaches who teach this sport.",
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The `nextCursor` of the page before."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of coaches.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCoachPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `sport` is not a sport, `limit` is not 1 to 50, or `cursor` is not one this endpoint gave out; `details.field` says which.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coaches/{slug}": {
+      "get": {
+        "operationId": "getCoach",
+        "summary": "One coach's public page",
+        "tags": ["Coaches"],
+        "description": "**Public: no sign-in.** Any coach the platform approved, by page address: the text, qualifications, sports and levels, the picture, and the venues where a lesson can be booked with them (#547).\n\nAn approved coach who teaches nowhere yet answers with `venues: []`: they have a page and are not in the list.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The coach's page address, `slug` in the list.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The coach.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCoachEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — an address that names nobody, a coach who is not approved, or an account that is gone. The three are not told apart.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/{id}/coaches": {
+      "get": {
+        "operationId": "listVenueCoaches",
+        "summary": "The coaches a player can book at a venue",
+        "tags": ["Coaches"],
+        "description": "**Public: no sign-in.** The same coaches and shape as `GET /coaches`, kept to those with a bookable link at this venue (#547). In each one's `venues`, this venue comes first, so `venues[0]` holds the rates here.\n\nA venue that does not exist, is closed, or whose club is not open answers with an empty list, as a venue where nobody teaches does. Up to 50.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The venue id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The coaches at this venue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueCoachesEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `id` is not shaped like a venue id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -20556,6 +20736,175 @@
           "note": {
             "type": "string",
             "maxLength": 200
+          }
+        }
+      },
+      "PublicCoachVenue": {
+        "type": "object",
+        "required": [
+          "linkId",
+          "venueId",
+          "name",
+          "city",
+          "publicSlug",
+          "club",
+          "hourlyRateCents",
+          "groupRateCents",
+          "currency",
+          "lessonMinutes"
+        ],
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "description": "The coach at this venue: what a lesson is booked against."
+          },
+          "venueId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "publicSlug": {
+            "type": ["string", "null"],
+            "description": "The venue page's address, when it has one."
+          },
+          "club": {
+            "type": "object",
+            "required": ["name", "slug"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            }
+          },
+          "hourlyRateCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The coach's fee per hour for one player. The court's price is added to it."
+          },
+          "groupRateCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "Per hour for two or more players. Null: no group lessons here."
+          },
+          "currency": {
+            "type": "string"
+          },
+          "lessonMinutes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "The lesson lengths the coach teaches here."
+          }
+        }
+      },
+      "PublicCoach": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "avatarUrl",
+          "bio",
+          "qualifications",
+          "sports",
+          "fromRateCents",
+          "currency",
+          "venues"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "The coach's page address: how a coach is named in public. The account id is not given out."
+          },
+          "name": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
+            "type": ["string", "null"],
+            "description": "Our own copy of the account's picture, or null."
+          },
+          "bio": {
+            "type": ["string", "null"],
+            "description": "The coach's own text, as the platform approved it for publication. Plain text; line breaks are kept."
+          },
+          "qualifications": {
+            "type": ["string", "null"]
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachSportLevels"
+            }
+          },
+          "fromRateCents": {
+            "type": ["integer", "null"],
+            "description": "The lowest hourly rate among `venues`. Null when there are none."
+          },
+          "currency": {
+            "type": "string"
+          },
+          "venues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicCoachVenue"
+            },
+            "description": "Where a lesson can be booked with them, cheapest first. On `GET /venues/{id}/coaches`, that venue first."
+          }
+        }
+      },
+      "PublicCoachPage": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items", "nextCursor"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PublicCoach"
+                }
+              },
+              "nextCursor": {
+                "type": ["string", "null"],
+                "description": "Null on the last page."
+              }
+            }
+          }
+        }
+      },
+      "PublicCoachEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PublicCoach"
+          }
+        }
+      },
+      "VenueCoachesEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PublicCoach"
+                }
+              }
+            }
           }
         }
       }

@@ -43,6 +43,7 @@ filter:
     - Auth
     - Billing
     - Bookings
+    - Coaches
     - Desk
     - Devices
     - Games
