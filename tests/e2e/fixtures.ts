@@ -114,7 +114,13 @@ export async function signIn(
   }
 }
 
-function testClientIp(): string {
+/**
+ * A client address of its own for one test's browser. Every limiter that is
+ * keyed on the caller's address (the sign-in's, and the 60-a-minute budget
+ * every mutating API route shares) otherwise sees the whole suite as one
+ * client on the loopback.
+ */
+export function testClientIp(): string {
   const n = Math.floor(Math.random() * 2 ** 17);
   return `198.${18 + (n >> 16)}.${(n >> 8) & 255}.${n & 255}`;
 }

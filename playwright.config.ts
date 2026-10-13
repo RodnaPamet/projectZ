@@ -112,6 +112,12 @@ export default defineConfig({
     env: {
       TEST_PASSWORD_SIGN_IN: '1',
       DEPLOY_ENV: 'test',
+      // Both modules on, as production runs them since 2026-10-13: the Игри
+      // tab and the open-play section of a booking (#376), the messages icon
+      // and the game's chat (#375). The open-play journey needs the section,
+      // and every other spec then runs against the navigation people see.
+      MODULE_OPEN_PLAY: '1',
+      MODULE_MESSAGING: '1',
       FACEBOOK_CLIENT_ID: E2E_FACEBOOK_APP_ID,
       FACEBOOK_CLIENT_SECRET: E2E_FACEBOOK_APP_SECRET,
     },
