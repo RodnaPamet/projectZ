@@ -630,3 +630,32 @@ one-off script.
 
 Deleting a club account on request (#459) builds on this: close the club,
 then delete the holder's account.
+
+## Deleting a club account on request
+
+A club account can't delete itself (owner decision 3, #370): the club asks
+through the contact form, and the platform retires it (#459).
+
+```sh
+npm run retire:club -- --email owner@club.bg
+npm run retire:club -- --email owner@club.bg --confirm <club id> --reason "asked by email 2026-10-20"
+```
+
+The first is a dry run: the account, its club, how many upcoming bookings
+would be cancelled, and how many other staff it has. The second, with the club
+id the dry run printed and a reason (audited), does three things in order:
+
+1. closes the club (`CLUB_STATUS_CHANGED`, actor SYSTEM, source operator):
+   hidden and unbookable for good;
+2. cancels its upcoming bookings as the club, each player told, and cuts its
+   weekly series;
+3. deletes the holder's account with `deleteAccount`, as `delete:account`
+   would.
+
+Kept: the club's bookings, fee lines, payments, credit ledger, audit log and
+statements. Other staff keep their own accounts; their role at a closed club
+no longer stops them deleting theirs.
+
+If the holder also has upcoming bookings of their own as a player, step 3
+stops after the club is closed; they cancel or leave them, then
+`npm run delete:account` finishes.

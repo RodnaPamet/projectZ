@@ -42,6 +42,7 @@
     "backfill:club-fees": "tsx scripts/backfill-club-fees.ts",
     "report:undecided-accounts": "tsx scripts/report-undecided-accounts.ts",
     "delete:account": "tsx scripts/delete-account.ts",
+    "retire:club": "tsx scripts/retire-club.ts",
     "backfill:avatars": "tsx scripts/backfill-avatars.ts"
   },
   "dependencies": {
