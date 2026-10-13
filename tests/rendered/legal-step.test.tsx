@@ -55,7 +55,7 @@ jest.mock('@/lib/data/use-v1-mutation', () => ({
   useV1Mutation: () => ({ trigger: (...args: unknown[]) => accept(...args), isMutating: false }),
 }));
 const refreshSession = jest.fn();
-jest.mock('@/lib/i18n/persist-my-locale', () => ({
+jest.mock('@/lib/auth/refresh-session', () => ({
   refreshSession: (...args: unknown[]) => refreshSession(...args),
 }));
 const loadPage = jest.fn();

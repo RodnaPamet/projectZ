@@ -21,6 +21,27 @@ jest.mock('next/navigation', () => ({
   useParams: () => ({}),
 }));
 
+// ═══ A RENDERED TEST NEVER LOADS THE DATABASE CLIENT (#532) ═══
+//
+// A client component may import a server action, and through it the use
+// case, Prisma and `pg`. In the browser that import is a reference; in a
+// jsdom test it is the real module. On Node 24 (CI) `pg` cannot even be
+// loaded under jsdom ("TextEncoder is not defined"), while on a newer Node it
+// loads quietly, so a suite passed on a laptop and failed to start in CI.
+//
+// So it fails the same way everywhere, and says what to do. A rendered test
+// that needs a component which imports an action mocks the action's module
+// (or whatever sits between the component and the database).
+jest.mock('@/lib/db/prisma', () => {
+  throw new Error(
+    'A rendered (jsdom) test loaded the database client (src/lib/db/prisma.ts).\n\n' +
+      'A component under test imports, through a server action or a helper, code that\n' +
+      'opens the database. Mock that module in the test (jest.mock of the action or\n' +
+      'the use case), or import the helper from a module that does not reach it.\n' +
+      'On CI this is where "ReferenceError: TextEncoder is not defined" came from (#532).',
+  );
+});
+
 // jsdom implements neither of these; Radix and the virtualized table both
 // probe for them on mount.
 if (!window.matchMedia) {

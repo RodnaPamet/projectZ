@@ -1,6 +1,5 @@
-import { getCsrfToken } from 'next-auth/react';
-
 import { saveMyLocaleAction } from '@/app/(public)/me/profile/actions';
+import { refreshSession } from '@/lib/auth/refresh-session';
 
 /**
  * Save a SIGNED-IN person's language (#362, #368), for the vendored
@@ -27,16 +26,6 @@ export async function persistMyLocale(locale: string): Promise<void> {
   await refreshSession();
 }
 
-/**
- * next-auth's CSRF-checked session update: `auth.ts` re-reads the locale and
- * the display name (#359) from the user's own row into the token.
- */
-export async function refreshSession(): Promise<void> {
-  const csrfToken = await getCsrfToken();
-  const res = await fetch('/api/auth/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ csrfToken, data: {} }),
-  });
-  if (!res.ok) throw new Error('session not refreshed');
-}
+// `refreshSession` lives in src/lib/auth/refresh-session.ts; re-exported for
+// the callers that already took it from here.
+export { refreshSession };
