@@ -123,7 +123,6 @@ describe('Strava data never reaches a cross-user surface', () => {
     'ratings/engine',
     'ratings/openskill',
     'matchmaking/glicko',
-    'search/documents',
   ];
 
   it.each(CROSS_USER_MODULES)('%s does not read the activity table', (module) => {

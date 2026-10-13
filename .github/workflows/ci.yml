@@ -25,8 +25,6 @@ env:
   # Throwaway value so NextAuth can boot in CI. Authenticates nothing.
   NEXTAUTH_SECRET: 'ci-test-secret-not-a-real-key' # pragma: allowlist secret
   NEXTAUTH_URL: 'http://localhost:3000'
-  MEILISEARCH_HOST: 'http://localhost:7700'
-  MEILISEARCH_MASTER_KEY: 'test-master-key' # pragma: allowlist secret
   CENTRIFUGO_API_URL: 'http://localhost:8000/api'
   CENTRIFUGO_API_KEY: 'test-api-key' # pragma: allowlist secret
   CENTRIFUGO_TOKEN_SECRET: 'test-token-secret' # pragma: allowlist secret
@@ -193,16 +191,6 @@ jobs:
         options: >-
           --health-cmd "wget -qO- http://127.0.0.1:8000/health || exit 1"
           --health-interval 5s --health-timeout 5s --health-retries 10
-      meilisearch:
-        image: getmeili/meilisearch:v1.11
-        env:
-          MEILI_MASTER_KEY: test-master-key # pragma: allowlist secret
-          MEILI_ENV: development
-          MEILI_NO_ANALYTICS: 'true'
-        ports: ['7700:7700']
-        options: >-
-          --health-cmd "wget -qO- http://127.0.0.1:7700/health || exit 1"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - if: needs.preflight.outputs.has_app == 'true'
@@ -294,16 +282,6 @@ jobs:
         ports: ['8000:8000']
         options: >-
           --health-cmd "wget -qO- http://127.0.0.1:8000/health || exit 1"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-      meilisearch:
-        image: getmeili/meilisearch:v1.11
-        env:
-          MEILI_MASTER_KEY: test-master-key # pragma: allowlist secret
-          MEILI_ENV: development
-          MEILI_NO_ANALYTICS: 'true'
-        ports: ['7700:7700']
-        options: >-
-          --health-cmd "wget -qO- http://127.0.0.1:7700/health || exit 1"
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7

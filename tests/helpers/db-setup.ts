@@ -4,7 +4,7 @@ import { prismaTestClient, resetDatabase } from './db';
  * ═══ 30s, BECAUSE 5s IS A BUDGET FOR A TEST THAT TOUCHES NOTHING ═══
  *
  * Jest's default is 5000ms and it governs HOOKS as well as tests. These suites
- * talk to a real Postgres, Meilisearch and Redis, and every one of them starts
+ * talk to a real Postgres and Redis, and every one of them starts
  * by TRUNCATEing 55 tables in the beforeEach below.
  *
  * Measured locally, `resetDatabase` takes 240-431ms — about 11x headroom, right
