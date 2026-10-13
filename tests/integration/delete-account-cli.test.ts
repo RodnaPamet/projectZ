@@ -109,7 +109,8 @@ describe('npm run delete:account (#370)', () => {
     const club = await seedTenant({});
     const run = cli(['--email', club.ownerEmail, '--confirm', club.userId]);
     expect(run.code).toBe(1);
-    expect(run.out).toContain('CLUB account');
+    expect(run.out).toContain('runs a club that is not closed');
+    expect(run.out).toContain('npm run retire:club');
     expect(run.out).toContain('#459');
     expect((await emailOf(club.userId)).deletedAt).toBeNull();
   });

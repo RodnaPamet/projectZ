@@ -34,9 +34,9 @@ import { assertOwnerRole, die, normaliseEmail, ownerConnection } from './lib/onb
  *
  *   - an account with an upcoming booking: the person cancels it, or leaves
  *     it, first (owner decision 1); the script lists them
- *   - a club account: one whose kind is CLUB, or any account holding an OWNER,
- *     MANAGER or STAFF role at a club. Retiring a club (hiding it, cancelling
- *     its upcoming bookings with notice, keeping its money) is #459, not this
+ *   - an account that runs a club that is not closed (an OWNER, MANAGER or
+ *     STAFF role there): `npm run retire:club` closes the club and deletes
+ *     the account together (#459)
  *   - an address with no account, which includes one already deleted: a
  *     tombstone does not keep the address
  *
@@ -128,7 +128,7 @@ async function main(): Promise<void> {
   let credit: ClubCredit[] = [];
   try {
     await runAsSuperuser(async (db) => {
-      const standing = await deletionStanding(db, account.id);
+      const standing = await deletionStanding(db, account.id, new Date(), 'operator');
       if (standing.kind !== 'club') credit = standing.credit;
       summary = await deleteAccount(db, { userId: account.id, by: 'operator' });
       if (dryRun) throw new DryRunRollback();
@@ -146,10 +146,11 @@ async function main(): Promise<void> {
     }
     if (e instanceof ClubAccountDeletionRefusedError) {
       die(
-        'This is a CLUB account (or it holds a club role).\n\n' +
-          'Retiring a club (hiding it and its venues, cancelling its upcoming bookings\n' +
-          'with notice, keeping its financial records) is not built yet: #459. The\n' +
-          'runbook says what to do meanwhile.',
+        'This account runs a club that is not closed.\n\n' +
+          'To delete a club account on request, retire its club with it (#459): it\n' +
+          'closes the club, cancels its upcoming bookings with notice, keeps its\n' +
+          'financial records, and deletes this account.\n\n' +
+          `  npm run retire:club -- --email ${email}`,
       );
     }
     if (e instanceof UpcomingBookingsError) {
