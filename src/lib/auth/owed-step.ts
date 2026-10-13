@@ -1,3 +1,5 @@
+import { PHONE_STEP_PATH } from '@/lib/auth/landing';
+import { phoneStillToAsk } from '@/lib/auth/phone-ask';
 import { LEGAL_HREF } from '@/lib/legal/slugs';
 import {
   LEGAL_STEP_PATH,
@@ -8,11 +10,14 @@ import {
 } from '@/lib/legal/versions';
 
 /**
- * A step a signed-in account owes before anything else (#462).
+ * A step a signed-in account owes before anything else (#462, #500).
  *
- * Today there is one: the terms or the privacy policy changed, and the account
- * accepts the new version once. The middleware asks this on every page it is
- * about to serve and redirects to the step, with the way back.
+ * Two today. The terms or the privacy policy changed, and the account accepts
+ * the new version once: that one cannot be skipped. And, once the phone rule
+ * is on, a player or coach with no confirmed number is asked for one, once,
+ * and may say «Не сега» (src/lib/auth/phone-ask.ts). The middleware asks this
+ * on every page it is about to serve and redirects to the step, with the way
+ * back.
  *
  * ═══ A HINT, NOT A DECISION ═══
  *
@@ -62,20 +67,37 @@ export interface OwedStepRequest {
   rsc: boolean;
 }
 
+export interface OwedStepOptions {
+  /** The versions in force; the tests pass their own. */
+  current?: LegalVersions;
+  /** Is the phone rule on (REQUIRE_PHONE=1)? */
+  phoneRequired?: boolean;
+  /** Did this browser say «Не сега» to the phone step? */
+  phoneLater?: boolean;
+}
+
 /**
- * Where to send this request instead, or null to let it through.
- * `current` is a parameter for the tests; the middleware passes nothing.
+ * Where to send this request instead, or null to let it through. New terms
+ * come first: they are not skippable. Then the phone number, once, unless the
+ * person said «Не сега» (#500).
  */
 export function owedStep(
   req: OwedStepRequest,
-  token: { sub?: string | null; legal?: string } | null,
-  current: LegalVersions = currentLegalVersions(),
+  token: { sub?: string | null; legal?: string; phone?: string } | null,
+  opts: OwedStepOptions = {},
 ): string | null {
   if (!token?.sub) return null;
   if (req.method !== 'GET' && req.method !== 'HEAD') return null;
   if (isFree(req.pathname)) return null;
   if (!req.rsc && !(req.accept ?? '').includes('text/html')) return null;
 
-  if (legalDocumentsDue(current, decodeLegalVersions(token.legal)).length === 0) return null;
-  return `${LEGAL_STEP_PATH}?next=${encodeURIComponent(`${req.pathname}${req.search}`)}`;
+  const next = encodeURIComponent(`${req.pathname}${req.search}`);
+  const current = opts.current ?? currentLegalVersions();
+  if (legalDocumentsDue(current, decodeLegalVersions(token.legal)).length > 0) {
+    return `${LEGAL_STEP_PATH}?next=${next}`;
+  }
+  if (opts.phoneRequired && !opts.phoneLater && phoneStillToAsk(token.phone)) {
+    return `${PHONE_STEP_PATH}?next=${next}`;
+  }
+  return null;
 }

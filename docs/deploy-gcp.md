@@ -489,6 +489,57 @@ curl -s -o /dev/null -w '%{http_code}\n' --http1.1 \
 Rotating a secret: change it in both files, then recreate the broker and the
 app together; open sockets reconnect and fetch a new token.
 
+## The phone check (#500)
+
+A player or coach confirms a phone number by an SMS code before their first
+booking, join request or message. The codes are sent and checked by
+**Infobip's 2FA API**, on the owner's Infobip account.
+
+**What exists in the Infobip account** (made once, 2026-10-13):
+
+- one 2FA application, "playerz.bg phone confirmation": a code lives 10
+  minutes and gets 5 guesses; at most 6 SMS a day to one number and 2000 a day
+  in all;
+- two message templates for it, a 6-digit numeric PIN, sender `playerz`:
+  Bulgarian «{{pin}} е вашият код за playerz.bg. Не го споделяйте с никого.»
+  and English "{{pin}} is your playerz.bg code. Do not share it with anyone."
+
+To change a text or the sender, update the template in Infobip
+(`PUT /2fa/2/applications/{appId}/messages/{msgId}`); nothing is redeployed.
+
+**Settings** (the app's env file, all four or none; the fifth is optional):
+
+| Setting                      | What it is                                                    |
+| ---------------------------- | ------------------------------------------------------------- |
+| `INFOBIP_BASE_URL`           | the account's own API host, `https://<id>.api.infobip.com`    |
+| `INFOBIP_API_KEY`            | an API key that may send and verify 2FA PINs                  |
+| `INFOBIP_2FA_APPLICATION_ID` | the application above                                         |
+| `INFOBIP_2FA_MESSAGE_ID`     | the Bulgarian template                                        |
+| `INFOBIP_2FA_MESSAGE_ID_EN`  | the English template; without it everybody gets the Bulgarian |
+
+Put them in with a pipe, never as a command argument, and never print them.
+
+**Turning the rule on.** `REQUIRE_PHONE=1` in the env file, then recreate the
+app container. Off (the default), nothing asks for a number and nothing is
+blocked. On:
+
+- booking, joining a booking by link, asking to join a game and writing a
+  message (as a player) answer `PHONE_REQUIRED` until a number is confirmed;
+- a signed-in player or coach with no number is asked once after signing in,
+  and may say «Не сега»;
+- club staff and the desk are never asked.
+
+`REQUIRE_PHONE=1` without the four Infobip settings does NOT let people
+through: the phone step answers 503 `PHONE_VERIFY_UNAVAILABLE` and logs an
+error, and the gated actions stay refused. Set the keys first.
+
+**Order for a new environment:** the four settings → recreate → confirm your
+own number at `/start/phone` → `REQUIRE_PHONE=1` → recreate.
+
+**What a club sees.** The staff of a club see a player's confirmed number on
+that player's upcoming booking at the club, in the diary. Nobody else sees a
+number. The privacy policy has to say so (#370).
+
 ## Scheduled jobs
 
 Seven routes under `/api/cron` do work nothing else triggers, and each refuses

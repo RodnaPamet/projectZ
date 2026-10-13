@@ -198,3 +198,12 @@ a reader would reasonably assume.
 - Show the acceptance step while `due` is not empty, before anything else. The texts are `/terms` and `/privacy` on the site, in the person's language. `POST /me/legal-acceptance` (no body) accepts every text in force and answers the same shape with `due: []`. It is idempotent.
 - A new account accepts both by answering "player or coach?": `POST /me/account-kind` records it when both texts are in force, so show the "By continuing, you accept …" line on that screen.
 - The web holds signed-in PAGES at `/start/terms` from a claim in its session cookie. The API is never held back by it: a bearer client reads `due` and decides what to show.
+
+## the phone number (#500)
+
+- `Me.phone` is `{ required, verified, number }`. While `required` is true and `verified` is false, creating a booking, accepting a booking invite, asking to join a game and sending a message (as a player) answer 403 `PHONE_REQUIRED`. Show the phone step, then repeat the request.
+- The step is two calls. `POST /me/phone/start` with `{ phone }` (as typed; the server normalises to E.164) sends an SMS code and answers `{ sent, number, challenge }`. `POST /me/phone/confirm` with `{ phone, code, challenge }` confirms it and answers the account. Keep `challenge` opaque and send it back unchanged: it is what ties the code to this account and this number, and a new `start` voids the old one.
+- `start` answers `sent: true` for any number that can get a code. Only `confirm` says `PHONE_IN_USE` (409), and only once the code was right: a number confirms one account at a time.
+- `PHONE_CODE_EXPIRED` covers an expired code, a used one, and a challenge that is too old or not for this number: offer "send again" for all of them. `RATE_LIMITED` (429) means wait; do not retry in a loop.
+- `number` is masked (`+35988*****56`). The full number is never returned to its owner's client after confirmation, and never to another player. A club's staff see it on that player's UPCOMING booking at their club, in the club's diary, and nowhere else.
+- The web asks a signed-in player once after sign-in and lets them skip; that is the web's own behaviour, from its session cookie. A bearer client decides for itself when to show the step.
