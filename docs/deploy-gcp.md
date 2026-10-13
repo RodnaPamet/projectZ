@@ -101,8 +101,11 @@ There is no registry. The image is built on the box from a clone.
 ```bash
 # Keep the running image as the way back. Migrations here have been additive, so
 # the previous image runs against the new schema; re-tag and recreate to roll back.
-# Four exceptions, p37, and p51, p54 and p55 (their rows, not their schema):
-# see "Rolling back past p37", "… past p51", "… past p54" and "… past p55".
+# The exceptions: p37, and every migration that added an enum value (p51, p54,
+# p55, p61, p67: their ROWS, not their schema, #450). Each has a "Rolling back
+# past pNN" section below with a park script to run first. The list cannot fall
+# behind: tests/guardrails/enum-value-has-rollback-park.test.ts fails the build
+# for an enum migration without its scripts, its section and its test.
 sudo docker tag playerz:local playerz:rollback-$(date +%s)
 
 cd /opt/playerz/repo && sudo git fetch --all && sudo git reset --hard origin/main
