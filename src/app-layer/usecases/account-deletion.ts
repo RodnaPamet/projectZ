@@ -624,37 +624,13 @@ export async function deleteAccount(
   //
   // No route writes these today. Decided anyway, so the day one does, a
   // deletion already does the right thing (deletion-plan.ts).
-  // guardrail-allow: cross-tenant — this person's coach profiles, at every club.
-  const coaches = await db.coach.findMany({ where: { userId }, select: { id: true }, take: 500 });
-  count(
-    'CoachReview',
-    // guardrail-allow: cross-tenant — reviews by this person, and of their coach profiles.
-    (
-      await db.coachReview.deleteMany({
-        where: { OR: [{ authorUserId: userId }, { coachId: { in: coaches.map((c) => c.id) } }] },
-      })
-    ).count,
-  );
-  count(
-    'Coach.closed',
-    // guardrail-allow: cross-tenant — this person's coach profiles, at every club.
-    (
-      await db.coach.updateMany({
-        where: { userId },
-        data: { bio: null, certificationsJson: [], status: 'CLOSED' },
-      })
-    ).count,
-  );
-  count(
-    'CoachBooking.notes',
-    // guardrail-allow: cross-tenant — this person's coach bookings, at every club.
-    (
-      await db.coachBooking.updateMany({
-        where: { playerUserId: userId, notes: { not: null } },
-        data: { notes: null },
-      })
-    ).count,
-  );
+  //
+  // NOT the P08 coach tables (`coach`, `coach_booking`, `coach_review`, …):
+  // nothing ever wrote them, both live databases hold no row in them, and the
+  // coaches module (#377) replaces them in its next migration. This deletion
+  // stopped touching them one release BEFORE that migration, so the image a
+  // rollback lands on never queries a column that is gone (#544), as #511 did
+  // for the old open-play tables.
   count('XpEvent', (await db.xpEvent.deleteMany({ where: { userId } })).count); // guardrail-allow: cross-tenant — the person's own points
   count('UserAchievement', (await db.userAchievement.deleteMany({ where: { userId } })).count);
   count(
