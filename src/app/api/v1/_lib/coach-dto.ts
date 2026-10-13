@@ -4,6 +4,7 @@ import type {
   CoachApplicationItem,
   CoachDecisionResult,
 } from '@/app-layer/usecases/coach-approval';
+import type { PublicCoach } from '@/app-layer/usecases/coach-directory';
 import type { MyCoachLink } from '@/app-layer/usecases/coach-links';
 import { rfc3339 } from '@/app/api/v1/_lib/dto';
 
@@ -90,6 +91,34 @@ export function toMyCoachLinks(v: { approved: boolean; links: MyCoachLink[] }) {
       createdAt: rfc3339(l.createdAt),
       decidedAt: at(l.decidedAt),
       endedAt: at(l.endedAt),
+    })),
+  };
+}
+
+// ─── Finding a coach (#547) ─────────────────────────────────────────────────
+
+/** A coach as the public sees them. Nothing here needs a date turned into text. */
+export function toPublicCoach(c: PublicCoach) {
+  return {
+    slug: c.slug,
+    name: c.name,
+    avatarUrl: c.avatarUrl,
+    bio: c.bio,
+    qualifications: c.qualifications,
+    sports: c.sports.map((s) => ({ sport: s.sport, levelMin: s.levelMin, levelMax: s.levelMax })),
+    fromRateCents: c.fromRateCents,
+    currency: c.currency,
+    venues: c.venues.map((v) => ({
+      linkId: v.linkId,
+      venueId: v.venueId,
+      name: v.name,
+      city: v.city,
+      publicSlug: v.publicSlug,
+      club: v.club,
+      hourlyRateCents: v.hourlyRateCents,
+      groupRateCents: v.groupRateCents,
+      currency: v.currency,
+      lessonMinutes: v.lessonMinutes,
     })),
   };
 }
