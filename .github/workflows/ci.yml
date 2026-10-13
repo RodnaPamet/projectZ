@@ -282,11 +282,23 @@ jobs:
   #  (the run exits 0 however low coverage is). `--coverageThreshold` is
   #  honoured.
   # ═══════════════════════════════════════════════════════════════
-  coverage:
-    name: Coverage
+  # IN TWO HALVES, THEN ONE NUMBER (#542). This job runs every unit and
+  # integration suite again, serially, with instrumentation: after Integration
+  # was split (#531) it was the slowest check on every pull request. So it is
+  # sharded the same way, each half on its own runner with its own Postgres.
+  #
+  # The floor is NOT checked here. A half runs half the suites, so half the
+  # code looks untested to it. Each half writes its raw coverage map, and the
+  # `Coverage` job below merges them and holds the total to the floor.
+  coverage-shard:
+    name: Coverage (${{ matrix.shard }}/2)
     needs: [preflight]
     if: needs.preflight.outputs.has_app == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     timeout-minutes: 25
     services:
       postgres:
@@ -336,22 +348,54 @@ jobs:
       - name: Apply migrations
         run: if [ -d prisma/migrations ]; then npx prisma migrate deploy; fi
 
-      # BLOCKING as of P12. Enforcement is via the CLI flag, NOT the config
-      # file: jest SILENTLY IGNORES a top-level `coverageThreshold` in
-      # multi-project mode and exits 0 however low coverage actually is.
-      - name: 'Gate: coverage floor (BLOCKING)'
+      # The tests of this half, with coverage. A failing test fails the half;
+      # the floor is the merge job's (a half alone can never meet it).
+      - name: 'Run tests with coverage (half ${{ matrix.shard }} of 2)'
         run: |
-          npx jest --coverage --runInBand --ci \
-            --coverageThreshold="$(cat jest.thresholds.json)" \
-            --selectProjects unit integration
+          npx jest --coverage --coverageReporters=json --runInBand --ci \
+            --selectProjects unit integration --shard=${{ matrix.shard }}/2
 
-      - name: Upload coverage
-        if: ${{ !cancelled() }}
+      - name: Upload this half's coverage map
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
-          path: coverage/
-          if-no-files-found: ignore
+          name: coverage-${{ matrix.shard }}
+          path: coverage/coverage-final.json
+          # A half with no map is a half that measured nothing: fail here, not
+          # as a puzzling number in the merge.
+          if-no-files-found: error
+
+  # The one check named "Coverage": the halves merged, and the floor.
+  #
+  # BLOCKING as of P12. Jest SILENTLY IGNORES a top-level `coverageThreshold`
+  # in multi-project mode, so the floor has always been enforced from the
+  # command line with `jest.thresholds.json`; scripts/ci/merge-coverage.mjs
+  # reads the same file, and fails closed: a missing half, an unreadable map
+  # or an empty one is an error, never a pass.
+  coverage:
+    name: Coverage
+    needs: [preflight, coverage-shard]
+    if: always() && needs.preflight.outputs.has_app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Every half ran its tests
+        run: |
+          result='${{ needs.coverage-shard.result }}'
+          echo "coverage halves: $result"
+          [ "$result" = "success" ] || { echo "::error::A Coverage half did not pass ($result). Open the Coverage (n/2) jobs."; exit 1; }
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node-prisma
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Download the halves' coverage maps
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage-shards
+      - name: 'Gate: coverage floor (BLOCKING)'
+        env:
+          COVERAGE_SHARDS: '2'
+        run: node scripts/ci/merge-coverage.mjs coverage-shards
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 5: Build
