@@ -8,11 +8,13 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { VenueSummary } from '@/app/api/v1/_lib/dto';
 import { CardGridSkeleton } from '@/components/loading/shapes';
 import { MobileListAffordances } from '@/components/mobile/MobileListAffordances';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { useSsrFallback } from '@/components/ui/hooks/use-ssr-fallback';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ToggleGroup } from '@/components/ui/toggle-group';
@@ -94,10 +96,12 @@ function writeParam(
  * leave the skeleton up for ever. It is an ErrorState with a retry now. A
  * failure with a list already on screen keeps the list (`keepPreviousData`).
  *
- * ═══ PAGE ONE ONLY ═══
+ * ═══ TWENTY AT A TIME (#332) ═══
  *
- * `KEYS.venues` is a cursor list, so this is `useSWRInfinite` at size 1: the
- * same twenty venues the server-rendered page always showed (#332).
+ * `KEYS.venues` is a cursor list read with `useSWRInfinite`. The server seeds
+ * page one, the same twenty venues it always rendered, and «Покажи още» asks
+ * for the next page by its cursor, as /me/bookings does. Until this, a
+ * twenty-first venue was unreachable except by filtering it into view.
  *
  * ═══ EACH CARD LINKS TO ITS VENUE PAGE (#355) ═══
  *
@@ -148,16 +152,23 @@ export function VenueList({
     hasActive: Object.keys(filters).length > 0,
   });
 
-  const { data, error, mutate } = useV1SWRInfinite<VenueSummary>(getKey, {
-    fallbackData: seedFits ? [seed] : undefined,
-    keepPreviousData: true,
-  });
+  const { data, error, mutate, size, setSize, isValidating } = useV1SWRInfinite<VenueSummary>(
+    getKey,
+    {
+      fallbackData: seedFits ? [seed] : undefined,
+      keepPreviousData: true,
+    },
+  );
 
   // Stable, so MobileListAffordances' memo holds across renders (#335).
   const refresh = useCallback(() => mutate(), [mutate]);
   const retry = useCallback(() => void mutate(), [mutate]);
 
-  const items = data?.[0]?.items;
+  const items = data?.flatMap((p) => p.items);
+  const nextCursor = data?.[data.length - 1]?.nextCursor ?? null;
+  // A page was asked for and has not arrived: in flight, or it failed.
+  const loadingMore = !!data && size > data.length;
+  const loadMoreFailed = loadingMore && !!error && !isValidating;
 
   return (
     <>
@@ -186,7 +197,9 @@ export function VenueList({
               appending a letter, and the count word itself changes — so the
               shape has to come from the catalogue, not from the JSX. */}
           <p role="status" className="text-content-muted mt-4 mb-6 text-sm">
-            {t('count', { count: items.length })}
+            {nextCursor
+              ? t('countMore', { count: items.length })
+              : t('count', { count: items.length })}
           </p>
 
           {items.length === 0 ? (
@@ -200,6 +213,26 @@ export function VenueList({
                 <VenueCard key={v.id} venue={v} />
               ))}
             </ul>
+          )}
+
+          {loadMoreFailed && (
+            <InlineNotice variant="error" className="mt-6">
+              {t('loadMoreError')}
+            </InlineNotice>
+          )}
+
+          {nextCursor && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                type="button"
+                variant="secondary"
+                loading={loadingMore && !loadMoreFailed}
+                onClick={() => void setSize(data!.length + 1)}
+                data-testid="venues-load-more"
+              >
+                {t('loadMore')}
+              </Button>
+            </div>
           )}
         </>
       )}

@@ -9,7 +9,7 @@ import { DataProvider } from '@/lib/data/provider';
 import { __resetViewerForTests } from '@/lib/data/viewer';
 
 import { messages, withIntl } from '../helpers/intl';
-import { installFakeFetch, ok, tick } from '../unit/data/fake-v1';
+import { fail, installFakeFetch, ok, tick } from '../unit/data/fake-v1';
 
 /**
  * /venues on the client data layer (T27), against the REAL Bulgarian
@@ -227,5 +227,37 @@ describe('/venues — the cards link to the venue page (#355)', () => {
 
     expect(screen.getByText('Алфа Кортове')).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+});
+
+describe('/venues — more than one page (#332)', () => {
+  const pageOne: V1Page<VenueSummary> = { items: [venue()], nextCursor: 'c1' };
+  const pageTwo: V1Page<VenueSummary> = {
+    items: [venue({ id: 'v2', name: 'Бета', publicSlug: 'beta' })],
+    nextCursor: null,
+  };
+
+  it('offers «Покажи още» while a next page exists, and appends it by its cursor', async () => {
+    const calls = installFakeFetch((c) => ok(c.url.includes('cursor=c1') ? pageTwo : pageOne));
+    mount(pageOne);
+
+    expect(screen.getByText(/Показан е 1 обект, има още/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('venues-load-more'));
+
+    await waitFor(() => expect(cards()).toHaveLength(2));
+    expect(calls.map((c) => c.url)).toContain('/api/v1/venues?cursor=c1');
+    expect(screen.getByText('Бета')).toBeInTheDocument();
+    // The last page has no cursor: no button, and the count is the plain one.
+    expect(screen.queryByTestId('venues-load-more')).not.toBeInTheDocument();
+    expect(screen.getByText(/2 налични обекта/)).toBeInTheDocument();
+  });
+
+  it('says so when the next page fails, and keeps what is on screen', async () => {
+    installFakeFetch((c) => (c.url.includes('cursor=c1') ? fail(500, 'INTERNAL') : ok(pageOne)));
+    mount(pageOne);
+
+    fireEvent.click(screen.getByTestId('venues-load-more'));
+    await waitFor(() => expect(screen.getByText(v.loadMoreError)).toBeInTheDocument());
+    expect(cards()).toHaveLength(1);
   });
 });

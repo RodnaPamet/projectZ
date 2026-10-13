@@ -225,7 +225,10 @@
     "error": {
       "title": "The venues did not load",
       "description": "Check your connection and try again."
-    }
+    },
+    "countMore": "{count, plural, one {Showing # venue} other {Showing # venues}}, more below",
+    "loadMore": "Load more",
+    "loadMoreError": "The next venues did not load. Try again."
   },
   "venue": {
     "metaTitle": "{name} — book a court | playerz.bg",
