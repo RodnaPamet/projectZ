@@ -5,6 +5,7 @@ import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { toAvailability } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
 import { playerChrome } from '@/components/layout/player-chrome';
+import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
 import { countPageUsage } from '@/lib/usage/record';
@@ -57,14 +58,19 @@ export async function VenueSlots({
   const publicVenue = { id: venue.id, name: venue.name, timezone: venue.timezone };
 
   // BYPASSRLS for the same reason as the page's venue read (page.tsx).
-  const [resources, { me, kind }] = await Promise.all([
+  const [resources, { me, kind, landing }] = await Promise.all([
     runAsSuperuser((db) => loadVenueAvailability(db, { venue: publicVenue, from, to })),
     playerChrome(),
   ]);
   const seed = toAvailability({ venue: publicVenue, from, to, resources });
   // A coach books as a player would, until the coach module says otherwise
   // (#377): the API answers for the account's kind either way.
-  const viewer: Viewer = kind === 'coach' ? 'player' : kind;
+  //
+  // An account that has not answered "Играч или треньор?" yet (#360) cannot
+  // book: the API refuses it. So «Резервирай» takes it to that question and
+  // back to this slot, rather than into a sheet that can only refuse (#416).
+  const viewer: Viewer =
+    landing?.href === KIND_CHOOSER_PATH ? 'undecided' : kind === 'coach' ? 'player' : kind;
 
   // A player back from sign-in with `?confirm=1` lands on the confirm sheet
   // already open (VenueBooking), so the funnel's "sheet opened" (#371) is

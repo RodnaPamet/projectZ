@@ -230,6 +230,21 @@ describe('signed out', () => {
   });
 });
 
+describe('an account that has not chosen player or coach yet (#416)', () => {
+  it('Резервирай goes to that question, and back to this slot with the sheet open', () => {
+    api(() => ok({}));
+    mount({ viewer: 'undecided' });
+    pickNine();
+    // Signed in: no "sign in to book" hint, and no sheet that could only refuse.
+    expect(screen.queryByText(v.signInHint)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: v.book }));
+
+    const next = `/venues/alfa?day=${DAYS[0]}&court=c1&start=${encodeURIComponent(AT(9))}&min=60&confirm=1`;
+    expect(push).toHaveBeenCalledWith(`/start/kind?next=${encodeURIComponent(next)}`);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
 describe('a club account', () => {
   it('sees why it cannot book, and the button is off', () => {
     api(() => ok({}));
