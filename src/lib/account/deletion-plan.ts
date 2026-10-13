@@ -699,41 +699,42 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
   {
     model: 'Coach',
     field: 'userId',
-    action: 'anonymise',
+    action: 'keep',
     reason:
-      'A coach profile at a club: kept, CLOSED, its bio and certifications cleared, because the club’s coach bookings point at it.',
+      'P08 scaffolding that nothing ever wrote: no row exists, and the deletion does not touch the table. The coaches module (#377) replaces it in its next migration (#544), with entries of its own.',
   },
   {
     model: 'Coach',
     field: 'bio',
-    action: 'anonymise',
-    reason: 'Set to null with the profile closed.',
+    action: 'keep',
+    reason: 'As Coach.userId: never written, replaced by the coaches module (#544).',
   },
   {
     model: 'CoachBooking',
     field: 'playerUserId',
     action: 'keep',
     upcoming: 'when-shipped',
-    reason: 'A club’s booking of a coach, kept as a court booking is. The id names a tombstone.',
+    reason:
+      'P08 scaffolding that nothing ever wrote. A lesson in the coaches module (#377) is a court booking plus a coach record, decided there; this table goes with its next migration (#544).',
   },
   {
     model: 'CoachBooking',
     field: 'notes',
-    action: 'anonymise',
-    reason:
-      'Set to null on the account’s coach bookings: a coach’s notes about a player can be health data.',
+    action: 'keep',
+    reason: 'As CoachBooking.playerUserId: never written, and the table goes (#544).',
   },
   {
     model: 'CoachReview',
     field: 'authorUserId',
-    action: 'delete',
-    reason: 'The account’s reviews of coaches, and the reviews of the account’s own coach profile.',
+    action: 'keep',
+    reason:
+      'P08 scaffolding that nothing ever wrote; reshaped by the coaches module’s next migration (#544), where a coach review is decided.',
   },
   {
     model: 'CoachReview',
     field: 'body',
-    action: 'delete',
-    reason: 'Deleted with the review.',
+    action: 'keep',
+    reason: 'As CoachReview.authorUserId: never written, reshaped in #544.',
   },
   {
     model: 'XpEvent',
