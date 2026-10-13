@@ -177,7 +177,7 @@ describe('the secrets production cannot boot without', () => {
    *
    * ═══ WHY THIS IS A RATCHET AND NOT AN EMPTY ARRAY ═══
    *
-   * There are sixteen of them, found while preparing the first deploy. Reading
+   * There were sixteen of them, found while preparing the first deploy. Reading
    * at use is the house style — `send.ts` does it for VAPID, `apns.ts` for its
    * keys — and being DECLARED is what puts a variable on the documented
    * surface. These are undocumented: nothing validates them, nothing lists
@@ -199,8 +199,6 @@ describe('the secrets production cannot boot without', () => {
     'CENTRIFUGO_PROXY_SECRET',
     'CENTRIFUGO_TOKEN_SECRET',
     'CRON_SECRET',
-    'MEILISEARCH_HOST',
-    'MEILISEARCH_MASTER_KEY',
     'NEXT_PUBLIC_CENTRIFUGO_URL',
     'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
     'NEXT_RUNTIME',

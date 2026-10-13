@@ -18,8 +18,6 @@ env:
   NEXTAUTH_URL: 'http://localhost:3000'
   # The rest of ci.yml's workflow env, so the app here boots exactly as it does
   # per-PR. tests/guardrails/test-infra-integrity.test.ts enforces the parity.
-  MEILISEARCH_HOST: 'http://localhost:7700'
-  MEILISEARCH_MASTER_KEY: 'test-master-key' # pragma: allowlist secret
   CENTRIFUGO_API_URL: 'http://localhost:8000/api'
   CENTRIFUGO_API_KEY: 'test-api-key' # pragma: allowlist secret
   CENTRIFUGO_TOKEN_SECRET: 'test-token-secret' # pragma: allowlist secret

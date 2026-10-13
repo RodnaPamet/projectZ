@@ -31,21 +31,6 @@ services:
       timeout: 5s
       retries: 10
 
-  meilisearch-test:
-    image: getmeili/meilisearch:v1.11
-    container_name: playerz-test-meili
-    environment:
-      MEILI_MASTER_KEY: test-master-key
-      MEILI_ENV: development
-      MEILI_NO_ANALYTICS: 'true'
-    ports:
-      - '7701:7700'
-    healthcheck:
-      test: ['CMD', 'sh', '-c', 'wget -qO- http://127.0.0.1:7700/health || exit 1']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   centrifugo:
     image: centrifugo/centrifugo:v6
     container_name: playerz-test-centrifugo

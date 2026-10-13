@@ -41,22 +41,6 @@ services:
       timeout: 5s
       retries: 10
 
-  meilisearch:
-    image: getmeili/meilisearch:v1.11
-    container_name: playerz-dev-meili
-    environment:
-      MEILI_MASTER_KEY: dev-master-key-not-a-secret
-      MEILI_ENV: development
-    ports:
-      - '7700:7700'
-    volumes:
-      - playerz-dev-meilidata:/meili_data
-    healthcheck:
-      test: ['CMD', 'sh', '-c', 'wget -qO- http://127.0.0.1:7700/health || exit 1']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   centrifugo:
     image: centrifugo/centrifugo:v6
     container_name: playerz-dev-centrifugo
@@ -91,6 +75,5 @@ services:
       retries: 10
 
 volumes:
-  playerz-dev-meilidata:
   playerz-dev-pgdata:
   playerz-dev-redisdata:
