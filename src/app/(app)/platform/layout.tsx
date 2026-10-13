@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
@@ -59,7 +59,12 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       getTranslations('admin.staff.role'),
     ],
   );
-  if (!me) redirect('/login?next=/platform/moderation');
+  // Signed out: no chrome, and the page redirects to sign-in with its OWN path
+  // (#520). A layout doesn't know the request path, so redirecting here sent
+  // every platform page back to /platform/moderation after sign-in.
+  // tests/guardrails/platform-pages-redirect-signed-out.test.ts keeps every
+  // page's own redirect in place.
+  if (!me) return <>{children}</>;
 
   const sections = visibleSections(platformNav(), (item) =>
     platformItemAllowed(item, capabilities),
