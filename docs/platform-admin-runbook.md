@@ -73,7 +73,7 @@ bootstrap themselves.
 | `TENANT_READ`     | read any club's operational data                           |
 | `AUDIT_READ`      | read any club's audit log                                  |
 | `USER_READ`       | read user records across clubs                             |
-| `TENANT_SUSPEND`  | **declared, refused at the binding**                       |
+| `TENANT_SUSPEND`  | suspend, close or reopen a club (#254) — an enabled write  |
 | `REVIEW_MODERATE` | work the review moderation queue — an enabled write        |
 | `CLUB_FEE_MANAGE` | set a club's fee and free period (#372) — an enabled write |
 
@@ -83,10 +83,10 @@ from a session that has stepped up with its holder's authenticator in the last
 grant holder who has not enrolled cannot use a write capability at all. Reads
 (`TENANT_READ`, `AUDIT_READ`, `USER_READ`) need no step-up.
 
-`TENANT_SUSPEND` is refused outright even with a step-up: taking a club offline
-is a power nobody has decided to ship. Granting it today buys nothing. If you need
-a cross-club write, that is a decision to make deliberately, not a flag to flip
-during an incident.
+`TENANT_SUSPEND` was refused outright until the owner decided to ship club
+suspension (#254, 2026-10-13). It is now an enabled write on the terms in
+[Suspending a club](#suspending-a-club). Any write capability added later is
+still refused until it is enabled by name in `STEP_UP_PLATFORM_WRITES`.
 
 `REVIEW_MODERATE` is that decision, made once, for one narrow write (#228): a club
 must not moderate reviews of itself, so platform moderators work the queue. It is
@@ -607,3 +607,26 @@ cleared instead: Facebook's URLs expire within weeks, so expect some
 `not copied, STATUS` lines. The initials show for those, and the person's next
 sign-in copies a fresh picture. Afterwards no stored picture points at Google
 or Meta. It is safe to run again: copies already made are not read.
+
+## Suspending a club
+
+/platform/clubs (#254), with `TENANT_SUSPEND` and a step-up from the last 15
+minutes. Each change states its own reason, which is audited twice: the
+platform row (`PLATFORM_CLUB_SUSPENDED`, `PLATFORM_CLUB_CLOSED` or
+`PLATFORM_CLUB_REOPENED`) and the club's own (`CLUB_STATUS_CHANGED`).
+
+| Change  | What happens                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suspend | Players stop seeing the club (`publicVenueFilter`) and can't book (`resolvePlayerTenant`). Every upcoming booking (PENDING or CONFIRMED, not yet started) is cancelled as the club, and each player gets the usual "the club cancelled" bell and email. Weekly series are cut at today. The staff keep **read-only** access: their Server Actions and v1 writes answer `CLUB_NOT_ACTIVE`, and the admin shows a banner. |
+| Close   | The same, for good. A closed club can't be reopened.                                                                                                                                                                                                                                                                                                                                                                    |
+| Reopen  | From SUSPENDED only. The club is visible and bookable again. The bookings the suspension cancelled **stay cancelled**.                                                                                                                                                                                                                                                                                                  |
+
+The status commits first, then the bookings are cancelled one at a time, at
+most 2000 per change. The answer reports `cancelled`, `failed` (each logged
+with its booking id, component `club-status`) and `remaining`. A club past the
+cap stays hidden and unbookable; cancel the rest with
+`cancelUpcomingBookings` (src/app-layer/usecases/club-status.ts) from a
+one-off script.
+
+Deleting a club account on request (#459) builds on this: close the club,
+then delete the holder's account.

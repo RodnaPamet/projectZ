@@ -128,6 +128,7 @@
       "sectionFinance": "Finance",
       "reports": "Reports and fee",
       "fees": "Club fees",
+      "clubs": "Clubs",
       "contactRequests": "Enquiries",
       "messagesUnread": "{count, plural, one {# unread conversation} other {# unread conversations}}"
     },
@@ -1226,6 +1227,10 @@
       "conversationMetaTitle": "Conversation",
       "back": "Messages",
       "unnamed": "Unnamed player"
+    },
+    "clubStatus": {
+      "suspended": "playerz.bg has suspended this club. Players can’t see it or book, and its upcoming bookings were cancelled. You can view your data but not change it. For questions, use the “For clubs” form at playerz.bg/#clubs.",
+      "closed": "This club is closed on playerz.bg. You can view your data but not change it. For questions, use the “For clubs” form at playerz.bg/#clubs."
     }
   },
   "invite": {
@@ -1754,6 +1759,62 @@
         "NETWORK": "The server is unreachable.",
         "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
         "UNKNOWN": "Something went wrong."
+      }
+    },
+    "clubs": {
+      "metaTitle": "Clubs — playerz.bg",
+      "title": "Clubs",
+      "subtitle": "Every club and its status. Suspend, close or reopen one.",
+      "reasonLabel": "Reason",
+      "reasonHint": "For example “Checking after a player’s report”. Recorded with every opening.",
+      "open": "Show the clubs",
+      "refresh": "Refresh",
+      "empty": "No clubs",
+      "status": {
+        "ACTIVE": "Active",
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed"
+      },
+      "action": {
+        "SUSPENDED": "Suspend",
+        "CLOSED": "Close",
+        "ACTIVE": "Reopen"
+      },
+      "confirm": {
+        "SUSPENDED": {
+          "title": "Suspend {club}",
+          "body": "Players stop seeing the club and it takes no bookings. Every upcoming booking is cancelled and its players are told. The staff keep read-only access."
+        },
+        "CLOSED": {
+          "title": "Close {club}",
+          "body": "Final: a closed club can’t be reopened. Upcoming bookings are cancelled with notice, and the staff keep read-only access."
+        },
+        "ACTIVE": {
+          "title": "Reopen {club}",
+          "body": "The club is visible and bookable again. Bookings cancelled by the suspension stay cancelled."
+        },
+        "reason": "Reason for the change",
+        "cancel": "Cancel"
+      },
+      "done": {
+        "SUSPENDED": "{club} is suspended. Bookings cancelled: {cancelled}{failed, plural, =0 {} other {, failed: #}}{remaining, plural, =0 {} other {; # more were not processed (over the limit) and need an engineer}}.",
+        "CLOSED": "{club} is closed. Bookings cancelled: {cancelled}{failed, plural, =0 {} other {, failed: #}}{remaining, plural, =0 {} other {; # more were not processed (over the limit) and need an engineer}}.",
+        "ACTIVE": "{club} is reopened."
+      },
+      "error": {
+        "PLATFORM_AUTHORITY_REQUIRED": "You don’t hold an active platform grant.",
+        "PLATFORM_CAPABILITY_REQUIRED": "Your grant doesn’t include this action.",
+        "REASON_REQUIRED": "Give a reason of at least 12 characters.",
+        "REASON_TOO_LONG": "The reason is too long — 500 characters at most.",
+        "CONFLICT": "The club is already in another state. Refresh the list.",
+        "NOT_FOUND": "This club no longer exists.",
+        "UNAUTHORIZED": "Your session expired. Sign in again.",
+        "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+        "NETWORK": "The server can’t be reached.",
+        "VIEWER_CHANGED": "This tab is open for another account. Reload the page.",
+        "STEP_UP_REQUIRED": "Confirm with a code from your app, then try again.",
+        "MFA_ENROLMENT_REQUIRED": "Turn on two-step verification under “Security” first.",
+        "UNKNOWN": "Something went wrong. Try again."
       }
     }
   },

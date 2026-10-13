@@ -128,6 +128,13 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // Staff are not bound by it, so the message says to contact the club. In the
   // caller's own language, like the two above.
   CancellationCutoffPassedError: { status: 403, code: 'CANCELLATION_CUTOFF_PASSED' },
+  // A member writing to a club the platform has suspended or closed (#254):
+  // their admin is read-only until the platform reopens it.
+  ClubNotActiveError: {
+    status: 403,
+    code: 'CLUB_NOT_ACTIVE',
+    clientMessage: 'This club is suspended or closed; its admin is read-only.',
+  },
 
   // ── 400: a malformed platform request ─────────────────────────────
   //

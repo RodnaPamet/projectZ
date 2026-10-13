@@ -25,7 +25,7 @@ import { getRequestId } from '@/lib/observability/context';
  * `STEP_UP_PLATFORM_WRITES` admits, by the owner's decision on #228, and the
  * reasoning — narrow reach, nothing deleted, every decision audited with the
  * moderator's own words — is written there, where the refusal of every other
- * write lives. TENANT_SUSPEND is still refused.
+ * write lives.
  *
  * Since #262 the binding also demands a second-factor step-up on the calling
  * session from the last 15 minutes (403 STEP_UP_REQUIRED, or

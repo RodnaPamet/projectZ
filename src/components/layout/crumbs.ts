@@ -82,7 +82,8 @@ export function clubAdminCrumbs(
 }
 
 /** The platform's pages, by their segment under `/platform`. */
-export type PlatformPage = 'moderation' | 'fees' | 'usage' | 'contact-requests' | 'security';
+export type PlatformPage =
+  'moderation' | 'fees' | 'clubs' | 'usage' | 'contact-requests' | 'security';
 
 /** Платформа, one of its pages under the sidebar's label, and a leaf below it. */
 export function platformCrumbs(

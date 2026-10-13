@@ -134,6 +134,7 @@ export const AUDIT_ACTIONS = {
   /// ends (#372). The platform audit row records the request; this one gives
   /// the club's own log the values before and after.
   CLUB_FEE_TERMS_CHANGED: 'CLUB_FEE_TERMS_CHANGED',
+  CLUB_STATUS_CHANGED: 'CLUB_STATUS_CHANGED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

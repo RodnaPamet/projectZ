@@ -8,7 +8,6 @@ import { newTotpSecret } from '@/lib/auth/totp';
 import {
   AmbientPlatformEscalationError,
   PlatformReasonRequiredError,
-  PlatformWriteNotEnabledError,
   runAsPlatformAdmin,
 } from '@/lib/db/platform-admin-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
@@ -129,16 +128,9 @@ describe('runAsPlatformAdmin', () => {
     expect(await auditRows()).toHaveLength(0);
   });
 
-  it('refuses a write capability, so TENANT_SUSPEND cannot ship by accident', async () => {
-    // Read-only at launch is enforced here, in front of the database, because
-    // there is no second factor to step up to.
-    await expect(
-      runAsPlatformAdmin(act({ capability: PlatformCapability.TENANT_SUSPEND }), async () => 'x'),
-    ).rejects.toThrow(PlatformWriteNotEnabledError);
-
-    // And it left no audit row claiming it was attempted.
-    expect(await auditRows()).toHaveLength(0);
-  });
+  // TENANT_SUSPEND was refused here until the owner decided to ship club
+  // suspension (#254, 2026-10-13). It is now an enabled write like the others,
+  // so the step-up cases below cover it, data-driven.
 
   // ═══ THE SECOND FACTOR (#262): EACH ENABLED WRITE REFUSES WITHOUT A STEP-UP ═══
   //
