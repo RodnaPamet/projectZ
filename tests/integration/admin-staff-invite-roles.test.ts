@@ -37,6 +37,15 @@ jest.mock('next/headers', () => ({
 // `revalidatePath` needs a Next request store the actions do not have here.
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
+// The invite email is written in the admin's language (#425): Bulgarian here.
+jest.mock('next-intl/server', () => {
+  const { createTranslator } = jest.requireActual('next-intl');
+  return {
+    getTranslations: async (namespace: string) =>
+      createTranslator({ locale: 'bg', messages: require('../../messages/bg.json'), namespace }),
+  };
+});
+
 // Delivery is not what is under test; the row is.
 const sendMail = jest.fn();
 jest.mock('@/lib/email/mailer', () => ({
@@ -93,5 +102,15 @@ describe('the staff page invites to MANAGER or STAFF only', () => {
 
     expect(await invitesAt(club.tenantId)).toEqual([{ email: 'new@x.test', role }]);
     expect(sendMail).toHaveBeenCalledTimes(1);
+    const mail = sendMail.mock.calls[0][0] as {
+      to: string;
+      subject: string;
+      text: string;
+      idempotencyKey: string;
+    };
+    expect(mail.to).toBe('new@x.test');
+    expect(mail.subject).toBe(`Покана за екипа на Invites ok ${role} в playerz.bg`);
+    expect(mail.text).toMatch(/\/invite\/[^\s]+/);
+    expect(mail.idempotencyKey).toMatch(/^staff-invite:/);
   });
 });

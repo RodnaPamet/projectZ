@@ -1,45 +1,45 @@
-import nodemailer, { type Transporter } from 'nodemailer';
-
-import { env } from '@/env';
 import { logger } from '@/lib/observability/logger';
 
+import { emailProvider } from './provider';
+
 /**
- * Sending email.
+ * One email sent now, to an address that may not belong to any account yet:
+ * a staff invite (#199). Everything else goes through the notification outbox,
+ * which resolves its recipient from a user id at send time.
  *
- * ═══ THE CONSOLE SINK THE ENV COMMENT ALREADY PROMISED ═══
+ * ═══ THE SAME ADAPTER AS EVERY OTHER EMAIL (#425) ═══
  *
- * `src/env.ts` has declared `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
- * and `SMTP_FROM` for a long time, above a comment reading "when SMTP_HOST is
- * absent, console sink is used". Nothing read any of them. There was no
- * transport and no sink — the fallback that comment describes did not exist,
- * and neither did the thing it was a fallback for.
+ * This used to build its own SMTP transport, so an invite needed SMTP_HOST
+ * while every other email went through Resend. Production has a Resend key
+ * and no SMTP server, so every staff invite failed there with MAIL_FAILED.
+ * It now sends through `emailProvider()` (src/lib/email/provider.ts):
+ * Resend when its key is set, else SMTP, else log-only. It also obeys that
+ * file's staging rule, so staging emails nobody unless EMAIL_ALLOW_ON_STAGING=1.
  *
- * That is why staff invites could not work (#199): a token with no way to
- * reach the person it is for.
+ * ═══ LOG-ONLY IS NEVER REPORTED AS SENT ═══
  *
- * ═══ WHY ABSENT SMTP LOGS RATHER THAN THROWS ═══
- *
- * A developer running the stack locally has no SMTP server and should not need
- * one to exercise an invite. The sink writes the message — including the link —
- * to the log at info, so the flow is testable end to end from a clean checkout.
- *
- * This is the opposite of the cron-secret inversion the platform routes guard
- * against ("no credential configured, therefore no check"). Missing SMTP is not
- * a security control being skipped; it is a delivery mechanism being absent,
- * and the safe behaviour is to be loud about it rather than to refuse to run.
- *
- * It does refuse in production, though: an invite that silently went to a log
- * on the server is an invite the recipient never receives, and the club would
- * be left waiting for someone who was never told.
+ * Production with no provider throws `MailNotConfiguredError`. An invite
+ * written to a server log is one nobody receives, and the admin must be told
+ * so they can withdraw it. Anywhere else (development, staging), the log-only
+ * adapter answers `delivered: false`. Outside production the body, link
+ * included, goes to the log so the flow can be followed end to end from a
+ * clean checkout; staging runs as production, so its log never holds a link.
  */
 
 export class MailNotConfiguredError extends Error {
   constructor() {
     super(
-      'SMTP is not configured and this is production. An invite written to the log is an ' +
-        'invite nobody receives. Set SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS.',
+      'No email provider is configured and this is production. An invite written to the log ' +
+        'is an invite nobody receives. Set RESEND_API_KEY (or SMTP_HOST).',
     );
     this.name = 'MailNotConfiguredError';
+  }
+}
+
+export class MailNotSentError extends Error {
+  constructor(readonly reason: string) {
+    super(`The email provider refused the message: ${reason}`);
+    this.name = 'MailNotSentError';
   }
 }
 
@@ -48,45 +48,35 @@ export interface Mail {
   subject: string;
   /** Plain text. No HTML: an invite is a sentence and a link. */
   text: string;
-}
-
-let cached: Transporter | null = null;
-
-function transport(): Transporter | null {
-  if (!env.SMTP_HOST) return null;
-  if (cached) return cached;
-
-  cached = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT ?? 587,
-    // 465 is implicit TLS; everything else upgrades with STARTTLS. Getting
-    // this from the port rather than a separate flag removes a way to
-    // configure a silently-plaintext connection.
-    secure: (env.SMTP_PORT ?? 587) === 465,
-    auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-  });
-
-  return cached;
+  /** Stable for one message, so a provider that dedupes can. */
+  idempotencyKey?: string;
 }
 
 export async function sendMail(mail: Mail): Promise<{ delivered: boolean }> {
-  const t = transport();
+  const provider = emailProvider();
 
-  if (!t) {
-    if (process.env.NODE_ENV === 'production') throw new MailNotConfiguredError();
-
-    logger.info('email (console sink — SMTP not configured)', {
+  if (provider.name === 'log') {
+    const production = process.env.NODE_ENV === 'production';
+    if (production && provider.reason === 'no-provider') throw new MailNotConfiguredError();
+    logger.info('email not sent: log-only provider', {
       component: 'email',
-      to: mail.to,
+      reason: provider.reason,
       subject: mail.subject,
-      // The body carries the invite link. Logged in full, deliberately: this
-      // is a development sink and the link is the point of it.
-      body: mail.text,
+      // The body carries the invite link: a development convenience, never in
+      // a production (or staging) log.
+      ...(production ? {} : { to: mail.to, body: mail.text }),
     });
     return { delivered: false };
   }
 
-  await t.sendMail({ from: env.SMTP_FROM, to: mail.to, subject: mail.subject, text: mail.text });
-  logger.info('email sent', { component: 'email', to: mail.to, subject: mail.subject });
+  const outcome = await provider.send({
+    to: mail.to,
+    subject: mail.subject,
+    text: mail.text,
+    idempotencyKey: mail.idempotencyKey,
+    ref: 'staff-invite',
+  });
+  if (!outcome.ok) throw new MailNotSentError(outcome.error);
+  logger.info('email sent', { component: 'email', provider: provider.name, ref: 'staff-invite' });
   return { delivered: true };
 }

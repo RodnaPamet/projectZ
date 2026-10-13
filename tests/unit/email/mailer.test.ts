@@ -1,145 +1,90 @@
 /**
- * THE SMTP PATH HAD NO TEST, AND THAT IS HOW A DEPENDENCY BUMP BREAKS DELIVERY.
+ * Staff invites send through the same adapter as every other email (#425).
  *
- * `sendMail` falls back to a console sink whenever `SMTP_HOST` is absent, which
- * is every local run and every test run. So the branch that actually reaches
- * nodemailer — `createTransport`, then `transporter.sendMail` — was never
- * executed by anything. The invite integration test passes with the transport
- * completely broken, because it never builds one.
- *
- * That mattered immediately: nodemailer 7.0.13 carried two HIGH advisories
- * (GHSA-2x7j-588g-ccc2, GHSA-p6gq-j5cr-w38f) and the fix is a three-major jump
- * to 10.x. Nothing in the suite would have noticed if v10 had moved
- * `createTransport` off the default export.
- *
- * So these tests assert the CALL SHAPE against nodemailer rather than mocking
- * it away entirely: the mock stands in for the network, not for the module's
- * interface.
+ * They used to need SMTP, which production does not have, so every invite
+ * failed there. The SMTP and Resend call shapes are pinned in provider.test.ts;
+ * this pins what the invite path does with each adapter, and above all that a
+ * log-only adapter is never reported as delivered.
  */
+import type { EmailProvider, OutgoingEmail, SendOutcome } from '@/lib/email/provider';
 
-const sendMailMock = jest.fn<Promise<unknown>, [unknown]>();
-const createTransportMock = jest.fn((_options: Record<string, unknown>) => ({
-  sendMail: sendMailMock,
-}));
 const infoMock = jest.fn();
+jest.mock('@/lib/observability/logger', () => ({
+  logger: { info: (...a: unknown[]) => infoMock(...a) },
+}));
 
-interface SmtpEnv {
-  SMTP_HOST?: string;
-  SMTP_PORT?: number;
-  SMTP_USER?: string;
-  SMTP_PASS?: string;
-}
+let provider: EmailProvider;
+jest.mock('@/lib/email/provider', () => ({ emailProvider: () => provider }));
 
-async function load(smtp: SmtpEnv, nodeEnv = 'test') {
-  jest.resetModules();
-  sendMailMock.mockReset().mockResolvedValue({ accepted: ['ok'] });
-  createTransportMock.mockClear();
-  infoMock.mockClear();
-
-  jest.doMock('@/env', () => ({ env: { SMTP_FROM: 'noreply@playerz.bg', ...smtp } }));
-  jest.doMock('@/lib/observability/logger', () => ({ logger: { info: infoMock } }));
-  jest.doMock('nodemailer', () => ({
-    __esModule: true,
-    default: { createTransport: createTransportMock },
-  }));
-
-  // Set for the duration of the test, not just the import: `sendMail` reads
-  // NODE_ENV when it is CALLED. Restored in afterEach below.
-  Object.defineProperty(process.env, 'NODE_ENV', { value: nodeEnv, configurable: true });
-  return import('@/lib/email/mailer');
-}
-
-const REAL_NODE_ENV = process.env.NODE_ENV;
-
-afterEach(() => {
-  Object.defineProperty(process.env, 'NODE_ENV', {
-    value: REAL_NODE_ENV,
-    configurable: true,
-  });
-});
+import { MailNotConfiguredError, MailNotSentError, sendMail } from '@/lib/email/mailer';
 
 const MAIL = { to: 'coach@club.bg', subject: 'Покана', text: 'https://playerz.bg/invite/abc' };
+const REAL_NODE_ENV = process.env.NODE_ENV;
 
-describe('sendMail', () => {
-  describe('with SMTP configured', () => {
-    it('builds a transport and sends through it', async () => {
-      const { sendMail } = await load({ SMTP_HOST: 'smtp.example.bg', SMTP_PORT: 587 });
+function setNodeEnv(value: string | undefined) {
+  Object.defineProperty(process.env, 'NODE_ENV', { value, configurable: true });
+}
 
-      await expect(sendMail(MAIL)).resolves.toEqual({ delivered: true });
+function sending(outcome: SendOutcome, name: 'resend' | 'smtp' = 'resend') {
+  const send = jest.fn(async (_m: OutgoingEmail) => outcome);
+  provider = { name, send };
+  return send;
+}
 
-      // The whole point: this asserts nodemailer's interface, so a major bump
-      // that moves `createTransport` fails here rather than in production.
-      expect(createTransportMock).toHaveBeenCalledTimes(1);
-      expect(sendMailMock).toHaveBeenCalledWith({
-        from: 'noreply@playerz.bg',
+function logOnly(reason: 'no-provider' | 'staging') {
+  const send = jest.fn();
+  provider = { name: 'log', reason, send };
+  return send;
+}
+
+beforeEach(() => infoMock.mockClear());
+afterEach(() => setNodeEnv(REAL_NODE_ENV));
+
+describe('sendMail (staff invites)', () => {
+  it('sends through the configured provider and reports it delivered', async () => {
+    const send = sending({ ok: true, messageId: 'm1' });
+    await expect(sendMail({ ...MAIL, idempotencyKey: 'invite:1' })).resolves.toEqual({
+      delivered: true,
+    });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
         to: MAIL.to,
         subject: MAIL.subject,
         text: MAIL.text,
-      });
-    });
-
-    it.each([
-      [465, true],
-      [587, false],
-      [25, false],
-      [2525, false],
-    ])('port %i derives secure=%s', async (port, secure) => {
-      // Derived from the port rather than a separate flag, which removes a way
-      // to configure a silently-plaintext connection. Worth pinning: getting
-      // this backwards sends credentials in the clear and still "works".
-      const { sendMail } = await load({ SMTP_HOST: 'smtp.example.bg', SMTP_PORT: port });
-      await sendMail(MAIL);
-
-      expect(createTransportMock).toHaveBeenCalledWith(expect.objectContaining({ port, secure }));
-    });
-
-    it('defaults to port 587 with STARTTLS when no port is given', async () => {
-      const { sendMail } = await load({ SMTP_HOST: 'smtp.example.bg' });
-      await sendMail(MAIL);
-
-      expect(createTransportMock).toHaveBeenCalledWith(
-        expect.objectContaining({ port: 587, secure: false }),
-      );
-    });
-
-    it('omits auth entirely when no user is set, rather than sending undefined credentials', async () => {
-      const { sendMail } = await load({ SMTP_HOST: 'smtp.example.bg' });
-      await sendMail(MAIL);
-
-      expect(createTransportMock.mock.calls[0]![0]).toMatchObject({ auth: undefined });
-    });
-
-    it('reuses one transport across sends', async () => {
-      // A new SMTP connection pool per invite would be a slow leak nobody
-      // attributes to email.
-      const { sendMail } = await load({ SMTP_HOST: 'smtp.example.bg' });
-      await sendMail(MAIL);
-      await sendMail(MAIL);
-
-      expect(createTransportMock).toHaveBeenCalledTimes(1);
-      expect(sendMailMock).toHaveBeenCalledTimes(2);
-    });
+        idempotencyKey: 'invite:1',
+      }),
+    );
   });
 
-  describe('without SMTP configured', () => {
-    it('writes the body to the log and reports it was NOT delivered', async () => {
-      const { sendMail } = await load({});
+  it('throws when the provider refuses, so the admin is told', async () => {
+    sending({ ok: false, permanent: true, error: 'validation_error' });
+    await expect(sendMail(MAIL)).rejects.toBeInstanceOf(MailNotSentError);
+  });
 
-      // `delivered: false` is the contract that matters. A sink reporting
-      // success would tell a caller the invite is on its way when it is not.
-      await expect(sendMail(MAIL)).resolves.toEqual({ delivered: false });
-      expect(createTransportMock).not.toHaveBeenCalled();
-      expect(infoMock).toHaveBeenCalledWith(
-        expect.stringContaining('console sink'),
-        expect.objectContaining({ to: MAIL.to, body: MAIL.text }),
-      );
-    });
+  it('refuses in production with no provider instead of logging the invite', async () => {
+    setNodeEnv('production');
+    const send = logOnly('no-provider');
+    await expect(sendMail(MAIL)).rejects.toBeInstanceOf(MailNotConfiguredError);
+    expect(send).not.toHaveBeenCalled();
+    expect(infoMock).not.toHaveBeenCalled();
+  });
 
-    it('refuses in production instead of logging the invite', async () => {
-      const { sendMail, MailNotConfiguredError } = await load({}, 'production');
+  it('on staging: not delivered, and the link stays out of the log', async () => {
+    setNodeEnv('production');
+    logOnly('staging');
+    await expect(sendMail(MAIL)).resolves.toEqual({ delivered: false });
+    const fields = infoMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(fields).not.toHaveProperty('body');
+    expect(fields).not.toHaveProperty('to');
+  });
 
-      await expect(sendMail(MAIL)).rejects.toBeInstanceOf(MailNotConfiguredError);
-      expect(infoMock).not.toHaveBeenCalled();
-    });
+  it('in development: not delivered, and the body goes to the log to follow the flow', async () => {
+    setNodeEnv('development');
+    logOnly('no-provider');
+    await expect(sendMail(MAIL)).resolves.toEqual({ delivered: false });
+    expect(infoMock).toHaveBeenCalledWith(
+      expect.stringContaining('log-only'),
+      expect.objectContaining({ to: MAIL.to, body: MAIL.text }),
+    );
   });
 });
