@@ -63,6 +63,42 @@ product help, it is always there, and the footer always links to it.
 To check locally, run the dev server and open `/privacy` in both languages.
 The language is the footer's switch, or the `NEXT_LOCALE` cookie.
 
+## Versions, and who accepted what (#462)
+
+People accept the **terms** and the **privacy policy**. (The cookie policy
+informs; nothing in it is accepted.) Each of the two carries a version, in one
+file beside the texts:
+
+```json
+// content/legal-versions.json
+{ "terms": "2026-11-01", "privacy": "2026-11-01" }
+```
+
+- **One version per text, for both languages.** The convention is the date the
+  text takes effect. Letters, digits, `.`, `_` and `-`, at most 32 characters.
+- **A text with no line in the file is asked of nobody.** That is the state
+  until the first texts are published: the file is `{}`.
+- **Add a text's version only once both language files exist.** The build
+  fails otherwise (`tests/guardrails/legal-versions.test.ts`): people are held
+  at the acceptance step, and cannot accept a page that answers 404.
+
+What happens with a version in force:
+
+- A **new account** accepts both at its first sign-in, by continuing from
+  "Играч или треньор?" under the line "Продължавайки, приемате …".
+- **Everybody else who is signed in** sees one step on their next page,
+  `/start/terms`: the texts that are new to them, each linked, and «Приемам».
+  Once per version. The texts themselves, the profile (data download, account
+  deletion) and signing out stay open without accepting.
+- Each acceptance is a row in `legal_acceptance`: the account, the text, the
+  version, the language it was read in, and the moment. It is in the person's
+  data export, and it stays after an account is deleted, as the record of what
+  that account agreed to (it names the account only by its id).
+
+**Changing a text.** A corrected typo keeps the version: nobody is asked
+again. A change people should agree to gets a new version in the file, in the
+same commit as the new text, and everybody signed in is asked once.
+
 ## Facebook (#445)
 
 The Meta app needs two URLs before it can go Live (docs/oauth-setup.md):

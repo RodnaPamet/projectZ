@@ -67,6 +67,13 @@ export interface TokenClaims {
    * locale cookie without a database read on every request.
    */
   locale?: string;
+  /**
+   * The terms and privacy versions this account has accepted (#462), as
+   * `encodeLegalVersions` writes them. Read by the middleware to tell that the
+   * acceptance step is owed; the step page asks the database before it asks
+   * the person, so a stale claim costs a redirect and decides nothing.
+   */
+  legal?: string;
 }
 
 /** Routes anyone may see, signed in or not. */

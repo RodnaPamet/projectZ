@@ -253,6 +253,8 @@ export const V1 = {
   acceptBookingInvite: () => `${BASE}/booking-invites/accept`,
   /** `POST { kind }`: "Играч или треньор?", once (#360). */
   chooseAccountKind: () => `${BASE}/me/account-kind`,
+  /** The terms and privacy versions the account has accepted; POST accepts those in force (#462). */
+  legalAcceptance: () => `${BASE}/me/legal-acceptance`,
   mfaEnrol: () => `${BASE}/me/mfa/enrolment`,
   mfaConfirm: () => `${BASE}/me/mfa/enrolment/confirm`,
   mfaStepUp: () => `${BASE}/me/mfa/step-up`,

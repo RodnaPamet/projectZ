@@ -13,6 +13,7 @@ import { PLAY_PATH, PLAYER_HOME } from '@/lib/auth/landing';
 import { isApiClientError } from '@/lib/data/errors';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
+import { refreshSession } from '@/lib/i18n/persist-my-locale';
 
 export type ChoosableKind = 'PLAYER' | 'COACH';
 export type KindErrorKey = 'ALREADY_SET' | 'NOT_ALLOWED' | 'FAILED';
@@ -58,6 +59,11 @@ export function KindChooser({ next }: { next: string | null }) {
     setError(null);
     try {
       await choose.trigger(kind);
+      // Continuing accepted the terms the screen links (#462), and the server
+      // recorded it: have the session token learn that too, or the next page
+      // would be held back for a step that is already done. Never a reason to
+      // stop: `/start/terms` puts a stale token right.
+      await refreshSession().catch(() => undefined);
       router.replace(afterChoosing(kind, next));
       router.refresh();
     } catch (e) {

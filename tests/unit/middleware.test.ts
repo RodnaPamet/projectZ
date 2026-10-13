@@ -18,9 +18,16 @@
 import { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+import { currentLegalVersions } from '@/lib/legal/versions';
 import { middleware } from '@/middleware';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
+// The versions of the terms in force (#462): none, as before the owner's
+// texts exist, except in the tests that publish one.
+jest.mock('@/lib/legal/versions', () => ({
+  ...jest.requireActual('@/lib/legal/versions'),
+  currentLegalVersions: jest.fn(() => ({})),
+}));
 
 const mockedGetToken = getToken as unknown as jest.Mock;
 
@@ -226,5 +233,44 @@ describe('middleware sign-in redirect', () => {
     mockedGetToken.mockResolvedValue(null);
 
     expect(passedThrough(await get('/clubs/sofia-padel'))).toBe(true);
+  });
+});
+
+describe('middleware and new terms to accept (#462)', () => {
+  const inForce = currentLegalVersions as unknown as jest.Mock;
+  const html = (path: string) =>
+    middleware(new NextRequest(`https://playerz.bg${path}`, { headers: { accept: 'text/html' } }));
+
+  beforeEach(() => inForce.mockReturnValue({ terms: 't2', privacy: 'p1' }));
+  afterEach(() => inForce.mockReturnValue({}));
+
+  it('sends a signed-in page request to the acceptance step, and back afterwards', async () => {
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [] });
+    const res = await html('/me/bookings?tab=past');
+    expect(res.status).toBe(307);
+    const to = new URL(res.headers.get('location')!);
+    expect(to.pathname).toBe('/start/terms');
+    expect(to.searchParams.get('next')).toBe('/me/bookings?tab=past');
+  });
+
+  it('lets through a token that holds the versions in force', async () => {
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [], legal: 'terms=t2;privacy=p1' });
+    const res = await html('/me/bookings');
+    expect(res.headers.get('location')).toBeNull();
+    expect(res.status).toBe(200);
+  });
+
+  it('never redirects the API, the step itself, the texts or the profile', async () => {
+    mockedGetToken.mockResolvedValue({ sub: 'u1', memberships: [] });
+    for (const path of ['/api/v1/me', '/start/terms', '/terms', '/privacy', '/me/profile']) {
+      const res = await html(path);
+      expect({ path, location: res.headers.get('location') }).toEqual({ path, location: null });
+    }
+  });
+
+  it('a signed-out visitor is not asked', async () => {
+    mockedGetToken.mockResolvedValue(null);
+    const res = await html('/venues');
+    expect(res.headers.get('location')).toBeNull();
   });
 });

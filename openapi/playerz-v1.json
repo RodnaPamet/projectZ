@@ -2885,7 +2885,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 3`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile`; `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 4`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -5950,7 +5950,7 @@
       "post": {
         "operationId": "chooseAccountKind",
         "summary": "Player or coach? Once.",
-        "description": "First sign-in (#360): a new account has `accountKind: null` and is asked before anything else. Set ONCE, by a compare-and-set on null; a second call is 409 `ACCOUNT_KIND_ALREADY_SET` whatever it asks for (#263, one account one kind). `PATCH /me` refuses `accountKind`, so this is the only write. Answers the account, as `GET /me`.",
+        "description": "First sign-in (#360): a new account has `accountKind: null` and is asked before anything else. Set ONCE, by a compare-and-set on null; a second call is 409 `ACCOUNT_KIND_ALREADY_SET` whatever it asks for (#263, one account one kind). `PATCH /me` refuses `accountKind`, so this is the only write. Answers the account, as `GET /me`. When both the terms and the privacy policy have a version in force, this call also records that the account accepts them (#462): the screen that asks the question says so, and continuing is this request. See `GET /me/legal-acceptance`.",
         "tags": ["Me"],
         "security": [
           {
@@ -6042,6 +6042,120 @@
           },
           "500": {
             "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/legal-acceptance": {
+      "get": {
+        "operationId": "getLegalStanding",
+        "summary": "Which terms and privacy versions are in force, and which this account has accepted.",
+        "description": "The terms of use and the privacy policy each carry a version (#462). `current` is what is in force; `accepted` is the part of it this account has accepted; `due` lists the texts it has not. An empty `current` means no text is published yet, and nothing is ever due. A client shows the acceptance step while `due` is not empty (the web sends the account to `/start/terms`).",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's standing.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalStandingEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "acceptLegal",
+        "summary": "Accept the terms and the privacy policy in force. Once per version.",
+        "description": "Records that the signed-in account accepts every text in force, at its current version, in the language of the request (the `NEXT_LOCALE` cookie; Bulgarian without one). No body: the server decides what is in force. Idempotent: a version already accepted keeps its first record. Answers the standing, with `due` empty. The 429 budget is the default for mutations.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's standing after accepting.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalStandingEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: the default mutation budget (60 per 60 s per IP). The wait is in `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12794,6 +12908,52 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/Me"
+          }
+        }
+      },
+      "LegalVersions": {
+        "type": "object",
+        "description": "A version per text. A text that is absent has no version in force (or none accepted).",
+        "properties": {
+          "terms": {
+            "type": "string",
+            "example": "2026-11-01"
+          },
+          "privacy": {
+            "type": "string",
+            "example": "2026-11-01"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LegalStanding": {
+        "type": "object",
+        "required": ["current", "accepted", "due"],
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/LegalVersions"
+          },
+          "accepted": {
+            "$ref": "#/components/schemas/LegalVersions"
+          },
+          "due": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["terms", "privacy"]
+            },
+            "description": "The texts in force this account has not accepted at that version."
+          }
+        },
+        "additionalProperties": false
+      },
+      "LegalStandingEnvelope": {
+        "type": "object",
+        "title": "LegalStandingEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LegalStanding"
           }
         }
       },

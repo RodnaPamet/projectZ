@@ -2166,6 +2166,21 @@
         "FAILED": "Your choice was not saved. Try again."
       },
       "consent": "By continuing, you accept the <terms>Terms of use</terms> and the <privacy>Privacy policy</privacy>."
+    },
+    "terms": {
+      "metaTitle": "Terms and privacy — playerz.bg",
+      "title": "Terms and privacy",
+      "description": "We published a new version. Read it and accept it to continue.",
+      "document": {
+        "terms": "Terms of use",
+        "privacy": "Privacy policy"
+      },
+      "version": "version {version}",
+      "accept": "I accept",
+      "decline": "If you do not accept, you can download your data or delete your account from <profile>Profile</profile>.",
+      "continuing": "Continuing…",
+      "error": "We could not save that. Try again.",
+      "retry": "Try again"
     }
   },
   "emails": {

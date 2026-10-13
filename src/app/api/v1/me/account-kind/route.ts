@@ -2,12 +2,15 @@ import { type NextRequest } from 'next/server';
 
 import { accountKindBodySchema } from '@/app-layer/schemas/booking-players';
 import { chooseAccountKind } from '@/app-layer/usecases/account-kind';
+import { acceptCurrentLegal } from '@/app-layer/usecases/legal-acceptance';
 import { getMe } from '@/app-layer/usecases/me';
 import { parseJsonBody } from '@/app/api/v1/_lib/body';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ok } from '@/app/api/v1/_lib/envelope';
 import { UnauthorizedError } from '@/lib/errors/types';
+import { chosenLocale } from '@/lib/i18n/chosen-locale';
+import { currentLegalVersions } from '@/lib/legal/versions';
 import { getRequestId } from '@/lib/observability/context';
 
 /**
@@ -28,6 +31,15 @@ async function handler(req: NextRequest) {
   const { kind } = await parseJsonBody(req, accountKindBodySchema, 'account kind');
   const done = await chooseAccountKind(ctx.userId, kind);
   if (!done) throw new UnauthorizedError('Authentication required');
+
+  // "Продължавайки, приемате Общите условия и Политиката за поверителност"
+  // (#462): the screen shows that line when both texts are in force, and
+  // continuing is this request. So it is recorded here, both or neither; with
+  // only one in force the line was not shown, and `/start/terms` asks.
+  const current = currentLegalVersions();
+  if (current.terms && current.privacy) {
+    await acceptCurrentLegal(ctx.userId, await chosenLocale(), current);
+  }
 
   const me = await getMe(ctx.userId);
   if (!me) throw new UnauthorizedError('Authentication required');

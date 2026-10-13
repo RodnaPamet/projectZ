@@ -125,7 +125,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 3;
+  version: 4;
   exportedAt: string;
   profile: {
     id: string;
@@ -137,6 +137,13 @@ export interface PersonalDataExport {
     accountKind: string | null;
     createdAt: string;
     sports: Array<{ sport: string; level: number }>;
+    /** Each version of the terms and the privacy policy the caller accepted (#462). */
+    acceptedTerms: Array<{
+      document: string;
+      version: string;
+      language: string;
+      acceptedAt: string;
+    }>;
     playerProfile: {
       displayName: string;
       bio: string | null;
@@ -426,6 +433,10 @@ export async function readPersonalData(
       searchable: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
+      legalAcceptances: {
+        select: { document: true, version: true, locale: true, acceptedAt: true },
+        orderBy: [{ acceptedAt: 'asc' }, { id: 'asc' }],
+      },
       profile: {
         select: {
           displayName: true,
@@ -648,7 +659,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 3,
+    version: 4,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -661,6 +672,12 @@ export async function readPersonalData(
       accountKind: user.accountKind,
       createdAt: user.createdAt.toISOString(),
       sports: user.sportLevels.map((s) => ({ sport: s.sport, level: s.level })),
+      acceptedTerms: user.legalAcceptances.map((a) => ({
+        document: a.document,
+        version: a.version,
+        language: a.locale,
+        acceptedAt: a.acceptedAt.toISOString(),
+      })),
       playerProfile: user.profile
         ? {
             displayName: user.profile.displayName,

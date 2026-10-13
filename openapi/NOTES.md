@@ -191,3 +191,10 @@ a reader would reasonably assume.
 - EMAIL follows the bell for three categories only, each switchable in `GET`/`PATCH /me/notification-settings`: `confirmation`, `reminder`, `clubChanges` (all on by default). The bell has no switch. A setting turned off also stops an email already waiting in the outbox. Emails are plain text in the recipient's language, with times on the club's wall clock (Europe/Sofia) and absolute links on `SITE_URL`; there is no HTML part and no tracking.
 - The reminder goes once per booking, about 3 hours before the start (claimed between 3 h and 2 h before; a booking made less than 3 hours ahead is not reminded). It is absolute time, so the 25 October DST change does not move it. A booking cancelled after the reminder was written does not get the email: the outbox re-checks the booking when it sends.
 - No push yet (web push and SMS are out of scope; iOS push comes with the app, from these same rows). Poll `GET /me/notifications` on foreground; the web polls the count every 60 s while the tab is visible.
+
+## terms and privacy (#462)
+
+- `GET /me/legal-acceptance` answers `{ current, accepted, due }`. `current` is the version in force of each text (`terms`, `privacy`), from a file in the build; it changes only with a deploy. An empty `current` means nothing is published yet and nothing is ever due.
+- Show the acceptance step while `due` is not empty, before anything else. The texts are `/terms` and `/privacy` on the site, in the person's language. `POST /me/legal-acceptance` (no body) accepts every text in force and answers the same shape with `due: []`. It is idempotent.
+- A new account accepts both by answering "player or coach?": `POST /me/account-kind` records it when both texts are in force, so show the "By continuing, you accept …" line on that screen.
+- The web holds signed-in PAGES at `/start/terms` from a claim in its session cookie. The API is never held back by it: a bearer client reads `due` and decides what to show.
