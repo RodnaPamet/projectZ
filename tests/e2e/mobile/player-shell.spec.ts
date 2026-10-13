@@ -14,7 +14,7 @@ import { settleAnimations } from '../utils/settle-animations';
  * exactly as in the club admin.
  *
  *   signed out   Играй · Вход                     (the public header above)
- *   player,      Играй · Резервации · Профил      (Игри waits for its module),
+ *   player,      Играй · Игри · Резервации · Профил (Съобщения is in the drawer),
  *   coach        and the drawer holds every item, Платформа included
  *   club         its admin's bar, Календар · Кортове · Играчи · Още, on public
  *                pages as in the admin
@@ -27,6 +27,12 @@ const TAB_BAR = `nav[aria-label="${bg.common.nav.tabBar}"]`;
 const TABS = `${TAB_BAR} li > a, ${TAB_BAR} li > button`;
 const DRAWER_NAV = `[data-testid="nav-drawer"] nav[aria-label="${bg.common.ui.mainNav}"]`;
 const n = bg.common.nav;
+/**
+ * A player's navigation with both modules on, as production has run since
+ * 2026-10-13 (playwright.config.ts). The bar holds four; the drawer holds all.
+ */
+const PLAYER_TABS = [n.play, n.games, n.bookings, n.profile];
+const PLAYER_DRAWER = [n.play, n.games, n.bookings, n.messages, n.profile];
 
 async function expectTargets(page: Page) {
   const targets = page.locator(TABS);
@@ -138,14 +144,14 @@ test.describe('the frames — phone', () => {
     await expect(page.locator(TAB_BAR)).toHaveCount(0);
   });
 
-  test('player: Играй, Резервации, Профил; no Игри or Съобщения until their modules', async ({
+  test('player: Играй, Игри, Резервации, Профил in the bar; Съобщения is in the drawer', async ({
     playerPage: page,
   }) => {
     await page.goto('/me/bookings');
     // By role, not `main h1`: under the 300 ms reveal throttle a streamed page
     // sits in a hidden copy beside the shown one, and `main h1` finds both.
     await expect(page.getByRole('heading', { level: 1, name: bg.myBookings.title })).toBeVisible();
-    expect(await tabNames(page)).toEqual([n.play, n.bookings, n.profile]);
+    expect(await tabNames(page)).toEqual(PLAYER_TABS);
     await expect(page.locator(TAB_BAR).getByRole('link', { name: n.bookings })).toHaveAttribute(
       'aria-current',
       'page',
@@ -160,7 +166,8 @@ test.describe('the frames — phone', () => {
     await expect(page.locator('aside')).toBeHidden();
     await expect(page.getByTestId('top-chrome-user-menu')).toBeVisible();
     await expect(page.getByTestId('header-notifications')).toBeVisible();
-    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.games })).toHaveCount(0);
+    // Four tabs is the bar's limit: Съобщения is in the drawer, not here.
+    await expect(page.locator(TAB_BAR).getByRole('link', { name: n.messages })).toHaveCount(0);
     await expect(page.locator('a[href^="/t/"]')).toHaveCount(0);
 
     await expectTargets(page);
@@ -172,11 +179,7 @@ test.describe('the frames — phone', () => {
   }) => {
     await page.goto('/venues');
     const drawer = await openDrawer(page);
-    await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText([
-      n.play,
-      n.bookings,
-      n.profile,
-    ]);
+    await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText(PLAYER_DRAWER);
     // The rail's foot comes along: the player, and Изход.
     const foot = drawer.getByTestId('sidebar-account');
     await expect(foot.getByTestId('sidebar-identity')).toContainText(bg.admin.staff.role.PLAYER);
@@ -265,13 +268,9 @@ test.describe('the frames — phone', () => {
 
   test('coach: a player’s bar and drawer', async ({ coachPage: page }) => {
     await page.goto('/venues');
-    expect(await tabNames(page)).toEqual([n.play, n.bookings, n.profile]);
+    expect(await tabNames(page)).toEqual(PLAYER_TABS);
     await openDrawer(page);
-    await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText([
-      n.play,
-      n.bookings,
-      n.profile,
-    ]);
+    await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText(PLAYER_DRAWER);
   });
 
   test('moderator: Платформа in the drawer leads into the platform', async ({

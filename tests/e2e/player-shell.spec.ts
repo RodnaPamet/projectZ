@@ -16,7 +16,7 @@ import { settleAnimations } from './utils/settle-animations';
  * on the LEFT, the same frame the club admin wears.
  *
  *   signed out   the header's Играй and Вход
- *   player,      the rail: Играй · Резервации · Профил (a grant holder's
+ *   player,      the rail: Играй · Игри · Резервации · Съобщения · Профил (a grant holder's
  *   coach        "Платформа" under them), the bell and the account menu
  *   club         its club admin's rail, on public pages as in the admin
  *
@@ -28,6 +28,12 @@ const n = bg.common.nav;
 const PUBLIC_NAV = `header nav[aria-label="${bg.common.ui.mainNav}"]`;
 const RAIL = `aside nav[aria-label="${bg.common.ui.mainNav}"]`;
 const TAB_BAR = `nav[aria-label="${n.tabBar}"]`;
+/**
+ * A player's navigation with both modules on, as production has run since
+ * 2026-10-13 (playwright.config.ts): Игри is open play (#376), Съобщения is
+ * messaging (#375).
+ */
+const PLAYER_NAV = [n.play, n.games, n.bookings, n.messages, n.profile];
 const MENU_ROWS = '[role="menu"] a, [role="menu"] [data-testid="user-menu-sign-out"]';
 const COLLAPSE_KEY = `${UI_STORAGE_PREFIX}:sidebar-collapsed`;
 
@@ -61,14 +67,14 @@ test.describe('the frames — desktop', () => {
     await expect(page.getByTestId('site-footer')).toBeVisible();
   });
 
-  test('player: the left rail, Играй · Резервации · Профил, and the bar hidden', async ({
+  test('player: the left rail, Играй · Игри · Резервации · Съобщения · Профил, and the bar hidden', async ({
     playerPage: page,
     player,
   }) => {
     await page.goto('/venues');
     const rail = page.locator(RAIL);
     await expect(rail).toBeVisible();
-    await expect(rail.getByRole('link')).toHaveText([n.play, n.bookings, n.profile]);
+    await expect(rail.getByRole('link')).toHaveText(PLAYER_NAV);
     // On the LEFT: the rail starts at the window's edge, the page to its right.
     const railBox = (await page.locator('aside').boundingBox())!;
     const mainBox = (await page.locator('main').boundingBox())!;
@@ -165,7 +171,7 @@ test.describe('the frames — desktop', () => {
     coachPage: page,
   }) => {
     await page.goto('/venues');
-    await expect(page.locator(RAIL).getByRole('link')).toHaveText([n.play, n.bookings, n.profile]);
+    await expect(page.locator(RAIL).getByRole('link')).toHaveText(PLAYER_NAV);
   });
 
   test('moderator: Платформа in the rail, into the platform and back out', async ({
@@ -177,13 +183,7 @@ test.describe('the frames — desktop', () => {
     await page.goto('/venues');
     const rail = page.locator(RAIL);
     await expect(rail.getByText(n.platform)).toBeVisible();
-    await expect(rail.getByRole('link')).toHaveText([
-      n.play,
-      n.bookings,
-      n.profile,
-      n.moderation,
-      n.security,
-    ]);
+    await expect(rail.getByRole('link')).toHaveText([...PLAYER_NAV, n.moderation, n.security]);
     // The foot's gear is the platform's, for a grant holder who is no club.
     const gear = page.locator('#admin-icon-link-desktop');
     await expect(gear).toHaveAttribute('href', '/platform');
@@ -283,7 +283,7 @@ test.describe('the frames — desktop', () => {
   test('the 404 wears the frame: the rail for a player', async ({ playerPage: page }) => {
     const res = await page.goto('/no-such-page');
     expect(res?.status()).toBe(404);
-    await expect(page.locator(RAIL).getByRole('link')).toHaveText([n.play, n.bookings, n.profile]);
+    await expect(page.locator(RAIL).getByRole('link')).toHaveText(PLAYER_NAV);
     await expect(
       page.locator('main').getByRole('link', { name: bg.notFound.backToVenues }),
     ).toBeVisible();
