@@ -7,6 +7,27 @@ import { logger } from '@/lib/observability/logger';
 import { toV1ErrorResponse } from './errors';
 
 /**
+ * ═══ PRIVATE BY DEFAULT (#297) ═══
+ *
+ * A v1 body is usually somebody's: their bookings, their messages, their club's
+ * diary. Next 16 doesn't cache a GET handler that reads cookies or headers,
+ * so nothing leaks today, but a CDN or proxy put in front of the app later
+ * would follow HTTP's rules and could keep one person's answer for the next.
+ *
+ * So every v1 response, success or error, carries `Cache-Control: private,
+ * no-store` unless its route chose a header itself: an immutable photo URL,
+ * a no-store invite link. A route that wants a shared cache must say so.
+ */
+export function privateUnlessSaid<R extends NextResponse | Response>(res: R): R {
+  try {
+    if (!res.headers.has('cache-control')) res.headers.set('cache-control', 'private, no-store');
+  } catch {
+    // Response.redirect() and friends have immutable headers. They carry no body.
+  }
+  return res;
+}
+
+/**
  * How every v1 route is exported. There is no second way.
  *
  * ═══ WHY THE EXTRA CATCH ═══
@@ -74,7 +95,7 @@ export function defineV1Route<Context = unknown>(
 ) {
   return withApiErrorHandling<Context>(async (req, ctx) => {
     try {
-      return await handler(req, ctx);
+      return privateUnlessSaid(await handler(req, ctx));
     } catch (error) {
       const { payload, status } = toV1ErrorResponse(error, getRequestId());
 
@@ -85,7 +106,7 @@ export function defineV1Route<Context = unknown>(
       if (status >= 500) logger.error(line, fields);
       else logger.warn(line, fields);
 
-      return NextResponse.json(payload, { status });
+      return privateUnlessSaid(NextResponse.json(payload, { status }));
     }
   }, options);
 }
