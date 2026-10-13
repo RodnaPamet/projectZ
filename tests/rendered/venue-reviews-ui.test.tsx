@@ -50,6 +50,7 @@ describe('DayGrid: marking a no-show', () => {
     expiresLabel: null,
     canMarkNoShow: true,
     desk: false,
+    bookerPhone: null,
     seriesId: null,
     players: [],
     ...over,

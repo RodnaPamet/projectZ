@@ -57,6 +57,7 @@ const booking = (over: Partial<DayBooking> = {}): DayBooking => ({
   expiresLabel: null,
   canMarkNoShow: true,
   desk: false,
+  bookerPhone: null,
   seriesId: null,
   players: [],
   ...over,
@@ -426,6 +427,41 @@ describe('who plays an online booking (#358, #376)', () => {
     await waitFor(() =>
       expect(markPlayerNoShowAction).toHaveBeenCalledWith(expect.any(String), 'b1', 'p1'),
     );
+  });
+});
+
+describe('the booker’s number on an upcoming booking (#500)', () => {
+  const p = bg.admin.calendar.players;
+
+  it('a booking with a number to call opens its sheet, and the number is a link that dials it', async () => {
+    render(
+      withIntl(
+        <TooltipProvider>
+          <DayGrid
+            slug={nextClub()}
+            requestedDay="2026-09-29"
+            day={dayOf({
+              bookings: [booking({ canMarkNoShow: false, bookerPhone: '+359888123456' })],
+            })}
+          />
+        </TooltipProvider>,
+      ),
+    );
+    // No other players on it: the number alone makes the block a button.
+    fireEvent.click(screen.getByRole('button', { name: /Иван, 18:00–19:00/ }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Иван' });
+    const link = within(sheet).getByRole('link', {
+      name: p.call.replace('{name}', 'Иван').replace('{phone}', '+359888123456'),
+    });
+    expect(link).toHaveAttribute('href', 'tel:+359888123456');
+    expect(link).toHaveTextContent('+359888123456');
+  });
+
+  it('without one, a booking with nobody else on it is not a button at all', () => {
+    grid(nextClub(), dayOf({ bookings: [booking({ canMarkNoShow: false })] }));
+    expect(screen.queryByRole('button', { name: /Иван, 18:00–19:00/ })).toBeNull();
+    expect(document.querySelector('[data-diary-booker-phone]')).toBeNull();
   });
 });
 

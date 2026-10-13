@@ -113,6 +113,11 @@ export interface DayBooking {
   canMarkNoShow: boolean;
   /** Entered at the desk (#364): drawn in its own colour, and opens its detail. */
   desk: boolean;
+  /**
+   * The booker's confirmed phone number (#500), in E.164, on an UPCOMING
+   * online booking only; null everywhere else. So staff can call about it.
+   */
+  bookerPhone: string | null;
   /** One week of a weekly series, or null. */
   seriesId: string | null;
   /** The players besides the booker (#358), open-play joiners marked (#376). */
@@ -784,7 +789,9 @@ function BookingBlock({
     );
   }
 
-  if (b.players.length > 0) {
+  // Other players on it (#358, #376), or a number to call the booker on
+  // while the booking is still ahead (#500): the sheet shows both.
+  if (b.players.length > 0 || b.bookerPhone) {
     return (
       <button
         type="button"
