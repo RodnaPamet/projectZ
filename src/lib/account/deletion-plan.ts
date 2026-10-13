@@ -30,6 +30,15 @@
  *
  * Plain data, no imports: the guardrail reads it without a database, and the
  * pull request copies its table from it.
+ *
+ * ═══ AND AFTERWARDS (#465) ═══
+ *
+ * The plan says what a deletion does to the rows that exist. `NEW_ROWS`, at
+ * the end of this file, says what keeps a deleted account from gaining a new
+ * one, column by column, and `upcoming` on an entry marks the rows a person
+ * must cancel or leave first. `tests/guardrails/account-deletion-new-rows.test.ts`
+ * holds both to the schema, to the migrations and to what a request can reach,
+ * so a module that ships has to decide them in its own pull request.
  */
 
 export type DeletionAction = 'delete' | 'anonymise' | 'keep';
@@ -42,6 +51,19 @@ export interface DeletionPlanEntry {
   action: DeletionAction;
   /** What happens, and why. */
   reason: string;
+  /**
+   * These rows can be a FUTURE commitment: something the person has to cancel,
+   * leave or wait out before the account can go (#465, owner decision 1).
+   *
+   *   checked        the deletion's refusal reads it today (`upcoming()` in
+   *                  account-deletion.ts), and the database refuses a new one
+   *                  for a deleted account (`NEW_ROWS` below says `trigger`)
+   *   when-shipped   nothing a request can reach writes the model yet. The day
+   *                  something does, the guardrail fails until this becomes
+   *                  `checked`: the refusal reads it, the profile and the 409
+   *                  list it, and the table has its trigger
+   */
+  upcoming?: 'checked' | 'when-shipped';
 }
 
 export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
@@ -286,6 +308,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'Booking',
     field: 'bookedByUserId',
     action: 'keep',
+    upcoming: 'checked',
     reason:
       'Owner decision 2 (#370): a booking stays in the club’s records, because its statement and the platform fee are computed from it. ' +
       'It names a tombstone, shown as "Изтрит потребител" in the diary, the players list, the booking and its players. Deletion is refused while one is upcoming.',
@@ -327,6 +350,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'BookingParticipant',
     field: 'userId',
     action: 'keep',
+    upcoming: 'checked',
     reason:
       'The account’s places on other people’s bookings stay, as the booking does: the people on a game are part of its record. Shown as "Изтрит потребител". Deletion is refused while one is upcoming.',
   },
@@ -689,6 +713,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'CoachBooking',
     field: 'playerUserId',
     action: 'keep',
+    upcoming: 'when-shipped',
     reason: 'A club’s booking of a coach, kept as a court booking is. The id names a tombstone.',
   },
   {
@@ -787,6 +812,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'TournamentEntry',
     field: 'playerUserId',
     action: 'keep',
+    upcoming: 'when-shipped',
     reason: 'A bracket other people played; the id names a tombstone.',
   },
   {
@@ -870,4 +896,130 @@ export const NOT_PERSONAL: Readonly<Record<string, string>> = {
   'ClubFeeLine.courtName': 'a court’s name on the fee ledger',
   'Achievement.name': 'a badge’s name',
   'Tournament.name': 'a tournament’s name',
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// AFTER THE DELETION: what a deleted account can still gain (#465)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * How "a deleted account gains nothing new" is held for one column that names
+ * a user.
+ *
+ *   trigger     `account_not_deleted('<column>')` on the table (P52, P64, P69):
+ *               the database refuses the row, and takes a lock that makes a
+ *               write racing the deletion wait for it and then fail
+ *   unwritten   nothing a request can reach writes the model: no route, page,
+ *               layout, action or middleware imports a file that creates one.
+ *               The guardrail fails the day that stops being true
+ *   reason      something live writes it, there is no trigger, and `why` says
+ *               why that is right
+ */
+export type NewRowsRule =
+  { held: 'trigger' } | { held: 'unwritten' } | { held: 'reason'; why: string };
+
+const TRIGGER: NewRowsRule = { held: 'trigger' };
+const UNWRITTEN: NewRowsRule = { held: 'unwritten' };
+
+/**
+ * A column that records WHO DID something to a row that is somebody else's: a
+ * staff member, a moderator, an operator. The plan keeps such an id on the
+ * tombstone or sets it to null, because the id names nobody once the account
+ * is scrubbed. One written in the instant the actor's own deletion commits is
+ * the same thing, and refusing it would undo a club's action for no gain.
+ */
+const actor = (who: string): NewRowsRule => ({
+  held: 'reason',
+  why: `Records who acted (${who}), on a row that is not theirs. The id names a scrubbed tombstone, as the plan already keeps or clears it; refusing the row would undo the action it records.`,
+});
+
+/**
+ * Every column that names a user, as `Model.column`: the same columns the
+ * plan's guardrail finds (a relation to `User`, or a user id by name).
+ */
+export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
+  // ── Bookings and places: the commitments (P52) ──────────────────────────
+  'Booking.bookedByUserId': TRIGGER,
+  'BookingParticipant.userId': TRIGGER,
+  'BookingSeries.customerUserId': TRIGGER,
+  'BookingSeries.createdByUserId': actor('the staff member who entered the series'),
+  'BookingInviteLink.createdByUserId': TRIGGER,
+  'BookingInviteLink.revokedByUserId': actor('whoever stopped a link'),
+  'BookingSplit.userId': TRIGGER,
+  'Cancellation.cancelledByUserId': actor('whoever cancelled a kept booking'),
+
+  // ── The account's own things ────────────────────────────────────────────
+  'UserSession.userId': TRIGGER,
+  'TenantMembership.userId': TRIGGER,
+  'TenantMembership.invitedById': actor('the club account that sent the invitation'),
+  'Invite.invitedById': actor('the club account that sent the invitation'),
+  'Notification.userId': TRIGGER,
+  'EmailOutbox.userId': TRIGGER,
+  'LegalAcceptance.userId': TRIGGER,
+  'AccountSecurityEvent.userId': TRIGGER,
+  'MfaRecoveryCode.userId': TRIGGER,
+  'DeviceToken.userId': TRIGGER,
+  'PushSubscription.userId': TRIGGER,
+  'PlayerSportLevel.userId': TRIGGER,
+
+  // ── What a club holds about a player ────────────────────────────────────
+  'PlayerVenueRelationship.playerUserId': TRIGGER,
+  'PlayerVenueRelationship.noShowBlockClearedByUserId': actor(
+    'the staff member who lifted a no-show block',
+  ),
+  'CreditLedgerEntry.userId': {
+    held: 'reason',
+    why: 'An append-only money ledger. Staff cannot credit a deleted account (players.ts refuses it by name). What else writes here settles a booking that is kept, such as the refund when a club cancels it, and that must not fail because the payer has since gone. The id names a tombstone.',
+  },
+  'NoShowCarry.deletedUserId': {
+    held: 'reason',
+    why: 'Names the tombstone by design: it is written BY the deletion, to carry the no-shows that still count (owner decision, #370 review).',
+  },
+  'NoShowCarry.inheritedByUserId': TRIGGER,
+
+  // ── Open play (#376) ────────────────────────────────────────────────────
+  'OpenGameRequest.userId': TRIGGER,
+
+  // ── Messages (#375) ─────────────────────────────────────────────────────
+  'Conversation.createdById': TRIGGER,
+  'Conversation.playerUserId': TRIGGER,
+  'Conversation.blockedByUserId': actor('the participant who pressed the block'),
+  'ConversationParticipant.userId': TRIGGER,
+  'ChatMessage.senderId': TRIGGER,
+  'UserBlock.blockerId': TRIGGER,
+  'UserBlock.blockedId': TRIGGER,
+
+  // ── Reviews and reports ─────────────────────────────────────────────────
+  'Review.authorUserId': TRIGGER,
+  'ContentReport.reporterUserId': TRIGGER,
+  'ModerationCase.reportedByUserId': TRIGGER,
+  'ModerationCase.resolvedByUserId': actor('the moderator who decided'),
+
+  // ── The histories ───────────────────────────────────────────────────────
+  'AuditEntry.actorUserId': actor('whoever did what a club’s history records'),
+  'PlatformAuditEntry.actorUserId': actor('the operator, in the platform’s own history'),
+
+  // ── Not written by anything a request can reach ─────────────────────────
+  'PlatformAdminGrant.userId': UNWRITTEN,
+  'PlatformAdminGrant.grantedByUserId': UNWRITTEN,
+  'PlatformAdminGrant.revokedByUserId': UNWRITTEN,
+  'PlayerProfile.userId': UNWRITTEN,
+  'PasswordResetToken.userId': UNWRITTEN,
+  'ApiKey.createdByUserId': UNWRITTEN,
+  'CheckIn.userId': UNWRITTEN,
+  'Membership.playerUserId': UNWRITTEN,
+  'SeasonPass.playerUserId': UNWRITTEN,
+  'Coach.userId': UNWRITTEN,
+  'CoachBooking.playerUserId': UNWRITTEN,
+  'CoachReview.authorUserId': UNWRITTEN,
+  'TournamentEntry.playerUserId': UNWRITTEN,
+  'TournamentMatch.homeUserId': UNWRITTEN,
+  'TournamentMatch.awayUserId': UNWRITTEN,
+  'MatchParticipant.userId': UNWRITTEN,
+  'MatchResultRecord.reportedByUserId': UNWRITTEN,
+  'SkillRatingHistory.userId': UNWRITTEN,
+  'XpEvent.userId': UNWRITTEN,
+  'UserAchievement.userId': UNWRITTEN,
+  'WearableConnection.userId': UNWRITTEN,
+  'Activity.userId': UNWRITTEN,
 };
