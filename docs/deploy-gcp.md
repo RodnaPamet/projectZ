@@ -444,6 +444,51 @@ wrong), validates, reloads, moves `NEXTAUTH_URL`, and recreates the app. Names
 given after the first get a `redir` block rather than joining the site block —
 two hostnames serving the same app means two cookie jars.
 
+## Chat push (#481)
+
+Messages reach an open screen through Centrifugo v6, one container per
+environment: `playerz-centrifugo` (production) and `playerz-staging-centrifugo`.
+Caddy sends `/connection/websocket` on each host to its own broker, and
+everything else to the app (deploy/Caddyfile.playerz). The broker asks the app
+about every subscription (`/api/v1/realtime/subscribe`), and the app allows
+only a person's own `notif:` channel.
+
+Push is ON when the app has both `CENTRIFUGO_TOKEN_SECRET` and
+`CENTRIFUGO_API_KEY`. Without them the token route answers `url: null`, the
+browser never connects, and chat re-reads on its own interval as before. A
+broker that is down degrades the same way: a send never fails on it.
+
+**Secrets.** Four values per environment, generated on the VM, never printed,
+written to two files each: the app's env file (its names) and the broker's own
+env file (Centrifugo's names, `centrifugo.env` / `centrifugo.staging.env`
+next to the compose files, mode 600):
+
+| App (`.env`, `.env.staging`)                                                                    | Broker (`centrifugo*.env`)                                                                |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `CENTRIFUGO_API_URL=http://playerz-centrifugo:8000/api` (staging: `playerz-staging-centrifugo`) | —                                                                                         |
+| `CENTRIFUGO_API_KEY`                                                                            | `CENTRIFUGO_HTTP_API_KEY`                                                                 |
+| `CENTRIFUGO_TOKEN_SECRET`                                                                       | `CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY`                                                 |
+| `CENTRIFUGO_PROXY_SECRET`                                                                       | `CENTRIFUGO_CHANNEL_PROXY_SUBSCRIBE_HTTP_STATIC_HEADERS={"X-Centrifugo-Secret":"<same>"}` |
+
+Create the broker's env file BEFORE copying a compose file that names it:
+`docker compose up` refuses a missing `env_file`, and the release script
+recreates the whole project.
+
+**Checks.**
+
+```sh
+# the broker is up and healthy
+sudo docker ps --filter name=centrifugo --format '{{.Names}} {{.Status}}'
+# Caddy upgrades the socket (101), not the app's 404
+curl -s -o /dev/null -w '%{http_code}\n' --http1.1 \
+  -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+  -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' https://staging.playerz.bg/connection/websocket
+# the token route names the socket (signed in): url = wss://<host>/connection/websocket
+```
+
+Rotating a secret: change it in both files, then recreate the broker and the
+app together; open sockets reconnect and fetch a new token.
+
 ## Scheduled jobs
 
 Six routes under `/api/cron` do work nothing else triggers, and each refuses

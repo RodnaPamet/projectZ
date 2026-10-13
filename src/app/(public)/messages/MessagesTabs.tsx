@@ -9,7 +9,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { KEYS, type V1Page } from '@/lib/data/keys';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
-import { INBOX_REFRESH_MS } from '@/lib/messaging/limits';
+import { INBOX_REFRESH_MS, PUSH_FALLBACK_REFRESH_MS } from '@/lib/messaging/limits';
+import { useMessageEvents, useRealtimeConnected } from '@/lib/realtime/client';
 
 import { useReportEmptyAction } from './NewMessage';
 import { INBOX_TABS, inboxTabFrom, type InboxTab } from './tabs';
@@ -35,10 +36,14 @@ export function MessagesTabs({
   const t = useTranslations('messaging');
   const reportEmptyAction = useReportEmptyAction();
   const [tab, setTab] = useState<InboxTab>(initialTab);
-  const { data: unread } = useV1SWR<{ conversations: number; requests: number }>(
-    KEYS.conversationsUnread(ME),
-    { refreshInterval: INBOX_REFRESH_MS },
-  );
+  const live = useRealtimeConnected();
+  const { data: unread, mutate: rereadUnread } = useV1SWR<{
+    conversations: number;
+    requests: number;
+  }>(KEYS.conversationsUnread(ME), {
+    refreshInterval: live ? PUSH_FALLBACK_REFRESH_MS : INBOX_REFRESH_MS,
+  });
+  useMessageEvents(() => void rereadUnread());
 
   function pick(next: string) {
     const value = inboxTabFrom(next);

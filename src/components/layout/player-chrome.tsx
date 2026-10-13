@@ -8,6 +8,8 @@ import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
 import { legalHrefs } from '@/lib/legal/texts';
 import { readModules } from '@/lib/modules';
+import { realtimeEnabled } from '@/lib/realtime/centrifugo';
+import { RealtimeProvider } from '@/lib/realtime/client';
 
 import { BottomTabBar } from './BottomTabBar';
 import { ClubAdminShell } from './club-admin-shell';
@@ -94,6 +96,8 @@ export async function PlayerChrome({
     getTranslations('admin.staff.role'),
   ]);
   const user = { userId: me.userId, name: me.name, email: me.email };
+  // Chat push (#481): only where there is chat, and only with a broker.
+  const push = modules.messaging && realtimeEnabled();
 
   if (kind === 'club') {
     const club = await clubFrame(landing?.club?.tenantSlug ?? null, {
@@ -103,31 +107,35 @@ export async function PlayerChrome({
       tRole,
     });
     return (
-      <ClubAdminShell
-        sections={club?.sections ?? toShellSections(platformSections(platform), tNav)}
-        homeHref={club?.homeHref}
-        contextName={club?.contextName ?? tCommon('appName')}
-        user={user}
-        account={club?.account ?? noClubAccount(user, platformHref, tNav)}
-        bottomTabs
-        messages={club?.messages ?? null}
-      >
-        {children}
-      </ClubAdminShell>
+      <RealtimeProvider userId={me.userId} enabled={push}>
+        <ClubAdminShell
+          sections={club?.sections ?? toShellSections(platformSections(platform), tNav)}
+          homeHref={club?.homeHref}
+          contextName={club?.contextName ?? tCommon('appName')}
+          user={user}
+          account={club?.account ?? noClubAccount(user, platformHref, tNav)}
+          bottomTabs
+          messages={club?.messages ?? null}
+        >
+          {children}
+        </ClubAdminShell>
+      </RealtimeProvider>
     );
   }
 
   return (
-    <PlayerShell
-      sections={toShellSections(playerShellNav(kind, { modules, platform }), tNav)}
-      contextName={tCommon('appName')}
-      user={user}
-      account={playerAccount(user, kind, platform, { nav: tNav, role: tRole })}
-      kind={kind}
-      modules={modules}
-    >
-      {children}
-    </PlayerShell>
+    <RealtimeProvider userId={me.userId} enabled={push}>
+      <PlayerShell
+        sections={toShellSections(playerShellNav(kind, { modules, platform }), tNav)}
+        contextName={tCommon('appName')}
+        user={user}
+        account={playerAccount(user, kind, platform, { nav: tNav, role: tRole })}
+        kind={kind}
+        modules={modules}
+      >
+        {children}
+      </PlayerShell>
+    </RealtimeProvider>
   );
 }
 

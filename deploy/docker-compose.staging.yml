@@ -44,6 +44,42 @@ services:
       - playerz_internal
       - agrent_internal
 
+  # ── Chat push (#481) ──
+  #
+  # Centrifugo v6, the message broker the browser holds a socket to. Memory
+  # engine: one instance, and nothing in it is the record. Messages live in
+  # Postgres, a publish only tells an open screen to re-read, and a restart
+  # costs at most one fast refresh. Configured from its own env file
+  # (centrifugo.staging.env, Centrifugo's variable names), written on the VM with the same
+  # generated secrets as the app's CENTRIFUGO_* settings (docs/deploy-gcp.md,
+  # "Chat push"). Named playerz-staging-centrifugo, not `centrifugo`, for the same DNS reason the
+  # app is not `app`: it joins agrent_internal so Caddy can reach it.
+  playerz-staging-centrifugo:
+    image: centrifugo/centrifugo:v6.9.7
+    container_name: playerz-staging-centrifugo
+    logging: *logging
+    restart: always
+    command: centrifugo
+    env_file: centrifugo.staging.env
+    environment:
+      CENTRIFUGO_ENGINE_TYPE: memory
+      CENTRIFUGO_HEALTH_ENABLED: 'true'
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: https://staging.playerz.bg
+      # Every subscription is asked of the app, which allows only a person's
+      # own `notif:` channel (src/lib/realtime/subscribe-authorization.ts).
+      CENTRIFUGO_CHANNEL_PROXY_SUBSCRIBE_ENDPOINT: http://playerz-staging-app:3000/api/v1/realtime/subscribe
+      CENTRIFUGO_CHANNEL_PROXY_SUBSCRIBE_TIMEOUT: 3s
+      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"notif","subscribe_proxy_enabled":true}]'
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'wget -qO- http://127.0.0.1:8000/health || exit 1']
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    mem_limit: 256m
+    networks:
+      - playerz_internal
+      - agrent_internal
+
 networks:
   playerz_internal:
     external: true

@@ -16,7 +16,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption } from '@/components/ui/typography';
 import { KEYS, type InboxSide, type V1Page } from '@/lib/data/keys';
 import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
-import { INBOX_REFRESH_MS } from '@/lib/messaging/limits';
+import { INBOX_REFRESH_MS, PUSH_FALLBACK_REFRESH_MS } from '@/lib/messaging/limits';
+import { useMessageEvents, useRealtimeConnected } from '@/lib/realtime/client';
 import { conversationPath } from '@/lib/messaging/paths';
 
 /**
@@ -55,10 +56,13 @@ export function InboxList({
   const now = useNow({ updateInterval: 60_000 }).getTime();
 
   const getKey = KEYS.conversations(side, side.kind === 'me' ? { tab } : {});
+  const live = useRealtimeConnected();
   const list = useV1SWRInfinite<ConversationSummaryDto>(getKey, {
     fallbackData: seed ? [seed] : undefined,
-    refreshInterval: INBOX_REFRESH_MS,
+    refreshInterval: live ? PUSH_FALLBACK_REFRESH_MS : INBOX_REFRESH_MS,
   });
+  // A pushed message moves a conversation to the top and changes its count (#481).
+  useMessageEvents(() => void list.mutate());
 
   const pages = list.data ?? [];
   const items = pages.flatMap((p) => p.items);

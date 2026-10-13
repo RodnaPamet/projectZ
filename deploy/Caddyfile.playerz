@@ -57,13 +57,21 @@ playerz.bg, playerz.35-187-80-26.sslip.io {
 		-Server
 	}
 
+	# Chat push (#481): the browser's socket to Centrifugo, on this origin so
+	# the cookie-free token handshake needs no CORS and the CSP's 'self' holds.
+	handle /connection/websocket {
+		reverse_proxy playerz-centrifugo:8000
+	}
+
 	# By container name on agrent_internal — the one network this app shares
 	# with agrent's stack, because only one process can bind 80/443.
-	reverse_proxy playerz-app:3000 {
-		header_up Host              {host}
-		header_up X-Real-IP         {remote_host}
-		header_up X-Forwarded-For   {remote_host}
-		header_up X-Forwarded-Proto {scheme}
+	handle {
+		reverse_proxy playerz-app:3000 {
+			header_up Host              {host}
+			header_up X-Real-IP         {remote_host}
+			header_up X-Forwarded-For   {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
 	}
 }
 
@@ -92,11 +100,16 @@ staging.playerz.bg {
 		X-Robots-Tag              "noindex, nofollow"
 		-Server
 	}
-	reverse_proxy playerz-staging-app:3000 {
-		header_up Host              {host}
-		header_up X-Real-IP         {remote_host}
-		header_up X-Forwarded-For   {remote_host}
-		header_up X-Forwarded-Proto {scheme}
+	handle /connection/websocket {
+		reverse_proxy playerz-staging-centrifugo:8000
+	}
+	handle {
+		reverse_proxy playerz-staging-app:3000 {
+			header_up Host              {host}
+			header_up X-Real-IP         {remote_host}
+			header_up X-Forwarded-For   {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
 	}
 }
 

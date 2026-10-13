@@ -19,7 +19,12 @@ import { KEYS, V1, type InboxSide } from '@/lib/data/keys';
 import { useViewerId } from '@/lib/data/provider';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
-import { CONVERSATION_REFRESH_MS, MAX_BODY_LENGTH } from '@/lib/messaging/limits';
+import {
+  CONVERSATION_REFRESH_MS,
+  MAX_BODY_LENGTH,
+  PUSH_FALLBACK_REFRESH_MS,
+} from '@/lib/messaging/limits';
+import { useMessageEvents, useRealtimeConnected } from '@/lib/realtime/client';
 import type { ReportReason } from '@/lib/messaging/report';
 
 import { ReportDialog } from './ReportDialog';
@@ -101,9 +106,14 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
 
   const key = KEYS.conversation(side, seed.id);
   const unreadKey = KEYS.conversationsUnread(side);
-  const { data } = useV1SWR<ConversationDto>(key, {
+  const live = useRealtimeConnected();
+  const { data, mutate: reread } = useV1SWR<ConversationDto>(key, {
     fallbackData: seed,
-    refreshInterval: CONVERSATION_REFRESH_MS,
+    refreshInterval: live ? PUSH_FALLBACK_REFRESH_MS : CONVERSATION_REFRESH_MS,
+  });
+  // A message pushed for THIS conversation (#481): read it now, not on the next tick.
+  useMessageEvents((e) => {
+    if (e.conversationId === seed.id) void reread();
   });
   const c = data ?? seed;
 

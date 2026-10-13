@@ -194,12 +194,7 @@ describe('the secrets production cannot boot without', () => {
    * declaring it properly is the intended direction of travel.
    */
   const UNDECLARED_RATCHET = [
-    'CENTRIFUGO_API_KEY',
-    'CENTRIFUGO_API_URL',
-    'CENTRIFUGO_PROXY_SECRET',
-    'CENTRIFUGO_TOKEN_SECRET',
     'CRON_SECRET',
-    'NEXT_PUBLIC_CENTRIFUGO_URL',
     'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
     'NEXT_RUNTIME',
     'NEXT_TEST_MODE',
