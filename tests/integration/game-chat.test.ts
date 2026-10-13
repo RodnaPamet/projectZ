@@ -5,9 +5,11 @@ import {
   blockConversation,
   getConversation,
   listConversations,
+  reportMessage,
   sendMessage,
   unreadSummary,
 } from '@/app-layer/usecases/messaging';
+import { listModerationCases } from '@/app-layer/usecases/moderation-queue';
 import { exportMyData } from '@/app-layer/usecases/data-export';
 import { answerRequest, askToJoin, getBookingGame, openGame } from '@/app-layer/usecases/open-play';
 
@@ -224,5 +226,36 @@ describe('the game chat (#376)', () => {
         messages: [expect.objectContaining({ mine: true, text: 'Ще донеса топки' })],
       }),
     ]);
+  });
+
+  it('a reported line reaches the moderation queue as a game chat, with the venue and the time (#512)', async () => {
+    const s = await setup();
+    const { chatId } = await s.join(s.a);
+    await s.join(s.b);
+    await sendMessage({ kind: 'player', userId: s.a }, chatId!, 'ти си никой');
+    const rude = (await getConversation({ kind: 'player', userId: s.b }, chatId!)).messages[0]!.id;
+    await reportMessage({ kind: 'player', userId: s.b }, rude, { reason: 'abuse' });
+
+    const { items } = await asAppSuperuser(db, (tx) => listModerationCases(tx, {}));
+    const item = items
+      .flatMap((i) => (i.subject === 'REVIEW' ? [] : [i]))
+      .find((i) => i.conversation.id === chatId)!;
+    const booking = await asAppSuperuser(db, (tx) =>
+      tx.booking.findUniqueOrThrow({
+        where: { id: s.bookingId },
+        select: { startTs: true, endTs: true },
+      }),
+    );
+    expect(item.conversation).toMatchObject({
+      kind: 'game',
+      club: null,
+      game: {
+        venueName: 'Алфа Кортове',
+        startTs: booking.startTs.toISOString(),
+        endTs: booking.endTs.toISOString(),
+        timezone: expect.any(String),
+      },
+    });
+    expect(item.messages.map((m) => [m.body, m.reported])).toEqual([['ти си никой', true]]);
   });
 });

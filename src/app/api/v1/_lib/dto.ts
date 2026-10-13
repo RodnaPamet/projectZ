@@ -760,8 +760,10 @@ export interface ChatCaseItemDto {
   openedAt: string;
   conversation: {
     id: string;
-    kind: 'player' | 'club';
+    kind: 'player' | 'club' | 'game';
     club: { name: string } | null;
+    /** A game chat's game (#512): where and when, in the venue's zone. */
+    game: { venueName: string; startTs: string; endTs: string; timezone: string } | null;
     closed: boolean;
   };
   messages: Array<{

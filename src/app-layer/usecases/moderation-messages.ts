@@ -3,6 +3,7 @@ import { Prisma, type ModerationCaseStatus, type PrismaClient } from '@prisma/cl
 import { logger } from '@/lib/observability/logger';
 import { decryptField } from '@/lib/security/encryption';
 
+import { gameChatsFor } from './messaging-directory';
 import { CaseAlreadyResolvedError, ModerationCaseNotFoundError } from './reviews';
 
 /**
@@ -21,6 +22,10 @@ import { CaseAlreadyResolvedError, ModerationCaseNotFoundError } from './reviews
  * category and words, never who reported. Whether a line is abuse does not
  * depend on who flagged it, and naming the reporter to the moderator is one
  * screenshot away from naming them to the reported.
+ *
+ * A game's chat (#376, a GROUP conversation) is shown as that: the venue and
+ * the time of the game, not "between players", which reads as two people's
+ * private conversation (#512).
  *
  * ═══ WHAT A DECISION DOES ═══
  *
@@ -51,8 +56,10 @@ export interface ChatQueueItem {
   openedAt: Date;
   conversation: {
     id: string;
-    kind: 'player' | 'club';
+    kind: 'player' | 'club' | 'game';
     club: { name: string } | null;
+    /** A game chat's game: where and when (ISO instants, the venue's zone). */
+    game: { venueName: string; startTs: string; endTs: string; timezone: string } | null;
     /** A moderator already closed it. */
     closed: boolean;
   };
@@ -75,10 +82,18 @@ function open(body: string): string | null {
   }
 }
 
+function gameOf(
+  g: { venueName: string; startTs: string; endTs: string; timezone: string } | undefined,
+): ChatQueueItem['conversation']['game'] {
+  return g
+    ? { venueName: g.venueName, startTs: g.startTs, endTs: g.endTs, timezone: g.timezone }
+    : null;
+}
+
 /**
  * The chat cases among `cases` (one page of the queue, in its order), each with
- * its conversation's context. Six reads for the whole page, never one per
- * case. A case whose subject is gone — a conversation deleted with its people,
+ * its conversation's context. Seven reads at most for the whole page, never
+ * one per case. A case whose subject is gone — a conversation deleted with its people,
  * a message id that names nothing — has nothing to decide and is left out.
  */
 export async function chatCaseItems(
@@ -179,6 +194,11 @@ export async function chatCaseItems(
   const userById = new Map(users.map((u) => [u.id, u]));
   const clubName = new Map(clubs.map((c) => [c.id, c.name]));
   const convById = new Map(conversations.map((c) => [c.id, c]));
+  // The games of the game chats among them, on the queue's own binding.
+  const games = await gameChatsFor(
+    conversations.filter((c) => c.type === 'GROUP').map((c) => c.id),
+    db,
+  );
 
   for (const c of chat) {
     const conversationId =
@@ -192,8 +212,9 @@ export async function chatCaseItems(
       openedAt: c.createdAt,
       conversation: {
         id: conv.id,
-        kind: conv.type === 'CLUB' ? 'club' : 'player',
+        kind: conv.type === 'CLUB' ? 'club' : conv.type === 'GROUP' ? 'game' : 'player',
         club: conv.tenantId ? { name: clubName.get(conv.tenantId) ?? '' } : null,
+        game: gameOf(games.get(conv.id)),
         closed: conv.blockedSide === 'PLATFORM',
       },
       messages: context
