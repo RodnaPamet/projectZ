@@ -236,7 +236,14 @@ async function lockReviewableBooking(
       JOIN court c ON c.id = b."resourceId"
      WHERE b.id = ${input.bookingId}
        AND b."tenantId" = ${input.tenantId}
-       AND b."bookedByUserId" = ${input.authorUserId}
+       AND (
+             b."bookedByUserId" = ${input.authorUserId}
+             -- Or a player on it (#416): they were there too.
+          OR EXISTS (
+               SELECT 1 FROM booking_participant p
+                WHERE p."bookingId" = b.id AND p."userId" = ${input.authorUserId}
+             )
+           )
        AND b.status = 'COMPLETED'
        FOR UPDATE OF b`;
 
