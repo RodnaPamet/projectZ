@@ -14,9 +14,10 @@ import { getRequestId } from '@/lib/observability/context';
  * POST /api/v1/me/phone/start (#500): send an SMS code to the number the
  * signed-in account typed. Then `POST /me/phone/confirm` with the code.
  *
- * Answers `{ sent: true, number }` (the number with its middle hidden) for
- * any number that can get a code, and says nothing about whether another
- * account holds it: that is answered at confirm, to whoever holds the phone.
+ * Answers `{ sent: true, number, challenge }` (the number with its middle
+ * hidden; `challenge` goes back with the code) for any number that can get a
+ * code, and says nothing about whether another account holds it: that is
+ * answered at confirm, to whoever holds the phone.
  *
  * 400 PHONE_INVALID; 401 UNAUTHORIZED; 429 RATE_LIMITED (5 codes an hour per
  * account; 3 an hour and 6 a day per number, whoever asks); 503

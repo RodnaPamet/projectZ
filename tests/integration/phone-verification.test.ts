@@ -14,6 +14,7 @@ import {
   phoneStanding,
   startPhoneVerification,
 } from '@/app-layer/usecases/phone-verification';
+import { signPhoneChallenge } from '@/lib/account/phone-challenge';
 import { phoneFingerprint } from '@/lib/account/phone-fingerprint';
 import { decryptField, isEncryptedValue } from '@/lib/security/encryption';
 import type { CheckOutcome, StartOutcome } from '@/lib/sms/phone-verifier';
@@ -32,9 +33,11 @@ import { asAppSuperuser, asAppUser } from '../helpers/rls';
  * the standing a number carries.
  */
 const CODE = '314159';
-const sent: Array<{ to: string; locale: string }> = [];
-let startAnswer: StartOutcome = { ok: true };
-let checkAnswer: ((to: string, code: string) => CheckOutcome) | null = null;
+const sent: Array<{ to: string; locale: string; ref: string }> = [];
+/** Every (ref, code) the provider was asked to check. */
+const checked: Array<{ ref: string; code: string }> = [];
+let startAnswer: StartOutcome | null = null;
+let checkAnswer: ((ref: string, code: string) => CheckOutcome) | null = null;
 let configured = true;
 let required = false;
 
@@ -45,15 +48,19 @@ jest.mock('@/lib/sms/phone-verifier', () => ({
       ? {
           name: 'test',
           start: async (to: string, locale: string) => {
-            if (startAnswer.ok) sent.push({ to, locale });
-            return startAnswer;
+            if (startAnswer) return startAnswer;
+            const ref = `pin-${sent.length + 1}-${Math.random().toString(36).slice(2, 8)}`;
+            sent.push({ to, locale, ref });
+            return { ok: true, ref };
           },
-          check: async (to: string, code: string) =>
-            checkAnswer
-              ? checkAnswer(to, code)
+          check: async (ref: string, code: string) => {
+            checked.push({ ref, code });
+            return checkAnswer
+              ? checkAnswer(ref, code)
               : code === CODE
                 ? { ok: true }
-                : { ok: false, reason: 'wrong' },
+                : { ok: false, reason: 'wrong' };
+          },
         }
       : null,
 }));
@@ -80,6 +87,19 @@ async function account(): Promise<TestIdentity> {
   return signInAs(db, { userId: u.id, memberships: [] });
 }
 
+/** The challenge `start` would hand this account for this number, without a send. */
+const challengeFor = (userId: string, e164: string, ref = 'pin-test', ttlMs = 600_000) =>
+  signPhoneChallenge({
+    userId,
+    fingerprint: phoneFingerprint(e164),
+    ref,
+    expiresAt: Date.now() + ttlMs,
+  });
+
+/** Confirm `e164` for `userId` with `code`, holding the challenge a send gives. */
+const confirm = (userId: string, e164: string, code: string = CODE) =>
+  confirmPhoneVerification(userId, e164, code, challengeFor(userId, e164));
+
 const row = (userId: string) =>
   asAppSuperuser(db, (tx) =>
     tx.user.findUniqueOrThrow({
@@ -90,7 +110,8 @@ const row = (userId: string) =>
 
 beforeEach(() => {
   sent.length = 0;
-  startAnswer = { ok: true };
+  checked.length = 0;
+  startAnswer = null;
   checkAnswer = null;
   configured = true;
   required = false;
@@ -107,7 +128,12 @@ describe('the phone step (#500)', () => {
     expect(res.sent).toBe(true);
     expect(res.number).toContain('*');
     expect(res.number).not.toBe(e164);
-    expect(sent).toEqual([{ to: e164, locale: 'bg' }]);
+    expect(sent).toEqual([{ to: e164, locale: 'bg', ref: expect.any(String) }]);
+    // The challenge to send back with the code: it names no number in clear.
+    expect(res.challenge).toEqual(expect.any(String));
+    expect(Buffer.from(res.challenge.split('.')[0]!, 'base64url').toString()).not.toContain(
+      e164.slice(1),
+    );
     // Nothing is stored until the code is confirmed.
     expect(await row(me.userId)).toEqual({ phone: null, phoneHash: null, phoneVerifiedAt: null });
   });
@@ -129,10 +155,12 @@ describe('the phone step (#500)', () => {
   it('the right code makes the number the account’s: encrypted, fingerprinted, dated', async () => {
     const me = await account();
     const e164 = fresh();
-    await startPhoneVerification(me.userId, e164, 'bg');
+    const { challenge } = await startPhoneVerification(me.userId, e164, 'bg');
 
-    const done = await confirmPhoneVerification(me.userId, e164, CODE);
+    const done = await confirmPhoneVerification(me.userId, e164, CODE, challenge);
     expect(done).toMatchObject({ verified: true, inherited: 0 });
+    // The provider was asked about the code it sent, by its own id.
+    expect(checked).toEqual([{ ref: sent[0]!.ref, code: CODE }]);
 
     const stored = await row(me.userId);
     expect(stored.phone).not.toBe(e164);
@@ -153,34 +181,77 @@ describe('the phone step (#500)', () => {
     const e164 = fresh();
     await startPhoneVerification(me.userId, e164, 'bg');
 
-    await expect(confirmPhoneVerification(me.userId, e164, '000000')).rejects.toMatchObject({
+    await expect(confirm(me.userId, e164, '000000')).rejects.toMatchObject({
       name: 'PhoneCodeWrongError',
     });
     checkAnswer = () => ({ ok: false, reason: 'expired' });
-    await expect(confirmPhoneVerification(me.userId, e164, CODE)).rejects.toMatchObject({
+    await expect(confirm(me.userId, e164, CODE)).rejects.toMatchObject({
       name: 'PhoneCodeExpiredError',
     });
     checkAnswer = () => ({ ok: false, reason: 'limited' });
-    await expect(confirmPhoneVerification(me.userId, e164, CODE)).rejects.toMatchObject({
+    await expect(confirm(me.userId, e164, CODE)).rejects.toMatchObject({
       name: 'RateLimitedError',
     });
     expect(await row(me.userId)).toEqual({ phone: null, phoneHash: null, phoneVerifiedAt: null });
   });
 
-  it('the code is checked against the number it was typed for', async () => {
+  it('a code sent to my phone cannot confirm somebody else’s number', async () => {
+    // THE attack the challenge exists for: have a code sent to a phone I hold,
+    // then name another number while confirming with that code.
     const me = await account();
-    const [mine, other] = [fresh(), fresh()];
-    await startPhoneVerification(me.userId, mine, 'bg');
-    const asked: string[] = [];
-    checkAnswer = (to, code) => {
-      asked.push(to);
-      return to === mine && code === CODE ? { ok: true } : { ok: false, reason: 'expired' };
-    };
-    await expect(confirmPhoneVerification(me.userId, other, CODE)).rejects.toMatchObject({
-      name: 'PhoneCodeExpiredError',
-    });
-    expect(asked).toEqual([other]);
+    const [mine, theirs] = [fresh(), fresh()];
+    const { challenge } = await startPhoneVerification(me.userId, mine, 'bg');
+
+    await expect(
+      confirmPhoneVerification(me.userId, theirs, CODE, challenge),
+    ).rejects.toMatchObject({ name: 'PhoneCodeExpiredError' });
+    // Refused before the provider is asked anything.
+    expect(checked).toEqual([]);
+    expect(await row(me.userId)).toEqual({ phone: null, phoneHash: null, phoneVerifiedAt: null });
+
+    // With the number it was sent to, the same challenge and code work.
+    await expect(confirmPhoneVerification(me.userId, mine, CODE, challenge)).resolves.toMatchObject(
+      { verified: true },
+    );
+  });
+
+  it('nor can somebody else use my challenge, an old one, or one that was altered', async () => {
+    const [me, other] = await Promise.all([account(), account()]);
+    const e164 = fresh();
+    const { challenge } = await startPhoneVerification(me.userId, e164, 'bg');
+    const held = { name: 'PhoneCodeExpiredError' };
+
+    // Another account, holding my challenge and the code.
+    await expect(
+      confirmPhoneVerification(other.userId, e164, CODE, challenge),
+    ).rejects.toMatchObject(held);
+    // After its ten minutes.
+    await expect(
+      confirmPhoneVerification(
+        me.userId,
+        e164,
+        CODE,
+        challenge,
+        new Date(Date.now() + 11 * 60_000),
+      ),
+    ).rejects.toMatchObject(held);
+    // One character changed in the payload, or in the tag.
+    const [payload, tag] = challenge.split('.') as [string, string];
+    const flip = (v: string) => (v[0] === 'A' ? 'B' : 'A') + v.slice(1);
+    for (const forged of [
+      `${flip(payload)}.${tag}`,
+      `${payload}.${flip(tag)}`,
+      payload,
+      '',
+      'x.y',
+    ]) {
+      await expect(confirmPhoneVerification(me.userId, e164, CODE, forged)).rejects.toMatchObject(
+        held,
+      );
+    }
+    expect(checked).toEqual([]);
     expect((await row(me.userId)).phoneHash).toBeNull();
+    expect((await row(other.userId)).phoneHash).toBeNull();
   });
 });
 
@@ -194,11 +265,11 @@ describe('one number, one account (#500)', () => {
       sent: true,
     });
     // A wrong code learns nothing either.
-    await expect(confirmPhoneVerification(me.userId, e164, '000000')).rejects.toMatchObject({
+    await expect(confirm(me.userId, e164, '000000')).rejects.toMatchObject({
       name: 'PhoneCodeWrongError',
     });
     // Whoever holds the phone is told.
-    await expect(confirmPhoneVerification(me.userId, e164, CODE)).rejects.toMatchObject({
+    await expect(confirm(me.userId, e164, CODE)).rejects.toMatchObject({
       name: 'PhoneInUseError',
     });
     expect((await row(me.userId)).phoneHash).toBeNull();
@@ -208,8 +279,8 @@ describe('one number, one account (#500)', () => {
   it('confirming the same number again is not a clash with oneself', async () => {
     const me = await account();
     const e164 = fresh();
-    await confirmPhoneVerification(me.userId, e164, CODE);
-    await expect(confirmPhoneVerification(me.userId, e164, CODE)).resolves.toMatchObject({
+    await confirm(me.userId, e164, CODE);
+    await expect(confirm(me.userId, e164, CODE)).resolves.toMatchObject({
       verified: true,
     });
   });
@@ -217,11 +288,11 @@ describe('one number, one account (#500)', () => {
   it('changing the number frees the old one for somebody else', async () => {
     const [me, other] = await Promise.all([account(), account()]);
     const [first, second] = [fresh(), fresh()];
-    await confirmPhoneVerification(me.userId, first, CODE);
-    await confirmPhoneVerification(me.userId, second, CODE);
+    await confirm(me.userId, first, CODE);
+    await confirm(me.userId, second, CODE);
     expect((await row(me.userId)).phoneHash).toBe(phoneFingerprint(second));
 
-    await expect(confirmPhoneVerification(other.userId, first, CODE)).resolves.toMatchObject({
+    await expect(confirm(other.userId, first, CODE)).resolves.toMatchObject({
       verified: true,
     });
   });
@@ -230,8 +301,8 @@ describe('one number, one account (#500)', () => {
     const [a, b] = await Promise.all([account(), account()]);
     const e164 = fresh();
     const results = await Promise.allSettled([
-      confirmPhoneVerification(a.userId, e164, CODE),
-      confirmPhoneVerification(b.userId, e164, CODE),
+      confirm(a.userId, e164, CODE),
+      confirm(b.userId, e164, CODE),
     ]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     const lost = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
@@ -267,12 +338,12 @@ describe('limits on the phone step (#500)', () => {
     const me = await account();
     const e164 = fresh();
     for (let i = 0; i < 10; i++) {
-      await expect(confirmPhoneVerification(me.userId, e164, '000000')).rejects.toMatchObject({
+      await expect(confirm(me.userId, e164, '000000')).rejects.toMatchObject({
         name: 'PhoneCodeWrongError',
       });
     }
     // Even the right code, now.
-    await expect(confirmPhoneVerification(me.userId, e164, CODE)).rejects.toMatchObject({
+    await expect(confirm(me.userId, e164, CODE)).rejects.toMatchObject({
       name: 'RateLimitedError',
     });
   });
@@ -283,7 +354,7 @@ describe('limits on the phone step (#500)', () => {
     await expect(startPhoneVerification(me.userId, fresh(), 'bg')).rejects.toMatchObject({
       name: 'PhoneVerifyUnavailableError',
     });
-    await expect(confirmPhoneVerification(me.userId, fresh(), CODE)).rejects.toMatchObject({
+    await expect(confirm(me.userId, fresh(), CODE)).rejects.toMatchObject({
       name: 'PhoneVerifyUnavailableError',
     });
   });
@@ -301,7 +372,7 @@ describe('the gate (#500)', () => {
     await expect(assertPhoneConfirmed(me.userId)).rejects.toMatchObject({
       name: 'PhoneRequiredError',
     });
-    await confirmPhoneVerification(me.userId, fresh(), CODE);
+    await confirm(me.userId, fresh(), CODE);
     await expect(assertPhoneConfirmed(me.userId)).resolves.toBeUndefined();
     expect((await phoneStanding(me.userId))?.required).toBe(true);
   });
@@ -489,14 +560,14 @@ describe('a number carries its no-show standing (#500)', () => {
       await asAppUser(db, club.tenantId, (tx) => noShowStanding(tx, club.tenantId, next.userId)),
     ).toMatchObject({ blocked: false });
 
-    const done = await confirmPhoneVerification(next.userId, e164, CODE);
+    const done = await confirm(next.userId, e164, CODE);
     expect(done.inherited).toBe(3);
     expect(
       await asAppUser(db, club.tenantId, (tx) => noShowStanding(tx, club.tenantId, next.userId)),
     ).toMatchObject({ recentNoShows: 3, blocked: true });
 
     // Once: confirming again takes nothing over twice.
-    expect((await confirmPhoneVerification(next.userId, e164, CODE)).inherited).toBe(0);
+    expect((await confirm(next.userId, e164, CODE)).inherited).toBe(0);
   });
 
   it('an account with no standing leaves nothing under its number', async () => {
@@ -526,7 +597,7 @@ describe('POST /api/v1/me/phone/start and /confirm (#500)', () => {
     return {
       status: res.status,
       body: (await res.json()) as {
-        data: Record<string, unknown> & { phone?: Record<string, unknown> };
+        data: Record<string, unknown> & { phone?: Record<string, unknown>; challenge?: string };
         error: { code: string };
       },
     };
@@ -534,7 +605,10 @@ describe('POST /api/v1/me/phone/start and /confirm (#500)', () => {
 
   it('needs a session', async () => {
     expect((await post(startRoute, null, { phone: fresh() })).status).toBe(401);
-    expect((await post(confirmRoute, null, { phone: fresh(), code: CODE })).status).toBe(401);
+    expect(
+      (await post(confirmRoute, null, { phone: fresh(), code: CODE, challenge: 'x'.repeat(40) }))
+        .status,
+    ).toBe(401);
   });
 
   it('start then confirm: the account comes back with its number confirmed and hidden', async () => {
@@ -543,13 +617,18 @@ describe('POST /api/v1/me/phone/start and /confirm (#500)', () => {
 
     const started = await post(startRoute, me, { phone: e164 });
     expect(started.status).toBe(200);
-    expect(started.body.data).toEqual({ sent: true, number: expect.stringContaining('*') });
-    expect(sent).toEqual([{ to: e164, locale: 'en' }]);
+    expect(started.body.data).toEqual({
+      sent: true,
+      number: expect.stringContaining('*'),
+      challenge: expect.any(String),
+    });
+    expect(sent).toEqual([{ to: e164, locale: 'en', ref: expect.any(String) }]);
 
     // The code as people read it out, with a space.
     const confirmed = await post(confirmRoute, me, {
       phone: e164,
       code: `${CODE.slice(0, 3)} ${CODE.slice(3)}`,
+      challenge: started.body.data.challenge,
     });
     expect(confirmed.status).toBe(200);
     expect(confirmed.body.data.phone).toEqual({
@@ -578,16 +657,40 @@ describe('POST /api/v1/me/phone/start and /confirm (#500)', () => {
       status: 400,
       body: { error: { code: 'PHONE_INVALID' } },
     });
-    expect(await post(confirmRoute, me, { phone: fresh(), code: '000000' })).toMatchObject({
-      status: 400,
-      body: { error: { code: 'PHONE_CODE_WRONG' } },
-    });
-    expect(await post(confirmRoute, me, { phone: taken, code: CODE })).toMatchObject({
-      status: 409,
-      body: { error: { code: 'PHONE_IN_USE' } },
-    });
-    // A body that is not the schema's: letters for a code, an extra field.
-    expect((await post(confirmRoute, me, { phone: fresh(), code: 'abcdef' })).status).toBe(400);
+    const mine = fresh();
+    expect(
+      await post(confirmRoute, me, {
+        phone: mine,
+        code: '000000',
+        challenge: challengeFor(me.userId, mine),
+      }),
+    ).toMatchObject({ status: 400, body: { error: { code: 'PHONE_CODE_WRONG' } } });
+    expect(
+      await post(confirmRoute, me, {
+        phone: taken,
+        code: CODE,
+        challenge: challengeFor(me.userId, taken),
+      }),
+    ).toMatchObject({ status: 409, body: { error: { code: 'PHONE_IN_USE' } } });
+    // A challenge that is not for this number: ask for a new code.
+    expect(
+      await post(confirmRoute, me, {
+        phone: fresh(),
+        code: CODE,
+        challenge: challengeFor(me.userId, mine),
+      }),
+    ).toMatchObject({ status: 400, body: { error: { code: 'PHONE_CODE_EXPIRED' } } });
+    // A body that is not the schema's: letters for a code, no challenge, an extra field.
+    expect(
+      (
+        await post(confirmRoute, me, {
+          phone: mine,
+          code: 'abcdef',
+          challenge: challengeFor(me.userId, mine),
+        })
+      ).status,
+    ).toBe(400);
+    expect((await post(confirmRoute, me, { phone: mine, code: CODE })).status).toBe(400);
     expect((await post(startRoute, me, { phone: fresh(), extra: 1 })).status).toBe(400);
 
     configured = false;
