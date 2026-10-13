@@ -112,6 +112,9 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // client, and no test disagrees. `openapi/playerz-v1.json` declares these four
   // operations `security: []`; a guardrail now holds the two in agreement.
   /^\/api\/v1\/venues(\/|$)/,
+  // A club's public page for the native app (#411), as /clubs/{slug} is on the
+  // web. `security: []` in the spec. Exactly one segment: nothing under it.
+  /^\/api\/v1\/clubs\/[^/]+$/,
   // Centrifugo's subscribe callback. It carries no user token and never could:
   // the shared secret in `x-centrifugo-secret` is the whole boundary, which the
   // route's own docblock states. Also `security: []` in the spec.
