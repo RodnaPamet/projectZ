@@ -69,6 +69,16 @@ const OPEN_TO_ANYONE: Record<string, { guard: string; module: string; why: strin
       "and an email that only ever goes to the operator's one configured inbox, never to an " +
       'address the visitor typed.',
   },
+  'src/app/(public)/email/unsubscribe/[token]/actions.ts': {
+    guard: 'unsubscribeByToken',
+    module: 'src/app-layer/usecases/email-unsubscribe.ts',
+    why:
+      "an email's unsubscribe link (#528) has to work signed out: a person who wants an email " +
+      'to stop should not need a password first. What stands in for a session is the token, ' +
+      'signed for one account and one kind of email, which unsubscribeByToken verifies before ' +
+      'it runs a query. All it can do is switch that one kind OFF, and that one write is ' +
+      'rate-limited per account.',
+  },
 };
 
 const ACTION_FILES = globSync('src/app/**/*.ts')

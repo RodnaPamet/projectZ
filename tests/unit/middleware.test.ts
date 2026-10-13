@@ -330,3 +330,35 @@ describe('middleware and the one-time ask for a phone number (#500)', () => {
     expect((await html('/venues')).headers.get('location')).toBeNull();
   });
 });
+
+describe('an email’s unsubscribe link (#528)', () => {
+  const TOKEN = 'dTE6cmVtaW5kZXI.c2lnbmF0dXJl';
+
+  it('works signed out: the page, and the one-click POST a mail client sends with no cookie', async () => {
+    mockedGetToken.mockResolvedValue(null);
+    expect(passedThrough(await get(`/email/unsubscribe/${TOKEN}`))).toBe(true);
+    expect(passedThrough(await post(`/api/email/unsubscribe/${TOKEN}`))).toBe(true);
+  });
+
+  it('is not held back by a step the account owes: stopping an email never waits', async () => {
+    const { currentLegalVersions } = jest.requireMock('@/lib/legal/versions') as {
+      currentLegalVersions: jest.Mock;
+    };
+    currentLegalVersions.mockReturnValue({ terms: '2026-10-01', privacy: '2026-10-01' });
+    mockedGetToken.mockResolvedValue({ sub: 'u1', phone: 'ask' });
+    try {
+      const page = (path: string) =>
+        middleware(
+          new NextRequest(`https://playerz.bg${path}`, { headers: { accept: 'text/html' } }),
+        );
+      // The control: any other page is sent to the terms first.
+      const held = await page('/venues');
+      expect(held.status).toBe(307);
+      expect(held.headers.get('location')).toContain('/start/terms');
+      // The unsubscribe page is served as it is.
+      expect(passedThrough(await page(`/email/unsubscribe/${TOKEN}`))).toBe(true);
+    } finally {
+      currentLegalVersions.mockReturnValue({});
+    }
+  });
+});

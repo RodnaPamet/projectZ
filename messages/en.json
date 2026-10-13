@@ -1376,6 +1376,19 @@
     },
     "signOutToSwitch": "Sign out and use another account"
   },
+  "emailUnsubscribe": {
+    "metaTitle": "Stop emails | playerz.bg",
+    "title": "Stop emails",
+    "ask": "Stop emails of this kind: “{kind}”?",
+    "bell": "The bell in the app keeps showing everything.",
+    "submit": "Stop these emails",
+    "done": "These emails are off: “{kind}”.",
+    "settings": "All email settings are in <link>Profile → Notifications</link>.",
+    "invalid": {
+      "title": "This link is not valid",
+      "description": "The link is incomplete or no longer works. You can also stop emails from your profile."
+    }
+  },
   "myBookings": {
     "metaTitle": "My bookings — playerz.bg",
     "title": "My bookings",
@@ -2293,7 +2306,8 @@
       "cancelPassed": "the cancellation deadline has passed; please contact the club",
       "link": "Your booking",
       "footer": "You are getting this email because you have a booking on playerz.bg.",
-      "settings": "Choose which emails you get in Profile → Notifications: {url}"
+      "settings": "Choose which emails you get in Profile → Notifications: {url}",
+      "unsubscribe": "Stop these emails with one click: {url}"
     },
     "contactRequest": {
       "subject": "Club enquiry: {club}",

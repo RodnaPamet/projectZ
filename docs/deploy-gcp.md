@@ -646,6 +646,37 @@ sudo docker exec playerz-email-outbox sh -c \
 that failed for good are `status = 'DEAD'` in `email_outbox`, with `lastError`
 (never the address or the body).
 
+#### One-click unsubscribe (#528)
+
+Every email a person can switch off (the five kinds under Профил → Известия)
+goes out with a last line, "Спиране на тези имейли с едно натискане: …", and two
+headers:
+
+```
+List-Unsubscribe: <https://playerz.bg/api/email/unsubscribe/{token}>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+```
+
+Gmail, Apple Mail and the rest turn those into their own "unsubscribe" beside
+the sender and POST to that address themselves (RFC 8058). The line in the body
+leads to a page that asks first. Either way the token switches off one kind of
+email for one account and nothing else, with no sign-in. The operator's enquiry
+email carries neither.
+
+Nothing to configure. Two things to know:
+
+- The links are built on `SITE_URL`, like every link in an email.
+- The token is signed with a key derived from `DATA_ENCRYPTION_KEY`. Rotating
+  that key voids the unsubscribe links in every email already sent; the other
+  footer line (Профил → Известия) still works.
+
+Check a link by hand (it changes nothing until the button is pressed):
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://playerz.bg/email/unsubscribe/not-a-real-token   # 200, "Връзката не е валидна"
+curl -s -X POST https://playerz.bg/api/email/unsubscribe/not-a-real-token                       # 404 NOT_FOUND
+```
+
 ## Backups
 
 Two layers, and they answer different questions:

@@ -36,6 +36,7 @@ import {
  *   - the texts being accepted and the cookie policy;
  *   - `/me/profile` and `/delete-account`: a person who will not accept can
  *     still download their data and delete the account;
+ *   - `/email/**`: an email's unsubscribe link (#528);
  *   - anything that is not a page: only a request for HTML, or the router's
  *     own fetch of a page, is redirected.
  */
@@ -48,6 +49,9 @@ const FREE_PREFIXES = [
   '/delete-account',
   '/me/profile',
   '/offline',
+  // An email's unsubscribe link (#528) works signed out, so it works with a
+  // step owed too: stopping an email must never wait on accepting terms.
+  '/email',
 ];
 
 function isFree(pathname: string): boolean {
