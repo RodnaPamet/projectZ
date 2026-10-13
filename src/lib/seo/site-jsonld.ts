@@ -9,8 +9,8 @@
  *
  * No `SearchAction`: Google retired the sitelinks search box in 2024, and an
  * `?q=` template would advertise a search the index page does not promise to
- * keep. No `logo` either until the app has an icon file to point at (the
- * manifest names /icons/*, which do not exist yet).
+ * keep. The Organization's `logo` is the 512 px app icon (#432), a square PNG
+ * on the canonical origin, as Google's logo guidelines ask.
  */
 export interface SiteJsonLdInput {
   /** The canonical origin, e.g. `https://playerz.bg/`. */
@@ -39,6 +39,7 @@ export function siteGraph(input: SiteJsonLdInput): {
         '@id': orgId,
         name: input.name,
         url,
+        logo: new URL('/icons/icon-512.png', input.origin).toString(),
         areaServed: { '@type': 'City', name: 'Sofia' },
       },
       {
