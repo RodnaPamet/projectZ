@@ -1,8 +1,7 @@
 /// The P05 open-play scaffolding (OpenPlaySession, SessionParticipant,
 /// SessionChatMessage) was here. Nothing ever wired it to a route, and #376
 /// built open play on the booking instead (open-play.prisma). The models went
-/// with #511; their tables are empty and are dropped by the migration after
-/// this release, as P60 did for Entra, so a rollback image still finds them.
+/// with #511, and P66 dropped their three empty tables.
 
 /// GLOBAL — no tenantId. Skill follows the PLAYER, not the club.
 ///
