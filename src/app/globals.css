@@ -166,8 +166,13 @@ body {
     inset 0 1px 0 0 color-mix(in srgb, var(--bg-default), white 20%),
     var(--shadow-lg);
 }
-.glass-card {
-  @apply p-4 md:p-5;
+/* The card's default padding sits in the components layer (#320), below
+   Tailwind's utilities: unlayered, it beat every padding class passed in, so a
+   DataTable card's `pr-9` stayed 16px and its chevron overlapped the text. */
+@layer components {
+  .glass-card {
+    @apply p-4 md:p-5;
+  }
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -322,6 +327,10 @@ body {
  * without the design changing. The React <Input>/<Button> primitives handle
  * their own floor with `pointer-coarse:min-h-11` in their cva.
  *
+ * Sonner's toast close button (#285) is 20 px and already `position:
+ * absolute`, which contains its own ::before, so it takes the same hit-target
+ * and keeps its place in the corner.
+ *
  * These rules used to sit inside the process-canvas section inherited from
  * upstream; T28 (#225) deleted that section and moved them here.
  * tests/guardrails/touch-targets.test.ts keeps them.
@@ -334,7 +343,8 @@ body {
   }
   [role='checkbox']::before,
   [role='radio']::before,
-  [role='switch']::before {
+  [role='switch']::before,
+  [data-sonner-toast] [data-close-button]::before {
     content: '';
     position: absolute;
     top: 50%;
