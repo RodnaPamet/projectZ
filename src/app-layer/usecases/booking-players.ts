@@ -6,6 +6,7 @@ import { readBookingPlayers, type BookingPlayer } from '@/app-layer/repositories
 import { notifyBookingPlayersChanged } from '@/app-layer/usecases/booking-notifications';
 import { syncGameChatOfBooking } from '@/app-layer/usecases/open-play-chat';
 import { releaseOpenPlayPlace } from '@/app-layer/usecases/open-play-roster';
+import { assertPhoneConfirmed } from '@/app-layer/usecases/phone-verification';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
@@ -700,6 +701,9 @@ export async function acceptBookingInvite(input: {
       return { joined: false };
     }
     await requirePlayerAccount(tx, input.userId);
+    // Joining a booking by link is joining a game: the same confirmed phone
+    // number as booking one (#500), when the rule is on.
+    await assertPhoneConfirmed(input.userId, tx);
 
     const added = await insertParticipant(tx, b, input.userId);
 

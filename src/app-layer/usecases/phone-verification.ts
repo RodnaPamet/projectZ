@@ -1,3 +1,5 @@
+import type { PrismaClient } from '@prisma/client';
+
 import { maskPhone, phoneFingerprint } from '@/lib/account/phone-fingerprint';
 import { normalizePhone } from '@/lib/booking/phone';
 import { runAsUserOnly } from '@/lib/db/rls-middleware';
@@ -254,13 +256,16 @@ export async function confirmPhoneVerification(
 
 /**
  * The gate (#500): throws `PhoneRequiredError` when the rule is on and this
- * account has no confirmed number. Called by booking, asking to join a game
- * and writing a message, before they do anything.
+ * account has no confirmed number. Called before a player books, joins a
+ * booking by link, asks to join a game, or writes a message. Club staff are
+ * not asked: they act for the club, at its desk and in its inbox.
  */
-export async function assertPhoneConfirmed(userId: string): Promise<void> {
+export async function assertPhoneConfirmed(userId: string, db?: PrismaClient): Promise<void> {
   if (!phoneRequired()) return;
-  const user = await runAsUserOnly(userId, (db) =>
-    db.user.findUnique({ where: { id: userId }, select: { phoneVerifiedAt: true } }),
-  );
+  const read = (h: PrismaClient) =>
+    h.user.findUnique({ where: { id: userId }, select: { phoneVerifiedAt: true } });
+  // Inside a caller's transaction when it has one (the accounts table has no
+  // row security, so any binding reads the one row); else bound to the person.
+  const user = db ? await read(db) : await runAsUserOnly(userId, read);
   if (!user?.phoneVerifiedAt) throw new PhoneRequiredError();
 }

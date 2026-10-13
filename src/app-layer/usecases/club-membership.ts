@@ -4,6 +4,8 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { translateFor } from '@/lib/i18n/server-messages';
 import { logger } from '@/lib/observability/logger';
 
+import { assertPhoneConfirmed } from './phone-verification';
+
 /**
  * Which club a signed-in player is acting at, resolved authoritatively.
  *
@@ -127,6 +129,11 @@ export async function resolvePlayerTenant(
           await translateFor(account?.locale, 'accountKind.booking.playerAccountRequired'),
         );
       }
+      // A confirmed phone number before the first booking (#500), when the
+      // rule is on. After the kind, so a club account is told what it is, and
+      // before the club is looked up or joined: about the caller, the same at
+      // every slug, and nobody becomes a club's player by being refused.
+      await assertPhoneConfirmed(userId, db);
     }
 
     const club = await db.venueOrg.findUnique({
