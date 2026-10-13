@@ -2,6 +2,7 @@
 
 import type { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { getTranslations } from 'next-intl/server';
 
 import { createInvite, revokeInvite } from '@/app-layer/usecases/invites';
 import { changeMemberRole, setMemberSuspended } from '@/app-layer/usecases/staff';
@@ -133,11 +134,13 @@ export async function inviteStaffAction(
   if (!isInviteRole(role)) return { ok: false, error: 'BAD_ROLE' };
 
   let token: string;
+  let inviteId: string;
   try {
     const invite = await runInTenantContext(ctx.tenantId, (db) =>
       createInvite(db, ctx.tenantId, ctx.userId, { email, role: role as Role }),
     );
     token = invite.token;
+    inviteId = invite.inviteId;
   } catch (err) {
     const name = err instanceof Error ? err.name : '';
     if (name === 'AlreadyInvitedError') return { ok: false, error: 'ALREADY_INVITED' };
@@ -153,10 +156,14 @@ export async function inviteStaffAction(
   // rather than to leave a row nobody can act on.
   const link = `${env.NEXTAUTH_URL}/invite/${token}`;
   try {
+    // In the inviting admin's language: the invitee has no account to read
+    // one from, and is joining this admin's club.
+    const t = await getTranslations('admin.staff.inviteEmail');
     await sendMail({
       to: email,
-      subject: `You have been invited to join a club on playerz.bg`,
-      text: `You have been invited to help run a club on playerz.bg.\n\nOpen this link to accept:\n${link}\n\nThe link works once and expires in 14 days.`,
+      subject: t('subject', { club: ctx.tenantName }),
+      text: t('text', { club: ctx.tenantName, link }),
+      idempotencyKey: `staff-invite:${inviteId}`,
     });
   } catch {
     // The invite row exists and is open, and the message tells the admin to

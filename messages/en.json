@@ -935,7 +935,11 @@
         "revokeTitle": "Revoke the invite",
         "revokeFailed": "The invite for {email} was not revoked."
       },
-      "separateAccount": "separate account"
+      "separateAccount": "separate account",
+      "inviteEmail": {
+        "subject": "You're invited to join {club}'s team on playerz.bg",
+        "text": "{club} has invited you to help run the club on playerz.bg.\n\nOpen this link to accept:\n{link}\n\nThe link works once and expires in 14 days. If you weren't expecting this invite, you can ignore it."
+      }
     },
     "calendar": {
       "metaTitle": "Calendar",
