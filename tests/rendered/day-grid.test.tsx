@@ -428,3 +428,74 @@ describe('who plays an online booking (#358, #376)', () => {
     );
   });
 });
+
+describe('who plays a desk booking (#513)', () => {
+  const p = bg.admin.calendar.players;
+  const d = bg.admin.calendar.desk.detail;
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    // The detail's own read stays open: the players come from the diary's day.
+    global.fetch = jest.fn(() => new Promise(() => {})) as never;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const deskDay = (players: DayBooking['players']) =>
+    dayOf({ bookings: [booking({ desk: true, canMarkNoShow: false, players })] });
+
+  const open = async (day: DiaryDay) => {
+    render(
+      withIntl(
+        <TooltipProvider>
+          <DayGrid slug={nextClub()} requestedDay="2026-09-29" day={day} />
+        </TooltipProvider>,
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Иван, 18:00–19:00/ }));
+    return screen.findByRole('dialog', { name: d.title });
+  };
+
+  it('the desk detail lists the other players, and an open-play joiner can be marked', async () => {
+    markPlayerNoShowAction.mockResolvedValue({ ok: true });
+    const sheet = await open(
+      deskDay([
+        { id: 'p1', name: 'Мария', viaOpenPlay: true, noShow: false, canMarkNoShow: true },
+        { id: 'p2', name: 'Петър', viaOpenPlay: false, noShow: true, canMarkNoShow: false },
+      ]),
+    );
+
+    const list = await waitFor(() => {
+      const el = sheet.querySelector<HTMLElement>('[data-desk-players]');
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(within(list).getByRole('heading', { name: d.players })).toBeInTheDocument();
+    expect(list.querySelectorAll('[data-diary-player]')).toHaveLength(2);
+    expect(within(list).getAllByText(p.viaOpenPlay)).toHaveLength(1);
+    const rows = [...list.querySelectorAll<HTMLElement>('[data-diary-player]')];
+    // Мария can still be marked; Петър already is, so his row has no button.
+    expect(rows[0]!.querySelector('[data-diary-player-no-show]')).not.toBeNull();
+    expect(rows[1]!.querySelector('[data-diary-player-no-show]')).toBeNull();
+    expect(within(rows[1]!).getByText(p.noShow)).toBeInTheDocument();
+    // The customer is the sheet's header, so the list has no «резервирал» row.
+    expect(within(list).queryByText(p.booker)).toBeNull();
+
+    fireEvent.click(
+      within(list).getByRole('button', { name: p.markLabel.replace('{name}', 'Мария') }),
+    );
+    const confirm = await screen.findByRole('dialog', {
+      name: p.confirmTitle.replace('{name}', 'Мария'),
+    });
+    fireEvent.click(within(confirm).getByRole('button', { name: p.mark }));
+    await waitFor(() =>
+      expect(markPlayerNoShowAction).toHaveBeenCalledWith(expect.any(String), 'b1', 'p1'),
+    );
+  });
+
+  it('a desk booking with nobody else on it has no players section', async () => {
+    const sheet = await open(deskDay([]));
+    expect(sheet.querySelector('[data-desk-players]')).toBeNull();
+  });
+});

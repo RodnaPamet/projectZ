@@ -17,7 +17,9 @@ import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 import type { ResourceNoun } from '@/lib/sports/resource-kinds';
 
+import type { DayBooking } from './DayGrid';
 import { customerBody, DeskCustomerFields, type DeskCustomerValue } from './DeskCustomerFields';
+import { DiaryPlayersList } from './DiaryPlayersList';
 
 /**
  * A desk booking's detail (#364), opened by tapping its block in the diary:
@@ -25,6 +27,12 @@ import { customerBody, DeskCustomerFields, type DeskCustomerValue } from './Desk
  * the club's notes and its series. From here staff change the customer, cancel
  * this booking, cancel the rest of its series, or — once it has started — mark
  * a no-show.
+ *
+ * A desk booking linked to a playerz account can have players too, added by
+ * link or accepted through open play (#376). They are listed here as on an
+ * online booking's sheet, each open-play joiner markable «Не дойде» (#513).
+ * The list is the diary's own read of the day, not this sheet's fetch, so it
+ * is on screen at once and follows the diary's refresh.
  *
  * The two cancels and the no-show are confirmed in the diary's ConfirmDialog,
  * after this sheet closes: one overlay at a time, which is what a phone's
@@ -39,6 +47,7 @@ export default function DeskBookingDetails({
   bookingId,
   noun,
   canMarkNoShow,
+  players = null,
   onClose,
   onChanged,
   onCancel,
@@ -49,6 +58,8 @@ export default function DeskBookingDetails({
   /** The booked court's noun (P51): a karting track is a "писта". */
   noun: ResourceNoun;
   canMarkNoShow: boolean;
+  /** The booking as the diary has it, for its other players (#513). */
+  players?: Pick<DayBooking, 'id' | 'startLabel' | 'endLabel' | 'players'> | null;
   onClose: () => void;
   /** The customer changed: the diary re-reads its day. */
   onChanged: () => void;
@@ -178,6 +189,13 @@ export default function DeskBookingDetails({
           <StatusBadge variant="neutral">
             {ts.has(b.status as never) ? ts(b.status as never) : b.status}
           </StatusBadge>
+        )}
+
+        {players && players.players.length > 0 && !editing && (
+          <div className="gap-tight grid" data-desk-players>
+            <Heading level={3}>{t('players')}</Heading>
+            <DiaryPlayersList slug={slug} booking={players} onChanged={onChanged} />
+          </div>
         )}
 
         {b?.series && !editing && (
