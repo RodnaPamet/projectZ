@@ -52,8 +52,11 @@ function remember(map: Map<number, number>, key: number, value: number) {
 
 /**
  * Call `refresh` when the payload on screen is older than `staleAfterMs`:
- * checked on mount, and whenever the tab becomes visible again (a front-desk
- * tablet woken after lunch).
+ * checked on mount, whenever the tab becomes visible again (a front-desk
+ * tablet woken after lunch), and, given `everyMs`, on that interval while the
+ * tab stays visible (#293). A diary left open in the foreground all day never
+ * fired either event, so a booking made on a phone stayed invisible until
+ * somebody touched the screen. A hidden tab is never polled.
  *
  * `renderedAt` is `Date.now()` taken on the server when the payload was built.
  * `refresh` fetches a newer payload and puts it on screen, keeping the stale
@@ -65,6 +68,7 @@ export function useRefreshWhenStale(
   renderedAt: number,
   refresh: () => void,
   staleAfterMs = STALE_AFTER_MS,
+  everyMs?: number,
 ): void {
   const refreshRef = useRef(refresh);
   useEffect(() => {
@@ -91,6 +95,15 @@ export function useRefreshWhenStale(
       if (document.visibilityState === 'visible') refreshIfStale();
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [renderedAt, staleAfterMs]);
+    const poll =
+      everyMs != null && everyMs > 0
+        ? window.setInterval(() => {
+            if (document.visibilityState === 'visible') refreshIfStale();
+          }, everyMs)
+        : null;
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (poll != null) window.clearInterval(poll);
+    };
+  }, [renderedAt, staleAfterMs, everyMs]);
 }

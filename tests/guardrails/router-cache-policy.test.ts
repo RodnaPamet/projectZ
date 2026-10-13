@@ -133,7 +133,11 @@ describe('router cache policy', () => {
     );
     const day = readFileSync('src/app/(app)/t/[slug]/admin/calendar/diary-day.ts', 'utf8');
     expect(code(grid)).toMatch(/useFreshDiaryDay\(/);
-    expect(code(fresh)).toMatch(/useRefreshWhenStale\(newest\.renderedAt, refresh\)/);
+    // With the 10 s threshold, and polled once a minute while visible (#293).
+    expect(code(fresh)).toMatch(
+      /useRefreshWhenStale\(newest\.renderedAt, refresh, STALE_AFTER_MS, DIARY_POLL_MS\)/,
+    );
+    expect(code(fresh)).toMatch(/DIARY_POLL_MS = 60_000/);
     expect(code(day)).toMatch(/renderedAt: now\.getTime\(\)/);
   });
 
