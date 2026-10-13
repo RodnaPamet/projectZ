@@ -4,10 +4,12 @@ import { startTransition, useActionState, useOptimistic, useState } from 'react'
 import dynamic from 'next/dynamic';
 import { useFormatter, useTranslations } from 'next-intl';
 
+import { FieldSkeleton } from '@/components/loading/shapes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Heading } from '@/components/ui/typography';
 import { resourceNoun, resourceNouns } from '@/lib/sports/resource-kinds';
@@ -25,10 +27,31 @@ import type { CourtFormValues } from './CourtForm';
  * slower for it, for a form most visits never open. Loaded on demand, the
  * board's own JS is what the route pays for.
  */
-const CourtForm = dynamic(() => import('./CourtForm').then((m) => m.CourtForm));
+const CourtForm = dynamic(() => import('./CourtForm').then((m) => m.CourtForm), {
+  // A cold first open waits for the chunk: the form's outline, not an empty card (#325).
+  loading: () => <CourtFormSkeleton />,
+});
 const ConfirmDialog = dynamic(() =>
   import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
 );
+
+/** The court form's outline while its chunk loads: a field, two pairs, the actions. */
+function CourtFormSkeleton() {
+  return (
+    <div className="gap-default grid" aria-hidden="true" data-court-form-loading>
+      <FieldSkeleton className="mb-0 sm:max-w-none" />
+      <div className="gap-default grid sm:grid-cols-2">
+        <FieldSkeleton className="mb-0 sm:max-w-none" />
+        <FieldSkeleton className="mb-0 sm:max-w-none" />
+      </div>
+      <div className="gap-default grid sm:grid-cols-2">
+        <FieldSkeleton className="mb-0 sm:max-w-none" />
+        <FieldSkeleton className="mb-0 sm:max-w-none" />
+      </div>
+      <Skeleton className="h-10 w-32 rounded-md" />
+    </div>
+  );
+}
 
 /**
  * The courts screen's interactive half.
@@ -144,6 +167,8 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
   const format = useFormatter();
   const [confirming, setConfirming] = useState(false);
   const [asked, setAsked] = useState(false);
+  // The failure notice can be closed; the next attempt brings its own (#325).
+  const [dismissed, setDismissed] = useState(false);
 
   const [status, setOptimisticStatus] = useOptimistic(court.status);
   const [failed, setArchived, pending] = useActionState(
@@ -160,7 +185,10 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
   );
 
   const archived = status === 'CLOSED';
-  const flip = (reopen: boolean) => startTransition(() => setArchived(reopen));
+  const flip = (reopen: boolean) => {
+    setDismissed(false);
+    startTransition(() => setArchived(reopen));
+  };
   // A karting track is a "писта" and a field an "игрище", and the badge and
   // setting agree with it ("Активна", "Активно").
   const noun = resourceNoun(court.resourceType);
@@ -219,8 +247,8 @@ function CourtCard({ slug, court, onEdit }: { slug: string; court: CourtRow; onE
         </Button>
       </div>
 
-      {failed && !pending && (
-        <InlineNotice variant="error" className="mt-compact">
+      {failed && !pending && !dismissed && (
+        <InlineNotice variant="error" className="mt-compact" onDismiss={() => setDismissed(true)}>
           {t(noun === 'court' ? 'archive.failed' : `${noun}.archive.failed`)}
         </InlineNotice>
       )}

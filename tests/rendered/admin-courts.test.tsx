@@ -169,6 +169,20 @@ describe('archive, optimistically', () => {
     expect(within(card).getByRole('button', { name: c.action.archive })).toBeEnabled();
   });
 
+  it('the failure can be closed, and the next failed attempt says so again (#325)', async () => {
+    archiveCourtAction.mockResolvedValue({ ok: false, error: 'nope' });
+    board([court()]);
+    const card = screen.getByRole('listitem');
+
+    fireEvent.click(within(card).getByRole('button', { name: c.action.archive }));
+    const notice = await within(card).findByRole('alert');
+    fireEvent.click(within(notice).getByRole('button', { name: bg.common.ui.dismiss }));
+    expect(within(card).queryByRole('alert')).toBeNull();
+
+    fireEvent.click(within(card).getByRole('button', { name: c.action.archive }));
+    expect(await within(card).findByRole('alert')).toHaveTextContent(c.archive.failed);
+  });
+
   it('rolls back when the action throws, too', async () => {
     archiveCourtAction.mockRejectedValue(new Error('network'));
     board([court({ status: 'CLOSED' })]);
