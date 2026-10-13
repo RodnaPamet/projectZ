@@ -721,8 +721,18 @@ describe('the platform’s queue', () => {
       submittedAt: '2026-10-01T08:00:00Z',
       decidedAt: null,
       sports: [{ sport: 'TENNIS', levelMin: 1, levelMax: 5 }],
-      hasCertificate: true,
+      bio: BIO,
+      qualifications: 'Лиценз ББФТ, ниво 2',
+      decisionNote: null,
+      certificate: {
+        fileName: 'licence.pdf',
+        mimeType: 'application/pdf',
+        byteSize: PDF.byteLength,
+        uploadedAt: expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/),
+      },
     });
+    // What was uploaded, never the file.
+    expect(JSON.stringify(res.json)).not.toMatch(/%PDF|content|sha256/);
     expect(body.nextCursor).toBeNull();
     // Nothing decided yet.
     expect(

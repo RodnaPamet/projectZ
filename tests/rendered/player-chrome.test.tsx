@@ -71,7 +71,7 @@ jest.mock('@/app-layer/usecases/club-nouns', () => ({
 }));
 
 // The flags are environment reads (src/lib/modules.ts); the test sets them.
-let modules: ChromeModules = { openPlay: false, messaging: false };
+let modules: ChromeModules = { openPlay: false, messaging: false, coaches: false };
 jest.mock('@/lib/modules', () => ({ readModules: () => modules }));
 
 jest.mock('next-intl/server', () => ({
@@ -231,7 +231,7 @@ const CLUB_ITEMS = [
 beforeEach(() => {
   installFakeFetch(() => ok({ items: [], nextCursor: null, unreadCount: 0 }));
   pathname = '/venues';
-  modules = { openPlay: false, messaging: false };
+  modules = { openPlay: false, messaging: false, coaches: false };
   desktopViewport();
   signOut.mockReset();
   signedInIdentity.mockReset();
@@ -452,7 +452,7 @@ describe('the modules hide what has not shipped (#375, #376)', () => {
   });
 
   it('on: Игри in the rail and the bar, Съобщения in the rail only', async () => {
-    modules = { openPlay: true, messaging: true };
+    modules = { openPlay: true, messaging: true, coaches: false };
     await renderChrome();
     expect(railLinks()).toEqual([
       [n.play, '/venues'],
@@ -470,7 +470,7 @@ describe('the modules hide what has not shipped (#375, #376)', () => {
   });
 
   it('a coach gets them too, a visitor never', async () => {
-    modules = { openPlay: true, messaging: true };
+    modules = { openPlay: true, messaging: true, coaches: false };
     resolveLanding.mockResolvedValue(COACH);
     await renderChrome();
     expect(within(railNav()).getByRole('link', { name: n.games })).toBeInTheDocument();

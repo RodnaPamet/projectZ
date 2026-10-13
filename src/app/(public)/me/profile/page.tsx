@@ -9,6 +9,7 @@ import {
 import { getMe } from '@/app-layer/usecases/me';
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
 import { profileCrumbs } from '@/components/layout/crumbs';
+import { MODULE_HREFS } from '@/components/layout/nav-items';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
@@ -16,6 +17,7 @@ import type { DeletionStandingView } from '@/components/profile/DeleteAccountSec
 import { ViewerScope } from '@/lib/data/provider';
 import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/locales';
 import { legalHrefs } from '@/lib/legal/texts';
+import { readModules } from '@/lib/modules';
 
 import { ProfileView } from './ProfileView';
 
@@ -106,6 +108,9 @@ export default async function ProfilePage() {
         name={me.name}
         email={me.email}
         platformHref={platformHref}
+        coachHref={
+          mine.accountKind === 'COACH' && readModules().coaches ? MODULE_HREFS.coaches : null
+        }
         account={mine}
         showSports={mine.accountKind !== 'CLUB'}
         notificationSettings={notificationSettings}

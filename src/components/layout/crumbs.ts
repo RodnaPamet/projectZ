@@ -28,7 +28,7 @@ import {
  * the current page, never as a link, whatever its href.
  */
 
-const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true };
+const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true, coaches: true };
 
 /** `common.nav`, as the server page holds it. */
 type NavT = (key: string) => string;
@@ -61,6 +61,11 @@ export function profileCrumbs(t: NavT): BreadcrumbItem[] {
   return [{ label: t('profile'), href: PROFILE_HREF }];
 }
 
+/** Профил, then «Профил на треньор» (#545): a coach's own profile hangs off the account's. */
+export function coachProfileCrumbs(t: NavT): BreadcrumbItem[] {
+  return [...profileCrumbs(t), { label: t('coachProfile'), href: MODULE_HREFS.coaches }];
+}
+
 /** The club admin's pages, by their segment under `/t/{slug}/admin`. */
 export type ClubAdminPage =
   'calendar' | 'messages' | 'courts' | 'pricing' | 'photos' | 'players' | 'staff' | 'reports';
@@ -88,7 +93,7 @@ export function clubAdminCrumbs(
 
 /** The platform's pages, by their segment under `/platform`. */
 export type PlatformPage =
-  'moderation' | 'fees' | 'clubs' | 'usage' | 'contact-requests' | 'security';
+  'moderation' | 'fees' | 'clubs' | 'usage' | 'coaches' | 'contact-requests' | 'security';
 
 /** Платформа, one of its pages under the sidebar's label, and a leaf below it. */
 export function platformCrumbs(

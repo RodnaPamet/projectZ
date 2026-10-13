@@ -21,7 +21,12 @@ import { useAccount } from '@/components/profile/use-account';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChevronRight, ShieldCheck, UserArrowRight } from '@/components/ui/icons/nucleo';
+import {
+  BadgeCheck,
+  ChevronRight,
+  ShieldCheck,
+  UserArrowRight,
+} from '@/components/ui/icons/nucleo';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption, Heading } from '@/components/ui/typography';
@@ -70,6 +75,7 @@ export function ProfileView({
   name,
   email,
   platformHref,
+  coachHref,
   account: seed,
   showSports,
   notificationSettings,
@@ -79,6 +85,8 @@ export function ProfileView({
   name: string | null;
   email: string | null;
   platformHref: string | null;
+  /** Where a coach's own profile is; null for anyone else, and while the module is off. */
+  coachHref: string | null;
   /** `GET /api/v1/me`, read by the page: what #359's sections edit. */
   account: MeDto;
   /** Sports and levels are a player's; a CLUB account does not play (#263). */
@@ -131,6 +139,18 @@ export function ProfileView({
         }}
       />
       {showSports ? <SportLevelsSection seed={seed} /> : null}
+
+      {/* #545: a coach's own profile and where it stands with the platform.
+          Its own page; here is the way to it. */}
+      {coachHref ? (
+        <Section title={t('coach.title')}>
+          <Link href={coachHref} className={LINK_ROW} data-testid="profile-coach">
+            <BadgeCheck className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{t('coach.row')}</span>
+            <ChevronRight className="text-content-muted size-4" aria-hidden="true" />
+          </Link>
+        </Section>
+      ) : null}
 
       <Section title={t('settings')}>
         <div className={ROW} data-testid="profile-language-row">

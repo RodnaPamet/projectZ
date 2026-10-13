@@ -6,9 +6,10 @@ import type { ChromeModules } from '@/components/layout/nav-items';
  *
  * The player chrome has a place for each module from day one, and hides it
  * until the module ships: the Игри tab waits for open play (#376), the
- * messages icon for messaging (#375). Each is switched on by its environment
- * variable, `MODULE_OPEN_PLAY=1` or `MODULE_MESSAGING=1`, with no code change.
- * Both default off (`src/env.ts`).
+ * messages icon for messaging (#375), a coach's own pages for the coaches
+ * module (#377). Each is switched on by its environment variable,
+ * `MODULE_OPEN_PLAY=1`, `MODULE_MESSAGING=1` or `MODULE_COACHES=1`, with no
+ * code change. All default off (`src/env.ts`).
  *
  * Server-side only. The layouts read it and hand the client plain booleans, so
  * no `NEXT_PUBLIC_` copy is baked into the bundle and a flag flips on the next
@@ -21,5 +22,6 @@ export function readModules(): ChromeModules {
   return {
     openPlay: env.MODULE_OPEN_PLAY === '1',
     messaging: env.MODULE_MESSAGING === '1',
+    coaches: env.MODULE_COACHES === '1',
   };
 }

@@ -130,7 +130,9 @@
       "fees": "Club fees",
       "clubs": "Clubs",
       "contactRequests": "Enquiries",
-      "messagesUnread": "{count, plural, one {# unread conversation} other {# unread conversations}}"
+      "messagesUnread": "{count, plural, one {# unread conversation} other {# unread conversations}}",
+      "coachProfile": "Coach profile",
+      "coaches": "Coaches"
     },
     "footer": {
       "label": "Footer",
@@ -2017,6 +2019,74 @@
         "MFA_ENROLMENT_REQUIRED": "Turn on two-step verification under “Security” first.",
         "UNKNOWN": "Something went wrong. Try again."
       }
+    },
+    "coaches": {
+      "metaTitle": "Coaches",
+      "title": "Coaches",
+      "subtitle": "Coach profiles sent for approval. Every page loaded and every certificate opened is recorded.",
+      "reason": {
+        "label": "Why are you opening the list?",
+        "hint": "At least {min} characters. It is written to the platform audit log with every page you load and every certificate you open."
+      },
+      "statusLabel": "Which profiles",
+      "status": {
+        "SUBMITTED": "Waiting",
+        "APPROVED": "Approved",
+        "DECLINED": "Declined"
+      },
+      "open": "Show",
+      "refresh": "Reload",
+      "more": "Show more",
+      "empty": {
+        "title": "No profiles",
+        "description": "There is nothing in this list."
+      },
+      "noName": "No name",
+      "submitted": "sent on {when}",
+      "decided": "decided on {when}",
+      "bio": "Introduction",
+      "qualifications": "Qualifications",
+      "none": "Not given.",
+      "sports": "Teaches",
+      "range": "{sport}: levels {min}–{max}",
+      "one": "{sport}: level {level}",
+      "lastNote": "The last note to the coach",
+      "certificate": {
+        "title": "Certificate",
+        "info": "{name} · {size} · uploaded on {date}",
+        "none": "No certificate.",
+        "open": "Download the certificate",
+        "opening": "Downloading…"
+      },
+      "note": {
+        "label": "Note",
+        "hint": "At least {min} characters. It is written to the audit log. On a decline or a removal the coach sees it too: on their profile and by email."
+      },
+      "approve": "Approve",
+      "decline": "Decline",
+      "remove": "Stop the coach",
+      "done": {
+        "APPROVE": "The profile is approved. The coach has been told.",
+        "DECLINE": "The profile is declined. The coach has been told.",
+        "REMOVE": "The coach is stopped and their certificate deleted."
+      },
+      "decidedElsewhere": "This profile has already been decided. Nothing was changed.",
+      "error": {
+        "PLATFORM_AUTHORITY_REQUIRED": "You do not hold a live platform grant.",
+        "PLATFORM_CAPABILITY_REQUIRED": "Your platform grant does not include approving coaches.",
+        "REASON_REQUIRED": "State a reason of at least 12 characters.",
+        "REASON_TOO_LONG": "That text is too long. At most 500 characters.",
+        "INVALID_CURSOR": "The list moved underneath you. Reload it.",
+        "UNAUTHORIZED": "Your session has ended. Sign in again.",
+        "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
+        "COACH_APPLICATION_NOT_FOUND": "That profile is no longer in the list, or has no certificate.",
+        "COACH_HAS_UPCOMING_LESSONS": "The coach has lessons still to teach. They cannot be stopped until those have passed or been cancelled.",
+        "NETWORK": "Could not reach the server.",
+        "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
+        "STEP_UP_REQUIRED": "Confirm with a code from your app to continue, then try again.",
+        "MFA_ENROLMENT_REQUIRED": "Approving coaches needs two-step verification. Turn it on under Security, and the list opens.",
+        "UNKNOWN": "Something went wrong. Nothing was changed."
+      }
     }
   },
   "accountKind": {
@@ -2165,6 +2235,10 @@
       "label": "Show me in search",
       "hint": "Other players find you by name to message you. Turned off, only people you have played with or already talk to can message you.",
       "failed": "The setting was not saved. Please try again."
+    },
+    "coach": {
+      "title": "Coach",
+      "row": "Coach profile"
     }
   },
   "bookingInvite": {
@@ -2798,6 +2872,88 @@
     "venue": {
       "title": "Looking for players",
       "all": "All games"
+    }
+  },
+  "coachProfile": {
+    "metaTitle": "Coach profile",
+    "title": "Coach profile",
+    "intro": "Fill in your profile and upload a certificate. Once you send it, we read it and answer with a notification and an email.",
+    "state": {
+      "NONE": {
+        "title": "The profile has not been sent yet",
+        "body": "Fill it in and send it for approval."
+      },
+      "DRAFT": {
+        "title": "The profile has not been sent yet",
+        "body": "Fill it in and send it for approval."
+      },
+      "SUBMITTED": {
+        "title": "Sent for approval",
+        "body": "You sent it on {date}, and it cannot be changed while we read it."
+      },
+      "APPROVED": {
+        "title": "The profile is approved",
+        "body": "You can change the text and the sports. The certificate stays the one you were approved on."
+      },
+      "DECLINED": {
+        "title": "The profile was not approved",
+        "body": "Read the note, correct the profile and send it again."
+      }
+    },
+    "note": "A note from playerz.bg",
+    "missing": {
+      "title": "Before you send it, it still needs:",
+      "bio": "an introduction of at least {min} characters",
+      "sports": "at least one sport",
+      "certificate": "a certificate"
+    },
+    "about": {
+      "title": "About you",
+      "bio": "Introduction",
+      "bioHint": "What you teach, since when and to whom. Players see it. {count} of {max} characters.",
+      "qualifications": "Qualifications",
+      "qualificationsHint": "Licences, courses, competitive experience. Optional."
+    },
+    "sports": {
+      "title": "Sports and levels",
+      "hint": "Tick what you teach, and from which player level to which.",
+      "from": "From level",
+      "to": "To level",
+      "fromLabel": "{sport}: from level",
+      "toLabel": "{sport}: to level",
+      "range": "levels {min}–{max}",
+      "one": "level {level}"
+    },
+    "certificate": {
+      "title": "Certificate",
+      "hint": "A document or a photo, up to {mb} MB. Only the playerz.bg team sees it, never clubs or players.",
+      "none": "No certificate uploaded.",
+      "uploaded": "{name} · {size} · uploaded on {date}",
+      "choose": "Choose a file",
+      "replace": "Choose another file",
+      "chosen": "Chosen: {name}",
+      "upload": "Upload",
+      "remove": "Remove",
+      "lockedSubmitted": "The certificate cannot be changed while the profile is being read.",
+      "lockedApproved": "You were approved on this certificate. To change it, write to us."
+    },
+    "save": "Save",
+    "saved": "Saved.",
+    "submit": "Send for approval",
+    "submitted": "Sent. We will answer with a notification and an email.",
+    "withdraw": "Take back to edit",
+    "withdrawn": "The profile is back with you. Change it and send it again.",
+    "error": {
+      "COACH_PROFILE_LOCKED": "The profile cannot be changed right now.",
+      "COACH_PROFILE_INCOMPLETE": "The profile is not complete. See what is missing below.",
+      "COACH_PROFILE_NOT_SUBMITTED": "The profile is no longer waiting for approval.",
+      "VALIDATION_ERROR": "Check the text and the levels and try again.",
+      "EMPTY": "The file is empty.",
+      "TOO_LARGE": "The file is larger than {mb} MB.",
+      "NOT_A_CERTIFICATE": "Upload a PDF document, or a JPEG, PNG or WebP photo.",
+      "RATE_LIMITED": "Too many attempts. Wait a little and try again.",
+      "NETWORK": "No connection. Try again.",
+      "UNKNOWN": "Something went wrong. Try again."
     }
   }
 }

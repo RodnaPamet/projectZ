@@ -140,6 +140,12 @@ export const KEYS = {
   /** The landing page's club enquiries (#369); audited per page, like the queue. */
   contactRequests: (params: { reason: string }) =>
     paged(`${BASE}/platform/contact-requests`, params),
+  /**
+   * The coaches' profiles sent for approval (#545); audited per page, like
+   * the moderation queue, so the reason and the status are part of the key.
+   */
+  coachApplications: (params: { reason: string; status: string }) =>
+    paged(`${BASE}/platform/coaches`, params),
   /** The caller's second factor, and THIS session's step-up (#262). */
   mfaStatus: () => `${BASE}/me/mfa`,
   /**
@@ -227,6 +233,21 @@ export const V1 = {
    * `<a download>` href, not an SWR key, because the browser saves it.
    */
   exportMyData: () => `${BASE}/me/export`,
+  /** `PUT { bio, qualifications, sports }`: a coach's own profile (#545). */
+  coachProfile: () => `${BASE}/me/coach-profile`,
+  /** `PUT` multipart `file`, or `DELETE`: the coach's uploaded certificate. */
+  coachCertificate: () => `${BASE}/me/coach-profile/certificate`,
+  /** `POST`: send the profile to the platform owner, or take it back. */
+  submitCoachProfile: () => `${BASE}/me/coach-profile/submit`,
+  withdrawCoachProfile: () => `${BASE}/me/coach-profile/withdraw`,
+  /** `POST { decision, note }`: the owner's decision on a coach (#545). */
+  decideCoach: (userId: string) => `${BASE}/platform/coaches/${seg(userId)}/decision`,
+  /**
+   * A coach's certificate, opened: an `<a download>` href, not an SWR key,
+   * because the browser saves it. Every opening is audited under `reason`.
+   */
+  coachCertificateFile: (userId: string, reason: string) =>
+    `${BASE}/platform/coaches/${seg(userId)}/certificate${query({ reason })}`,
   /** `POST { ids }`: the bell's rows the caller has now seen (#367). */
   markNotificationsRead: () => `${BASE}/me/notifications/read`,
   /** `PATCH { email: { … } }`: switch an email category (#367). */

@@ -1,6 +1,7 @@
 import type { ComponentType, SVGProps } from 'react';
 
 import {
+  BadgeCheck,
   CalendarDays,
   CalendarIcon,
   ChartLine,
@@ -15,6 +16,7 @@ import {
   NucleoPhoto,
   ShieldCheck,
   ShieldKeyhole,
+  ShieldUser,
   UserArrowRight,
   UserCheck,
   Users,
@@ -47,10 +49,12 @@ export const NAV_ICONS: Record<NavIconKey, ComponentType<SVGProps<SVGSVGElement>
   usage: ChartLine,
   security: ShieldKeyhole,
   contactRequests: Envelope,
+  coaches: ShieldUser,
   discover: Magnifier,
   games: Users2,
   bookings: CalendarDays,
   messages: Msgs,
   profile: CircleUser,
+  coachProfile: BadgeCheck,
   signIn: UserArrowRight,
 };

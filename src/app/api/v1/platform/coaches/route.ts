@@ -31,8 +31,10 @@ import { getRequestId } from '@/lib/observability/context';
  * is required and goes into the audit row every page read writes
  * (`PLATFORM_COACH_APPLICATION_LIST`).
  *
- * Each item names the coach, the sports and levels, and whether a certificate
- * is on file. The certificate itself is `…/coaches/{userId}/certificate`.
+ * Each item is everything the owner reads to decide: the name on the account,
+ * the text, the qualifications, the sports and levels, the last decision's
+ * note, and what was uploaded as a certificate (its name, type, size and
+ * time). The certificate itself is `…/coaches/{userId}/certificate`.
  */
 async function handler(req: NextRequest) {
   const ctx = await contextFromRequest(req, { requestId: getRequestId(), platformRoute: true });

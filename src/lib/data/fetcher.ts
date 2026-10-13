@@ -30,7 +30,10 @@ import { noteViewerChanged } from './viewer';
 
 export interface V1FetchInit {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  /** A plain value is sent as JSON. */
+  /**
+   * A plain value is sent as JSON. A `FormData` is sent as it is, and the
+   * browser writes the multipart header with its boundary (a file upload).
+   */
   body?: unknown;
   /** The user id the page was rendered for — sent as `x-playerz-viewer`. */
   viewerId?: string | null;
@@ -57,7 +60,9 @@ async function readJson(res: Response): Promise<unknown> {
 export async function v1Fetch<T>(url: string, init: V1FetchInit = {}): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
   let body: BodyInit | undefined;
-  if (init.body !== undefined) {
+  if (typeof FormData !== 'undefined' && init.body instanceof FormData) {
+    body = init.body;
+  } else if (init.body !== undefined) {
     headers['content-type'] = 'application/json';
     body = JSON.stringify(init.body);
   }

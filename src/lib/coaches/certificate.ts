@@ -32,15 +32,13 @@ import { DEV_FALLBACK_DATA_ENCRYPTION_KEY } from '@/lib/security/encryption-cons
  * download, to a platform admin who asked for it.
  */
 
-export const CERTIFICATE_MAX_BYTES = 5 * 1024 * 1024;
+import {
+  CERTIFICATE_MAX_BYTES,
+  CERTIFICATE_TYPES,
+  type CertificateMime,
+} from './certificate-limits';
 
-export const CERTIFICATE_TYPES = {
-  'application/pdf': 'pdf',
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-} as const;
-export type CertificateMime = keyof typeof CERTIFICATE_TYPES;
+export { CERTIFICATE_MAX_BYTES, CERTIFICATE_TYPES, type CertificateMime };
 
 export type CertificateRefusal = 'EMPTY' | 'TOO_LARGE' | 'NOT_A_CERTIFICATE';
 
