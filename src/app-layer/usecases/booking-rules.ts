@@ -104,9 +104,18 @@ export async function noShowStanding(
   const clearedAt = rel?.noShowBlockClearedAt ?? null;
   const from = noShowCountsFrom(now, clearedAt);
 
-  const [own, carried] = await Promise.all([
+  const [own, joined, carried] = await Promise.all([
     db.booking.count({
       where: { tenantId, bookedByUserId: playerUserId, status: 'NO_SHOW', startTs: { gt: from } },
+    }),
+    // A game they joined through open play and did not come to (#376).
+    db.bookingParticipant.count({
+      where: {
+        tenantId,
+        userId: playerUserId,
+        noShowAt: { not: null },
+        booking: { startTs: { gt: from } },
+      },
     }),
     // Taken over from an account the person deleted (#370 review): they count
     // as the deleted account's would have, and a lifted block forgives them too.
@@ -114,7 +123,7 @@ export async function noShowStanding(
       where: { tenantId, inheritedByUserId: playerUserId, startedAt: { gt: from } },
     }),
   ]);
-  const recentNoShows = own + carried;
+  const recentNoShows = own + joined + carried;
 
   return { recentNoShows, blocked: recentNoShows >= NO_SHOW_BLOCK_THRESHOLD, clearedAt };
 }
@@ -172,7 +181,7 @@ export async function noShowStandings(
 
   const windowStart = new Date(now.getTime() - NO_SHOW_WINDOW_DAYS * DAY_MS);
   const ids = players.map((p) => p.playerUserId);
-  const [rows, carried] = await Promise.all([
+  const [rows, joined, carried] = await Promise.all([
     db.booking.findMany({
       where: {
         tenantId,
@@ -182,6 +191,17 @@ export async function noShowStandings(
       },
       select: { bookedByUserId: true, startTs: true },
       // A club marks a handful of no-shows a week; this is a ceiling, not a page.
+      take: 5_000,
+    }),
+    // Open-play joiners marked as not having come (#376).
+    db.bookingParticipant.findMany({
+      where: {
+        tenantId,
+        userId: { in: ids },
+        noShowAt: { not: null },
+        booking: { startTs: { gt: windowStart } },
+      },
+      select: { userId: true, booking: { select: { startTs: true } } },
       take: 5_000,
     }),
     // And the ones taken over from a deleted account (P53).
@@ -200,6 +220,7 @@ export async function noShowStandings(
     startsBy.set(userId, list);
   };
   for (const r of rows) add(r.bookedByUserId, r.startTs);
+  for (const j of joined) add(j.userId, j.booking.startTs);
   for (const c of carried) add(c.inheritedByUserId, c.startedAt);
 
   for (const p of players) {

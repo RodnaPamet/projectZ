@@ -294,3 +294,80 @@ export async function markNoShow(
 
   return { bookingId: row.id, previousStatus: row.status };
 }
+
+/**
+ * One player on a booking did not come (#376, owner decision 2026-10-13,
+ * rule 2): a player who joined through open play is on the booking after the
+ * club's cutoff, and the no-show rule applies to them as to the booker. Staff
+ * mark them from the booking in the diary, beside the booking-level no-show.
+ *
+ * Only an open-play joiner (an ACCEPTED request holds the place): a player
+ * added by link or by the booker (#358) leaves freely until the start, so
+ * counting their absence against them would punish what the app allows. The
+ * mark counts towards THEIR no-show block at this club (`noShowStanding`) and
+ * the club's running count, exactly as `markNoShow` counts the booker's. It
+ * moves no money: the booking's fee is the booker's and stands.
+ *
+ * Final, as `markNoShow` is: there is no unmark.
+ */
+export async function markPlayerNoShow(
+  db: PrismaClient,
+  tenantId: string,
+  input: { bookingId: string; participantId: string; actorUserId: string; now?: Date },
+): Promise<{ participantId: string }> {
+  const now = input.now ?? new Date();
+
+  const [row] = await db.$queryRaw<LockedBooking[]>`
+    SELECT id, status, "startTs", "bookedByUserId"
+      FROM booking
+     WHERE id = ${input.bookingId} AND "tenantId" = ${tenantId}
+       FOR UPDATE`;
+  if (!row) throw new NoShowRefusedError('NOT_FOUND');
+  if (row.status !== 'CONFIRMED' && row.status !== 'COMPLETED' && row.status !== 'NO_SHOW') {
+    throw new NoShowRefusedError('NOT_ATTENDABLE');
+  }
+  if (row.startTs.getTime() > now.getTime()) throw new NoShowRefusedError('NOT_STARTED');
+
+  const place = await db.bookingParticipant.findFirst({
+    where: { id: input.participantId, tenantId, bookingId: row.id },
+    select: { id: true, userId: true, noShowAt: true },
+  });
+  if (!place?.userId) throw new NoShowRefusedError('NOT_FOUND');
+  const viaOpenPlay = await db.openGameRequest.count({
+    where: { tenantId, participantId: place.id, status: 'ACCEPTED' },
+  });
+  if (viaOpenPlay === 0) throw new NoShowRefusedError('NOT_FOUND');
+  if (place.noShowAt) throw new NoShowRefusedError('ALREADY_NO_SHOW');
+
+  const player = await db.user.findUnique({
+    where: { id: place.userId },
+    select: { deletedAt: true },
+  });
+  if (player?.deletedAt) throw new NoShowRefusedError('ACCOUNT_DELETED');
+
+  await db.bookingParticipant.updateMany({
+    where: { id: place.id, tenantId, noShowAt: null },
+    data: { noShowAt: now },
+  });
+  await db.playerVenueRelationship.upsert({
+    where: { tenantId_playerUserId: { tenantId, playerUserId: place.userId } },
+    create: { tenantId, playerUserId: place.userId, noShowCount: 1 },
+    update: { noShowCount: { increment: 1 } },
+  });
+  await appendAuditEntry(db, {
+    tenantId,
+    actorUserId: input.actorUserId,
+    actorType: 'USER',
+    entity: 'BookingParticipant',
+    entityId: place.id,
+    action: AUDIT_ACTIONS.BOOKING_PLAYER_NO_SHOW,
+    details: 'Marked a player as a no-show',
+    detailsJson: {
+      category: 'booking',
+      summary: 'Staff recorded that a player who joined through open play did not turn up',
+      bookingId: row.id,
+      playerUserId: place.userId,
+    },
+  });
+  return { participantId: place.id };
+}

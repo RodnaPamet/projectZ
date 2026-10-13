@@ -14,7 +14,13 @@ import { fail, installFakeFetch, ok } from '../unit/data/fake-v1';
 
 const t = messages.profile.notifications;
 const ALL_ON = {
-  email: { confirmation: true, reminder: true, clubChanges: true, messages: true },
+  email: {
+    confirmation: true,
+    reminder: true,
+    clubChanges: true,
+    messages: true,
+    openPlay: true,
+  },
 };
 
 function mount() {
@@ -50,7 +56,7 @@ it('says how many emails are on, and turning the reminder off PATCHes just that'
   });
   mount();
   expect(screen.getByTestId('profile-notifications-summary')).toHaveTextContent(
-    t.summary.replace('{on}', '4').replace('{total}', '4'),
+    t.summary.replace('{on}', '5').replace('{total}', '5'),
   );
 
   fireEvent.click(screen.getByRole('button', { name: t.editLabel }));
@@ -64,7 +70,7 @@ it('says how many emails are on, and turning the reminder off PATCHes just that'
   expect(patch.url).toBe('/api/v1/me/notification-settings');
   expect(patch.body).toEqual({ email: { reminder: false } });
   expect(screen.getByTestId('profile-notifications-summary')).toHaveTextContent(
-    t.summary.replace('{on}', '3').replace('{total}', '4'),
+    t.summary.replace('{on}', '4').replace('{total}', '5'),
   );
 });
 

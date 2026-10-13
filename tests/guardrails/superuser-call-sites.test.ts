@@ -161,6 +161,14 @@ const ALLOWED: Record<string, string> = {
     'the session-derived id, so it can only ever return their own. Reached from the page and, ' +
     'since T16, from `GET /api/v1/me/bookings`: the same read, the same session-derived id, ' +
     'with only a cursor and a clamped limit taken from the request.',
+  'src/app-layer/usecases/open-play.ts':
+    "open play (#376), on booking-players.ts's two phases. The cross-club READS: the public " +
+    "Игри listing and one game by id (venue, court, time, spots, level wish, note, the booker's " +
+    'first name; never a user id, booking id, email or phone), "which club is this game at?" ' +
+    "before asking, the caller's own requests by their user id, the public cards (#375) of the " +
+    "people who asked to join the caller's own game, and the lapse sweep, which runs for every " +
+    'club at once as the reminder sweep does and touches PENDING requests only. Every other ' +
+    "write runs in runInTenantContext under the booking's row lock.",
   'src/app-layer/usecases/booking-players.ts':
     'players on a booking (#358). Two questions start before any club is known: "which club ' +
     'is this booking at?" for a booking the caller booked OR was added to (any club; the token ' +

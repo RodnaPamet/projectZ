@@ -1,9 +1,10 @@
 import { randomBytes } from 'node:crypto';
 
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, SportType } from '@prisma/client';
 
 import { readBookingPlayers, type BookingPlayer } from '@/app-layer/repositories/booking';
 import { notifyBookingPlayersChanged } from '@/app-layer/usecases/booking-notifications';
+import { releaseOpenPlayPlace } from '@/app-layer/usecases/open-play-roster';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
@@ -202,9 +203,9 @@ export async function onBookingPlayersChanged(event: BookingPlayersEvent): Promi
 
 // ─── Phase one: which club ──────────────────────────────────────────────
 
-type ViewerRole = 'BOOKER' | 'PARTICIPANT';
+export type ViewerRole = 'BOOKER' | 'PARTICIPANT';
 
-interface Located {
+export interface Located {
   tenantId: string;
   role: ViewerRole;
 }
@@ -214,7 +215,7 @@ interface Located {
  * Null for anything else, which every caller answers 404: somebody else's
  * booking and one that never existed look the same, so ids cannot be probed.
  */
-async function locate(userId: string, bookingId: string): Promise<Located | null> {
+export async function locate(userId: string, bookingId: string): Promise<Located | null> {
   // guardrail-allow: cross-tenant — a booking the caller booked or is on, at
   // whichever club; both filters are the session's user id.
   const row = await runAsSuperuser((db) =>
@@ -230,7 +231,7 @@ async function locate(userId: string, bookingId: string): Promise<Located | null
   return { tenantId: row.tenantId, role: row.bookedByUserId === userId ? 'BOOKER' : 'PARTICIPANT' };
 }
 
-async function locateAsBooker(userId: string, bookingId: string): Promise<string> {
+export async function locateAsBooker(userId: string, bookingId: string): Promise<string> {
   const at = await locate(userId, bookingId);
   if (!at) throw new BookingNotFoundForPlayersError();
   if (at.role !== 'BOOKER') throw new BookerOnlyError();
@@ -247,13 +248,17 @@ export class BookingNotFoundForPlayersError extends Error {
 
 // ─── Phase two: the locked booking ──────────────────────────────────────
 
-interface LockedBooking {
+export interface LockedBooking {
   id: string;
   tenantId: string;
   status: string;
   startTs: Date;
   bookedByUserId: string | null;
   capacity: number;
+  /** The court's sport: open play's level wish is on its scale (#376). */
+  sport: SportType;
+  /** The club's cancellation cutoff, in hours before the start (#354, #376). */
+  cutoffHours: number;
   participants: Array<{ id: string; userId: string | null; position: number }>;
 }
 
@@ -262,7 +267,7 @@ interface LockedBooking {
  * write that changes who plays goes through here first, so two of them on the
  * same booking run one after the other (see the capacity race above).
  */
-async function lockBooking(
+export async function lockBooking(
   tx: PrismaClient,
   tenantId: string,
   bookingId: string,
@@ -282,7 +287,13 @@ async function lockBooking(
       status: true,
       startTs: true,
       bookedByUserId: true,
-      resource: { select: { capacity: true } },
+      resource: {
+        select: {
+          capacity: true,
+          sport: true,
+          venue: { select: { cancellationCutoffHours: true } },
+        },
+      },
       participants: {
         select: { id: true, userId: true, position: true },
         orderBy: { position: 'asc' },
@@ -297,12 +308,14 @@ async function lockBooking(
     startTs: b.startTs,
     bookedByUserId: b.bookedByUserId,
     capacity: b.resource.capacity,
+    sport: b.resource.sport,
+    cutoffHours: b.resource.venue.cancellationCutoffHours,
     participants: b.participants,
   };
 }
 
 /** PENDING or CONFIRMED, and not started: the only time its players may change. */
-function isOpenForPlayers(b: { status: string; startTs: Date }, now: Date): boolean {
+export function isOpenForPlayers(b: { status: string; startTs: Date }, now: Date): boolean {
   return (
     (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTs.getTime() > now.getTime()
   );
@@ -315,7 +328,7 @@ function freePosition(b: Pick<LockedBooking, 'participants' | 'capacity'>): numb
   return null;
 }
 
-async function requirePlayerAccount(db: PrismaClient, userId: string): Promise<void> {
+export async function requirePlayerAccount(db: PrismaClient, userId: string): Promise<void> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { accountKind: true } });
   const kind = user?.accountKind ?? null;
   if (kind === null) throw new AccountKindRequiredError();
@@ -326,7 +339,7 @@ async function requirePlayerAccount(db: PrismaClient, userId: string): Promise<v
  * Add `userId` at the lowest free position, inside a tenant transaction that
  * already holds the booking's lock. The unique indexes are the backstop.
  */
-async function insertParticipant(
+export async function insertParticipant(
   tx: PrismaClient,
   b: LockedBooking,
   userId: string,
@@ -733,6 +746,16 @@ export async function leaveBooking(input: {
     const mine = b?.participants.find((p) => p.userId === input.userId);
     if (!b || !mine) throw new BookingNotFoundForPlayersError();
     if (!isOpenForPlayers(b, now)) throw new BookingPlayersClosedError();
+    // A place taken through open play (#376) is left until the club's
+    // cutoff only, and its request records that the player left.
+    await releaseOpenPlayPlace(tx, {
+      tenantId: at.tenantId,
+      participantId: mine.id,
+      startTs: b.startTs,
+      cutoffHours: b.cutoffHours,
+      as: 'LEFT',
+      now,
+    });
 
     await tx.bookingParticipant.deleteMany({ where: { id: mine.id, tenantId: at.tenantId } });
     await appendAuditEntry(tx, {
@@ -779,6 +802,15 @@ export async function removeBookingPlayer(input: {
     const row = b.participants.find((p) => p.id === input.participantId);
     if (!row) throw new BookingPlayerNotFoundError();
     if (!isOpenForPlayers(b, now)) throw new BookingPlayersClosedError();
+    // As leaving: an open-play joiner (#376) comes off until the cutoff only.
+    await releaseOpenPlayPlace(tx, {
+      tenantId,
+      participantId: row.id,
+      startTs: b.startTs,
+      cutoffHours: b.cutoffHours,
+      as: 'REMOVED',
+      now,
+    });
 
     await tx.bookingParticipant.deleteMany({ where: { id: row.id, tenantId } });
     await appendAuditEntry(tx, {

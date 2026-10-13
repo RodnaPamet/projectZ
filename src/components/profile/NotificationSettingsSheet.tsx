@@ -16,6 +16,8 @@ export const EMAIL_CATEGORIES: EmailCategory[] = [
   'clubChanges',
   // #375: a message still unread after about ten minutes.
   'messages',
+  // #376: a request to one's game, and the answer to one's own request.
+  'openPlay',
 ];
 
 /**
@@ -43,6 +45,7 @@ export default function NotificationSettingsSheet({
     reminder: t('reminder'),
     clubChanges: t('clubChanges'),
     messages: t('messages'),
+    openPlay: t('openPlay'),
   };
 
   return (

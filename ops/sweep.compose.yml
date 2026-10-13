@@ -241,7 +241,8 @@ services:
   #
   #  booking-reminders claims each CONFIRMED booking starting in 2–3 hours
   #  (once per booking, DST-safe: absolute time), writes the bell row and the
-  #  reminder email, then drains the outbox once. Every 5 minutes, so a
+  #  reminder email, lapses the open-play requests (#376) nobody answered by
+  #  the club's cutoff and tells their askers, then drains the outbox once. Every 5 minutes, so a
   #  reminder lands 3 h to 2 h 55 min before the start.
   #
   #  email-outbox sends what the booking, cancel and desk routes queued:

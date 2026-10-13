@@ -13,6 +13,7 @@ import {
   cancellationCutoffError,
   lockPlayerOnlineBookings,
 } from './booking-rules';
+import { closeGameIn } from './open-play';
 import { computeRefundAmount, hoursUntil, parsePolicy, type RefundQuote } from './refund';
 import { appendEntry } from './wallet';
 
@@ -477,6 +478,14 @@ export async function cancelBooking(
             refundAmountCents: quote.refundAmountCents,
             refundCreditCents,
           },
+        });
+
+        // Open play (#376): a cancelled booking is looking for nobody. Its
+        // waiting requests close; the route tells their askers, and
+        // notifyBookingCancelled tells the players already on it.
+        await closeGameIn(tx as unknown as PrismaClient, tenantId, booking.id, {
+          actorUserId: input.cancelledByUserId ?? null,
+          now,
         });
 
         // The record of WHO. A staff cancellation after the player's cutoff is

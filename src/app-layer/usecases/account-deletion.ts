@@ -391,6 +391,19 @@ export async function deleteAccount(
          AND n.kind IN ('BOOKING_PLAYER_ADDED', 'BOOKING_PLAYER_REMOVED')
          AND n."refId" IN (SELECT id FROM booking WHERE "bookedByUserId" = ${userId})`,
   );
+  // Open play (#376): a booker's bell row about this person's request to join
+  // names them ("{name} иска да играе с вас"). Every row about one of their
+  // requests, to anybody else; the requests themselves go in step 6.
+  count(
+    'Notification.namingTheAccount',
+    await db.$executeRaw`
+      DELETE FROM notification n
+       USING open_game_request q
+       WHERE q."userId" = ${userId}
+         AND n."userId" <> ${userId}
+         AND n."refType" = 'open_game_request'
+         AND n."refId" = q.id`,
+  );
   count(
     // guardrail-allow: cross-tenant — the person's own bell, by their id.
     'Notification',
@@ -505,6 +518,23 @@ export async function deleteAccount(
       await db.bookingInviteLink.updateMany({
         where: { revokedByUserId: userId },
         data: { revokedByUserId: null },
+      })
+    ).count,
+  );
+  // Open play (#376): their requests to join other people's games, with the
+  // notes they wrote to the bookers, and the notes on games they opened.
+  count(
+    'OpenGameRequest',
+    // guardrail-allow: cross-tenant — this person's requests, at every club.
+    (await db.openGameRequest.deleteMany({ where: { userId } })).count,
+  );
+  count(
+    'OpenGame.note',
+    // guardrail-allow: cross-tenant — the games this person opened, at every club.
+    (
+      await db.openGame.updateMany({
+        where: { note: { not: null }, booking: { bookedByUserId: userId } },
+        data: { note: null },
       })
     ).count,
   );
@@ -663,6 +693,7 @@ export async function deleteAccount(
       emailBookingReminders: false,
       emailClubChanges: false,
       emailMessages: false,
+      emailOpenPlay: false,
       locale: DEFAULT_LOCALE,
       sessionVersion: { increment: 1 },
       deletedAt: now,

@@ -164,7 +164,14 @@ export async function markMyNotificationsRead(input: {
 
 export interface NotificationSettings {
   /** The bell is always on; these switch the emails only. */
-  email: { confirmation: boolean; reminder: boolean; clubChanges: boolean; messages: boolean };
+  email: {
+    confirmation: boolean;
+    reminder: boolean;
+    clubChanges: boolean;
+    messages: boolean;
+    /** «Игри» (#376): requests to one's game, and answers to one's requests. */
+    openPlay: boolean;
+  };
 }
 
 const SETTINGS_SELECT = {
@@ -172,6 +179,7 @@ const SETTINGS_SELECT = {
   emailBookingReminders: true,
   emailClubChanges: true,
   emailMessages: true,
+  emailOpenPlay: true,
 } as const;
 
 function toSettings(u: {
@@ -179,6 +187,7 @@ function toSettings(u: {
   emailBookingReminders: boolean;
   emailClubChanges: boolean;
   emailMessages: boolean;
+  emailOpenPlay: boolean;
 }): NotificationSettings {
   return {
     email: {
@@ -186,6 +195,7 @@ function toSettings(u: {
       reminder: u.emailBookingReminders,
       clubChanges: u.emailClubChanges,
       messages: u.emailMessages,
+      openPlay: u.emailOpenPlay,
     },
   };
 }
@@ -210,6 +220,7 @@ export async function updateMyNotificationSettings(
     ...(patch.reminder !== undefined ? { emailBookingReminders: patch.reminder } : {}),
     ...(patch.clubChanges !== undefined ? { emailClubChanges: patch.clubChanges } : {}),
     ...(patch.messages !== undefined ? { emailMessages: patch.messages } : {}),
+    ...(patch.openPlay !== undefined ? { emailOpenPlay: patch.openPlay } : {}),
   };
   const u = await runAsUserOnly(userId, (db) =>
     db.user.update({ where: { id: userId }, data, select: SETTINGS_SELECT }).catch(() => null),

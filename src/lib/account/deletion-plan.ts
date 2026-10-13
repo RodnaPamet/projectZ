@@ -303,6 +303,26 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
       'The account’s places on other people’s bookings stay, as the booking does: the people on a game are part of its record. Shown as "Изтрит потребител". Deletion is refused while one is upcoming.',
   },
   {
+    model: 'OpenGame',
+    field: 'note',
+    action: 'anonymise',
+    reason:
+      'The note the account wrote on a game it opened (#376), set to null. The game stays with its booking: the people who joined it are part of that booking’s record.',
+  },
+  {
+    model: 'OpenGameRequest',
+    field: 'userId',
+    action: 'delete',
+    reason:
+      'The account’s requests to join other people’s games (#376), every state. A request it was accepted on has also put it on a booking, and that place stays as BookingParticipant says; deletion is refused while one is upcoming. The bookers’ bell rows about these requests name the account and are deleted with them.',
+  },
+  {
+    model: 'OpenGameRequest',
+    field: 'note',
+    action: 'delete',
+    reason: 'The note the account wrote to a booker when asking; deleted with the request.',
+  },
+  {
     model: 'BookingParticipant',
     field: 'guestName',
     action: 'keep',

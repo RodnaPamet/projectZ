@@ -15,7 +15,8 @@ import { PROFILE_ROW } from './ProfileSection';
 
 const NotificationSettingsSheet = dynamic(() => import('./NotificationSettingsSheet'));
 
-const CATEGORY_COUNT = 4;
+/** Confirmation, reminder, club changes, messages (#375) and Игри (#376). */
+const CATEGORY_COUNT = 5;
 
 /**
  * "Известия" in the profile's Настройки (#367, Q22): which emails to get.

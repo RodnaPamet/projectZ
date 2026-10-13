@@ -76,6 +76,10 @@
     {
       "name": "Messages",
       "description": "Conversations between players, and with clubs, and the club’s shared inbox (#375)."
+    },
+    {
+      "name": "Games",
+      "description": "Open play (#376): a booker opens their booking to other players, who ask to join; the booker accepts or declines each. Payment stays at the club."
     }
   ],
   "paths": {
@@ -9850,6 +9854,985 @@
           }
         }
       }
+    },
+    "/games": {
+      "get": {
+        "operationId": "listOpenGames",
+        "summary": "Open games (Игри)",
+        "description": "Open games, soonest first: open, CONFIRMED, before the club's cancellation cutoff, within the next 14 days, with a spot left, at a public venue. Public: a signed-in caller also gets `viewer`, and does not see games whose booker they are in a block with. Keyset-paged by `cursor`, at most 30 a page. PAGE envelope.",
+        "tags": ["Games"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "A SportType; anything else is a 400.",
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "`YYYY-MM-DD`, the calendar day at the venue.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive; a known Bulgarian city matches every spelling.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "venue",
+            "in": "query",
+            "required": false,
+            "description": "A venue id: the venue page's section.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` from the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "1–30; clamped.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of open games.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenGamePageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — `sport` or `date` malformed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{id}": {
+      "get": {
+        "operationId": "getOpenGame",
+        "summary": "One open game",
+        "description": "A listed game for anyone; for a signed-in player also a game they asked to join or play in, after it stopped being listed.",
+        "tags": ["Games"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Game id, as `OpenGame.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The game.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenGameEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no such game, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{id}/requests": {
+      "post": {
+        "operationId": "askToJoinGame",
+        "summary": "Ask to join a game",
+        "description": "Every join is a request the booker accepts or declines (owner decision 2026-10-13). Answers the game with the caller's request in `viewer.request`: 201 for a new request, 200 when one was already waiting. Asking again after withdrawing, leaving, a lapse or a close is allowed. Rate limited: 20 a day.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Game id, as `OpenGame.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A request was already waiting.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenGameEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Asked.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenGameEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` or `NOTE_TOO_LONG`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` / `ACCOUNT_KIND_REQUIRED` — not a player account; `NO_SHOW_BLOCKED` — blocked from booking at this club for no-shows.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`GAME_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`GAME_CLOSED`, `GAME_FULL`, `OPEN_PLAY_CUTOFF_PASSED`, `ALREADY_PLAYING`, or `ASK_DECLINED` (the booker declined or removed the caller).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 20 requests a day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskToJoinRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/game-requests": {
+      "get": {
+        "operationId": "listMyGameRequests",
+        "summary": "My requests to join games",
+        "description": "«Моите заявки»: the caller's requests for games still to come or started in the last week, newest first, at most 50, each in its state as of now.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The requests.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyGameRequestListEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/game-requests/{id}": {
+      "delete": {
+        "operationId": "withdrawGameRequest",
+        "summary": "Withdraw a request, or leave the game",
+        "description": "A waiting request is withdrawn. An accepted one means leaving the game, until the club's cancellation cutoff; the spot reopens and the booker is told. 204.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Request id, as `MyGameRequest.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Withdrawn, or left.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`REQUEST_NOT_FOUND` — not the caller's request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQUEST_NOT_PENDING` — already answered; `OPEN_PLAY_CUTOFF_PASSED` — too late to leave.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/game": {
+      "get": {
+        "operationId": "getBookingGame",
+        "summary": "Open play on a booking",
+        "description": "The booker gets whether they can open it, the game and every request with the asker's public card; a player on the booking gets the game and their own request.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Open play on the booking.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingGameEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or is on has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "openBookingGame",
+        "summary": "Look for players",
+        "description": "The booker opens the booking to other players, changes what it asks for, or reopens it. Audited.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The game.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingGameEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`, `LEVELS_INVALID`, `SPOTS_INVALID` or `NOTE_TOO_LONG`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or is on has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`GAME_NOT_OPENABLE` (not CONFIRMED), `OPEN_PLAY_CUTOFF_PASSED`, `SPOTS_UNAVAILABLE` (more than `maxSpots`), `BOOKING_FULL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenBookingGameRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "closeBookingGame",
+        "summary": "Stop looking for players",
+        "description": "Waiting requests close and their askers are told; accepted players stay. Idempotent. Answers as GET does.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The game, closed.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingGameEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no booking the caller booked or is on has this id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/game/requests/{requestId}/accept": {
+      "post": {
+        "operationId": "acceptGameRequest",
+        "summary": "Accept a request",
+        "description": "The player is put on the booking and told. Repeating it is a 200. Audited (`BOOKING_PLAYER_JOINED`, via open_play).",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "description": "Request id, as `OpenGameJoinRequest.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking's game.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingGameEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — not the caller's booking; `REQUEST_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQUEST_NOT_PENDING`, `OPEN_PLAY_CUTOFF_PASSED`, `GAME_FULL`, `GAME_CLOSED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/game/requests/{requestId}/decline": {
+      "post": {
+        "operationId": "declineGameRequest",
+        "summary": "Decline a request",
+        "description": "The player is told and cannot ask this game again. Repeating it is a 200. Audited (`OPEN_PLAY_DECLINED`).",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Booking id, as `MyBooking.id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "description": "Request id, as `OpenGameJoinRequest.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking's game.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingGameEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`BOOKER_ONLY` — the caller is on the booking but did not book it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — not the caller's booking; `REQUEST_NOT_FOUND`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQUEST_NOT_PENDING`, `OPEN_PLAY_CUTOFF_PASSED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -13289,7 +14272,7 @@
         "properties": {
           "email": {
             "type": "object",
-            "required": ["confirmation", "reminder", "clubChanges", "messages"],
+            "required": ["confirmation", "reminder", "clubChanges", "messages", "openPlay"],
             "properties": {
               "confirmation": {
                 "type": "boolean"
@@ -13303,6 +14286,10 @@
               "messages": {
                 "type": "boolean",
                 "description": "«Съобщения» (#375): an email about a message still unread after about ten minutes, at most one an hour per conversation."
+              },
+              "openPlay": {
+                "type": "boolean",
+                "description": "«Игри» (#376): a request to join one's game, and the answer to one's own request."
               }
             }
           }
@@ -13339,6 +14326,9 @@
                 "type": "boolean"
               },
               "messages": {
+                "type": "boolean"
+              },
+              "openPlay": {
                 "type": "boolean"
               }
             }
@@ -13983,7 +14973,8 @@
           "reviews",
           "notificationSettings",
           "inviteLinks",
-          "messages"
+          "messages",
+          "openPlay"
         ],
         "properties": {
           "format": {
@@ -14250,7 +15241,13 @@
             "properties": {
               "email": {
                 "type": "object",
-                "required": ["bookingConfirmations", "bookingReminders", "clubChanges", "messages"],
+                "required": [
+                  "bookingConfirmations",
+                  "bookingReminders",
+                  "clubChanges",
+                  "messages",
+                  "openPlay"
+                ],
                 "properties": {
                   "bookingConfirmations": {
                     "type": "boolean"
@@ -14262,6 +15259,9 @@
                     "type": "boolean"
                   },
                   "messages": {
+                    "type": "boolean"
+                  },
+                  "openPlay": {
                     "type": "boolean"
                   }
                 }
@@ -14377,6 +15377,27 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "openPlay": {
+            "type": "object",
+            "description": "Open play (#376): the games the person opened, and every request they made to join one.",
+            "required": ["gamesOpened", "requests"],
+            "properties": {
+              "gamesOpened": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "requests": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -15215,6 +16236,461 @@
                 }
               }
             }
+          }
+        }
+      },
+      "OpenGameRequestStatus": {
+        "type": "string",
+        "title": "OpenGameRequestStatus",
+        "enum": [
+          "PENDING",
+          "ACCEPTED",
+          "DECLINED",
+          "WITHDRAWN",
+          "LAPSED",
+          "LEFT",
+          "REMOVED",
+          "CLOSED"
+        ],
+        "description": "PENDING: waiting for the booker. ACCEPTED: on the booking. DECLINED: the booker said no (cannot ask again). WITHDRAWN: taken back. LAPSED: nobody answered before the club's cancellation cutoff (a waiting request past it always reads LAPSED). LEFT: accepted, then pulled out before the cutoff. REMOVED: accepted, then taken off by the booker (cannot ask again). CLOSED: waiting when the booker closed the game or the booking was cancelled."
+      },
+      "OpenGame": {
+        "type": "object",
+        "title": "OpenGame",
+        "description": "What anyone sees of an open game (#376). Never a user id, a booking id, an email or a phone.",
+        "required": [
+          "id",
+          "sport",
+          "resourceType",
+          "courtName",
+          "venue",
+          "startTs",
+          "endTs",
+          "timezone",
+          "cutoffAt",
+          "capacity",
+          "playersCount",
+          "spotsLeft",
+          "open",
+          "levelMin",
+          "levelMax",
+          "note",
+          "booker",
+          "viewer"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/SportType"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "courtName": {
+            "type": "string"
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "slug", "name", "city"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              }
+            }
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "cutoffAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The club's cancellation cutoff: asking is possible until then, an unanswered request lapses at it, and a joiner can pull out until it."
+          },
+          "capacity": {
+            "type": "integer"
+          },
+          "playersCount": {
+            "type": "integer",
+            "description": "On the booking now, the booker included."
+          },
+          "spotsLeft": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "open": {
+            "type": "boolean",
+            "description": "Listed on Игри: open, before the cutoff, with a spot left."
+          },
+          "levelMin": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 7
+          },
+          "levelMax": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 7
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "booker": {
+            "type": "object",
+            "required": ["firstName", "avatarUrl"],
+            "properties": {
+              "firstName": {
+                "type": ["string", "null"]
+              },
+              "avatarUrl": {
+                "type": ["string", "null"]
+              }
+            }
+          },
+          "viewer": {
+            "type": ["object", "null"],
+            "description": "The signed-in caller's part in the game; null signed out.",
+            "required": ["isBooker", "isPlaying", "bookingId", "request"],
+            "properties": {
+              "isBooker": {
+                "type": "boolean"
+              },
+              "isPlaying": {
+                "type": "boolean"
+              },
+              "bookingId": {
+                "type": ["string", "null"],
+                "description": "The booking, for the booker and the players on it only."
+              },
+              "request": {
+                "type": ["object", "null"],
+                "required": ["id", "status"],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "$ref": "#/components/schemas/OpenGameRequestStatus"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "OpenGamePage": {
+        "type": "object",
+        "title": "OpenGamePage",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenGame"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "OpenGamePageEnvelope": {
+        "type": "object",
+        "title": "OpenGamePageEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OpenGamePage"
+          }
+        }
+      },
+      "OpenGameEnvelope": {
+        "type": "object",
+        "title": "OpenGameEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OpenGame"
+          }
+        }
+      },
+      "OpenGameJoinRequest": {
+        "type": "object",
+        "title": "OpenGameJoinRequest",
+        "description": "One request to join, as the booker sees it, with the asker's public card (#375).",
+        "required": ["id", "status", "note", "askedAt", "decidedAt", "participantId", "player"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OpenGameRequestStatus"
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "askedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "participantId": {
+            "type": ["string", "null"],
+            "description": "The place on the booking while ACCEPTED: what `DELETE /me/bookings/{id}/participants/{participantId}` removes."
+          },
+          "player": {
+            "type": "object",
+            "required": ["userId", "name", "avatarUrl", "sports", "deleted"],
+            "properties": {
+              "userId": {
+                "type": "string"
+              },
+              "name": {
+                "type": ["string", "null"]
+              },
+              "avatarUrl": {
+                "type": ["string", "null"]
+              },
+              "sports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["sport", "level"],
+                  "properties": {
+                    "sport": {
+                      "$ref": "#/components/schemas/SportType"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 7
+                    }
+                  }
+                }
+              },
+              "deleted": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "BookingGame": {
+        "type": "object",
+        "title": "BookingGame",
+        "description": "Open play on one booking (#376): the booker's controls and every request, or a participant's own request.",
+        "required": [
+          "viewerRole",
+          "bookingId",
+          "sport",
+          "cutoffAt",
+          "canOpen",
+          "maxSpots",
+          "game",
+          "requests",
+          "myRequest"
+        ],
+        "properties": {
+          "viewerRole": {
+            "type": "string",
+            "enum": ["BOOKER", "PARTICIPANT"]
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/SportType"
+          },
+          "cutoffAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canOpen": {
+            "type": "boolean",
+            "description": "The booker may open, change or reopen the game now: CONFIRMED, before the cutoff, with room on the court."
+          },
+          "maxSpots": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The court's free places now: the most `spots` can be."
+          },
+          "game": {
+            "type": ["object", "null"],
+            "required": [
+              "id",
+              "open",
+              "closedAt",
+              "spotsLeft",
+              "accepted",
+              "levelMin",
+              "levelMax",
+              "note"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "open": {
+                "type": "boolean"
+              },
+              "closedAt": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "spotsLeft": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "accepted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "levelMin": {
+                "type": ["integer", "null"],
+                "minimum": 1,
+                "maximum": 7
+              },
+              "levelMax": {
+                "type": ["integer", "null"],
+                "minimum": 1,
+                "maximum": 7
+              },
+              "note": {
+                "type": ["string", "null"]
+              }
+            }
+          },
+          "requests": {
+            "type": "array",
+            "description": "The booker's: waiting requests first, oldest first. Empty for a participant.",
+            "items": {
+              "$ref": "#/components/schemas/OpenGameJoinRequest"
+            }
+          },
+          "myRequest": {
+            "type": ["object", "null"],
+            "required": ["id", "status"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "$ref": "#/components/schemas/OpenGameRequestStatus"
+              }
+            }
+          }
+        }
+      },
+      "BookingGameEnvelope": {
+        "type": "object",
+        "title": "BookingGameEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingGame"
+          }
+        }
+      },
+      "MyGameRequest": {
+        "type": "object",
+        "title": "MyGameRequest",
+        "required": ["id", "status", "note", "askedAt", "decidedAt", "bookingId", "game"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OpenGameRequestStatus"
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "askedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "bookingId": {
+            "type": ["string", "null"],
+            "description": "The booking, once ACCEPTED: the player's own booking page."
+          },
+          "game": {
+            "$ref": "#/components/schemas/OpenGame"
+          }
+        }
+      },
+      "MyGameRequestListEnvelope": {
+        "type": "object",
+        "title": "MyGameRequestListEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyGameRequest"
+            }
+          }
+        }
+      },
+      "OpenBookingGameRequest": {
+        "type": "object",
+        "title": "OpenBookingGameRequest",
+        "additionalProperties": false,
+        "required": ["spots"],
+        "properties": {
+          "spots": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many MORE players are wanted now, at most `maxSpots`."
+          },
+          "levelMin": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 7
+          },
+          "levelMax": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 7
+          },
+          "note": {
+            "type": ["string", "null"],
+            "description": "Shown to everyone who sees the game. Sanitised; at most 280 characters after that (400 `NOTE_TOO_LONG`)."
+          }
+        }
+      },
+      "AskToJoinRequest": {
+        "type": "object",
+        "title": "AskToJoinRequest",
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": ["string", "null"],
+            "description": "To the booker. Sanitised; at most 280 characters."
           }
         }
       }

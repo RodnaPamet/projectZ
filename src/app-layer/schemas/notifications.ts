@@ -25,6 +25,7 @@ export const notificationSettingsPatchSchema = z
         reminder: z.boolean().optional(),
         clubChanges: z.boolean().optional(),
         messages: z.boolean().optional(),
+        openPlay: z.boolean().optional(),
       })
       .strict()
       .refine((e) => Object.keys(e).length > 0, { message: 'Set at least one category' }),

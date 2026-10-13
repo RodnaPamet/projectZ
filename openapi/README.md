@@ -45,6 +45,7 @@ filter:
     - Bookings
     - Desk
     - Devices
+    - Games
     - Me
     - Messages
     - Payments

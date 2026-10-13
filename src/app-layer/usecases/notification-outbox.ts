@@ -51,7 +51,8 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
  * `usecases/contact-requests.ts`, BYPASSRLS, in the enquiry's own transaction.
  */
 
-export type EmailCategory = 'confirmation' | 'reminder' | 'clubChanges' | 'messages' | 'contact';
+export type EmailCategory =
+  'confirmation' | 'reminder' | 'clubChanges' | 'messages' | 'openPlay' | 'contact';
 
 export const NOTIFICATION_TITLE_MAX = 80;
 export const NOTIFICATION_BODY_MAX = 200;
@@ -208,6 +209,7 @@ function wants(
     emailBookingReminders: boolean;
     emailClubChanges: boolean;
     emailMessages: boolean;
+    emailOpenPlay: boolean;
   },
   category: string,
 ): boolean {
@@ -220,6 +222,8 @@ function wants(
       return user.emailBookingReminders;
     case 'clubChanges':
       return user.emailClubChanges;
+    case 'openPlay':
+      return user.emailOpenPlay;
     default:
       return true;
   }
@@ -282,6 +286,7 @@ export async function drainEmailOutbox(
           emailBookingReminders: true,
           emailClubChanges: true,
           emailMessages: true,
+          emailOpenPlay: true,
         },
         take: userIds.length,
       }),
@@ -391,6 +396,7 @@ function skipReason(
         emailBookingReminders: boolean;
         emailClubChanges: boolean;
         emailMessages: boolean;
+        emailOpenPlay: boolean;
       }
     | string
     | null

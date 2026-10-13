@@ -1,0 +1,110 @@
+/// Open play (#376, Q19/Q51): a booker marks their booking open ("need 2 more,
+/// level 3–4"), other players find it on the venue page or the Игри tab and
+/// ASK to join, and the booker accepts or declines every one (owner decision
+/// 2026-10-13, rule 1: there is no instant join). An accepted player becomes a
+/// `BookingParticipant`, exactly as a player added by link (#358), and payment
+/// stays at the club.
+///
+/// One row per booking, made the first time the booker opens it and kept when
+/// they close it, so reopening keeps the requests already answered.
+///
+/// Not the P05 `OpenPlaySession` scaffolding in matchmaking.prisma, which
+/// nothing ever wired: it has its own participants, enum skill levels and an
+/// unencrypted chat. Open play here is a property OF a booking, its players
+/// are the booking's players, and its chat is a messaging conversation.
+model OpenGame {
+  id        String @id @default(cuid())
+  tenantId  String
+  bookingId String @unique
+
+  /// How many players the booker takes through open play in all, accepted
+  /// ones included. The API speaks in "more wanted now" (`spotsLeft`); the use
+  /// case stores accepted + that, so a joiner leaving reopens their spot.
+  spotsWanted Int
+
+  /// The booker's wish, on the 1–7 scale of `PlayerSportLevel`, for the
+  /// booking's sport. Shown as a wish, never enforced: every join is asked and
+  /// answered whatever the asker's level (rule 1). Both null: any level.
+  levelMin Int? @db.SmallInt
+  levelMax Int? @db.SmallInt
+
+  /// Optional, sanitised, at most 280 characters. Shown to everyone who sees
+  /// the game, signed in or not, so it is public text.
+  note String?
+
+  /// When the booker last opened (or reopened) it.
+  openedAt DateTime  @default(now()) @db.Timestamptz(3)
+  /// Set when the booker closes it, or the booking is cancelled. Null: open.
+  closedAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking  Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  requests OpenGameRequest[]
+
+  @@index([tenantId])
+  /// The Игри listing: open games across every club. `closedAt` leads because
+  /// the listing binds no tenant.
+  @@index([closedAt])
+  @@map("open_game")
+}
+
+/// Where a request to join stands.
+enum OpenGameRequestStatus {
+  /// Asked; the booker has not answered.
+  PENDING
+  /// The booker accepted: the player is on the booking (`participantId`).
+  ACCEPTED
+  /// The booker said no. The player cannot ask this game again.
+  DECLINED
+  /// The player took the request back before an answer.
+  WITHDRAWN
+  /// Nobody answered before the club's cancellation cutoff (rule 4).
+  LAPSED
+  /// Accepted, then the player pulled out before the cutoff (rule 2).
+  LEFT
+  /// Accepted, then the booker took them off before the cutoff. As DECLINED,
+  /// they cannot ask this game again.
+  REMOVED
+  /// Waiting when the game closed: the booker closed it, or the booking was
+  /// cancelled.
+  CLOSED
+}
+
+/// One player's request to join one open game. One row per (game, player): a
+/// player who withdrew, left, lapsed or was closed out may ask again, and the
+/// row goes back to PENDING with a new `askedAt`.
+model OpenGameRequest {
+  id       String @id @default(cuid())
+  tenantId String
+  gameId   String
+  userId   String
+
+  status OpenGameRequestStatus @default(PENDING)
+
+  /// The asker's optional note to the booker. Sanitised, at most 280.
+  note String?
+
+  /// The `booking_participant` row this request put on the booking, while
+  /// ACCEPTED. No foreign key: leaving or removal deletes the row, and the
+  /// request keeps the history.
+  participantId String? @unique
+
+  /// When it was (last) asked, and when it last left PENDING or ACCEPTED.
+  askedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  decidedAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game OpenGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([tenantId])
+  /// "My requests", across every club.
+  @@index([userId, askedAt])
+  /// The lapse sweep: PENDING requests across every club.
+  @@index([status])
+  @@map("open_game_request")
+}

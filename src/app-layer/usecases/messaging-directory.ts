@@ -67,7 +67,8 @@ function likeEscape(q: string): string {
   return q.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
-async function sportsOf(
+/** Each person's declared sports and levels; open play's request cards use it too (#376). */
+export async function sportsOf(
   db: PrismaClient,
   userIds: string[],
 ): Promise<Map<string, SportLevelCard[]>> {
@@ -89,7 +90,7 @@ async function sportsOf(
 }
 
 /** The ids of everybody in a block with `viewerId`, either way round. */
-async function blockedEitherWay(db: PrismaClient, viewerId: string): Promise<string[]> {
+export async function blockedEitherWay(db: PrismaClient, viewerId: string): Promise<string[]> {
   const rows = await db.userBlock.findMany({
     where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] },
     select: { blockerId: true, blockedId: true },

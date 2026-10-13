@@ -55,6 +55,9 @@ export function bookingHref(bookingId: string): string {
   return `/me/bookings/${encodeURIComponent(bookingId)}`;
 }
 
+/** «Моите заявки» on Игри (#376): where an answer that is not a booking points. */
+export const GAMES_REQUESTS_HREF = '/games?tab=mine';
+
 /** The label of the court line: "Корт", "Игрище" for a field, "Писта" for a karting track. */
 function courtLabel(facts: BookingFacts): string {
   const noun = resourceNoun(facts.resourceType);
@@ -76,7 +79,14 @@ export type BookingBellEvent =
   | 'playerJoined'
   | 'playerLeft'
   | 'playerAdded'
-  | 'playerRemoved';
+  | 'playerRemoved'
+  // Open play (#376): to the booker, a request; to the asker, its outcome.
+  | 'openPlayRequested'
+  | 'openPlayAccepted'
+  | 'openPlayDeclined'
+  | 'openPlayLapsed'
+  | 'openPlayClosed'
+  | 'openPlayCancelled';
 
 /** The bell's title and body. `name` is the other player, where there is one. */
 export async function bellCopy(
@@ -188,6 +198,52 @@ export async function seriesCancelledEmail(
     '',
     '—',
     await l('footer'),
+    await l('settings', { url: absoluteUrl('/me/profile') }),
+  ];
+  return { subject: oneLine(subject), text: lines.join('\n') };
+}
+
+/**
+ * An open-play email (#376): the bell's event, the game's facts, and the link
+ * the bell points to. A request to the booker says until when to answer.
+ */
+export async function openPlayEmail(
+  rawLocale: unknown,
+  event: BookingBellEvent,
+  facts: BookingFacts,
+  extra: { name: string | null; href: string },
+): Promise<{ subject: string; text: string }> {
+  const locale = resolveLocale(rawLocale);
+  const tz = facts.timezone;
+  const name = extra.name?.trim()
+    ? oneLine(extra.name)
+    : await translateFor(locale, 'notifications.booking.someone');
+  const deadline = new Date(facts.startTs.getTime() - facts.cutoffHours * 3_600_000);
+  const values = {
+    venue: oneLine(facts.venueName),
+    date: formatDate(locale, facts.startTs, tz),
+    time: formatTime(locale, facts.startTs, tz),
+    name,
+    until: `${formatDate(locale, deadline, tz)}, ${formatTime(locale, deadline, tz)}`,
+  };
+  const l = (k: string, v: Record<string, string | number> = {}) =>
+    translateFor(locale, `emails.labels.${k}`, v);
+  const [subject, intro] = await Promise.all([
+    translateFor(locale, `emails.openPlay.${event}.subject`, values),
+    translateFor(locale, `emails.openPlay.${event}.intro`, values),
+  ]);
+  const lines = [
+    intro,
+    '',
+    `${await l('venue')}: ${values.venue}`,
+    `${await l(courtLabel(facts))}: ${oneLine(facts.courtName)}`,
+    `${await l('when')}: ${formatWhen(locale, facts.startTs, facts.endTs, tz)}`,
+    `${await l('zone')}: ${tz}`,
+    '',
+    `${await translateFor(locale, 'emails.openPlay.link')}: ${absoluteUrl(extra.href)}`,
+    '',
+    '—',
+    await translateFor(locale, 'emails.openPlay.footer'),
     await l('settings', { url: absoluteUrl('/me/profile') }),
   ];
   return { subject: oneLine(subject), text: lines.join('\n') };
