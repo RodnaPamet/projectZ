@@ -32,8 +32,9 @@ first pass and a live `<script>` on the second. **The sanitiser resurrects the
 tag it just stripped**, and per its own contract the result is written to
 surfaces that decode entities.
 
-Fixed here (decode `&amp;` last, pinned by a test). **It is still present in
-`inflect-compliance` and should be patched there.**
+Fixed here (decode `&amp;` last, pinned by a test). inflect-compliance has the
+same fix: its `src/lib/security/sanitize.ts` decodes `&amp;` last (checked at
+its origin/main on 2026-09-30, #279).
 
 ## Third-party dependencies that carry real risk
 
