@@ -28,13 +28,15 @@ const InvitePlayersSheet = dynamic(() =>
 );
 
 /** A refusal from a players route, as a catalogue key under `myBookings.players.error`. */
-export type PlayersErrorKey = 'FULL' | 'CLOSED' | 'TOO_MANY' | 'FAILED';
+export type PlayersErrorKey = 'FULL' | 'CLOSED' | 'TOO_MANY' | 'CUTOFF' | 'FAILED';
 
 export function playersErrorKey(e: unknown): PlayersErrorKey {
   if (!isApiClientError(e)) return 'FAILED';
   if (e.code === 'BOOKING_FULL') return 'FULL';
   if (e.code === 'BOOKING_PLAYERS_CLOSED') return 'CLOSED';
   if (e.code === 'TOO_MANY_INVITE_LINKS') return 'TOO_MANY';
+  // A player who joined through Игри (#376) stays after the club's cutoff.
+  if (e.code === 'OPEN_PLAY_CUTOFF_PASSED') return 'CUTOFF';
   return 'FAILED';
 }
 

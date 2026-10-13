@@ -338,6 +338,7 @@ describe('sharing, without a browser', () => {
     expect(playersErrorKey(e('BOOKING_FULL'))).toBe('FULL');
     expect(playersErrorKey(e('BOOKING_PLAYERS_CLOSED'))).toBe('CLOSED');
     expect(playersErrorKey(e('TOO_MANY_INVITE_LINKS'))).toBe('TOO_MANY');
+    expect(playersErrorKey(e('OPEN_PLAY_CUTOFF_PASSED'))).toBe('CUTOFF');
     expect(playersErrorKey(new Error('offline'))).toBe('FAILED');
   });
 });
