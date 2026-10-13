@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
 import type { ConversationSummaryDto } from '@/app/api/v1/_lib/messaging';
 import { Button } from '@/components/ui/button';
@@ -33,12 +34,19 @@ export function InboxList({
   tab = 'conversations',
   seed,
   emptyAction,
+  onEmptyActionChange,
 }: {
   side: InboxSide;
   tab?: 'conversations' | 'requests';
   seed?: V1Page<ConversationSummaryDto>;
   /** The empty list's way forward ("Ново съобщение"), if any. */
   emptyAction?: { label: string; href: string };
+  /**
+   * Told whether the empty state is on screen carrying `emptyAction`, so the
+   * page can drop its own copy of that button: one at a time. False again when
+   * the list fills, errors, or goes away.
+   */
+  onEmptyActionChange?: (carried: boolean) => void;
 }) {
   const t = useTranslations('messaging.inbox');
   const tCommon = useTranslations('common');
@@ -52,11 +60,17 @@ export function InboxList({
     refreshInterval: INBOX_REFRESH_MS,
   });
 
-  if (needsSkeleton(list)) return <CardListSkeleton rows={4} lines={2} className="gap-compact" />;
-
   const pages = list.data ?? [];
   const items = pages.flatMap((p) => p.items);
   const more = pages.at(-1)?.nextCursor != null;
+
+  const carriesAction = !!emptyAction && !needsSkeleton(list) && !list.error && items.length === 0;
+  useEffect(() => {
+    onEmptyActionChange?.(carriesAction);
+    return () => onEmptyActionChange?.(false);
+  }, [carriesAction, onEmptyActionChange]);
+
+  if (needsSkeleton(list)) return <CardListSkeleton rows={4} lines={2} className="gap-compact" />;
 
   if (list.error && items.length === 0) {
     return (

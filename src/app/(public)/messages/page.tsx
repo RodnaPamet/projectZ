@@ -1,16 +1,15 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import { listConversations } from '@/app-layer/usecases/messaging';
 import { toSummaryDto } from '@/app/api/v1/_lib/messaging';
 import { messagesCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
-import { buttonVariants } from '@/components/ui/button-variants';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { ViewerScope } from '@/lib/data/provider';
 
 import { MessagesTabs } from './MessagesTabs';
+import { NewMessageLink, NewMessageProvider } from './NewMessage';
 import { inboxTabFrom } from './tabs';
 import { messagesViewer } from './viewer';
 
@@ -52,28 +51,24 @@ export default async function MessagesPage({
     <div className="bg-bg-page text-content-default safe-area-x flex-1">
       <div className="in-shell:p-0 mx-auto w-full max-w-2xl px-4 py-6 md:px-6 md:py-10">
         <PageBreadcrumbs items={messagesCrumbs(tNav)} className="hidden" />
-        <div className="mb-section flex items-center justify-between gap-3">
-          <Heading level={1}>{t('title')}</Heading>
-          {coach ? null : (
-            <Link
-              href="/messages/new"
-              className={buttonVariants({ variant: 'primary' })}
-              data-testid="messages-new"
-            >
-              {t('new')}
-            </Link>
-          )}
-        </div>
+        <NewMessageProvider
+          carriedBySeed={!coach && tab === 'conversations' && seed.items.length === 0}
+        >
+          <div className="mb-section flex items-center justify-between gap-3">
+            <Heading level={1}>{t('title')}</Heading>
+            {coach ? null : <NewMessageLink />}
+          </div>
 
-        {coach ? (
-          <InlineNotice variant="info" className="mb-section" data-testid="messages-coach-notice">
-            {t('coachNotice')}
-          </InlineNotice>
-        ) : null}
+          {coach ? (
+            <InlineNotice variant="info" className="mb-section" data-testid="messages-coach-notice">
+              {t('coachNotice')}
+            </InlineNotice>
+          ) : null}
 
-        <ViewerScope viewerId={userId}>
-          <MessagesTabs initialTab={tab} seed={seed} />
-        </ViewerScope>
+          <ViewerScope viewerId={userId}>
+            <MessagesTabs initialTab={tab} seed={seed} coach={coach} />
+          </ViewerScope>
+        </NewMessageProvider>
       </div>
     </div>
   );

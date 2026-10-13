@@ -11,6 +11,7 @@ import { KEYS, type V1Page } from '@/lib/data/keys';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 import { INBOX_REFRESH_MS } from '@/lib/messaging/limits';
 
+import { useReportEmptyAction } from './NewMessage';
 import { INBOX_TABS, inboxTabFrom, type InboxTab } from './tabs';
 
 const ME = { kind: 'me' } as const;
@@ -25,11 +26,14 @@ const ME = { kind: 'me' } as const;
 export function MessagesTabs({
   initialTab,
   seed,
+  coach,
 }: {
   initialTab: InboxTab;
   seed: V1Page<ConversationSummaryDto>;
+  coach: boolean;
 }) {
   const t = useTranslations('messaging');
+  const reportEmptyAction = useReportEmptyAction();
   const [tab, setTab] = useState<InboxTab>(initialTab);
   const { data: unread } = useV1SWR<{ conversations: number; requests: number }>(
     KEYS.conversationsUnread(ME),
@@ -78,8 +82,11 @@ export function MessagesTabs({
         tab={tab}
         seed={tab === initialTab ? seed : undefined}
         emptyAction={
-          tab === 'conversations' ? { label: t('tabs.new'), href: '/messages/new' } : undefined
+          tab === 'conversations' && !coach
+            ? { label: t('tabs.new'), href: '/messages/new' }
+            : undefined
         }
+        onEmptyActionChange={reportEmptyAction}
       />
     </div>
   );
