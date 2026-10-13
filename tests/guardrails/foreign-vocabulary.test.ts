@@ -85,31 +85,6 @@ const ALLOWED: Allowed[] = [
     line: /inflect|coverage|Audit/i,
     reason: PENDING_UPSTREAM,
   },
-  {
-    file: 'src/components/ui/hooks/use-copy-to-clipboard.tsx',
-    line: /audit/i,
-    reason: PENDING_UPSTREAM,
-  },
-  {
-    file: 'src/components/ui/hooks/use-cursor-pagination.ts',
-    line: /controls/i,
-    reason: PENDING_UPSTREAM,
-  },
-  {
-    file: 'src/components/ui/hooks/use-optimistic-update.ts',
-    line: /risks/i,
-    reason: PENDING_UPSTREAM,
-  },
-  {
-    file: 'src/components/ui/hooks/use-threshold-load-more.ts',
-    line: /controls|risks|evidence/i,
-    reason: PENDING_UPSTREAM,
-  },
-  {
-    file: 'src/components/ui/hooks/use-view-mode.ts',
-    line: /controls|inflect/i,
-    reason: PENDING_UPSTREAM,
-  },
   { file: 'src/components/ui/icons/index.tsx', line: /\bdub\b/i, reason: PENDING_UPSTREAM },
 ];
 

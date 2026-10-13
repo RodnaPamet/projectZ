@@ -56,10 +56,6 @@ const ALLOWED: Record<string, { files: string[]; reason: string }> = {
     files: ['src/components/ui/skeleton.tsx'],
     reason: `vendored; no fadeIn animation in either theme, ${UPSTREAM}`,
   },
-  'animate-blink': {
-    files: ['src/components/ui/icons/loading-dots.tsx'],
-    reason: `vendored (pending row, held by the icons barrel); no blink animation, ${UPSTREAM}`,
-  },
 };
 
 const SOURCE = globSync('src/**/*.{ts,tsx}').map(String).sort();

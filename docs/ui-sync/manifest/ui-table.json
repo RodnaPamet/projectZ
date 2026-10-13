@@ -12,10 +12,10 @@
     {
       "path": "src/components/ui/table/data-table.tsx",
       "inflectPath": "src/components/ui/table/data-table.tsx",
-      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
-      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "status": "vendored",
-      "sha256": "e396adb0bd35d462b35e0555446ef269de269dbfb32a6041a66bdf6dbdfced7e"
+      "sha256": "dea11f8f4dd56d4bbdd73fa9b403b65067ec530d307fe696509b7d0fa4b2f8f9"
     },
     {
       "path": "src/components/ui/table/features.ts",
@@ -36,10 +36,10 @@
     {
       "path": "src/components/ui/table/selection-toolbar.tsx",
       "inflectPath": "src/components/ui/table/selection-toolbar.tsx",
-      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
-      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "status": "vendored",
-      "sha256": "682deb9c31eca550760dcf2e4aea3adaee7d49bc30a4595c2f8d184120abbc71"
+      "sha256": "a9fb5c4003e6a55e05c7c9913b8041d8f2eefb1b7fef3907e54b3e3621588319"
     },
     {
       "path": "src/components/ui/table/table-utils.ts",

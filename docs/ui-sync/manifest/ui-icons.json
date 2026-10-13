@@ -100,50 +100,50 @@
     {
       "path": "src/components/ui/icons/default-domains/amazon.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/default-domains/amazon.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "05c27e58740359a69ff3dc8dee933741f3a960b8708343bc8afce79215bf8132"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "b26e4f0ca787da94d1248d335955380312a0c82c0af2d63991354c5f158759de"
     },
     {
       "path": "src/components/ui/icons/default-domains/chatgpt.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/default-domains/chatgpt.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "716800b6d1662dd14ea6e0e8d4b2a7575a050882877fa8b8abf454f7f8457a56"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "dbe6bbd5b965d318eb2cb5d533be252cb73f2af2a42079f088d79656217d3f29"
     },
     {
       "path": "src/components/ui/icons/default-domains/figma.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/default-domains/figma.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "bdab8b59565567da9ad2de8a073c9049b1cfff0a0f20003cbfc98ddd936e91fd"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "e06e12ab40cee1b4914efaff1f907320c3954d2ed58f6e7ed43a054ec4501eef"
     },
     {
       "path": "src/components/ui/icons/default-domains/github-enhanced.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/default-domains/github-enhanced.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "4227f81151d681c339d0b5a55552e97c1c9461f74cefca3c5b5b15e7c3351005"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "a7ee0747e710f079add551ef4b4e0449ff0a543b06229fb05366d7749c4062a3"
     },
     {
       "path": "src/components/ui/icons/default-domains/google-enhanced.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/default-domains/google-enhanced.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "db881a57f2de7bebbe8d077eb95fa1c868c7f7864011c7dfc8991db211b22139"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "0dd5ec24d8a54c0bb998149736818285a0a15e8efc71764389d51d6609e02863"
     },
     {
       "path": "src/components/ui/icons/default-domains/spotify.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/default-domains/spotify.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "0dc8ea952a92ba094bc9364fd24e18f9c6e9098b2e658e992b66e54ab51cd3f8"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "c43c9abd17013350b5ef185e51e67ecdfdcc1d601c1d7311db2fcb83c5151662"
     },
     {
       "path": "src/components/ui/icons/dub-analytics.tsx",
@@ -164,10 +164,10 @@
     {
       "path": "src/components/ui/icons/dub-crafted-shield.tsx",
       "inflectPath": "src/components/ui/icons/dub-crafted-shield.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "6b288b37bf7c95b064d11e6cd9ee57810d202618eeea02c2db4b2c077dc313b3"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "e17ef9b171c09ab5f71d13aff05afed704bc5dcc0f4e3b23a581bb1dc44fe685"
     },
     {
       "path": "src/components/ui/icons/dub-links.tsx",
@@ -188,10 +188,10 @@
     {
       "path": "src/components/ui/icons/expanding-arrow.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/expanding-arrow.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "80c3b3827741674a497b6d331539ac9fc3d7cc10881e8a11f86b950fcbb7bfa4"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "494edd6a87a980645c080cc346b8b0d9b88adf02940331c4de4a36a766dfbb28"
     },
     {
       "path": "src/components/ui/icons/facebook.tsx",
@@ -268,10 +268,10 @@
     {
       "path": "src/components/ui/icons/linkedin.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/linkedin.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "6ff8fc60e8f35c0a5422d3447c1bf7e54b77bce2cb3980e4fea14497aa4491b8"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "62aca154801f7a69e2478a870a3c65037f0d23df6d7e73688ff968b8ba9dc694"
     },
     {
       "path": "src/components/ui/icons/loading-circle.tsx",
@@ -284,10 +284,10 @@
     {
       "path": "src/components/ui/icons/loading-dots.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/loading-dots.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "bdfdfa8b7dc28dc63d50c133c5a5fcd6c3f4547e710233f3a7b5522f5595b3b6"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "ca109ea167c4a0cee9ab13c03d4f120a7766ce7e802cd33edcc8a81134c766d6"
     },
     {
       "path": "src/components/ui/icons/loading-spinner.tsx",
@@ -2532,26 +2532,26 @@
     {
       "path": "src/components/ui/icons/payment-platforms/paypal.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/paypal.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "c0e2d7b222b76c9880804269325d2ab534ad6118358a26cd30d65cf529b619ab"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "651d0166e8fb225b16f3fc1df8ba6bf2cb9938a9c0470c56e2f0d45ec4e36572"
     },
     {
       "path": "src/components/ui/icons/payment-platforms/stablecoin.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stablecoin.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "74eb49bb5d6022aaa500c7d481b7931807f442816fcacf401a8858f5348dee48"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "7ea24b94c84e0f3ffed2ba4753c744b636beece200c01ae5cfffdf5df4cbafbe"
     },
     {
       "path": "src/components/ui/icons/payment-platforms/stripe-icon.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stripe-icon.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "923c80262e2f8ab2106509ceabf51b7e31e5508cfd3d25bc70c1243b0b8f5dbd"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "037326ccf9ea252c2c2d357edc5e50be8f681dd406bf5d7872be46cc1358adfa"
     },
     {
       "path": "src/components/ui/icons/payment-platforms/stripe-link.tsx",
@@ -2580,18 +2580,18 @@
     {
       "path": "src/components/ui/icons/plan-feature-icons.tsx",
       "inflectPath": "src/components/ui/icons/plan-feature-icons.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "c6340b18f1e43e15e12f062c085f436d7696f0b3084179dd1211644b520cf02c"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "7c26c0dd2610d02f01a121a4c18d0bb8593bf795c79e4ce409836e4e961392b5"
     },
     {
       "path": "src/components/ui/icons/product-hunt.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/product-hunt.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "9fe587d9ade20d875d5a1165c7d96fc7787c3a90578ca052a1ca6bc1cc9f48e8"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "86af208947a1de2ad48cd1f1b4222dd250f8bd945a9f049c55c79518eba88b14"
     },
     {
       "path": "src/components/ui/icons/python.tsx",
@@ -2628,10 +2628,10 @@
     {
       "path": "src/components/ui/icons/sort-order.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/sort-order.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "99918892efb386b2675664d76d53356ee526289dd8bdd87fd7f72b85d9ce73ce"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "1fe9b825c6e6b2b1333bb8a7891e2da85acd440c138eb636948a815fb17aac33"
     },
     {
       "path": "src/components/ui/icons/success.tsx",
@@ -2660,10 +2660,10 @@
     {
       "path": "src/components/ui/icons/twitter.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/twitter.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "5785fc97498b406a714c39266ce31b1ea19658aef5e7be1252eb28fbf7526bf1"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "2098eb06efd27ce2e93a07be072d2db725afbbf6e3fee2e8a82bb330702b0a3c"
     },
     {
       "path": "src/components/ui/icons/typescript.tsx",
@@ -2708,10 +2708,10 @@
     {
       "path": "src/components/ui/icons/youtube.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/youtube.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "5d4ed2d89407359f10f6b62e5e40b7d99966ed527e0e2b605e38ede410ffefe6"
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "status": "vendored",
+      "sha256": "994b0c04a01acd628829b2d42d9cd140e7872afbb3c906447d1106bc09d1fe3c"
     }
   ]
 }

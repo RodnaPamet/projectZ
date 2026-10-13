@@ -43,11 +43,11 @@
     },
     {
       "path": "src/components/ui/card-variants.ts",
-      "inflectPath": "src/components/ui/card-variants.ts",
-      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
-      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+      "inflectPath": "packages/ui/src/components/ui/card-variants.ts",
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "status": "vendored",
-      "sha256": "643a847ffa75bf8dec7749e782f3468e639d4d0364a20074fea5862f9da5123f"
+      "sha256": "acc201da09dac8cf0d7d441ed120dc3b44c7e02108f083815fc01852cd16aa71"
     },
     {
       "path": "src/components/ui/card.tsx",
@@ -251,11 +251,11 @@
     },
     {
       "path": "src/components/ui/skeleton.tsx",
-      "inflectPath": "src/components/ui/skeleton.tsx",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "inflectPath": "packages/ui/src/components/ui/skeleton.tsx",
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "status": "vendored",
-      "sha256": "e932ca6deb6c8d1fa431738d18da85d04fcaa31579309c4ce4f39028bcfd62fd"
+      "sha256": "fbbe1e1f3f257664e82ffe876b8a0afdb7d3c26edaf4e832141b6f8ba90061bc"
     },
     {
       "path": "src/components/ui/status-badge.tsx",
@@ -291,11 +291,11 @@
     },
     {
       "path": "src/components/ui/tooltip.tsx",
-      "inflectPath": "src/components/ui/tooltip.tsx",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "inflectPath": "packages/ui/src/components/ui/tooltip.tsx",
+      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "status": "vendored",
-      "sha256": "f9d52ddde08e819d97229b5ed9a395d26bc318a65dfdc23f4d91e811a3f8eefc"
+      "sha256": "2bfdd5fc1b8f0267122b28a904eec62b9a070356e85eed329d21514b521b0384"
     },
     {
       "path": "src/components/ui/typography.tsx",
