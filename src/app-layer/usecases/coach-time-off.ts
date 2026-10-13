@@ -3,6 +3,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 import { CoachAccountRequiredError } from '@/app-layer/usecases/coach-profile';
 import { COACH_TIME_OFF_MAX_ROWS, readTimeOff } from '@/lib/coaches/teaching';
+import { runAsUserOnly } from '@/lib/db/rls-middleware';
 
 /**
  * A COACH'S DAYS OFF (#546; owner decision 14).
@@ -82,6 +83,16 @@ export async function listTimeOff(
     endDate: day(r.endDate),
     note: r.note,
   }));
+}
+
+/** The same, for a page: binds to the caller itself. Null for an account that is not a coach's. */
+export async function readMyTimeOff(userId: string): Promise<TimeOffView[] | null> {
+  try {
+    return await runAsUserOnly(userId, (db) => listTimeOff(db, userId));
+  } catch (err) {
+    if (err instanceof CoachAccountRequiredError) return null;
+    throw err;
+  }
 }
 
 /**

@@ -1348,6 +1348,66 @@
     "clubStatus": {
       "suspended": "playerz.bg has suspended this club. Players can’t see it or book, and its upcoming bookings were cancelled. You can view your data but not change it. For questions, use the “For clubs” form at playerz.bg/#clubs.",
       "closed": "This club is closed on playerz.bg. You can view your data but not change it. For questions, use the “For clubs” form at playerz.bg/#clubs."
+    },
+    "coaches": {
+      "metaTitle": "Coaches",
+      "title": "Coaches",
+      "subtitle": "Who teaches at the club. Each coach sets their own prices, lesson lengths and hours.",
+      "noName": "No name",
+      "notApproved": "Waiting for playerz.bg approval",
+      "notApprovedHint": "Players will see them once playerz.bg has approved their profile.",
+      "notSet": "Not set",
+      "missing": "The coach has not yet set everything needed for lessons to be booked with them.",
+      "field": {
+        "sports": "Teaches",
+        "bio": "Introduction",
+        "qualifications": "Qualifications",
+        "rates": "Price",
+        "lessons": "Lessons",
+        "hours": "Working hours"
+      },
+      "sportOne": "{sport}: level {level}",
+      "sportRange": "{sport}: levels {min}–{max}",
+      "rate": "{hourly} an hour",
+      "rateWithGroup": "{hourly} an hour; for a group {group} an hour",
+      "lessons": "{lengths} min; cancel up to {cutoff} h before the lesson",
+      "requests": {
+        "title": "Requests",
+        "none": "No requests waiting."
+      },
+      "active": {
+        "title": "Teaching here",
+        "none": "No coaches yet",
+        "noneHint": "Invite a coach by email, or wait for an approved coach to ask to teach here."
+      },
+      "action": {
+        "accept": "Accept",
+        "decline": "Decline",
+        "end": "End",
+        "cancel": "Cancel"
+      },
+      "end": {
+        "title": "End {name} at {venue}?",
+        "confirm": "No new lessons can be booked with this coach here. Lessons already booked stay until they are cancelled."
+      },
+      "invite": {
+        "label": "Invite a coach by email",
+        "send": "Invite",
+        "hint": "The coach receives a link. Once they accept, they teach at all your venues and set their own price and hours. The invitation is good for 14 days and is listed under Staff.",
+        "sent": "The invitation has been sent."
+      },
+      "inviteEmail": {
+        "subject": "{club} invites you to teach",
+        "text": "{club} invites you to teach on playerz.bg.\n\nAccept the invitation from this link:\n{link}\n\nYou will need a coach account. If you have none, one is made when you accept. The link is good for 14 days."
+      },
+      "error": {
+        "NOT_FOUND": "That coach is no longer in the list.",
+        "ALREADY_DECIDED": "That request has already been decided, or the coach took it back.",
+        "SUSPENDED": "That account is suspended at the club. Reinstate it under Staff or Players and try again.",
+        "BAD_EMAIL": "Enter a valid email address.",
+        "ALREADY_INVITED": "An invitation has already been sent to that address. See it under Staff.",
+        "MAIL_FAILED": "The invitation was created, but the email could not be sent. Withdraw it under Staff and try again."
+      }
     }
   },
   "invite": {
@@ -2951,6 +3011,93 @@
       "EMPTY": "The file is empty.",
       "TOO_LARGE": "The file is larger than {mb} MB.",
       "NOT_A_CERTIFICATE": "Upload a PDF document, or a JPEG, PNG or WebP photo.",
+      "RATE_LIMITED": "Too many attempts. Wait a little and try again.",
+      "NETWORK": "No connection. Try again.",
+      "UNKNOWN": "Something went wrong. Try again."
+    }
+  },
+  "coachVenues": {
+    "title": "Clubs",
+    "needsApproval": "Once playerz.bg approves your profile, you can ask to teach at a club.",
+    "none": "You do not teach anywhere yet.",
+    "add": "Add a venue",
+    "status": {
+      "REQUESTED": "Waiting for the club’s answer",
+      "INVITED": "You are invited",
+      "ACTIVE": "You teach here",
+      "DECLINED": "The club declined",
+      "ENDED": "Ended"
+    },
+    "at": "{club} · {city}",
+    "missing": "For lessons to be booked here, set a price, a lesson length and working hours.",
+    "summary": "{rate} an hour · {lengths} min",
+    "action": {
+      "terms": "Price and hours",
+      "withdraw": "Take the request back",
+      "end": "Stop teaching here",
+      "again": "Ask again",
+      "cancel": "Cancel"
+    },
+    "end": {
+      "title": "Stop teaching at {venue}?",
+      "confirm": "No new lessons can be booked here. Lessons already booked stay until they are cancelled."
+    },
+    "search": {
+      "title": "Where do you want to teach?",
+      "description": "Choose a venue. The club receives your request with your profile and answers.",
+      "label": "Search for a venue or a city",
+      "empty": "No venues found.",
+      "ask": "Ask"
+    },
+    "terms": {
+      "title": "{venue}: price and hours",
+      "description": "What you charge and when you work at this venue. The court’s price is added to yours.",
+      "hourly": "Price per hour, {currency}",
+      "group": "Price per hour for a group, {currency}",
+      "groupHint": "For two or more players. Leave empty if you give no group lessons here.",
+      "lengths": "Lesson length",
+      "lengthsHint": "As long as a court can be booked at this venue.",
+      "minutes": "{minutes} min",
+      "cutoff": "Cancel at the latest, hours before the lesson",
+      "cutoffHint": "0 means until it starts. If the club asks for more, the club’s applies.",
+      "hours": "Working hours",
+      "hoursHint": "In the venue’s time. With no hours, no lesson can be booked.",
+      "fromLabel": "{day}, stretch {n}: from",
+      "toLabel": "{day}, stretch {n}: to",
+      "addStretch": "Add a stretch",
+      "removeStretch": "Remove the stretch",
+      "dayOff": "not working",
+      "save": "Save"
+    },
+    "timeOff": {
+      "title": "Days off",
+      "hint": "On these days you teach nowhere. Only you see them.",
+      "none": "You have no days off marked.",
+      "one": "{date}",
+      "range": "{start} – {end}",
+      "start": "From",
+      "end": "To",
+      "endHint": "Leave empty for one day.",
+      "note": "Note",
+      "add": "Add",
+      "remove": "Remove"
+    },
+    "error": {
+      "COACH_NOT_APPROVED": "Your profile has not been approved yet.",
+      "COACH_LINK_EXISTS": "You already have a request or teach at this venue.",
+      "COACH_LINK_STATE": "That can no longer be done. Reload the page.",
+      "COACH_LINK_NOT_FOUND": "That link no longer exists.",
+      "COACH_SUSPENDED_AT_CLUB": "Your account is suspended at this club.",
+      "VENUE_NOT_FOUND": "That venue is no longer available.",
+      "COACH_TIME_OFF_LIMIT": "You have too many stretches marked. Remove one.",
+      "hourlyRateCents": "Enter a price per hour between 0 and 1000.",
+      "groupRateCents": "Enter a group price between 0 and 1000, or leave it empty.",
+      "lessonMinutes": "Choose at least one length.",
+      "cancelCutoffHours": "Enter hours between 0 and 168.",
+      "hours": "Check the hours: on the quarter hour, the end after the start, no overlap, at most four stretches a day.",
+      "startDate": "Enter a valid start date, at most a year ahead.",
+      "endDate": "The end date must be after the start, not in the past, and the stretch at most 92 days.",
+      "note": "The note is too long.",
       "RATE_LIMITED": "Too many attempts. Wait a little and try again.",
       "NETWORK": "No connection. Try again.",
       "UNKNOWN": "Something went wrong. Try again."

@@ -13,7 +13,9 @@ import {
   listClubCoaches,
 } from '@/app-layer/usecases/coach-links';
 import { coachToday } from '@/app-layer/usecases/coach-time-off';
+import { listStaff } from '@/app-layer/repositories/staff';
 import { acceptInvite, createInvite } from '@/app-layer/usecases/invites';
+import { changeMemberRole, setMemberSuspended } from '@/app-layer/usecases/staff';
 import { runAsSuperuser, runAsUserOnly, runInTenantContext } from '@/lib/db/rls-middleware';
 import { clearAllRateLimits } from '@/lib/security/rate-limit';
 
@@ -393,6 +395,32 @@ describe('the club answers, and the coach’s standing follows', () => {
     await expect(
       asClub(clubA, (tx) => answerCoachRequest(tx, actor(clubA), linkId, true)),
     ).rejects.toMatchObject({ name: 'CoachLinkStateError', status: 'ENDED' });
+  });
+});
+
+describe('a coach is not the club’s staff', () => {
+  it('is not on the staff list (which carries an email), and the staff screen cannot change or suspend them', async () => {
+    const c = await teachingAtA();
+    expect(await membership(clubA, c.userId)).toEqual({ role: 'COACH', status: 'ACTIVE' });
+
+    const staff = await asClub(clubA, (tx) => listStaff(tx, clubA.tenantId));
+    expect(staff.map((m) => m.role)).toEqual(['OWNER']);
+    expect(JSON.stringify(staff)).not.toContain(c.userId);
+
+    const row = await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.findUniqueOrThrow({
+        where: { userId_tenantId: { userId: c.userId, tenantId: clubA.tenantId } },
+        select: { id: true },
+      }),
+    );
+    const owner = { userId: clubA.userId, canManageOwners: true };
+    for (const attempt of [
+      () => asClub(clubA, (tx) => setMemberSuspended(tx, clubA.tenantId, owner, row.id, true)),
+      () => asClub(clubA, (tx) => changeMemberRole(tx, clubA.tenantId, owner, row.id, 'PLAYER')),
+    ]) {
+      await expect(attempt()).rejects.toMatchObject({ name: 'StaffMemberNotFoundError' });
+    }
+    expect(await membership(clubA, c.userId)).toEqual({ role: 'COACH', status: 'ACTIVE' });
   });
 });
 

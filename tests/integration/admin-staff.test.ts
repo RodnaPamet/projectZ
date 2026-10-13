@@ -70,30 +70,32 @@ describe('admin staff', () => {
   it('THE POINT: lists this club’s members with their roles, across the RLS boundary', async () => {
     const mine = await seedTenant({}, db);
     const theirs = await seedTenant({}, db);
-    await member(mine.tenantId, 'coach', 'COACH');
+    await member(mine.tenantId, 'desk', 'STAFF');
     await member(theirs.tenantId, 'theirs', 'MANAGER');
 
     const rows = await runInTenantContext(mine.tenantId, (c) => listStaff(c, mine.tenantId));
 
-    // The seeded owner plus the coach — and nobody from the other club.
+    // The seeded owner plus the desk — and nobody from the other club.
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.role).sort()).toEqual(['COACH', 'OWNER']);
+    expect(rows.map((r) => r.role).sort()).toEqual(['OWNER', 'STAFF']);
     expect(rows.every((r) => r.email.length > 0)).toBe(true);
   });
 
-  it('lists staff only: a PLAYER membership is not a member of the staff (#349)', async () => {
+  it('lists staff only: neither a PLAYER (#349) nor a COACH (#546) is a member of the staff', async () => {
     // Booking makes a player a PLAYER member of the club (#229), so a busy
     // club's staff screen filled up with everybody who had booked a court.
+    // A coach is a member while they teach here, and is listed on the club's
+    // coaches page by a card with no email on it; this list has one.
     const t = await seedTenant({}, db);
-    await member(t.tenantId, 'coach', 'COACH');
+    const coach = await member(t.tenantId, 'coach', 'COACH');
     await member(t.tenantId, 'desk', 'STAFF');
     await member(t.tenantId, 'mgr', 'MANAGER');
     const booker = await member(t.tenantId, 'booker', 'PLAYER');
 
     const rows = await runInTenantContext(t.tenantId, (c) => listStaff(c, t.tenantId));
 
-    expect(rows.map((r) => r.role).sort()).toEqual(['COACH', 'MANAGER', 'OWNER', 'STAFF']);
-    expect(rows.some((r) => r.userId === booker.userId)).toBe(false);
+    expect(rows.map((r) => r.role).sort()).toEqual(['MANAGER', 'OWNER', 'STAFF']);
+    expect(rows.some((r) => r.userId === booker.userId || r.userId === coach.userId)).toBe(false);
   });
 
   it('REFUSES to demote the last active owner', async () => {
@@ -210,8 +212,8 @@ describe('admin staff', () => {
   it.each([
     ['a PLAYER made STAFF', 'PLAYER', 'STAFF'],
     ['STAFF made a PLAYER', 'STAFF', 'PLAYER'],
-    ['a COACH made a MANAGER', 'COACH', 'MANAGER'],
     ['a PLAYER made a COACH', 'PLAYER', 'COACH'],
+    ['STAFF made a COACH', 'STAFF', 'COACH'],
   ] as const)('REFUSES %s — another kind of account (#263)', async (_label, from, to) => {
     // One account, one kind: this is never a role change, it is a second
     // account, which the club gets by inviting the person. Refused before the
@@ -277,29 +279,55 @@ describe('admin staff', () => {
     // sessions and audit entries, and the page resolver already treats
     // anything but ACTIVE as not-a-member.
     const t = await seedTenant({}, db);
+    const desk = await member(t.tenantId, 'desk', 'STAFF');
+
+    expect((await membershipContext(desk.userId, t.tenantSlug)).kind).toBe('ok');
+
+    await runInTenantContext(t.tenantId, (c) =>
+      setMemberSuspended(c, t.tenantId, owner(t.userId), desk.membershipId, true),
+    );
+    expect((await membershipContext(desk.userId, t.tenantSlug)).kind).toBe('not-a-member');
+
+    await runInTenantContext(t.tenantId, (c) =>
+      setMemberSuspended(c, t.tenantId, owner(t.userId), desk.membershipId, false),
+    );
+    expect((await membershipContext(desk.userId, t.tenantSlug)).kind).toBe('ok');
+  });
+
+  it('a coach’s membership is not this screen’s: changing or suspending it finds no such member (#546)', async () => {
+    // The role follows the coach's links (coach-links.ts); the club ends those
+    // on its coaches page. From here the membership is simply not there.
+    const t = await seedTenant({}, db);
     const coach = await member(t.tenantId, 'coach', 'COACH');
-
-    expect((await membershipContext(coach.userId, t.tenantSlug)).kind).toBe('ok');
-
-    await runInTenantContext(t.tenantId, (c) =>
-      setMemberSuspended(c, t.tenantId, owner(t.userId), coach.membershipId, true),
+    for (const attempt of [
+      () =>
+        runInTenantContext(t.tenantId, (c) =>
+          changeMemberRole(c, t.tenantId, owner(t.userId), coach.membershipId, 'MANAGER'),
+        ),
+      () =>
+        runInTenantContext(t.tenantId, (c) =>
+          setMemberSuspended(c, t.tenantId, owner(t.userId), coach.membershipId, true),
+        ),
+    ]) {
+      await expect(attempt()).rejects.toThrow(StaffMemberNotFoundError);
+    }
+    const row = await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.findUniqueOrThrow({
+        where: { id: coach.membershipId },
+        select: { role: true, status: true },
+      }),
     );
-    expect((await membershipContext(coach.userId, t.tenantSlug)).kind).toBe('not-a-member');
-
-    await runInTenantContext(t.tenantId, (c) =>
-      setMemberSuspended(c, t.tenantId, owner(t.userId), coach.membershipId, false),
-    );
-    expect((await membershipContext(coach.userId, t.tenantSlug)).kind).toBe('ok');
+    expect(row).toEqual({ role: 'COACH', status: 'ACTIVE' });
   });
 
   it('cannot touch a membership at another club', async () => {
     const mine = await seedTenant({}, db);
     const theirs = await seedTenant({}, db);
-    const theirCoach = await member(theirs.tenantId, 'coach', 'COACH');
+    const theirDesk = await member(theirs.tenantId, 'desk', 'STAFF');
 
     await expect(
       runInTenantContext(mine.tenantId, (c) =>
-        changeMemberRole(c, mine.tenantId, owner(mine.userId), theirCoach.membershipId, 'MANAGER'),
+        changeMemberRole(c, mine.tenantId, owner(mine.userId), theirDesk.membershipId, 'MANAGER'),
       ),
     ).rejects.toThrow(StaffMemberNotFoundError);
   });

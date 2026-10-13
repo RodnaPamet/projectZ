@@ -120,7 +120,9 @@ async function membership(db: PrismaClient, tenantId: string, membershipId: stri
     where: { id: membershipId, tenantId },
     select: { id: true, userId: true, role: true, status: true },
   });
-  if (!m) throw new StaffMemberNotFoundError();
+  // A coach's membership is not this screen's to change (#546): its role
+  // follows the coach's links, which the club ends on its coaches page.
+  if (!m || m.role === 'COACH') throw new StaffMemberNotFoundError();
   return m;
 }
 
