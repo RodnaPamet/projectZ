@@ -580,7 +580,7 @@ describe('notifications (#367)', () => {
       expect((await outbox())[0]!.text).not.toContain('/email/unsubscribe/');
     });
 
-    it('pressing the link stops the next email of that kind, and only that kind (#528)', async () => {
+    it('pressing the link stops that kind: one already queued is skipped, and the next is never queued (#528)', async () => {
       await book(booker);
       const first = recorder();
       await drainEmailOutbox({ now, provider: first.provider });
@@ -588,15 +588,25 @@ describe('notifications (#367)', () => {
         first.sent[0]!.headers!['List-Unsubscribe']!,
       )![1]!;
 
+      // A second confirmation is queued, and THEN the person presses the link.
+      await book(booker, '2036-07-17');
       expect(await unsubscribeByToken(token)).toEqual({ category: 'confirmation' });
 
-      await book(booker, '2036-07-17');
       const second = recorder();
       expect(await drainEmailOutbox({ now, provider: second.provider })).toMatchObject({
+        claimed: 1,
         skipped: 1,
         sent: 0,
       });
       expect(second.sent).toHaveLength(0);
+      expect((await outbox()).map((r) => r.status).sort()).toEqual(['SENT', 'SKIPPED']);
+
+      // From here on a confirmation is not even queued.
+      await book(booker, '2036-07-18');
+      expect(await outbox()).toHaveLength(2);
+      expect(await drainEmailOutbox({ now, provider: second.provider })).toMatchObject({
+        claimed: 0,
+      });
     });
 
     it('re-checks the setting at send time', async () => {

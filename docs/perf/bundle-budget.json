@@ -9,6 +9,7 @@
     "/cookies": 312.6,
     "/delete-account": 313.2,
     "/design-system": 335.2,
+    "/email/unsubscribe/[token]": 316.4,
     "/games": 340.7,
     "/invite/[token]": 313.3,
     "/invite/booking/[token]": 317.7,
