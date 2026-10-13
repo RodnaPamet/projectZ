@@ -334,16 +334,18 @@ describe('one review per venue per person', () => {
     expect((await venueScore()).reviewCount).toBe(1);
   });
 
-  it('the database still refuses a second review of one booking, underneath the check', async () => {
+  it('the database still refuses a second review of one booking by one person, underneath the check', async () => {
     const booking = await seedBooking();
     await review({ bookingId: booking.id });
 
+    // P62 (#416): unique per booking AND author, so the same person's second
+    // review of the same visit is refused even past the use case.
     const direct = asAppSuperuser(db, (tx) =>
       tx.review.create({
         data: {
           tenantId: tenant.tenantId,
           venueId,
-          authorUserId: otherUserId,
+          authorUserId: tenant.userId,
           bookingId: booking.id,
           rating: 1,
         },
@@ -351,6 +353,26 @@ describe('one review per venue per person', () => {
     );
 
     await expect(direct.catch((e) => pgErrorCode(e))).resolves.toBe('23505');
+  });
+
+  it('a player added to the booking reviews the same visit too (#416)', async () => {
+    const booking = await seedBooking({ userId: tenant.userId });
+    await asAppSuperuser(db, (tx) =>
+      tx.bookingParticipant.create({
+        data: {
+          tenantId: tenant.tenantId,
+          bookingId: booking.id,
+          userId: otherUserId,
+          position: 2,
+        },
+      }),
+    );
+
+    await review({ bookingId: booking.id });
+    await expect(
+      review({ bookingId: booking.id, authorUserId: otherUserId, rating: 4 }),
+    ).resolves.toBeDefined();
+    expect(await db.review.count({ where: { bookingId: booking.id } })).toBe(2);
   });
 });
 

@@ -263,9 +263,10 @@ model Review {
   /// rival club can leave one-stars, and a venue can leave itself five-stars,
   /// without either ever setting foot on the court.
   ///
-  /// Unique: one review per booking. Otherwise a single visit is worth as many
-  /// reviews as the author has patience for.
-  bookingId String? @unique
+  /// Unique per booking AND author (#416, P62): every player on a played
+  /// booking may review that visit, once. Otherwise a single visit is worth as
+  /// many reviews as the author has patience for.
+  bookingId String?
 
   /// Nothing is visible until it has been through moderation. The default is
   /// PENDING_REVIEW, not PUBLISHED — a row created by a code path that forgets
@@ -286,5 +287,6 @@ model Review {
   @@index([venueId, status, createdAt])
   @@index([venueId, createdAt])
   @@index([authorUserId])
+  @@unique([bookingId, authorUserId])
   @@map("review")
 }
