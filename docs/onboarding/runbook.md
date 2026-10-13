@@ -126,7 +126,11 @@ which also sells 15 and 30. The track sells 15, 30, 45 or 60 minutes.
 
 Not part of onboarding, because the club does these itself in its admin at
 `/t/{slug}/admin`: peak and off-peak pricing rules, holiday closures, staff,
-and photos (#366). The club fee (#372) comes later.
+photos (#366), and under «Снимки и информация» its own description and each
+venue's description and phone (#530, #536). A venue description or phone in
+the spec is only a starting value the club can change. The name and the
+address stay yours: they feed the public address, the map and the search. The
+club fee (#372) comes later.
 
 ## 2. Write the spec
 

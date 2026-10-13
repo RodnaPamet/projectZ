@@ -39,6 +39,8 @@ export interface ClubJsonLdInput {
   /** The club page's canonical absolute URL. */
   url: string;
   phone?: string | null;
+  /** What the club says about itself (#530). */
+  description?: string | null;
   logoUrl?: string | null;
   /** The club's cover photo URLs, absolute, best first (#366). Empty: no `image`. */
   images?: readonly string[];
@@ -62,6 +64,7 @@ export function buildClubJsonLd(input: ClubJsonLdInput): JsonLd {
     '@type': 'SportsClub',
     '@id': `${input.url}#club`,
     name: input.name,
+    ...(input.description ? { description: input.description } : {}),
     url: input.url,
     ...(input.phone ? { telephone: input.phone } : {}),
     ...(input.logoUrl ? { logo: new URL(input.logoUrl, input.url).toString() } : {}),

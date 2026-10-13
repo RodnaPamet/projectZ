@@ -3,6 +3,12 @@
 import { revalidatePath } from 'next/cache';
 
 import {
+  ClubInfoError,
+  updateClubDescription,
+  updateVenueInfo,
+  type ClubInfoErrorCode,
+} from '@/app-layer/usecases/club-info';
+import {
   deleteObjectsQuietly,
   deleteVenuePhoto,
   moveGalleryPhoto,
@@ -76,4 +82,52 @@ export async function deletePhotoAction(slug: string, photoId: string): Promise<
     // After the commit; a failure is left to the orphan sweep.
     await deleteObjectsQuietly(getMediaStorage(), keys);
   });
+}
+
+// ─── «Информация» (#530): the club's description; a venue's description and phone ───
+
+export type InfoActionResult = { ok: true } | { ok: false; error: ClubInfoErrorCode };
+
+/** As `settle`, for the info writes; the club's and the venue's public pages change too. */
+async function settleInfo(slug: string, fn: () => Promise<void>): Promise<InfoActionResult> {
+  try {
+    await fn();
+  } catch (e) {
+    if (e instanceof ClubInfoError) return { ok: false, error: e.reason };
+    throw e;
+  }
+  revalidatePath(`/t/${slug}/admin/photos`);
+  return { ok: true };
+}
+
+export async function saveClubDescriptionAction(
+  slug: string,
+  _prev: InfoActionResult | null,
+  form: FormData,
+): Promise<InfoActionResult> {
+  const ctx = await requireTenantAction(slug, 'admin.venue_manage');
+  const actor = { tenantId: ctx.tenantId, actorUserId: ctx.userId };
+  return settleInfo(slug, () =>
+    runInTenantContext(ctx.tenantId, (db) =>
+      updateClubDescription(db, actor, form.get('description')),
+    ),
+  );
+}
+
+export async function saveVenueInfoAction(
+  slug: string,
+  venueId: string,
+  _prev: InfoActionResult | null,
+  form: FormData,
+): Promise<InfoActionResult> {
+  const ctx = await requireTenantAction(slug, 'admin.venue_manage');
+  const actor = { tenantId: ctx.tenantId, actorUserId: ctx.userId };
+  return settleInfo(slug, () =>
+    runInTenantContext(ctx.tenantId, (db) =>
+      updateVenueInfo(db, actor, venueId, {
+        description: form.get('description'),
+        phone: form.get('phone'),
+      }),
+    ),
+  );
 }

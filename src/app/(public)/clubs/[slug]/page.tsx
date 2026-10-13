@@ -60,9 +60,9 @@ import { FreeToday } from './FreeToday';
  * The name; the cover (#366: its first venue's that has one, else a tinted
  * band); the club's phone (or its
  * main venue's) and the main venue's address; the sports across all venues.
- * `VenueOrg` has no description column, so there is none (adding one is a
- * migration this page does not need). Then one card per venue: name, address,
- * sports, and its free times today.
+ * What the club says about itself (#530), in its own words, when it has
+ * written something. Then one card per venue: name, address, sports, and its
+ * free times today.
  *
  * ═══ FREE TIMES TODAY, FROM THE VENUE PAGE'S OWN READ ═══
  *
@@ -185,6 +185,7 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
     name: club.name,
     url: absoluteUrl(clubPath(club.slug)),
     phone: club.phone,
+    description: club.description,
     logoUrl: club.logoUrl,
     images: club.cover ? [club.cover.url] : [],
     address: main ?? null,
@@ -281,6 +282,15 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
                   </li>
                 ))}
               </ul>
+            )}
+            {/* What the club says about itself (#530): its own words, as typed. */}
+            {club.description && (
+              <p
+                className="text-content-default text-sm break-words whitespace-pre-wrap"
+                data-testid="club-description"
+              >
+                {club.description}
+              </p>
             )}
             {/* #375: a signed-in player writes to the club, while messaging is on. */}
             <WriteToClub clubSlug={club.slug} className="self-start pt-1" />

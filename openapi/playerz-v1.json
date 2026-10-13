@@ -17602,7 +17602,7 @@
       },
       "ClubPublic": {
         "type": "object",
-        "required": ["id", "slug", "name", "logoUrl", "phone", "cover", "venues"],
+        "required": ["id", "slug", "name", "logoUrl", "description", "phone", "cover", "venues"],
         "properties": {
           "id": {
             "type": "string"
@@ -17615,6 +17615,10 @@
           },
           "logoUrl": {
             "type": ["string", "null"]
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "What the club says about itself (#530), written by its OWNER or MANAGER. Plain text, at most 1000 characters; line breaks are the club's own and are meant to be kept. Null when the club has written nothing."
           },
           "phone": {
             "type": ["string", "null"],
