@@ -87,7 +87,8 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       url: '/',
     },
-    twitter: { card: 'summary', title, description },
+    // The share image is app/opengraph-image.png (#432); Next adds it as og:image.
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 
