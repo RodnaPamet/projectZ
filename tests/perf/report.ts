@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
@@ -318,10 +319,57 @@ export function firstLoadJs(nextDir = '.next'): FirstLoadJs[] {
 
 export interface GitInfo {
   head: string;
-  /** The main commit this tree's app code is from: what the numbers describe. */
+  /**
+   * Where this tree left main (`git merge-base HEAD origin/main`). For a
+   * branch that only changes the harness, that is the commit its app code is
+   * from. For a branch that changes the app it is NOT: see `app`.
+   */
   base: string | null;
   branch: string;
   dirty: boolean;
+  /**
+   * What the run BUILT (#452): a hash of the committed trees the app is made
+   * from (`APP_PATHS`). Two runs with the same `app` measured the same code
+   * whatever their branch or head, and two with different ones did not, even
+   * when they share a `base`. Absent on runs recorded before this existed.
+   */
+  app?: string | null;
+}
+
+/**
+ * Everything a build is made from. A change outside these (the perf harness,
+ * the tests, the docs) leaves `app` as it was, so a harness-only commit
+ * between two runs does not stop them pooling.
+ */
+export const APP_PATHS = [
+  'src',
+  'prisma',
+  'messages',
+  'content',
+  'public',
+  'package-lock.json',
+  'next.config.mjs',
+  'tailwind.config.ts',
+  'postcss.config.mjs',
+  'tsconfig.json',
+] as const;
+
+/**
+ * Do these runs describe the same code? The key each run is compared by, and
+ * what it was read from.
+ *
+ * By `app` when every run has one. Otherwise by `base ?? head`, as before
+ * #452: that cannot tell a branch's app code from main's, which is exactly
+ * what `app` is for, so the caller says so.
+ */
+export function sameCodeKeys(gits: readonly GitInfo[]): {
+  by: 'app' | 'base';
+  keys: string[];
+} {
+  if (gits.length > 0 && gits.every((g) => !!g.app)) {
+    return { by: 'app', keys: [...new Set(gits.map((g) => g.app!))] };
+  }
+  return { by: 'base', keys: [...new Set(gits.map((g) => g.base ?? g.head))] };
 }
 
 const git = (...args: string[]) => {
@@ -335,6 +383,16 @@ const git = (...args: string[]) => {
   }
 };
 
+/**
+ * The hash of what HEAD's app is made from: the tree ids of `APP_PATHS`.
+ * Null outside a repository. It describes the COMMIT; a run on a dirty tree
+ * says so in `dirty`, and its numbers are its own.
+ */
+export function appTreeId(): string | null {
+  const trees = git('ls-tree', 'HEAD', '--', ...APP_PATHS);
+  return trees ? createHash('sha256').update(trees).digest('hex').slice(0, 12) : null;
+}
+
 export function gitInfo(): GitInfo {
   const base = git('merge-base', 'HEAD', 'origin/main');
   return {
@@ -342,6 +400,7 @@ export function gitInfo(): GitInfo {
     base: base ? git('rev-parse', '--short', base) : null,
     branch: git('rev-parse', '--abbrev-ref', 'HEAD'),
     dirty: git('status', '--porcelain', '--untracked-files=no') !== '',
+    app: appTreeId(),
   };
 }
 
