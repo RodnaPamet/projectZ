@@ -14,6 +14,9 @@ import { __resetSessionExpiryForTests } from '@/lib/auth/session-expiry';
 import { DataProvider, ViewerScope } from '@/lib/data/provider';
 import { __resetViewerForTests } from '@/lib/data/viewer';
 
+import { MessagesTabs } from '@/app/(public)/messages/MessagesTabs';
+import { NewMessageLink, NewMessageProvider } from '@/app/(public)/messages/NewMessage';
+
 import { messages, withIntl } from '../helpers/intl';
 import { fail, installFakeFetch, ok } from '../unit/data/fake-v1';
 
@@ -211,6 +214,105 @@ describe('InboxList', () => {
     expect(screen.getByTestId('inbox-empty')).toHaveTextContent(
       messages.messaging.inbox.emptyRequests,
     );
+  });
+});
+
+/**
+ * «Ново съобщение» is on screen once, never twice: the empty «Разговори» list
+ * carries it and the page header's steps aside; with a conversation the header
+ * has it; «Заявки» has no button of its own, so the header does.
+ */
+describe('MessagesTabs — one «Ново съобщение» at a time', () => {
+  const NEW = messages.messaging.new;
+  const empty = { items: [], nextCursor: null };
+  const summary = (id: string): ConversationSummaryDto => ({
+    id,
+    kind: 'player',
+    counterpart: { kind: 'player', userId: 'u2', name: 'Мария', avatarUrl: null, deleted: false },
+    state: 'active',
+    lastMessageAt: '2026-10-10T10:00:00Z',
+    lastMessage: { preview: 'Здравейте', mine: false, deleted: false },
+    unreadCount: 0,
+  });
+  const full = { items: [summary('cv1')], nextCursor: null };
+
+  /** The page's header and tabs, as `/messages` arranges them. */
+  function page(
+    seed: typeof empty | typeof full,
+    { initialTab = 'conversations', coach = false } = {},
+  ) {
+    const tab = initialTab as 'conversations' | 'requests';
+    wrap(
+      <NewMessageProvider carriedBySeed={!coach && tab === 'conversations' && !seed.items.length}>
+        {coach ? null : <NewMessageLink />}
+        <MessagesTabs initialTab={tab} seed={seed} coach={coach} />
+      </NewMessageProvider>,
+    );
+  }
+  const buttons = () => screen.queryAllByRole('link', { name: NEW });
+
+  /** Answers the inbox reads: `list` for Разговори, nothing for «Заявки». */
+  function inbox(list: typeof empty | typeof full) {
+    installFakeFetch(({ url }) => {
+      if (url.includes('/unread')) return ok({ conversations: 0, requests: 0 });
+      return ok(url.includes('tab=requests') ? empty : list);
+    });
+  }
+
+  it('an empty Разговори list carries the button and the header has none', () => {
+    inbox(empty);
+    page(empty);
+    expect(buttons()).toHaveLength(1);
+    expect(
+      within(screen.getByTestId('inbox-empty')).getByRole('link', { name: NEW }),
+    ).toHaveAttribute('href', '/messages/new');
+    expect(screen.queryByTestId('messages-new')).toBeNull();
+  });
+
+  it('with a conversation the header has the only button and there is no empty state', () => {
+    inbox(full);
+    page(full);
+    expect(buttons()).toHaveLength(1);
+    expect(screen.getByTestId('messages-new')).toHaveAttribute('href', '/messages/new');
+    expect(screen.queryByTestId('inbox-empty')).toBeNull();
+  });
+
+  it('an empty «Заявки» has no button of its own, so the header keeps its own', () => {
+    inbox(empty);
+    page(empty, { initialTab: 'requests' });
+    expect(screen.getByTestId('inbox-empty')).toHaveTextContent(
+      messages.messaging.inbox.emptyRequests,
+    );
+    expect(buttons()).toHaveLength(1);
+    expect(screen.getByTestId('messages-new')).toBeInTheDocument();
+  });
+
+  it('the header follows the tab: back on an empty Разговори the list carries it again', async () => {
+    inbox(empty);
+    page(empty);
+    expect(screen.queryByTestId('messages-new')).toBeNull();
+    fireEvent.click(screen.getByText(messages.messaging.tabs.requests));
+    await waitFor(() => expect(screen.getByTestId('messages-new')).toBeInTheDocument());
+    expect(buttons()).toHaveLength(1);
+    fireEvent.click(screen.getByText(messages.messaging.tabs.conversations));
+    await waitFor(() => expect(screen.queryByTestId('messages-new')).toBeNull());
+    expect(buttons()).toHaveLength(1);
+  });
+
+  it('the header follows the list as it re-reads: a conversation arrives and the header takes over', async () => {
+    inbox(full);
+    page(empty);
+    expect(screen.queryByTestId('messages-new')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('messages-new')).toBeInTheDocument());
+    expect(screen.queryByTestId('inbox-empty')).toBeNull();
+    expect(buttons()).toHaveLength(1);
+  });
+
+  it('a coach is offered none: not in the header, not in the empty state', () => {
+    inbox(empty);
+    page(empty, { coach: true });
+    expect(screen.getByTestId('inbox-empty')).toBeInTheDocument();
+    expect(buttons()).toHaveLength(0);
   });
 });
 
