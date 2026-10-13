@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import tailwind from '@tailwindcss/postcss';
-import postcss from 'postcss';
+import { tailwindWarnings } from '../helpers/tailwind';
 
 /**
  * THE GENERATED CSS OPTIMIZES WITHOUT A SINGLE WARNING.
@@ -45,15 +44,9 @@ const GLOBALS = path.join(ROOT, 'src/app/globals.css');
 const OPTIMIZER_WARNING = /Found \d+ warnings? while optimizing generated CSS/;
 
 async function optimizerWarnings(css: string, from: string): Promise<string[]> {
-  const warnings: string[] = [];
-  const spy = jest.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
-    warnings.push(args.map(String).join(' '));
-  });
-  try {
-    await postcss([tailwind({ optimize: { minify: false } })]).process(css, { from });
-  } finally {
-    spy.mockRestore();
-  }
+  // Compiled in a plain Node process (#312): jest 30.5 refuses the module
+  // hooks @tailwindcss/node registers. The same compile, the same warnings.
+  const warnings = tailwindWarnings(css, from);
   // Strip ANSI styling so the failure message reads cleanly.
   return warnings.filter((w) => OPTIMIZER_WARNING.test(w)).map((w) => w.replace(/\x1b\[\d+m/g, ''));
 }
