@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 
 import type { BookingGameDto, OpenGameDto } from '@/app/api/v1/_lib/open-play-dto';
@@ -116,6 +116,69 @@ describe('a game card', () => {
     fireEvent.click(screen.getByRole('button', { name: g.card.withdraw }));
     await waitFor(() => expect(changed).toHaveBeenCalledWith(null));
     expect(calls.find((c) => c.method === 'DELETE')!.url).toBe('/api/v1/me/game-requests/r1');
+  });
+});
+
+describe('reporting a game’s note (#526)', () => {
+  const r = messages.messaging.report;
+
+  it('a signed-in player reports the note: a reason, their words, to the game’s own route', async () => {
+    const calls = installFakeFetch(() => ok({ reported: true }));
+    mount(<GameCard game={GAME} signInHref="/login" />);
+
+    fireEvent.click(screen.getByTestId('game-report-note'));
+    const dialog = await screen.findByRole('dialog', { name: r.titleNote });
+    fireEvent.click(within(dialog).getByLabelText(r.reason.abuse));
+    fireEvent.change(within(dialog).getByLabelText(r.detailsLabel), {
+      target: { value: 'обижда начинаещите' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: r.submit }));
+
+    expect(await screen.findByText(r.sent)).toBeInTheDocument();
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(post.url).toBe('/api/v1/games/g1/report');
+    expect(post.body).toEqual({ reason: 'abuse', details: 'обижда начинаещите' });
+  });
+
+  it('without words, only the reason is sent', async () => {
+    const calls = installFakeFetch(() => ok({ reported: true }));
+    mount(<GameCard game={GAME} signInHref="/login" />);
+    fireEvent.click(screen.getByTestId('game-report-note'));
+    const dialog = await screen.findByRole('dialog', { name: r.titleNote });
+    fireEvent.click(within(dialog).getByLabelText(r.reason.spam));
+    fireEvent.click(within(dialog).getByRole('button', { name: r.submit }));
+    await screen.findByText(r.sent);
+    expect(calls.find((c) => c.method === 'POST')!.body).toEqual({ reason: 'spam' });
+  });
+
+  it('a refusal says the report was not sent', async () => {
+    installFakeFetch(() => fail(429, 'RATE_LIMITED'));
+    mount(<GameCard game={GAME} signInHref="/login" />);
+    fireEvent.click(screen.getByTestId('game-report-note'));
+    const dialog = await screen.findByRole('dialog', { name: r.titleNote });
+    fireEvent.click(within(dialog).getByLabelText(r.reason.other));
+    fireEvent.click(within(dialog).getByRole('button', { name: r.submit }));
+    expect(await screen.findByText(r.failed)).toBeInTheDocument();
+  });
+
+  it('is not offered to a visitor, to the booker, or on a game with no note', () => {
+    const offered = () => screen.queryByTestId('game-report-note');
+
+    const visitor = mount(<GameCard game={{ ...GAME, viewer: null }} signInHref="/login" />);
+    expect(offered()).toBeNull();
+    visitor.unmount();
+
+    const booker = mount(
+      <GameCard
+        game={{ ...GAME, viewer: { ...GAME.viewer!, isBooker: true, isPlaying: true } }}
+        signInHref="/login"
+      />,
+    );
+    expect(offered()).toBeNull();
+    booker.unmount();
+
+    mount(<GameCard game={{ ...GAME, note: null }} signInHref="/login" />);
+    expect(offered()).toBeNull();
   });
 });
 

@@ -501,7 +501,7 @@ export async function coPlayerAt(
  * caller has already proved the reporter can read the subject.
  */
 export async function fileChatReport(input: {
-  subjectType: 'CHAT_MESSAGE' | 'CONVERSATION';
+  subjectType: 'CHAT_MESSAGE' | 'CONVERSATION' | 'OPEN_GAME_NOTE';
   subjectId: string;
   reporterUserId: string;
   reason: string;

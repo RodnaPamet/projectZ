@@ -468,4 +468,58 @@ describe('a reported message (#375)', () => {
     expect(card).toHaveTextContent('20:30');
     expect(card).not.toHaveTextContent('Разговор между играчи');
   });
+
+  it('a reported game note says where and when the game is, and is removed through the same route (#526)', async () => {
+    const note = {
+      ...chat,
+      subject: 'OPEN_GAME_NOTE' as const,
+      caseId: 'n1',
+      conversation: {
+        id: 'g1',
+        kind: 'game' as const,
+        club: null,
+        game: {
+          venueName: 'Алфа Кортове',
+          startTs: '2026-10-09T16:00:00Z',
+          endTs: '2026-10-09T17:30:00Z',
+          timezone: 'Europe/Sofia',
+        },
+        closed: false,
+      },
+      messages: [
+        {
+          id: 'g1',
+          from: { name: 'Иван', deleted: false, clubName: null },
+          body: 'Само за сериозни играчи!!!',
+          deleted: false,
+          createdAt: '2026-10-08T09:00:00Z',
+          reported: true,
+        },
+      ],
+    };
+    const calls = installFakeFetch((c) =>
+      c.method === 'POST'
+        ? ok({ caseId: 'n1', status: 'REJECTED', removed: 'note' })
+        : ok({ items: [note], nextCursor: null }),
+    );
+    mount();
+    await userEvent.type(screen.getByLabelText(moderation.reason.label), REASON);
+    await userEvent.click(screen.getByRole('button', { name: moderation.open }));
+    const card = await screen.findByTestId('moderation-chat-case');
+
+    expect(card).toHaveTextContent('Сигнал за бележка към игра');
+    expect(card).toHaveTextContent('Бележка към игра в Алфа Кортове');
+    expect(card).toHaveTextContent('19:00');
+    expect(card.querySelector('[data-reported="true"]')).toHaveTextContent(
+      'Само за сериозни играчи!!!',
+    );
+
+    await userEvent.type(within(card).getByLabelText(moderation.note.label), 'insulting, removed');
+    await userEvent.click(within(card).getByRole('button', { name: 'Премахни бележката' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST')?.url).toBe(
+        '/api/v1/platform/moderation/message-cases/n1/resolve',
+      ),
+    );
+  });
 });

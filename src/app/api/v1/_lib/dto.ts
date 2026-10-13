@@ -754,7 +754,8 @@ export interface ReviewCaseItemDto {
 
 /** A reported message or conversation (#375): its conversation's latest lines, and what the reports said. */
 export interface ChatCaseItemDto {
-  subject: 'CHAT_MESSAGE' | 'CONVERSATION';
+  /** `OPEN_GAME_NOTE` (#526): `messages` is then the one note, `conversation.id` the game. */
+  subject: 'CHAT_MESSAGE' | 'CONVERSATION' | 'OPEN_GAME_NOTE';
   caseId: string;
   reason: string;
   openedAt: string;

@@ -10,12 +10,14 @@ import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
+import { ReportDialog } from '@/components/messages/ReportDialog';
 import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
+import type { ReportReason } from '@/lib/messaging/report';
 
 import { openPlayErrorKey, type OpenPlayErrorKey } from './game-copy';
 import { useLevelWish } from './use-level-wish';
@@ -72,6 +74,10 @@ export function GameCard({
   const levelWish = useLevelWish();
   const format = useFormatter();
   const [asking, setAsking] = useState(false);
+  // The report dialog is mounted afresh for each report (keyed), from the first
+  // ask on, so closing plays its exit and nothing lingers from the last one.
+  const [reporting, setReporting] = useState(false);
+  const [reportKey, setReportKey] = useState(0);
   const [error, setError] = useState<OpenPlayErrorKey | null>(null);
 
   const timeZone = game.timezone;
@@ -87,6 +93,11 @@ export function GameCard({
   const viewer = game.viewer;
   const request = viewer?.request ?? null;
   const shownStatus = status ?? request?.status ?? null;
+
+  const report = useV1Mutation<{ reason: ReportReason; details: string }>({
+    url: () => V1.reportGameNote(game.id),
+    body: ({ reason, details }) => ({ reason, ...(details ? { details } : {}) }),
+  });
 
   const withdraw = useV1Mutation<{ id: string }>({
     url: ({ id }) => V1.withdrawGameRequest(id),
@@ -160,7 +171,28 @@ export function GameCard({
       </div>
 
       {game.note ? (
-        <p className="text-content-default text-sm break-words whitespace-pre-wrap">{game.note}</p>
+        <div className="flex items-start gap-2">
+          <p className="text-content-default min-w-0 flex-1 text-sm break-words whitespace-pre-wrap">
+            {game.note}
+          </p>
+          {/* A signed-in player may report a note that is not their own (#526).
+              The booker is not told; the moderators never learn who reported. */}
+          {viewer && !viewer.isBooker ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="shrink-0"
+              onClick={() => {
+                setReportKey((k) => k + 1);
+                setReporting(true);
+              }}
+              data-testid="game-report-note"
+            >
+              {t('reportNote')}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="flex items-center gap-2">
@@ -222,6 +254,16 @@ export function GameCard({
           </Button>
         ) : null}
       </div>
+
+      {reportKey > 0 ? (
+        <ReportDialog
+          key={reportKey}
+          open={reporting}
+          setOpen={setReporting}
+          subject="note"
+          onSubmit={(body) => report.trigger(body)}
+        />
+      ) : null}
 
       {asking ? (
         <AskDialog

@@ -1264,3 +1264,28 @@ export async function lapseOpenPlayRequests(
   }
   return { lapsed: claimed.length };
 }
+
+/**
+ * For a report of a game's public note (#526): whether this game is the
+ * caller's own, and whether it has a note. Null when there is no such game
+ * for them: an unknown id, or a game whose booker and the caller have blocked
+ * each other, which the caller is not shown either.
+ */
+export async function gameNoteStanding(
+  userId: string,
+  gameId: string,
+): Promise<{ own: boolean; hasNote: boolean } | null> {
+  // guardrail-allow: cross-tenant — one game by the id the public listing
+  // showed, before any club is bound; it says whose it is and whether it has a
+  // note, and returns neither the note nor the booker.
+  return runAsSuperuser(async (db) => {
+    const g = await db.openGame.findUnique({
+      where: { id: gameId },
+      select: { note: true, booking: { select: { bookedByUserId: true } } },
+    });
+    if (!g) return null;
+    const booker = g.booking.bookedByUserId;
+    if (booker && (await blockedEitherWay(db, userId)).includes(booker)) return null;
+    return { own: booker === userId, hasNote: !!g.note?.trim() };
+  });
+}

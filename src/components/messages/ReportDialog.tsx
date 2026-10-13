@@ -12,8 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { REPORT_DETAILS_MAX, REPORT_REASONS, type ReportReason } from '@/lib/messaging/report';
 
 /**
- * "Подай сигнал" (#375): report a message or a whole conversation to the
- * platform's moderators — a reason, and the person's own words if they want.
+ * "Подай сигнал" (#375): report a message, a whole conversation or the public
+ * note on a game (#526) to the platform's moderators — a reason, and the person's own words if they want.
  * The vendored Modal (a dialog from `sm`, a drawer on a phone) over the
  * vendored RadioGroup and Textarea. The other side is never told; the
  * moderator never learns who reported. Mounted afresh for each report (the
@@ -27,12 +27,18 @@ export function ReportDialog({
 }: {
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
-  /** What is reported: one message, or the whole conversation. */
-  subject: 'message' | 'conversation';
+  /** What is reported: one message, the whole conversation, or a game's public note (#526). */
+  subject: 'message' | 'conversation' | 'note';
   /** Sends the report; rejects on a refusal. */
   onSubmit: (report: { reason: ReportReason; details: string }) => Promise<unknown>;
 }) {
   const t = useTranslations('messaging.report');
+  const title =
+    subject === 'message'
+      ? t('titleMessage')
+      : subject === 'note'
+        ? t('titleNote')
+        : t('titleConversation');
   const ids = useId();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState('');
@@ -56,16 +62,8 @@ export function ReportDialog({
   }
 
   return (
-    <Modal
-      showModal={open}
-      setShowModal={setOpen}
-      size="sm"
-      title={subject === 'message' ? t('titleMessage') : t('titleConversation')}
-    >
-      <Modal.Header
-        title={subject === 'message' ? t('titleMessage') : t('titleConversation')}
-        description={t('description')}
-      />
+    <Modal showModal={open} setShowModal={setOpen} size="sm" title={title}>
+      <Modal.Header title={title} description={t('description')} />
       <Modal.Form
         onSubmit={(e) => {
           e.preventDefault();

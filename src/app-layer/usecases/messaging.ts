@@ -1359,7 +1359,7 @@ export interface ReportInput {
 }
 
 /** `spam`, or `abuse — what they said`: one line for the moderator, the category first. */
-function reportReason(input: ReportInput): string {
+export function reportReason(input: ReportInput): string {
   const details = sanitizePlainText(input.details ?? '')
     .replace(/\s+/g, ' ')
     .trim()

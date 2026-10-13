@@ -20,6 +20,9 @@ enum ModerationSubject {
   /// A whole conversation (#375, P55): reported from its screen. A new value,
   /// so rolling back past P55 runs deploy/rollback/p55-park.sql.
   CONVERSATION
+  /// The public note on an open game (#526, P67); the subject id is the
+  /// open_game's id. Rolling back past P67 runs deploy/rollback/p67-park.sql.
+  OPEN_GAME_NOTE
 }
 
 /// The human review queue — the backstop the classifier is not.
