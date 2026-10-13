@@ -373,6 +373,47 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
       };
     },
   },
+  // ── A coach's profile and the owner's approval (#545) ─────────────
+  CoachAccountRequiredError: { status: 403, code: 'COACH_ACCOUNT_REQUIRED' },
+  CoachProfileInvalidError: {
+    status: 400,
+    code: 'VALIDATION_ERROR',
+    details: (e) => {
+      const { field, reason } = e as Error & { field: string; reason: string };
+      return { field, reason };
+    },
+  },
+  // What the file is decides, not what it is called: `details.reason` is
+  // EMPTY, TOO_LARGE or NOT_A_CERTIFICATE.
+  CertificateRefusedError: {
+    status: 400,
+    code: 'CERTIFICATE_REFUSED',
+    clientMessage: 'Upload a PDF, or a JPEG, PNG or WebP image, of 5 MB at most.',
+    details: (e) => ({ reason: (e as Error & { reason: string }).reason }),
+  },
+  CoachProfileLockedError: {
+    status: 409,
+    code: 'COACH_PROFILE_LOCKED',
+    details: (e) => ({ state: (e as Error & { state: string }).state }),
+  },
+  CoachProfileIncompleteError: {
+    status: 409,
+    code: 'COACH_PROFILE_INCOMPLETE',
+    details: (e) => ({ missing: (e as Error & { missing: string[] }).missing }),
+  },
+  CoachProfileNotSubmittedError: { status: 409, code: 'COACH_PROFILE_NOT_SUBMITTED' },
+  CoachApplicationNotFoundError: { status: 404, code: 'COACH_APPLICATION_NOT_FOUND' },
+  CoachApplicationStateError: {
+    status: 409,
+    code: 'COACH_APPLICATION_STATE',
+    details: (e) => ({ status: (e as Error & { status: string }).status }),
+  },
+  CoachHasUpcomingLessonsError: {
+    status: 409,
+    code: 'COACH_HAS_UPCOMING_LESSONS',
+    details: (e) => ({ lessons: (e as Error & { lessons: number }).lessons }),
+  },
+
   // The account is gone (deleted from another tab) or never was: from the
   // caller's side that is "not signed in", as GET /me answers a missing row.
   AccountNotFoundForDeletionError: {

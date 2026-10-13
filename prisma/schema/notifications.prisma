@@ -34,6 +34,12 @@ enum NotificationKind {
   /// To the player: the game closed (the booker closed it, or the booking was
   /// cancelled) while their request was waiting.
   OPEN_PLAY_CLOSED
+  /// A coach sent their profile for approval (#377): to the operator's inbox.
+  COACH_PROFILE_SUBMITTED
+  /// The platform approved a coach's profile: to the coach.
+  COACH_PROFILE_APPROVED
+  /// The platform declined a coach's profile, or removed an approved coach.
+  COACH_PROFILE_DECLINED
 }
 
 /// Where an email stands in the outbox (#367).

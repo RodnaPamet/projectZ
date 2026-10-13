@@ -29,6 +29,7 @@ export const PLATFORM_CAPABILITIES = [
   PlatformCapability.REVIEW_MODERATE,
   PlatformCapability.CLUB_FEE_MANAGE,
   PlatformCapability.CONTACT_READ,
+  PlatformCapability.COACH_APPROVE,
 ] as const;
 
 /**
@@ -47,6 +48,7 @@ export const PLATFORM_WRITE_CAPABILITIES: ReadonlySet<PlatformCapability> = new 
   PlatformCapability.TENANT_SUSPEND,
   PlatformCapability.REVIEW_MODERATE,
   PlatformCapability.CLUB_FEE_MANAGE,
+  PlatformCapability.COACH_APPROVE,
 ]);
 
 /**
@@ -90,6 +92,15 @@ export const STEP_UP_PLATFORM_WRITES: ReadonlySet<PlatformCapability> = new Set(
   // bookings. CLOSED is final. Every change states a reason and is audited
   // twice, on the platform and in the club's own log.
   PlatformCapability.TENANT_SUSPEND,
+  // Who may teach here (#377, owner decisions 13 and 17). Its reach is one
+  // coach's profile at a time: approved, declined with a note, or removed. It
+  // is also the only way anybody but the coach reads the uploaded certificate,
+  // a personal document; so, as with moderation, the READS run under it too,
+  // and the queue and the certificate need the second factor as much as the
+  // decision does. Every decision and every opening of a certificate is
+  // audited by name. A club never holds this: a club must not decide who its
+  // competitors' coaches are, nor see anybody's licence.
+  PlatformCapability.COACH_APPROVE,
 ]);
 
 export function isWriteCapability(capability: PlatformCapability): boolean {

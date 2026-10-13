@@ -231,6 +231,43 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p72
+
+`20261014050000_p72_coach_approval` (#545) adds `COACH_APPROVE` to
+`PlatformCapability` and three `COACH_PROFILE_*` values to `NotificationKind`.
+The shell reads the signed-in person's live grant on every page, so a grant
+that carries `COACH_APPROVE` would lock its holder out of the previous image;
+the bell reads a person's notifications on every page. Park them before
+starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p72-park.sql
+```
+
+and give them back after rolling forward again, with the p72 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p72-unpark.sql
+```
+
+While parked:
+
+- A grant that carries other capabilities keeps those, and its holder keeps
+  working. A grant that carries `COACH_APPROVE` alone is absent until the
+  unpark.
+- The audit rows written under `COACH_APPROVE` are **not deleted**. They sit,
+  whole, in `p72_parked_platform_audit_entry`, and the unpark returns them.
+  Do not drop that table by hand.
+- The scripts switch the grant-immutability and audit append-only triggers
+  off for their own transaction and check, before committing, that both are
+  on again. `tests/integration/p72-rollback-park.test.ts` pins that.
+
+The rest of p72 stays: the `'account'` email category is text, which the
+previous image's drain sends without knowing it, and the trigger on
+`coach_profile` guards a table the previous image never writes.
+
 ### Rolling back past p67
 
 `20261014000000_p67_report_game_note` (#526) adds `OPEN_GAME_NOTE` to

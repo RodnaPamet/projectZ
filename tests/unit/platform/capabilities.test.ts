@@ -130,7 +130,7 @@ describe('the capability list', () => {
     //
     // Named explicitly: anything whose name implies mutation must be in the set.
     const mutating = PLATFORM_CAPABILITIES.filter((c) =>
-      /SUSPEND|WRITE|DELETE|CREATE|UPDATE|MANAGE|GRANT|MODERATE/.test(c),
+      /SUSPEND|WRITE|DELETE|CREATE|UPDATE|MANAGE|GRANT|MODERATE|APPROVE/.test(c),
     );
 
     expect(mutating.length).toBeGreaterThan(1);
@@ -141,17 +141,19 @@ describe('the capability list', () => {
 });
 
 describe('which writes the binding refuses', () => {
-  it('enables exactly three writes, by name, behind a step-up', () => {
+  it('enables exactly four writes, by name, behind a step-up', () => {
     // Pinned so enabling another cross-club write is an edit to THIS file as
     // well as to the set, and a reviewer sees both. The terms each is enabled
     // on are written beside STEP_UP_PLATFORM_WRITES. CLUB_FEE_MANAGE (#372)
     // sets one club's fee terms, which only affect fee lines written after it.
     // TENANT_SUSPEND (#254) takes one club offline, by the owner's decision of
-    // 2026-10-13.
+    // 2026-10-13. COACH_APPROVE (#377) decides one coach's profile and is the
+    // only way to a coach's uploaded certificate (owner decisions 13 and 17).
     expect([...STEP_UP_PLATFORM_WRITES]).toEqual([
       PlatformCapability.REVIEW_MODERATE,
       PlatformCapability.CLUB_FEE_MANAGE,
       PlatformCapability.TENANT_SUSPEND,
+      PlatformCapability.COACH_APPROVE,
     ]);
   });
 
@@ -159,6 +161,7 @@ describe('which writes the binding refuses', () => {
     expect(isRefusedWrite(PlatformCapability.REVIEW_MODERATE)).toBe(false);
     expect(isRefusedWrite(PlatformCapability.CLUB_FEE_MANAGE)).toBe(false);
     expect(isRefusedWrite(PlatformCapability.TENANT_SUSPEND)).toBe(false);
+    expect(isRefusedWrite(PlatformCapability.COACH_APPROVE)).toBe(false);
     for (const read of [
       PlatformCapability.TENANT_READ,
       PlatformCapability.AUDIT_READ,

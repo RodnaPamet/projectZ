@@ -66,6 +66,12 @@ enum PlatformCapability {
   /// names, phones and emails people sent to the operator, so it is granted
   /// by name and every read is audited, like any other platform read.
   CONTACT_READ
+  /// Decide who may teach here (#377, owner decision 13): read the coaches'
+  /// applications, open the uploaded certificate, approve, decline or remove.
+  /// A WRITE, enabled by name in STEP_UP_PLATFORM_WRITES, so the queue and the
+  /// certificate need a step-up as much as the decision does; granted
+  /// explicitly, never implied by another capability.
+  COACH_APPROVE
 }
 
 /// One person's platform authority, for a bounded window.
