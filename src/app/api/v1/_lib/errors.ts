@@ -414,6 +414,32 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     details: (e) => ({ lessons: (e as Error & { lessons: number }).lessons }),
   },
 
+  // ── A coach and a club's venue (#546) ─────────────────────────────
+  CoachNotApprovedError: { status: 403, code: 'COACH_NOT_APPROVED' },
+  CoachSuspendedAtClubError: { status: 403, code: 'COACH_SUSPENDED_AT_CLUB' },
+  CoachVenueNotFoundError: { status: 404, code: 'VENUE_NOT_FOUND' },
+  CoachLinkNotFoundError: { status: 404, code: 'COACH_LINK_NOT_FOUND' },
+  CoachLinkExistsError: {
+    status: 409,
+    code: 'COACH_LINK_EXISTS',
+    details: (e) => ({ status: (e as Error & { status: string }).status }),
+  },
+  CoachLinkStateError: {
+    status: 409,
+    code: 'COACH_LINK_STATE',
+    details: (e) => ({ status: (e as Error & { status: string }).status }),
+  },
+  TeachingInvalidError: {
+    status: 400,
+    code: 'VALIDATION_ERROR',
+    details: (e) => {
+      const { field, reason } = e as Error & { field: string; reason: string };
+      return { field, reason };
+    },
+  },
+  CoachTimeOffLimitError: { status: 409, code: 'COACH_TIME_OFF_LIMIT' },
+  CoachTimeOffNotFoundError: { status: 404, code: 'COACH_TIME_OFF_NOT_FOUND' },
+
   // The account is gone (deleted from another tab) or never was: from the
   // caller's side that is "not signed in", as GET /me answers a missing row.
   AccountNotFoundForDeletionError: {

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 
 import { acceptInvite, InviteNeedsAnotherAccountError } from '@/app-layer/usecases/invites';
+import { MODULE_HREFS } from '@/components/layout/nav-items';
 import type { AccountKindRefusal } from '@/lib/auth/account-kind';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { accountKindViolation } from '@/lib/db/pg-errors';
@@ -48,9 +49,11 @@ export async function acceptInviteAction(token: string): Promise<{ error: Accept
   if (!userId) return { error: 'SIGN_IN_REQUIRED' };
 
   let slug: string;
+  let asCoach: boolean;
   try {
     const result = await runAsSuperuser((db) => acceptInvite(db, token, userId));
     slug = result.tenantSlug;
+    asCoach = result.role === 'COACH';
   } catch (err) {
     if (err instanceof InviteNeedsAnotherAccountError) return { error: err.refusal };
 
@@ -67,5 +70,7 @@ export async function acceptInviteAction(token: string): Promise<{ error: Accept
     return { error: 'NOT_USABLE' };
   }
 
-  redirect(`/t/${slug}`);
+  // A coach is not the club's staff: their place is their own coach page,
+  // where the club they just joined is listed with its terms to fill in (#546).
+  redirect(asCoach ? MODULE_HREFS.coaches : `/t/${slug}`);
 }
