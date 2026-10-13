@@ -5,6 +5,7 @@ import bg from '../../../messages/bg.json';
 import en from '../../../messages/en.json';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import { expect, test } from '../fixtures';
+import { streamed } from '../utils/streamed';
 import { grantModerator } from '../utils/create-player';
 import { settleAnimations } from '../utils/settle-animations';
 
@@ -101,6 +102,7 @@ async function openDrawer(page: Page) {
 test.describe('the frames — phone', () => {
   test('signed out: Играй and Вход, under the thumb', async ({ page }) => {
     await page.goto('/venues');
+    await streamed(page);
     const bar = page.locator(TAB_BAR);
     await expect(bar).toBeVisible();
     expect(await tabNames(page)).toEqual([n.play, n.signIn]);
@@ -127,6 +129,7 @@ test.describe('the frames — phone', () => {
 
   test('a tab tap navigates, and the bar stays', async ({ page }) => {
     await page.goto('/');
+    await streamed(page);
     // The SHOWN bar: `/` wears its own layout's chrome (the (home) group), so
     // across this navigation the router may hold the previous page's copy
     // hidden beside the new one, and a bare selector matches both.
@@ -140,6 +143,7 @@ test.describe('the frames — phone', () => {
 
   test('is not on /login, where the page has one job', async ({ page }) => {
     await page.goto('/login');
+    await streamed(page);
     await expect(page.getByRole('heading', { level: 1, name: bg.login.title })).toBeVisible();
     await expect(page.locator(TAB_BAR)).toHaveCount(0);
   });
@@ -148,8 +152,7 @@ test.describe('the frames — phone', () => {
     playerPage: page,
   }) => {
     await page.goto('/me/bookings');
-    // By role, not `main h1`: under the 300 ms reveal throttle a streamed page
-    // sits in a hidden copy beside the shown one, and `main h1` finds both.
+    await streamed(page);
     await expect(page.getByRole('heading', { level: 1, name: bg.myBookings.title })).toBeVisible();
     expect(await tabNames(page)).toEqual(PLAYER_TABS);
     await expect(page.locator(TAB_BAR).getByRole('link', { name: n.bookings })).toHaveAttribute(
@@ -178,6 +181,7 @@ test.describe('the frames — phone', () => {
     playerPage: page,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     const drawer = await openDrawer(page);
     await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText(PLAYER_DRAWER);
     // The rail's foot comes along: the player, and Изход.
@@ -196,6 +200,7 @@ test.describe('the frames — phone', () => {
     playerPage: page,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     const toggle = page.getByTestId('nav-toggle');
     await toggle.focus();
     await page.keyboard.press('Enter');
@@ -211,6 +216,7 @@ test.describe('the frames — phone', () => {
     player,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     await page.locator(TAB_BAR).getByRole('link', { name: n.profile }).tap();
     await expect(page).toHaveURL(/\/me\/profile$/);
     await expect(page.getByRole('heading', { level: 1, name: player.name })).toBeVisible();
@@ -233,6 +239,7 @@ test.describe('the frames — phone', () => {
     playerPage: page,
   }) => {
     await page.goto('/me/profile');
+    await streamed(page);
     await page.getByTestId('profile-language-row').getByRole('radio', { name: 'English' }).tap();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     // By test id: the bar's own name is English now too.
@@ -251,6 +258,7 @@ test.describe('the frames — phone', () => {
 
   test('the bell opens "Нямате известия" as a sheet', async ({ playerPage: page }) => {
     await page.goto('/venues');
+    await streamed(page);
     const bell = page.getByTestId('header-notifications');
     await expect(bell).toHaveAccessibleName(n.notifications);
     // The vendored Popover picks its phone sheet after hydration and re-mounts
@@ -268,6 +276,7 @@ test.describe('the frames — phone', () => {
 
   test('coach: a player’s bar and drawer', async ({ coachPage: page }) => {
     await page.goto('/venues');
+    await streamed(page);
     expect(await tabNames(page)).toEqual(PLAYER_TABS);
     await openDrawer(page);
     await expect(page.locator(DRAWER_NAV).getByRole('link')).toHaveText(PLAYER_DRAWER);
@@ -280,6 +289,7 @@ test.describe('the frames — phone', () => {
   }) => {
     await grantModerator(player.userId, isolatedTenant.userId);
     await page.goto('/venues');
+    await streamed(page);
     const drawer = await openDrawer(page);
     // The section's title; the foot names the grant too.
     await expect(page.locator(DRAWER_NAV).getByText(n.platform)).toBeVisible();
@@ -298,9 +308,8 @@ test.describe('the frames — phone', () => {
   }) => {
     await grantModerator(player.userId, isolatedTenant.userId);
     await page.goto('/me/profile');
-    // The shown row: a streamed page can sit in a hidden copy beside the shown
-    // one under the 300 ms reveal throttle (#367).
-    await page.getByTestId('profile-platform').filter({ visible: true }).tap();
+    await streamed(page);
+    await page.getByTestId('profile-platform').tap();
     await expect(page).toHaveURL(/\/platform\/moderation$/);
     await expect(
       page.getByRole('heading', { level: 1, name: bg.platform.moderation.title, exact: true }),
@@ -313,6 +322,7 @@ test.describe('the frames — phone', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto('/venues');
+    await streamed(page);
     await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
     expect(await tabNames(page)).toEqual([n.calendar, n.courts, n.players, n.more]);
     await expect(page.getByTestId('site-header-admin')).toHaveCount(0);
@@ -337,6 +347,7 @@ test.describe('the frames — phone', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto('/venues');
+    await streamed(page);
     await page.locator(TAB_BAR).getByRole('link', { name: n.calendar }).tap();
     await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
     await expect(page.locator(TAB_BAR).getByRole('link', { name: n.calendar })).toHaveAttribute(
@@ -357,6 +368,7 @@ test.describe('the frames — phone', () => {
     test(`axe: signed out /venues, ${theme}`, async ({ page, baseURL }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       await expectAxeClean(page);
@@ -366,6 +378,7 @@ test.describe('the frames — phone', () => {
     test(`axe: player /me/profile, ${theme}`, async ({ playerPage: page, baseURL }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/me/profile');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       await expectAxeClean(page);
@@ -378,6 +391,7 @@ test.describe('the frames — phone', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await openDrawer(page);
       await expect(page.locator(DRAWER_NAV).getByRole('link', { name: n.play })).toBeVisible();
@@ -387,6 +401,7 @@ test.describe('the frames — phone', () => {
     test(`axe: club account on /venues, ${theme}`, async ({ authedPage: page, baseURL }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       await expectAxeClean(page);

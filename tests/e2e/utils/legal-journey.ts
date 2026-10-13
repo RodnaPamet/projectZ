@@ -4,7 +4,8 @@ import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
-import { expectAxeClean, streamed } from './booking-detail-journey';
+import { expectAxeClean } from './booking-detail-journey';
+import { streamed } from './streamed';
 
 /**
  * The legal pages, the account-deletion help and the cookie notice (#370,

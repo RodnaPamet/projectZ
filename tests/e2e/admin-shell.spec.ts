@@ -5,6 +5,7 @@ import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
 import bg from '../../messages/bg.json';
 
 import { expect, test } from './fixtures';
+import { streamed } from './utils/streamed';
 import {
   clubPageToVenue,
   destroyClubVenue,
@@ -42,6 +43,7 @@ test.describe('club admin shell — desktop', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     const nav = page.locator(MAIN_NAV);
     await expect(nav).toBeVisible();
 
@@ -76,6 +78,7 @@ test.describe('club admin shell — desktop', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto(`/t/${slug}/admin/courts`);
+    await streamed(page);
     // Играй: where `/` sends anybody signed in (#362), linked directly.
     await expect(page.getByTestId('shell-wordmark')).toHaveAttribute('href', '/venues');
     // No bottom bar on a desktop.
@@ -92,6 +95,7 @@ test.describe('club admin shell — desktop', () => {
     // The account menu is every shell's (owner, 2026-10-08): the profile and
     // sign-out, under the theme and the language.
     await page.goto(`/t/${slug}/admin/courts`);
+    await streamed(page);
     await page.getByTestId('top-chrome-user-menu').click();
     const menu = page.getByRole('menu', { name: bg.nav.accountMenu });
     await expect(menu.getByTestId('user-menu-profile')).toHaveAttribute('href', '/me/profile');
@@ -106,6 +110,7 @@ test.describe('club admin shell — desktop', () => {
     const venue = await seedClubVenue(isolatedTenant.tenantId, slug);
     try {
       await page.goto(`/t/${slug}/admin/courts`);
+      await streamed(page);
       await page.getByTestId('shell-public-link').click();
       await expect(page).toHaveURL(new RegExp(`/clubs/${slug}$`));
       // The page's title streams in after its body (Next's async metadata),
@@ -132,6 +137,7 @@ test.describe('club admin shell — desktop', () => {
     const slug = isolatedTenant.tenantSlug;
     // The club admin's home offers staff its three pages, as the rail does.
     await page.goto(`/t/${slug}/admin`);
+    await streamed(page);
     await expect(
       page.getByRole('heading', { level: 1, name: bg.admin.home.title, exact: true }),
     ).toBeVisible();
@@ -148,6 +154,7 @@ test.describe('club admin shell — desktop', () => {
 
     // By URL: the app's not-found, INSIDE the admin shell, not a bare page.
     await page.goto(`/t/${slug}/admin/courts`);
+    await streamed(page);
     await expect(page.getByTestId('shell-not-found')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: bg.notFound.title })).toBeAttached();
     await expect(page.locator(MAIN_NAV)).toBeVisible();
@@ -166,6 +173,7 @@ test.describe('club admin shell — desktop', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto(`/t/${slug}/admin/courts`);
+    await streamed(page);
     const foot = page.locator('aside').getByTestId('sidebar-account');
     await expect(foot).toContainText(`E2E ${slug}`);
     await expect(foot).toContainText(bg.admin.staff.role.OWNER);
@@ -194,6 +202,7 @@ test.describe('club admin shell — desktop', () => {
 
   test('the club admin’s home switches the theme', async ({ authedPage: page, isolatedTenant }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin`);
+    await streamed(page);
     const html = page.locator('html');
     const before = await html.getAttribute('data-theme');
     const after = before === 'dark' ? 'light' : 'dark';
@@ -206,6 +215,7 @@ test.describe('club admin shell — desktop', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     const rail = page.locator('aside[data-collapsed]');
     await expect(rail).toHaveAttribute('data-collapsed', 'false');
 
@@ -226,6 +236,7 @@ test.describe('club admin shell — desktop', () => {
 
   test('the nav works from the keyboard', async ({ authedPage: page, isolatedTenant }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     const pricing = page.locator(MAIN_NAV).getByRole('link', { name: bg.common.nav.pricing });
     await expect(pricing).toBeVisible();
 
@@ -250,6 +261,7 @@ test.describe('club admin shell — desktop', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     await page.getByTestId('top-chrome-user-menu').click();
     await expect(page.getByTestId('user-menu-theme-row')).toBeVisible();
     await expect(page.getByTestId('user-menu-language-row')).toBeVisible();
@@ -259,6 +271,7 @@ test.describe('club admin shell — desktop', () => {
 
   test('the sidebar’s foot signs out too', async ({ authedPage: page, isolatedTenant }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     await page.locator('aside').getByTestId('nav-logout').click();
     await expect(page).toHaveURL(/\/$/);
   });
@@ -276,6 +289,7 @@ test.describe('club admin shell — desktop', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto(`/t/${isolatedTenant.tenantSlug}/admin${path ? `/${path}` : ''}`);
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(
         page.getByRole('heading', {

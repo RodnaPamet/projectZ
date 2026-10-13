@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
+import { streamed } from './streamed';
 
 import bg from '../../../messages/bg.json';
 import { prisma } from './create-isolated-tenant';
@@ -45,21 +46,6 @@ export async function setVenue(club: PlayedClub, data: { cutoffHours: number; ph
       data: { cancellationCutoffHours: data.cutoffHours, phone: data.phone ?? null },
     });
   });
-}
-
-/**
- * Wait until the page's streamed content is in place.
- *
- * These pages have a `loading.tsx`, so the server sends the skeleton first and
- * the page later, as `<div hidden id="S:n">…</div>` plus a script that swaps
- * it in, which React 19 holds back for up to its 300 ms reveal throttle. Until
- * then the page's markup is in the DOM TWICE in effect: hidden, and about to
- * be shown. `getByTestId` and `getByText` match hidden nodes, so a check made
- * in that window fails strict mode on two elements. Role locators skip hidden
- * nodes; these do not, so every check of them waits for this first.
- */
-export async function streamed(page: Page) {
-  await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
 }
 
 export async function expectAxeClean(page: Page) {

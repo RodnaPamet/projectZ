@@ -7,6 +7,7 @@ import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { UI_STORAGE_PREFIX } from '../../src/lib/ui-storage';
 
 import { expect, test } from './fixtures';
+import { streamed } from './utils/streamed';
 import { grantModerator } from './utils/create-player';
 import { settleAnimations } from './utils/settle-animations';
 
@@ -60,6 +61,7 @@ async function expectAxeClean(page: Page, disableRules: string[] = []) {
 test.describe('the frames — desktop', () => {
   test('signed out: the public header, Играй and Вход, and no sidebar', async ({ page }) => {
     await page.goto('/venues');
+    await streamed(page);
     await expect(page.locator(PUBLIC_NAV).getByRole('link', { name: n.play })).toBeVisible();
     await expect(page.locator('header a[href="/login"]')).toBeVisible();
     await expect(page.locator('aside')).toHaveCount(0);
@@ -72,6 +74,7 @@ test.describe('the frames — desktop', () => {
     player,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     const rail = page.locator(RAIL);
     await expect(rail).toBeVisible();
     await expect(rail.getByRole('link')).toHaveText(PLAYER_NAV);
@@ -113,6 +116,7 @@ test.describe('the frames — desktop', () => {
     playerPage: page,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     const menu = await openMenu(page);
     await menu
       .getByTestId('user-menu-language-row')
@@ -135,6 +139,7 @@ test.describe('the frames — desktop', () => {
     playerPage: page,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     const menu = await openMenu(page);
     await menu.getByTestId('user-menu-profile').click();
     await expect(page).toHaveURL(/\/me\/profile$/);
@@ -145,6 +150,7 @@ test.describe('the frames — desktop', () => {
 
   test('player: signed in, `/` is Играй', async ({ playerPage: page }) => {
     await page.goto('/');
+    await streamed(page);
     await expect(page).toHaveURL(/\/venues$/);
     await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
     await expect(page.locator(RAIL)).toBeVisible();
@@ -154,6 +160,7 @@ test.describe('the frames — desktop', () => {
     playerPage: page,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     const aside = page.locator('aside[data-collapsed]');
     await expect(aside).toHaveAttribute('data-collapsed', 'false');
     await page.getByTestId('sidebar-collapse-toggle').click();
@@ -171,6 +178,7 @@ test.describe('the frames — desktop', () => {
     coachPage: page,
   }) => {
     await page.goto('/venues');
+    await streamed(page);
     await expect(page.locator(RAIL).getByRole('link')).toHaveText(PLAYER_NAV);
   });
 
@@ -181,6 +189,7 @@ test.describe('the frames — desktop', () => {
   }) => {
     await grantModerator(player.userId, isolatedTenant.userId);
     await page.goto('/venues');
+    await streamed(page);
     const rail = page.locator(RAIL);
     await expect(rail.getByText(n.platform)).toBeVisible();
     await expect(rail.getByRole('link')).toHaveText([...PLAYER_NAV, n.moderation, n.security]);
@@ -207,6 +216,7 @@ test.describe('the frames — desktop', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto('/venues');
+    await streamed(page);
     const rail = page.locator(RAIL);
     await expect(rail.getByRole('link', { name: n.calendar })).toHaveAttribute(
       'href',
@@ -235,6 +245,7 @@ test.describe('the frames — desktop', () => {
 
     // A club account cannot book, so Резервации is not its page (audit C12).
     await page.goto('/me/bookings');
+    await streamed(page);
     await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
   });
 
@@ -244,6 +255,7 @@ test.describe('the frames — desktop', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto('/venues');
+    await streamed(page);
     await page.locator(RAIL).getByRole('link', { name: n.calendar }).click();
     await expect(page).toHaveURL(new RegExp(`/t/${slug}/admin/calendar$`));
     await expect(
@@ -263,6 +275,7 @@ test.describe('the frames — desktop', () => {
 
   test('/login does not link to itself (#319, audit A05)', async ({ page }) => {
     await page.goto('/login');
+    await streamed(page);
     await expect(page.locator(PUBLIC_NAV).getByRole('link', { name: n.play })).toBeVisible();
     await expect(page.locator('header a[href="/login"]')).toHaveCount(0);
   });
@@ -296,6 +309,7 @@ test.describe('the frames — desktop', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
       await expect(page.locator('main')).toHaveCount(1);
@@ -308,6 +322,7 @@ test.describe('the frames — desktop', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       const menu = await openMenu(page);
       await expect(menu.getByTestId('user-menu-language-row')).toBeVisible();
@@ -324,6 +339,7 @@ test.describe('the frames — desktop', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/venues');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.getByRole('heading', { level: 1, name: bg.venues.title })).toBeVisible();
       await expectAxeClean(page);

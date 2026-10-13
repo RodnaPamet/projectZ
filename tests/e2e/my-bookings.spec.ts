@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import bg from '../../messages/bg.json';
 import { THEME_COOKIE } from '../../src/lib/theme-constants';
 import { expect, test as base } from './fixtures';
+import { streamed } from './utils/streamed';
 import { destroyPlayedClub, seedPlayedClub, type PlayedClub } from './utils/seed-my-bookings';
 
 /**
@@ -65,6 +66,7 @@ test.describe('my bookings — desktop', () => {
   }) => {
     const read = listRead(page);
     await page.goto('/me/bookings');
+    await streamed(page);
 
     await expect(page.getByRole('heading', { level: 1, name: mb.title })).toBeVisible();
     const cards = page.locator('[data-perf-ready] > li');
@@ -88,6 +90,7 @@ test.describe('my bookings — desktop', () => {
     club,
   }) => {
     await page.goto('/me/bookings?tab=past');
+    await streamed(page);
     const played = page.locator('[data-perf-ready] > li').first();
 
     await played.getByRole('button', { name: mb.review.rate }).click();
@@ -117,6 +120,7 @@ test.describe('my bookings — desktop', () => {
       }),
     );
     await page.goto('/me/bookings?tab=past');
+    await streamed(page);
     const played = page.locator('[data-perf-ready] > li').first();
 
     await played.getByRole('button', { name: mb.review.rate }).click();
@@ -137,6 +141,7 @@ test.describe('my bookings — desktop', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto('/me/bookings?tab=past');
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await page.getByRole('button', { name: mb.review.rate }).click();
       // The review's five stars; the Предстоящи / Минали toggle is a radiogroup too.
@@ -151,8 +156,7 @@ test.describe('my bookings — desktop', () => {
     playerPage: page,
   }) => {
     await page.goto('/me/bookings');
-    // Inside <main>: under the 300 ms reveal throttle a streamed page can sit
-    // in a hidden copy beside the shown one, and an unscoped text query finds both.
+    await streamed(page);
     const main = page.getByRole('main');
     await expect(main.getByText(mb.empty.upcoming.title)).toBeVisible();
     await main.getByRole('link', { name: mb.browse }).click();

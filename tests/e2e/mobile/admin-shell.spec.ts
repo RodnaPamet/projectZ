@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import bg from '../../../messages/bg.json';
 import { expect, test } from '../fixtures';
+import { streamed } from '../utils/streamed';
 import { settleAnimations } from '../utils/settle-animations';
 
 /**
@@ -25,6 +26,7 @@ test.describe('club admin shell — phone', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     const toggle = page.getByTestId('nav-toggle');
     await expect(toggle).toBeVisible();
     const box = (await toggle.boundingBox())!;
@@ -43,6 +45,7 @@ test.describe('club admin shell — phone', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     const toggle = page.getByTestId('nav-toggle');
     await toggle.focus();
     await page.keyboard.press('Enter');
@@ -63,6 +66,7 @@ test.describe('club admin shell — phone', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+    await streamed(page);
     await page.getByTestId('nav-toggle').tap();
     const link = page.locator(DRAWER).getByRole('link', { name: bg.common.nav.pricing });
     await expect(link).toBeVisible();
@@ -81,6 +85,7 @@ test.describe('club admin shell — phone', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto(`/t/${slug}/admin/courts`);
+    await streamed(page);
     const bar = page.locator(TAB_BAR);
     await expect(bar).toBeVisible();
     await expect(bar.locator('li > a, li > button')).toHaveText([
@@ -119,6 +124,7 @@ test.describe('club admin shell — phone', () => {
     isolatedTenant,
   }) => {
     await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/calendar`);
+    await streamed(page);
     const more = page.getByTestId('bottom-tab-more');
     await expect(more).toHaveAttribute('aria-expanded', 'false');
     await more.tap();
@@ -152,6 +158,7 @@ test.describe('club admin shell — phone', () => {
   }) => {
     const slug = isolatedTenant.tenantSlug;
     await page.goto(`/t/${slug}/admin/calendar`);
+    await streamed(page);
     const bar = page.locator(TAB_BAR);
     await expect(bar.locator('li > a, li > button')).toHaveText([n.calendar, n.players, n.more]);
 
@@ -164,6 +171,7 @@ test.describe('club admin shell — phone', () => {
 
     // A closed page by URL: the 404 inside the shell, with the bar still there.
     await page.goto(`/t/${slug}/admin/pricing`);
+    await streamed(page);
     await expect(page.getByTestId('shell-not-found')).toBeVisible();
     await expect(bar).toBeVisible();
   });
@@ -176,6 +184,7 @@ test.describe('club admin shell — phone', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator(TAB_BAR)).toBeVisible();
       // The page itself, not its loading skeleton, which has no h1.
@@ -198,6 +207,7 @@ test.describe('club admin shell — phone', () => {
     }) => {
       await page.context().addCookies([{ name: THEME_COOKIE, value: theme, url: baseURL! }]);
       await page.goto(`/t/${isolatedTenant.tenantSlug}/admin/courts`);
+      await streamed(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await page.getByTestId('nav-toggle').tap();
       const drawer = page.getByRole('dialog', { name: bg.common.nav.menu });

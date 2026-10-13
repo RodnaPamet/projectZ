@@ -3,7 +3,7 @@ import { expect, type Browser, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
 import { signIn } from '../fixtures';
-import { streamed } from './booking-detail-journey';
+import { streamed } from './streamed';
 import { E2E_PASSWORD, prisma } from './create-isolated-tenant';
 import { destroyPlayer, type E2EPlayer } from './create-player';
 
