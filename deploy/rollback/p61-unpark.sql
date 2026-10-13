@@ -20,6 +20,31 @@ SELECT "id", "tenantId", "userId", "kind"::"NotificationKind", "title", "body", 
 FROM "p61_parked_notification"
 ON CONFLICT DO NOTHING;
 
+-- The queued and sent emails of those kinds (#555). Column by column, in the
+-- table's own order, through a cast: the park table holds the kind as text.
+CREATE TABLE IF NOT EXISTS "p61_parked_email_outbox" (LIKE "email_outbox");
+ALTER TABLE "p61_parked_email_outbox" ALTER COLUMN "kind" TYPE TEXT;
+
+DO $$
+DECLARE
+  cols text;
+  vals text;
+BEGIN
+  SELECT string_agg(format('%I', column_name), ', ' ORDER BY ordinal_position),
+         string_agg(
+           CASE WHEN column_name = 'kind'
+                THEN format('%I::"NotificationKind"', column_name)
+                ELSE format('%I', column_name) END,
+           ', ' ORDER BY ordinal_position)
+  INTO cols, vals
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'email_outbox';
+  EXECUTE format(
+    'INSERT INTO "email_outbox" (%s) SELECT %s FROM "p61_parked_email_outbox" ON CONFLICT DO NOTHING',
+    cols, vals);
+END $$;
+
 DROP TABLE "p61_parked_notification";
+DROP TABLE "p61_parked_email_outbox";
 
 COMMIT;
