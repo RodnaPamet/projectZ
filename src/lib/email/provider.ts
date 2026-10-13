@@ -40,6 +40,11 @@ export interface OutgoingEmail {
   text: string;
   /** Stable across retries of one outbox row, so the provider can dedupe. */
   idempotencyKey?: string;
+  /**
+   * Extra message headers, by name (#528: `List-Unsubscribe` and
+   * `List-Unsubscribe-Post`). Each value is made header-safe before it is sent.
+   */
+  headers?: Record<string, string>;
   /** For the log only. */
   ref?: string;
 }
@@ -87,6 +92,12 @@ export function headerSafe(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').trim();
 }
 
+/** The extra headers of a message, each value header-safe; undefined when there are none. */
+export function safeHeaders(headers: OutgoingEmail['headers']): Record<string, string> | undefined {
+  const entries = Object.entries(headers ?? {}).map(([k, v]) => [k, headerSafe(v)] as const);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 /** A single plain address, nothing a header could be smuggled in with. */
 export function isDeliverableAddress(value: string): boolean {
   return /^[^\s@<>()",;:\\[\]]+@[^\s@<>()",;:\\[\]]+\.[^\s@<>()",;:\\[\]]+$/.test(value);
@@ -128,7 +139,13 @@ class ResendProvider implements EmailProvider {
   async send(mail: OutgoingEmail): Promise<SendOutcome> {
     try {
       const { data, error } = await this.client.emails.send(
-        { from: this.from, to: [mail.to], subject: headerSafe(mail.subject), text: mail.text },
+        {
+          from: this.from,
+          to: [mail.to],
+          subject: headerSafe(mail.subject),
+          text: mail.text,
+          ...(safeHeaders(mail.headers) ? { headers: safeHeaders(mail.headers) } : {}),
+        },
         mail.idempotencyKey ? { idempotencyKey: mail.idempotencyKey } : undefined,
       );
       if (error) return { ok: false, permanent: resendPermanent(error.name), error: error.name };
@@ -163,6 +180,7 @@ class SmtpProvider implements EmailProvider {
         to: mail.to,
         subject: headerSafe(mail.subject),
         text: mail.text,
+        ...(safeHeaders(mail.headers) ? { headers: safeHeaders(mail.headers) } : {}),
         ...(mail.idempotencyKey ? { messageId: `<${mail.idempotencyKey}@playerz.bg>` } : {}),
       })) as { messageId?: string };
       return { ok: true, messageId: info.messageId ?? null };

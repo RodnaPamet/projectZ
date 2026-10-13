@@ -29,6 +29,8 @@ const EXEMPT: Record<string, string> = {
     'an invitation, reached from a link in an email and never from the nav, so it has no trail',
   '(public)/invite/booking/[token]':
     'an invitation to a booking, reached from a shared link and never from the nav, so no trail',
+  '(public)/email/unsubscribe/[token]':
+    'an unsubscribe link (#528), reached from an email and never from the nav, so it has no trail',
   '(app)/platform':
     'redirect-only index (#345): it sends a grant holder to the first platform page, which pushes',
 };

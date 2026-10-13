@@ -56,6 +56,8 @@ describe('owedStep', () => {
     '/delete-account',
     '/me/profile',
     '/offline',
+    // An email's unsubscribe link (#528): stopping an email never waits on a step.
+    '/email/unsubscribe/abc.def',
     '/api/v1/me',
     '/api/auth/session',
   ])('%s stays open: the step, the texts, the way out', (pathname) => {

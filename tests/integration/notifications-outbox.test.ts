@@ -21,6 +21,7 @@ import {
   removeBookingPlayer,
 } from '@/app-layer/usecases/booking-players';
 import { sendBookingReminders } from '@/app-layer/usecases/booking-notifications';
+import { unsubscribeByToken } from '@/app-layer/usecases/email-unsubscribe';
 import {
   deliver,
   drainEmailOutbox,
@@ -32,6 +33,7 @@ import {
   type OutgoingEmail,
   type SendOutcome,
 } from '@/lib/email/provider';
+import { readUnsubscribeToken } from '@/lib/email/unsubscribe';
 import { dailyDedupeKey } from '@/lib/notifications/dedupe';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
@@ -548,6 +550,53 @@ describe('notifications (#367)', () => {
       expect(row).toMatchObject({ status: 'SENT', provider: 'resend', attempts: 1 });
       expect(await drainEmailOutbox({ now, provider })).toMatchObject({ claimed: 0 });
       expect(sent).toHaveLength(1);
+    });
+
+    it('an email a person can switch off says how: a line under the footer, and the one-click headers (#528)', async () => {
+      await book(booker);
+      const { sent, provider } = recorder();
+      await drainEmailOutbox({ now, provider });
+      const [mail] = sent;
+
+      // The headers a mail client turns into its own "unsubscribe".
+      expect(mail!.headers).toEqual({
+        'List-Unsubscribe': expect.stringMatching(
+          /^<https?:\/\/[^>\s]+\/api\/email\/unsubscribe\/[^>\s]+>$/,
+        ),
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      });
+      const token = /unsubscribe\/([^>]+)>$/.exec(mail!.headers!['List-Unsubscribe']!)![1]!;
+      // Signed for THIS account and THIS kind of email, and nothing else.
+      expect(readUnsubscribeToken(token)).toEqual({
+        userId: booker.userId,
+        category: 'confirmation',
+      });
+
+      // The same link for the person, as the email's last line, in their language.
+      const last = mail!.text.trimEnd().split('\n').at(-1)!;
+      expect(last).toContain('Спиране на тези имейли с едно натискане');
+      expect(last).toContain(`/email/unsubscribe/${token}`);
+      // What was stored is what was composed: the line is added on the way out.
+      expect((await outbox())[0]!.text).not.toContain('/email/unsubscribe/');
+    });
+
+    it('pressing the link stops the next email of that kind, and only that kind (#528)', async () => {
+      await book(booker);
+      const first = recorder();
+      await drainEmailOutbox({ now, provider: first.provider });
+      const token = /unsubscribe\/([^>]+)>$/.exec(
+        first.sent[0]!.headers!['List-Unsubscribe']!,
+      )![1]!;
+
+      expect(await unsubscribeByToken(token)).toEqual({ category: 'confirmation' });
+
+      await book(booker, '2036-07-17');
+      const second = recorder();
+      expect(await drainEmailOutbox({ now, provider: second.provider })).toMatchObject({
+        skipped: 1,
+        sent: 0,
+      });
+      expect(second.sent).toHaveLength(0);
     });
 
     it('re-checks the setting at send time', async () => {

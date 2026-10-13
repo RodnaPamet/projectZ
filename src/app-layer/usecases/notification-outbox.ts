@@ -8,6 +8,8 @@ import {
   isDeliverableAddress,
   type EmailProvider,
 } from '@/lib/email/provider';
+import { isUnsubscribeCategory, unsubscribeLinks } from '@/lib/email/unsubscribe';
+import { translateFor } from '@/lib/i18n/server-messages';
 import { logger } from '@/lib/observability/logger';
 import { sanitizePlainText } from '@/lib/security/sanitize';
 
@@ -282,6 +284,7 @@ export async function drainEmailOutbox(
         select: {
           id: true,
           email: true,
+          locale: true,
           emailBookingConfirmations: true,
           emailBookingReminders: true,
           emailClubChanges: true,
@@ -331,10 +334,23 @@ export async function drainEmailOutbox(
       continue;
     }
 
+    // An email a person can switch off says how, twice (#528): a line under
+    // the footer for the person, and the headers a mail client turns into its
+    // own "unsubscribe" button. Both name this account and this kind only. The
+    // operator's enquiry email has neither: it is not a subscription.
+    const off =
+      user && row.userId && isUnsubscribeCategory(row.category)
+        ? unsubscribeLinks(row.userId, row.category)
+        : null;
+    const text = off
+      ? `${row.text}\n${await translateFor(user?.locale, 'emails.labels.unsubscribe', { url: off.pageUrl })}`
+      : row.text;
+
     const outcome = await provider.send({
       to,
       subject: row.subject,
-      text: row.text,
+      text,
+      ...(off ? { headers: off.headers } : {}),
       // Stable per row: a retry after a timeout that DID deliver is deduped
       // by the provider rather than sent twice.
       idempotencyKey: `outbox-${row.id}`,
