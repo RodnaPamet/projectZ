@@ -99,8 +99,9 @@ interface ChatCaseItem {
   openedAt: string;
   conversation: {
     id: string;
-    kind: 'player' | 'club';
+    kind: 'player' | 'club' | 'game';
     club: { name: string } | null;
+    game: { venueName: string; startTs: string; endTs: string; timezone: string } | null;
     closed: boolean;
   };
   messages: Array<{
@@ -499,6 +500,14 @@ function ChatCaseCard({
       timeZone: QUEUE_TIME_ZONE,
     });
 
+  // A game's time is read on the club's wall clock, as everywhere else.
+  const gameWhen = (g: { startTs: string; endTs: string; timezone: string }) =>
+    `${format.dateTime(new Date(g.startTs), {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: g.timezone,
+    })}–${format.dateTime(new Date(g.endTs), { timeStyle: 'short', timeZone: g.timezone })}`;
+
   return (
     <li
       className="border-border-subtle bg-bg-default rounded-lg border p-4"
@@ -512,7 +521,14 @@ function ChatCaseCard({
           <p className="text-content-muted text-sm">
             {item.conversation.kind === 'club' && item.conversation.club
               ? tChat('withClub', { club: item.conversation.club.name })
-              : tChat('betweenPlayers')}{' '}
+              : item.conversation.kind === 'game'
+                ? item.conversation.game
+                  ? tChat('gameChatAt', {
+                      venue: item.conversation.game.venueName,
+                      when: gameWhen(item.conversation.game),
+                    })
+                  : tChat('gameChat')
+                : tChat('betweenPlayers')}{' '}
             · {t('opened', { when: when(item.openedAt) })}
           </p>
         </div>

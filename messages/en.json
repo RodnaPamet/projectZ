@@ -1643,6 +1643,8 @@
         "titleConversation": "Reported conversation",
         "withClub": "Conversation with {club}",
         "betweenPlayers": "Conversation between players",
+        "gameChatAt": "Game chat at {venue}, {when}",
+        "gameChat": "Game chat",
         "closed": "closed",
         "reportsLabel": "Reports",
         "contextLabel": "The latest messages in the conversation",

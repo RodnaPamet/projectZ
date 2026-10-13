@@ -389,7 +389,7 @@ describe('a reported message (#375)', () => {
     caseId: 'm1',
     reason: 'user_report',
     openedAt: '2026-10-10T10:00:00Z',
-    conversation: { id: 'cv1', kind: 'player' as const, club: null, closed: false },
+    conversation: { id: 'cv1', kind: 'player' as const, club: null, game: null, closed: false },
     messages: [
       {
         id: 'a',
@@ -438,5 +438,34 @@ describe('a reported message (#375)', () => {
         '/api/v1/platform/moderation/message-cases/m1/resolve',
       ),
     );
+  });
+
+  it('a game chat says so, with the venue and the game’s time at the club (#512)', async () => {
+    const game = {
+      ...chat,
+      conversation: {
+        id: 'cv2',
+        kind: 'game' as const,
+        club: null,
+        // 19:00–20:30 in Sofia, summer time (UTC+3).
+        game: {
+          venueName: 'Алфа Кортове',
+          startTs: '2026-10-09T16:00:00Z',
+          endTs: '2026-10-09T17:30:00Z',
+          timezone: 'Europe/Sofia',
+        },
+        closed: false,
+      },
+    };
+    installFakeFetch(() => ok({ items: [game], nextCursor: null }));
+    mount();
+    await userEvent.type(screen.getByLabelText(moderation.reason.label), REASON);
+    await userEvent.click(screen.getByRole('button', { name: moderation.open }));
+    const card = await screen.findByTestId('moderation-chat-case');
+
+    expect(card).toHaveTextContent('Чат на игра в Алфа Кортове');
+    expect(card).toHaveTextContent('19:00');
+    expect(card).toHaveTextContent('20:30');
+    expect(card).not.toHaveTextContent('Разговор между играчи');
   });
 });

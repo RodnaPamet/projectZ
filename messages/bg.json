@@ -1643,6 +1643,8 @@
         "titleConversation": "Сигнал за разговор",
         "withClub": "Разговор с {club}",
         "betweenPlayers": "Разговор между играчи",
+        "gameChatAt": "Чат на игра в {venue}, {when}",
+        "gameChat": "Чат на игра",
         "closed": "затворен",
         "reportsLabel": "Сигнали",
         "contextLabel": "Последните съобщения в разговора",
