@@ -5,6 +5,7 @@ import { useId, useState, type Dispatch, type SetStateAction } from 'react';
 
 import type { OpenGameDto } from '@/app/api/v1/_lib/open-play-dto';
 import { Button } from '@/components/ui/button';
+import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/modal';
@@ -89,7 +90,9 @@ export function AskDialog({
             />
             <Caption>{t('noteHint', { max: OPEN_PLAY_NOTE_MAX })}</Caption>
           </div>
-          {error ? (
+          {error === 'PHONE_REQUIRED' ? (
+            <PhoneRequiredNotice />
+          ) : error ? (
             <InlineNotice variant="error" data-testid="ask-error">
               {tGames(`error.${error}`)}
             </InlineNotice>

@@ -245,6 +245,19 @@ describe('an account that has not chosen player or coach yet (#416)', () => {
   });
 });
 
+describe('a player with no confirmed phone number, once the rule is on (#500)', () => {
+  it('Резервирай goes to the phone step, and back to this slot with the sheet open', () => {
+    api(() => ok({}));
+    mount({ viewer: 'no-phone' });
+    pickNine();
+    fireEvent.click(screen.getByRole('button', { name: v.book }));
+
+    const next = `/venues/alfa?day=${DAYS[0]}&court=c1&start=${encodeURIComponent(AT(9))}&min=60&confirm=1`;
+    expect(push).toHaveBeenCalledWith(`/start/phone?next=${encodeURIComponent(next)}`);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
 describe('a club account', () => {
   it('sees why it cannot book, and the button is off', () => {
     api(() => ok({}));

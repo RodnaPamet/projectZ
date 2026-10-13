@@ -13,6 +13,8 @@ export const OPEN_PLAY_ERRORS = [
   'PLAYER_ACCOUNT_REQUIRED',
   'ACCOUNT_KIND_REQUIRED',
   'NO_SHOW_BLOCKED',
+  // A confirmed phone number first (#500): shown as PhoneRequiredNotice.
+  'PHONE_REQUIRED',
   'RATE_LIMITED',
   'REQUEST_NOT_PENDING',
   'SPOTS_UNAVAILABLE',

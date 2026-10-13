@@ -2140,6 +2140,7 @@
       "FULL": "The game is full: every place is taken.",
       "NOT_USABLE": "This invitation no longer works.",
       "PLAYER_ACCOUNT_REQUIRED": "Only a player account can join a game. Sign in with your player account.",
+      "PHONE_REQUIRED": "Confirm a phone number first.",
       "RATE_LIMITED": "Too many attempts. Wait a minute and try again.",
       "FAILED": "We could not add you. Try again."
     },
@@ -2181,6 +2182,43 @@
       "continuing": "Continuing…",
       "error": "We could not save that. Try again.",
       "retry": "Try again"
+    }
+  },
+  "phone": {
+    "step": {
+      "metaTitle": "Confirm your phone — playerz.bg",
+      "title": "Confirm a phone number",
+      "description": "Before your first booking, join request or message we confirm the number is yours. Once.",
+      "number": {
+        "label": "Phone",
+        "placeholder": "0888 123 456",
+        "hint": "We will text you a code.",
+        "submit": "Send code"
+      },
+      "code": {
+        "sentTo": "We sent a code to {number}.",
+        "label": "Code from the SMS",
+        "submit": "Confirm",
+        "resend": "Send again",
+        "resent": "We sent a new code.",
+        "change": "Another number"
+      },
+      "privacy": "The number confirms the account is yours. We do not show it to other players or to clubs.",
+      "later": "Not now",
+      "error": {
+        "PHONE_INVALID": "That is not a number we can text. Check it and try again.",
+        "PHONE_CODE_WRONG": "That is not the code. Check the SMS and try again.",
+        "PHONE_CODE_EXPIRED": "The code has expired. Ask for a new one.",
+        "PHONE_IN_USE": "This number already confirms another account. Sign in with that one, or use another number.",
+        "PHONE_VERIFY_UNAVAILABLE": "We cannot send a code right now. Try again in a moment.",
+        "RATE_LIMITED": "Too many attempts. Try again later.",
+        "FAILED": "Something went wrong. Try again."
+      }
+    },
+    "required": {
+      "title": "Confirm a phone number first",
+      "body": "It is once and takes a minute. Then you carry on from here.",
+      "action": "Confirm phone"
     }
   },
   "emails": {
@@ -2647,6 +2685,7 @@
       "PLAYER_ACCOUNT_REQUIRED": "Only a player account can ask for a spot.",
       "ACCOUNT_KIND_REQUIRED": "First choose whether this is a player or a coach account.",
       "NO_SHOW_BLOCKED": "The club has paused your bookings for missed games.",
+      "PHONE_REQUIRED": "Confirm a phone number first.",
       "RATE_LIMITED": "You've sent many requests today. Try again tomorrow.",
       "REQUEST_NOT_PENDING": "The request is no longer waiting.",
       "SPOTS_UNAVAILABLE": "There aren't that many free spots.",

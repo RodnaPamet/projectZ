@@ -7,6 +7,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { BookingDto } from '@/app/api/v1/_lib/dto';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Sheet } from '@/components/ui/sheet';
 import type { ApiClientError } from '@/lib/data/errors';
@@ -39,7 +40,8 @@ const HOUR_MS = 3_600_000;
  *           SLOT_NOT_BOOKABLE): the day is refreshed and the player picks again.
  *   final   the player may not book this now, and retrying will not change it
  *           (403 NO_SHOW_BLOCKED, 409 BOOKING_LIMIT_REACHED, 403
- *           PLAYER_ACCOUNT_REQUIRED).
+ *           PLAYER_ACCOUNT_REQUIRED, 403 PHONE_REQUIRED: confirm a phone
+ *           number first, #500).
  *   signIn  the session ended (401): sign in and come back to this slot.
  *   retry   anything else, a dropped connection included. Confirming again
  *           re-sends the SAME Idempotency-Key, so a booking that did land is
@@ -55,6 +57,7 @@ export function refusalKind(err: ApiClientError): RefusalKind {
     case 'NO_SHOW_BLOCKED':
     case 'BOOKING_LIMIT_REACHED':
     case 'PLAYER_ACCOUNT_REQUIRED':
+    case 'PHONE_REQUIRED':
       return 'final';
     default:
       return err.status === 401 ? 'signIn' : 'retry';
@@ -92,7 +95,7 @@ export function BookingSheet({
   selection,
   booking,
   now,
-  signInPath,
+  returnPath,
   onBooked,
   onSlotGone,
   onPickAnother,
@@ -105,7 +108,8 @@ export function BookingSheet({
   selection: Selection;
   booking: BookingMutation;
   now: number;
-  signInPath: string;
+  /** This page, this day, this slot, with the sheet open: where a step sends the person back. */
+  returnPath: string;
   onBooked: () => void;
   onSlotGone: () => void;
   onPickAnother: () => void;
@@ -202,7 +206,7 @@ export function BookingSheet({
           </InlineNotice>
         )}
 
-        {error && <Refusal error={error} signInPath={signInPath} />}
+        {error && <Refusal error={error} returnPath={returnPath} />}
       </Sheet.Body>
       <Sheet.Actions align="between">
         {refusal === 'gone' ? (
@@ -234,8 +238,9 @@ export function BookingSheet({
   );
 }
 
-function Refusal({ error, signInPath }: { error: ApiClientError; signInPath: string }) {
+function Refusal({ error, returnPath }: { error: ApiClientError; returnPath: string }) {
   const t = useTranslations('venue.sheet');
+  const signInPath = `/login?next=${encodeURIComponent(returnPath)}`;
 
   switch (error.code) {
     case 'SLOT_TAKEN':
@@ -272,6 +277,11 @@ function Refusal({ error, signInPath }: { error: ApiClientError; signInPath: str
           {error.message}
         </InlineNotice>
       );
+    case 'PHONE_REQUIRED':
+      // A confirmed phone number first (#500), then back to this slot. The
+      // page routes there before the sheet opens; this is for a page that was
+      // already open when the rule or the account changed.
+      return <PhoneRequiredNotice next={returnPath} />;
     default:
       if (error.status === 401) {
         return (

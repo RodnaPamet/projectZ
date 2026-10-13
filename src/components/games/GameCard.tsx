@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
+import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
@@ -177,7 +178,9 @@ export function GameCard({
         </Caption>
       </div>
 
-      {error ? (
+      {error === 'PHONE_REQUIRED' ? (
+        <PhoneRequiredNotice />
+      ) : error ? (
         <InlineNotice variant="error" data-testid="game-error">
           {tGames(`error.${error}`)}
         </InlineNotice>

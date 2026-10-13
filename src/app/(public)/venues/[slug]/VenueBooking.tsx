@@ -13,7 +13,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Caption, Heading } from '@/components/ui/typography';
-import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
+import { KIND_CHOOSER_PATH, PHONE_STEP_PATH } from '@/lib/auth/landing';
 import { KEYS, V1 } from '@/lib/data/keys';
 import { sendUsageBeacon } from '@/lib/data/usage-beacon';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
@@ -52,7 +52,7 @@ import { BookingSheet, type Selection } from './BookingSheet';
  * send them to /login and back (`venuePagePath`).
  */
 
-export type Viewer = 'signed-out' | 'undecided' | 'player' | 'club';
+export type Viewer = 'signed-out' | 'undecided' | 'no-phone' | 'player' | 'club';
 
 interface VenueProps {
   id: string;
@@ -247,11 +247,12 @@ export function VenueBooking({
 
   function book() {
     if (!selection) return;
-    if (viewer === 'signed-out' || viewer === 'undecided') {
+    if (viewer !== 'player' && viewer !== 'club') {
       // Back to this page, this day, this slot, with the sheet open. Built from
-      // the page's own state (venuePagePath); /login and the kind chooser each
-      // validate it again. A signed-out visitor signs in first; an account that
-      // has not chosen "Играч или треньор?" answers that first (#416).
+      // the page's own state (venuePagePath); each step validates it again. A
+      // signed-out visitor signs in first; an account that has not chosen
+      // "Играч или треньор?" answers that first (#416); a player with no
+      // confirmed phone number confirms one first (#500).
       const next = venuePagePath(venue.publicSlug, {
         day,
         court: selection.resourceId,
@@ -259,7 +260,12 @@ export function VenueBooking({
         minutes: selection.minutes,
         confirm: true,
       });
-      const first = viewer === 'signed-out' ? '/login' : KIND_CHOOSER_PATH;
+      const first =
+        viewer === 'signed-out'
+          ? '/login'
+          : viewer === 'undecided'
+            ? KIND_CHOOSER_PATH
+            : PHONE_STEP_PATH;
       router.push(`${first}?next=${encodeURIComponent(next)}`);
       return;
     }
@@ -437,15 +443,13 @@ export function VenueBooking({
           selection={selection}
           booking={booking}
           now={now}
-          signInPath={`/login?next=${encodeURIComponent(
-            venuePagePath(venue.publicSlug, {
-              day,
-              court: selection.resourceId,
-              start: selection.startTs,
-              minutes: selection.minutes,
-              confirm: true,
-            }),
-          )}`}
+          returnPath={venuePagePath(venue.publicSlug, {
+            day,
+            court: selection.resourceId,
+            start: selection.startTs,
+            minutes: selection.minutes,
+            confirm: true,
+          })}
           onBooked={() => router.push('/me/bookings')}
           onSlotGone={() => {
             void mutate();

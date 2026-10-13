@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { isApiClientError } from '@/lib/data/errors';
 import { V1 } from '@/lib/data/keys';
@@ -12,13 +13,14 @@ import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 
 /** Why joining failed, as a key under `bookingInvite.error`. */
 export type JoinErrorKey =
-  'FULL' | 'NOT_USABLE' | 'PLAYER_ACCOUNT_REQUIRED' | 'RATE_LIMITED' | 'FAILED';
+  'FULL' | 'NOT_USABLE' | 'PLAYER_ACCOUNT_REQUIRED' | 'PHONE_REQUIRED' | 'RATE_LIMITED' | 'FAILED';
 
 export function joinErrorKey(e: unknown): JoinErrorKey {
   if (!isApiClientError(e)) return 'FAILED';
   if (e.code === 'BOOKING_FULL') return 'FULL';
   if (e.code === 'BOOKING_INVITE_NOT_USABLE') return 'NOT_USABLE';
   if (e.code === 'PLAYER_ACCOUNT_REQUIRED') return 'PLAYER_ACCOUNT_REQUIRED';
+  if (e.code === 'PHONE_REQUIRED') return 'PHONE_REQUIRED';
   if (e.status === 429) return 'RATE_LIMITED';
   return 'FAILED';
 }
@@ -59,7 +61,10 @@ export function JoinBookingButton({ token, full }: { token: string; full: boolea
       >
         {t('join')}
       </Button>
-      {error ? (
+      {error === 'PHONE_REQUIRED' ? (
+        // A confirmed phone number first (#500); then back to this invite.
+        <PhoneRequiredNotice />
+      ) : error ? (
         <InlineNotice
           variant={error === 'FULL' ? 'warning' : 'error'}
           data-testid="booking-invite-error"
