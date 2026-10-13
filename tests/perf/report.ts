@@ -244,26 +244,22 @@ export interface FirstLoadJs {
  * harness cross-checks it against the script bytes a cold load of the entry
  * pages actually moved.
  */
-export function firstLoadJs(nextDir = '.next'): FirstLoadJs[] {
+/**
+ * The chunk files each route's first load needs, by route: the one definition
+ * `firstLoadJs` (the sizes) and `tests/perf/chunks.ts` (what they are made of)
+ * both read. Paths are relative to the build directory. Empty when the build's
+ * manifests are not there.
+ */
+export function firstLoadFiles(nextDir = '.next'): Map<string, string[]> {
+  const out = new Map<string, string[]>();
   const bmPath = join(nextDir, 'build-manifest.json');
   const routesPath = join(nextDir, 'app-path-routes-manifest.json');
-  if (!existsSync(bmPath) || !existsSync(routesPath)) return [];
+  if (!existsSync(bmPath) || !existsSync(routesPath)) return out;
 
   const root = (JSON.parse(readFileSync(bmPath, 'utf8')) as { rootMainFiles: string[] })
     .rootMainFiles;
   const routes = JSON.parse(readFileSync(routesPath, 'utf8')) as Record<string, string>;
-  const sizeCache = new Map<string, { gz: number; raw: number }>();
-  const size = (f: string) => {
-    let s = sizeCache.get(f);
-    if (!s) {
-      const buf = readFileSync(join(nextDir, f.replace(/^\/?_next\//, '')));
-      s = { gz: gzipSync(buf, { level: 9 }).length, raw: buf.length };
-      sizeCache.set(f, s);
-    }
-    return s;
-  };
 
-  const out: FirstLoadJs[] = [];
   for (const [entry, route] of Object.entries(routes)) {
     if (!entry.endsWith('/page') || entry.startsWith('/_')) continue;
     const manifestPath = join(nextDir, 'server', 'app', `${entry}_client-reference-manifest.js`);
@@ -284,6 +280,28 @@ export function firstLoadJs(nextDir = '.next'): FirstLoadJs[] {
       if (/not-found|global-error/.test(seg)) continue;
       for (const c of chunks) files.add(c);
     }
+    out.set(
+      route,
+      [...files].map((f) => f.replace(/^\/?_next\//, '')),
+    );
+  }
+  return out;
+}
+
+export function firstLoadJs(nextDir = '.next'): FirstLoadJs[] {
+  const sizeCache = new Map<string, { gz: number; raw: number }>();
+  const size = (f: string) => {
+    let s = sizeCache.get(f);
+    if (!s) {
+      const buf = readFileSync(join(nextDir, f));
+      s = { gz: gzipSync(buf, { level: 9 }).length, raw: buf.length };
+      sizeCache.set(f, s);
+    }
+    return s;
+  };
+
+  const out: FirstLoadJs[] = [];
+  for (const [route, files] of firstLoadFiles(nextDir)) {
     let gz = 0;
     let raw = 0;
     for (const f of files) {
@@ -291,7 +309,7 @@ export function firstLoadJs(nextDir = '.next'): FirstLoadJs[] {
       gz += s.gz;
       raw += s.raw;
     }
-    out.push({ route, files: files.size, gzipKB: r1(gz / 1024), rawKB: r1(raw / 1024) });
+    out.push({ route, files: files.length, gzipKB: r1(gz / 1024), rawKB: r1(raw / 1024) });
   }
   return out.sort((a, b) => a.route.localeCompare(b.route));
 }

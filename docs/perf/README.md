@@ -17,7 +17,74 @@ npm run perf:nav          # one run: reset and seed, build, serve, measure (abou
 npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a change"
 npm run perf:budget -- .perf/after.json                     # the latency budget (docs/perf/budget.json)
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
+PERF_SOURCEMAPS=1 npm run build && npm run perf:chunks -- / # what a route's First Load JS is made of
 ```
+
+## What a route's First Load JS is made of (#340), 14 October 2026
+
+`perf:bundle` says how big each route's first load is, and CI keeps it from growing. It does not
+say what the bytes are. #340 asked why `/` had gone from 196 KB gzip (T30's budget) to 281 KB at
+the end of the port, and guessed at one shared chunk gone wrong. `npm run perf:chunks` answers that
+kind of question from the build's own source maps, without bisecting builds:
+
+```bash
+PERF_SOURCEMAPS=1 npm run build        # browser source maps, for this one local build
+npm run perf:chunks -- / /venues       # the top rows of each route
+npm run perf:chunks -- --top 60 /      # more rows
+npm run perf:chunks -- --files /       # every source file instead of groups
+```
+
+It reads the same file set as the budget (`firstLoadFiles()` in `tests/perf/report.ts`), and for
+every chunk adds up how many minified bytes came from which npm package and which folder of ours.
+Gzip does not divide by source, so each row's gzip is estimated from the route's own ratio and
+marked `~`. `PERF_SOURCEMAPS=1` is for a local build only: a deployed source map is the source
+code, and nothing that builds an image sets it (`tests/unit/perf/chunks.test.ts`).
+
+### `/` at `f25e847` plus this tool: 304 KB gzip, 993 KB minified, 24 files
+
+| Minified KB | Share | ~gzip KB | From                           |
+| ----------: | ----: | -------: | ------------------------------ |
+|       444.9 | 44.8% |   ~136.4 | `npm:next`                     |
+|        93.0 |  9.4% |    ~28.5 | `npm:motion-dom`               |
+|        63.2 |  6.4% |    ~19.4 | `src/components/ui/icons`      |
+|        34.4 |  3.5% |    ~10.5 | `npm:sonner`                   |
+|        28.5 |  2.9% |     ~8.7 | `npm:vaul`                     |
+|        28.4 |  2.9% |     ~8.7 | `npm:framer-motion`            |
+|        26.3 |  2.6% |     ~8.1 | `npm:tailwind-merge`           |
+|        19.5 |  2.0% |     ~6.0 | `npm:next-auth`                |
+|        11.8 |  1.2% |     ~3.6 | `npm:@babel/runtime`           |
+|        11.0 |  1.1% |     ~3.4 | `npm:swr`                      |
+|        10.6 |  1.1% |     ~3.3 | `npm:@formatjs/parser.ts`      |
+|         7.4 |  0.7% |     ~2.3 | `npm:@floating-ui/core`        |
+|         7.4 |  0.7% |     ~2.3 | `npm:@radix-ui/react-tooltip`  |
+|         7.3 |  0.7% |     ~2.2 | `npm:use-intl`                 |
+|         6.7 |  0.7% |     ~2.1 | `npm:@floating-ui/dom`         |
+|         6.6 |  0.7% |     ~2.0 | `(bundler glue, unattributed)` |
+|       185.5 | 18.7% |    ~56.9 | 127 more rows                  |
+
+`npm:next` is Next's client runtime and the React DOM it ships: the floor of any page here.
+
+### What it says
+
+- **It was never one chunk.** The growth between the early port and T29 is the app shell arriving
+  on every route (#362: one frame for everybody, signed out included): the animation engine, the
+  icons the navigation names, toasts, the phone drawer and the session client come to about 80 KB
+  gzip between them. The other routes measure the same rows to the tenth of a KB
+  (`/venues`, `/t/[slug]/admin/calendar`).
+- **The animation engine is on every route for a language switch.** `motion-dom` and
+  `framer-motion` are 121 KB minified, about 37 KB gzip, 12% of `/`. Three things keep it in the
+  first load: the account menu's language row (`user-menu.tsx` → `LocaleSwitcher` → `ToggleGroup`,
+  whose pill is a `motion.div` in a `LayoutGroup`), the `sort-order` icon (a `motion.path`), and
+  `MotionConfig` in `src/app/providers.tsx`. The first two are vendored from inflect, so the way
+  to take those bytes back is upstream (load the engine lazily, or animate the pill in CSS): #541.
+- **75 of the 270 icons ride every route**, 63 KB minified, about 19 KB gzip: the shell's navigation
+  for every kind of account names its icons, so tree-shaking keeps them. That is the shell's cost,
+  not a leak; the other 195 are shaken out.
+- Nothing else is over 11 KB gzip: `sonner` (toasts), `vaul` (phone sheets), `tailwind-merge` and
+  the `next-auth` session client are each a deliberate part of the shell.
+
+The budget (`docs/perf/bundle-budget.json`) stays where it is: these are the bytes the app has, and
+the gate is what keeps the next 80 KB from arriving unnoticed.
 
 ## The current baseline: `8997b77` (#362, every signed-in account in the AppShell), 7 October 2026
 
@@ -954,25 +1021,26 @@ Two more cautions:
 
 ## Files
 
-| File                              | What it is                                                                          |
-| --------------------------------- | ----------------------------------------------------------------------------------- |
-| `playwright.perf.config.ts`       | its own config: two projects (`perf-phone`, `perf-desktop`), one worker, no retries |
-| `tests/perf/nav-latency.spec.ts`  | the journeys and the ready conditions                                               |
-| `tests/perf/agent.ts`             | the in-page clock                                                                   |
-| `tests/perf/harness.ts`           | contexts, throttling, the CDP network recorder, taps, settling                      |
-| `tests/perf/config.ts`            | ports, database, accounts, profiles: everything the others agree on                 |
-| `tests/perf/serve.ts`             | the webServer: reset, seed, build, serve                                            |
-| `tests/perf/prepare-db.ts`        | the database reset, its guard, and the runtime role                                 |
-| `tests/perf/seed-perf.ts`         | the data                                                                            |
-| `tests/perf/global-setup.ts`      | sign-in once per account; warm-up of every page                                     |
-| `tests/perf/reporter.ts`          | collects samples, writes the run, prints the tables                                 |
-| `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                  |
-| `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables               |
-| `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                      |
-| `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                |
-| `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                          |
-| `docs/perf/baseline-7738122.json` | #397's, the venue page's first measurement                                          |
-| `docs/perf/baseline-c72cb8a.json` | #403's, the current baseline; the budget is set from it                             |
-| `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)    |
-| `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)  |
-| `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                       |
+| File                              | What it is                                                                           |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `playwright.perf.config.ts`       | its own config: two projects (`perf-phone`, `perf-desktop`), one worker, no retries  |
+| `tests/perf/nav-latency.spec.ts`  | the journeys and the ready conditions                                                |
+| `tests/perf/agent.ts`             | the in-page clock                                                                    |
+| `tests/perf/harness.ts`           | contexts, throttling, the CDP network recorder, taps, settling                       |
+| `tests/perf/config.ts`            | ports, database, accounts, profiles: everything the others agree on                  |
+| `tests/perf/serve.ts`             | the webServer: reset, seed, build, serve                                             |
+| `tests/perf/prepare-db.ts`        | the database reset, its guard, and the runtime role                                  |
+| `tests/perf/seed-perf.ts`         | the data                                                                             |
+| `tests/perf/global-setup.ts`      | sign-in once per account; warm-up of every page                                      |
+| `tests/perf/reporter.ts`          | collects samples, writes the run, prints the tables                                  |
+| `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                   |
+| `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables                |
+| `tests/perf/chunks.ts`            | `perf:chunks`: what a route's First Load JS is made of, from the build's source maps |
+| `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                       |
+| `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                 |
+| `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                           |
+| `docs/perf/baseline-7738122.json` | #397's, the venue page's first measurement                                           |
+| `docs/perf/baseline-c72cb8a.json` | #403's, the current baseline; the budget is set from it                              |
+| `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)     |
+| `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)   |
+| `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                        |
