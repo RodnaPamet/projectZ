@@ -5,6 +5,7 @@ import {
   NO_SHOW_WINDOW_DAYS,
   noShowStanding,
 } from '@/app-layer/usecases/booking-rules';
+import { gameChatsFor } from '@/app-layer/usecases/messaging-directory';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
 import { decryptField } from '@/lib/security/encryption';
@@ -279,7 +280,8 @@ export interface PersonalDataExport {
     blocked: Array<{ name: string | null; at: string }>;
     conversations: Array<{
       /** A player, or a club. */
-      with: { kind: 'player' | 'club'; name: string | null; deletedAccount: boolean };
+      /** A player, a club, or a game chat (#376), named after its venue. */
+      with: { kind: 'player' | 'club' | 'game'; name: string | null; deletedAccount: boolean };
       startedAt: string;
       messages: Array<{
         mine: boolean;
@@ -874,6 +876,7 @@ async function readMessaging(
       select: {
         conversation: {
           select: {
+            id: true,
             type: true,
             tenantId: true,
             createdAt: true,
@@ -929,6 +932,11 @@ async function readMessaging(
   ]);
   const person = new Map(people.map((u) => [u.id, u]));
   const clubName = new Map(clubs.map((c) => [c.id, c.name]));
+  // The game chats' venues (#376).
+  const games = await gameChatsFor(
+    rows.flatMap(({ conversation: c }) => (c.type === 'GROUP' ? [c.id] : [])),
+    db,
+  );
   const nameOf = (id: string) => {
     const u = person.get(id);
     return u && !u.deletedAt ? u.name : null;
@@ -951,17 +959,25 @@ async function readMessaging(
           : null;
       return {
         with:
-          c.type === 'CLUB'
+          c.type === 'GROUP'
             ? {
-                kind: 'club' as const,
-                name: clubName.get(c.tenantId ?? '') ?? null,
+                kind: 'game' as const,
+                name: games.get(c.id)?.venueName ?? null,
                 deletedAccount: false,
               }
-            : {
-                kind: 'player' as const,
-                name: otherId ? nameOf(otherId) : null,
-                deletedAccount: otherId ? (person.get(otherId)?.deletedAt ?? null) !== null : true,
-              },
+            : c.type === 'CLUB'
+              ? {
+                  kind: 'club' as const,
+                  name: clubName.get(c.tenantId ?? '') ?? null,
+                  deletedAccount: false,
+                }
+              : {
+                  kind: 'player' as const,
+                  name: otherId ? nameOf(otherId) : null,
+                  deletedAccount: otherId
+                    ? (person.get(otherId)?.deletedAt ?? null) !== null
+                    : true,
+                },
         startedAt: c.createdAt.toISOString(),
         messages: c.messages.map((m) => ({
           mine: m.senderId === userId,

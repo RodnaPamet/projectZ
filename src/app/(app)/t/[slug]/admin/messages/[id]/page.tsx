@@ -50,10 +50,13 @@ export default async function ClubConversationPage({
     getTranslations('common'),
   ]);
   const seed = toConversationDto(view);
+  // A club's inbox holds CLUB conversations only: never a game chat (#376).
   const title =
     seed.counterpart.kind === 'player' && seed.counterpart.deleted
       ? tCommon('deletedUser')
-      : (seed.counterpart.name ?? t('unnamed'));
+      : seed.counterpart.kind === 'game'
+        ? t('unnamed')
+        : (seed.counterpart.name ?? t('unnamed'));
 
   return (
     <section className="flex flex-1 flex-col">

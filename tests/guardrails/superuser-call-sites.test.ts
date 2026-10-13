@@ -163,6 +163,13 @@ const ALLOWED: Record<string, string> = {
     'the session-derived id, so it can only ever return their own. Reached from the page and, ' +
     'since T16, from `GET /api/v1/me/bookings`: the same read, the same session-derived id, ' +
     'with only a cursor and a clamped limit taken from the request.',
+  'src/app-layer/usecases/open-play-chat.ts':
+    "the game chat (#376): its members are the game's roster (the booker and every accepted " +
+    'request), written by the server after the tenant-bound change committed, never named by ' +
+    'a request. The chat belongs to no club (tenantId NULL, as a DM), P54 lets app_user make ' +
+    'only DM and CLUB conversations and seed only their own kind of member, and P63 stops a ' +
+    "member changing their own membership, so this is the one writer. Reads are by the game's " +
+    'own ids.',
   'src/app-layer/usecases/open-play.ts':
     "open play (#376), on booking-players.ts's two phases. The cross-club READS: the public " +
     "Игри listing and one game by id (venue, court, time, spots, level wish, note, the booker's " +

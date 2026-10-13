@@ -64,15 +64,8 @@ async function emailCopy(
   const someone = await translateFor(locale, 'notifications.message.someone');
   const name = audience.senderName?.trim() ? oneLine(audience.senderName) : someone;
   const club = audience.club ? oneLine(audience.club.name) : '';
-  const event =
-    audience.type === 'DM'
-      ? audience.request
-        ? 'request'
-        : 'fromPlayer'
-      : side === 'club'
-        ? 'toClub'
-        : 'fromClub';
-  const values = { name, club };
+  const event = eventOf(audience, side);
+  const values = { name, club, game: audience.game ? oneLine(audience.game.venueName) : '' };
   const [subject, intro, link, footer, settings] = await Promise.all([
     translateFor(locale, `emails.message.${event}.subject`, values),
     translateFor(locale, `emails.message.${event}.intro`, values),
@@ -94,15 +87,8 @@ async function bellCopy(
   const someone = await translateFor(locale, 'notifications.message.someone');
   const name = audience.senderName?.trim() ? oneLine(audience.senderName) : someone;
   const club = audience.club ? oneLine(audience.club.name) : '';
-  const event =
-    audience.type === 'DM'
-      ? audience.request
-        ? 'request'
-        : 'fromPlayer'
-      : side === 'club'
-        ? 'toClub'
-        : 'fromClub';
-  const values = { name, club };
+  const event = eventOf(audience, side);
+  const values = { name, club, game: audience.game ? oneLine(audience.game.venueName) : '' };
   const [title, body] = await Promise.all([
     translateFor(locale, `notifications.message.${event}.title`, values),
     translateFor(locale, `notifications.message.${event}.body`, values),
@@ -111,6 +97,13 @@ async function bellCopy(
 }
 
 /** Where the bell sends each side: a player's inbox, or the club's. */
+/** Which words a message's bell and email use: a game chat's (#376) say which game. */
+function eventOf(audience: MessageAudience, side: 'player' | 'club'): string {
+  if (audience.type === 'GROUP') return 'inGame';
+  if (audience.type === 'DM') return audience.request ? 'request' : 'fromPlayer';
+  return side === 'club' ? 'toClub' : 'fromClub';
+}
+
 export function conversationHref(
   side: 'player' | 'club',
   conversationId: string,

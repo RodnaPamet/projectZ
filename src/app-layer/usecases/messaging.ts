@@ -18,12 +18,14 @@ import {
   activeClubBySlug,
   coPlayerAt,
   fileChatReport,
+  gameChatsFor,
   isLivePlayer,
   namesFor,
   playerCardById,
   reachability,
   searchPlayers,
   type ClubName,
+  type GameChatFacts,
   type PersonName,
   type PlayerCard,
 } from './messaging-directory';
@@ -125,6 +127,14 @@ export class MessagingError extends AppError {
   }
 }
 
+/**
+ * A game chat (#376) is the game's players together; one of them cannot shut
+ * it for the rest. They report it (or a message in it), or block a person
+ * from their own conversation with that person.
+ */
+const notBlockable = () =>
+  new MessagingError('NOT_BLOCKABLE', 409, 'A game chat cannot be blocked. Report it instead.');
+
 const notFound = () =>
   new MessagingError('CONVERSATION_NOT_FOUND', 404, 'That conversation was not found.');
 const playerNotFound = () =>
@@ -151,7 +161,8 @@ async function enforceRate(key: string, config: RateLimitConfig): Promise<void> 
 
 // ─── Views ──────────────────────────────────────────────────────────────
 
-export type ConversationKind = 'player' | 'club';
+/** A DM, a club conversation, or a game chat (#376: a GROUP of the game's players). */
+export type ConversationKind = 'player' | 'club' | 'game';
 
 /**
  * Where a conversation stands for the CALLER.
@@ -175,7 +186,8 @@ export type Counterpart =
       avatarUrl: string | null;
       deleted: boolean;
     }
-  | { kind: 'club'; clubId: string; slug: string; name: string };
+  | { kind: 'club'; clubId: string; slug: string; name: string }
+  | ({ kind: 'game'; members: number } & GameChatFacts);
 
 export interface ConversationSummary {
   id: string;
@@ -236,7 +248,7 @@ const CONVERSATION_SELECT = {
   blockedByUserId: true,
   lastMessageAt: true,
   participants: {
-    select: { userId: true, role: true, lastReadAt: true },
+    select: { userId: true, role: true, lastReadAt: true, leftAt: true },
     take: 50,
   },
 } satisfies Prisma.ConversationSelect;
@@ -283,8 +295,11 @@ async function requireConversation(
       ...(actor.kind === 'club'
         ? { type: 'CLUB' as const, tenantId: actor.tenantId }
         : {
-            type: { in: ['DM' as const, 'CLUB' as const] },
-            participants: { some: { userId: actor.userId, role: { in: ['MEMBER', 'PLAYER'] } } },
+            type: { in: ['DM' as const, 'CLUB' as const, 'GROUP' as const] },
+            // A member who left a game chat (#376) is not in it any more.
+            participants: {
+              some: { userId: actor.userId, role: { in: ['MEMBER', 'PLAYER'] }, leftAt: null },
+            },
           }),
     },
     select: CONVERSATION_SELECT,
@@ -305,6 +320,10 @@ async function requireConversation(
 }
 
 /** The caller's own pointer row, if any. */
+function kindOf(type: ConversationRow['type']): ConversationKind {
+  return type === 'CLUB' ? 'club' : type === 'GROUP' ? 'game' : 'player';
+}
+
 function myRow(c: ConversationRow, actor: MessagingActor) {
   return c.participants.find((p) => p.userId === actor.userId) ?? null;
 }
@@ -324,6 +343,9 @@ function standing(
   if (c.blockedAt && c.blockedSide === 'PLATFORM') {
     return { state: 'blocked', blockedByMe: false, canSend: false };
   }
+
+  // A game chat (#376) is open to everyone in it, before the game and after.
+  if (c.type === 'GROUP') return { state: 'active', blockedByMe: false, canSend: true };
 
   if (c.type === 'CLUB') {
     if (c.blockedAt) {
@@ -360,10 +382,30 @@ function decryptBody(stored: string): string | null {
 }
 
 function counterpartOf(
-  c: Pick<ConversationRow, 'type' | 'tenantId' | 'playerUserId'> & { otherUserId: string | null },
+  c: Pick<ConversationRow, 'id' | 'type' | 'tenantId' | 'playerUserId' | 'participants'> & {
+    otherUserId: string | null;
+  },
   actor: MessagingActor,
-  names: { people: Map<string, PersonName>; clubs: Map<string, ClubName> },
+  names: {
+    people: Map<string, PersonName>;
+    clubs: Map<string, ClubName>;
+    games?: Map<string, GameChatFacts>;
+  },
 ): Counterpart {
+  if (c.type === 'GROUP') {
+    const game = names.games?.get(c.id);
+    return {
+      kind: 'game',
+      gameId: game?.gameId ?? '',
+      bookingId: game?.bookingId ?? '',
+      venueName: game?.venueName ?? '',
+      sport: game?.sport ?? 'TENNIS',
+      startTs: game?.startTs ?? '',
+      endTs: game?.endTs ?? '',
+      timezone: game?.timezone ?? 'Europe/Sofia',
+      members: c.participants.filter((p) => p.role === 'MEMBER' && p.leftAt === null).length,
+    };
+  }
   if (c.type === 'CLUB' && actor.kind === 'player') {
     const club = c.tenantId ? names.clubs.get(c.tenantId) : undefined;
     return {
@@ -471,8 +513,10 @@ export async function listConversations(
       actor.kind === 'club'
         ? { type: 'CLUB', tenantId: actor.tenantId }
         : {
-            type: { in: ['DM', 'CLUB'] },
-            participants: { some: { userId: actor.userId, role: { in: ['MEMBER', 'PLAYER'] } } },
+            type: { in: ['DM', 'CLUB', 'GROUP'] },
+            participants: {
+              some: { userId: actor.userId, role: { in: ['MEMBER', 'PLAYER'] }, leftAt: null },
+            },
           };
     const and: Prisma.ConversationWhereInput[] = [];
     if (actor.kind === 'player') {
@@ -488,7 +532,12 @@ export async function listConversations(
     if (cursor) and.push(keysetBefore(cursor, 'lastMessageAt'));
 
     const rows = await db.conversation.findMany({
-      where: { ...scope, messages: { some: {} }, AND: and },
+      // A conversation shows once somebody wrote in it; a game chat (#376)
+      // shows from the moment its players are in it, to be written in.
+      where: {
+        ...scope,
+        AND: [...and, { OR: [{ messages: { some: {} } }, { type: 'GROUP' }] }],
+      },
       orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       select: CONVERSATION_SELECT,
@@ -528,10 +577,11 @@ export async function listConversations(
     }),
     tenantIds: page.rows.flatMap((c) => (c.type === 'CLUB' && c.tenantId ? [c.tenantId] : [])),
   });
+  const games = await gameChatsFor(page.rows.flatMap((c) => (c.type === 'GROUP' ? [c.id] : [])));
 
   const items = page.rows.map((c): ConversationSummary => {
     const otherUserId = otherPersonOf(c, actor);
-    const counterpart = counterpartOf({ ...c, otherUserId }, actor, names);
+    const counterpart = counterpartOf({ ...c, otherUserId }, actor, { ...names, games });
     const last = page.last.get(c.id);
     const { state } = standing(c, actor, {
       iBlocked: otherUserId ? page.iBlocked.has(otherUserId) : false,
@@ -542,7 +592,7 @@ export async function listConversations(
     });
     return {
       id: c.id,
-      kind: c.type === 'CLUB' ? 'club' : 'player',
+      kind: kindOf(c.type),
       counterpart,
       state,
       lastMessageAt: c.lastMessageAt,
@@ -599,7 +649,8 @@ export async function unreadSummary(
         JOIN "conversation_participant" me
           ON me."conversationId" = c."id" AND me."userId" = ${actor.userId}
          AND me."role" IN ('MEMBER', 'PLAYER')
-       WHERE c."type"::text IN ('DM', 'CLUB')
+         AND me."leftAt" IS NULL
+       WHERE c."type"::text IN ('DM', 'CLUB', 'GROUP')
          AND EXISTS (
            SELECT 1 FROM "chat_message" m
             WHERE m."conversationId" = c."id"
@@ -684,7 +735,11 @@ export async function getConversation(
       ...page.flatMap((m) => (m.senderTenantId ? [m.senderTenantId] : [])),
     ],
   });
-  const counterpart = counterpartOf({ ...read.c, otherUserId: read.other }, actor, names);
+  const games = await gameChatsFor(read.c.type === 'GROUP' ? [read.c.id] : []);
+  const counterpart = counterpartOf({ ...read.c, otherUserId: read.other }, actor, {
+    ...names,
+    games,
+  });
   const st = standing(read.c, actor, {
     iBlocked: read.iBlocked,
     otherDeleted: counterpart.kind === 'player' && counterpart.deleted,
@@ -693,7 +748,7 @@ export async function getConversation(
 
   return {
     id: read.c.id,
-    kind: read.c.type === 'CLUB' ? 'club' : 'player',
+    kind: kindOf(read.c.type),
     counterpart,
     ...st,
     unreadCount: read.unread,
@@ -1379,6 +1434,7 @@ export async function blockConversation(
 ): Promise<{ blocked: true }> {
   return bound(actor, async (db) => {
     const c = await requireConversation(db, actor, conversationId);
+    if (c.type === 'GROUP') throw notBlockable();
     if (c.type === 'DM') {
       const other = otherPersonOf(c, actor);
       if (!other) throw notFound();

@@ -269,11 +269,82 @@ export async function namesFor(input: {
   };
 }
 
+/** What a game chat (#376) is about: the open game it belongs to. */
+export interface GameChatFacts {
+  gameId: string;
+  /** The booking, which everyone in the chat is on. */
+  bookingId: string;
+  venueName: string;
+  sport: SportType;
+  /** ISO instants, and the venue's zone to show them in. */
+  startTs: string;
+  endTs: string;
+  timezone: string;
+}
+
+/**
+ * The games of these game chats (#376), by conversation id. The ids come from
+ * conversations RLS already let the caller read, so this tells them nothing
+ * more than where and when the game they are in is.
+ */
+export async function gameChatsFor(
+  conversationIds: readonly string[],
+  /** A binding the caller already holds that reads every club (the export's). */
+  bound?: PrismaClient,
+): Promise<Map<string, GameChatFacts>> {
+  const ids = [...new Set(conversationIds)];
+  if (ids.length === 0) return new Map();
+  const read = async (db: PrismaClient) => {
+    // guardrail-allow: cross-tenant — the games of conversations the caller is in.
+    const rows = await db.openGame.findMany({
+      where: { conversationId: { in: ids } },
+      select: {
+        id: true,
+        conversationId: true,
+        bookingId: true,
+        booking: {
+          select: {
+            startTs: true,
+            endTs: true,
+            resource: {
+              select: { sport: true, venue: { select: { name: true, timezone: true } } },
+            },
+          },
+        },
+      },
+      take: ids.length,
+    });
+    return new Map(
+      rows.flatMap((g) =>
+        g.conversationId
+          ? [
+              [
+                g.conversationId,
+                {
+                  gameId: g.id,
+                  bookingId: g.bookingId,
+                  venueName: g.booking.resource.venue.name,
+                  sport: g.booking.resource.sport,
+                  startTs: g.booking.startTs.toISOString(),
+                  endTs: g.booking.endTs.toISOString(),
+                  timezone: g.booking.resource.venue.timezone,
+                },
+              ] as const,
+            ]
+          : [],
+      ),
+    );
+  };
+  return bound ? read(bound) : runAsSuperuser(read);
+}
+
 /** Who to tell about a new message, and what to call the sender. */
 export interface MessageAudience {
-  type: 'DM' | 'CLUB';
+  type: 'DM' | 'CLUB' | 'GROUP';
   /** The club of a CLUB conversation. */
   club: ClubName | null;
+  /** The game of a game chat (#376): where it is played, for the bell's words. */
+  game: { venueName: string } | null;
   /** A DM that is still a request (the bell says so). */
   request: boolean;
   senderName: string | null;
@@ -314,18 +385,22 @@ export async function messageAudience(
         tenantId: true,
         playerUserId: true,
         acceptedAt: true,
-        participants: { select: { userId: true, role: true, lastReadAt: true }, take: 100 },
+        participants: {
+          select: { userId: true, role: true, lastReadAt: true, leftAt: true },
+          take: 100,
+        },
       },
     });
-    if (!c || (c.type !== 'DM' && c.type !== 'CLUB')) return null;
+    if (!c || (c.type !== 'DM' && c.type !== 'CLUB' && c.type !== 'GROUP')) return null;
 
     const pointer = new Map(c.participants.map((p) => [p.userId, p.lastReadAt]));
     const fromClub = c.type === 'CLUB' && senderUserId !== c.playerUserId;
 
     let ids: Array<{ userId: string; side: 'player' | 'club' }>;
-    if (c.type === 'DM') {
+    if (c.type === 'DM' || c.type === 'GROUP') {
+      // A DM's other player; a game chat's every other member still in it.
       ids = c.participants
-        .filter((p) => p.role === 'MEMBER' && p.userId !== senderUserId)
+        .filter((p) => p.role === 'MEMBER' && p.leftAt === null && p.userId !== senderUserId)
         .map((p) => ({ userId: p.userId, side: 'player' as const }));
     } else if (fromClub) {
       ids = c.playerUserId ? [{ userId: c.playerUserId, side: 'player' }] : [];
@@ -361,9 +436,12 @@ export async function messageAudience(
     const byId = new Map(users.map((u) => [u.id, u]));
     const sender = byId.get(senderUserId);
 
+    const game =
+      c.type === 'GROUP' ? (await gameChatsFor([conversationId])).get(conversationId) : undefined;
     return {
       type: c.type,
       club: club ? { tenantId: club.id, slug: club.slug, name: club.name } : null,
+      game: game ? { venueName: game.venueName } : null,
       request: c.type === 'DM' && c.acceptedAt === null,
       senderName: sender && !sender.deletedAt ? sender.name : null,
       fromClub,

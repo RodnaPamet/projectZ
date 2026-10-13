@@ -32,6 +32,12 @@ model OpenGame {
   /// the game, signed in or not, so it is public text.
   note String?
 
+  /// The game chat (#376, rule 3, P63): a GROUP conversation of the booker and
+  /// every accepted player, made when the first player is accepted. Kept after
+  /// the game, as an ordinary group chat. No foreign key, as the requests'
+  /// `participantId`: a conversation is the messaging module's.
+  conversationId String? @unique
+
   /// When the booker last opened (or reopened) it.
   openedAt DateTime  @default(now()) @db.Timestamptz(3)
   /// Set when the booker closes it, or the booking is cancelled. Null: open.

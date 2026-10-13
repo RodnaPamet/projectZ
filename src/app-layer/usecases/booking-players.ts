@@ -4,6 +4,7 @@ import type { PrismaClient, SportType } from '@prisma/client';
 
 import { readBookingPlayers, type BookingPlayer } from '@/app-layer/repositories/booking';
 import { notifyBookingPlayersChanged } from '@/app-layer/usecases/booking-notifications';
+import { syncGameChatOfBooking } from '@/app-layer/usecases/open-play-chat';
 import { releaseOpenPlayPlace } from '@/app-layer/usecases/open-play-roster';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
@@ -199,6 +200,9 @@ export async function onBookingPlayersChanged(event: BookingPlayersEvent): Promi
     bookingId: event.bookingId,
   });
   await notifyBookingPlayersChanged(event);
+  // Leaving the game before it is played leaves its chat (#376, rule 3); a
+  // booking without an open game has none, and this does nothing.
+  if (event.type !== 'joined') await syncGameChatOfBooking(event.tenantId, event.bookingId);
 }
 
 // ─── Phase one: which club ──────────────────────────────────────────────

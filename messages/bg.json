@@ -560,6 +560,10 @@
       "fromClub": {
         "title": "{club} ви писа",
         "body": "{name} · {club}"
+      },
+      "inGame": {
+        "title": "{name} писа в чата на играта",
+        "body": "Игра в {game}"
       }
     }
   },
@@ -2114,6 +2118,10 @@
       "fromClub": {
         "subject": "{club} ви писа в playerz.bg",
         "intro": "{name} ви писа от името на {club}."
+      },
+      "inGame": {
+        "subject": "{name} писа в чата на играта в {game}",
+        "intro": "{name} писа в чата на играта ви в {game} в playerz.bg."
       }
     },
     "openPlay": {
@@ -2337,7 +2345,8 @@
       "unread": "{count, plural, one {# непрочетено съобщение} other {# непрочетени съобщения}}",
       "more": "Покажи още",
       "emptyClub": "Още няма съобщения",
-      "emptyClubBody": "Тук идват съобщенията на играчите до клуба. Можете да пишете на играч от списъка «Играчи»."
+      "emptyClubBody": "Тук идват съобщенията на играчите до клуба. Можете да пишете на играч от списъка «Играчи».",
+      "gameTitle": "Игра в {venue}"
     },
     "conversation": {
       "metaTitle": "Разговор",
@@ -2383,7 +2392,9 @@
       "unblock": "Отблокирай",
       "report": "Сигнал",
       "reportMessage": "Сигнал",
-      "blockFailed": "Не стана. Опитайте отново."
+      "blockFailed": "Не стана. Опитайте отново.",
+      "gameTitle": "Игра в {venue}",
+      "gameSubtitle": "{sport} · {when} · {count, plural, one {# играч} other {# играчи}}"
     },
     "start": {
       "write": "Пиши",
