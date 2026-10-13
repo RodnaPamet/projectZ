@@ -95,6 +95,8 @@ const ALLOWED: Record<string, string> = {
   'src/app/api/v1/venues/near/route.ts': 'public geo search',
   'src/app/api/v1/venues/[id]/route.ts': 'public venue detail',
   'src/app/api/v1/venues/[id]/availability/route.ts': 'public availability for a venue',
+  'src/app/api/v1/clubs/[slug]/route.ts':
+    'public club page (#411): public fields of one ACTIVE club, by slug',
   'src/app/api/venues/route.ts': 'legacy public venue list',
   'src/app/api/venues/near/route.ts': 'legacy public geo search',
   'src/app-layer/usecases/pilot-clubs.ts':
