@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { KEYS, type InboxSide } from '@/lib/data/keys';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
-import { INBOX_REFRESH_MS } from '@/lib/messaging/limits';
+import { INBOX_REFRESH_MS, PUSH_FALLBACK_REFRESH_MS } from '@/lib/messaging/limits';
+import { useMessageEvents, useRealtimeConnected } from '@/lib/realtime/client';
 
 /** As the bell's: one or two characters, so the badge never outgrows the icon. */
 const badgeLabel = (count: number) => (count > 9 ? '9+' : String(count));
@@ -20,10 +21,12 @@ const badgeLabel = (count: number) => (count > 9 ? '9+' : String(count));
  */
 export function MessagesBadge({ side }: { side: InboxSide }) {
   const t = useTranslations('common.nav');
-  const { data } = useV1SWR<{ conversations: number; requests: number }>(
+  const live = useRealtimeConnected();
+  const { data, mutate: reread } = useV1SWR<{ conversations: number; requests: number }>(
     KEYS.conversationsUnread(side),
-    { refreshInterval: INBOX_REFRESH_MS },
+    { refreshInterval: live ? PUSH_FALLBACK_REFRESH_MS : INBOX_REFRESH_MS },
   );
+  useMessageEvents(() => void reread());
   const unread = (data?.conversations ?? 0) + (data?.requests ?? 0);
   if (unread === 0) return null;
 

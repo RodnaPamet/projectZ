@@ -11957,8 +11957,8 @@
           "url": {
             "type": ["string", "null"],
             "format": "uri",
-            "description": "The public Centrifugo WebSocket URL, from `NEXT_PUBLIC_CENTRIFUGO_URL`. NULL when that variable is unset on the server — the token is still minted and the response is still 200, so a client must handle null rather than assume a URL is always present.",
-            "examples": ["wss://realtime.playerz.bg/connection/websocket"]
+            "description": "The Centrifugo WebSocket URL: this deployment's own origin with `/connection/websocket` (#481). NULL when push is off on the server (no `CENTRIFUGO_TOKEN_SECRET` or `CENTRIFUGO_API_KEY`) — the token is still minted and the response is still 200, so a client must handle null and keep polling.",
+            "examples": ["wss://playerz.bg/connection/websocket"]
           }
         }
       },

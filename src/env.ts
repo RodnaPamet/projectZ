@@ -361,6 +361,22 @@ export const env = createEnv({
     MODULE_OPEN_PLAY: z.enum(['0', '1']).default('0'),
     MODULE_MESSAGING: z.enum(['0', '1']).default('0'),
 
+    // ═══ CHAT PUSH: CENTRIFUGO (#481) ═══
+    //
+    // The broker runs next to the app (deploy/docker-compose.*.yml) and the
+    // browser reaches it at <NEXTAUTH_URL>/connection/websocket, through Caddy.
+    // Push is ON when both secrets are set, and off otherwise: chat then falls
+    // back to re-reading every few seconds, as it did before #481, so a missing
+    // broker degrades delivery and never breaks a send.
+    //   CENTRIFUGO_API_URL       the broker's server API, inside the network
+    //   CENTRIFUGO_API_KEY       its `http_api.key`
+    //   CENTRIFUGO_TOKEN_SECRET  signs connection tokens (`client.token.hmac_secret_key`)
+    //   CENTRIFUGO_PROXY_SECRET  the header the broker sends to /api/v1/realtime/subscribe
+    CENTRIFUGO_API_URL: z.string().url().optional(),
+    CENTRIFUGO_API_KEY: z.string().min(16).optional(),
+    CENTRIFUGO_TOKEN_SECRET: z.string().min(32).optional(),
+    CENTRIFUGO_PROXY_SECRET: z.string().min(32).optional(),
+
     // ═══ WHICH DEPLOYMENT THIS IS (#373) ═══
     //
     // `staging` is the copy on the same VM that gets every merge before the
@@ -486,6 +502,10 @@ export const env = createEnv({
 
     MODULE_OPEN_PLAY: process.env.MODULE_OPEN_PLAY,
     MODULE_MESSAGING: process.env.MODULE_MESSAGING,
+    CENTRIFUGO_API_URL: process.env.CENTRIFUGO_API_URL,
+    CENTRIFUGO_API_KEY: process.env.CENTRIFUGO_API_KEY,
+    CENTRIFUGO_TOKEN_SECRET: process.env.CENTRIFUGO_TOKEN_SECRET,
+    CENTRIFUGO_PROXY_SECRET: process.env.CENTRIFUGO_PROXY_SECRET,
     DEPLOY_ENV: process.env.DEPLOY_ENV,
     MEDIA_STORAGE: process.env.MEDIA_STORAGE,
     GCS_BUCKET: process.env.GCS_BUCKET,

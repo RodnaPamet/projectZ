@@ -3,6 +3,8 @@ import { absoluteUrl } from '@/lib/seo/site-url';
 import { dedupeKey } from '@/lib/notifications/dedupe';
 import { conversationPath } from '@/lib/messaging/paths';
 import { logger } from '@/lib/observability/logger';
+import { broadcast } from '@/lib/realtime/centrifugo';
+import { notificationChannel } from '@/lib/realtime/channels';
 
 import { messageAudience, type MessageAudience } from './messaging-directory';
 import { deliver } from './notification-outbox';
@@ -13,12 +15,14 @@ import { deliver } from './notification-outbox';
  * the message is already said, and a notification failing must not turn that
  * into an error the sender sees.
  *
- * ═══ THE SEAM FOR A TRANSPORT ═══
+ * ═══ PUSH, AFTER THE COMMIT (#481) ═══
  *
- * There is no broker; an open conversation refreshes every 5 seconds. When a
- * push transport arrives (Centrifugo), it is published from HERE, after the
- * commit, with the same recipients: publish-then-persist shows a message that
- * may never exist, persist-then-publish at worst shows one a moment late.
+ * Centrifugo is told from HERE, after the commit, with the same recipients:
+ * publish-then-persist shows a message that may never exist,
+ * persist-then-publish at worst shows one a moment late. Each person gets a
+ * small event on their own `notif:` channel; their open screens re-read
+ * through the API. With push off (no broker), screens keep re-reading on
+ * their own interval.
  *
  * ═══ ONE BELL ROW PER UNREAD STRETCH ═══
  *
@@ -126,6 +130,16 @@ export async function notifyNewMessage(input: {
   try {
     const audience = await messageAudience(input.conversationId, input.sender.userId);
     if (!audience) return;
+
+    // Push first (#481): an open screen re-reads at once instead of on its next
+    // tick. Every recipient, and the sender's own other tabs and devices. The
+    // event names the conversation and nothing else: the text never leaves
+    // Postgres this way, and each client reads it back through the API that
+    // decides what that person may see.
+    await broadcast(
+      [input.sender.userId, ...audience.recipients.map((r) => r.userId)].map(notificationChannel),
+      { type: 'message', conversationId: input.conversationId },
+    );
 
     // One recipient at a time: each is their own transaction (`deliver` binds
     // to that person), and one failing must not cost the others theirs.
