@@ -136,3 +136,33 @@ describe('useRefreshWhenStale', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 });
+
+describe('useRefreshWhenStale with an interval (#293)', () => {
+  function PolledDiary({ renderedAt }: { renderedAt: number }) {
+    useRefreshWhenStale(renderedAt, () => refresh(), STALE_AFTER_MS, 60_000);
+    return null;
+  }
+
+  it('refreshes a diary left open in the foreground, once per interval', () => {
+    render(<PolledDiary renderedAt={nextPayload()} />);
+    expect(refresh).not.toHaveBeenCalled();
+
+    // Nobody touches the tablet: no mount, no visibility change.
+    act(() => jest.advanceTimersByTime(60_000));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('never polls a hidden tab', () => {
+    render(<PolledDiary renderedAt={nextPayload()} />);
+    act(() => setVisibility('hidden'));
+    act(() => jest.advanceTimersByTime(5 * 60_000));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('stops polling when the diary unmounts', () => {
+    const view = render(<PolledDiary renderedAt={nextPayload()} />);
+    view.unmount();
+    act(() => jest.advanceTimersByTime(5 * 60_000));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});

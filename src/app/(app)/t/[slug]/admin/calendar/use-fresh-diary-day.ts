@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 
-import { useRefreshWhenStale } from '@/lib/hooks/use-refresh-when-stale';
+import { STALE_AFTER_MS, useRefreshWhenStale } from '@/lib/hooks/use-refresh-when-stale';
 
 import { refreshDiaryDayAction } from './actions';
 import type { DiaryDay } from './diary-day';
+
+/** How often an open diary looks for bookings made elsewhere (#293). */
+export const DIARY_POLL_MS = 60_000;
 
 /**
  * The newest copy of each day this tab has fetched for itself, per club and
@@ -81,7 +84,11 @@ export function useFreshDiaryDay(
     );
   };
 
-  useRefreshWhenStale(newest.renderedAt, refresh);
+  // Once a minute while the diary is on screen (#293): the front desk's tablet
+  // stays on this page all day, and a booking made online must appear on it
+  // without anyone touching the screen. The refresh is this day's own server
+  // action, so the rest of the router cache is untouched.
+  useRefreshWhenStale(newest.renderedAt, refresh, STALE_AFTER_MS, DIARY_POLL_MS);
   // `refresh` is also the grid's own after a desk write (#364): the write goes
   // to /api/v1, which the router cannot see, so the day is fetched again the
   // same way a stale one is — the router cache stays intact.
