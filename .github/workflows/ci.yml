@@ -157,15 +157,31 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 4: Integration tests — real Postgres + Redis
+  #
+  #  IN TWO HALVES (#531). The suite is serial by design (`--runInBand`: its
+  #  suites TRUNCATE one shared database) and grows with every feature: 108
+  #  suites took 11–17 minutes in October 2026, and a slow runner pushed one
+  #  run past a 25-minute limit with every test passing. So it is split with
+  #  Jest's own `--shard`, which divides the suites by a stable hash of their
+  #  paths. Each half is its own job on its own runner, so each has its own
+  #  Postgres, Redis and Centrifugo: nothing is shared, and nothing inside a
+  #  half runs in parallel.
+  #
+  #  To add a third half: add 3 to `shard`, and change both `/2` below to `/3`.
   # ═══════════════════════════════════════════════════════════════
-  integration:
-    name: Integration
+  integration-shard:
+    name: Integration (${{ matrix.shard }}/2)
     needs: [preflight]
     runs-on: ubuntu-latest
-    # A normal run is 11–17 minutes. 25 was cancelled on a slow runner with
-    # every suite passing (#531), so the limit leaves room for one; a real
+    strategy:
+      # One half failing says nothing about the other: let both finish, so one
+      # push shows every failure.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    # Half of a 11–17 minute suite, with room for a slow runner (#531). A real
     # hang still ends here rather than at the six-hour default.
-    timeout-minutes: 35
+    timeout-minutes: 25
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -228,10 +244,25 @@ jobs:
         if: needs.preflight.outputs.has_app == 'true'
         run: |
           if [ -n "$(find tests/integration -name '*.test.ts' 2>/dev/null)" ]; then
-            npx jest --selectProjects integration --runInBand --ci
+            npx jest --selectProjects integration --runInBand --ci --shard=${{ matrix.shard }}/2
           else
             echo "No integration tests yet."
           fi
+
+  # The one check named "Integration", whatever the number of halves: the gate
+  # below and anything that requires the check by name keep seeing one result.
+  integration:
+    name: Integration
+    needs: [preflight, integration-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every half passed
+        run: |
+          result='${{ needs.integration-shard.result }}'
+          echo "integration halves: $result"
+          [ "$result" = "success" ] || { echo "::error::An Integration half did not pass ($result). Open the Integration (n/2) jobs."; exit 1; }
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 4b: Coverage — BLOCKING as of P12.
