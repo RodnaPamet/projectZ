@@ -5,6 +5,7 @@ import { unsubscribeByToken, unsubscribeStanding } from '@/app-layer/usecases/em
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
 import { deleteAccount } from '@/app-layer/usecases/account-deletion';
 import { unsubscribeToken } from '@/lib/email/unsubscribe';
+import { absoluteUrl } from '@/lib/seo/site-url';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
 import { seedPlayer } from '../helpers/auth';
@@ -96,12 +97,20 @@ describe('one-click unsubscribe (#528)', () => {
 
   it('opening the header’s link in a browser switches nothing off: it leads to the page that asks', async () => {
     const token = unsubscribeToken(me, 'clubChanges');
+    // As the handler sees it behind the reverse proxy: the container's own
+    // address, not the site's.
     const res = await openHeaderLink(
-      new NextRequest(`http://localhost/api/email/unsubscribe/${token}`),
+      new NextRequest(`http://container.internal:3000/api/email/unsubscribe/${token}`),
       { params: Promise.resolve({ token }) },
     );
     expect(res.status).toBe(303);
-    expect(new URL(res.headers.get('location')!).pathname).toBe(`/email/unsubscribe/${token}`);
+    const to = new URL(res.headers.get('location')!);
+    expect(to.pathname).toBe(`/email/unsubscribe/${token}`);
+    // On the site's public origin, not the request's: behind the reverse proxy
+    // the handler's own URL is the container's, and the first version of this
+    // sent a browser to `localhost:3000` (seen on staging).
+    expect(to.origin).toBe(new URL(absoluteUrl('/')).origin);
+    expect(to.hostname).not.toBe('container.internal');
     expect(await emails(me)).toEqual(ALL_ON);
   });
 
