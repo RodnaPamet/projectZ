@@ -856,5 +856,4 @@ export const NOT_PERSONAL: Readonly<Record<string, string>> = {
   'ClubFeeLine.courtName': 'a court’s name on the fee ledger',
   'Achievement.name': 'a badge’s name',
   'Tournament.name': 'a tournament’s name',
-  'TenantEntraGroupMapping.aadGroupName': 'a directory group’s name (retired table, #443)',
 };

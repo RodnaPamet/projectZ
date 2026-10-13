@@ -53,16 +53,14 @@ describe('enum Role stays tenant-scoped', () => {
   it('has exactly the five tenant roles', () => {
     // ═══ WHY A VALUE ADDED HERE WOULD BE WORSE THAN IT LOOKS ═══
     //
-    // P27 defended OWNER against Entra group mapping with
-    // `CHECK (role <> 'OWNER')` — a DENYLIST. A new `ADMIN` value would be
-    // ACCEPTED by that constraint, so the documented four-layer defence around
-    // the most privileged role would silently have become three for the MOST
-    // privileged value of all.
-    //
-    // That asymmetry was the sharpest reason platform authority is a separate
-    // table. The group sync is gone (#361) and the constraint goes with its
-    // table (#443); the rest of the reasoning — a `Role` is one club's role,
-    // and platform authority is not one club's — stands without it.
+    // Every path that grants a `Role` (invites, the staff screen, an owner
+    // transfer) guards it with checks written against today's five values:
+    // OWNER refused in one place, MANAGER kept off OWNER in another. A new
+    // `ADMIN` value would arrive with no check naming it, so the most
+    // privileged value of all would be the least defended, and grantable by a
+    // club. A `Role` is one club's role; platform authority is not one club's.
+    // (P27's `CHECK (role <> 'OWNER')` once made the same point for Entra
+    // group mappings; it went with that table, #443.)
     expect(Object.values(Role).sort()).toEqual(['COACH', 'MANAGER', 'OWNER', 'PLAYER', 'STAFF']);
   });
 

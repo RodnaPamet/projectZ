@@ -28,10 +28,9 @@ import { asAppSuperuser } from '../helpers/rls';
  *   yourself         the usual route to the above, even with two owners
  *   OWNER either way needs admin.owner_management, which a MANAGER lacks
  *
- * Nothing in the database enforces any of them. The `role <> 'OWNER'` CHECK
- * from P27 is on `tenant_entra_group_mapping` only, so this use case is the
- * whole control — which is exactly why it is tested against a real database
- * rather than reasoned about.
+ * Nothing in the database enforces any of them, so this use case is the whole
+ * control — which is exactly why it is tested against a real database rather
+ * than reasoned about.
  */
 
 describe('admin staff', () => {

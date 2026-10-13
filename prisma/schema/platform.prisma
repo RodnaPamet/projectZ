@@ -14,11 +14,12 @@
 /// therefore mean "admin of that one club", which is the opposite of what a
 /// platform administrator is.
 ///
-/// There is a sharper reason too. The P27 migration defends OWNER against
-/// Entra group mapping with `CHECK (role <> 'OWNER')` — a DENYLIST. A new
-/// `ADMIN` value added to `Role` would be ACCEPTED by that constraint, so the
-/// documented four-layer defence around the most privileged role in the
-/// system would silently become three for the MOST privileged value of all.
+/// There is a sharper reason too. Every path that hands out a `Role` (an
+/// invite, the staff screen, an owner transfer) is guarded by checks written
+/// against today's five values: OWNER refused here, MANAGER not allowed to
+/// touch OWNER there. A new value would arrive with none of those checks
+/// naming it, so the most privileged value in the system would be the least
+/// defended one, and it could be granted by a club.
 ///
 /// So platform authority is a row in its own table, and the table denies
 /// everything to `app_user` at the RLS layer.
