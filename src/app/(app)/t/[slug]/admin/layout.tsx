@@ -10,6 +10,8 @@ import { clubShell } from '@/components/layout/nav-items';
 import { resolveTenantPageContext, signedInIdentity } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
 import { readModules } from '@/lib/modules';
+import { realtimeEnabled } from '@/lib/realtime/centrifugo';
+import { RealtimeProvider } from '@/lib/realtime/client';
 
 /**
  * The club-admin shell: sidebar on a desktop, a left drawer on a phone (T19).
@@ -95,23 +97,25 @@ export default async function ClubAdminLayout({
   if (!club.opensAdmin) notFound();
 
   return (
-    <ClubAdminShell
-      sections={club.sections}
-      homeHref={club.homeHref}
-      contextName={club.contextName}
-      user={{ userId: me.userId, name: me.name, email: me.email }}
-      account={club.account}
-      bottomTabs
-      fullBleedSegment="calendar"
-      messages={club.messages}
-    >
-      {result.ctx.clubStatus !== 'ACTIVE' && (
-        // Suspended or closed by the platform (#254): read-only, and why.
-        <InlineNotice variant="warning" className="mb-default" data-testid="club-not-active">
-          {tAdmin(result.ctx.clubStatus === 'CLOSED' ? 'closed' : 'suspended')}
-        </InlineNotice>
-      )}
-      {children}
-    </ClubAdminShell>
+    <RealtimeProvider userId={me.userId} enabled={readModules().messaging && realtimeEnabled()}>
+      <ClubAdminShell
+        sections={club.sections}
+        homeHref={club.homeHref}
+        contextName={club.contextName}
+        user={{ userId: me.userId, name: me.name, email: me.email }}
+        account={club.account}
+        bottomTabs
+        fullBleedSegment="calendar"
+        messages={club.messages}
+      >
+        {result.ctx.clubStatus !== 'ACTIVE' && (
+          // Suspended or closed by the platform (#254): read-only, and why.
+          <InlineNotice variant="warning" className="mb-default" data-testid="club-not-active">
+            {tAdmin(result.ctx.clubStatus === 'CLOSED' ? 'closed' : 'suspended')}
+          </InlineNotice>
+        )}
+        {children}
+      </ClubAdminShell>
+    </RealtimeProvider>
   );
 }

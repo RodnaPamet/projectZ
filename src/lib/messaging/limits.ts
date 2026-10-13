@@ -25,3 +25,10 @@ export const CONVERSATION_REFRESH_MS = 5_000;
 
 /** How often an open inbox, and the header's messages icon, re-read. */
 export const INBOX_REFRESH_MS = 30_000;
+
+/**
+ * While chat push is connected (#481), the same screens re-read only this
+ * often: a safety net for an event lost in a reconnect, not the way news
+ * arrives.
+ */
+export const PUSH_FALLBACK_REFRESH_MS = 120_000;

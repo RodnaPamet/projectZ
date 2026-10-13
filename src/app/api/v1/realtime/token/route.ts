@@ -5,7 +5,11 @@ import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ok } from '@/app/api/v1/_lib/envelope';
 import { UnauthorizedError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
-import { CONNECTION_TOKEN_TTL, mintConnectionToken } from '@/lib/realtime/centrifugo';
+import {
+  CONNECTION_TOKEN_TTL,
+  mintConnectionToken,
+  publicSocketUrl,
+} from '@/lib/realtime/centrifugo';
 
 /**
  * A short-lived Centrifugo connection token.
@@ -47,7 +51,8 @@ async function handler(req: NextRequest) {
     expiresInSeconds: CONNECTION_TOKEN_TTL,
     // Public by definition — the browser and the app both need it to open the
     // socket. Returned here so a client does not need a second config call.
-    url: process.env.NEXT_PUBLIC_CENTRIFUGO_URL ?? null,
+    // The deployment's own origin (#481), null while push is off.
+    url: publicSocketUrl(),
   });
 }
 

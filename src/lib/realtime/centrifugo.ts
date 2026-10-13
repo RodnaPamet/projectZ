@@ -42,8 +42,7 @@ export function mintConnectionToken(userId: string, now = Date.now()): string {
   const header = { alg: 'HS256', typ: 'JWT' };
   const payload = { sub: userId, iat, exp: iat + CONNECTION_TOKEN_TTL };
 
-  const b64 = (o: unknown) =>
-    Buffer.from(JSON.stringify(o)).toString('base64url');
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
   const signingInput = `${b64(header)}.${b64(payload)}`;
   const sig = createHmac('sha256', TOKEN_SECRET()).update(signingInput).digest('base64url');
@@ -94,5 +93,54 @@ export async function history(channel: string, limit = 100): Promise<unknown[]> 
     return (json.result?.publications ?? []).map((p) => p.data);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Is chat push on in this deployment (#481)? Both secrets set: the app can
+ * sign a connection token and can publish. Otherwise the browser is never
+ * told to connect, and chat keeps re-reading on its own interval.
+ */
+export function realtimeEnabled(): boolean {
+  return !!process.env.CENTRIFUGO_TOKEN_SECRET && !!process.env.CENTRIFUGO_API_KEY;
+}
+
+/**
+ * Where a browser connects: the deployment's own origin, through Caddy, so
+ * staging and production each point at their own broker with the same image.
+ * Null when push is off.
+ */
+export function publicSocketUrl(): string | null {
+  if (!realtimeEnabled()) return null;
+  const origin = process.env.NEXTAUTH_URL;
+  if (!origin) return null;
+  try {
+    const url = new URL('/connection/websocket', origin);
+    url.protocol = url.protocol === 'http:' ? 'ws:' : 'wss:';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Publish one event to several channels at once (Centrifugo's `broadcast`).
+ * Never throws, for the same reason `publish` doesn't: the data is already in
+ * Postgres, and a broker restart must not fail the write. A no-op when push
+ * is off.
+ */
+export async function broadcast(channels: string[], data: unknown): Promise<PublishResult> {
+  if (!realtimeEnabled() || channels.length === 0) return { delivered: false, degraded: false };
+  try {
+    const res = await fetch(API_URL(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `apikey ${API_KEY()}` },
+      body: JSON.stringify({ method: 'broadcast', params: { channels, data } }),
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) return { delivered: false, degraded: true };
+    return { delivered: true, degraded: false };
+  } catch {
+    return { delivered: false, degraded: true };
   }
 }

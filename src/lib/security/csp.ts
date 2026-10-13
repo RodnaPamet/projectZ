@@ -157,6 +157,10 @@ export function buildCspHeader(nonce: string, isDev = false): string {
       "'self'",
       'blob:',
       'https:',
+      // Chat push (#481): the browser's socket to Centrifugo on this origin.
+      // 'self' covers it in CSP3, but Safari matched ws(s) against 'self'
+      // only recently; the scheme source keeps older ones connecting.
+      'wss:',
       // In dev, allow HMR WebSocket
       ...(isDev ? ['ws://localhost:*', 'ws://127.0.0.1:*'] : []),
     ],
