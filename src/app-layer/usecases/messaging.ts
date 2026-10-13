@@ -30,6 +30,7 @@ import {
   type PlayerCard,
 } from './messaging-directory';
 import { notifyNewMessage } from './messaging-notify';
+import { assertPhoneConfirmed } from './phone-verification';
 
 /**
  * Messaging, module 1 (#375), ported from Agrent's exchange messaging
@@ -1130,6 +1131,9 @@ export async function sendMessage(
   const key = idempotencyKey?.trim() || null;
 
   await assertLivePlayer(actor);
+  // A player confirms a phone number before their first message (#500), when
+  // the rule is on. A club's staff write for the club and are not asked.
+  if (actor.kind === 'player') await assertPhoneConfirmed(actor.userId);
   await enforceRate(
     actor.kind === 'club' ? `chat-send:club:${actor.tenantId}` : `chat-send:u:${actor.userId}`,
     MESSAGE_SEND_LIMIT,

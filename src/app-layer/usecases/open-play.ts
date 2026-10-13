@@ -27,6 +27,7 @@ import {
 import { notifyOpenPlay, type OpenPlayEvent } from '@/app-layer/usecases/booking-notifications';
 import { syncGameChat } from '@/app-layer/usecases/open-play-chat';
 import { cutoffPassed, OpenPlayError } from '@/app-layer/usecases/open-play-roster';
+import { assertPhoneConfirmed } from '@/app-layer/usecases/phone-verification';
 import { publicVenueFilter } from '@/app-layer/repositories/public-venue';
 import { listVenueFacets, type VenueFacets } from '@/app-layer/repositories/venue';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
@@ -1002,6 +1003,9 @@ export async function askToJoin(input: {
       'Joining a game needs a player account.',
     );
   }
+  // A confirmed phone number before the first join request (#500), when the
+  // rule is on. After the account's kind, before the game is looked at.
+  await assertPhoneConfirmed(input.userId);
 
   // guardrail-allow: cross-tenant — which club a game id is at, before any
   // club is bound; the id came from the public listing.

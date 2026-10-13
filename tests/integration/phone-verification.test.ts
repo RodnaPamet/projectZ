@@ -3,7 +3,11 @@ import { NextRequest } from 'next/server';
 import { DELETE as deleteMe, GET as getMeRoute } from '@/app/api/v1/me/route';
 import { POST as confirmRoute } from '@/app/api/v1/me/phone/confirm/route';
 import { POST as startRoute } from '@/app/api/v1/me/phone/start/route';
+import { acceptBookingInvite, createBookingInviteLink } from '@/app-layer/usecases/booking-players';
 import { noShowStanding } from '@/app-layer/usecases/booking-rules';
+import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
+import { openPlayerConversation, sendMessage } from '@/app-layer/usecases/messaging';
+import { askToJoin } from '@/app-layer/usecases/open-play';
 import {
   assertPhoneConfirmed,
   confirmPhoneVerification,
@@ -300,6 +304,131 @@ describe('the gate (#500)', () => {
     await confirmPhoneVerification(me.userId, fresh(), CODE);
     await expect(assertPhoneConfirmed(me.userId)).resolves.toBeUndefined();
     expect((await phoneStanding(me.userId))?.required).toBe(true);
+  });
+});
+
+describe('what needs a confirmed number, once the rule is on (#500)', () => {
+  const HELD = { name: 'PhoneRequiredError' };
+
+  async function clubWithBooking() {
+    const club = await seedTenant({ name: 'Клуб Гама' });
+    const court = await seedVenue(club.tenantId);
+    const booker = await seedPlayer(db, club.tenantId, 'gate-booker');
+    const start = new Date(Date.now() + 3 * DAY);
+    const booking = await asAppSuperuser(db, (tx) =>
+      tx.booking.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: court.resourceId,
+          startTs: start,
+          endTs: new Date(start.getTime() + HOUR),
+          bookedByUserId: booker,
+          totalCents: 2400,
+          status: 'CONFIRMED',
+          idempotencyKey: `gate-${Math.random()}`,
+        },
+        select: { id: true },
+      }),
+    );
+    return { club, booker, bookingId: booking.id };
+  }
+
+  it('booking: refused before the account becomes anybody’s player, then let through', async () => {
+    required = true;
+    const { club } = await clubWithBooking();
+    const me = await account();
+
+    await expect(
+      resolvePlayerTenant(me.userId, club.tenantSlug, { createIfAbsent: true }),
+    ).rejects.toMatchObject(HELD);
+    const joined = () =>
+      asAppSuperuser(db, (tx) => tx.tenantMembership.count({ where: { userId: me.userId } }));
+    expect(await joined()).toBe(0);
+
+    await confirmPhoneFor(db, me.userId);
+    await expect(
+      resolvePlayerTenant(me.userId, club.tenantSlug, { createIfAbsent: true }),
+    ).resolves.toMatchObject({ tenantId: club.tenantId });
+    expect(await joined()).toBe(1);
+  });
+
+  it('booking: reading one’s own bookings at a club is not held back', async () => {
+    required = true;
+    const { club } = await clubWithBooking();
+    const me = await account();
+    // createIfAbsent: false is every read; it answers "not a member", not the gate.
+    await expect(
+      resolvePlayerTenant(me.userId, club.tenantSlug, { createIfAbsent: false }),
+    ).resolves.toBeNull();
+  });
+
+  it('joining a booking by link: refused, then let through', async () => {
+    required = true;
+    const { booker, bookingId } = await clubWithBooking();
+    const link = await createBookingInviteLink({ userId: booker, bookingId });
+    const me = await account();
+
+    await expect(
+      acceptBookingInvite({ userId: me.userId, token: link.token }),
+    ).rejects.toMatchObject(HELD);
+    await confirmPhoneFor(db, me.userId);
+    await expect(
+      acceptBookingInvite({ userId: me.userId, token: link.token }),
+    ).resolves.toMatchObject({ joined: true });
+  });
+
+  it('asking to join a game: refused before the game is even looked at', async () => {
+    required = true;
+    const me = await account();
+    await expect(askToJoin({ userId: me.userId, gameId: 'no-such-game' })).rejects.toMatchObject(
+      HELD,
+    );
+    await confirmPhoneFor(db, me.userId);
+    // Past the gate: now it is about the game.
+    await expect(askToJoin({ userId: me.userId, gameId: 'no-such-game' })).rejects.toMatchObject({
+      code: 'GAME_NOT_FOUND',
+    });
+  });
+
+  it('writing a message: a player is asked, a club’s staff are not', async () => {
+    required = true;
+    const [me, other] = await Promise.all([account(), account()]);
+    await confirmPhoneFor(db, other.userId);
+    const { id } = await openPlayerConversation(
+      { kind: 'player', userId: other.userId },
+      me.userId,
+    );
+
+    await expect(
+      sendMessage({ kind: 'player', userId: me.userId }, id, 'Здравей'),
+    ).rejects.toMatchObject(HELD);
+    await confirmPhoneFor(db, me.userId);
+    await expect(
+      sendMessage({ kind: 'player', userId: me.userId }, id, 'Здравей'),
+    ).resolves.toMatchObject({ id: expect.any(String) });
+
+    // Staff with no number of their own, writing for the club: never the gate.
+    const { club } = await clubWithBooking();
+    const staff = await account();
+    await expect(
+      sendMessage(
+        { kind: 'club', userId: staff.userId, tenantId: club.tenantId },
+        'no-such-chat',
+        'Здравейте',
+      ),
+    ).rejects.not.toMatchObject(HELD);
+  });
+
+  it('with the rule off, none of them asks', async () => {
+    const { club, booker, bookingId } = await clubWithBooking();
+    const link = await createBookingInviteLink({ userId: booker, bookingId });
+    const me = await account();
+    await expect(
+      resolvePlayerTenant(me.userId, club.tenantSlug, { createIfAbsent: true }),
+    ).resolves.not.toBeNull();
+    await expect(
+      acceptBookingInvite({ userId: me.userId, token: link.token }),
+    ).resolves.toMatchObject({ joined: true });
   });
 });
 
