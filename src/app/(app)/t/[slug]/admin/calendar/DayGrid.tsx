@@ -30,6 +30,7 @@ import { useFreshDiaryDay } from './use-fresh-diary-day';
 // is the grid, and most visits only look.
 const DeskBookingSheet = dynamic(() => import('./DeskBookingSheet'));
 const DeskBookingDetails = dynamic(() => import('./DeskBookingDetails'));
+const DiaryPlayersSheet = dynamic(() => import('./DiaryPlayersSheet'));
 
 /**
  * One day, every court, side by side — the front-desk view.
@@ -114,6 +115,20 @@ export interface DayBooking {
   desk: boolean;
   /** One week of a weekly series, or null. */
   seriesId: string | null;
+  /** The players besides the booker (#358), open-play joiners marked (#376). */
+  players: DiaryPlayer[];
+}
+
+export interface DiaryPlayer {
+  /** The `booking_participant` row. */
+  id: string;
+  name: string;
+  /** Accepted through open play (#376). */
+  viaOpenPlay: boolean;
+  /** Marked as not having come. */
+  noShow: boolean;
+  /** An open-play joiner, the game started, not marked yet. The action re-checks. */
+  canMarkNoShow: boolean;
 }
 
 export interface GridCourt {
@@ -197,6 +212,9 @@ export function DayGrid({
   // ── The desk (#364) ──────────────────────────────────────────────
   const [draft, setDraft] = useState<DeskDraft | null>(null);
   const [detail, setDetail] = useState<DayBooking | null>(null);
+  // An online booking with other players on it (#358, #376): who they are.
+  const [playersOf, setPlayersOf] = useState<string | null>(null);
+  const playersBooking = playersOf ? (bookings.find((b) => b.id === playersOf) ?? null) : null;
   const [cancelRequest, setCancelRequest] = useState<DeskCancelRequest | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deskError, setDeskError] = useState(false);
@@ -516,6 +534,10 @@ export function DayGrid({
                             setDeskError(false);
                             setDetail(b);
                           }}
+                          onOpenPlayers={() => {
+                            setRefusal(null);
+                            setPlayersOf(b.id);
+                          }}
                         />
                       ))}
                     </div>
@@ -567,6 +589,22 @@ export function DayGrid({
             setDraft(null);
             if (date === isoDay) refresh();
             else router.push(`/t/${slug}/admin/calendar?day=${date}`);
+          }}
+        />
+      )}
+
+      {playersBooking && (
+        <DiaryPlayersSheet
+          slug={slug}
+          booking={playersBooking}
+          onClose={() => setPlayersOf(null)}
+          onChanged={refresh}
+          onMarkBookingNoShow={() => {
+            const b = playersBooking;
+            setPlayersOf(null);
+            setRefusal(null);
+            setNoShowTarget(b);
+            setConfirmOpen(true);
           }}
         />
       )}
@@ -668,11 +706,14 @@ function BookingBlock({
   booking: b,
   onMarkNoShow,
   onOpenDesk,
+  onOpenPlayers,
 }: {
   booking: DayBooking;
   onMarkNoShow: () => void;
   /** A desk booking opens its detail instead (#364); the no-show is in there. */
   onOpenDesk: () => void;
+  /** An online booking with other players opens who they are (#358, #376). */
+  onOpenPlayers: () => void;
 }) {
   const t = useTranslations('admin.calendar');
   const pending = b.status === 'PENDING';
@@ -694,6 +735,11 @@ function BookingBlock({
   const content = (
     <>
       <span className="font-medium">{b.who}</span>
+      {b.players.length > 0 && (
+        <span className="ml-1 tabular-nums" data-booking-players={b.players.length}>
+          {t('players.more', { count: b.players.length })}
+        </span>
+      )}
       <span className="ml-1 tabular-nums">
         {b.startLabel}–{b.endLabel}
       </span>
@@ -730,6 +776,24 @@ function BookingBlock({
         data-booking-desk
         aria-label={t('desk.open', { who: b.who, start: b.startLabel, end: b.endLabel })}
         onClick={onOpenDesk}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  if (b.players.length > 0) {
+    return (
+      <button
+        type="button"
+        className={cn(
+          className,
+          'focus-visible:ring-focus-ring cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none',
+        )}
+        style={style}
+        data-booking-status={b.status}
+        aria-label={t('players.open', { who: b.who, start: b.startLabel, end: b.endLabel })}
+        onClick={onOpenPlayers}
       >
         {content}
       </button>

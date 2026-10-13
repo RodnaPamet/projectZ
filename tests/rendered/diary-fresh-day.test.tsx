@@ -44,6 +44,7 @@ const booking = (id: string, who: string): DayBooking => ({
   canMarkNoShow: false,
   desk: false,
   seriesId: null,
+  players: [],
 });
 
 const dayOf = (renderedAt: number, ...who: string[]): DiaryDay => ({

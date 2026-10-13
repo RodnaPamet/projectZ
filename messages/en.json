@@ -1174,6 +1174,19 @@
           "hint": "{count} courts, pitches and tracks: scroll sideways or pick one.",
           "jumpTo": "Show court, pitch or track"
         }
+      },
+      "players": {
+        "more": "+{count}",
+        "open": "Players: {who}, {start}–{end}",
+        "when": "{start}–{end} · {price}",
+        "booker": "booked",
+        "viaOpenPlay": "via Games",
+        "noShow": "Didn't come",
+        "mark": "Didn't come",
+        "markLabel": "{name} didn't come",
+        "markBooking": "Nobody came",
+        "confirmTitle": "Mark {name} as not having come?",
+        "confirmBody": "The game from {start} to {end}. The absence counts against the player, as the booker's no-show does."
       }
     },
     "photos": {
@@ -1451,6 +1464,72 @@
         "TOO_MANY": "There are too many live links. Stop the old ones and try again.",
         "FAILED": "That did not work. Try again."
       }
+    },
+    "game": {
+      "heading": "Looking for players",
+      "intro": "Short of players? Put the game in Games and others can ask for a spot. You decide whom to accept.",
+      "open": "Find players",
+      "edit": "Change",
+      "reopen": "Look again",
+      "stop": "Stop looking",
+      "chat": "Game chat",
+      "answerUntil": "Answer by {deadline}. After that, waiting requests lapse.",
+      "requests": "Requests",
+      "noRequests": "No requests yet.",
+      "unnamed": "Player",
+      "sports": "Sports and levels",
+      "accept": "Accept",
+      "decline": "Decline",
+      "acceptLabel": "Accept {name}",
+      "declineLabel": "Decline {name}",
+      "joined": "You joined through Games. If you can't come, pull out by {deadline}.",
+      "joinedSettled": "The deadline to pull out has passed: you're in the game.",
+      "state": {
+        "open": "Looking for players",
+        "closed": "No longer looking",
+        "full": "All spots taken",
+        "cutoff": "Deadline passed"
+      },
+      "stopConfirm": {
+        "title": "Stop looking for players?",
+        "description": "Waiting requests will be closed and their senders notified. Accepted players stay.",
+        "yes": "Stop looking",
+        "no": "Back"
+      },
+      "dialog": {
+        "title": "Find players",
+        "description": "The game shows in Games and on the venue's page until {deadline}.",
+        "spots": "How many more players do you need?",
+        "level": "Preferred level",
+        "anyLevel": "Any level",
+        "pickLevel": "Choose a level",
+        "levelFrom": "From level",
+        "levelTo": "To level",
+        "levelHint": "The level is a wish: anyone can ask, and you decide.",
+        "note": "Note (optional)",
+        "notePlaceholder": "For example: looking for two for doubles",
+        "cancel": "Back",
+        "submit": "Put in Games",
+        "save": "Save"
+      },
+      "error": {
+        "GAME_FULL": "The spots are already taken.",
+        "GAME_CLOSED": "The game is no longer looking for players.",
+        "GAME_NOT_FOUND": "This game is no longer available.",
+        "OPEN_PLAY_CUTOFF_PASSED": "Too late: the club no longer takes changes to this game.",
+        "ASK_DECLINED": "This player was already declined.",
+        "ALREADY_PLAYING": "This player is already in the game.",
+        "PLAYER_ACCOUNT_REQUIRED": "Only a player account can be accepted.",
+        "ACCOUNT_KIND_REQUIRED": "This account hasn't chosen to be a player yet.",
+        "NO_SHOW_BLOCKED": "The club has paused this player's bookings.",
+        "RATE_LIMITED": "Too many attempts. Try again later.",
+        "REQUEST_NOT_PENDING": "The request is no longer waiting.",
+        "SPOTS_UNAVAILABLE": "There aren't that many free spots.",
+        "BOOKING_FULL": "There are no free spots.",
+        "NOTE_TOO_LONG": "The note is too long.",
+        "FAILED": "That didn't work. Try again."
+      },
+      "waiting": "{count, plural, one {# waiting} other {# waiting}}"
     }
   },
   "platform": {
@@ -2441,6 +2520,105 @@
       "close": "Close",
       "sent": "Thank you. Moderators will review your report.",
       "failed": "The report was not sent. Please try again."
+    }
+  },
+  "games": {
+    "metaTitle": "Games — playerz.bg",
+    "title": "Games",
+    "intro": "Games whose organiser is looking for more players. Ask for a spot — they decide whom to accept. Payment is at the club.",
+    "tabs": {
+      "label": "Games or my requests",
+      "open": "Looking for players",
+      "mine": "My requests"
+    },
+    "filters": {
+      "label": "Game filters",
+      "day": "Day",
+      "anyDay": "Any day",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "sport": "Sport",
+      "allSports": "All sports",
+      "city": "City",
+      "allCities": "All cities",
+      "citySearch": "Search for a city",
+      "cityNone": "No such city"
+    },
+    "empty": {
+      "title": "Nobody is looking for players yet",
+      "description": "Games with free spots show up here. Try another day or sport."
+    },
+    "more": "Show more",
+    "card": {
+      "spotsLeft": "{count, plural, one {Looking for # more player} other {Looking for # more players}}",
+      "anyLevel": "Any level",
+      "levelOne": "Level {level} wanted",
+      "levelRange": "Level {min}–{max} wanted",
+      "levelFrom": "Level {min}+ wanted",
+      "levelTo": "Level up to {max} wanted",
+      "organiser": "Organised by {name}",
+      "organiserUnknown": "Organiser",
+      "players": "{count} of {capacity} players",
+      "signIn": "Sign in to ask for a spot",
+      "manage": "Your game",
+      "toBooking": "Go to the booking",
+      "ask": "I want to play",
+      "withdraw": "Withdraw the request"
+    },
+    "status": {
+      "PENDING": "Awaiting an answer",
+      "ACCEPTED": "Accepted",
+      "DECLINED": "Not accepted",
+      "WITHDRAWN": "Withdrawn",
+      "LAPSED": "Lapsed",
+      "LEFT": "You pulled out",
+      "REMOVED": "Removed",
+      "CLOSED": "Game closed"
+    },
+    "error": {
+      "title": "The games didn't load",
+      "description": "Check your connection and try again.",
+      "GAME_FULL": "The spots are already taken.",
+      "GAME_CLOSED": "The game is no longer looking for players.",
+      "GAME_NOT_FOUND": "This game is no longer available.",
+      "OPEN_PLAY_CUTOFF_PASSED": "Too late: the club no longer takes changes to this game.",
+      "ASK_DECLINED": "The organiser has already declined your request for this game.",
+      "ALREADY_PLAYING": "You're already in this game.",
+      "PLAYER_ACCOUNT_REQUIRED": "Only a player account can ask for a spot.",
+      "ACCOUNT_KIND_REQUIRED": "First choose whether this is a player or a coach account.",
+      "NO_SHOW_BLOCKED": "The club has paused your bookings for missed games.",
+      "RATE_LIMITED": "You've sent many requests today. Try again tomorrow.",
+      "REQUEST_NOT_PENDING": "The request is no longer waiting.",
+      "SPOTS_UNAVAILABLE": "There aren't that many free spots.",
+      "BOOKING_FULL": "There are no free spots.",
+      "NOTE_TOO_LONG": "The note is too long.",
+      "FAILED": "That didn't work. Try again."
+    },
+    "ask": {
+      "title": "Ask for a spot?",
+      "description": "{venue}, {date} at {time}. The organiser will accept or decline your request. Payment is at the club.",
+      "noteLabel": "Note to the organiser (optional)",
+      "notePlaceholder": "For example, the level you play at",
+      "noteHint": "Up to {max} characters.",
+      "cancel": "Back",
+      "submit": "Send request"
+    },
+    "mine": {
+      "signInTitle": "Sign in to see your requests",
+      "signInDescription": "Here you'll see the games you asked to join and where your requests stand.",
+      "signIn": "Sign in",
+      "error": {
+        "title": "Your requests didn't load",
+        "description": "Check your connection and try again."
+      },
+      "empty": {
+        "title": "No requests",
+        "description": "When you ask for a spot in a game, it shows up here."
+      }
+    },
+    "venue": {
+      "title": "Looking for players",
+      "all": "All games"
     }
   }
 }

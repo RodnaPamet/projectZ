@@ -51,6 +51,7 @@ describe('DayGrid: marking a no-show', () => {
     canMarkNoShow: true,
     desk: false,
     seriesId: null,
+    players: [],
     ...over,
   });
 

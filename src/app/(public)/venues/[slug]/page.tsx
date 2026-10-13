@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getVenueByPublicSlug } from '@/app-layer/repositories/venue';
+import { listOpenGames } from '@/app-layer/usecases/open-play';
+import { toOpenGameDto } from '@/app/api/v1/_lib/open-play-dto';
 import { playCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
@@ -14,12 +16,14 @@ import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { bookingNoun } from '@/lib/sports/resource-kinds';
 import { venuePath } from '@/lib/seo/sitemap';
+import { readModules } from '@/lib/modules';
 import { countPageUsage } from '@/lib/usage/record';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { buildVenueJsonLd, serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
 import { isPublicSlug } from './booking-days';
 import { VenueGallery } from './VenueGallery';
+import { VenueGames } from './VenueGames';
 import { VenueHeader } from './VenueHeader';
 import { VenueSlots, VenueSlotsSkeleton } from './VenueSlots';
 
@@ -199,6 +203,10 @@ export default async function VenuePage({
     // Request-cached: the layout's chrome asked already.
     chromeIdentity(),
   ]);
+  // Open play (#376): the venue's open games, while the module is on.
+  const games = readModules().openPlay
+    ? await listOpenGames({ venueId: venue.id }, { viewerId: me?.userId ?? null })
+    : null;
 
   // The chrome (and its <main>) comes from (public)/layout.tsx (T20, #362).
   // Inside a signed-in shell the frame pads, so the page's own gutter goes
@@ -227,6 +235,13 @@ export default async function VenuePage({
         />
         {/* #375: a signed-in player writes to the venue's club, while messaging is on. */}
         <WriteToClub clubSlug={clubSlug} className="in-shell:px-0 -mt-2 px-6 md:px-0" />
+        {games ? (
+          <VenueGames
+            venueId={venue.id}
+            venuePath={venuePath(publicSlug)}
+            seed={{ items: games.items.map(toOpenGameDto), nextCursor: games.nextCursor }}
+          />
+        ) : null}
         {/* The second stage (#403): only the slots wait for the day's
             availability; the header above is already on screen. */}
         <Suspense fallback={<VenueSlotsSkeleton />}>

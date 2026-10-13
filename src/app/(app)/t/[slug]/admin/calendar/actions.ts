@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import {
   markNoShow,
+  markPlayerNoShow,
   NoShowRefusedError,
   type NoShowRefusal,
 } from '@/app-layer/usecases/booking-outcome';
@@ -71,6 +72,30 @@ export async function markNoShowAction(slug: string, bookingId: string): Promise
  * `bookings.view_all`, as the page itself requires. A caller without it gets
  * the action's refusal, which the grid treats as "keep what is on screen".
  */
+/**
+ * One player who joined through open play did not come (#376, rule 2): the
+ * same check and the same outcome as the booking's own no-show, for them.
+ */
+export async function markPlayerNoShowAction(
+  slug: string,
+  bookingId: string,
+  participantId: string,
+): Promise<ActionResult> {
+  const ctx = await requireTenantAction(slug, 'bookings.view_all');
+
+  try {
+    await runInTenantContext(ctx.tenantId, (db) =>
+      markPlayerNoShow(db, ctx.tenantId, { bookingId, participantId, actorUserId: ctx.userId }),
+    );
+  } catch (err) {
+    if (err instanceof NoShowRefusedError) return { ok: false, error: err.reason };
+    throw err;
+  }
+
+  revalidatePath(`/t/${slug}/admin/calendar`);
+  return { ok: true };
+}
+
 export async function refreshDiaryDayAction(slug: string, requestedDay: string | null) {
   const ctx = await requireTenantAction(slug, 'bookings.view_all');
   const [t, tCommon, locale] = await Promise.all([

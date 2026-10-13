@@ -21,6 +21,7 @@ import { noShowStanding } from '@/app-layer/usecases/booking-rules';
 import { deleteAccount } from '@/app-layer/usecases/account-deletion';
 import { exportMyData } from '@/app-layer/usecases/data-export';
 import { lapseOpenPlayRequests } from '@/app-layer/usecases/open-play';
+import { loadDiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
@@ -584,6 +585,36 @@ describe('open play (#376)', () => {
         tx.openGame.findUniqueOrThrow({ where: { id: gameId } }),
       );
       expect(game.closedAt).not.toBeNull();
+    });
+  });
+
+  describe('the club', () => {
+    it('sees a joiner on the booking in its diary, «през Игри», named and never by address', async () => {
+      const { id, gameId } = await opened(2);
+      await ask(asker, gameId);
+      const req = (await bookingGame(booker, id)).body.data.requests[0]!;
+      await answer(booker, id, req.id, 'accept');
+
+      const start = await asAppSuperuser(db, (tx) =>
+        tx.booking.findUniqueOrThrow({ where: { id }, select: { startTs: true } }),
+      );
+      const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Sofia' }).format(
+        start.startTs,
+      );
+      const diary = await loadDiaryDay(club.tenantId, day, {
+        locale: 'bg',
+        labels: { unknownPlayer: 'Играч', guest: 'Гост', deletedUser: 'Изтрит' },
+      });
+      const entry = diary.bookings.find((b) => b.id === id)!;
+      expect(entry.players).toEqual([
+        expect.objectContaining({
+          name: 'Мария Георгиева',
+          viaOpenPlay: true,
+          noShow: false,
+          // Not started yet.
+          canMarkNoShow: false,
+        }),
+      ]);
     });
   });
 

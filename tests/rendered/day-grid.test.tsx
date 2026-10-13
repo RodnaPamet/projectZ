@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { DayGrid, type DayBooking } from '@/app/(app)/t/[slug]/admin/calendar/DayGrid';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import type { DiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
 
 import { messages as bg, withIntl } from '../helpers/intl';
@@ -34,8 +35,10 @@ jest.mock('next/navigation', () => ({
 }));
 
 const markNoShowAction = jest.fn();
+const markPlayerNoShowAction = jest.fn();
 jest.mock('@/app/(app)/t/[slug]/admin/calendar/actions', () => ({
   markNoShowAction: (...args: unknown[]) => markNoShowAction(...args),
+  markPlayerNoShowAction: (...args: unknown[]) => markPlayerNoShowAction(...args),
   refreshDiaryDayAction: jest.fn(() => new Promise(() => {})),
 }));
 
@@ -55,6 +58,7 @@ const booking = (over: Partial<DayBooking> = {}): DayBooking => ({
   canMarkNoShow: true,
   desk: false,
   seriesId: null,
+  players: [],
   ...over,
 });
 
@@ -360,5 +364,67 @@ describe('the desk in the diary (#364)', () => {
     expect(block).toHaveAttribute('data-booking-desk');
     expect(within(block).getByText(d.seriesMark)).toBeInTheDocument();
     expect(screen.getByText(bg.admin.calendar.legend.desk)).toBeInTheDocument();
+  });
+});
+
+describe('who plays an online booking (#358, #376)', () => {
+  const p = bg.admin.calendar.players;
+
+  it('a booking with other players says how many, and lists them with «през Игри»', async () => {
+    markPlayerNoShowAction.mockResolvedValue({ ok: true });
+    render(
+      withIntl(
+        <TooltipProvider>
+          <DayGrid
+            slug={nextClub()}
+            requestedDay="2026-09-29"
+            day={dayOf({
+              bookings: [
+                booking({
+                  players: [
+                    {
+                      id: 'p1',
+                      name: 'Мария',
+                      viaOpenPlay: true,
+                      noShow: false,
+                      canMarkNoShow: true,
+                    },
+                    {
+                      id: 'p2',
+                      name: 'Петър',
+                      viaOpenPlay: false,
+                      noShow: false,
+                      canMarkNoShow: false,
+                    },
+                  ],
+                }),
+              ],
+            })}
+          />
+        </TooltipProvider>,
+      ),
+    );
+
+    const block = screen.getByRole('button', { name: /Иван, 18:00–19:00/ });
+    expect(within(block).getByText('+2')).toBeInTheDocument();
+    fireEvent.click(block);
+
+    const sheet = await screen.findByRole('dialog', { name: 'Иван' });
+    expect(within(sheet).getByText('Мария')).toBeInTheDocument();
+    expect(within(sheet).getAllByText(p.viaOpenPlay)).toHaveLength(1);
+    // Only the open-play joiner can be marked; the booker's own no-show stays.
+    expect(sheet.querySelectorAll('[data-diary-player-no-show]')).toHaveLength(1);
+    expect(within(sheet).getByRole('button', { name: p.markBooking })).toBeInTheDocument();
+
+    fireEvent.click(
+      within(sheet).getByRole('button', { name: p.markLabel.replace('{name}', 'Мария') }),
+    );
+    const confirm = await screen.findByRole('dialog', {
+      name: p.confirmTitle.replace('{name}', 'Мария'),
+    });
+    fireEvent.click(within(confirm).getByRole('button', { name: p.mark }));
+    await waitFor(() =>
+      expect(markPlayerNoShowAction).toHaveBeenCalledWith(expect.any(String), 'b1', 'p1'),
+    );
   });
 });
