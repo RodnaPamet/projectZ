@@ -5,6 +5,7 @@ import { getToken } from 'next-auth/jwt';
 
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
 import { checkSession } from '@/lib/auth/sessions';
+import { ClubNotActiveError } from '@/lib/auth/club-not-active';
 import { getPermissionsForRole, type Permission } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import type { Role, TenantStatus } from '@prisma/client';
@@ -61,6 +62,8 @@ import type { Role, TenantStatus } from '@prisma/client';
  * supplied by the caller's own session. It cannot enumerate. `src/auth.ts` and `/t/[slug]/me` reach for the same binding for
  * the same reason, and are already pinned in `superuser-call-sites`.
  */
+
+export { ClubNotActiveError };
 
 /** What a page needs to know before it may render anything club-specific. */
 export interface TenantPageContext {
@@ -221,17 +224,6 @@ export class TenantActionDeniedError extends Error {
         'one authorises itself.',
     );
     this.name = 'TenantActionDeniedError';
-  }
-}
-
-/**
- * A write at a club the platform has suspended or closed (#254). Its staff
- * keep read-only access; nothing they do may change it.
- */
-export class ClubNotActiveError extends Error {
-  constructor(readonly status: TenantStatus) {
-    super(`This club is ${status.toLowerCase()}: its admin is read-only.`);
-    this.name = 'ClubNotActiveError';
   }
 }
 

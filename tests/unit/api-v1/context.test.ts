@@ -1,6 +1,7 @@
 import { getToken } from 'next-auth/jwt';
 
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
+import { ClubNotActiveError } from '@/lib/auth/club-not-active';
 import { membershipContext } from '@/lib/auth/page-context';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
@@ -57,7 +58,7 @@ const nativeToken = { sub: 'usr_1', userSessionId: 'ses_1', sessionVersion: 0 };
 const holds = (role: string, tenantId: string, tenantSlug: string, permissions: string[]) =>
   mockMembership.mockResolvedValue({
     kind: 'ok',
-    ctx: { userId: 'usr_1', tenantId, tenantSlug, role, permissions },
+    ctx: { userId: 'usr_1', tenantId, tenantSlug, role, permissions, clubStatus: 'ACTIVE' },
   });
 
 const holdsNothing = () => mockMembership.mockResolvedValue({ kind: 'not-a-member' });
@@ -308,5 +309,41 @@ describe('contextFromRequest', () => {
     // The storefront is Bulgarian. An en default would silently serve the
     // wrong language to every client that omits the header.
     expect(ctx.locale).toBe('bg');
+  });
+});
+
+describe('a suspended or closed club is read-only for its members (#254)', () => {
+  const suspended = () =>
+    mockMembership.mockResolvedValue({
+      kind: 'ok',
+      ctx: {
+        userId: 'usr_1',
+        tenantId: 'tnt_b',
+        tenantSlug: 'club-b',
+        role: 'OWNER',
+        permissions: ['admin.billing_manage', 'bookings.view_all'],
+        clubStatus: 'SUSPENDED',
+      },
+    });
+
+  it('refuses a write with ClubNotActiveError, whatever the permission', async () => {
+    mockToken.mockResolvedValue(nativeToken);
+    suspended();
+    await expect(
+      contextFromRequest(request('/api/v1/t/club-b/connect/onboarding', 'POST'), {
+        ...BASE,
+        slug: 'club-b',
+      }),
+    ).rejects.toBeInstanceOf(ClubNotActiveError);
+  });
+
+  it('still answers a read', async () => {
+    mockToken.mockResolvedValue(nativeToken);
+    suspended();
+    const ctx = await contextFromRequest(request('/api/v1/t/club-b/admin/players', 'GET'), {
+      ...BASE,
+      slug: 'club-b',
+    });
+    expect(ctx.tenantId).toBe('tnt_b');
   });
 });
