@@ -107,6 +107,7 @@ export const AUDIT_ACTIONS = {
   /// "Cancel the rest": every live occurrence from a date on (#364). Each one
   /// also gets its own BOOKING_CANCELLED.
   BOOKING_SERIES_CANCELLED: 'BOOKING_SERIES_CANCELLED',
+  BOOKING_SERIES_MOVED: 'BOOKING_SERIES_MOVED',
   /// MEMBER_ROLE_CHANGED and MEMBER_REMOVED already exist at the top of this
   /// list — the staff screen reuses them rather than minting near-duplicates.
   MEMBER_REINSTATED: 'MEMBER_REINSTATED',

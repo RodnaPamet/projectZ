@@ -167,3 +167,15 @@ export type DeskPreviewInput = z.infer<typeof deskPreviewSchema>;
 export type CreateDeskBookingBody = z.infer<typeof createDeskBookingBodySchema>;
 export type CreateSeriesBody = z.infer<typeof createSeriesBodySchema>;
 export type UpdateDeskBookingBody = z.infer<typeof updateDeskBookingBodySchema>;
+
+/** Move a weekly series from a date on (#415): a new time, length or court. */
+export const moveSeriesBodySchema = z
+  .object({
+    fromDate: isoDateSchema,
+    startTime: wallTimeSchema,
+    durationMinutes: z.number().int().min(15).max(MAX_DESK_DURATION_MINUTES),
+    resourceId: z.string().trim().min(1).max(64),
+  })
+  .strict();
+
+export type MoveSeriesBody = z.infer<typeof moveSeriesBodySchema>;

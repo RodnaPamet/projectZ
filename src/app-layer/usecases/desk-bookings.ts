@@ -1,5 +1,5 @@
 import type { BookingStatus, PrismaClient } from '@prisma/client';
-import { fromZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 import { minutesFromTimeColumn } from '@/app-layer/repositories/availability';
 import { getResourceForBooking } from '@/app-layer/repositories/booking';
@@ -13,6 +13,7 @@ import type {
 } from '@/app-layer/schemas/desk';
 import { appendAuditEntries, appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { normalizePhone } from '@/lib/booking/phone';
+import { isExclusionViolation } from '@/lib/db/pg-errors';
 import {
   InvalidSeriesError,
   MAX_SERIES_WEEKS,
@@ -22,7 +23,7 @@ import {
 } from '@/lib/booking/weekly';
 
 import { quoteBooking, SlotNotBookableError } from './availability';
-import { cancelBooking, createBooking } from './booking';
+import { cancelBooking, createBooking, SlotTakenError } from './booking';
 
 /**
  * Desk bookings and weekly series (#364, owner decisions Q30 and Q41).
@@ -872,3 +873,228 @@ export async function cancelSeriesFrom(
 
   return { cancelledBookingIds: live.map((b) => b.id) };
 }
+
+/** Moving a weekly series to another time, length or court from a date on (#415). */
+export interface MoveSeriesInput {
+  /** The first week to move, `YYYY-MM-DD` at the club. */
+  fromDate: string;
+  startTime: string;
+  durationMinutes: number;
+  resourceId: string;
+}
+
+/**
+ * Move every live week of a series from `fromDate` on to a new time, length
+ * or court (#415; owner decision 2026-10-13). Until now staff cancelled the
+ * rest of a series and entered a new one, which told the linked player their
+ * bookings were cancelled when they were only moving.
+ *
+ *   - Every moved week is checked first, and the whole move is refused with
+ *     the clashing dates if any week is taken or not bookable: a series that
+ *     moves half-way is worse than one that doesn't move.
+ *   - The price follows the series: a price staff set stays; otherwise each
+ *     week is quoted again at its new time.
+ *   - From the first week, the series row itself changes. From a later week,
+ *     the series SPLITS: the earlier weeks keep the old series, the moved ones
+ *     get a new series with the new time and court, so each series always
+ *     describes all of its weeks.
+ *
+ * Only live weeks move: a played, cancelled or no-show week is history. The
+ * overlap constraint still arbitrates a booking taken between the check and
+ * the write (`SlotTakenError`); the caller's transaction rolls the move back.
+ */
+export async function moveSeriesFrom(
+  db: PrismaClient,
+  ctx: { tenantId: string; actorUserId: string; now?: Date },
+  seriesId: string,
+  input: MoveSeriesInput,
+): Promise<{ seriesId: string; moved: number; split: boolean } | null> {
+  const { tenantId } = ctx;
+  const series = await db.bookingSeries.findFirst({ where: { id: seriesId, tenantId } });
+  if (!series) return null;
+  const resource = await deskResource(db, tenantId, input.resourceId);
+  if (!resource) return null;
+
+  const from = fromZonedTime(`${input.fromDate}T00:00:00`, series.timezone);
+  const live = await db.booking.findMany({
+    where: { tenantId, seriesId, status: { in: LIVE }, startTs: { gte: from } },
+    select: { id: true, startTs: true },
+    orderBy: { startTs: 'asc' },
+    take: MAX_SERIES_WEEKS,
+  });
+  if (live.length === 0)
+    throw new InvalidSeriesError('nothing of the series is left to move from that date');
+
+  const tz = resource.venue.timezone;
+  const moves = live.map((b) => {
+    const date = formatInTimeZone(b.startTs, series.timezone, 'yyyy-MM-dd');
+    return { id: b.id, span: resolveSpan(date, input.startTime, input.durationMinutes, tz) };
+  });
+
+  const clashes: SeriesClash[] = [];
+  const quotes = new Map<string, number>();
+  for (const { span } of moves) {
+    try {
+      if (!span.exists) throw new SlotNotBookableError('that time does not exist on that day');
+      quotes.set(span.date, quoteSpan(resource, span.startTs, span.endTs));
+    } catch (err) {
+      if (!(err instanceof SlotNotBookableError)) throw err;
+      clashes.push({ date: span.date, reason: 'unavailable' });
+    }
+  }
+  // Taken by anything but the weeks being moved: moving 18:00 to 18:30 on the
+  // same court overlaps the week's own old slot, which is about to be free.
+  const movedIds = moves.map((m) => m.id);
+  const others = await db.booking.findMany({
+    where: {
+      tenantId,
+      resourceId: resource.id,
+      status: { in: OCCUPYING },
+      id: { notIn: movedIds },
+      OR: moves.map(({ span }) => ({ startTs: { lt: span.endTs }, endTs: { gt: span.startTs } })),
+    },
+    select: { startTs: true, endTs: true },
+    take: moves.length * 20,
+  });
+  for (const { span } of moves) {
+    if (others.some((o) => o.startTs < span.endTs && o.endTs > span.startTs)) {
+      clashes.push({ date: span.date, reason: 'taken' });
+    }
+  }
+  if (clashes.length > 0) throw new SeriesClashError(clashes);
+
+  const firstMoved = moves[0]!.span.date;
+  const earlier = await db.booking.findFirst({
+    where: { tenantId, seriesId, startTs: { lt: from } },
+    select: { startTs: true },
+    orderBy: { startTs: 'desc' },
+  });
+
+  const shape = {
+    resourceId: resource.id,
+    startTime: input.startTime,
+    durationMinutes: input.durationMinutes,
+    timezone: tz,
+  };
+  let target = seriesId;
+  if (earlier) {
+    const created = await db.bookingSeries.create({
+      data: {
+        tenantId,
+        ...shape,
+        firstDate: new Date(`${firstMoved}T00:00:00Z`),
+        lastDate: series.lastDate,
+        customerName: series.customerName,
+        customerPhone: series.customerPhone,
+        customerUserId: series.customerUserId,
+        priceCents: series.priceCents,
+        notes: series.notes,
+        createdByUserId: ctx.actorUserId,
+        idempotencyKey: `move:${seriesId}:${input.fromDate}:${Date.now()}`,
+      },
+      select: { id: true },
+    });
+    target = created.id;
+    const lastEarlier = formatInTimeZone(earlier.startTs, series.timezone, 'yyyy-MM-dd');
+    await db.bookingSeries.updateMany({
+      where: { id: seriesId, tenantId },
+      data: { lastDate: new Date(`${lastEarlier}T00:00:00Z`) },
+    });
+  } else {
+    await db.bookingSeries.updateMany({ where: { id: seriesId, tenantId }, data: shape });
+  }
+
+  try {
+    for (const { id, span } of moves) {
+      await db.booking.update({
+        where: { id },
+        data: {
+          resourceId: resource.id,
+          startTs: span.startTs,
+          endTs: span.endTs,
+          totalCents: series.priceCents ?? quotes.get(span.date)!,
+          seriesId: target,
+        },
+      });
+    }
+  } catch (err) {
+    if (isExclusionViolation(err)) throw new SlotTakenError();
+    throw err;
+  }
+
+  await appendAuditEntry(db, {
+    tenantId,
+    actorUserId: ctx.actorUserId,
+    entity: 'BookingSeries',
+    entityId: target,
+    action: AUDIT_ACTIONS.BOOKING_SERIES_MOVED,
+    details: earlier ? 'Series moved from a date (split)' : 'Series moved',
+    detailsJson: {
+      category: 'booking',
+      fromDate: input.fromDate,
+      fromSeriesId: seriesId,
+      before: {
+        resourceId: series.resourceId,
+        startTime: series.startTime,
+        durationMinutes: series.durationMinutes,
+      },
+      after: {
+        resourceId: resource.id,
+        startTime: input.startTime,
+        durationMinutes: input.durationMinutes,
+      },
+      bookingIds: movedIds,
+    },
+  });
+
+  return { seriesId: target, moved: moves.length, split: !!earlier };
+}
+
+/** The club's series that still have a live week from `today` on, soonest first (#415). */
+export async function listLiveSeries(db: PrismaClient, tenantId: string, now: Date = new Date()) {
+  const rows = await db.bookingSeries.findMany({
+    where: {
+      tenantId,
+      bookings: { some: { status: { in: LIVE }, startTs: { gte: now } } },
+    },
+    select: {
+      id: true,
+      resourceId: true,
+      startTime: true,
+      durationMinutes: true,
+      timezone: true,
+      firstDate: true,
+      lastDate: true,
+      customerName: true,
+      customerUserId: true,
+      priceCents: true,
+      resource: { select: { name: true, venue: { select: { name: true } } } },
+      bookings: {
+        where: { status: { in: LIVE }, startTs: { gte: now } },
+        select: { startTs: true },
+        orderBy: { startTs: 'asc' },
+        take: MAX_SERIES_WEEKS,
+      },
+    },
+    orderBy: { firstDate: 'asc' },
+    take: 200,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    resourceId: r.resourceId,
+    courtName: r.resource.name,
+    venueName: r.resource.venue.name,
+    startTime: r.startTime,
+    durationMinutes: r.durationMinutes,
+    customerName: r.customerName,
+    linked: r.customerUserId !== null,
+    priceCents: r.priceCents,
+    weeksLeft: r.bookings.length,
+    nextDate: r.bookings[0]
+      ? formatInTimeZone(r.bookings[0].startTs, r.timezone, 'yyyy-MM-dd')
+      : null,
+    lastDate: r.lastDate.toISOString().slice(0, 10),
+  }));
+}
+
+export type LiveSeries = Awaited<ReturnType<typeof listLiveSeries>>[number];

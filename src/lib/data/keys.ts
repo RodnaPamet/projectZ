@@ -171,6 +171,8 @@ export const KEYS = {
    * reason is in the key for the same reason as the moderation queue's: the
    * server audits each read with it.
    */
+  /** A club's weekly series with a live week left (#415). */
+  clubSeries: (slug: string) => `${BASE}/t/${seg(slug)}/admin/booking-series`,
   platformFees: (params: { month: string; reason: string }) =>
     `${BASE}/platform/fees${query(params)}`,
   /** Every club, with its status (#254): the first page, for /platform/clubs. */
@@ -259,6 +261,9 @@ export const V1 = {
   updateDeskBooking: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/admin/desk-bookings/${seg(bookingId)}`,
   createSeries: (slug: string) => `${BASE}/t/${seg(slug)}/admin/booking-series`,
+  /** Move a series from a date on (#415). */
+  moveSeries: (slug: string, seriesId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/booking-series/${seg(seriesId)}`,
   cancelSeries: (slug: string, seriesId: string) =>
     `${BASE}/t/${seg(slug)}/admin/booking-series/${seg(seriesId)}/cancel`,
   /**

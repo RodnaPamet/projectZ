@@ -1,8 +1,10 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { clubAdminCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
@@ -62,11 +64,21 @@ export default async function CalendarPage({
   return (
     <section>
       <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'calendar')} />
-      <header className="mb-section">
-        <Heading level={1}>{t('title')}</Heading>
-        <p className="text-content-muted mt-1 text-sm">
-          {t(nouns === 'court' ? 'subtitle' : `${nouns}.subtitle`)}
-        </p>
+      <header className="mb-section flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Heading level={1}>{t('title')}</Heading>
+          <p className="text-content-muted mt-1 text-sm">
+            {t(nouns === 'court' ? 'subtitle' : `${nouns}.subtitle`)}
+          </p>
+        </div>
+        {/* The weekly series, and moving one (#415). */}
+        <Link
+          href={`/t/${slug}/admin/calendar/series`}
+          className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+          data-testid="calendar-series-link"
+        >
+          {t('series.open')}
+        </Link>
       </header>
 
       {/*
