@@ -15,7 +15,7 @@
  * CRITICAL: In production/staging, if CORS_ALLOWED_ORIGINS is empty,
  * NO cross-origin requests are permitted. This is fail-closed by design.
  *
- * @see src/middleware.ts — the single application point for CORS headers
+ * @see src/proxy.ts — the single application point for CORS headers
  */
 
 export interface CorsConfig {

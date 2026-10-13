@@ -210,7 +210,7 @@ export const env = createEnv({
     // refinement that prints the whole env shape.
     // ═══ NEXTAUTH_SECRET WAS READ SIX TIMES AND DECLARED NOWHERE ═══
     //
-    // `getToken` in src/middleware.ts, the v1 request context, the native token
+    // `getToken` in src/proxy.ts, the v1 request context, the native token
     // route, the logout route and page-context all pass
     // `process.env.NEXTAUTH_SECRET` to next-auth. Without it next-auth cannot
     // sign or verify a JWT, so EVERY authenticated request fails.

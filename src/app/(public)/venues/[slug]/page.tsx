@@ -111,7 +111,7 @@ export async function generateMetadata({
   // segment's loading.tsx but also `venues/loading.tsx`, which wraps every
   // segment below it, so no await anywhere under /venues runs before the
   // status is sent. A real 404 needs the check before rendering starts, in
-  // src/middleware.ts — which runs on the edge, without Prisma; Next 16's
+  // src/proxy.ts — which runs on the edge, without Prisma; Next 16's
   // Node `proxy.ts` could, at the price of a database read in front of the
   // render on every request. Google treats noindex like a 404 here. See #396.
   if (!found) return { robots: { index: false } };

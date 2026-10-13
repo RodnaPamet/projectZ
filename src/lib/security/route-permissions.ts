@@ -16,7 +16,7 @@ import type { Permission } from '@/lib/permissions';
  * Every pattern accepts an OPTIONAL version segment (`/api/v1/t/:slug/...`)
  * because this table denies by MATCHING. A rule anchored at `^/api/t/` does
  * not merely miss a versioned route — it returns `null`, which
- * `middleware.ts` reads as "no permission required". Shipping `/api/v1`
+ * `proxy.ts` reads as "no permission required". Shipping `/api/v1`
  * against an unversioned table would silently open every mutation in it to
  * any authenticated member. `route-permissions.test.ts` asserts the version
  * group on every rule so a new one cannot be added without it.

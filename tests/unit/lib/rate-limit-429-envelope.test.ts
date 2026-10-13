@@ -2,7 +2,7 @@
  * @jest-environment node
  *
  * `next/server` touches the fetch-API `Request` at import time and jsdom has
- * no such global — the same reason tests/unit/middleware.test.ts pins node.
+ * no such global — the same reason tests/unit/proxy.test.ts pins node.
  */
 
 import { NextRequest } from 'next/server';
@@ -25,7 +25,7 @@ import { uniqueTestIp } from '../../helpers/rate-limit-key';
  * still cannot. Two independent reasons, both worth knowing before anyone
  * assumes this file is redundant:
  *
- *   1. Its SOURCES are `src/middleware.ts` plus `src/app/api/**\/route.ts`.
+ *   1. Its SOURCES are `src/proxy.ts` plus `src/app/api/**\/route.ts`.
  *      This body is built in src/lib/security/, which it never reads.
  *   2. Its rule is "the value of `error` is an object literal with `code` and
  *      `message`". EXTRA keys satisfy that. Even scanning this file, it would

@@ -1,5 +1,8 @@
 /**
- * Tenant access control at the edge.
+ * Tenant access control at the edge: in the proxy (`src/proxy.ts`), before the
+ * request reaches a route. "The edge" below means that place, not a runtime.
+ * Since #270 the proxy runs on Node, like the routes; it still reads no
+ * database, and `proxy-stays-database-free` holds this file to that with it.
  *
  * The URL says which tenant you are asking about (`/t/sofia-padel/...`).
  * The JWT may say that you belong to it. It can NEVER say that you do not.
@@ -21,10 +24,11 @@
  *     own write, `POST /api/v1/t/{slug}/bookings`, was the first thing refused;
  *   - a list longer than MAX_JWT_MEMBERSHIPS is truncated by construction.
  *
- * The edge cannot read the database, so it cannot answer "is this user a
- * member of this slug" for a token that does not say. It now stops pretending
- * to: absence is `needs_db_check`, and the Node side resolves membership from
- * the database on every tenant request — `contextFromRequest` for the API,
+ * The edge does not read the database (a rule now, where it used to be a
+ * limit of the runtime), so it cannot answer "is this user a member of this
+ * slug" for a token that does not say. It stops pretending to: absence is
+ * `needs_db_check`, and the route resolves membership from the database on
+ * every tenant request — `contextFromRequest` for the API,
  * `resolveTenantPageContext` / `requireTenantAction` for pages and Server
  * Actions. `tenant-routes-resolve-membership` pins that every tenant route goes
  * through the first.

@@ -256,7 +256,7 @@ export async function touchSession(userSessionId: string): Promise<void> {
  * ═══ NATIVE REFRESH ═══
  *
  * A native access token is deliberately SHORT, because the edge middleware
- * never checks revocation: `middleware.ts` reads the token and inspects claims,
+ * never checks revocation: `proxy.ts` reads the token and inspects claims,
  * and `checkSession` runs only inside a route. `exp` is therefore the only
  * revocation the edge honours, and a long access token is a long window in
  * which a revoked session still clears the tenant and permission checks.

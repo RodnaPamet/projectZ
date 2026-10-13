@@ -19,7 +19,7 @@ import { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 import { currentLegalVersions } from '@/lib/legal/versions';
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
 // The versions of the terms in force (#462): none, as before the owner's
@@ -52,9 +52,9 @@ const OWNER_AT_SOFIA_PLAYER_AT_PLOVDIV = {
 };
 
 const post = (path: string) =>
-  middleware(new NextRequest(`https://playerz.bg${path}`, { method: 'POST' }));
+  proxy(new NextRequest(`https://playerz.bg${path}`, { method: 'POST' }));
 
-const get = (path: string) => middleware(new NextRequest(`https://playerz.bg${path}`));
+const get = (path: string) => proxy(new NextRequest(`https://playerz.bg${path}`));
 
 /**
  * The edge let the request on to the route. `NextResponse.next()` marks itself
@@ -110,7 +110,7 @@ describe('middleware permission check', () => {
     // nothing" — the mutation is blocked, the membership is not.
     mockedGetToken.mockResolvedValue(OWNER_AT_SOFIA_PLAYER_AT_PLOVDIV);
 
-    const res = await middleware(
+    const res = await proxy(
       new NextRequest('https://playerz.bg/api/t/plovdiv-tennis/admin/venues', { method: 'GET' }),
     );
 
@@ -239,7 +239,7 @@ describe('middleware sign-in redirect', () => {
 describe('middleware and new terms to accept (#462)', () => {
   const inForce = currentLegalVersions as unknown as jest.Mock;
   const html = (path: string) =>
-    middleware(new NextRequest(`https://playerz.bg${path}`, { headers: { accept: 'text/html' } }));
+    proxy(new NextRequest(`https://playerz.bg${path}`, { headers: { accept: 'text/html' } }));
 
   beforeEach(() => inForce.mockReturnValue({ terms: 't2', privacy: 'p1' }));
   afterEach(() => inForce.mockReturnValue({}));
@@ -277,7 +277,7 @@ describe('middleware and new terms to accept (#462)', () => {
 
 describe('middleware and the one-time ask for a phone number (#500)', () => {
   const html = (path: string, cookie?: string) =>
-    middleware(
+    proxy(
       new NextRequest(`https://playerz.bg${path}`, {
         headers: { accept: 'text/html', ...(cookie ? { cookie } : {}) },
       }),
@@ -348,9 +348,7 @@ describe('an email’s unsubscribe link (#528)', () => {
     mockedGetToken.mockResolvedValue({ sub: 'u1', phone: 'ask' });
     try {
       const page = (path: string) =>
-        middleware(
-          new NextRequest(`https://playerz.bg${path}`, { headers: { accept: 'text/html' } }),
-        );
+        proxy(new NextRequest(`https://playerz.bg${path}`, { headers: { accept: 'text/html' } }));
       // The control: any other page is sent to the terms first.
       const held = await page('/venues');
       expect(held.status).toBe(307);

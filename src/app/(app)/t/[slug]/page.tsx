@@ -26,7 +26,7 @@ import { resolveTenantPageContext } from '@/lib/auth/page-context';
  * `clubIndexTarget` sends anyone without a club role to the player UI, because
  * a PLAYER at a club had no club page to see. Now there is one, `/clubs/{slug}`,
  * and that is where a player who opens the club's address goes. A signed-out
- * visitor is sent there too — by the edge, before this runs (src/middleware.ts),
+ * visitor is sent there too — by the edge, before this runs (src/proxy.ts),
  * and here as well, rather than trust that it did. The club page lives outside
  * `/t/` because this prefix is the members' namespace; see its page.tsx.
  *

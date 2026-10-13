@@ -20,7 +20,7 @@ const SOURCES = [
   'src/app/**/*.ts',
   'src/app-layer/**/*.ts',
   'src/lib/**/*.ts',
-  'src/middleware.ts',
+  'src/proxy.ts',
 ];
 
 // scripts/ and seeds legitimately print to a terminal a human is watching.

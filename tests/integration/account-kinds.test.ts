@@ -10,7 +10,7 @@ import { POST as createBooking } from '@/app/api/v1/t/[slug]/bookings/route';
 import { createInvite, inviteAcceptanceFor, previewInvite } from '@/app-layer/usecases/invites';
 import { accountKindViolation } from '@/lib/db/pg-errors';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 
 import bg from '../../messages/bg.json';
 import en from '../../messages/en.json';
@@ -304,7 +304,7 @@ describe('booking a court needs a PLAYER account', () => {
     });
     const url = `http://localhost:3000/api/v1/t/${slug}/bookings`;
 
-    const edge = await middleware(new NextRequest(url, init()));
+    const edge = await proxy(new NextRequest(url, init()));
     expect(edge.headers.get('x-middleware-next')).toBe('1');
 
     const res = await createBooking(new NextRequest(url, init()), {
