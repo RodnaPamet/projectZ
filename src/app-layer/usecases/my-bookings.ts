@@ -194,16 +194,13 @@ export type MyBookingDetail = NonNullable<Awaited<ReturnType<typeof getMyBooking
  * second is refused (see `AlreadyReviewedError`). Offering a form that can only
  * fail would be the worst version of that rule.
  *
- * The booker's alone (#358): a review is proved by a booking the AUTHOR made
- * (`reviews.ts`), so an added player would be offered a form that can only
- * fail. Reviews by added players are a follow-up.
+ * The booker's and every added player's (#416, owner decision 2026-10-13):
+ * `reviews.ts` accepts a booking the author made or played on.
  */
 export function canReview(b: {
   status: string;
   venueReview: MyVenueReview | null;
   viewerRole?: BookingViewerRole;
 }): boolean {
-  return (
-    (b.viewerRole ?? 'BOOKER') === 'BOOKER' && b.status === 'COMPLETED' && b.venueReview === null
-  );
+  return b.status === 'COMPLETED' && b.venueReview === null;
 }
