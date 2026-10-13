@@ -85,6 +85,7 @@ describe('upcoming bookings first', () => {
     wrap({
       kind: 'blocked',
       total: 4,
+      lessons: 0,
       credit: [],
       bookings: [
         upcoming({}),
@@ -121,11 +122,33 @@ describe('upcoming bookings first', () => {
     wrap({
       kind: 'blocked',
       total: 1,
+      lessons: 0,
       bookings: [upcoming({})],
       credit: [{ club: 'Клуб Алфа', balanceCents: 1250 }],
     });
     expect(screen.getByTestId('profile-delete-credit')).toHaveTextContent(t.credit.title);
     expect(screen.getByTestId('profile-delete-credit-club')).toHaveTextContent('Клуб Алфа: 12,50');
+  });
+
+  it('a coach with lessons still to teach is told so, with how many (#377)', () => {
+    installFakeFetch(() => ({ status: 200, body: { data: {} } }));
+    wrap({ kind: 'blocked', total: 0, lessons: 2, bookings: [], credit: [] });
+    const line = screen.getByTestId('profile-delete-lessons');
+    expect(line).toHaveTextContent('Като треньор имате 2 предстоящи урока.');
+    expect(line).toHaveTextContent('Отменете ги или изчакайте да минат');
+    // Blocked: the button is there and cannot be pressed.
+    expect(screen.getByTestId('profile-delete-button')).toBeDisabled();
+  });
+
+  it('one lesson reads in the singular; none, and the line is not there', () => {
+    installFakeFetch(() => ({ status: 200, body: { data: {} } }));
+    const { unmount } = wrap({ kind: 'blocked', total: 0, lessons: 1, bookings: [], credit: [] });
+    expect(screen.getByTestId('profile-delete-lessons')).toHaveTextContent(
+      'Като треньор имате 1 предстоящ урок.',
+    );
+    unmount();
+    wrap({ kind: 'blocked', total: 1, lessons: 0, bookings: [upcoming({})], credit: [] });
+    expect(screen.queryByTestId('profile-delete-lessons')).toBeNull();
   });
 });
 

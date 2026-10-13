@@ -344,8 +344,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     status: 409,
     code: 'UPCOMING_BOOKINGS',
     details: (e) => {
-      const { bookings, total } = e as Error & {
+      const { bookings, total, lessons } = e as Error & {
         total: number;
+        lessons: number;
         bookings: Array<{
           bookingId: string;
           role: string;
@@ -358,6 +359,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
       };
       return {
         total,
+        // Upcoming lessons the account teaches (#377): cancelled or waited out.
+        lessons,
         bookings: bookings.map((b) => ({
           bookingId: b.bookingId,
           role: b.role,

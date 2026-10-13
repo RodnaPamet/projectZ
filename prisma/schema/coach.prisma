@@ -1,59 +1,165 @@
-model Coach {
-  id       String @id @default(cuid())
-  tenantId String
-  userId   String
+/// ═══ COACHES (module 3, #377; P71) ═══
+///
+/// Three things, kept apart on purpose:
+///
+///   a coach's PROFILE     one per COACH account, platform-level. What the
+///                         coach says about themselves, and the platform
+///                         owner's decision on it. Not a club's.
+///   a coach AT A VENUE    `Coach`: the link a club accepted (or offered), and
+///                         what the coach set for teaching there: rates, the
+///                         lengths taught, the cancellation cutoff, the hours.
+///   a LESSON              `CoachLesson`: a court booking that also takes a
+///                         coach. The booking stays the booking (the diary,
+///                         Резервации, the fee, the players all read it); the
+///                         lesson is what the coach adds to it.
+///
+/// The five P08 tables these replace were never written by anything.
 
-  /// NOT encrypted and NOT sanitised. The coach use case has no route.
-  bio                String?
-  hourlyRateCents    Int
-  currency           String       @default("EUR")
-  sports             SportType[]
-  certificationsJson Json         @default("[]")
-  verified           Boolean      @default(false)
-  status             TenantStatus @default(ACTIVE)
+enum CoachProfileStatus {
+  /// Being filled in. Not shown to anybody.
+  DRAFT
+  /// Sent to the platform owner, with a certificate.
+  SUBMITTED
+  /// Bookable, once a club has accepted the coach too.
+  APPROVED
+  /// Sent back with a note. The coach may correct it and submit again.
+  DECLINED
+}
+
+enum CoachLinkStatus {
+  /// The coach asked to teach at the venue; the club has not answered.
+  REQUESTED
+  /// The club invited the coach; the coach has not answered.
+  INVITED
+  /// Teaching there.
+  ACTIVE
+  /// One side said no.
+  DECLINED
+  /// It was active, and one side ended it.
+  ENDED
+}
+
+/// A coach's own profile: one per COACH account, not per club (decision 13).
+/// Person-owned (owner-only RLS on `app.user_id`); the public pages read the
+/// APPROVED ones through a use case.
+model CoachProfile {
+  userId String @id
+  /// The public address: /coaches/{slug}. Set once, when first submitted.
+  slug   String @unique
+
+  /// Plain text, sanitised on the way in, at most 1000 characters (a CHECK).
+  bio            String?
+  /// Qualifications in the coach's own words; the certificate is the proof.
+  qualifications String?
+
+  status          CoachProfileStatus @default(DRAFT)
+  submittedAt     DateTime?          @db.Timestamptz(3)
+  decidedAt       DateTime?          @db.Timestamptz(3)
+  /// The platform admin who approved or declined. Names an operator.
+  decidedByUserId String?
+  /// The owner's note to the coach, shown to them when declined.
+  decisionNote    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  coachSports  CoachSport[]
-  availability CoachAvailability[]
-  bookings     CoachBooking[]
-  reviews      CoachReview[]
+  sports CoachProfileSport[]
 
-  @@unique([tenantId, userId])
+  @@index([status])
+  @@map("coach_profile")
+}
+
+/// A sport the coach teaches, and the player levels they take (1 to 7, the
+/// scale a player declares their own level on).
+model CoachProfileSport {
+  id     String @id @default(cuid())
+  userId String
+
+  sport    SportType
+  levelMin Int
+  levelMax Int
+
+  profile CoachProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, sport])
+  @@map("coach_profile_sport")
+}
+
+/// The certificate a coach uploads for the owner's approval (decisions 13, 17).
+///
+/// A personal document. In the DATABASE, not the media bucket, because that
+/// bucket is public by address and this must never be: only the coach (their
+/// own) and a platform admin holding the capability ever read it. `content`
+/// is encrypted before it is written (src/lib/coaches/certificate.ts), so a
+/// backup holds ciphertext. Kept while the coach is active; deleted with the
+/// account, or when the owner removes the coach.
+model CoachCertificate {
+  userId String @id
+
+  fileName String
+  mimeType String
+  byteSize Int
+  /// SHA-256 of the file as uploaded, hex.
+  sha256   String
+  content  Bytes
+
+  uploadedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("coach_certificate")
+}
+
+/// A coach AT A VENUE (decisions 2, 4, 5, 6, 9): the link, and the coach's
+/// terms for teaching there. A club with two venues accepts a coach at each.
+model Coach {
+  id       String @id @default(cuid())
+  tenantId String
+  venueId  String
+  userId   String
+
+  status    CoachLinkStatus
+  /// 'COACH' (the coach asked) or 'CLUB' (the club invited). A CHECK.
+  startedBy String
+
+  /// What the coach charges per hour here, and for two or more players.
+  /// Null until the coach sets them; a link is not bookable without the first.
+  hourlyRateCents   Int?
+  groupRateCents    Int?
+  currency          String @default("EUR")
+  /// Which lesson lengths the coach teaches, in minutes, from those the
+  /// venue's courts sell. Empty until set.
+  lessonMinutes     Int[]
+  /// How many hours before a lesson a player may still cancel. The stricter
+  /// of this and the venue's own cutoff applies (decision 7).
+  cancelCutoffHours Int    @default(24)
+
+  decidedAt       DateTime? @db.Timestamptz(3)
+  decidedByUserId String?
+  endedAt         DateTime? @db.Timestamptz(3)
+  endedByUserId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue        Venue               @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  availability CoachAvailability[]
+  lessons      CoachLesson[]
+
+  @@unique([venueId, userId])
   @@index([tenantId, status])
-  @@index([userId])
+  @@index([userId, status])
   @@map("coach")
 }
 
-model CoachSport {
-  id       String @id @default(cuid())
-  tenantId String
-  coachId  String
-
-  sport      SportType
-  skillLevel SkillLevel @default(INTERMEDIATE)
-
-  coach Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
-
-  @@unique([coachId, sport])
-  @@index([tenantId])
-  @@index([coachId])
-  @@map("coach_sport")
-}
-
+/// The coach's weekly working hours at one venue (decision 14).
 model CoachAvailability {
   id       String @id @default(cuid())
   tenantId String
   coachId  String
 
+  /// 0 = Monday … 6 = Sunday, in the venue's time zone, as venue hours are.
   dayOfWeek Int
   openTime  DateTime @db.Time(0)
   closeTime DateTime @db.Time(0)
-
-  effectiveFrom DateTime?
-  effectiveTo   DateTime?
-  exceptionDate DateTime? @db.Date
 
   coach Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
 
@@ -62,56 +168,84 @@ model CoachAvailability {
   @@map("coach_availability")
 }
 
-/// Same double-booking problem as Booking, same solution: an EXCLUDE
-/// constraint on (coachId, time range). A coach cannot be in two places.
-model CoachBooking {
-  id         String  @id @default(cuid())
-  tenantId   String
-  coachId    String
-  resourceId String?
+/// Days the coach is away, everywhere at once (decision 14): a holiday or a
+/// tournament is not per club. Person-owned. Lessons already booked on those
+/// days stay until the coach cancels them.
+model CoachTimeOff {
+  id     String @id @default(cuid())
+  userId String
 
-  playerUserId String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, startDate])
+  @@map("coach_time_off")
+}
+
+/// A lesson: what a coach adds to a court booking (decisions 1, 2, 9).
+///
+/// `startTs`, `endTs` and `active` MIRROR the booking's time and whether it
+/// still holds its court. A trigger on `booking` keeps them equal, whoever
+/// moves or cancels it, so the EXCLUDE constraint here (one coach, one place
+/// at a time, across every club) cannot be walked round by a code path that
+/// forgot the coach.
+model CoachLesson {
+  id        String @id @default(cuid())
+  tenantId  String
+  bookingId String @unique
+  coachId   String
+  /// The coach's account: what the cross-club exclusion is on.
+  coachUserId String
 
   startTs DateTime @db.Timestamptz(3)
   endTs   DateTime @db.Timestamptz(3)
+  active  Boolean  @default(true)
 
-  status     BookingStatus @default(PENDING)
-  totalCents Int
-  currency   String        @default("EUR")
-  paymentId  String?
-  /// NOT encrypted and NOT sanitised. "Player has a bad knee" is health data
-  /// a coach wrote down; it needs both before this ships.
-  notes      String?
+  /// The coach's terms as they stood when the lesson was booked.
+  hourlyRateCents   Int
+  groupRateCents    Int?
+  cancelCutoffHours Int
+  /// The coach's part of the price now: the hourly or the group rate, for the
+  /// lesson's length. The court's part is the booking's own `totalCents`,
+  /// which is also all the club's platform fee is charged on (decision 15).
+  coachFeeCents     Int
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  coach    Coach     @relation(fields: [coachId], references: [id], onDelete: Cascade)
-  resource Resource? @relation(fields: [resourceId], references: [id])
+  coach   Coach       @relation(fields: [coachId], references: [id])
+  booking Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  review  CoachReview?
 
-  @@index([tenantId, coachId, startTs])
-  @@index([tenantId, status])
-  @@index([resourceId])
-  @@index([playerUserId])
-  @@map("coach_booking")
+  @@index([coachUserId, startTs])
+  @@index([tenantId, startTs])
+  @@index([coachId])
+  @@map("coach_lesson")
 }
 
+/// A player's review of a coach after a lesson (decision 16): once per lesson,
+/// moderated as venue reviews are.
 model CoachReview {
   id       String @id @default(cuid())
   tenantId String
-  coachId  String
+  lessonId String @unique
 
+  coachUserId  String
   authorUserId String
   rating       Int
   body         String?
+  status       ReviewStatus @default(PUBLISHED)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  coach Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  lesson CoachLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
-  @@unique([coachId, authorUserId])
+  @@index([coachUserId, status, createdAt])
   @@index([tenantId])
-  @@index([coachId, createdAt])
   @@index([authorUserId])
   @@map("coach_review")
 }

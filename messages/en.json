@@ -2118,7 +2118,8 @@
         "cancel": "You can cancel it until {deadline}.",
         "leave": "You can leave the game until it starts.",
         "wait": "It can no longer be cancelled in the app. You can delete your account after {end}.",
-        "more": "{count, plural, one {And # more booking.} other {And # more bookings.}}"
+        "more": "{count, plural, one {And # more booking.} other {And # more bookings.}}",
+        "lessons": "{count, plural, one {As a coach you have # upcoming lesson.} other {As a coach you have # upcoming lessons.}} Cancel them, or wait until they are over, before deleting the account."
       },
       "club": {
         "title": "Club accounts are deleted on request",

@@ -42,7 +42,13 @@ export interface UpcomingBookingView {
 export type DeletionStandingView =
   | { kind: 'allowed'; credit: ClubCreditView[] }
   | { kind: 'club' }
-  | { kind: 'blocked'; total: number; bookings: UpcomingBookingView[]; credit: ClubCreditView[] };
+  | {
+      kind: 'blocked';
+      total: number;
+      lessons: number;
+      bookings: UpcomingBookingView[];
+      credit: ClubCreditView[];
+    };
 
 /**
  * "Изтриване на профила" (#370), the last section of /me/profile.
@@ -134,6 +140,12 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
           {standing.total > standing.bookings.length ? (
             <Caption className="px-4">
               {t('blocked.more', { count: standing.total - standing.bookings.length })}
+            </Caption>
+          ) : null}
+          {/* Lessons the account TEACHES (#377): cancelled, or waited out. */}
+          {standing.lessons > 0 ? (
+            <Caption className="px-4" data-testid="profile-delete-lessons">
+              {t('blocked.lessons', { count: standing.lessons })}
             </Caption>
           ) : null}
           {standing.credit.length > 0 ? (

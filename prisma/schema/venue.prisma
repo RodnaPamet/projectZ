@@ -58,6 +58,8 @@ model Venue {
   updatedAt DateTime @updatedAt
 
   resources Resource[]
+  /// Coaches accepted (or asked, or invited) to teach here (#377).
+  coaches   Coach[]
   amenities VenueAmenity[]
   photos    VenuePhoto[]
   reviews   Review[]
@@ -119,7 +121,6 @@ model Resource {
   pricingRules  PricingRule[]
   bookings      Booking[]
   bookingSeries BookingSeries[]
-  coachBookings CoachBooking[]
 
   @@index([tenantId, venueId, sport])
   @@index([tenantId, status])
