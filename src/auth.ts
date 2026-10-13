@@ -27,6 +27,7 @@ import { facebookConfigured, googleConfigured } from '@/lib/auth/sign-in-methods
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { chosenLocale } from '@/lib/i18n/chosen-locale';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import { ownAvatar } from '@/lib/media/avatar-url';
 import { getMediaStorage } from '@/lib/media/storage';
@@ -326,11 +327,19 @@ export const authOptions: NextAuthOptions = {
       // `update: {}` is deliberate. Re-running this on every sign-in would let
       // the provider overwrite a name or avatar the person has since changed in
       // the app, silently, on each login.
+      //
+      // A NEW account starts in the language its visitor chose signed out
+      // (#431): the footer switch writes the cookie, and without this the
+      // account was created in Bulgarian and the middleware then flipped an
+      // English visitor back on their first signed-in page. Only on create;
+      // an existing account keeps what its profile says.
+      const locale = await chosenLocale();
       const row = await runAsSuperuser((db) =>
         db.user.upsert({
           where: { email },
           create: {
             email,
+            ...(locale ? { locale } : {}),
             name: typeof user.name === 'string' ? user.name : null,
             // Never the provider's URL (#458): the copy below fills it.
             avatarUrl: null,
