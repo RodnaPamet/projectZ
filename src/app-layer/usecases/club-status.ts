@@ -69,7 +69,13 @@ export function mayChangeStatus(from: TenantStatus, to: TenantStatus): boolean {
  */
 export async function setClubStatus(
   db: PrismaClient,
-  input: { tenantId: string; to: TenantStatus; reason: string; actorUserId: string },
+  input: {
+    tenantId: string;
+    to: TenantStatus;
+    reason: string;
+    /** The moderator; null for an operator script (#459), audited as SYSTEM. */
+    actorUserId: string | null;
+  },
 ): Promise<{ from: TenantStatus; to: TenantStatus; slug: string }> {
   // Locked, so two moderators' changes serialise and each audit row's "from"
   // is the status the other one left.
@@ -90,7 +96,7 @@ export async function setClubStatus(
   await appendAuditEntry(db, {
     tenantId: input.tenantId,
     actorUserId: input.actorUserId,
-    actorType: 'USER',
+    actorType: input.actorUserId ? 'USER' : 'SYSTEM',
     entity: 'VenueOrg',
     entityId: input.tenantId,
     action: AUDIT_ACTIONS.CLUB_STATUS_CHANGED,
@@ -98,7 +104,7 @@ export async function setClubStatus(
     detailsJson: {
       category: 'club',
       summary: 'The platform changed the club status',
-      source: 'platform',
+      source: input.actorUserId ? 'platform' : 'operator',
       reason: input.reason,
       before: club.status,
       after: input.to,

@@ -170,11 +170,32 @@ function describeUpcoming(
   });
 }
 
-/** Whether the account holds a club role: a CLUB account, or an undecided one from p37. */
-async function runsAClub(db: PrismaClient, userId: string, kind: string | null): Promise<boolean> {
-  if (kind === 'CLUB') return true;
+/**
+ * Whether the account still runs a club, so deleting it is refused.
+ *
+ *   by the person   a CLUB account never deletes itself (owner decision 3,
+ *                   #370), and nobody deletes themselves out of a club role
+ *   by the operator a club account may be deleted once every club it runs is
+ *                   CLOSED (#459: `npm run retire:club` closes it first, with
+ *                   its bookings cancelled and its records kept)
+ *
+ * A role at a CLOSED club no longer counts: that club takes no bookings and
+ * reopens for nobody, so the membership is history, not a job.
+ */
+async function runsAClub(
+  db: PrismaClient,
+  userId: string,
+  kind: string | null,
+  by: 'self' | 'operator',
+): Promise<boolean> {
+  if (kind === 'CLUB' && by === 'self') return true;
   const roles = await db.tenantMembership.count({
-    where: { userId, status: 'ACTIVE', role: { in: [...CLUB_ROLES] } },
+    where: {
+      userId,
+      status: 'ACTIVE',
+      role: { in: [...CLUB_ROLES] },
+      tenant: { status: { not: 'CLOSED' } },
+    },
   });
   return roles > 0;
 }
@@ -235,13 +256,14 @@ export async function deletionStanding(
   db: PrismaClient,
   userId: string,
   now: Date = new Date(),
+  by: 'self' | 'operator' = 'self',
 ): Promise<DeletionStanding> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { accountKind: true, deletedAt: true },
   });
   if (!user || user.deletedAt) throw new AccountNotFoundForDeletionError();
-  if (await runsAClub(db, userId, user.accountKind)) return { kind: 'club' };
+  if (await runsAClub(db, userId, user.accountKind, by)) return { kind: 'club' };
   const { bookings, total } = await upcoming(db, userId, now);
   const credit = await creditAtClubs(db, userId);
   return total > 0 ? { kind: 'blocked', bookings, total, credit } : { kind: 'allowed', credit };
@@ -284,7 +306,9 @@ export async function deleteAccount(
       FROM app_user WHERE id = ${userId} FOR UPDATE`;
   if (!locked || locked.deletedAt) throw new AccountNotFoundForDeletionError();
 
-  if (await runsAClub(db, userId, locked.accountKind)) throw new ClubAccountDeletionRefusedError();
+  if (await runsAClub(db, userId, locked.accountKind, input.by)) {
+    throw new ClubAccountDeletionRefusedError();
+  }
 
   const pending = await upcoming(db, userId, now);
   if (pending.total > 0) throw new UpcomingBookingsError(pending.bookings, pending.total);
