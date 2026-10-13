@@ -40,12 +40,15 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     getTranslations('common'),
   ]);
   const seed = toConversationDto(view);
+  const c = seed.counterpart;
   const title =
-    seed.counterpart.kind === 'club'
-      ? seed.counterpart.name
-      : seed.counterpart.deleted
-        ? tCommon('deletedUser')
-        : (seed.counterpart.name ?? t('conversation.unnamed'));
+    c.kind === 'club'
+      ? c.name
+      : c.kind === 'game'
+        ? t('conversation.gameTitle', { venue: c.venueName })
+        : c.deleted
+          ? tCommon('deletedUser')
+          : (c.name ?? t('conversation.unnamed'));
 
   return (
     <div className="bg-bg-page text-content-default safe-area-x flex flex-1 flex-col">

@@ -20,6 +20,8 @@ import { INBOX_REFRESH_MS, PUSH_FALLBACK_REFRESH_MS } from '@/lib/messaging/limi
 import { useMessageEvents, useRealtimeConnected } from '@/lib/realtime/client';
 import { conversationPath } from '@/lib/messaging/paths';
 
+import { counterpartAvatar, counterpartName } from './counterpart';
+
 /**
  * An inbox (#375), ported from Agrent's `ThreadsClient`: the newest
  * conversation first, each with who it is with, the start of the last message,
@@ -115,12 +117,11 @@ export function InboxList({
       <Card elevation="flat" density="none">
         <ul className="divide-border-subtle divide-y" data-testid="inbox-list">
           {items.map((c) => {
-            const name =
-              c.counterpart.kind === 'club'
-                ? c.counterpart.name
-                : c.counterpart.deleted
-                  ? tCommon('deletedUser')
-                  : (c.counterpart.name ?? t('unnamed'));
+            const name = counterpartName(c.counterpart, {
+              unnamed: t('unnamed'),
+              deletedUser: tCommon('deletedUser'),
+              game: (venue) => t('gameTitle', { venue }),
+            });
             const at = new Date(c.lastMessageAt);
             const sameDay = now - at.getTime() < 20 * 3_600_000;
             const preview = c.lastMessage
@@ -135,10 +136,7 @@ export function InboxList({
                   className="hover:bg-bg-muted flex min-h-16 items-center gap-3 px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none focus-visible:ring-inset"
                   data-testid="inbox-row"
                 >
-                  <InitialsAvatar
-                    value={name}
-                    imageUrl={c.counterpart.kind === 'player' ? c.counterpart.avatarUrl : null}
-                  />
+                  <InitialsAvatar value={name} imageUrl={counterpartAvatar(c.counterpart)} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <span

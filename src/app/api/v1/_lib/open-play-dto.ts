@@ -113,6 +113,8 @@ export interface BookingGameDto {
   } | null;
   requests: OpenGameRequestDto[];
   myRequest: { id: string; status: OpenGameRequestStatusDto } | null;
+  /** The game chat, for the booker and an accepted player; null before one exists. */
+  chatId: string | null;
 }
 
 export function toBookingGameDto(v: BookingGameView): BookingGameDto {
@@ -131,6 +133,7 @@ export function toBookingGameDto(v: BookingGameView): BookingGameDto {
       : null,
     requests: v.requests.map(toRequestDto),
     myRequest: v.myRequest,
+    chatId: v.chatId,
   };
 }
 

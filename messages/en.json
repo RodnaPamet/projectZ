@@ -560,6 +560,10 @@
       "fromClub": {
         "title": "{club} wrote to you",
         "body": "{name} · {club}"
+      },
+      "inGame": {
+        "title": "{name} wrote in the game chat",
+        "body": "Game at {game}"
       }
     }
   },
@@ -2114,6 +2118,10 @@
       "fromClub": {
         "subject": "{club} wrote to you on playerz.bg",
         "intro": "{name} wrote to you for {club}."
+      },
+      "inGame": {
+        "subject": "{name} wrote in the game chat at {game}",
+        "intro": "{name} wrote in the chat of your game at {game} on playerz.bg."
       }
     },
     "openPlay": {
@@ -2337,7 +2345,8 @@
       "unread": "{count, plural, one {# unread message} other {# unread messages}}",
       "more": "Show more",
       "emptyClub": "No messages yet",
-      "emptyClubBody": "Players' messages to the club arrive here. You can message a player from the Players list."
+      "emptyClubBody": "Players' messages to the club arrive here. You can message a player from the Players list.",
+      "gameTitle": "Game at {venue}"
     },
     "conversation": {
       "metaTitle": "Conversation",
@@ -2383,7 +2392,9 @@
       "unblock": "Unblock",
       "report": "Report",
       "reportMessage": "Report",
-      "blockFailed": "That did not work. Please try again."
+      "blockFailed": "That did not work. Please try again.",
+      "gameTitle": "Game at {venue}",
+      "gameSubtitle": "{sport} · {when} · {count, plural, one {# player} other {# players}}"
     },
     "start": {
       "write": "Message",

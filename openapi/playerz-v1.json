@@ -7913,6 +7913,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "`NOT_BLOCKABLE` — a game chat (#376): report it instead.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -16699,7 +16709,7 @@
       },
       "ConversationCounterpart": {
         "title": "ConversationCounterpart",
-        "description": "The other side, as the caller sees it: a player (a deleted account has `name: null`, `deleted: true` — show «Изтрит потребител»), or a club.",
+        "description": "The other side, as the caller sees it: a player (a deleted account has `name: null`, `deleted: true` — show «Изтрит потребител»), or a club, or a game chat (#376): a group of the booker and the players accepted into their open game, named after its venue.",
         "oneOf": [
           {
             "type": "object",
@@ -16758,6 +16768,55 @@
                 "type": "string"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "gameId",
+              "bookingId",
+              "venueName",
+              "sport",
+              "startTs",
+              "endTs",
+              "timezone",
+              "members"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "game"
+              },
+              "gameId": {
+                "type": "string"
+              },
+              "bookingId": {
+                "type": "string",
+                "description": "The booking everyone in the chat is on."
+              },
+              "venueName": {
+                "type": "string"
+              },
+              "sport": {
+                "$ref": "#/components/schemas/SportType"
+              },
+              "startTs": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endTs": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "members": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "People in the chat now."
+              }
+            }
           }
         ]
       },
@@ -16781,7 +16840,8 @@
             "type": "string",
             "enum": [
               "player",
-              "club"
+              "club",
+              "game"
             ]
           },
           "counterpart": {
@@ -16958,7 +17018,8 @@
             "type": "string",
             "enum": [
               "player",
-              "club"
+              "club",
+              "game"
             ]
           },
           "counterpart": {
@@ -18141,7 +18202,8 @@
           "maxSpots",
           "game",
           "requests",
-          "myRequest"
+          "myRequest",
+          "chatId"
         ],
         "properties": {
           "viewerRole": {
@@ -18255,6 +18317,13 @@
                 "$ref": "#/components/schemas/OpenGameRequestStatus"
               }
             }
+          },
+          "chatId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The game chat (a conversation id), for the booker and an accepted player while they are in it; null until the first player is accepted."
           }
         }
       },

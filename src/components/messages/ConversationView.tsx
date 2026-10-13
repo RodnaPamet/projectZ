@@ -27,6 +27,7 @@ import {
 import { useMessageEvents, useRealtimeConnected } from '@/lib/realtime/client';
 import type { ReportReason } from '@/lib/messaging/report';
 
+import { counterpartAvatar, counterpartName as nameOf } from './counterpart';
 import { ReportDialog } from './ReportDialog';
 
 /**
@@ -101,6 +102,7 @@ function nearBottom(el: HTMLElement): boolean {
 export function ConversationView({ side, seed, back, counterpartHref }: ConversationViewProps) {
   const t = useTranslations('messaging.conversation');
   const tCommon = useTranslations('common');
+  const tSports = useTranslations('sports');
   const format = useFormatter();
   const viewerId = useViewerId();
 
@@ -274,13 +276,36 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
   const { handleKeyDown } = useEnterSubmit({ onSubmit: submit });
 
   const messages = [...older, ...c.messages];
-  const counterpartName =
-    c.counterpart.kind === 'club'
-      ? c.counterpart.name
-      : c.counterpart.deleted
-        ? tCommon('deletedUser')
-        : (c.counterpart.name ?? t('unnamed'));
-  const avatarUrl = c.counterpart.kind === 'player' ? c.counterpart.avatarUrl : null;
+  const counterpartName = nameOf(c.counterpart, {
+    unnamed: t('unnamed'),
+    deletedUser: tCommon('deletedUser'),
+    game: (venue) => t('gameTitle', { venue }),
+  });
+  const avatarUrl = counterpartAvatar(c.counterpart);
+  // A game chat (#376) leads to the game's booking, which everyone in it is on.
+  const titleHref =
+    c.counterpart.kind === 'game' && c.counterpart.bookingId
+      ? `/me/bookings/${encodeURIComponent(c.counterpart.bookingId)}`
+      : counterpartHref;
+  const game = c.counterpart.kind === 'game' ? c.counterpart : null;
+  const subtitle = game
+    ? t('gameSubtitle', {
+        sport: tSports(game.sport as never),
+        when: game.startTs
+          ? format.dateTime(new Date(game.startTs), {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: game.timezone,
+            })
+          : '',
+        count: game.members,
+      })
+    : c.counterpart.kind === 'club'
+      ? t('kindClub')
+      : t('kindPlayer');
   const tooLong = draft.trim().length > MAX_BODY_LENGTH;
 
   return (
@@ -301,15 +326,15 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
         <InitialsAvatar value={counterpartName} imageUrl={avatarUrl} size="md" />
         <div className="min-w-0">
           <Heading level={1} className="truncate text-xl" data-testid="conversation-title">
-            {counterpartHref ? (
-              <Link href={counterpartHref} className="underline-offset-4 hover:underline">
+            {titleHref ? (
+              <Link href={titleHref} className="underline-offset-4 hover:underline">
                 {counterpartName}
               </Link>
             ) : (
               counterpartName
             )}
           </Heading>
-          <Caption>{c.counterpart.kind === 'club' ? t('kindClub') : t('kindPlayer')}</Caption>
+          <Caption>{subtitle}</Caption>
         </div>
         <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-1">
           {c.state === 'blocked' && c.blockedByMe ? (
@@ -325,7 +350,9 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
             >
               {t('unblock')}
             </Button>
-          ) : c.state !== 'blocked' && c.state !== 'closed' ? (
+          ) : c.state !== 'blocked' && c.state !== 'closed' && !game ? (
+            // A game chat is the game's players together; nobody blocks it
+            // for the rest (#376). Report stays.
             <Button
               type="button"
               variant="ghost"

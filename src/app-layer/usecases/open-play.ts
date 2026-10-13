@@ -25,8 +25,10 @@ import {
   type SportLevelCard,
 } from '@/app-layer/usecases/messaging-directory';
 import { notifyOpenPlay, type OpenPlayEvent } from '@/app-layer/usecases/booking-notifications';
+import { syncGameChat } from '@/app-layer/usecases/open-play-chat';
 import { cutoffPassed, OpenPlayError } from '@/app-layer/usecases/open-play-roster';
 import { publicVenueFilter } from '@/app-layer/repositories/public-venue';
+import { listVenueFacets, type VenueFacets } from '@/app-layer/repositories/venue';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { playerCancellableUntil, playerMayCancel } from '@/lib/booking/cutoff';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
@@ -434,6 +436,15 @@ export async function listOpenGames(
 }
 
 /**
+ * What Игри's filters offer: the cities and sports of the public venues, as
+ * /venues offers them (`listVenueFacets`).
+ */
+export async function openGamesFacets(): Promise<VenueFacets> {
+  // guardrail-allow: cross-tenant — the public filters, as the venue index's.
+  return runAsSuperuser((db) => listVenueFacets(db));
+}
+
+/**
  * One game, for its card and the ask dialog. Anyone sees a listable game; a
  * signed-in player also sees one they asked to join or play in after it
  * stopped being listed (filled, closed, past the cutoff). Null otherwise,
@@ -507,6 +518,11 @@ export interface BookingGameView {
   requests: RequestCard[];
   /** A participant's own request, when they joined through open play. */
   myRequest: { id: string; status: OpenGameRequestStatus } | null;
+  /**
+   * The game chat (#376, rule 3), for the booker and an accepted player while
+   * they are in it; null before the first player is accepted.
+   */
+  chatId: string | null;
 }
 
 const ORDER: Record<OpenGameRequestStatus, number> = {
@@ -556,6 +572,7 @@ export async function getBookingGame(input: {
             levelMax: true,
             note: true,
             closedAt: true,
+            conversationId: true,
             requests: {
               select: {
                 id: true,
@@ -620,6 +637,7 @@ export async function getBookingGame(input: {
       myRequest: mine
         ? { id: mine.id, status: effectiveStatus(mine.status, read.startTs, cutoffHours, now) }
         : null,
+      chatId: mine?.status === 'ACCEPTED' ? (g?.conversationId ?? null) : null,
     };
   }
 
@@ -668,7 +686,7 @@ export async function getBookingGame(input: {
           : (y.decidedAt ?? y.askedAt).getTime() - (x.decidedAt ?? x.askedAt).getTime()),
     );
 
-  return { ...base, requests, myRequest: null };
+  return { ...base, requests, myRequest: null, chatId: g?.conversationId ?? null };
 }
 
 /**
@@ -867,8 +885,8 @@ export async function answerRequest(input: {
     if (!r) throw requestNotFound();
 
     // Repeating the answer already given is not an error.
-    if (input.decision === 'accept' && r.status === 'ACCEPTED') return false;
-    if (input.decision === 'decline' && r.status === 'DECLINED') return false;
+    if (input.decision === 'accept' && r.status === 'ACCEPTED') return null;
+    if (input.decision === 'decline' && r.status === 'DECLINED') return null;
     if (r.status !== 'PENDING') {
       throw new OpenPlayError('REQUEST_NOT_PENDING', 409, 'That request is no longer waiting.');
     }
@@ -888,15 +906,17 @@ export async function answerRequest(input: {
         details: `Declined a request to join booking ${b.id}`,
         detailsJson: { category: 'booking', bookingId: b.id, requestUserId: r.userId },
       });
-      return true;
+      return r.gameId;
     }
 
     if (b.status !== 'CONFIRMED') throw gameClosed();
     await acceptInto(tx, b, r, { actorUserId: input.userId, now });
-    return true;
+    return r.gameId;
   });
 
   if (changed) {
+    // Accepted: into the game chat (made now, for the first one).
+    if (input.decision === 'accept') await syncGameChat(tenantId, changed);
     await notifyOpenPlay({
       tenantId,
       requestId: input.requestId,
