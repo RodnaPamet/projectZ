@@ -35,6 +35,25 @@ interface Fixtures {
 }
 
 export const test = base.extend<Fixtures>({
+  /**
+   * Every test is its own client (#539).
+   *
+   * Every mutating API route shares one budget of 60 requests a minute per
+   * client address, and from the loopback the whole run is ONE client: whether
+   * a journey's write was the 61st of its minute depended on what ran beside
+   * it. In CI that showed as a test failing with a rate-limit message and
+   * passing on retry; locally, with no retries, as a plain failure.
+   *
+   * So each test's browser context sends an address of its own. A spec that
+   * needs a particular one can still set headers on its page, and a context a
+   * spec opens itself (`browser.newContext`) sets its own, as the open-play
+   * journey does for its second player.
+   */
+  context: async ({ context }, use) => {
+    await context.setExtraHTTPHeaders({ 'x-forwarded-for': testClientIp() });
+    await use(context);
+  },
+
   isolatedTenant: async ({}, use) => {
     const tenant = await createIsolatedTenant();
     await use(tenant);
@@ -118,7 +137,8 @@ export async function signIn(
  * A client address of its own for one test's browser. Every limiter that is
  * keyed on the caller's address (the sign-in's, and the 60-a-minute budget
  * every mutating API route shares) otherwise sees the whole suite as one
- * client on the loopback.
+ * client on the loopback. From 198.18.0.0/15, the benchmarking range
+ * (RFC 2544), so it never names a real client.
  */
 export function testClientIp(): string {
   const n = Math.floor(Math.random() * 2 ** 17);

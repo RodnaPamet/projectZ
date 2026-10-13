@@ -1,4 +1,4 @@
-import { expect, signIn, test } from './fixtures';
+import { expect, signIn, test, testClientIp } from './fixtures';
 import { createAccount, destroyPlayer } from './utils/booking-players-journey';
 
 /**
@@ -21,8 +21,18 @@ test.describe('messaging between two players — desktop', () => {
     const ana = await createAccount('msg-ana', { name: `Ана Тестова ${tag}`, kind: 'PLAYER' });
     const bob = await createAccount('msg-bob', { name: `Борис Тестов ${tag}`, kind: 'PLAYER' });
     const viewport = { width: 1280, height: 800 };
-    const aCtx = await browser.newContext({ viewport, locale: 'bg-BG' });
-    const bCtx = await browser.newContext({ viewport, locale: 'bg-BG' });
+    // Two people, two browsers, two client addresses (#539).
+    const client = () => ({ 'x-forwarded-for': testClientIp() });
+    const aCtx = await browser.newContext({
+      viewport,
+      locale: 'bg-BG',
+      extraHTTPHeaders: client(),
+    });
+    const bCtx = await browser.newContext({
+      viewport,
+      locale: 'bg-BG',
+      extraHTTPHeaders: client(),
+    });
     try {
       const aPage = await aCtx.newPage();
       const bPage = await bCtx.newPage();

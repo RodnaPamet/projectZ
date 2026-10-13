@@ -61,11 +61,6 @@ export async function openAskAcceptChat(
   const shot = (path: string) => ({ path, fullPage: opts.viewport.width >= 768 });
   const main = page.getByRole('main');
 
-  // Each browser is its own client. Every mutating API route shares one
-  // 60-a-minute budget per client address, and from the loopback the whole
-  // suite is one client: in CI the ask below was refused with 429 (#533).
-  await page.setExtraHTTPHeaders({ 'x-forwarded-for': testClientIp() });
-
   // ── 1. The booker opens the game ──
   await page.goto(`/me/bookings/${bookingId}`);
   await streamed(page);
@@ -79,6 +74,8 @@ export async function openAskAcceptChat(
   if (shots.opened) await page.screenshot(shot(shots.opened));
 
   // ── 2. The second player finds it on Игри and asks ──
+  // A second browser, so a second client: the fixture gives the test's own
+  // context an address (#539), and a context opened here takes one too.
   const context = await browser.newContext({
     viewport: opts.viewport,
     locale: 'bg-BG',
