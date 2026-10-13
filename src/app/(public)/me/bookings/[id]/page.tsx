@@ -2,7 +2,9 @@ import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMyBooking } from '@/app-layer/usecases/my-bookings';
+import { getBookingGame } from '@/app-layer/usecases/open-play';
 import { toMyBookingDetailDto } from '@/app/api/v1/_lib/dto';
+import { toBookingGameDto } from '@/app/api/v1/_lib/open-play-dto';
 import { bookingsCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { playerChrome } from '@/components/layout/player-chrome';
@@ -45,9 +47,11 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   const { kind, landing, modules } = await playerChrome();
   if (kind === 'club' && landing) redirect(landing.href);
 
-  const [booking, tNav] = await Promise.all([
+  const [booking, tNav, game] = await Promise.all([
     getMyBooking({ userId, bookingId: id }),
     getTranslations('common.nav'),
+    // Open play (#376): only while the module is on.
+    modules.openPlay ? getBookingGame({ userId, bookingId: id }) : Promise.resolve(null),
   ]);
   if (!booking) notFound();
   const seed = toMyBookingDetailDto(booking);
@@ -59,7 +63,12 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
           way back there, and a second one would say it twice. */}
       <PageBreadcrumbs items={bookingsCrumbs(tNav, seed.venue.name)} className="hidden" />
       <ViewerScope viewerId={userId}>
-        <BookingDetail seed={seed} serverNow={renderedAt()} messaging={modules.messaging} />
+        <BookingDetail
+          seed={seed}
+          serverNow={renderedAt()}
+          messaging={modules.messaging}
+          game={game ? toBookingGameDto(game) : null}
+        />
       </ViewerScope>
     </div>
   );

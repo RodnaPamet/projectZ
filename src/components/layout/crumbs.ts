@@ -47,6 +47,11 @@ export function bookingsCrumbs(t: NavT, booking?: string | null): BreadcrumbItem
 }
 
 /** Съобщения (#375), and a page under it: a conversation, or a new one. */
+/** Игри (#376): the tab, and a page under it. */
+export function gamesCrumbs(t: NavT, page?: string | null): BreadcrumbItem[] {
+  return [{ label: t('games'), href: MODULE_HREFS.openPlay }, ...leaf(page)];
+}
+
 export function messagesCrumbs(t: NavT, page?: string | null): BreadcrumbItem[] {
   return [{ label: t('messages'), href: MODULE_HREFS.messaging }, ...leaf(page)];
 }

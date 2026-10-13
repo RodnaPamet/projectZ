@@ -93,7 +93,7 @@ export async function loadDiaryDay(
   // its own clock, under a row lock, when staff actually press it.
   const now = new Date();
 
-  const { timezone, courts, bookings, names, deleted, isoDay, todayAtClub } =
+  const { timezone, courts, bookings, names, playerNames, deleted, openPlay, isoDay, todayAtClub } =
     await runInTenantContext(tenantId, async (db) => {
       const club = await db.venueOrg.findFirstOrThrow({
         where: { id: tenantId },
@@ -122,8 +122,22 @@ export async function loadDiaryDay(
       // Names for the members who booked. Guests carry their own name on the
       // booking, so only the user-backed ones need a lookup.
       const userIds = [
-        ...new Set(rows.map((r) => r.bookedByUserId).filter((v): v is string => !!v)),
+        ...new Set(
+          rows
+            .flatMap((r) => [r.bookedByUserId, ...r.participants.map((p) => p.userId)])
+            .filter((v): v is string => !!v),
+        ),
       ];
+      // The places taken through open play (#376): their players can be
+      // marked as not having come, one by one.
+      const placeIds = rows.flatMap((r) => r.participants.map((p) => p.id));
+      const viaOpenPlay = placeIds.length
+        ? await db.openGameRequest.findMany({
+            where: { tenantId, participantId: { in: placeIds }, status: 'ACCEPTED' },
+            select: { participantId: true },
+            take: placeIds.length,
+          })
+        : [];
       const users = userIds.length
         ? await db.user.findMany({
             where: { id: { in: userIds } },
@@ -142,6 +156,15 @@ export async function loadDiaryDay(
         ),
         // ...and nobody can be marked as missing it: markNoShow refuses one.
         deleted: new Set(users.filter((u) => u.deletedAt).map((u) => u.id)),
+        openPlay: new Set(viaOpenPlay.flatMap((r) => (r.participantId ? [r.participantId] : []))),
+        // The other players are named, never shown by their address: the club
+        // has the booker's custom, not theirs.
+        playerNames: new Map(
+          users.map((u) => [
+            u.id,
+            u.deletedAt ? labels.deletedUser : (u.name ?? labels.unknownPlayer),
+          ]),
+        ),
         isoDay: requested,
         todayAtClub,
       };
@@ -220,6 +243,28 @@ export async function loadDiaryDay(
         (b.status === 'CONFIRMED' || b.status === 'COMPLETED') &&
         b.startTs.getTime() <= now.getTime() &&
         !(b.bookedByUserId && deleted.has(b.bookedByUserId)),
+      // Who else plays (#358, #376). A player who joined through open play is
+      // on the booking after the club's cutoff and can be marked a no-show,
+      // once the game has started (markPlayerNoShow re-checks).
+      players: b.participants.flatMap((p) => {
+        const name = p.userId ? (playerNames.get(p.userId) ?? labels.unknownPlayer) : p.guestName;
+        if (!name) return [];
+        const viaOpenPlay = openPlay.has(p.id);
+        return [
+          {
+            id: p.id,
+            name,
+            viaOpenPlay,
+            noShow: p.noShowAt !== null,
+            canMarkNoShow:
+              viaOpenPlay &&
+              p.noShowAt === null &&
+              !(p.userId && deleted.has(p.userId)) &&
+              (b.status === 'CONFIRMED' || b.status === 'COMPLETED') &&
+              b.startTs.getTime() <= now.getTime(),
+          },
+        ];
+      }),
     };
   });
 

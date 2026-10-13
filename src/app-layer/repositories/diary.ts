@@ -49,6 +49,17 @@ export interface DiaryEntry {
   channel: 'ONLINE' | 'DESK';
   /** The weekly series this is one week of, or null (#364). */
   seriesId: string | null;
+  /**
+   * The players besides the booker (#358), by position: added by link or by
+   * the booker, or accepted through open play (#376).
+   */
+  participants: Array<{
+    id: string;
+    userId: string | null;
+    guestName: string | null;
+    position: number;
+    noShowAt: Date | null;
+  }>;
 }
 
 /**
@@ -87,6 +98,8 @@ export async function listDayBookings(
       startTs: { lt: to },
       endTs: { gt: from },
     },
+    orderBy: [{ startTs: 'asc' }, { id: 'asc' }],
+    take: DIARY_LIMIT,
     select: {
       id: true,
       resourceId: true,
@@ -99,8 +112,12 @@ export async function listDayBookings(
       expiresAt: true,
       channel: true,
       seriesId: true,
+      participants: {
+        select: { id: true, userId: true, guestName: true, position: true, noShowAt: true },
+        orderBy: { position: 'asc' },
+        // A court's capacity, at most.
+        take: 32,
+      },
     },
-    orderBy: [{ startTs: 'asc' }, { id: 'asc' }],
-    take: DIARY_LIMIT,
   });
 }

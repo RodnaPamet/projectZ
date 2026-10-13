@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import type { MyBookingDetailDto } from '@/app/api/v1/_lib/dto';
+import type { BookingGameDto } from '@/app/api/v1/_lib/open-play-dto';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import { useV1SWR } from '@/lib/data/use-v1-swr';
 import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { BOOKING_LIST_KEYS, STATUS_TONE } from '../MyBookingsList';
+import { BookingGame } from './BookingGame';
 import { BookingPlayers } from './BookingPlayers';
 import { directionsUrl } from './directions';
 
@@ -114,11 +116,14 @@ export function BookingDetail({
   seed,
   serverNow,
   messaging = false,
+  game = null,
 }: {
   seed: Detail;
   serverNow: number;
   /** The messaging module is on (#375): "Пиши" beside each other player. */
   messaging?: boolean;
+  /** Open play on this booking (#376), while the module is on; null otherwise. */
+  game?: BookingGameDto | null;
 }) {
   const t = useTranslations('myBookings');
   const td = useTranslations('myBookings.detail');
@@ -254,6 +259,8 @@ export function BookingDetail({
       </div>
 
       <BookingPlayers booking={b} date={date} time={from} messaging={messaging} />
+
+      {game ? <BookingGame bookingId={b.id} seed={game} /> : null}
 
       {state !== 'none' || cancelError ? (
         <section className="gap-tight flex flex-col" data-testid="booking-cancel">

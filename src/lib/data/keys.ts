@@ -80,6 +80,14 @@ export interface VenueSearchParams {
 }
 
 /** Reads: SWR keys. */
+export interface GameSearchParams {
+  sport?: string;
+  date?: string;
+  city?: string;
+  venue?: string;
+  limit?: number;
+}
+
 export const KEYS = {
   /** The caller's standing at a club. */
   me: (slug: string) => `${BASE}/t/${seg(slug)}/me`,
@@ -186,6 +194,14 @@ export const KEYS = {
   conversationsUnread: (side: InboxSide) => `${inboxBase(side)}/conversations/unread`,
   /** Players by name, for a new conversation (#375): public cards. */
   players: (q: string) => `${BASE}/players${query({ q })}`,
+  /** Игри (#376): open games, soonest first, by cursor. */
+  games: (params: GameSearchParams = {}) => paged(`${BASE}/games`, { ...params }),
+  /** One open game: its card and the ask dialog. */
+  game: (id: string) => `${BASE}/games/${seg(id)}`,
+  /** «Моите заявки»: the caller's requests to join games. */
+  myGameRequests: () => `${BASE}/me/game-requests`,
+  /** Open play on one of the caller's bookings: the booker's requests, or their own. */
+  meBookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
   /** One player's public card. */
   player: (id: string) => `${BASE}/players/${seg(id)}`,
 } as const;
@@ -215,6 +231,15 @@ export const V1 = {
   updateNotificationSettings: () => `${BASE}/me/notification-settings`,
   /** `POST` a new invite link; `DELETE` stops every live one (#358). */
   bookingInviteLinks: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/invite-links`,
+  /** `POST { note? }`: ask to join an open game (#376). */
+  askToJoinGame: (gameId: string) => `${BASE}/games/${seg(gameId)}/requests`,
+  /** `DELETE`: withdraw one's request, or leave the game it put one in (#376). */
+  withdrawGameRequest: (requestId: string) => `${BASE}/me/game-requests/${seg(requestId)}`,
+  /** `PUT { spots, levelMin?, levelMax?, note? }` opens; `DELETE` closes (#376). */
+  bookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
+  /** `POST`: the booker accepts or declines one request (#376). */
+  answerGameRequest: (bookingId: string, requestId: string, verb: 'accept' | 'decline') =>
+    `${BASE}/me/bookings/${seg(bookingId)}/game/requests/${seg(requestId)}/${verb}`,
   /** `POST { userId }`: the booker adds a co-player (#358). */
   addBookingPlayer: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/participants`,
   /** `DELETE`: the booker removes a player (#358). */
