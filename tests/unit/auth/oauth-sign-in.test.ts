@@ -49,6 +49,16 @@ jest.mock('@/lib/auth/facebook-permissions', () => ({
   readFacebookEmailPermission: (...args: unknown[]) => readFacebookEmailPermission(...args),
 }));
 
+// The visitor's signed-out language choice (#431). Outside a request the real
+// `cookies()` throws, which reads as "nothing chosen".
+let localeCookie: string | undefined;
+jest.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      name === 'NEXT_LOCALE' && localeCookie !== undefined ? { value: localeCookie } : undefined,
+  }),
+}));
+
 import { authOptions } from '@/auth';
 import {
   FACEBOOK_EMAIL_REQUIRED_REDIRECT,
@@ -74,6 +84,7 @@ const google = (over: Partial<SignInArgs> = {}): SignInArgs => ({
 });
 
 beforeEach(() => {
+  localeCookie = undefined;
   readFacebookEmailPermission.mockReset();
   readFacebookEmailPermission.mockResolvedValue('unknown');
   upsert.mockReset();
@@ -96,6 +107,23 @@ describe('oauth sign-in without an adapter', () => {
     await expect(signIn(args)).resolves.toBe(true);
 
     expect(args.user.id).toBe('app-user-1');
+  });
+
+  it('a new account starts in the language chosen signed out, and only a language of ours (#431)', async () => {
+    const created = () => upsert.mock.calls.at(-1)![0] as { create: object; update: object };
+
+    await signIn(google());
+    expect(created().create).not.toHaveProperty('locale'); // the column default, bg
+
+    localeCookie = 'en';
+    await signIn(google());
+    expect(created().create).toMatchObject({ locale: 'en' });
+    // Never on an existing account: its profile's language stands.
+    expect(created().update).toEqual({});
+
+    localeCookie = 'xx';
+    await signIn(google());
+    expect(created().create).not.toHaveProperty('locale');
   });
 
   it('lower-cases and trims the email, matching verifyCredentials', async () => {
