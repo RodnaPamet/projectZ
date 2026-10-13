@@ -119,7 +119,6 @@ model Resource {
   pricingRules  PricingRule[]
   bookings      Booking[]
   bookingSeries BookingSeries[]
-  sessions      OpenPlaySession[]
   coachBookings CoachBooking[]
 
   @@index([tenantId, venueId, sport])

@@ -235,8 +235,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // These are the ones a mobile client MUST distinguish, because every one of
   // them is "try again with fresh data", not "you did something wrong".
   SlotTakenError: { status: 409, code: 'SLOT_TAKEN' },
-  AlreadyJoinedError: { status: 409, code: 'ALREADY_JOINED' },
-  SessionFullError: { status: 409, code: 'SESSION_FULL' },
   TournamentStateError: { status: 409, code: 'TOURNAMENT_STATE' },
   IdempotencyRaceError: { status: 409, code: 'IDEMPOTENCY_RACE' },
   // The expiry sweeper (or another tab) moved the booking out of a cancellable

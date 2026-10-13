@@ -1,90 +1,8 @@
-model OpenPlaySession {
-  id         String  @id @default(cuid())
-  tenantId   String
-  resourceId String?
-
-  hostUserId  String
-  sport       SportType
-  /// Denormalised from the registry so a family filter is one index hit, not
-  /// a 16-way IN clause rebuilt on every query.
-  sportFamily String    @default("RACKET")
-
-  /// RESOURCE  — a court/table/lobby is reserved (the MVP model).
-  /// MEETING_POINT — running and cycling: people agree to meet at a lat/lng.
-  ///   There is nothing to reserve, so resourceId is null.
-  locationMode    String   @default("RESOURCE")
-  meetingPointLat Decimal? @db.Decimal(10, 7)
-  meetingPointLng Decimal? @db.Decimal(10, 7)
-  routeRef        String?
-
-  startTs DateTime @db.Timestamptz(3)
-  endTs   DateTime @db.Timestamptz(3)
-
-  minSkillLevel   SkillLevel @default(BEGINNER)
-  maxSkillLevel   SkillLevel @default(COMPETITIVE)
-  maxParticipants Int        @default(4)
-  currentCount    Int        @default(0)
-
-  /// "PUBLIC" | "INVITE_ONLY"
-  visibility     String        @default("PUBLIC")
-  joinPriceCents Int           @default(0)
-  status         BookingStatus @default(PENDING)
-
-  /// A host can convert their own booking into an open-play session. The
-  /// booking anchors the court and the capacity; the session layers
-  /// matchmaking on top. Nullable because a session can also be created
-  /// directly by the venue.
-  linkedBookingId String? @unique
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  resource      Resource?            @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  linkedBooking Booking?             @relation("SessionBooking", fields: [linkedBookingId], references: [id])
-  participants  SessionParticipant[]
-  messages      SessionChatMessage[]
-
-  @@index([tenantId, sport, startTs])
-  @@index([tenantId, status])
-  @@index([resourceId])
-  @@index([hostUserId])
-  @@map("open_play_session")
-}
-
-model SessionParticipant {
-  sessionId String
-  userId    String
-
-  joinedAt    DateTime  @default(now())
-  checkedInAt DateTime?
-
-  session OpenPlaySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@id([sessionId, userId])
-  @@index([userId])
-  @@map("session_participant")
-}
-
-model SessionChatMessage {
-  id        String @id @default(cuid())
-  tenantId  String
-  sessionId String
-
-  senderUserId String
-  /// NOT encrypted. Sanitised by `postSessionMessage`, which no route calls
-  /// yet — so nothing reaches this column at all today. User-authored text
-  /// rendered to other users is an XSS surface; treat it as hostile.
-  body         String
-
-  createdAt DateTime @default(now())
-
-  session OpenPlaySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId, createdAt])
-  @@index([tenantId])
-  @@index([senderUserId])
-  @@map("session_chat_message")
-}
+/// The P05 open-play scaffolding (OpenPlaySession, SessionParticipant,
+/// SessionChatMessage) was here. Nothing ever wired it to a route, and #376
+/// built open play on the booking instead (open-play.prisma). The models went
+/// with #511; their tables are empty and are dropped by the migration after
+/// this release, as P60 did for Entra, so a rollback image still finds them.
 
 /// GLOBAL — no tenantId. Skill follows the PLAYER, not the club.
 ///
@@ -136,9 +54,9 @@ enum RatingEngine {
 
 /// A recorded result. The thing ratings are computed FROM.
 ///
-/// Kept separate from OpenPlaySession: not every match happens in a session
-/// (a tournament round, a logged casual game), and a session can exist without
-/// anyone reporting who won.
+/// Its own record, tied to no booking: a tournament round and a logged casual
+/// game are matches too, and a game can be played without anyone reporting
+/// who won.
 model MatchResultRecord {
   id       String  @id @default(cuid())
   tenantId String?

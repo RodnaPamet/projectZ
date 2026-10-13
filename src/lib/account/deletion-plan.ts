@@ -710,41 +710,6 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason: 'Who reported a result others were rated on; the id names a tombstone.',
   },
   {
-    model: 'OpenPlaySession',
-    field: 'hostUserId',
-    action: 'keep',
-    reason: 'A session other people joined; the id names a tombstone.',
-  },
-  {
-    model: 'OpenPlaySession',
-    field: 'meetingPointLat',
-    action: 'keep',
-    reason: 'A public meeting point for a run or a ride, not where a person is.',
-  },
-  {
-    model: 'OpenPlaySession',
-    field: 'meetingPointLng',
-    action: 'keep',
-    reason: 'As meetingPointLat.',
-  },
-  {
-    model: 'SessionParticipant',
-    action: 'delete',
-    reason: 'The account’s places in open-play sessions (its id is part of the key).',
-  },
-  {
-    model: 'SessionChatMessage',
-    field: 'senderUserId',
-    action: 'delete',
-    reason: 'The account’s messages: its own words.',
-  },
-  {
-    model: 'SessionChatMessage',
-    field: 'body',
-    action: 'delete',
-    reason: 'Deleted with the message.',
-  },
-  {
     model: 'Conversation',
     field: 'createdById',
     action: 'keep',

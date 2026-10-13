@@ -9,7 +9,7 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
  * that was stripped a moment earlier.
  *
  * This matters here specifically because playerz runs user free text
- * through it: Booking.notes, Coach.bio, SessionChatMessage.body — all of
+ * through it: Booking.notes, Coach.bio, ChatMessage.body — all of
  * which are read by other people.
  */
 describe('sanitizePlainText', () => {

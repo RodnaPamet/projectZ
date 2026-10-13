@@ -8,10 +8,9 @@
 /// One row per booking, made the first time the booker opens it and kept when
 /// they close it, so reopening keeps the requests already answered.
 ///
-/// Not the P05 `OpenPlaySession` scaffolding in matchmaking.prisma, which
-/// nothing ever wired: it has its own participants, enum skill levels and an
-/// unencrypted chat. Open play here is a property OF a booking, its players
-/// are the booking's players, and its chat is a messaging conversation.
+/// Open play here is a property OF a booking: its players are the booking's
+/// players, and its chat is a messaging conversation. (The P05 scaffolding
+/// that modelled it as a session of its own was never wired and is gone, #511.)
 model OpenGame {
   id        String @id @default(cuid())
   tenantId  String
