@@ -4,6 +4,12 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Browser source maps ONLY for a local size analysis (`npm run perf:chunks`,
+  // docs/perf/README.md): they are how a chunk's bytes are traced back to the
+  // packages they came from. Never in an image: a deployed map is the source
+  // code, handed to anyone who asks. Nothing in the Dockerfile or CI sets
+  // this, and tests/unit/perf/chunks.test.ts keeps it so.
+  productionBrowserSourceMaps: process.env.PERF_SOURCEMAPS === '1',
   // Next 16 turns typedRoutes ON by default. The ported components build
   // hrefs as plain template strings (`/t/${slug}/dashboard`), which the
   // generated RouteImpl union rejects. Routes don't exist yet anyway —
