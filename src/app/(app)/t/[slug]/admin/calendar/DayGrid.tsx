@@ -615,6 +615,8 @@ export function DayGrid({
           bookingId={detail.id}
           noun={courts.find((c) => c.id === detail.resourceId)?.noun ?? 'court'}
           canMarkNoShow={detail.canMarkNoShow}
+          // The day's fresh read of it, so a player marked «Не дойде» shows.
+          players={bookings.find((b) => b.id === detail.id) ?? detail}
           onClose={() => setDetail(null)}
           onChanged={refresh}
           onMarkNoShow={() => {
