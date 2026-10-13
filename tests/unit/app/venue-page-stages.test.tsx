@@ -8,6 +8,7 @@ import VenuePage from '@/app/(public)/venues/[slug]/page';
 import { VenueBooking } from '@/app/(public)/venues/[slug]/VenueBooking';
 import { VenueHeader } from '@/app/(public)/venues/[slug]/VenueHeader';
 import { VenueSlots, VenueSlotsSkeleton } from '@/app/(public)/venues/[slug]/VenueSlots';
+import { playerChrome } from '@/components/layout/player-chrome';
 
 /**
  * THE HEADER DOES NOT WAIT FOR THE SLOTS (#403).
@@ -136,6 +137,22 @@ describe('the venue page, two stages (#403)', () => {
     const booking = (await stage) as ReactElement;
     expect(booking.type).toBe(VenueBooking);
     expect((booking.props as { viewer: string }).viewer).toBe('signed-out');
+  });
+
+  it('an account still on "Играч или треньор?" is an undecided viewer, not a player (#416)', async () => {
+    availability.mockResolvedValue([] as never);
+    (playerChrome as jest.Mock).mockResolvedValueOnce({
+      me: { userId: 'u1' },
+      kind: 'player',
+      landing: { href: '/start/kind', reason: 'undecided', club: null },
+    });
+    const tree = await VenuePage(props('sofia-padel-club'));
+    const slots = walk(tree).find(([el]) => el.type === VenueSlots)!;
+    const scoped = (await VenueSlots(
+      slots[0].props as Parameters<typeof VenueSlots>[0],
+    )) as ReactElement;
+    const booking = walk(scoped).find(([el]) => el.type === VenueBooking)!;
+    expect((booking[0].props as { viewer: string }).viewer).toBe('undecided');
   });
 
   it('an unknown slug is not found before anything renders', async () => {
