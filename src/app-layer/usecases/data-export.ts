@@ -32,6 +32,9 @@ import { decryptField } from '@/lib/security/encryption';
  *                  there, theirs and the other side's: they were party to all
  *                  of it, and a conversation of one voice says nothing. A
  *                  retracted message is listed as retracted, without text.
+ *   openPlay       (#376) the games they opened (what they asked for, their
+ *                  note) and every request they made to join one (the game,
+ *                  their note to the booker, where it stands)
  *
  * ═══ WHAT IS NOT IN IT, AND WHY ═══
  *
@@ -260,6 +263,7 @@ export interface PersonalDataExport {
       bookingReminders: boolean;
       clubChanges: boolean;
       messages: boolean;
+      openPlay: boolean;
     };
   };
   inviteLinks: Array<{
@@ -285,6 +289,29 @@ export interface PersonalDataExport {
         retracted: boolean;
         at: string;
       }>;
+    }>;
+  };
+  openPlay: {
+    /** Bookings they opened to other players. */
+    gamesOpened: Array<{
+      bookingId: string;
+      venue: string;
+      start: string;
+      spotsWanted: number;
+      levelMin: number | null;
+      levelMax: number | null;
+      note: string | null;
+      openedAt: string;
+      closedAt: string | null;
+    }>;
+    /** Their requests to join other people's games. */
+    requests: Array<{
+      venue: string;
+      start: string;
+      status: string;
+      note: string | null;
+      askedAt: string;
+      decidedAt: string | null;
     }>;
   };
 }
@@ -393,6 +420,7 @@ export async function readPersonalData(
       emailBookingReminders: true,
       emailClubChanges: true,
       emailMessages: true,
+      emailOpenPlay: true,
       searchable: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
@@ -460,6 +488,7 @@ export async function readPersonalData(
   ]);
 
   const messaging = await readMessaging(db, userId);
+  const openPlay = await readOpenPlay(db, userId);
 
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own sessions, by their id.
@@ -751,6 +780,7 @@ export async function readPersonalData(
         bookingReminders: user.emailBookingReminders,
         clubChanges: user.emailClubChanges,
         messages: user.emailMessages,
+        openPlay: user.emailOpenPlay,
       },
     },
     inviteLinks: links.map((l) => ({
@@ -760,6 +790,71 @@ export async function readPersonalData(
       revokedAt: iso(l.revokedAt),
     })),
     messages: { shownInPlayerSearch: user.searchable, ...messaging },
+    openPlay,
+  };
+}
+
+/** Open play (#376): the games the person opened and the requests they made. */
+async function readOpenPlay(
+  db: PrismaClient,
+  userId: string,
+): Promise<PersonalDataExport['openPlay']> {
+  const where = { select: { name: true } } as const;
+  const [games, requests] = await Promise.all([
+    // guardrail-allow: cross-tenant — the games the person opened, by their id.
+    db.openGame.findMany({
+      where: { booking: { bookedByUserId: userId } },
+      select: {
+        bookingId: true,
+        spotsWanted: true,
+        levelMin: true,
+        levelMax: true,
+        note: true,
+        openedAt: true,
+        closedAt: true,
+        booking: { select: { startTs: true, resource: { select: { venue: where } } } },
+      },
+      orderBy: { openedAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the person's own requests, by their id.
+    db.openGameRequest.findMany({
+      where: { userId },
+      select: {
+        status: true,
+        note: true,
+        askedAt: true,
+        decidedAt: true,
+        game: {
+          select: {
+            booking: { select: { startTs: true, resource: { select: { venue: where } } } },
+          },
+        },
+      },
+      orderBy: { askedAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+  ]);
+  return {
+    gamesOpened: games.map((g) => ({
+      bookingId: g.bookingId,
+      venue: g.booking.resource.venue.name,
+      start: g.booking.startTs.toISOString(),
+      spotsWanted: g.spotsWanted,
+      levelMin: g.levelMin,
+      levelMax: g.levelMax,
+      note: g.note,
+      openedAt: g.openedAt.toISOString(),
+      closedAt: g.closedAt?.toISOString() ?? null,
+    })),
+    requests: requests.map((r) => ({
+      venue: r.game.booking.resource.venue.name,
+      start: r.game.booking.startTs.toISOString(),
+      status: r.status,
+      note: r.note,
+      askedAt: r.askedAt.toISOString(),
+      decidedAt: r.decidedAt?.toISOString() ?? null,
+    })),
   };
 }
 

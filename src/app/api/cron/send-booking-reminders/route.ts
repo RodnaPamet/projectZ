@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 import { sendBookingReminders } from '@/app-layer/usecases/booking-notifications';
 import { drainEmailOutbox } from '@/app-layer/usecases/notification-outbox';
+import { lapseOpenPlayRequests } from '@/app-layer/usecases/open-play';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -57,15 +58,20 @@ export async function POST(req: NextRequest) {
   if (refusal) return refusal;
 
   const reminders = await sendBookingReminders();
-  const drained = reminders.claimed > 0 ? await drainEmailOutbox() : null;
+  // Open play (#376, rule 4): requests nobody answered by the club's cutoff
+  // lapse here, and their askers are told. Every read already shows them as
+  // lapsed; this is what tells the player, within the run's five minutes.
+  const openPlay = await lapseOpenPlayRequests();
+  const drained = reminders.claimed > 0 || openPlay.lapsed > 0 ? await drainEmailOutbox() : null;
 
-  if (reminders.claimed > 0) {
+  if (reminders.claimed > 0 || openPlay.lapsed > 0) {
     logger.info('booking reminders', {
       component: 'cron',
       claimed: reminders.claimed,
       notified: reminders.notified,
+      lapsedRequests: openPlay.lapsed,
       sent: drained?.sent ?? 0,
     });
   }
-  return NextResponse.json({ ...reminders, drained });
+  return NextResponse.json({ ...reminders, lapsedRequests: openPlay.lapsed, drained });
 }

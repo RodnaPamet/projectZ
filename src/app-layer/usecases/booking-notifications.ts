@@ -1,4 +1,4 @@
-import type { Locale, NotificationKind, Prisma } from '@prisma/client';
+import type { Locale, NotificationKind, OpenGameRequestStatus, Prisma } from '@prisma/client';
 
 import { deliver, type EmailCategory } from '@/app-layer/usecases/notification-outbox';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -7,6 +7,8 @@ import {
   bookingEmail,
   bookingHref,
   formatDate,
+  GAMES_REQUESTS_HREF,
+  openPlayEmail,
   seriesCancelledEmail,
   type BookingBellEvent,
   type BookingFacts,
@@ -50,6 +52,7 @@ interface Recipient {
   emailBookingConfirmations: boolean;
   emailBookingReminders: boolean;
   emailClubChanges: boolean;
+  emailOpenPlay: boolean;
 }
 
 const RECIPIENT_SELECT = {
@@ -59,6 +62,7 @@ const RECIPIENT_SELECT = {
   emailBookingConfirmations: true,
   emailBookingReminders: true,
   emailClubChanges: true,
+  emailOpenPlay: true,
 } satisfies Prisma.UserSelect;
 
 const BOOKING_SELECT = {
@@ -131,6 +135,7 @@ function wantsEmail(r: Recipient, category: EmailCategory): boolean {
   if (category === 'confirmation') return r.emailBookingConfirmations;
   if (category === 'reminder') return r.emailBookingReminders;
   if (category === 'clubChanges') return r.emailClubChanges;
+  if (category === 'openPlay') return r.emailOpenPlay;
   return true;
 }
 
@@ -143,6 +148,9 @@ interface Send {
   facts: BookingFacts;
   name?: string | null;
   date?: string;
+  /** Where the bell row points and what it is about; the booking by default. */
+  href?: string;
+  ref?: { type: string; id: string };
   email?: {
     category: EmailCategory;
     render: () => Promise<{ subject: string; text: string }>;
@@ -168,9 +176,9 @@ async function send(s: Send): Promise<void> {
     dedupeKey: s.key,
     title: copy.title,
     body: copy.body,
-    href: bookingHref(s.facts.bookingId),
-    refType: 'booking',
-    refId: s.facts.bookingId,
+    href: s.href ?? bookingHref(s.facts.bookingId),
+    refType: s.ref?.type ?? 'booking',
+    refId: s.ref?.id ?? s.facts.bookingId,
     email,
   });
 }
@@ -299,6 +307,24 @@ export async function notifyBookingCancelled(input: {
       });
     }
   });
+  await notifyClosedRequests(input.tenantId, [input.bookingId]);
+}
+
+/**
+ * The askers whose requests a cancellation closed (#376): `cancelBooking`
+ * closes the booking's open game in its transaction. Keyed per request and
+ * close, so a request the booker had already closed is not announced again.
+ */
+async function notifyClosedRequests(tenantId: string, bookingIds: string[]): Promise<void> {
+  if (bookingIds.length === 0) return;
+  const closed = await runAsSuperuser((db) =>
+    db.openGameRequest.findMany({
+      where: { tenantId, status: 'CLOSED', game: { bookingId: { in: bookingIds } } },
+      select: { id: true },
+      take: 1_000,
+    }),
+  ).catch(() => []);
+  for (const c of closed) await notifyOpenPlay({ tenantId, requestId: c.id, event: 'closed' });
 }
 
 /**
@@ -340,6 +366,7 @@ export async function notifySeriesCancelled(input: {
       });
     }
   });
+  await notifyClosedRequests(input.tenantId, input.cancelledBookingIds.slice(0, 200));
 }
 
 // ─── Who is playing (#416) ──────────────────────────────────────────────
@@ -418,6 +445,108 @@ export async function notifyBookingPlayersChanged(event: PlayersEvent): Promise<
       bell,
       facts: factsOf(b),
       name: people.get(about)?.name ?? null,
+    });
+  });
+}
+
+// ─── Open play (#376) ───────────────────────────────────────────────────
+
+/** What happened to a request to join an open game. */
+export type OpenPlayEvent = 'requested' | 'accepted' | 'declined' | 'lapsed' | 'closed';
+
+const OPEN_PLAY_KIND: Record<OpenPlayEvent, NotificationKind> = {
+  requested: 'OPEN_PLAY_REQUESTED',
+  accepted: 'OPEN_PLAY_ACCEPTED',
+  declined: 'OPEN_PLAY_DECLINED',
+  lapsed: 'OPEN_PLAY_LAPSED',
+  closed: 'OPEN_PLAY_CLOSED',
+};
+
+/** The state a request is in while each event is still news. */
+const OPEN_PLAY_STATE: Record<OpenPlayEvent, OpenGameRequestStatus> = {
+  requested: 'PENDING',
+  accepted: 'ACCEPTED',
+  declined: 'DECLINED',
+  lapsed: 'LAPSED',
+  closed: 'CLOSED',
+};
+
+/**
+ * Bell and email for one request (#376): a new request is news to the
+ * booker, naming the asker; an answer, a lapse or a close is news to the
+ * asker, naming nobody. Email under «Игри» (`emailOpenPlay`), never after the
+ * game started.
+ *
+ * Called after the commit with ids only. Re-reads the request and says
+ * nothing when it has moved on since (a request withdrawn before its hook ran
+ * is not announced to the booker). Keyed per request, event and the moment of
+ * that event, so asking again after a withdrawal is news again and a repeated
+ * hook is one row. The bell row is about the REQUEST (`refType`
+ * open_game_request), which is how deleting the asker's account finds the
+ * rows that name them. Never throws.
+ */
+export async function notifyOpenPlay(input: {
+  tenantId: string;
+  requestId: string;
+  event: OpenPlayEvent;
+}): Promise<void> {
+  await guarded(`open-play-${input.event}`, input.requestId, async () => {
+    const r = await runAsSuperuser((db) =>
+      db.openGameRequest.findFirst({
+        where: { id: input.requestId, tenantId: input.tenantId },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          askedAt: true,
+          decidedAt: true,
+          game: { select: { bookingId: true } },
+        },
+      }),
+    );
+    if (!r || r.status !== OPEN_PLAY_STATE[input.event]) return;
+    const [b] = await readBookings(input.tenantId, [r.game.bookingId]);
+    if (!b) return;
+
+    const toBooker = input.event === 'requested';
+    const to = toBooker ? b.bookedByUserId : r.userId;
+    if (!to || to === (toBooker ? r.userId : b.bookedByUserId)) return;
+    const people = await readRecipients(toBooker ? [to, r.userId] : [to]);
+    const recipient = people.get(to);
+    if (!recipient) return;
+
+    const bell: BookingBellEvent =
+      input.event === 'requested'
+        ? 'openPlayRequested'
+        : input.event === 'accepted'
+          ? 'openPlayAccepted'
+          : input.event === 'declined'
+            ? 'openPlayDeclined'
+            : input.event === 'lapsed'
+              ? 'openPlayLapsed'
+              : b.status === 'CANCELLED'
+                ? 'openPlayCancelled'
+                : 'openPlayClosed';
+    const at = (toBooker ? r.askedAt : (r.decidedAt ?? r.askedAt)).getTime();
+    const href = toBooker || input.event === 'accepted' ? bookingHref(b.id) : GAMES_REQUESTS_HREF;
+    const facts = factsOf(b);
+    const name = toBooker ? (people.get(r.userId)?.name ?? null) : null;
+
+    await send({
+      recipient,
+      tenantId: b.tenantId,
+      kind: OPEN_PLAY_KIND[input.event],
+      key: dedupeKey('openplay', r.id, input.event, at),
+      bell,
+      facts,
+      name,
+      href,
+      ref: { type: 'open_game_request', id: r.id },
+      email: {
+        category: 'openPlay',
+        render: () => openPlayEmail(recipient.locale, bell, facts, { name, href }),
+        expiresAt: b.startTs,
+      },
     });
   });
 }

@@ -350,6 +350,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'notificationSettings',
       'inviteLinks',
       'messages',
+      'openPlay',
     ]);
     expect(json.version).toBe(3);
     expect(json.profile).toMatchObject({
@@ -373,8 +374,10 @@ describe('GET /api/v1/me/export (#370)', () => {
         bookingReminders: false,
         clubChanges: true,
         messages: true,
+        openPlay: true,
       },
     });
+    expect(json.openPlay).toEqual({ gamesOpened: [], requests: [] });
     expect(json.inviteLinks).toEqual([expect.objectContaining({ bookingId: mineId })]);
   });
 

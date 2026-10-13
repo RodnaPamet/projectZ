@@ -228,6 +228,30 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p61
+
+`20261013190000_p61_open_play` (#376) adds five `OPEN_PLAY_*` values to
+`NotificationKind`. The bell reads a person's notifications on every page, so
+one open-play row would break the previous image's bell for that person. Park
+those rows before starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p61-park.sql
+```
+
+and give them back after rolling forward again, with the p61 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p61-unpark.sql
+```
+
+The rest of p61 stays: `open_game`, `open_game_request`,
+`booking_participant.noShowAt` and `app_user.emailOpenPlay` are new and
+unmapped in the old image. Players an open game accepted are ordinary
+`booking_participant` rows and stay on their bookings.
+
 `SKIP_ENV_VALIDATION=1` is for the **build** only. Next imports every route
 module to collect metadata, and `src/env.ts` would refuse at import time for
 want of secrets that belong in the runtime environment, not the image.
@@ -430,7 +454,7 @@ to run (503) until `CRON_SECRET` is set:
 | `release-expired-bookings`      | 60 s    | an abandoned checkout holds its court for ever, and keeps the credit spent     |
 | `complete-ended-bookings`       | 60 s    | no booking ever becomes COMPLETED, so nobody can ever leave a review           |
 | `warn-expiring-platform-grants` | daily   | a platform grant lapses mid-incident with no warning                           |
-| `send-booking-reminders` (#367) | 5 min   | nobody is reminded 3 hours before a game (bell or email)                       |
+| `send-booking-reminders` (#367) | 5 min   | no 3-hour reminders; unanswered open-play requests never lapse (#376)          |
 | `drain-email-outbox` (#367)     | 60 s    | confirmation and club-cancellation emails wait in `email_outbox` for ever      |
 | `sweep-orphan-media` (#366)     | daily   | photo objects whose rows are gone stay in the bucket (`docs/media-storage.md`) |
 

@@ -517,6 +517,30 @@
       "playerRemoved": {
         "title": "You are no longer in this game",
         "body": "{venue} · {when}"
+      },
+      "openPlayRequested": {
+        "title": "{name} wants to join your game",
+        "body": "{venue} · {when}"
+      },
+      "openPlayAccepted": {
+        "title": "You're in the game",
+        "body": "{venue} · {when}"
+      },
+      "openPlayDeclined": {
+        "title": "Your request wasn't accepted",
+        "body": "{venue} · {when}"
+      },
+      "openPlayLapsed": {
+        "title": "Your request lapsed without an answer",
+        "body": "{venue} · {when}"
+      },
+      "openPlayClosed": {
+        "title": "The game is no longer looking for players",
+        "body": "{venue} · {when}"
+      },
+      "openPlayCancelled": {
+        "title": "The game was cancelled",
+        "body": "{venue} · {when}"
       }
     },
     "message": {
@@ -1905,7 +1929,8 @@
       "saveFailed": "The setting was not saved. Please try again.",
       "edit": "Change",
       "editLabel": "Change notifications",
-      "messages": "Unread messages"
+      "messages": "Unread messages",
+      "openPlay": "Games: requests and answers"
     },
     "data": {
       "row": "A copy of your data",
@@ -2090,6 +2115,34 @@
         "subject": "{club} wrote to you on playerz.bg",
         "intro": "{name} wrote to you for {club}."
       }
+    },
+    "openPlay": {
+      "openPlayRequested": {
+        "subject": "{name} wants to join your game on {date}",
+        "intro": "{name} wants to join your game at {venue} on {date} at {time}. Answer by {until}; after that the request lapses."
+      },
+      "openPlayAccepted": {
+        "subject": "You're in the game on {date}",
+        "intro": "You're now playing at {venue} on {date} at {time}. Payment is at the club. If you can't come, pull out by {until}."
+      },
+      "openPlayDeclined": {
+        "subject": "Your request for {date} wasn't accepted",
+        "intro": "The organiser of the game at {venue} on {date} at {time} didn't accept your request. There are other games under Games."
+      },
+      "openPlayLapsed": {
+        "subject": "Your request for {date} lapsed",
+        "intro": "The organiser didn't answer your request for the game at {venue} on {date} at {time} before the club's deadline, so it lapsed."
+      },
+      "openPlayClosed": {
+        "subject": "The game on {date} is no longer looking for players",
+        "intro": "The organiser stopped looking for players for the game at {venue} on {date} at {time} before answering your request."
+      },
+      "openPlayCancelled": {
+        "subject": "The game on {date} was cancelled",
+        "intro": "The game at {venue} on {date} at {time} that you asked to join was cancelled."
+      },
+      "link": "The game",
+      "footer": "You're getting this email because you use Games on playerz.bg."
     }
   },
   "billing": {

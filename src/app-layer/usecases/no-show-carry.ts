@@ -41,11 +41,18 @@ export async function carryNoShowStanding(
 ): Promise<number> {
   const { userId, now } = input;
   const from = windowStart(now);
-  const [bookings, inherited, lifted] = await Promise.all([
+  const [bookings, joined, inherited, lifted] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own no-shows, at every club.
     db.booking.findMany({
       where: { bookedByUserId: userId, status: 'NO_SHOW', startTs: { gt: from } },
       select: { tenantId: true, startTs: true },
+      take: CARRY_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the games they joined through open play
+    // (#376) and did not come to, at every club.
+    db.bookingParticipant.findMany({
+      where: { userId, noShowAt: { not: null }, booking: { startTs: { gt: from } } },
+      select: { tenantId: true, booking: { select: { startTs: true } } },
       take: CARRY_CAP,
     }),
     // guardrail-allow: cross-tenant — what the person took over from a deleted account.
@@ -65,6 +72,7 @@ export async function carryNoShowStanding(
   const clearedAt = new Map(lifted.map((r) => [r.tenantId, r.noShowBlockClearedAt]));
   const counting = [
     ...bookings.map((b) => ({ tenantId: b.tenantId, startedAt: b.startTs })),
+    ...joined.map((j) => ({ tenantId: j.tenantId, startedAt: j.booking.startTs })),
     ...inherited,
   ].filter((s) => s.startedAt > noShowCountsFrom(now, clearedAt.get(s.tenantId) ?? null));
 

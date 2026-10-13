@@ -78,6 +78,10 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // this opens nothing that was gated.
   /^\/clubs(\/|$)/,
   /^\/open-play(\/|$)/,
+  // Игри (#376): open games are public to read, signed in or not; asking to
+  // join is not, and its path (`/api/v1/games/{id}/requests`) is not listed.
+  /^\/games(\/|$)/,
+  /^\/api\/v1\/games(\/[^/]+)?$/,
   /^\/coaches(\/|$)/,
   /^\/design-system(\/|$)/,
   // Sign-in must be public, and EXPLICITLY so.

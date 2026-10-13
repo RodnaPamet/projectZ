@@ -517,6 +517,30 @@
       "playerRemoved": {
         "title": "Вече не сте в тази игра",
         "body": "{venue} · {when}"
+      },
+      "openPlayRequested": {
+        "title": "{name} иска да играе с вас",
+        "body": "{venue} · {when}"
+      },
+      "openPlayAccepted": {
+        "title": "Приеха ви в играта",
+        "body": "{venue} · {when}"
+      },
+      "openPlayDeclined": {
+        "title": "Заявката ви не е приета",
+        "body": "{venue} · {when}"
+      },
+      "openPlayLapsed": {
+        "title": "Заявката ви изтече без отговор",
+        "body": "{venue} · {when}"
+      },
+      "openPlayClosed": {
+        "title": "Играта вече не търси играчи",
+        "body": "{venue} · {when}"
+      },
+      "openPlayCancelled": {
+        "title": "Играта е отменена",
+        "body": "{venue} · {when}"
       }
     },
     "message": {
@@ -1905,7 +1929,8 @@
       "saveFailed": "Настройката не беше запазена. Опитайте отново.",
       "edit": "Промени",
       "editLabel": "Промени известията",
-      "messages": "Непрочетени съобщения"
+      "messages": "Непрочетени съобщения",
+      "openPlay": "Игри: заявки и отговори"
     },
     "data": {
       "row": "Копие на данните ви",
@@ -2090,6 +2115,34 @@
         "subject": "{club} ви писа в playerz.bg",
         "intro": "{name} ви писа от името на {club}."
       }
+    },
+    "openPlay": {
+      "openPlayRequested": {
+        "subject": "{name} иска да се включи в играта ви на {date}",
+        "intro": "{name} иска да се включи в играта ви в {venue} на {date} от {time}. Отговорете до {until}; след това заявката изтича."
+      },
+      "openPlayAccepted": {
+        "subject": "Приеха ви в играта на {date}",
+        "intro": "Вече сте в играта в {venue} на {date} от {time}. Плаща се на място в клуба. Ако не можете да дойдете, откажете се до {until}."
+      },
+      "openPlayDeclined": {
+        "subject": "Заявката ви за {date} не е приета",
+        "intro": "Организаторът на играта в {venue} на {date} от {time} не прие заявката ви. В Игри има и други игри."
+      },
+      "openPlayLapsed": {
+        "subject": "Заявката ви за {date} изтече",
+        "intro": "Организаторът не отговори на заявката ви за играта в {venue} на {date} от {time} до крайния срок на клуба, затова тя изтече."
+      },
+      "openPlayClosed": {
+        "subject": "Играта на {date} вече не търси играчи",
+        "intro": "Организаторът спря да търси играчи за играта в {venue} на {date} от {time}, преди да отговори на заявката ви."
+      },
+      "openPlayCancelled": {
+        "subject": "Играта на {date} е отменена",
+        "intro": "Играта в {venue} на {date} от {time}, в която искахте да се включите, е отменена."
+      },
+      "link": "Към играта",
+      "footer": "Получавате този имейл, защото използвате Игри в playerz.bg."
     }
   },
   "billing": {

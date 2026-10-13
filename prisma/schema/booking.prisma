@@ -71,6 +71,8 @@ model Booking {
   bookingSplits BookingSplit[]
   series        BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   inviteLinks   BookingInviteLink[]
+  /// Open play (#376): the booker looking for more players, or null.
+  openGame      OpenGame?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, resourceId, startTs])
@@ -165,6 +167,14 @@ model BookingParticipant {
   position   Int
 
   joinedAt DateTime @default(now())
+
+  /// The club marked this player as not having come (#376). Only a player who
+  /// joined through open play can be: after the club's cancellation cutoff they
+  /// are on the booking, and the no-show rule applies to them as it does to the
+  /// booker (owner decision 2026-10-13, rule 2). It counts towards their
+  /// no-show block at this club exactly as a booking-level NO_SHOW counts
+  /// towards the booker's (`noShowStanding`).
+  noShowAt DateTime? @db.Timestamptz(3)
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 

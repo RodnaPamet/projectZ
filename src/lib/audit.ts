@@ -124,6 +124,21 @@ export const AUDIT_ACTIONS = {
   BOOKING_PLAYER_LEFT: 'BOOKING_PLAYER_LEFT',
   /// The booker took a player off; actor: the booker.
   BOOKING_PLAYER_REMOVED: 'BOOKING_PLAYER_REMOVED',
+  /// Open play (#376). The booker opened their booking to other players, or
+  /// changed how many they want, the level wish or the note; actor: the booker.
+  OPEN_GAME_OPENED: 'OPEN_GAME_OPENED',
+  OPEN_GAME_UPDATED: 'OPEN_GAME_UPDATED',
+  /// The booker closed it, or the booking was cancelled (actor: who cancelled).
+  OPEN_GAME_CLOSED: 'OPEN_GAME_CLOSED',
+  /// A player asked to join; actor: them. An accepted request is recorded as
+  /// BOOKING_PLAYER_JOINED with `via: 'open_play'` (actor: the booker), a
+  /// declined one as OPEN_PLAY_DECLINED.
+  OPEN_PLAY_REQUESTED: 'OPEN_PLAY_REQUESTED',
+  OPEN_PLAY_WITHDRAWN: 'OPEN_PLAY_WITHDRAWN',
+  OPEN_PLAY_DECLINED: 'OPEN_PLAY_DECLINED',
+  /// Staff recorded that a player who joined through open play did not come
+  /// (#376, rule 2). The booking-level BOOKING_NO_SHOW is the booker's.
+  BOOKING_PLAYER_NO_SHOW: 'BOOKING_PLAYER_NO_SHOW',
   /// `scripts/onboard-club.ts` (#365) created a club, venue, court, owner or
   /// base pricing rule. actorType SYSTEM; the operator is in `detailsJson`.
   CLUB_ONBOARDING_CREATED: 'CLUB_ONBOARDING_CREATED',
