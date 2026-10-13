@@ -1,15 +1,15 @@
 import { type NextRequest } from 'next/server';
 
-import { clampLimit, listVenues } from '@/app-layer/repositories/venue';
+import { clampLimit } from '@/app-layer/repositories/venue';
 import { asSuperuser } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
-import { toVenueSummary } from '@/app/api/v1/_lib/dto';
 import { page } from '@/app/api/v1/_lib/envelope';
 import { toV1ErrorResponse } from '@/app/api/v1/_lib/errors';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { getRequestId } from '@/lib/observability/context';
 
 import { sportParam } from '../_lib/sport-param';
+import { listVenueSummaries } from '../_lib/venue-summaries';
 
 /**
  * Public venue search. Cross-tenant, unauthenticated.
@@ -41,8 +41,8 @@ async function handler(req: NextRequest) {
   // not an invalid enum value inside Prisma (a 500, #334).
   const sport = sportParam(sp.get('sport'));
 
-  const { result, clubSlugs } = await asSuperuser(ctx, async (db) => {
-    const result = await listVenues(
+  const summaries = await asSuperuser(ctx, (db) =>
+    listVenueSummaries(
       db,
       {
         q: sp.get('q') ?? undefined,
@@ -57,42 +57,13 @@ async function handler(req: NextRequest) {
         // unauthenticated GET asking for a million rows.
         limit: clampLimit(sp.has('limit') ? Number(sp.get('limit')) : undefined),
       },
-    );
+    ),
+  );
 
-    // ═══ THE CLUB SLUG, ONE QUERY PER PAGE ═══
-    //
-    // `Venue` carries a `tenantId` column and no relation to `VenueOrg`, so
-    // the slug cannot ride along in the `include`. One lookup over the page's
-    // distinct clubs — at most `clampLimit`'s 50 ids, usually far fewer — in
-    // the same BYPASSRLS transaction, because `venue_org` is no more readable
-    // unbound than `venue` is. It returns only `id` and `slug`: the slug is in
-    // every public `/t/{slug}` URL already, and nothing else is selected.
-    const tenantIds = [...new Set(result.items.map((v) => v.tenantId))];
-    const clubs = tenantIds.length
-      ? await db.venueOrg.findMany({
-          where: { id: { in: tenantIds } },
-          select: { id: true, slug: true },
-          take: tenantIds.length,
-        })
-      : [];
-
-    return { result, clubSlugs: new Map(clubs.map((c) => [c.id, c.slug])) };
-  });
-
-  // ═══ A VENUE WITH NO CLUB IS LEFT OUT, NOT GIVEN AN EMPTY SLUG ═══
-  //
-  // `venue.tenantId` is NOT a foreign key (the p05 migration indexes it and
-  // constrains nothing), so a venue can outlive its club row. Such a venue
-  // cannot be booked — every booking route needs the club's slug — and an
-  // empty `clubSlug` would send a client to `/t//bookings`. Dropping it can
-  // make a page one shorter than `limit`; `nextCursor` is still the last
-  // venue READ, so paging neither repeats nor skips.
-  const items = result.items.flatMap((v) => {
-    const clubSlug = clubSlugs.get(v.tenantId);
-    return clubSlug ? [toVenueSummary(v, clubSlug)] : [];
-  });
-
-  return page(items, result.nextCursor);
+  // The club slug per card, and a venue with no club left out: see
+  // listVenueSummaries (src/app/api/v1/_lib/venue-summaries.ts), which the
+  // /venues page seeds from too.
+  return page(summaries.items, summaries.nextCursor);
 }
 
 export const GET = defineV1Route(handler);

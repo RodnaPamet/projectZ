@@ -1,13 +1,12 @@
 import type { SportType } from '@prisma/client';
 import { getTranslations } from 'next-intl/server';
 
-import { listVenueFacets, listVenues } from '@/app-layer/repositories/venue';
-import { toVenueSummary, type VenueSummary } from '@/app/api/v1/_lib/dto';
+import { listVenueFacets } from '@/app-layer/repositories/venue';
+import { listVenueSummaries } from '@/app/api/v1/_lib/venue-summaries';
 import { playCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { Heading } from '@/components/ui/typography';
-import type { V1Page } from '@/lib/data/keys';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { countPageUsage } from '@/lib/usage/record';
 
@@ -30,19 +29,13 @@ export async function generateMetadata() {
  * to refresh. So the seed must be EXACTLY what that URL answers, or the first
  * revalidation swaps one list for another under the person's thumb:
  *
- *   - the same repository call with the same filters, and NO `limit`, so
- *     `listVenues` applies `clampLimit`'s default (20) exactly as the route
- *     does for a key that carries none;
- *   - the same mapper, `toVenueSummary`, with each venue's club slug looked
- *     up the way the route looks it up, and a venue with no club row left
- *     out the way the route leaves it out (`venue.tenantId` is not a foreign
- *     key, so a venue can outlive its club — see the route's comments).
- *
- * The slug lookup is written out here as well as in
- * src/app/api/v1/venues/route.ts rather than shared, because the route is not
- * this change's file. tests/unit/app/venues-page-binding.test.tsx pins the
- * seed's half: the binding, the filters, the default page size, and the
- * club-less venue left out.
+ * Both call `listVenueSummaries` (src/app/api/v1/_lib/venue-summaries.ts,
+ * #332): the same repository call, the same club-slug lookup, the same
+ * mapper, and the same rule for a venue whose club is gone. The page passes
+ * NO `limit`, so `clampLimit`'s default (20) applies exactly as the route
+ * applies it for a key that carries none. tests/unit/app/venues-page-binding
+ * .test.tsx pins the page's half: the binding, the filters, the default page
+ * size, and the club-less venue left out.
  *
  * The QUERY lives in venue.ts, where the query-shape and tenant-isolation
  * ratchets scan it. The BINDING is this file's own responsibility, and nothing
@@ -88,32 +81,14 @@ export default async function VenuesPage({
   // `runAsSuperuser` directly rather than `asSuperuser` from the v1 bindings:
   // that helper takes a RequestContext, which a page does not have.
   const { seed, facets } = await runAsSuperuser(async (db) => {
-    const result = await listVenues(
+    // The endpoint's own function, with no `limit`, so `clampLimit`'s default
+    // applies exactly as the route applies it for a key that carries none.
+    const seed = await listVenueSummaries(
       db,
       // `filtersFromParams` let only a Sport enum value through.
       { q: filters.q, city: filters.city, sport: filters.sport as SportType | undefined },
       {},
     );
-
-    // One lookup over the page's distinct clubs, `id` and `slug` only — the
-    // slug is already in every public `/t/{slug}` URL.
-    const tenantIds = [...new Set(result.items.map((v) => v.tenantId))];
-    const clubs = tenantIds.length
-      ? await db.venueOrg.findMany({
-          where: { id: { in: tenantIds } },
-          select: { id: true, slug: true },
-          take: tenantIds.length,
-        })
-      : [];
-    const slugs = new Map(clubs.map((c) => [c.id, c.slug]));
-
-    const seed: V1Page<VenueSummary> = {
-      items: result.items.flatMap((v) => {
-        const clubSlug = slugs.get(v.tenantId);
-        return clubSlug ? [toVenueSummary(v, clubSlug)] : [];
-      }),
-      nextCursor: result.nextCursor,
-    };
 
     // What the filters offer (#357): the cities and sports some live venue
     // has. Two DISTINCT reads in the same transaction, for the same reason.
