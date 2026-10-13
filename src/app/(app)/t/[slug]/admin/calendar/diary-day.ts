@@ -3,6 +3,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { listCourts } from '@/app-layer/repositories/court';
 import { dayWindow, listDayBookings } from '@/app-layer/repositories/diary';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { decryptField } from '@/lib/security/encryption';
 import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import type { DayBooking, GridCourt } from './DayGrid';
@@ -93,82 +94,134 @@ export async function loadDiaryDay(
   // its own clock, under a row lock, when staff actually press it.
   const now = new Date();
 
-  const { timezone, courts, bookings, names, playerNames, deleted, openPlay, isoDay, todayAtClub } =
-    await runInTenantContext(tenantId, async (db) => {
-      const club = await db.venueOrg.findFirstOrThrow({
-        where: { id: tenantId },
-        select: { timezone: true },
-      });
-
-      // ═══ ARCHIVED COURTS STILL HAVE BOOKINGS ═══
-      //
-      // `listCourts` hides CLOSED by default, which is right for the courts
-      // screen and wrong here: archiving a court does NOT cancel the bookings
-      // already taken on it — the courts screen says so explicitly. Excluding
-      // them gave those bookings no column to render in, so they vanished from
-      // the diary while the club was still expected to honour them. The "empty
-      // day" notice was suppressed too, because it is gated on having courts.
-      const courtRows = await listCourts(db, tenantId, { includeArchived: true });
-
-      const todayAtClub = formatInTimeZone(new Date(), club.timezone, 'yyyy-MM-dd');
-      const requested =
-        typeof requestedDay === 'string' && ISO_DAY.test(requestedDay) ? requestedDay : todayAtClub;
-
-      const rows = await listDayBookings(db, tenantId, {
-        isoDay: requested,
-        timezone: club.timezone,
-      });
-
-      // Names for the members who booked. Guests carry their own name on the
-      // booking, so only the user-backed ones need a lookup.
-      const userIds = [
-        ...new Set(
-          rows
-            .flatMap((r) => [r.bookedByUserId, ...r.participants.map((p) => p.userId)])
-            .filter((v): v is string => !!v),
-        ),
-      ];
-      // The places taken through open play (#376): their players can be
-      // marked as not having come, one by one.
-      const placeIds = rows.flatMap((r) => r.participants.map((p) => p.id));
-      const viaOpenPlay = placeIds.length
-        ? await db.openGameRequest.findMany({
-            where: { tenantId, participantId: { in: placeIds }, status: 'ACCEPTED' },
-            select: { participantId: true },
-            take: placeIds.length,
-          })
-        : [];
-      const users = userIds.length
-        ? await db.user.findMany({
-            where: { id: { in: userIds } },
-            select: { id: true, name: true, email: true, deletedAt: true },
-            take: 1000,
-          })
-        : [];
-
-      return {
-        timezone: club.timezone,
-        courts: courtRows,
-        bookings: rows,
-        // A deleted account's booking stays in the diary (#370), under no name.
-        names: new Map(
-          users.map((u) => [u.id, u.deletedAt ? labels.deletedUser : (u.name ?? u.email)]),
-        ),
-        // ...and nobody can be marked as missing it: markNoShow refuses one.
-        deleted: new Set(users.filter((u) => u.deletedAt).map((u) => u.id)),
-        openPlay: new Set(viaOpenPlay.flatMap((r) => (r.participantId ? [r.participantId] : []))),
-        // The other players are named, never shown by their address: the club
-        // has the booker's custom, not theirs.
-        playerNames: new Map(
-          users.map((u) => [
-            u.id,
-            u.deletedAt ? labels.deletedUser : (u.name ?? labels.unknownPlayer),
-          ]),
-        ),
-        isoDay: requested,
-        todayAtClub,
-      };
+  const {
+    timezone,
+    courts,
+    bookings,
+    names,
+    playerNames,
+    deleted,
+    openPlay,
+    phones,
+    isoDay,
+    todayAtClub,
+  } = await runInTenantContext(tenantId, async (db) => {
+    const club = await db.venueOrg.findFirstOrThrow({
+      where: { id: tenantId },
+      select: { timezone: true },
     });
+
+    // ═══ ARCHIVED COURTS STILL HAVE BOOKINGS ═══
+    //
+    // `listCourts` hides CLOSED by default, which is right for the courts
+    // screen and wrong here: archiving a court does NOT cancel the bookings
+    // already taken on it — the courts screen says so explicitly. Excluding
+    // them gave those bookings no column to render in, so they vanished from
+    // the diary while the club was still expected to honour them. The "empty
+    // day" notice was suppressed too, because it is gated on having courts.
+    const courtRows = await listCourts(db, tenantId, { includeArchived: true });
+
+    const todayAtClub = formatInTimeZone(new Date(), club.timezone, 'yyyy-MM-dd');
+    const requested =
+      typeof requestedDay === 'string' && ISO_DAY.test(requestedDay) ? requestedDay : todayAtClub;
+
+    const rows = await listDayBookings(db, tenantId, {
+      isoDay: requested,
+      timezone: club.timezone,
+    });
+
+    // Names for the members who booked. Guests carry their own name on the
+    // booking, so only the user-backed ones need a lookup.
+    const userIds = [
+      ...new Set(
+        rows
+          .flatMap((r) => [r.bookedByUserId, ...r.participants.map((p) => p.userId)])
+          .filter((v): v is string => !!v),
+      ),
+    ];
+    // The places taken through open play (#376): their players can be
+    // marked as not having come, one by one.
+    const placeIds = rows.flatMap((r) => r.participants.map((p) => p.id));
+    const viaOpenPlay = placeIds.length
+      ? await db.openGameRequest.findMany({
+          where: { tenantId, participantId: { in: placeIds }, status: 'ACCEPTED' },
+          select: { participantId: true },
+          take: placeIds.length,
+        })
+      : [];
+    const users = userIds.length
+      ? await db.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true, deletedAt: true },
+          take: 1000,
+        })
+      : [];
+
+    // ═══ THE BOOKER'S NUMBER, FOR AN UPCOMING BOOKING ONLY (#500) ═══
+    //
+    // Owner decision 2026-10-13: a club sees the confirmed phone number of a
+    // player on that player's UPCOMING booking at the club, so it can call
+    // about it. So the read is exactly that and no wider: the bookers of
+    // this club's online bookings on this day that have not ended and are
+    // still on (PENDING or CONFIRMED). Not past bookings, not the other
+    // players on a booking, not the club's players list. A desk booking
+    // carries the number the desk typed, which is the club's own.
+    const callable = [
+      ...new Set(
+        rows
+          .filter(
+            (r) =>
+              r.channel !== 'DESK' &&
+              r.bookedByUserId !== null &&
+              (r.status === 'PENDING' || r.status === 'CONFIRMED') &&
+              r.endTs.getTime() > now.getTime(),
+          )
+          .map((r) => r.bookedByUserId as string),
+      ),
+    ];
+    const confirmed = callable.length
+      ? await db.user.findMany({
+          where: { id: { in: callable }, deletedAt: null, phoneVerifiedAt: { not: null } },
+          select: { id: true, phone: true },
+          take: callable.length,
+        })
+      : [];
+
+    return {
+      timezone: club.timezone,
+      courts: courtRows,
+      bookings: rows,
+      // A deleted account's booking stays in the diary (#370), under no name.
+      names: new Map(
+        users.map((u) => [u.id, u.deletedAt ? labels.deletedUser : (u.name ?? u.email)]),
+      ),
+      // ...and nobody can be marked as missing it: markNoShow refuses one.
+      deleted: new Set(users.filter((u) => u.deletedAt).map((u) => u.id)),
+      openPlay: new Set(viaOpenPlay.flatMap((r) => (r.participantId ? [r.participantId] : []))),
+      // Decrypted here, for those bookers only; a value this key cannot
+      // read is left out rather than shown as ciphertext.
+      phones: new Map(
+        confirmed.flatMap((u) => {
+          if (!u.phone) return [];
+          try {
+            return [[u.id, decryptField(u.phone)] as const];
+          } catch {
+            return [];
+          }
+        }),
+      ),
+      // The other players are named, never shown by their address: the club
+      // has the booker's custom, not theirs.
+      playerNames: new Map(
+        users.map((u) => [
+          u.id,
+          u.deletedAt ? labels.deletedUser : (u.name ?? labels.unknownPlayer),
+        ]),
+      ),
+      isoDay: requested,
+      todayAtClub,
+    };
+  });
 
   // ═══ THE DAY IS THE ONE THE QUERY USED ═══
   //
@@ -234,6 +287,15 @@ export async function loadDiaryDay(
             ? (names.get(b.bookedByUserId) ?? labels.unknownPlayer)
             : (b.guestName ?? labels.guest),
       desk: b.channel === 'DESK',
+      // Only where the read above found one: an upcoming online booking whose
+      // booker has confirmed a number (#500).
+      bookerPhone:
+        b.channel !== 'DESK' &&
+        b.bookedByUserId &&
+        (b.status === 'PENDING' || b.status === 'CONFIRMED') &&
+        b.endTs.getTime() > now.getTime()
+          ? (phones.get(b.bookedByUserId) ?? null)
+          : null,
       seriesId: b.seriesId,
       priceLabel: money.format(b.totalCents / 100),
       expiresLabel: b.expiresAt ? hhmm(b.expiresAt) : null,

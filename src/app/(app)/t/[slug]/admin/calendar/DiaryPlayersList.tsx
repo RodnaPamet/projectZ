@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Caption } from '@/components/ui/typography';
+import { Caption, TextLink } from '@/components/ui/typography';
 
 import { markPlayerNoShowAction } from './actions';
 import type { DayBooking, DiaryPlayer } from './DayGrid';
@@ -18,6 +18,10 @@ import type { DayBooking, DiaryPlayer } from './DayGrid';
  * joined through open play is on the booking after the club's cutoff, so staff
  * mark them as not having come one by one (`markPlayerNoShow`).
  *
+ * On an upcoming online booking the booker's row carries their confirmed
+ * phone number, as a link to call it (#500; owner decision 2026-10-13: a club
+ * sees it for upcoming bookings only).
+ *
  * One list for both of the diary's sheets: an online booking's
  * (DiaryPlayersSheet, which names the booker first) and a desk booking's
  * detail (DeskBookingDetails, whose header is the customer already).
@@ -26,12 +30,15 @@ export function DiaryPlayersList({
   slug,
   booking: b,
   booker = null,
+  bookerPhone = null,
   onChanged,
 }: {
   slug: string;
   booking: Pick<DayBooking, 'id' | 'startLabel' | 'endLabel' | 'players'>;
   /** The booker's name, as the list's first row; null leaves the row out. */
   booker?: string | null;
+  /** The booker's confirmed number on an upcoming booking (#500), to call them on. */
+  bookerPhone?: string | null;
   onChanged: () => void;
 }) {
   const t = useTranslations('admin.calendar.players');
@@ -49,6 +56,17 @@ export function DiaryPlayersList({
         {booker !== null ? (
           <li className="flex min-h-12 items-center gap-2 py-2">
             <span className="text-content-default min-w-0 flex-1 truncate text-sm">{booker}</span>
+            {bookerPhone ? (
+              <TextLink
+                tone="link"
+                href={`tel:${bookerPhone}`}
+                className="shrink-0 tabular-nums"
+                aria-label={t('call', { name: booker, phone: bookerPhone })}
+                data-diary-booker-phone
+              >
+                {bookerPhone}
+              </TextLink>
+            ) : null}
             <Caption className="shrink-0">{t('booker')}</Caption>
           </li>
         ) : null}

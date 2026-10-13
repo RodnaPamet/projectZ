@@ -11,7 +11,9 @@ import { DiaryPlayersList } from './DiaryPlayersList';
 /**
  * Who plays an online booking (#358, #376): the booker, and each player added
  * to it or accepted through open play («през Игри»), in DiaryPlayersList. The
- * booking's own «Никой не дойде» stays the booker's, as before.
+ * booking's own «Никой не дойде» stays the booker's, as before. While the
+ * booking is still ahead, the booker's row has their number to call (#500),
+ * and that alone is reason enough to open this sheet.
  */
 export default function DiaryPlayersSheet({
   slug,
@@ -42,7 +44,13 @@ export default function DiaryPlayersSheet({
         description={t('when', { start: b.startLabel, end: b.endLabel, price: b.priceLabel })}
       />
       <Sheet.Body className="gap-section grid content-start" data-diary-players>
-        <DiaryPlayersList slug={slug} booking={b} booker={b.who} onChanged={onChanged} />
+        <DiaryPlayersList
+          slug={slug}
+          booking={b}
+          booker={b.who}
+          bookerPhone={b.bookerPhone}
+          onChanged={onChanged}
+        />
         {b.canMarkNoShow ? (
           <Button
             type="button"

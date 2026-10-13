@@ -1186,6 +1186,7 @@
         "open": "Players: {who}, {start}–{end}",
         "when": "{start}–{end} · {price}",
         "booker": "booked",
+        "call": "Call {name}: {phone}",
         "viaOpenPlay": "via Games",
         "noShow": "Didn't come",
         "mark": "Didn't come",
@@ -2203,7 +2204,7 @@
         "resent": "We sent a new code.",
         "change": "Another number"
       },
-      "privacy": "The number confirms the account is yours. We do not show it to other players or to clubs.",
+      "privacy": "The number confirms the account is yours. Other players never see it. A club sees it only while you have an upcoming booking there, so it can call you about it.",
       "later": "Not now",
       "error": {
         "PHONE_INVALID": "That is not a number we can text. Check it and try again.",

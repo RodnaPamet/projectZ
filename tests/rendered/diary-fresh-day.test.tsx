@@ -43,6 +43,7 @@ const booking = (id: string, who: string): DayBooking => ({
   expiresLabel: null,
   canMarkNoShow: false,
   desk: false,
+  bookerPhone: null,
   seriesId: null,
   players: [],
 });
