@@ -312,6 +312,47 @@ services:
         done
 
   # ═══════════════════════════════════════════════════════════════════
+  #  dead-email-report (#425): once a day, if any email died in the last
+  #  24 hours, a short report to ALERT_EMAIL (owner decision 2026-10-13).
+  #  Requests first, then sleeps a day, for the reason grant-expiry-warn gives.
+  # ═══════════════════════════════════════════════════════════════════
+  dead-email-report:
+    image: alpine:3
+    container_name: playerz-dead-email-report
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the dead-email report}
+      REPORT_URL: ${REPORT_URL:-http://playerz-app:3000/api/cron/report-dead-emails}
+      REPORT_INTERVAL_SECONDS: ${REPORT_INTERVAL_SECONDS:-86400}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "dead-email-report: every $${REPORT_INTERVAL_SECONDS}s -> $${REPORT_URL}"
+        i=0
+        while [ "$$i" -lt 30 ]; do
+          wget -q -O- --post-data="" --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${REPORT_URL}" >/dev/null 2>&1 && break
+          i=$$((i + 1))
+          sleep 2
+        done
+        while true; do
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${REPORT_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"dead":0'*) : ;;
+                 *) echo "dead-email-report: $$body" ;;
+               esac \
+            || echo "dead-email-report: request FAILED -> $$body"
+          sleep "$${REPORT_INTERVAL_SECONDS}"
+        done
+
+  # ═══════════════════════════════════════════════════════════════════
   #  The media sweep (#366): deletes venue-photo objects no row names.
   #
   #  A removed photo's objects are deleted right after its row, so this
