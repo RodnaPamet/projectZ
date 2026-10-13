@@ -240,6 +240,15 @@ export const V1 = {
   /** `POST`: send the profile to the platform owner, or take it back. */
   submitCoachProfile: () => `${BASE}/me/coach-profile/submit`,
   withdrawCoachProfile: () => `${BASE}/me/coach-profile/withdraw`,
+  /** `POST { venueId }`: ask to teach at a venue; the coach's links (#546). */
+  coachLinks: () => `${BASE}/me/coach-links`,
+  /** `PUT` the terms at one venue, or `DELETE` to end it or take a request back. */
+  coachLink: (id: string) => `${BASE}/me/coach-links/${seg(id)}`,
+  /** `PUT { hours }`: the weekly hours at one venue. */
+  coachLinkHours: (id: string) => `${BASE}/me/coach-links/${seg(id)}/hours`,
+  /** `POST { startDate, endDate?, note? }`: a coach's days off. */
+  coachTimeOff: () => `${BASE}/me/coach-time-off`,
+  removeCoachTimeOff: (id: string) => `${BASE}/me/coach-time-off/${seg(id)}`,
   /** `POST { decision, note }`: the owner's decision on a coach (#545). */
   decideCoach: (userId: string) => `${BASE}/platform/coaches/${seg(userId)}/decision`,
   /**

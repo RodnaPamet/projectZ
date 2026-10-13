@@ -68,7 +68,15 @@ export function coachProfileCrumbs(t: NavT): BreadcrumbItem[] {
 
 /** The club admin's pages, by their segment under `/t/{slug}/admin`. */
 export type ClubAdminPage =
-  'calendar' | 'messages' | 'courts' | 'pricing' | 'photos' | 'players' | 'staff' | 'reports';
+  | 'calendar'
+  | 'messages'
+  | 'courts'
+  | 'pricing'
+  | 'photos'
+  | 'players'
+  | 'staff'
+  | 'coaches'
+  | 'reports';
 
 /**
  * Администрация (the club admin's home), and one of its pages under the

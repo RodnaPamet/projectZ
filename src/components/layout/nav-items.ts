@@ -228,6 +228,19 @@ export function clubAdminNav(
           requires: 'admin.staff_manage',
           prefetch: 'auto',
         },
+        // Who teaches at the club, and who is asking to (#546), once the
+        // coaches module is on. The owner's and the manager's, like the staff.
+        ...(modules.coaches
+          ? [
+              {
+                href: href('coaches'),
+                labelKey: 'coaches',
+                iconKey: 'coaches' as const,
+                requires: 'admin.staff_manage' as const,
+                prefetch: 'auto' as const,
+              },
+            ]
+          : []),
       ],
     },
     {

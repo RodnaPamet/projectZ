@@ -39,6 +39,7 @@
     "/t/[slug]/admin": 311.5,
     "/t/[slug]/admin/calendar": 324.4,
     "/t/[slug]/admin/calendar/series": 340.4,
+    "/t/[slug]/admin/coaches": 321.0,
     "/t/[slug]/admin/courts": 315.4,
     "/t/[slug]/admin/messages": 321.7,
     "/t/[slug]/admin/messages/[id]": 324.5,

@@ -28,8 +28,16 @@ export interface StaffMember {
 }
 
 /**
- * The club's staff: its OWNER, MANAGER, STAFF and COACH memberships, in any
- * status.
+ * The club's staff: its OWNER, MANAGER and STAFF memberships, in any status.
+ *
+ * ═══ COACHES ARE NOT STAFF EITHER (#546) ═══
+ *
+ * A coach is a member with the role COACH while they teach at one of the
+ * club's venues, and that role follows their links (`syncCoachMembership`),
+ * not this screen: changing or suspending it here would leave the two
+ * disagreeing. They are listed on `/admin/coaches`, by the card the platform
+ * approved for publication, which carries no email address. This list does,
+ * so a coach who merely asked to teach here must not appear on it.
  *
  * ═══ PLAYERS ARE NOT STAFF (#349) ═══
  *
@@ -43,7 +51,7 @@ export interface StaffMember {
  */
 export async function listStaff(db: PrismaClient, tenantId: string): Promise<StaffMember[]> {
   const memberships = await db.tenantMembership.findMany({
-    where: { tenantId, role: { not: 'PLAYER' } },
+    where: { tenantId, role: { notIn: ['PLAYER', 'COACH'] } },
     select: { id: true, userId: true, role: true, status: true, acceptedAt: true },
     orderBy: [{ role: 'asc' }, { id: 'asc' }],
     take: STAFF_LIST_LIMIT,

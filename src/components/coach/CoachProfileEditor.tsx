@@ -1,7 +1,7 @@
 'use client';
 
 import { useFormatter, useTranslations } from 'next-intl';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 
 import type { toMyCoachProfile } from '@/app/api/v1/_lib/coach-dto';
 import { ProfileSection } from '@/components/profile/ProfileSection';
@@ -91,7 +91,14 @@ const TIME_ZONE = 'Europe/Sofia';
  * "Send for approval" saves first when something was changed: nobody sends a
  * text other than the one they are looking at.
  */
-export function CoachProfileEditor({ seed }: { seed: CoachProfileView }) {
+export function CoachProfileEditor({
+  seed,
+  children,
+}: {
+  seed: CoachProfileView;
+  /** What follows the profile on the page: the coach's clubs and days off (#546). */
+  children?: ReactNode;
+}) {
   const t = useTranslations('coachProfile');
   const tSports = useTranslations('sports');
   const format = useFormatter();
@@ -484,6 +491,8 @@ export function CoachProfileEditor({ seed }: { seed: CoachProfileView }) {
           </Button>
         ) : null}
       </div>
+
+      {children}
     </div>
   );
 }
