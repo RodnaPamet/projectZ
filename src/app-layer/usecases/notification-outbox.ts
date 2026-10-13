@@ -54,7 +54,15 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
  */
 
 export type EmailCategory =
-  'confirmation' | 'reminder' | 'clubChanges' | 'messages' | 'openPlay' | 'contact';
+  | 'confirmation'
+  | 'reminder'
+  | 'clubChanges'
+  | 'messages'
+  | 'openPlay'
+  | 'contact'
+  // The answer to something the person asked of the platform about their own
+  // account (P72: whether they may teach). No setting turns it off.
+  | 'account';
 
 export const NOTIFICATION_TITLE_MAX = 80;
 export const NOTIFICATION_BODY_MAX = 200;
@@ -176,6 +184,58 @@ export async function deliver(d: Delivery): Promise<{ bell: boolean; email: bool
       error: err instanceof Error ? err.message : String(err),
     });
     return { bell: false, email: false };
+  }
+}
+
+// ─── To the operator ────────────────────────────────────────────────────
+
+/**
+ * Queue an email to the operator's inbox (`CONTACT_INBOX_EMAIL`): something
+ * is waiting for the platform owner. No user and category `contact`, as an
+ * enquiry from the landing page is (P50); the drain reads the address when it
+ * sends, so the row holds none.
+ *
+ * Deduped by `dedupeKey` (the operator's own partial unique index). Never
+ * throws; false when nothing was queued.
+ */
+export async function queueOperatorEmail(row: {
+  kind: NotificationKind;
+  dedupeKey: string;
+  subject: string;
+  text: string;
+  refType?: string | null;
+  refId?: string | null;
+}): Promise<boolean> {
+  try {
+    // guardrail-allow: cross-tenant — a row for the operator belongs to no user
+    // and no club, and `email_outbox` is owner-only for app_user. One insert.
+    const out = await runAsSuperuser((db) =>
+      db.emailOutbox.createMany({
+        data: [
+          {
+            userId: null,
+            kind: row.kind,
+            category: 'contact',
+            dedupeKey: row.dedupeKey,
+            // The operator reads Bulgarian.
+            locale: 'bg',
+            subject: headerSafe(row.subject).slice(0, EMAIL_SUBJECT_MAX),
+            text: row.text,
+            refType: row.refType ?? null,
+            refId: row.refId ?? null,
+          },
+        ],
+        skipDuplicates: true,
+      }),
+    );
+    return out.count > 0;
+  } catch (err) {
+    logger.warn('operator email not queued', {
+      component: 'notifications',
+      kind: row.kind,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
   }
 }
 

@@ -11547,6 +11547,1117 @@
           }
         }
       }
+    },
+    "/me/coach-profile": {
+      "get": {
+        "operationId": "getMyCoachProfile",
+        "summary": "My coach profile",
+        "tags": ["Me"],
+        "description": "A coach's own profile (#545): a text, the sports and player levels taught, qualifications, and what was uploaded as a certificate. It is sent to the platform owner for approval with `POST /me/coach-profile/submit`.\n\n**For COACH accounts.** A coach who has not started gets `state: \"NONE\"` with empty fields, not a 404.\n\n`missing` names what the profile still needs before it can be sent; `canEdit` what its state lets the coach change.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile as it stands.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachProfileEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveMyCoachProfile",
+        "summary": "Save my coach profile's text and sports",
+        "tags": ["Me"],
+        "description": "Replaces the text, the qualifications and the WHOLE list of sports with what is sent. An empty profile is a valid draft. The first save makes the profile and its `slug`, from the account's name.\n\nRefused while the profile is waiting for a decision. Once approved the text and sports stay the coach's to edit, and go live at once, but the profile must stay complete (a text of at least 40 characters and one sport).\n\nText is stored as plain text: markup is stripped, line breaks kept.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCoachProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved. The profile as stored.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachProfileEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — the body is not a JSON object, or a field is wrong: `details.field` is `bio`, `qualifications` or `sports`, and `details.reason` is `TOO_LONG`, `UNKNOWN_SPORT`, `DUPLICATE_SPORT` or `LEVELS`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_PROFILE_LOCKED` — the profile cannot be changed in the state it is in; `details.state` says which. `COACH_PROFILE_INCOMPLETE` — an approved profile would be left without a text or a sport; `details.missing` names which.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-profile/certificate": {
+      "put": {
+        "operationId": "uploadMyCoachCertificate",
+        "summary": "Upload my coaching certificate",
+        "tags": ["Me"],
+        "description": "The one document a coach uploads for the platform owner's approval (#545). A PDF, or a JPEG, PNG or WebP image, 5 MB at most, accepted by what its first bytes say it is and never by its name or the type the client claimed.\n\nA new upload replaces the one before it. **The file is stored sealed and no route gives it back to a coach or a club:** the answer is the profile, with the certificate's name, type, size and upload time. Only a platform admin with `COACH_APPROVE` opens it.\n\nAllowed until the profile is sent, and again after a decline.\n\nOversized bodies are refused without being buffered. Rate limited on its own: 30 uploads per 10 minutes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The certificate."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Kept. The profile, with the certificate's details.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachProfileEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`CERTIFICATE_REFUSED` — `details.reason` says why: `EMPTY`, `TOO_LARGE` (over 5 MB), or `NOT_A_CERTIFICATE` (not multipart, no `file`, or not a PDF, JPEG, PNG or WebP by its content).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_PROFILE_LOCKED` — the profile cannot be changed in the state it is in; `details.state` says which. The certificate is locked while the profile is waiting and once it is approved.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeMyCoachCertificate",
+        "summary": "Remove my coaching certificate",
+        "tags": ["Me"],
+        "description": "Deletes the uploaded certificate. With none there, nothing changes and the answer is still 200. Allowed in the same states as the upload.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed. The profile, with `certificate: null`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachProfileEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_PROFILE_LOCKED` — the profile cannot be changed in the state it is in; `details.state` says which.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-profile/submit": {
+      "post": {
+        "operationId": "submitMyCoachProfile",
+        "summary": "Send my coach profile for approval",
+        "tags": ["Me"],
+        "description": "Sends the profile to the platform owner (#545). No body. It needs a text of at least 40 characters, one sport, and an uploaded certificate.\n\nFrom a draft, or after a decline: the earlier decision and its note are cleared, because this is a new application. Sending a profile that is already waiting answers 200 with it unchanged.\n\nUntil the answer comes the profile cannot be changed; `POST /me/coach-profile/withdraw` takes it back. The coach is told the outcome in the bell (`COACH_PROFILE_APPROVED`, `COACH_PROFILE_DECLINED`) and by email.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sent, or already waiting. `state` is `SUBMITTED`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachProfileEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_PROFILE_INCOMPLETE` — `details.missing` names what it still needs: `bio`, `sports`, `certificate`. `COACH_PROFILE_LOCKED` — the profile is already approved.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-profile/withdraw": {
+      "post": {
+        "operationId": "withdrawMyCoachProfile",
+        "summary": "Take back my coach profile to change it",
+        "tags": ["Me"],
+        "description": "Takes a waiting profile back (#545). No body. It becomes a draft again and leaves the owner's queue; the text, the sports and the certificate are kept.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Taken back. `state` is `DRAFT`.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachProfileEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_PROFILE_NOT_SUBMITTED` — the profile is not waiting for a decision.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/coaches": {
+      "get": {
+        "operationId": "listPlatformCoachApplications",
+        "summary": "Coach profiles sent for approval",
+        "tags": ["Platform"],
+        "description": "The coaches' profiles sent to the platform owner (#545): who, which sports and levels, and whether a certificate is on file. A draft is never listed: nothing was sent.\n\n**Needs `COACH_APPROVE` and a second-factor step-up.** The capability that decides also opens certificates, so the reads run under it too, as the moderation queue's do.\n\nEvery page writes a `PLATFORM_COACH_APPLICATION_LIST` audit row with the stated reason. 50 per page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["SUBMITTED", "APPROVED", "DECLINED"],
+              "default": "SUBMITTED"
+            },
+            "description": "`SUBMITTED` is the queue, oldest first. `APPROVED` and `DECLINED` list decided profiles, newest decision first."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque. Pass back `nextCursor` verbatim; never parse it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformCoachApplicationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters.\n\n`VALIDATION_ERROR` — `status` is not one of the three.\n\n`INVALID_CURSOR` — `cursor` is malformed, or names a profile that has left this list since the page before it (decided, or taken back). Start again from the first page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `COACH_APPROVE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the admin has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/coaches/{userId}": {
+      "get": {
+        "operationId": "getPlatformCoachApplication",
+        "summary": "One coach profile, as the owner reads it",
+        "tags": ["Platform"],
+        "description": "The name on the account, the text, the qualifications, the sports and levels, what was uploaded as a certificate (its details, not the file), the last decision's note, and how many lessons the coach still has to teach (#545).\n\n**Needs `COACH_APPROVE` and a step-up.** Audited as `PLATFORM_COACH_APPLICATION_READ` with the coach's id.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The coach's account id, `userId` in the queue.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformCoachApplicationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `COACH_APPROVE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the admin has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_APPLICATION_NOT_FOUND` — the account has no coach profile, or only a draft. A draft was not sent to anybody.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/coaches/{userId}/certificate": {
+      "get": {
+        "operationId": "openPlatformCoachCertificate",
+        "summary": "Open a coach's uploaded certificate",
+        "tags": ["Platform"],
+        "description": "The certificate itself: **the only way anybody but the coach reads it** (#545; owner decision 17). Not a club, not a player, not the coach's own routes.\n\n**Needs `COACH_APPROVE` and a step-up.** Every opening writes a `PLATFORM_COACH_CERTIFICATE_OPEN` audit row naming the admin and the coach.\n\nThe answer is the file, always as a download (`Content-Disposition: attachment`), with `X-Content-Type-Options: nosniff`, a sandboxing `Content-Security-Policy` and `Cache-Control: private, no-store`. Its type is the one the file's own bytes gave at upload.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The coach's account id, `userId` in the queue.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "maxLength": 500
+            },
+            "description": "Why this read is being made, in your own words. Written verbatim to an append-only row nobody can edit afterwards, which is what makes the access answerable months later.\n\n**Required, with no server-side default.** A default would satisfy the 12-character minimum while reading like a statement by the person who looked — and not being one."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` — `reason` was absent, blank, or shorter than 12 characters. Checked before authority, so it cannot be used to probe whether a grant exists.\n\n`REASON_TOO_LONG` — `reason` exceeded 500 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `COACH_APPROVE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the admin has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_APPLICATION_NOT_FOUND` — no coach profile, only a draft, or no certificate on file. A removed coach's certificate is deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/coaches/{userId}/decision": {
+      "post": {
+        "operationId": "decidePlatformCoachApplication",
+        "summary": "Approve, decline or remove a coach",
+        "tags": ["Platform"],
+        "description": "The platform owner's decision on a coach's profile (#545; owner decisions 13 and 17).\n\n- `APPROVE`: a waiting profile is approved.\n- `DECLINE`: a waiting profile is declined; the coach reads `note`, corrects the profile and may send it again. The certificate is kept.\n- `REMOVE`: an approved coach is stopped. The profile is declined with `note`, **the certificate is deleted**, and the coach's links to venues end. Refused while a lesson is still to be taught.\n\n**Needs `COACH_APPROVE` and a step-up.** Audited as `PLATFORM_COACH_APPLICATION_DECIDE` with the decision and `note` as its reason. The coach is told in the bell and by email; for a decline or a removal the email carries `note`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The coach's account id, `userId` in the queue.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideCoachApplicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decided.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformCoachDecisionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `decision` is not `APPROVE`, `DECLINE` or `REMOVE`. `REASON_REQUIRED` — `note` was absent or shorter than 12 characters. `REASON_TOO_LONG` — `note` exceeded 500 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live platform grant, or one that expired or was revoked. `PLATFORM_CAPABILITY_REQUIRED` — a live grant that does not carry `COACH_APPROVE`. Neither message names what is missing; the operator finds that in the log. `STEP_UP_REQUIRED` — this session has no second-factor step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the admin has not turned on two-step verification. Both are refused BEFORE the audit row, so a refusal leaves none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_APPLICATION_NOT_FOUND` — the account has no coach profile, or only a draft.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_APPLICATION_STATE` — the decision does not fit the state the profile is in (`details.status`): approving or declining one that is not waiting, removing one that is not approved, or one another admin has just decided. Nothing was changed. `COACH_HAS_UPCOMING_LESSONS` — a removal while the coach still has `details.lessons` lessons to teach.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17784,6 +18895,357 @@
           "lastDate": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "CoachSportLevels": {
+        "type": "object",
+        "required": ["sport", "levelMin", "levelMax"],
+        "properties": {
+          "sport": {
+            "type": "string",
+            "description": "A sport a player declares a level in (the same list as `PATCH /me` takes). One entry per sport."
+          },
+          "levelMin": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "description": "The lowest player level the coach teaches."
+          },
+          "levelMax": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "description": "The highest. Not below `levelMin`."
+          }
+        }
+      },
+      "CoachCertificateInfo": {
+        "type": ["object", "null"],
+        "description": "What was uploaded. Never the file itself: no route gives the document back to a coach or a club.",
+        "required": ["fileName", "mimeType", "byteSize", "uploadedAt"],
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "description": "The name it was uploaded under, made safe, with the extension its content gave."
+          },
+          "mimeType": {
+            "type": "string",
+            "enum": ["application/pdf", "image/jpeg", "image/png", "image/webp"],
+            "description": "Decided by the file's first bytes at upload."
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5242880
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MyCoachProfile": {
+        "type": "object",
+        "required": [
+          "state",
+          "slug",
+          "bio",
+          "qualifications",
+          "sports",
+          "certificate",
+          "submittedAt",
+          "decidedAt",
+          "decisionNote",
+          "missing",
+          "canEdit"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["NONE", "DRAFT", "SUBMITTED", "APPROVED", "DECLINED"],
+            "description": "`NONE`: the coach has not started. `SUBMITTED`: waiting for the platform owner's decision; nothing can be changed. `DECLINED`: read `decisionNote`, correct it, send it again."
+          },
+          "slug": {
+            "type": ["string", "null"],
+            "description": "The address of the coach's page, made from the account's name when the profile is first saved. Null until then."
+          },
+          "bio": {
+            "type": ["string", "null"],
+            "maxLength": 1000,
+            "description": "The coach's own text. Plain text; line breaks are kept."
+          },
+          "qualifications": {
+            "type": ["string", "null"],
+            "maxLength": 1000
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachSportLevels"
+            }
+          },
+          "certificate": {
+            "$ref": "#/components/schemas/CoachCertificateInfo"
+          },
+          "submittedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "decisionNote": {
+            "type": ["string", "null"],
+            "description": "The platform owner's note with a decline or a removal. Null after an approval, and cleared when the profile is sent again."
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["bio", "sports", "certificate"]
+            },
+            "description": "What the profile still needs before it can be sent: a text of at least 40 characters, one sport, an uploaded certificate. Empty when it is ready."
+          },
+          "canEdit": {
+            "type": "object",
+            "required": ["text", "certificate"],
+            "properties": {
+              "text": {
+                "type": "boolean",
+                "description": "Whether the text and sports can be saved now. False only while `SUBMITTED`."
+              },
+              "certificate": {
+                "type": "boolean",
+                "description": "Whether the certificate can be uploaded or removed now. False while `SUBMITTED` and once `APPROVED`: the approval was given on that document."
+              }
+            }
+          }
+        }
+      },
+      "MyCoachProfileEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MyCoachProfile"
+          }
+        }
+      },
+      "SaveCoachProfileRequest": {
+        "type": "object",
+        "properties": {
+          "bio": {
+            "type": ["string", "null"],
+            "maxLength": 1000,
+            "description": "Empty or null clears it."
+          },
+          "qualifications": {
+            "type": ["string", "null"],
+            "maxLength": 1000
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachSportLevels"
+            },
+            "description": "The whole list: sports not sent are removed. Omitted or empty means none."
+          }
+        }
+      },
+      "PlatformCoachApplicationItem": {
+        "type": "object",
+        "required": [
+          "userId",
+          "name",
+          "slug",
+          "status",
+          "submittedAt",
+          "decidedAt",
+          "sports",
+          "hasCertificate"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The coach's account id; the `{userId}` of the other coach routes."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "The name on the account."
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["SUBMITTED", "APPROVED", "DECLINED"]
+          },
+          "submittedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachSportLevels"
+            }
+          },
+          "hasCertificate": {
+            "type": "boolean",
+            "description": "Whether a certificate is on file. A removed coach's is deleted."
+          }
+        }
+      },
+      "PlatformCoachApplicationPage": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items", "nextCursor"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformCoachApplicationItem"
+                }
+              },
+              "nextCursor": {
+                "type": ["string", "null"],
+                "description": "Null on the last page."
+              }
+            }
+          }
+        }
+      },
+      "PlatformCoachApplication": {
+        "type": "object",
+        "required": [
+          "userId",
+          "name",
+          "slug",
+          "status",
+          "submittedAt",
+          "decidedAt",
+          "sports",
+          "hasCertificate",
+          "bio",
+          "qualifications",
+          "decisionNote",
+          "decidedByUserId",
+          "certificate",
+          "upcomingLessons"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The coach's account id; the `{userId}` of the other coach routes."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "The name on the account."
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["SUBMITTED", "APPROVED", "DECLINED"]
+          },
+          "submittedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachSportLevels"
+            }
+          },
+          "hasCertificate": {
+            "type": "boolean",
+            "description": "Whether a certificate is on file. A removed coach's is deleted."
+          },
+          "bio": {
+            "type": ["string", "null"]
+          },
+          "qualifications": {
+            "type": ["string", "null"]
+          },
+          "decisionNote": {
+            "type": ["string", "null"],
+            "description": "The note with the last decline or removal."
+          },
+          "decidedByUserId": {
+            "type": ["string", "null"],
+            "description": "The platform admin who made the last decision."
+          },
+          "certificate": {
+            "$ref": "#/components/schemas/CoachCertificateInfo"
+          },
+          "upcomingLessons": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Lessons the coach still has to teach. A removal is refused while this is above zero."
+          }
+        }
+      },
+      "PlatformCoachApplicationEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PlatformCoachApplication"
+          }
+        }
+      },
+      "DecideCoachApplicationRequest": {
+        "type": "object",
+        "required": ["decision", "note"],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": ["APPROVE", "DECLINE", "REMOVE"]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 500,
+            "description": "The audit row's reason for all three. For `DECLINE` and `REMOVE` it is also what the coach is shown and emailed, so write it to them."
+          }
+        }
+      },
+      "PlatformCoachDecisionEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["userId", "status", "decidedAt"],
+            "properties": {
+              "userId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["APPROVED", "DECLINED"],
+                "description": "`DECLINED` after both a decline and a removal."
+              },
+              "decidedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
           }
         }
       }

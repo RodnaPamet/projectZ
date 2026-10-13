@@ -225,7 +225,8 @@ const ALLOWED: Record<string, string> = {
     "LOCKED, re-reads each recipient's address and settings and the booking's status by the " +
     'ids on the claimed rows, and records the outcome per row by id. Cron work with no ' +
     'session, like the sweeps. The rows themselves are WRITTEN bound to the recipient ' +
-    '(runAsUserOnly, owner-only RLS); only the drain bypasses.',
+    '(runAsUserOnly, owner-only RLS); only the drain bypasses, and `queueOperatorEmail` ' +
+    '(#545): one insert of a row for the operator\u2019s inbox, which belongs to no user.',
   'src/app-layer/usecases/messaging-directory.ts':
     'messaging (#375): the reads that span people and clubs by their nature — whether two ' +
     'players shared a booking at ANY club, a player\u2019s public card (sports and levels are ' +

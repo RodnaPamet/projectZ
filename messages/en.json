@@ -571,6 +571,20 @@
         "title": "{name} wrote in the game chat",
         "body": "Game at {game}"
       }
+    },
+    "coach": {
+      "approved": {
+        "title": "Your coach profile is approved",
+        "body": "You can now teach on playerz.bg."
+      },
+      "declined": {
+        "title": "Your coach profile was not approved",
+        "body": "Read the note, correct the profile and send it again."
+      },
+      "removed": {
+        "title": "Your coach profile has been stopped",
+        "body": "Read the note on your coach profile."
+      }
     }
   },
   "notFound": {
@@ -2371,6 +2385,28 @@
       },
       "link": "The game",
       "footer": "You're getting this email because you use Games on playerz.bg."
+    },
+    "coach": {
+      "approved": {
+        "subject": "Your coach profile is approved",
+        "intro": "We read your profile and your certificate and approved them. You can now teach on playerz.bg."
+      },
+      "declined": {
+        "subject": "Your coach profile was not approved",
+        "intro": "We read your coach profile and are not approving it for now. You can correct it and send it again."
+      },
+      "removed": {
+        "subject": "Your coach profile has been stopped",
+        "intro": "We stopped your coach profile on playerz.bg. Players no longer see it, and your certificate has been deleted."
+      },
+      "note": "A note from playerz.bg",
+      "link": "Your coach profile",
+      "footer": "You are receiving this email because you sent a coach profile for approval on playerz.bg."
+    },
+    "coachSubmitted": {
+      "subject": "A new coach profile is waiting for approval",
+      "intro": "A coach sent their profile and certificate for approval.",
+      "link": "The coaches queue"
     }
   },
   "billing": {

@@ -9,6 +9,7 @@ import {
   VenuePhotoError,
 } from '@/app-layer/usecases/venue-photos';
 import { inTenant } from '@/app/api/v1/_lib/bind';
+import { readCappedBody } from '@/app/api/v1/_lib/capped-body';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ok } from '@/app/api/v1/_lib/envelope';
@@ -47,26 +48,6 @@ import { MEDIA_UPLOAD_LIMIT } from '@/lib/security/rate-limit';
 /** The file plus the form's other fields and multipart framing. */
 const MAX_BODY_BYTES = MAX_UPLOAD_BYTES + 64 * 1024;
 
-async function readCappedBody(req: NextRequest): Promise<Buffer> {
-  const declared = Number(req.headers.get('content-length') ?? '0');
-  if (declared > MAX_BODY_BYTES) throw new VenuePhotoError('TOO_LARGE');
-  if (!req.body) return Buffer.alloc(0);
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_BODY_BYTES) {
-      await reader.cancel();
-      throw new VenuePhotoError('TOO_LARGE');
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks);
-}
-
 async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string; venueId: string }> },
@@ -83,7 +64,7 @@ async function handler(
   if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
     throw new VenuePhotoError('UNSUPPORTED_TYPE');
   }
-  const body = await readCappedBody(req);
+  const body = await readCappedBody(req, MAX_BODY_BYTES, () => new VenuePhotoError('TOO_LARGE'));
   let form: FormData;
   try {
     form = await new Request('http://upload.invalid/', {
