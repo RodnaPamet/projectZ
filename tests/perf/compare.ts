@@ -16,6 +16,7 @@ import {
   type Row,
   type RunDoc,
   type VarianceRow,
+  sameCodeKeys,
 } from './report';
 
 /**
@@ -46,10 +47,20 @@ function merge(paths: string[], out: string) {
   const runs = paths.map(load).flatMap(runsOf);
   if (runs.length < 2) throw new Error('--merge needs at least two runs: variance needs two.');
 
-  const bases = new Set(runs.map((r) => r.git.base ?? r.git.head));
-  if (bases.size > 1) {
+  // By what each run BUILT when every run recorded it (#452). Runs from before
+  // that are compared by where they left main, which cannot tell a branch's
+  // app code from main's: said out loud, so nobody trusts it for that.
+  const same = sameCodeKeys(runs.map((r) => r.git));
+  if (same.keys.length > 1) {
     throw new Error(
-      `these runs measured different code (${[...bases].join(', ')}); refusing to pool them`,
+      `these runs measured different code (${same.by}: ${same.keys.join(', ')}); refusing to pool them`,
+    );
+  }
+  if (same.by === 'base') {
+    console.warn(
+      'note: at least one run predates the `app` id (#452), so these were matched by their ' +
+        'merge base only. A before and an after of one branch share a merge base: check by hand ' +
+        'that every run here is the same side.',
     );
   }
 

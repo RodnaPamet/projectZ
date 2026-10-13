@@ -925,6 +925,14 @@ in one session.
    npm run perf:compare -- --merge <branch a>.json <branch b>.json --out .perf/after.json
    ```
 
+   `--merge` refuses runs that built different code. Each run records `git.app`, a hash of the
+   committed trees the app is made from (`APP_PATHS` in `tests/perf/report.ts`: `src`, `prisma`,
+   `messages`, the lockfile and the build configuration), and runs pool only when it matches. So
+   a main run and a branch run cannot be pooled by mistake, and neither can two branch runs with
+   an app commit between them, while a commit that only touches the harness changes nothing
+   (#452). Runs recorded before 14 October 2026 have no `app`; those are matched by their merge
+   base, which cannot tell a branch from main, and `--merge` prints a note saying so.
+
 4. **Compare** before with after:
 
    ```sh
