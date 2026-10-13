@@ -696,45 +696,75 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
   },
 
   // ── Modules not built yet: no route writes these, decided anyway ──────
+  // ── Coaches (#377, P71) ───────────────────────────────────────────────
+  {
+    model: 'CoachProfile',
+    action: 'delete',
+    reason:
+      'The coach’s own profile: the text, the qualifications, the owner’s decision and note. A coach who is gone has no page, so the whole row goes, and its sports with it.',
+  },
+  {
+    model: 'CoachProfileSport',
+    action: 'delete',
+    reason: 'The sports and levels the coach taught; deleted with the profile (ON DELETE CASCADE).',
+  },
+  {
+    model: 'CoachCertificate',
+    action: 'delete',
+    reason:
+      'The certificate the coach uploaded for the owner’s approval: a personal document, kept only while the coach is active (owner decision 17), so it goes with the account.',
+  },
+  {
+    model: 'CoachTimeOff',
+    action: 'delete',
+    reason: 'The coach’s days away; nobody is left to be away.',
+  },
   {
     model: 'Coach',
     field: 'userId',
     action: 'keep',
     reason:
-      'P08 scaffolding that nothing ever wrote: no row exists, and the deletion does not touch the table. The coaches module (#377) replaces it in its next migration (#544), with entries of its own.',
+      'The link to a venue stays, set to ENDED, because the lessons that were taught there point at it. The id names a tombstone; the weekly hours on it are deleted.',
   },
   {
     model: 'Coach',
-    field: 'bio',
+    field: 'decidedByUserId',
     action: 'keep',
-    reason: 'As Coach.userId: never written, replaced by the coaches module (#544).',
-  },
-  {
-    model: 'CoachBooking',
-    field: 'playerUserId',
-    action: 'keep',
-    upcoming: 'when-shipped',
     reason:
-      'P08 scaffolding that nothing ever wrote. A lesson in the coaches module (#377) is a court booking plus a coach record, decided there; this table goes with its next migration (#544).',
+      'Which member of the club accepted or declined the coach: the club’s record. The id names a tombstone.',
   },
   {
-    model: 'CoachBooking',
-    field: 'notes',
+    model: 'Coach',
+    field: 'endedByUserId',
     action: 'keep',
-    reason: 'As CoachBooking.playerUserId: never written, and the table goes (#544).',
+    reason:
+      'Who ended the link: a member of the club, or the coach. A deletion ends the coach’s live links and names the tombstone here.',
+  },
+  {
+    model: 'CoachLesson',
+    field: 'coachUserId',
+    action: 'keep',
+    upcoming: 'checked',
+    reason:
+      'A lesson that was taught stays with its booking, as the booking does: it is the club’s record and the player’s. The coach is shown as "Изтрит потребител". Deletion is refused while a lesson is still to be taught.',
   },
   {
     model: 'CoachReview',
     field: 'authorUserId',
-    action: 'keep',
-    reason:
-      'P08 scaffolding that nothing ever wrote; reshaped by the coaches module’s next migration (#544), where a coach review is decided.',
+    action: 'delete',
+    reason: 'The account’s reviews of coaches.',
+  },
+  {
+    model: 'CoachReview',
+    field: 'coachUserId',
+    action: 'delete',
+    reason: 'The reviews of the account as a coach: there is no coach page left to show them on.',
   },
   {
     model: 'CoachReview',
     field: 'body',
-    action: 'keep',
-    reason: 'As CoachReview.authorUserId: never written, reshaped in #544.',
+    action: 'delete',
+    reason: 'Deleted with the review.',
   },
   {
     model: 'XpEvent',
@@ -1000,6 +1030,19 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'AuditEntry.actorUserId': actor('whoever did what a club’s history records'),
   'PlatformAuditEntry.actorUserId': actor('the operator, in the platform’s own history'),
 
+  // ── Coaches (#377, P71) ──────────────────────────────────────────────────
+  'CoachProfile.userId': TRIGGER,
+  'CoachProfile.decidedByUserId': actor('the platform admin who approved or declined the coach'),
+  'CoachProfileSport.userId': TRIGGER,
+  'CoachCertificate.userId': TRIGGER,
+  'CoachTimeOff.userId': TRIGGER,
+  'Coach.userId': TRIGGER,
+  'Coach.decidedByUserId': actor('the member of the club who accepted or declined the coach'),
+  'Coach.endedByUserId': actor('whoever ended the coach’s link to the venue'),
+  'CoachLesson.coachUserId': TRIGGER,
+  'CoachReview.authorUserId': TRIGGER,
+  'CoachReview.coachUserId': TRIGGER,
+
   // ── Not written by anything a request can reach ─────────────────────────
   'PlatformAdminGrant.userId': UNWRITTEN,
   'PlatformAdminGrant.grantedByUserId': UNWRITTEN,
@@ -1010,9 +1053,6 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'CheckIn.userId': UNWRITTEN,
   'Membership.playerUserId': UNWRITTEN,
   'SeasonPass.playerUserId': UNWRITTEN,
-  'Coach.userId': UNWRITTEN,
-  'CoachBooking.playerUserId': UNWRITTEN,
-  'CoachReview.authorUserId': UNWRITTEN,
   'TournamentEntry.playerUserId': UNWRITTEN,
   'TournamentMatch.homeUserId': UNWRITTEN,
   'TournamentMatch.awayUserId': UNWRITTEN,

@@ -144,7 +144,7 @@ describe('a deleted account gains nothing new (#465)', () => {
   it('the parse found the schema, the migrations and the app', () => {
     // Without these a broken glob or resolver makes every check below vacuous.
     expect(columns.length).toBeGreaterThan(50);
-    expect(triggers.size).toBeGreaterThanOrEqual(8);
+    expect(triggers.size).toBeGreaterThanOrEqual(35);
     expect(triggers.has('booking.bookedByUserId')).toBe(true);
     expect(reachable.length).toBeGreaterThan(200);
     // The three kinds of write are each really detected.
@@ -236,7 +236,9 @@ describe('what must be cancelled or left before an account can go (#465)', () =>
     expect(flagged.map((e) => `${e.model}.${e.field}:${e.upcoming}`).sort()).toEqual([
       'Booking.bookedByUserId:checked',
       'BookingParticipant.userId:checked',
-      'CoachBooking.playerUserId:when-shipped',
+      // The coaches module (#377): a lesson still to be TAUGHT blocks the
+      // coach's deletion. It was `CoachBooking…:when-shipped` until P71.
+      'CoachLesson.coachUserId:checked',
       'TournamentEntry.playerUserId:when-shipped',
     ]);
   });
@@ -271,5 +273,8 @@ describe('what must be cancelled or left before an account can go (#465)', () =>
     expect(body).toContain('listUpcomingBookingsForUser');
     expect(body).toContain('bookedByUserId: userId');
     expect(body).toContain('participants: { some: { userId } }');
+    // And the lessons the account teaches.
+    expect(body).toContain('db.coachLesson.count');
+    expect(body).toContain('coachUserId: userId');
   });
 });

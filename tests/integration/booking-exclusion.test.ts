@@ -179,37 +179,9 @@ describe('booking exclusion constraint', () => {
     });
   });
 
-  it('6. a coach cannot be double-booked either', async () => {
-    await asAppSuperuser(prisma, async (tx) => {
-      const coachUser = await tx.user.create({
-        data: { email: `coach-${Date.now()}@playerz.test` },
-      });
-      const coach = await tx.coach.create({
-        data: {
-          tenantId: t.tenantId,
-          userId: coachUser.id,
-          hourlyRateCents: 5000,
-          sports: ['PADEL'],
-        },
-      });
-
-      const mk = (start: Date, end: Date) =>
-        tx.coachBooking.create({
-          data: {
-            tenantId: t.tenantId,
-            coachId: coach.id,
-            playerUserId: t.userId,
-            startTs: start,
-            endTs: end,
-            status: 'CONFIRMED',
-            totalCents: 5000,
-          },
-        });
-
-      await mk(at(24), at(25));
-      await expectPgError(mk(at(24.5), at(25.5)), '23P01', 'an overlapping coach booking');
-    });
-  });
+  // 6. A coach cannot be double-booked either: that is `coach_lesson_no_overlap`
+  //    since P71, on the coach's account and across clubs. It has its own
+  //    suite, tests/integration/coach-tables.test.ts.
 
   it('7. a booking longer than 4 hours is rejected by the CHECK constraint', async () => {
     await asAppSuperuser(prisma, async (tx) => {
@@ -252,7 +224,7 @@ describe('booking exclusion constraint', () => {
         `SELECT conname FROM pg_constraint WHERE conname LIKE '%no_overlap%' ORDER BY 1`,
       ),
     );
-    expect(rows.map((r) => r.conname)).toEqual(['booking_no_overlap', 'coach_no_overlap']);
+    expect(rows.map((r) => r.conname)).toEqual(['booking_no_overlap', 'coach_lesson_no_overlap']);
     expect(venueId).toBeTruthy();
   });
 });

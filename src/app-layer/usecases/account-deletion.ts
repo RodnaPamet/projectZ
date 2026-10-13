@@ -97,7 +97,18 @@ export interface ClubCredit {
 export type DeletionStanding =
   | { kind: 'allowed'; credit: ClubCredit[] }
   | { kind: 'club' }
-  | { kind: 'blocked'; bookings: UpcomingBooking[]; total: number; credit: ClubCredit[] };
+  | {
+      kind: 'blocked';
+      bookings: UpcomingBooking[];
+      total: number;
+      /**
+       * Upcoming lessons the account TEACHES (#377): a coach cancels them, or
+       * waits them out, before the account can go. The lessons it BOOKED as a
+       * player are among `bookings`, as any court booking is.
+       */
+      lessons: number;
+      credit: ClubCredit[];
+    };
 
 /** A CLUB account, or one that runs a club: deleted by the platform on request. */
 export class ClubAccountDeletionRefusedError extends Error {
@@ -114,9 +125,11 @@ export class UpcomingBookingsError extends Error {
   constructor(
     readonly bookings: UpcomingBooking[],
     readonly total: number,
+    /** Upcoming lessons the account teaches (#377). */
+    readonly lessons = 0,
   ) {
     super(
-      `The account still has ${total} upcoming booking(s). Cancel them, or leave the ones you were added to, and try again.`,
+      `The account still has ${total} upcoming booking(s) and ${lessons} lesson(s) to teach. Cancel them, or leave the ones you were added to, and try again.`,
     );
     this.name = 'UpcomingBookingsError';
   }
@@ -214,7 +227,18 @@ async function upcoming(db: PrismaClient, userId: string, now: Date) {
           },
         })
       : rows.length;
-  return { bookings: describeUpcoming(rows.slice(0, UPCOMING_LISTED), userId, now), total };
+  // The lessons this account TEACHES (#377, decision 8: a coach cancels until
+  // the start). `active` is the lesson's booking still holding its court; a
+  // cancelled or played one no longer counts.
+  // guardrail-allow: cross-tenant — the person's own lessons, at every club.
+  const lessons = await db.coachLesson.count({
+    where: { coachUserId: userId, active: true, endTs: { gt: now } },
+  });
+  return {
+    bookings: describeUpcoming(rows.slice(0, UPCOMING_LISTED), userId, now),
+    total,
+    lessons,
+  };
 }
 
 /**
@@ -264,9 +288,11 @@ export async function deletionStanding(
   });
   if (!user || user.deletedAt) throw new AccountNotFoundForDeletionError();
   if (await runsAClub(db, userId, user.accountKind, by)) return { kind: 'club' };
-  const { bookings, total } = await upcoming(db, userId, now);
+  const { bookings, total, lessons } = await upcoming(db, userId, now);
   const credit = await creditAtClubs(db, userId);
-  return total > 0 ? { kind: 'blocked', bookings, total, credit } : { kind: 'allowed', credit };
+  return total > 0 || lessons > 0
+    ? { kind: 'blocked', bookings, total, lessons, credit }
+    : { kind: 'allowed', credit };
 }
 
 /** `deletionStanding` for the signed-in person, bound as the deletion is. */
@@ -317,7 +343,9 @@ export async function deleteAccount(
   }
 
   const pending = await upcoming(db, userId, now);
-  if (pending.total > 0) throw new UpcomingBookingsError(pending.bookings, pending.total);
+  if (pending.total > 0 || pending.lessons > 0) {
+    throw new UpcomingBookingsError(pending.bookings, pending.total, pending.lessons);
+  }
 
   // ═══ 2. PLATFORM AUTHORITY ENDS WITH THE ACCOUNT ═══
   //
@@ -625,12 +653,51 @@ export async function deleteAccount(
   // No route writes these today. Decided anyway, so the day one does, a
   // deletion already does the right thing (deletion-plan.ts).
   //
-  // NOT the P08 coach tables (`coach`, `coach_booking`, `coach_review`, …):
-  // nothing ever wrote them, both live databases hold no row in them, and the
-  // coaches module (#377) replaces them in its next migration. This deletion
-  // stopped touching them one release BEFORE that migration, so the image a
-  // rollback lands on never queries a column that is gone (#544), as #511 did
-  // for the old open-play tables.
+
+  // ═══ 8a. THE COACH (#377, P71) ═══
+  //
+  // What a coach account holds beyond a player's. Nothing here is upcoming:
+  // step 1 refused while a lesson was still to be taught.
+  count(
+    'CoachReview',
+    // guardrail-allow: cross-tenant — the reviews this person wrote of coaches,
+    // and the reviews of this person as a coach, who has no page to show them on.
+    (
+      await db.coachReview.deleteMany({
+        where: { OR: [{ authorUserId: userId }, { coachUserId: userId }] },
+      })
+    ).count,
+  );
+  // The certificate is a personal document (decision 17): gone with the account.
+  count('CoachCertificate', (await db.coachCertificate.deleteMany({ where: { userId } })).count);
+  count('CoachTimeOff', (await db.coachTimeOff.deleteMany({ where: { userId } })).count);
+  // The profile, and its sports with it (ON DELETE CASCADE).
+  count('CoachProfile', (await db.coachProfile.deleteMany({ where: { userId } })).count);
+  // The links to venues stay, ENDED: the lessons that were taught point at
+  // them, and those stay with their bookings. The hours go: nobody teaches them.
+  // guardrail-allow: cross-tenant — this person's links, at every club.
+  const links = await db.coach.findMany({ where: { userId }, select: { id: true }, take: 500 });
+  if (links.length > 0) {
+    count(
+      'CoachAvailability',
+      // guardrail-allow: cross-tenant — the hours of those links.
+      (
+        await db.coachAvailability.deleteMany({
+          where: { coachId: { in: links.map((l) => l.id) } },
+        })
+      ).count,
+    );
+    count(
+      'Coach.ended',
+      // guardrail-allow: cross-tenant — this person's links, at every club.
+      (
+        await db.coach.updateMany({
+          where: { userId, status: { in: ['REQUESTED', 'INVITED', 'ACTIVE'] } },
+          data: { status: 'ENDED', endedAt: now, endedByUserId: userId },
+        })
+      ).count,
+    );
+  }
   count('XpEvent', (await db.xpEvent.deleteMany({ where: { userId } })).count); // guardrail-allow: cross-tenant — the person's own points
   count('UserAchievement', (await db.userAchievement.deleteMany({ where: { userId } })).count);
   count(

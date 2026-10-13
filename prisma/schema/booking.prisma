@@ -72,6 +72,8 @@ model Booking {
   inviteLinks   BookingInviteLink[]
   /// Open play (#376): the booker looking for more players, or null.
   openGame      OpenGame?
+  /// A lesson (#377): the coach this booking also takes, or null.
+  lesson        CoachLesson?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, resourceId, startTs])

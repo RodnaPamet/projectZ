@@ -2849,7 +2849,7 @@
             }
           },
           "409": {
-            "description": "`UPCOMING_BOOKINGS` — the caller still has a booking to play. `details` is `{ total, bookings: [{ bookingId, role, cure, startTs, endTs, cancellableUntil, deletableFrom }] }` (the first 25): `role` is `BOOKER` or `PARTICIPANT`; `cure` is `cancel` (the booker may still cancel it, until `cancellableUntil`), `leave` (an added player may leave until the start) or `wait` (too late for either: deletion becomes possible at `deletableFrom`, its end). Open strings. `VIEWER_CHANGED` — web only.",
+            "description": "`UPCOMING_BOOKINGS` — the caller still has a booking to play. `details` is `{ total, lessons, bookings: [{ bookingId, role, cure, startTs, endTs, cancellableUntil, deletableFrom }] }` (the first 25): `role` is `BOOKER` or `PARTICIPANT`; `cure` is `cancel` (the booker may still cancel it, until `cancellableUntil`), `leave` (an added player may leave until the start) or `wait` (too late for either: deletion becomes possible at `deletableFrom`, its end). Open strings. `VIEWER_CHANGED` — web only. `lessons` (#377) is how many upcoming lessons the caller TEACHES as a coach: those are cancelled or waited out too, and are not in `bookings`.",
             "content": {
               "application/json": {
                 "schema": {

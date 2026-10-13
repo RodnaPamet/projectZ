@@ -76,6 +76,20 @@ const GLOBAL_MODELS = new Set([
   // belongs to no club and no user, has no tenantId column, and denies
   // app_user outright. Only the platform reads it, through asPlatformAdmin.
   'contactRequest',
+  //
+  // ── P71 coaches (#377) ─────────────────────────────────────────────
+  //
+  // A coach's PROFILE is one per account, not per club: the text, the sports,
+  // the uploaded certificate and the days away belong to a person, who may
+  // teach at several clubs or none. No tenantId column; RLS is owner-only on
+  // app.user_id, and a club bound as itself reads none of them (the
+  // certificate above all, owner decision 17). The coach's link to a venue
+  // (`coach`), its hours, lessons and reviews ARE tenant-scoped, and are not
+  // in this list.
+  'coachProfile',
+  'coachProfileSport',
+  'coachCertificate',
+  'coachTimeOff',
 ]);
 
 /** Prisma calls that read or mutate rows and therefore need scoping. */
