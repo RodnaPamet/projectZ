@@ -406,16 +406,29 @@ describe('open play (#376)', () => {
       expect(one.res.status).toBe(404);
     });
 
-    it('asking needs a signed-in player account', async () => {
+    it('asking needs a signed-in account that plays: a player or a coach, never a club', async () => {
       const { gameId } = await opened(2);
       expect((await ask(null, gameId)).res.status).toBe(401);
+
+      // A club account does not play (#263).
+      const staffId = await seedPlayer(db, club.tenantId, 'staff');
+      await asAppSuperuser(db, async (tx) => {
+        await tx.tenantMembership.deleteMany({ where: { userId: staffId } });
+        await tx.user.update({ where: { id: staffId }, data: { accountKind: 'CLUB' } });
+      });
+      const staff = await signInAs(db, { userId: staffId, memberships: [] });
+      const refused = await ask(staff, gameId);
+      expect(refused.res.status).toBe(403);
+      expect(refused.body.error?.code).toBe('PLAYER_ACCOUNT_REQUIRED');
+
+      // A coach does (#377, owner decision 3): the same ask, accepted.
       const coachId = await seedPlayer(db, club.tenantId, 'coach');
       await asAppSuperuser(db, async (tx) => {
         await tx.tenantMembership.deleteMany({ where: { userId: coachId } });
         await tx.user.update({ where: { id: coachId }, data: { accountKind: 'COACH' } });
       });
       const coach = await signInAs(db, { userId: coachId, memberships: [] });
-      expect((await ask(coach, gameId)).res.status).toBe(403);
+      expect((await ask(coach, gameId)).res.status).toBe(201);
     });
   });
 

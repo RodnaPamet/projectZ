@@ -113,13 +113,18 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     // (payments.refund) — money movement needs a manager.
   ],
 
+  // Everything a PLAYER has (a coach plays too, #377), plus its own calendar.
+  // NOT `players.view`: that is the club's whole players list, with phones. A
+  // coach sees a player's name, level and phone for an upcoming lesson of
+  // theirs only (owner decision 12), which is not a permission but a read.
   COACH: [
     'bookings.create',
+    'bookings.cancel',
     'coaches.list',
+    'coaches.book',
     'coaches.manage_own_calendar',
     'openplay.host',
     'openplay.join',
-    'players.view',
   ],
 
   PLAYER: ['bookings.create', 'bookings.cancel', 'coaches.list', 'coaches.book', 'openplay.join'],

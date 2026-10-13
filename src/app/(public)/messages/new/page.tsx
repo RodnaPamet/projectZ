@@ -5,7 +5,6 @@ import { messagesCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { PlayerSearch } from '@/components/messages/PlayerSearch';
 import { ChevronLeft } from '@/components/ui/icons/nucleo';
-import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { ViewerScope } from '@/lib/data/provider';
 
@@ -22,7 +21,7 @@ export async function generateMetadata() {
  * here.
  */
 export default async function NewMessagePage() {
-  const { userId, coach } = await messagesViewer('/messages/new');
+  const { userId } = await messagesViewer('/messages/new');
   const [t, tNav] = await Promise.all([
     getTranslations('messaging'),
     getTranslations('common.nav'),
@@ -40,13 +39,9 @@ export default async function NewMessagePage() {
           {t('conversation.back')}
         </Link>
         <Heading level={1}>{t('search.title')}</Heading>
-        {coach ? (
-          <InlineNotice variant="info">{t('coachNotice')}</InlineNotice>
-        ) : (
-          <ViewerScope viewerId={userId}>
-            <PlayerSearch />
-          </ViewerScope>
-        )}
+        <ViewerScope viewerId={userId}>
+          <PlayerSearch />
+        </ViewerScope>
       </div>
     </div>
   );

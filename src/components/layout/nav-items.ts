@@ -139,8 +139,8 @@ const COURTS_LABEL: Record<ResourceNouns, string> = {
  *   People      Players, Staff
  *   Finance     Reports and fee (#372): OWNER and MANAGER only
  *
- * A COACH holds `players.view` and nothing else here, so a coach sees only
- * Players: today's permission-based view, kept until the coach UI decides.
+ * A COACH holds none of these permissions (#377): the club's players list is
+ * not a coach's to read, and a coach at a club sees no club admin screen.
  *
  * Съобщения (#375), the club's shared inbox, sits beside the diary once the
  * messaging module is on: OWNER, MANAGER and STAFF hold `messages.club`.

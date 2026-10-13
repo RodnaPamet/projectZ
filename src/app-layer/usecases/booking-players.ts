@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { PLAYING_KINDS, playsAsPlayer } from '@/lib/auth/account-kind';
 
 import type { PrismaClient, SportType } from '@prisma/client';
 
@@ -129,14 +130,12 @@ export class TooManyInviteLinksError extends Error {
 }
 
 /**
- * Joining a game needs a PLAYER account (#263): a club or coach account plays
+ * Joining a game needs a PLAYER account (#263): a club account plays
  * with a separate one. About the caller's own account, never the booking.
  */
 export class BookingNeedsPlayerAccountError extends Error {
   constructor() {
-    super(
-      'Only a player account can join a game. A club or coach account plays with a separate one.',
-    );
+    super('Only a player account can join a game. A club account plays with a separate one.');
     this.name = 'BookingNeedsPlayerAccountError';
   }
 }
@@ -337,7 +336,7 @@ export async function requirePlayerAccount(db: PrismaClient, userId: string): Pr
   const user = await db.user.findUnique({ where: { id: userId }, select: { accountKind: true } });
   const kind = user?.accountKind ?? null;
   if (kind === null) throw new AccountKindRequiredError();
-  if (kind !== 'PLAYER') throw new BookingNeedsPlayerAccountError();
+  if (!playsAsPlayer(kind)) throw new BookingNeedsPlayerAccountError();
 }
 
 /**
@@ -911,7 +910,7 @@ async function readCoPlayers(
   // Never a deleted account (#370): nobody is there to add, and the database
   // would refuse the place anyway (P52's account_not_deleted).
   const users = await db.user.findMany({
-    where: { id: { in: ordered }, accountKind: 'PLAYER', deletedAt: null },
+    where: { id: { in: ordered }, accountKind: { in: [...PLAYING_KINDS] }, deletedAt: null },
     select: { id: true, name: true, avatarUrl: true },
     take: ordered.length,
   });

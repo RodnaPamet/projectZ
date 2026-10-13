@@ -25,6 +25,7 @@ import { ChevronRight, ShieldCheck, UserArrowRight } from '@/components/ui/icons
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption, Heading } from '@/components/ui/typography';
+import { playsAsPlayer } from '@/lib/auth/account-kind';
 import { DELETE_ACCOUNT_HELP_HREF } from '@/lib/account/links';
 import { V1 } from '@/lib/data/keys';
 import { persistMyLocale, refreshSession } from '@/lib/i18n/persist-my-locale';
@@ -161,8 +162,10 @@ export function ProfileView({
 
       <Section title={t('privacy')}>
         {/* #375: whether other players find this account by name. A player's
-            setting: a club or coach account is never in player search. */}
-        {seed.accountKind === 'PLAYER' ? <SearchVisibilityRow seed={seed} /> : null}
+            setting: a club account is never in player search. */}
+        {/* Whoever can be found by name can switch that off: a player, and a
+            coach, who plays too (#377). */}
+        {playsAsPlayer(seed.accountKind) ? <SearchVisibilityRow seed={seed} /> : null}
         {/* #370: everything playerz holds about the account, as a file. */}
         <DataExportRow href={V1.exportMyData()} />
         {/* The owner's texts, once they exist in this language; how to delete

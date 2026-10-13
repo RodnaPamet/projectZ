@@ -120,7 +120,7 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     code: 'CROSS_SITE_REQUEST',
     clientMessage: 'Cross-site requests with a session cookie are refused.',
   },
-  // Booking a court needs a PLAYER account (#263): a club or coach account
+  // Booking a court needs a PLAYER account (#263): a club account
   // books with a separate one. About the caller's account, never the club, so
   // the same answer at every slug. No clientMessage: the use case already wrote
   // it in the caller's own language, and it is the sentence they need.
@@ -315,7 +315,7 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   BookingPlayerNotFoundError: { status: 404, code: 'PLAYER_NOT_FOUND' },
   // On the booking, but not its booker: inviting and removing are theirs.
   BookerOnlyError: { status: 403, code: 'BOOKER_ONLY' },
-  // The account is a club or coach account; joining a game needs a player.
+  // The account is a club account; joining a game needs a player.
   BookingNeedsPlayerAccountError: { status: 403, code: 'PLAYER_ACCOUNT_REQUIRED' },
   // The account has not chosen player or coach yet (#360): choose, then retry.
   AccountKindRequiredError: { status: 403, code: 'ACCOUNT_KIND_REQUIRED' },

@@ -162,9 +162,11 @@ describe('ClubAdminTabBar — tabs per role, resolved from the sidebar’s own s
     ]);
   });
 
-  it('COACH: Играчи only (players.view is all it holds)', () => {
-    renderClub('COACH');
-    expect(barTabs()).toEqual([[n.players, admin('players')]]);
+  it('COACH: no tab at all; the club’s players list is not a coach’s to read (#377)', () => {
+    // A coach held `players.view` until the coach module decided otherwise:
+    // a coach sees a player's name, level and phone for an upcoming lesson of
+    // theirs only (owner decision 12), never the club's whole list.
+    expect(resolveClubTabs(roleSections('COACH'))).toEqual([]);
   });
 
   it.each(['OWNER', 'MANAGER', 'STAFF', 'COACH', 'PLAYER'] as const)(

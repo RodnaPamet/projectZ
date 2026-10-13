@@ -19,7 +19,7 @@ import { INVITE_REDEEM_LIMIT } from '@/lib/security/rate-limit';
  * (the booker opening their own link included), so a second tap is harmless.
  *
  * Refusals: 404 BOOKING_INVITE_NOT_USABLE (one answer for every dead token),
- * 409 BOOKING_FULL, 403 PLAYER_ACCOUNT_REQUIRED (a club or coach account), 403
+ * 409 BOOKING_FULL, 403 PLAYER_ACCOUNT_REQUIRED (a club account), 403
  * ACCOUNT_KIND_REQUIRED (choose player or coach first, #360).
  *
  * Rate-limited per IP at INVITE_REDEEM_LIMIT (10 a minute), stricter than the

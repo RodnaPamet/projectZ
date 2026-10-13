@@ -7,6 +7,8 @@ import {
   kindForRole,
   roleChangeKeepsKind,
   type AccountStanding,
+  PLAYING_KINDS,
+  playsAsPlayer,
 } from '@/lib/auth/account-kind';
 
 /**
@@ -126,12 +128,29 @@ describe('decideInviteAcceptance — PLAYER and COACH invites', () => {
   it.each([
     ['a club account', CLUB_OF_ANOTHER],
     ['a club account with no club', CLUB_WITHOUT_A_CLUB],
-    ['a coach account', COACH],
   ])('a PLAYER invite is refused to %s — accept it with your player account', (_l, acc) => {
     expect(decideInviteAcceptance(acc, { role: 'PLAYER', tenantId: 'ct_this' })).toEqual({
       ok: false,
       refusal: 'PLAYER_ACCOUNT_REQUIRED',
     });
+  });
+
+  it('a PLAYER invite is accepted by a coach account as it is: a coach plays too (#377)', () => {
+    expect(decideInviteAcceptance(COACH, { role: 'PLAYER', tenantId: 'ct_this' })).toEqual({
+      ok: true,
+      becomes: null,
+    });
+  });
+
+  it.each([
+    ['PLAYER', true],
+    ['COACH', true],
+    ['CLUB', false],
+    [null, false],
+    [undefined, false],
+  ] as const)('playsAsPlayer(%s) is %s', (kind, plays) => {
+    expect(playsAsPlayer(kind)).toBe(plays);
+    if (kind) expect((PLAYING_KINDS as readonly string[]).includes(kind)).toBe(plays);
   });
 
   it('a COACH invite is accepted by a coach account', () => {
