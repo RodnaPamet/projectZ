@@ -4,6 +4,7 @@ import {
   formatWhen,
   type BookingFacts,
 } from '@/lib/notifications/booking-copy';
+import { translateFor } from '@/lib/i18n/server-messages';
 import { dailyDedupeKey, dedupeKey, localDay } from '@/lib/notifications/dedupe';
 
 /**
@@ -101,6 +102,19 @@ describe('the bell', () => {
     expect((await bellCopy('bg', 'playerLeft', FACTS, { name: null })).title).toBe(
       'Играч напусна играта',
     );
+  });
+});
+
+describe('the paid-booking notification (#471)', () => {
+  // Built from a key alone (booking-payment.ts), with no resource type to
+  // pick a noun by, so its words must fit a court, a pitch and a track alike.
+  it.each(['bg', 'en'] as const)('names no court, pitch or track in %s', async (locale) => {
+    const [title, body] = await Promise.all([
+      translateFor(locale, 'notifications.bookingConfirmed.title'),
+      translateFor(locale, 'notifications.bookingConfirmed.body', { amount: '24,00 €' }),
+    ]);
+    expect(`${title} ${body}`).not.toMatch(/корт|игрищ|пист|court|pitch|track/i);
+    expect(body).toContain('24,00 €');
   });
 });
 

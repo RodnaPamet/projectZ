@@ -475,7 +475,7 @@
   "notifications": {
     "bookingConfirmed": {
       "title": "Booking confirmed",
-      "body": "Your court is booked. Payment of {amount} received."
+      "body": "Payment of {amount} received."
     },
     "booking": {
       "someone": "A player",

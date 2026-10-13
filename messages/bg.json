@@ -475,7 +475,7 @@
   "notifications": {
     "bookingConfirmed": {
       "title": "Резервацията е потвърдена",
-      "body": "Кортът е запазен. Получено плащане {amount}."
+      "body": "Получено плащане {amount}."
     },
     "booking": {
       "someone": "Играч",
