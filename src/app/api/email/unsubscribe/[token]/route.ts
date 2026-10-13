@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { unsubscribeByToken } from '@/app-layer/usecases/email-unsubscribe';
 import { unsubscribePagePath } from '@/lib/email/unsubscribe';
 import { RateLimitedError } from '@/lib/errors/types';
+import { absoluteUrl } from '@/lib/seo/site-url';
 
 /**
  * The one-click unsubscribe of RFC 8058 (#528): where a mail client's own
@@ -52,7 +53,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   return NextResponse.json({ unsubscribed: true });
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  return NextResponse.redirect(new URL(unsubscribePagePath(token), req.url), 303);
+  // On the PUBLIC origin (SITE_URL), never on `req.url`: behind the reverse
+  // proxy a route handler's own URL is the container's (`localhost:3000`), and
+  // a redirect built on it sent the browser there. Found on staging.
+  return NextResponse.redirect(absoluteUrl(unsubscribePagePath(token)), 303);
 }
