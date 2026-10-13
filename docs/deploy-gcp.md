@@ -491,19 +491,20 @@ app together; open sockets reconnect and fetch a new token.
 
 ## Scheduled jobs
 
-Six routes under `/api/cron` do work nothing else triggers, and each refuses
+Seven routes under `/api/cron` do work nothing else triggers, and each refuses
 to run (503) until `CRON_SECRET` is set:
 
-| Route                           | Cadence | Without it                                                                     |
-| ------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `release-expired-bookings`      | 60 s    | an abandoned checkout holds its court for ever, and keeps the credit spent     |
-| `complete-ended-bookings`       | 60 s    | no booking ever becomes COMPLETED, so nobody can ever leave a review           |
-| `warn-expiring-platform-grants` | daily   | a platform grant lapses mid-incident with no warning                           |
-| `send-booking-reminders` (#367) | 5 min   | no 3-hour reminders; unanswered open-play requests never lapse (#376)          |
-| `drain-email-outbox` (#367)     | 60 s    | confirmation and club-cancellation emails wait in `email_outbox` for ever      |
-| `sweep-orphan-media` (#366)     | daily   | photo objects whose rows are gone stay in the bucket (`docs/media-storage.md`) |
+| Route                           | Cadence | Without it                                                                       |
+| ------------------------------- | ------- | -------------------------------------------------------------------------------- |
+| `release-expired-bookings`      | 60 s    | an abandoned checkout holds its court for ever, and keeps the credit spent       |
+| `complete-ended-bookings`       | 60 s    | no booking ever becomes COMPLETED, so nobody can ever leave a review             |
+| `warn-expiring-platform-grants` | daily   | a platform grant lapses mid-incident with no warning                             |
+| `send-booking-reminders` (#367) | 5 min   | no 3-hour reminders; unanswered open-play requests never lapse (#376)            |
+| `drain-email-outbox` (#367)     | 60 s    | confirmation and club-cancellation emails wait in `email_outbox` for ever        |
+| `sweep-orphan-media` (#366)     | daily   | photo objects whose rows are gone stay in the bucket (`docs/media-storage.md`)   |
+| `report-dead-emails` (#425)     | daily   | an email that died after every retry is seen by nobody (it emails `ALERT_EMAIL`) |
 
-`ops/sweep.compose.yml` runs all six as small `alpine` loops. It is an
+`ops/sweep.compose.yml` runs all seven as small `alpine` loops. It is an
 overlay on `docker-compose.prod.yml`, so copy it beside that file and name
 both:
 

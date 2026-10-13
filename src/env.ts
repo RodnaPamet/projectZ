@@ -269,6 +269,9 @@ export const env = createEnv({
     // and no email is queued. Read at send time too, so a changed inbox is
     // honoured by rows already queued.
     CONTACT_INBOX_EMAIL: z.string().email().optional(),
+    // The operator's alerts: the disk alert (deploy/ops/disk-alert.sh, #440)
+    // and the daily report of emails that could not be delivered (#425).
+    ALERT_EMAIL: z.string().email().optional(),
 
     // Web Push (VAPID). Optional: without them push is simply not sent, and the
     // notification CENTRE still has the row — the user sees it when they open
@@ -482,6 +485,7 @@ export const env = createEnv({
     EMAIL_FROM: process.env.EMAIL_FROM,
     EMAIL_ALLOW_ON_STAGING: process.env.EMAIL_ALLOW_ON_STAGING,
     CONTACT_INBOX_EMAIL: process.env.CONTACT_INBOX_EMAIL,
+    ALERT_EMAIL: process.env.ALERT_EMAIL,
 
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
