@@ -1462,6 +1462,7 @@
         "FULL": "There are no places left.",
         "CLOSED": "The game has started or was cancelled.",
         "TOO_MANY": "There are too many live links. Stop the old ones and try again.",
+        "CUTOFF": "The club's deadline has passed: a player who joined through Games is in the game.",
         "FAILED": "That did not work. Try again."
       }
     },
