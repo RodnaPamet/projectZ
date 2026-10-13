@@ -47,6 +47,14 @@ their rating absurdly.
 
 ## Session capacity is double-booking, one level up
 
+> **Removed (#511, 2026-10-13).** The session model this section describes
+> (`OpenPlaySession`, `SessionParticipant`, `SessionChatMessage`,
+> `usecases/session.ts`) was never wired to a route. Open play shipped in #376
+> on the booking instead: `open_game` and `open_game_request`
+> (`prisma/schema/open-play.prisma`, `usecases/open-play.ts`), where the
+> booker accepts each player and the count is the booking's own. The text
+> below is kept as the record of the design that was not used.
+
 The obvious join:
 
 ```ts

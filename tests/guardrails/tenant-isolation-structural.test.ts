@@ -25,14 +25,11 @@ import { globSync } from 'node:fs';
  *
  * `User` / `PlayerProfile` / `SkillRatingHistory`: a player is one identity
  * with one rating across every club they play at (see P04).
- * `sessionParticipant`: a pure join table, reachable only through an
- * open_play_session row that RLS already gates.
  */
 const GLOBAL_MODELS = new Set([
   'user',
   'playerProfile',
   'skillRatingHistory',
-  'sessionParticipant',
   'venueOrg', // keyed on its own id, not a tenantId column
   'tenantMembership', // the membership IS the tenant link
 

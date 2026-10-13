@@ -67,7 +67,6 @@ model Booking {
   refunds       Refund[]
   checkIns      CheckIn[]
   cancellation  Cancellation?
-  session       OpenPlaySession?     @relation("SessionBooking")
   bookingSplits BookingSplit[]
   series        BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   inviteLinks   BookingInviteLink[]

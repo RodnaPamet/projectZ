@@ -17,7 +17,7 @@ import { globSync } from 'node:fs';
  * So the body is cleaned on the WAY IN, and this fails the build on a write
  * path that skips it.
  */
-const WRITE_TO_BODY = /\b(?:chatMessage|sessionChatMessage)\.(?:create|createMany|update|updateMany)\s*\(/;
+const WRITE_TO_BODY = /\bchatMessage\.(?:create|createMany|update|updateMany)\s*\(/;
 
 const SOURCES = ['src/app-layer/**/*.ts', 'src/app/**/*.ts', 'src/lib/**/*.ts'];
 

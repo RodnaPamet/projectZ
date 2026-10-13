@@ -646,15 +646,6 @@ export async function deleteAccount(
     (await db.skillRatingHistory.deleteMany({ where: { userId } })).count,
   );
   count(
-    'SessionParticipant',
-    (await db.sessionParticipant.deleteMany({ where: { userId } })).count,
-  );
-  count(
-    'SessionChatMessage',
-    // guardrail-allow: cross-tenant — this person's own messages.
-    (await db.sessionChatMessage.deleteMany({ where: { senderUserId: userId } })).count,
-  );
-  count(
     'ConversationParticipant.left',
     (
       await db.conversationParticipant.updateMany({
