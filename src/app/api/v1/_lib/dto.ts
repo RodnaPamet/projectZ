@@ -879,6 +879,8 @@ export interface ClubPublicDto {
   slug: string;
   name: string;
   logoUrl: string | null;
+  /** What the club says about itself (#530), plain text, or null. */
+  description: string | null;
   /** The club's own number, else its main venue's. */
   phone: string | null;
   /** The first venue's cover that exists, oldest venue first. */
@@ -905,6 +907,7 @@ export function toClubPublicDto(c: ClubPage): ClubPublicDto {
     slug: c.slug,
     name: c.name,
     logoUrl: c.logoUrl,
+    description: c.description,
     phone: c.phone,
     cover: c.cover,
     venues: c.venues.map((v) => ({

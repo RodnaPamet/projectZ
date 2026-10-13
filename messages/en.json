@@ -245,6 +245,7 @@
     "metaDescription": "{name}, {address}, {city}. Free times and online booking, paid at the club.",
     "back": "Back to venues",
     "club": "Run by <link>{name}</link>",
+    "phone": "Phone: {phone}",
     "sportsLabel": "Sports",
     "day": {
       "label": "Day",
@@ -1231,7 +1232,27 @@
     "photos": {
       "metaTitle": "Photos and info",
       "title": "Photos and info",
-      "subtitle": "A cover and a gallery for each venue. They appear on the venue's public page and on the club's page.",
+      "subtitle": "The club’s description and, for each venue, its description, phone, cover and gallery. They show on their public pages.",
+      "info": {
+        "title": "Information",
+        "club": {
+          "label": "About the club",
+          "hint": "Shown on the club’s page. Up to {max} characters."
+        },
+        "venue": {
+          "description": "About the venue",
+          "hint": "Shown on the venue’s page. Up to {max} characters.",
+          "phone": "Venue phone",
+          "phoneHint": "Shown on the venue’s page. Leave empty if there is none."
+        },
+        "save": "Save",
+        "saved": "Saved.",
+        "error": {
+          "TOO_LONG": "The text is too long.",
+          "PHONE_INVALID": "That phone number does not look right. Check the digits.",
+          "VENUE_NOT_FOUND": "The venue was not found."
+        }
+      },
       "notConfigured": {
         "title": "Photo uploads are not set up",
         "description": "The photo storage is not connected yet. Photos already uploaded still show as before."

@@ -26,6 +26,10 @@ model VenueOrg {
   name String
 
   logoUrl      String?
+  /// What the club says about itself (#530), on its public page. Plain text,
+  /// written by its OWNER or MANAGER. The use case allows 1000 characters; a
+  /// CHECK stops at 2000, so the limit can grow without a migration.
+  description  String?
   contactEmail String
   contactPhone String?
   addressLine  String?

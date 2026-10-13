@@ -55,6 +55,8 @@ export interface ClubPage {
   slug: string;
   name: string;
   logoUrl: string | null;
+  /** What the club says about itself (#530), plain text, or null. */
+  description: string | null;
   /** The club's own number, else its main venue's. */
   phone: string | null;
   /** Oldest first: the first is the club's main venue, whose address the page shows. */
@@ -69,7 +71,15 @@ export interface ClubPage {
 export async function loadClubPublicPage(db: PrismaClient, slug: string): Promise<ClubPage | null> {
   const club = await db.venueOrg.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true, logoUrl: true, contactPhone: true, status: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      logoUrl: true,
+      description: true,
+      contactPhone: true,
+      status: true,
+    },
   });
   if (!club || club.status !== 'ACTIVE') return null;
 
@@ -124,6 +134,7 @@ export async function loadClubPublicPage(db: PrismaClient, slug: string): Promis
     slug: club.slug,
     name: club.name,
     logoUrl: club.logoUrl,
+    description: club.description,
     phone: club.contactPhone || venues[0]?.phone || null,
     venues,
     cover: venues.find((v) => v.cover)?.cover ?? null,

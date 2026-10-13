@@ -233,6 +233,8 @@ export default async function VenuePage({
           sports={sports}
           cover={cover}
           club={{ name: clubName, href: clubPath(clubSlug) }}
+          description={venue.description}
+          phone={venue.phone}
         />
         {/* #375: a signed-in player writes to the venue's club, while messaging is on. */}
         <WriteToClub clubSlug={clubSlug} className="in-shell:px-0 -mt-2 px-6 md:px-0" />

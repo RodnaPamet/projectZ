@@ -92,6 +92,10 @@ export const AUDIT_ACTIONS = {
   VENUE_PHOTO_ALT_CHANGED: 'VENUE_PHOTO_ALT_CHANGED',
   VENUE_PHOTO_MOVED: 'VENUE_PHOTO_MOVED',
   VENUE_PHOTO_DELETED: 'VENUE_PHOTO_DELETED',
+  /// What a club says about itself and about a venue on their public pages
+  /// (#530): the club's description; a venue's description and phone.
+  CLUB_DESCRIPTION_CHANGED: 'CLUB_DESCRIPTION_CHANGED',
+  VENUE_INFO_CHANGED: 'VENUE_INFO_CHANGED',
   /// A club admin changed how many upcoming online bookings one player may hold (#380).
   CLUB_ONLINE_BOOKING_CAP_CHANGED: 'CLUB_ONLINE_BOOKING_CAP_CHANGED',
   /// Staff entered a booking from the diary for a customer (#364). A desk

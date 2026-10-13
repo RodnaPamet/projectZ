@@ -852,6 +852,7 @@ export const DELETION_MEDIA: readonly {
  */
 export const NOT_PERSONAL: Readonly<Record<string, string>> = {
   'VenueOrg.name': 'the club’s name',
+  'VenueOrg.description': 'what the club says about itself on its public page (#530)',
   'VenueOrg.contactEmail': 'the club’s contact address, published by the club',
   'VenueOrg.contactPhone': 'the club’s contact phone, published by the club',
   'VenueOrg.addressLine': 'the club’s address',

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { DESCRIPTION_MAX, loadClubInfo } from '@/app-layer/usecases/club-info';
 import {
   loadPhotosScreen,
   MAX_ALT_LENGTH,
@@ -16,6 +17,7 @@ import { runInTenantContext } from '@/lib/db/rls-middleware';
 import { MAX_UPLOAD_BYTES, MIN_DIMENSION } from '@/lib/media/limits';
 import { mediaUploadsEnabled } from '@/lib/media/storage';
 
+import { InfoBoard } from './InfoBoard';
 import { PhotosBoard, type PhotoLimits } from './PhotosBoard';
 
 const LIMITS: PhotoLimits = {
@@ -32,7 +34,8 @@ export async function generateMetadata() {
 }
 
 /**
- * "Снимки и информация" (#366): each venue's cover and gallery.
+ * "Снимки и информация": what the club says about itself and each venue
+ * (#530), then each venue's cover and gallery (#366).
  *
  * OWNER and MANAGER (`admin.venue_manage`), checked here as every admin page
  * does (a page GET has no edge permission rule), and again by the upload
@@ -53,7 +56,9 @@ export default async function PhotosPage({ params }: { params: Promise<{ slug: s
   if (!ctx.permissions.includes('admin.venue_manage')) notFound();
 
   const t = await getTranslations('admin.photos');
-  const venues = await runInTenantContext(ctx.tenantId, (db) => loadPhotosScreen(db, ctx.tenantId));
+  const [venues, info] = await runInTenantContext(ctx.tenantId, (db) =>
+    Promise.all([loadPhotosScreen(db, ctx.tenantId), loadClubInfo(db, ctx.tenantId)]),
+  );
   const enabled = mediaUploadsEnabled();
 
   const tNav = await getTranslations('common.nav');
@@ -65,6 +70,9 @@ export default async function PhotosPage({ params }: { params: Promise<{ slug: s
         <Heading level={1}>{t('title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
+
+      {/* What the club says about itself and each venue (#530), then the photos. */}
+      <InfoBoard slug={ctx.tenantSlug} info={info} maxDescription={DESCRIPTION_MAX} />
 
       {!enabled && (
         <InlineNotice variant="info" title={t('notConfigured.title')} className="mb-default">
