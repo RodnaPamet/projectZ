@@ -1363,7 +1363,7 @@
       },
       "PLAYER_ACCOUNT_REQUIRED": {
         "title": "Accept this with your player account",
-        "description": "This invitation is for a player, and you are signed in with a club or coach account. Sign out, sign in with your player account, and open this link again."
+        "description": "This invitation is for a player, and you are signed in with a club account. Sign out, sign in with your player account, and open this link again."
       },
       "COACH_ACCOUNT_REQUIRED": {
         "title": "This invitation needs a coach account",
@@ -2007,7 +2007,7 @@
   },
   "accountKind": {
     "booking": {
-      "playerAccountRequired": "Booking a court needs a player account. You are signed in with a club or coach account — sign in with your player account to book."
+      "playerAccountRequired": "Booking a court needs a player or a coach account. You are signed in with a club account: sign in with your player account to book."
     }
   },
   "panels": {
@@ -2543,7 +2543,6 @@
     "metaTitle": "Messages",
     "title": "Messages",
     "new": "New message",
-    "coachNotice": "Messages for coaches come with the coach profile. Until then, messages are sent from a player account.",
     "tabs": {
       "label": "Conversations or requests",
       "conversations": "Conversations",

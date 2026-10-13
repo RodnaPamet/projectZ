@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { playsAsPlayer } from '@/lib/auth/account-kind';
 
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { translateFor } from '@/lib/i18n/server-messages';
@@ -102,8 +103,10 @@ export class PlayerAccountRequiredError extends Error {
  * account — a stranger to the club, or already a player there. A CLUB account
  * is refused even at its own club, where it would not have to join: an owner
  * who wants to play books with their player account, which is the whole point
- * of there being two. COACH accounts get their own booking system later, and
- * an account the migration could not decide is refused until a person does.
+ * of there being two. A COACH account plays too (#377): it books as a player
+ * does, and at a club where it only plays it joins as a PLAYER, which P70 lets
+ * a COACH account hold. An account the migration could not decide is refused
+ * until a person does.
  *
  * Checked BEFORE the club is looked up, so the refusal is the same for every
  * slug — it is about the caller's account, and must not become a way to learn
@@ -124,7 +127,7 @@ export async function resolvePlayerTenant(
         where: { id: userId },
         select: { accountKind: true, locale: true },
       });
-      if (account?.accountKind !== 'PLAYER') {
+      if (!playsAsPlayer(account?.accountKind)) {
         throw new PlayerAccountRequiredError(
           await translateFor(account?.locale, 'accountKind.booking.playerAccountRequired'),
         );

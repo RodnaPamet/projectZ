@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient, type SportType } from '@prisma/client';
+import { playsAsPlayer } from '@/lib/auth/account-kind';
 
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
@@ -103,7 +104,7 @@ export async function blockedEitherWay(db: PrismaClient, viewerId: string): Prom
  * Players by name, for "Ново съобщение" (#375).
  *
  * Everyone by default; never somebody who switched off "Показвай ме в
- * търсенето", never a deleted account, a club or a coach account, never the
+ * търсенето", never a deleted account or a club account, never the
  * viewer, and never anybody in a block with the viewer, either way: a person
  * you blocked, or who blocked you, is not somebody this screen offers.
  */
@@ -124,7 +125,7 @@ export async function searchPlayers(viewerId: string, query: string): Promise<Pl
        WHERE u."name" ILIKE ${pattern}
          AND u."searchable" = true
          AND u."deletedAt" IS NULL
-         AND u."accountKind" = 'PLAYER'
+         AND u."accountKind" IN ('PLAYER', 'COACH')
          AND u."id" <> ${viewerId}
          ${blocked.length > 0 ? Prisma.sql`AND u."id" NOT IN (${Prisma.join(blocked)})` : Prisma.empty}
        ORDER BY (lower(u."name") LIKE lower(${`${likeEscape(q)}%`})) DESC, u."name" ASC, u."id" ASC
@@ -169,7 +170,7 @@ export async function reachability(viewerId: string, targetId: string): Promise<
       where: { id: targetId },
       select: { accountKind: true, deletedAt: true, searchable: true },
     });
-    if (!target || target.deletedAt || target.accountKind !== 'PLAYER') {
+    if (!target || target.deletedAt || !playsAsPlayer(target.accountKind)) {
       return { exists: false, blocked: false, played: false, searchable: false };
     }
     const [block, shared] = await Promise.all([
@@ -211,7 +212,7 @@ export async function playerCardById(targetId: string): Promise<PlayerCard | nul
       where: { id: targetId },
       select: { id: true, name: true, avatarUrl: true, accountKind: true, deletedAt: true },
     });
-    if (!u || u.deletedAt || u.accountKind !== 'PLAYER') return null;
+    if (!u || u.deletedAt || !playsAsPlayer(u.accountKind)) return null;
     const sports = await sportsOf(db, [u.id]);
     return {
       userId: u.id,
@@ -530,5 +531,5 @@ export async function isLivePlayer(userId: string): Promise<boolean> {
   const u = await runAsSuperuser((db) =>
     db.user.findUnique({ where: { id: userId }, select: { accountKind: true, deletedAt: true } }),
   );
-  return !!u && !u.deletedAt && u.accountKind === 'PLAYER';
+  return !!u && !u.deletedAt && playsAsPlayer(u.accountKind);
 }

@@ -484,6 +484,64 @@ describe('POST /api/v1/t/:slug/bookings', () => {
       expect(m?.acceptedAt).toBeInstanceOf(Date);
     });
 
+    // ─── a coach plays too (#377, owner decision 3; P70) ─────────────
+
+    /** A COACH account, with a session, and the membership given (or none). */
+    const coachAccount = async (role: 'COACH' | null): Promise<TestIdentity> => {
+      const userId = await asAppSuperuser(db, async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email: `coach-${Math.random().toString(36).slice(2, 10)}@playerz.test`,
+            name: 'Coach',
+            passwordHash: null,
+            accountKind: 'COACH',
+          },
+          select: { id: true },
+        });
+        if (role) {
+          await tx.tenantMembership.create({
+            data: { userId: u.id, tenantId: tenant.tenantId, role, status: 'ACTIVE' },
+          });
+        }
+        return u.id;
+      });
+      return signInAs(db, {
+        userId,
+        memberships: role
+          ? [{ tenantId: tenant.tenantId, tenantSlug: tenant.tenantSlug, role }]
+          : [],
+      });
+    };
+
+    it('a COACH account books where it only plays, and joins that club as a PLAYER', async () => {
+      const coach = await coachAccount(null);
+
+      const { res } = await create(coach, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+
+      expect(res.status).toBe(201);
+      // A PLAYER membership on a COACH account: what P37 refused and P70 allows.
+      expect(await membershipOf(coach.userId)).toMatchObject({ role: 'PLAYER', status: 'ACTIVE' });
+    });
+
+    it('a COACH account books where it teaches with the membership it has, and can cancel', async () => {
+      const coach = await coachAccount('COACH');
+
+      const made = await create(coach, { resourceId, startTs: NINE_AM, endTs: TEN_AM });
+      expect(made.res.status).toBe(201);
+      // Not turned into a player there: it still teaches.
+      expect(await membershipOf(coach.userId)).toMatchObject({ role: 'COACH', status: 'ACTIVE' });
+
+      const bookingId = (made.body as { data: { id: string } }).data.id;
+      const res = await cancelRoute(
+        new NextRequest(`http://t/api/v1/t/${tenant.tenantSlug}/bookings/${bookingId}/cancel`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${coach.bearer}` },
+        }),
+        { params: Promise.resolve({ slug: tenant.tenantSlug, id: bookingId }) },
+      );
+      expect(res.status).toBe(200);
+    });
+
     it('refuses the club’s own OWNER — a club account books with a player account (#263)', async () => {
       // This used to book, and pinned only that the owner was not demoted by
       // it. One account is one kind now: booking is playing, and an owner who

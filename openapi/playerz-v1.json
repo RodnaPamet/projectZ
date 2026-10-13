@@ -933,7 +933,7 @@
       "post": {
         "operationId": "createBooking",
         "summary": "Create a booking (confirmed at once, paid at the club)",
-        "description": "Creates a booking that is **CONFIRMED at once and paid at the club** (#354, the Sofia pilot): `status` is `CONFIRMED`, `expiresAt` is `null`, and there is nothing to pay in the app — do NOT call checkout, which answers 409 `ONLINE_PAYMENT_DISABLED`. `cancellableUntil` says until when the player may cancel it themselves.\n\nOnly at a club that takes payment online (`VenueOrg.onlinePaymentEnabled`, off for every pilot club and not settable from the app) is the booking instead a PENDING hold for 15 minutes (`expiresAt`) that `POST /t/{slug}/bookings/{id}/checkout` confirms. Branch on `status`, not on an assumption.\n\n**Three no-shows in 90 days block online booking at that club** until its staff lift the block: `403 NO_SHOW_BLOCKED`, with `error.message` in the caller's own language telling them to contact the club. Checked after the idempotent replay, so a retry of a booking made before the block still returns it.\n\n**Each club caps a player's upcoming ONLINE bookings there** (#380; `VenueOrg.maxUpcomingOnlineBookings`, default 3, 1–50, set by the club). A new booking that would exceed it is `409 BOOKING_LIMIT_REACHED` with `details.limit` and `details.upcoming`. Counted: this caller's CONFIRMED (and unexpired PENDING) bookings at this club, made online, whose start is still in the future. Bookings the club made at the desk and recurring series never count, and a booking that has started no longer does. Cancelling one frees a place. Checked after the idempotent replay, so a retry of a booking already made still returns it with 200; parallel requests from one player are serialised, so a burst cannot exceed the cap.\n\n**The start must be in the future.** A span that has already started is 400 `SLOT_NOT_BOOKABLE`.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, a start that is not on a whole minute, or an ambiguous wall-clock time on a DST fall-back day) and which retrying unchanged can never fix.\n\n**Booking needs a PLAYER account (#263).** One account is one kind — a player, a club account (one club), or a coach — and booking a court is playing. A club or coach account, or one still waiting for a decision about its kind, is refused with `403 PLAYER_ACCOUNT_REQUIRED` at every slug alike, its own club included: an owner who wants to play books with their player account. The check is on the CALLER, made before the club is looked up, so it says nothing about which clubs exist. `error.message` is already in the caller's own language (their stored `User.locale`); switch on `error.code`.\n\n**Any signed-in player may book at any ACTIVE club — no invitation needed.** If the caller holds no membership at `{slug}`, an ACTIVE `PLAYER` membership is created as part of the booking: you booked a court here, so you are a player here. An EXISTING membership is never modified, so a club OWNER booking their own court is not demoted.\n\nA club that is not ACTIVE and a caller whose membership is SUSPENDED both get the same **404** as an unknown court. Distinguishing them would turn this endpoint into a probe for other clubs, and a suspended member must not be able to undo a moderation decision by booking a court.",
+        "description": "Creates a booking that is **CONFIRMED at once and paid at the club** (#354, the Sofia pilot): `status` is `CONFIRMED`, `expiresAt` is `null`, and there is nothing to pay in the app — do NOT call checkout, which answers 409 `ONLINE_PAYMENT_DISABLED`. `cancellableUntil` says until when the player may cancel it themselves.\n\nOnly at a club that takes payment online (`VenueOrg.onlinePaymentEnabled`, off for every pilot club and not settable from the app) is the booking instead a PENDING hold for 15 minutes (`expiresAt`) that `POST /t/{slug}/bookings/{id}/checkout` confirms. Branch on `status`, not on an assumption.\n\n**Three no-shows in 90 days block online booking at that club** until its staff lift the block: `403 NO_SHOW_BLOCKED`, with `error.message` in the caller's own language telling them to contact the club. Checked after the idempotent replay, so a retry of a booking made before the block still returns it.\n\n**Each club caps a player's upcoming ONLINE bookings there** (#380; `VenueOrg.maxUpcomingOnlineBookings`, default 3, 1–50, set by the club). A new booking that would exceed it is `409 BOOKING_LIMIT_REACHED` with `details.limit` and `details.upcoming`. Counted: this caller's CONFIRMED (and unexpired PENDING) bookings at this club, made online, whose start is still in the future. Bookings the club made at the desk and recurring series never count, and a booking that has started no longer does. Cancelling one frees a place. Checked after the idempotent replay, so a retry of a booking already made still returns it with 200; parallel requests from one player are serialised, so a burst cannot exceed the cap.\n\n**The start must be in the future.** A span that has already started is 400 `SLOT_NOT_BOOKABLE`.\n\n**The `Idempotency-Key` header is REQUIRED, and the server will not generate one.** Only the client knows that two requests are the same tap; a server-generated key would make every network retry a NEW booking, which is the exact double-charge this exists to prevent. A missing or whitespace-only header is a 400 `BAD_REQUEST` with `details.field = \"Idempotency-Key\"`, before the body is even read.\n\n**201 on a genuine create, 200 on an idempotent replay.** Both carry the identical `{\"data\": Booking}` body, so the client must branch on the STATUS CODE, not the payload, to know whether it created something. The key is unique per `(tenant, idempotencyKey)`: on a replay the stored booking is returned and THE REQUEST BODY IS IGNORED ENTIRELY — reusing a key for a different slot silently returns the first booking. Use a fresh UUID per distinct booking attempt, and reuse it only for retries of that same attempt.\n\n**The body NEVER carries a price.** `totalCents` is computed server-side by the same quoting engine the availability endpoint uses, from the resource's base price, opening hours, step grid and pricing rules. A `price`/`totalCents`/`priceCents` field in the body is silently ignored, not rejected.\n\n**The server does not pre-check whether the slot is free.** A Postgres EXCLUDE constraint arbitrates at INSERT time, so a lost race surfaces as 409 `SLOT_TAKEN` — \"retry with fresh availability\", not \"you did something wrong\". This is deliberately distinct from 400 `SLOT_NOT_BOOKABLE`, which means the club never offered that time at all (outside opening hours, off the step grid, not a whole number of billable units, a start that is not on a whole minute, or an ambiguous wall-clock time on a DST fall-back day) and which retrying unchanged can never fix.\n\n**Booking needs a PLAYER account (#263).** One account is one kind — a player, a club account (one club), or a coach — and booking a court is playing. A club account, or one still waiting for a decision about its kind, is refused with `403 PLAYER_ACCOUNT_REQUIRED` at every slug alike, its own club included: an owner who wants to play books with their player account. The check is on the CALLER, made before the club is looked up, so it says nothing about which clubs exist. `error.message` is already in the caller's own language (their stored `User.locale`); switch on `error.code`.\n\n**Any signed-in player may book at any ACTIVE club — no invitation needed.** If the caller holds no membership at `{slug}`, an ACTIVE `PLAYER` membership is created as part of the booking: you booked a court here, so you are a player here. An EXISTING membership is never modified, so a club OWNER booking their own court is not demoted.\n\nA club that is not ACTIVE and a caller whose membership is SUSPENDED both get the same **404** as an unknown court. Distinguishing them would turn this endpoint into a probe for other clubs, and a suspended member must not be able to undo a moderation decision by booking a court.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -1042,7 +1042,7 @@
             }
           },
           "403": {
-            "description": "Code `NO_SHOW_BLOCKED` (#354) — the caller has three or more no-shows at THIS club in the last 90 days, and its staff have not lifted the block. Online booking here is refused; booking at another club is not. `error.message` is in the caller's stored language and tells them to contact the club, which is the only cure — show it. Not retryable.\n\nCode `PLAYER_ACCOUNT_REQUIRED` — the caller is signed in with a club or coach account, or one the #263 migration left undecided. The same answer at every slug; `error.message` is in the caller's stored language. Show it, and offer to sign in with a player account.\n\nCode `FORBIDDEN` — only for a MEMBER whose role lacks `bookings.create`, with `details.requiredPermission = \"bookings.create\"`; no role lacks it today. It comes from the edge middleware (no `requestId`) when the token lists the club with that role, and from the route otherwise. A NON-member player is never refused here: they are joined, or get the 404.",
+            "description": "Code `NO_SHOW_BLOCKED` (#354) — the caller has three or more no-shows at THIS club in the last 90 days, and its staff have not lifted the block. Online booking here is refused; booking at another club is not. `error.message` is in the caller's stored language and tells them to contact the club, which is the only cure — show it. Not retryable.\n\nCode `PLAYER_ACCOUNT_REQUIRED` — the caller is signed in with a club account, or one the #263 migration left undecided. The same answer at every slug; `error.message` is in the caller's stored language. Show it, and offer to sign in with a player account.\n\nCode `FORBIDDEN` — only for a MEMBER whose role lacks `bookings.create`, with `details.requiredPermission = \"bookings.create\"`; no role lacks it today. It comes from the edge middleware (no `requestId`) when the token lists the club with that role, and from the route otherwise. A NON-member player is never refused here: they are joined, or get the 404.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5886,7 +5886,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club or coach account. `ACCOUNT_KIND_REQUIRED` — the account has not chosen player or coach yet: `POST /me/account-kind`, then retry.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club account. `ACCOUNT_KIND_REQUIRED` — the account has not chosen player or coach yet: `POST /me/account-kind`, then retry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7498,7 +7498,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club account: messages between players need a player account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7812,7 +7812,7 @@
             }
           },
           "403": {
-            "description": "`CONVERSATION_BLOCKED` — the caller blocked this player, or a side blocked this club conversation. `PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "description": "`CONVERSATION_BLOCKED` — the caller blocked this player, or a side blocked this club conversation. `PLAYER_ACCOUNT_REQUIRED` — the caller is a club account: messages between players need a player account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8022,7 +8022,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club account: messages between players need a player account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8132,7 +8132,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club account: messages between players need a player account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8476,7 +8476,7 @@
       "get": {
         "operationId": "searchPlayers",
         "summary": "Find players by name",
-        "description": "For a new conversation (#375). At most 20, each the public card: name, picture, sports with levels — never an email, a phone or a booking. Never a player who switched off “Показвай ме в търсенето”, a deleted account, a club or coach account, the caller, or anybody in a block with the caller. Fewer than 2 characters answers an empty list.",
+        "description": "For a new conversation (#375). At most 20, each the public card: name, picture, sports with levels — never an email, a phone or a booking. Never a player who switched off “Показвай ме в търсенето”, a deleted account, a club account, the caller, or anybody in a block with the caller. Fewer than 2 characters answers an empty list.",
         "tags": ["Messages"],
         "security": [
           {
@@ -8540,7 +8540,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club account: messages between players need a player account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8630,7 +8630,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club or coach account: messages between players need a player account.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — the caller is a club account: messages between players need a player account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10797,7 +10797,7 @@
             }
           },
           "403": {
-            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club or coach account, or one that has not chosen its kind.",
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club account, or one that has not chosen its kind.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13115,7 +13115,7 @@
       "AccountKind": {
         "type": ["string", "null"],
         "title": "AccountKind",
-        "description": "What the account IS (#263): `PLAYER`, `CLUB` (it runs exactly one club) or `COACH`. One account, one kind — doing two of these takes two accounts, and nothing switches between them. `null` is UNDECIDED: an account that held club roles at several clubs, or a coach role, when kinds arrived, and that the migration would not decide by rule. Typed as an open string for the same reason as `Booking.status`: treat an unrecognised value as undecided rather than failing the decode.",
+        "description": "What the account IS (#263): `PLAYER`, `CLUB` (it runs exactly one club) or `COACH`. One account, one kind — doing two of these takes two accounts, and nothing switches between them. `null` is UNDECIDED: an account that held club roles at several clubs, or a coach role, when kinds arrived, and that the migration would not decide by rule. Typed as an open string for the same reason as `Booking.status`: treat an unrecognised value as undecided rather than failing the decode. A `COACH` account also plays (#377): it books courts, joins games and messages exactly as a `PLAYER` does, so a client offers a coach everything it offers a player.",
         "examples": ["PLAYER"]
       },
       "LandingReason": {

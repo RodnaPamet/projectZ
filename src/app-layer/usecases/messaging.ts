@@ -144,8 +144,8 @@ const playerNotFound = () =>
 async function assertLivePlayer(actor: MessagingActor): Promise<void> {
   if (actor.kind !== 'player') return;
   if (!(await isLivePlayer(actor.userId))) {
-    // Coach conversations wait for the coach module (#377); a club writes
-    // from its own inbox.
+    // A player or a coach (who plays too, #377); a club writes from its
+    // own inbox.
     throw new MessagingError(
       'PLAYER_ACCOUNT_REQUIRED',
       403,

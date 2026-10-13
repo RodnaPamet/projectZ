@@ -995,7 +995,7 @@ export async function askToJoin(input: {
   const now = input.now ?? new Date();
   const note = cleanNote(input.note);
   if (!(await isLivePlayer(input.userId))) {
-    // The precise reason (no kind chosen yet, or a club/coach account).
+    // The precise reason (no kind chosen yet, or a club account).
     await runAsSuperuser((db) => requirePlayerAccount(db, input.userId));
     throw new OpenPlayError(
       'PLAYER_ACCOUNT_REQUIRED',

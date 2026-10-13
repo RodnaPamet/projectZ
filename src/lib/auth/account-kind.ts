@@ -14,7 +14,19 @@ import type { AccountKind, Role } from '@prisma/client';
  *   ──────   ────────────────────────────────────────────────────────
  *   PLAYER   PLAYER, at any number of clubs (joined by booking, #229)
  *   CLUB     OWNER / MANAGER / STAFF, at ONE club
- *   COACH    COACH, at the clubs it is affiliated with
+ *   COACH    COACH, at the clubs where it teaches, and PLAYER, at the
+ *            clubs where it only plays (#377, P70)
+ *
+ * ═══ A COACH ALSO PLAYS (#377, owner decision 2026-10-14) ═══
+ *
+ *   "a coach account can do everything a player can, plus teach. One
+ *    sign-in for a coach who also plays."
+ *
+ * So a COACH account books courts, joins games, is found by name and writes
+ * messages exactly as a PLAYER does. That is not two kinds on one account:
+ * it is what the COACH kind is. A CLUB account still does not play. Every
+ * rule that asks "may this account play?" asks `playsAsPlayer`, so the answer
+ * is given in one place.
  *
  * ═══ WHERE THIS IS ENFORCED ═══
  *
@@ -35,6 +47,14 @@ import type { AccountKind, Role } from '@prisma/client';
  * then nothing adds to the mix. Rules that take something away (suspending,
  * demoting within club roles) still apply to them.
  */
+
+/** The kinds of account that play: book, join games, message, be found by name. */
+export const PLAYING_KINDS = ['PLAYER', 'COACH'] as const satisfies readonly AccountKind[];
+
+/** Does this account play? A PLAYER, and a COACH (#377). Never a CLUB, never undecided. */
+export function playsAsPlayer(kind: AccountKind | null | undefined): boolean {
+  return kind === 'PLAYER' || kind === 'COACH';
+}
 
 /** The account a role belongs to. OWNER, MANAGER and STAFF run a club. */
 export function kindForRole(role: Role): AccountKind {
@@ -84,7 +104,7 @@ export interface AccountStanding {
  * the club — so answering it tells nobody anything about which clubs exist.
  */
 export type AccountKindRefusal =
-  /** Booking, or a PLAYER invite: needs a PLAYER account. */
+  /** Booking, or a PLAYER invite: needs an account that plays (a PLAYER or a COACH). */
   | 'PLAYER_ACCOUNT_REQUIRED'
   /** A staff invite, to an account that is a player, or a coach: two accounts. */
   | 'SEPARATE_ACCOUNT_REQUIRED'
@@ -143,7 +163,8 @@ export function decideInviteAcceptance(
     }
 
     case 'PLAYER':
-      return account.kind === 'PLAYER'
+      // A coach plays too (#377): a club's player invitation fits it as it is.
+      return playsAsPlayer(account.kind)
         ? { ok: true, becomes: null }
         : { ok: false, refusal: 'PLAYER_ACCOUNT_REQUIRED' };
 

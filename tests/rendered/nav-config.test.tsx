@@ -143,13 +143,11 @@ describe('club admin nav, by role', () => {
     }
   });
 
-  it('a COACH keeps the permission-based view it has today: Players only', () => {
+  it('a COACH membership opens none of it either: no club admin screen is a coach’s (#377)', () => {
+    // It used to open Players. The club's players list, with phones, is not a
+    // coach's to read (owner decision 12).
     const coach = getPermissionsForRole('COACH');
-    const sections = visibleSections(clubAdminNav(SLUG), (i) => coach.includes(i.requires));
-    renderNav(sections);
-    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([
-      `/t/${SLUG}/admin/players`,
-    ]);
+    expect(visibleSections(clubAdminNav(SLUG), (i) => coach.includes(i.requires))).toEqual([]);
   });
 
   it('a PLAYER membership opens none of it, so the layout answers 404', () => {

@@ -27,11 +27,9 @@ const ME = { kind: 'me' } as const;
 export function MessagesTabs({
   initialTab,
   seed,
-  coach,
 }: {
   initialTab: InboxTab;
   seed: V1Page<ConversationSummaryDto>;
-  coach: boolean;
 }) {
   const t = useTranslations('messaging');
   const reportEmptyAction = useReportEmptyAction();
@@ -87,9 +85,7 @@ export function MessagesTabs({
         tab={tab}
         seed={tab === initialTab ? seed : undefined}
         emptyAction={
-          tab === 'conversations' && !coach
-            ? { label: t('tabs.new'), href: '/messages/new' }
-            : undefined
+          tab === 'conversations' ? { label: t('tabs.new'), href: '/messages/new' } : undefined
         }
         onEmptyActionChange={reportEmptyAction}
       />

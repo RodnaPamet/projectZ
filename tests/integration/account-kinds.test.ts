@@ -160,13 +160,26 @@ describe('the database refuses a membership the account kind does not allow', ()
     await expect(fromB).rejects.toThrow(/account_kind_one_club/);
   });
 
-  it('a COACH account holds COACH roles only — at as many clubs as it likes', async () => {
+  it('a COACH account teaches at as many clubs as it likes, plays at others, and runs none (#377, P70)', async () => {
     const coach = await account('COACH');
     await hold(coach.id, a.tenantId, 'COACH');
     await hold(coach.id, b.tenantId, 'COACH');
 
+    // Owner decision 3: a coach also plays. Playing at a club where it does
+    // not teach is a PLAYER membership there, which P37 refused.
     const c = await seedTenant({ name: 'Club C' });
-    await expect(hold(coach.id, c.tenantId, 'PLAYER')).rejects.toThrow(/account_kind_coach_roles/);
+    await expect(hold(coach.id, c.tenantId, 'PLAYER')).resolves.toBeDefined();
+
+    // Still no club role, at a fourth club or anywhere.
+    const d = await seedTenant({ name: 'Club D' });
+    for (const role of ['STAFF', 'MANAGER', 'OWNER'] as const) {
+      await expect(hold(coach.id, d.tenantId, role)).rejects.toThrow(/account_kind_coach_roles/);
+    }
+  });
+
+  it('a PLAYER account is held exactly as before: no coach role on it', async () => {
+    const player = await account('PLAYER');
+    await expect(hold(player.id, a.tenantId, 'COACH')).rejects.toThrow(/account_kind_player_roles/);
   });
 
   it('a row that is not ACTIVE is history, and is not held to anything', async () => {
@@ -368,17 +381,27 @@ describe('booking a court needs a PLAYER account', () => {
     expect(invented.body.error?.message).toBe(real.body.error?.message);
   });
 
-  it.each([
-    ['a COACH account', 'COACH'],
-    ['an account the migration left undecided', null],
-  ] as const)('%s is refused too', async (_label, kind) => {
-    const who = await account(kind);
+  it('an account the migration left undecided is refused too', async () => {
+    const who = await account(null);
 
     const { status, body } = await book(who.id, club.tenantSlug);
 
     expect(status).toBe(403);
     expect(body.error?.code).toBe('PLAYER_ACCOUNT_REQUIRED');
     expect(await membershipsOf(who.id)).toEqual([]);
+  });
+
+  it('a COACH account books: a coach plays too, and joins the club as a player (#377)', async () => {
+    // Refused until the coach module's first decision: "a coach account can do
+    // everything a player can, plus teach."
+    const who = await account('COACH');
+
+    const { status } = await book(who.id, club.tenantSlug);
+
+    expect(status).toBe(201);
+    expect(await membershipsOf(who.id)).toEqual([
+      expect.objectContaining({ role: 'PLAYER', status: 'ACTIVE' }),
+    ]);
   });
 });
 

@@ -237,15 +237,12 @@ describe('MessagesTabs — one «Ново съобщение» at a time', () =>
   const full = { items: [summary('cv1')], nextCursor: null };
 
   /** The page's header and tabs, as `/messages` arranges them. */
-  function page(
-    seed: typeof empty | typeof full,
-    { initialTab = 'conversations', coach = false } = {},
-  ) {
+  function page(seed: typeof empty | typeof full, { initialTab = 'conversations' } = {}) {
     const tab = initialTab as 'conversations' | 'requests';
     wrap(
-      <NewMessageProvider carriedBySeed={!coach && tab === 'conversations' && !seed.items.length}>
-        {coach ? null : <NewMessageLink />}
-        <MessagesTabs initialTab={tab} seed={seed} coach={coach} />
+      <NewMessageProvider carriedBySeed={tab === 'conversations' && !seed.items.length}>
+        <NewMessageLink />
+        <MessagesTabs initialTab={tab} seed={seed} />
       </NewMessageProvider>,
     );
   }
@@ -306,13 +303,6 @@ describe('MessagesTabs — one «Ново съобщение» at a time', () =>
     await waitFor(() => expect(screen.getByTestId('messages-new')).toBeInTheDocument());
     expect(screen.queryByTestId('inbox-empty')).toBeNull();
     expect(buttons()).toHaveLength(1);
-  });
-
-  it('a coach is offered none: not in the header, not in the empty state', () => {
-    inbox(empty);
-    page(empty, { coach: true });
-    expect(screen.getByTestId('inbox-empty')).toBeInTheDocument();
-    expect(buttons()).toHaveLength(0);
   });
 });
 
