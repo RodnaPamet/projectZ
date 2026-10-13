@@ -221,10 +221,6 @@ jobs:
           else
             echo "No Prisma schema yet — skipping."
           fi
-      - name: Configure search indexes
-        if: needs.preflight.outputs.has_app == 'true'
-        run: npx tsx scripts/search-setup.ts
-
       - name: 'Run tests: integration'
         if: needs.preflight.outputs.has_app == 'true'
         run: |
@@ -309,9 +305,6 @@ jobs:
       # BLOCKING as of P12. Enforcement is via the CLI flag, NOT the config
       # file: jest SILENTLY IGNORES a top-level `coverageThreshold` in
       # multi-project mode and exits 0 however low coverage actually is.
-      - name: Configure search indexes
-        run: npx tsx scripts/search-setup.ts
-
       - name: 'Gate: coverage floor (BLOCKING)'
         run: |
           npx jest --coverage --runInBand --ci \
