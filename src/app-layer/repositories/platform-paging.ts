@@ -131,14 +131,14 @@ export async function moderationQueuePageIds(
     ? await db.$queryRaw<{ id: string }[]>`
         SELECT id FROM moderation_case
          WHERE status = 'OPEN'
-           AND "subjectType" IN ('REVIEW', 'CHAT_MESSAGE', 'CONVERSATION')
+           AND "subjectType" IN ('REVIEW', 'CHAT_MESSAGE', 'CONVERSATION', 'OPEN_GAME_NOTE')
            AND ("createdAt", id) > (${after.createdAt}::timestamptz, ${after.id})
          ORDER BY "createdAt" ASC, id ASC
          LIMIT ${limit + 1}`
     : await db.$queryRaw<{ id: string }[]>`
         SELECT id FROM moderation_case
          WHERE status = 'OPEN'
-           AND "subjectType" IN ('REVIEW', 'CHAT_MESSAGE', 'CONVERSATION')
+           AND "subjectType" IN ('REVIEW', 'CHAT_MESSAGE', 'CONVERSATION', 'OPEN_GAME_NOTE')
          ORDER BY "createdAt" ASC, id ASC
          LIMIT ${limit + 1}`;
 

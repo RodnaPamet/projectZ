@@ -9,7 +9,9 @@ import {
   sendMessage,
   unreadSummary,
 } from '@/app-layer/usecases/messaging';
+import { resolveChatCase } from '@/app-layer/usecases/moderation-messages';
 import { listModerationCases } from '@/app-layer/usecases/moderation-queue';
+import { reportGameNote } from '@/app-layer/usecases/open-play-report';
 import { exportMyData } from '@/app-layer/usecases/data-export';
 import { answerRequest, askToJoin, getBookingGame, openGame } from '@/app-layer/usecases/open-play';
 
@@ -257,5 +259,133 @@ describe('the game chat (#376)', () => {
       },
     });
     expect(item.messages.map((m) => [m.body, m.reported])).toEqual([['ти си никой', true]]);
+  });
+
+  describe('reporting a game’s public note (#526)', () => {
+    const NOTE = 'Само за сериозни играчи, без начинаещи!!!';
+    const noteCases = async () =>
+      (await asAppSuperuser(db, (tx) => listModerationCases(tx, {}))).items.flatMap((i) =>
+        i.subject === 'OPEN_GAME_NOTE' ? [i] : [],
+      );
+    const noteOf = (gameId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.openGame.findUniqueOrThrow({ where: { id: gameId }, select: { note: true } }),
+      ).then((g) => g.note);
+
+    async function gameWithNote() {
+      const s = await setup();
+      await asAppSuperuser(db, (tx) =>
+        tx.openGame.update({ where: { id: s.gameId }, data: { note: NOTE } }),
+      );
+      return s;
+    }
+
+    it('joins the moderation queue as ONE case however many report it, with the note and no reporter', async () => {
+      const s = await gameWithNote();
+      await reportGameNote({
+        userId: s.a,
+        gameId: s.gameId,
+        report: { reason: 'abuse', details: '<b>обижда</b> начинаещите' },
+      });
+      await reportGameNote({ userId: s.b, gameId: s.gameId, report: { reason: 'inappropriate' } });
+      // The same person again: still one report of theirs.
+      await reportGameNote({ userId: s.a, gameId: s.gameId, report: { reason: 'abuse' } });
+
+      const cases = await noteCases();
+      expect(cases).toHaveLength(1);
+      const item = cases[0]!;
+      expect(item).toMatchObject({
+        subject: 'OPEN_GAME_NOTE',
+        reason: 'user_report',
+        conversation: {
+          id: s.gameId,
+          kind: 'game',
+          game: { venueName: 'Алфа Кортове', timezone: expect.any(String) },
+        },
+      });
+      expect(item.messages).toEqual([
+        expect.objectContaining({ id: s.gameId, body: NOTE, reported: true, deleted: false }),
+      ]);
+      expect(item.reports.map((r) => r.reason)).toEqual([
+        'abuse — обижда начинаещите',
+        'inappropriate',
+      ]);
+      // What the moderator sees names neither reporter.
+      const shown = JSON.stringify(item);
+      expect(shown).not.toContain(s.a);
+      expect(shown).not.toContain(s.b);
+    });
+
+    it('a moderator removes the note, and the game, its booking and its players stay', async () => {
+      const s = await gameWithNote();
+      await s.join(s.a);
+      await reportGameNote({ userId: s.b, gameId: s.gameId, report: { reason: 'abuse' } });
+      const [item] = await noteCases();
+      const moderator = await seedAccount('PLAYER', db);
+
+      const decided = await asAppSuperuser(db, (tx) =>
+        resolveChatCase(tx, {
+          caseId: item!.caseId,
+          moderatorUserId: moderator,
+          approve: false,
+          note: 'insulting, removed per policy',
+        }),
+      );
+      expect(decided).toMatchObject({ status: 'REJECTED', removed: 'note' });
+      expect(await noteOf(s.gameId)).toBeNull();
+      // The game is still there, with the player who joined it.
+      const game = await getBookingGame({ userId: s.booker, bookingId: s.bookingId });
+      expect(game).not.toBeNull();
+      expect(game!.requests.filter((r) => r.status === 'ACCEPTED')).toHaveLength(1);
+      expect(await noteCases()).toEqual([]);
+    });
+
+    it('a moderator keeps the note: nothing changes but the case', async () => {
+      const s = await gameWithNote();
+      await reportGameNote({ userId: s.a, gameId: s.gameId, report: { reason: 'other' } });
+      const [item] = await noteCases();
+      const moderator = await seedAccount('PLAYER', db);
+      const decided = await asAppSuperuser(db, (tx) =>
+        resolveChatCase(tx, { caseId: item!.caseId, moderatorUserId: moderator, approve: true }),
+      );
+      expect(decided).toMatchObject({ status: 'APPROVED', removed: null });
+      expect(await noteOf(s.gameId)).toBe(NOTE);
+    });
+
+    it('not one’s own note, not a game without one, not an unknown game', async () => {
+      const s = await gameWithNote();
+      await expect(
+        reportGameNote({ userId: s.booker, gameId: s.gameId, report: { reason: 'spam' } }),
+      ).rejects.toMatchObject({ code: 'REPORT_OWN_NOTE' });
+      await expect(
+        reportGameNote({ userId: s.a, gameId: 'no-such-game', report: { reason: 'spam' } }),
+      ).rejects.toMatchObject({ code: 'GAME_NOT_FOUND' });
+
+      const bare = await setup();
+      await expect(
+        reportGameNote({ userId: bare.a, gameId: bare.gameId, report: { reason: 'spam' } }),
+      ).rejects.toMatchObject({ code: 'GAME_NOTE_NOT_FOUND' });
+      expect(await noteCases()).toEqual([]);
+    });
+
+    it('a club’s account cannot report: reporting is a player’s', async () => {
+      const s = await gameWithNote();
+      const staff = await seedAccount('CLUB', db);
+      await expect(
+        reportGameNote({ userId: staff, gameId: s.gameId, report: { reason: 'spam' } }),
+      ).rejects.toMatchObject({ code: 'PLAYER_ACCOUNT_REQUIRED' });
+    });
+
+    it('the queue shows the note as it stands now, cleared by its writer included', async () => {
+      const s = await gameWithNote();
+      await reportGameNote({ userId: s.a, gameId: s.gameId, report: { reason: 'abuse' } });
+      await asAppSuperuser(db, (tx) =>
+        tx.openGame.update({ where: { id: s.gameId }, data: { note: null } }),
+      );
+      const [item] = await noteCases();
+      expect(item!.messages).toEqual([
+        expect.objectContaining({ body: null, deleted: true, reported: true }),
+      ]);
+    });
   });
 });

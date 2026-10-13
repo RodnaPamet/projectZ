@@ -93,7 +93,7 @@ interface ReviewCaseItem {
 
 /** A reported message or conversation (#375). */
 interface ChatCaseItem {
-  subject: 'CHAT_MESSAGE' | 'CONVERSATION';
+  subject: 'CHAT_MESSAGE' | 'CONVERSATION' | 'OPEN_GAME_NOTE';
   caseId: string;
   reason: string;
   openedAt: string;
@@ -117,8 +117,7 @@ interface ChatCaseItem {
 
 type CaseItem = ReviewCaseItem | ChatCaseItem;
 
-const isChatCase = (item: CaseItem): item is ChatCaseItem =>
-  item.subject === 'CHAT_MESSAGE' || item.subject === 'CONVERSATION';
+const isChatCase = (item: CaseItem): item is ChatCaseItem => item.subject !== 'REVIEW';
 
 type Decision = 'APPROVE' | 'REJECT';
 
@@ -186,9 +185,7 @@ export function ModerationQueue() {
     // A review's decision moves a venue's rating; a message's does not, and has
     // its own route so the audit row names it (#375).
     url: ({ caseId, subject }) =>
-      subject === 'CHAT_MESSAGE' || subject === 'CONVERSATION'
-        ? V1.resolveMessageCase(caseId)
-        : V1.resolveCase(caseId),
+      subject === 'REVIEW' ? V1.resolveCase(caseId) : V1.resolveMessageCase(caseId),
     body: ({ decision, note }) => ({ decision, note }),
     target: getKey ? { infinite: mutate, getKey } : undefined,
     update: (pages, { caseId }) =>
@@ -516,14 +513,18 @@ function ChatCaseCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-content-emphasis font-medium">
-            {item.subject === 'CHAT_MESSAGE' ? tChat('titleMessage') : tChat('titleConversation')}
+            {item.subject === 'CHAT_MESSAGE'
+              ? tChat('titleMessage')
+              : item.subject === 'OPEN_GAME_NOTE'
+                ? tChat('titleNote')
+                : tChat('titleConversation')}
           </p>
           <p className="text-content-muted text-sm">
             {item.conversation.kind === 'club' && item.conversation.club
               ? tChat('withClub', { club: item.conversation.club.name })
               : item.conversation.kind === 'game'
                 ? item.conversation.game
-                  ? tChat('gameChatAt', {
+                  ? tChat(item.subject === 'OPEN_GAME_NOTE' ? 'gameNoteAt' : 'gameChatAt', {
                       venue: item.conversation.game.venueName,
                       when: gameWhen(item.conversation.game),
                     })
@@ -574,7 +575,11 @@ function ChatCaseCard({
             <p
               className={`text-sm whitespace-pre-wrap ${m.deleted ? 'text-content-muted italic' : 'text-content-default'}`}
             >
-              {m.deleted ? tChat('deleted') : m.body}
+              {m.deleted
+                ? item.subject === 'OPEN_GAME_NOTE'
+                  ? tChat('deletedNote')
+                  : tChat('deleted')
+                : m.body}
             </p>
           </li>
         ))}
@@ -600,7 +605,11 @@ function ChatCaseCard({
             disabled={!noteReady}
             onClick={() => onDecide('REJECT')}
           >
-            {item.subject === 'CHAT_MESSAGE' ? tChat('removeMessage') : tChat('closeConversation')}
+            {item.subject === 'CHAT_MESSAGE'
+              ? tChat('removeMessage')
+              : item.subject === 'OPEN_GAME_NOTE'
+                ? tChat('removeNote')
+                : tChat('closeConversation')}
           </Button>
         </div>
         {error && <InlineNotice variant="error">{t(`error.${error}` as never)}</InlineNotice>}

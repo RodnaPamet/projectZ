@@ -10719,6 +10719,116 @@
         }
       }
     },
+    "/games/{id}/report": {
+      "post": {
+        "operationId": "reportGameNote",
+        "summary": "Report the public note on a game.",
+        "description": "A booker who opens a game may write a note on it, shown on Игри and on the venue page to everyone. A signed-in player reports it here (#526), as a message is reported: a `reason`, and `details` in their own words if they want. The report joins the platform's moderation queue: one open case per game however many people report it. The booker is not told, and the moderator never learns who reported. Reporting the same note again is not an error.\n\nA moderator can clear the note; the game, its booking and its players stay.",
+        "tags": ["Games"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Game id, as `OpenGame.id`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed. One case per subject however many report it; reporting twice is one report.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REPORT_OWN_NOTE` — the note is the caller's own. `BAD_REQUEST` — the body fails the `.strict()` schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club or coach account, or one that has not chosen its kind.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`GAME_NOT_FOUND` — no such game for the caller (an unknown id, or a game they are not shown). `GAME_NOTE_NOT_FOUND` — the game has no note.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/game-requests": {
       "get": {
         "operationId": "listMyGameRequests",

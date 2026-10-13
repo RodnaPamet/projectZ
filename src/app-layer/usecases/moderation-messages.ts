@@ -33,7 +33,8 @@ import { CaseAlreadyResolvedError, ModerationCaseNotFoundError } from './reviews
  *   remove (REJECT)    a message: its text is gone, a tombstone keeps its place,
  *                      as a retraction does; a conversation: closed for both
  *                      sides (`blockedSide` PLATFORM), and nobody in it can
- *                      lift that
+ *                      lift that; a game's public note (#526): cleared, and
+ *                      the game stays
  */
 
 /** The latest messages of a conversation a case shows around what was reported. */
@@ -50,7 +51,12 @@ export interface CaseMessage {
 }
 
 export interface ChatQueueItem {
-  subject: 'CHAT_MESSAGE' | 'CONVERSATION';
+  /**
+   * A message, a whole conversation, or the public note on a game (#526). A
+   * note is shown as the one reported line of its game: `conversation.id` is
+   * then the game's id, and `messages` holds the note alone.
+   */
+  subject: 'CHAT_MESSAGE' | 'CONVERSATION' | 'OPEN_GAME_NOTE';
   caseId: string;
   reason: string;
   openedAt: Date;
@@ -107,6 +113,7 @@ export async function chatCaseItems(
   }>,
 ): Promise<Map<string, ChatQueueItem>> {
   const out = new Map<string, ChatQueueItem>();
+  await gameNoteItems(db, cases, out);
   const chat = cases.filter(
     (c) => c.subjectType === 'CHAT_MESSAGE' || c.subjectType === 'CONVERSATION',
   );
@@ -242,11 +249,117 @@ export async function chatCaseItems(
   return out;
 }
 
+/**
+ * The reported game notes among `cases` (#526), each as the one reported line
+ * of its game: the note as it stands now, who wrote it, where and when the
+ * game is, and what the reports said. Three reads for the page. A case whose
+ * game is gone is left out, as a case whose conversation is gone is.
+ */
+async function gameNoteItems(
+  db: PrismaClient,
+  cases: ReadonlyArray<{
+    id: string;
+    subjectType: string;
+    subjectId: string;
+    reason: string;
+    createdAt: Date;
+  }>,
+  out: Map<string, ChatQueueItem>,
+): Promise<void> {
+  const notes = cases.filter((c) => c.subjectType === 'OPEN_GAME_NOTE');
+  if (notes.length === 0) return;
+  const gameIds = [...new Set(notes.map((c) => c.subjectId))];
+
+  const [games, reports] = await Promise.all([
+    // guardrail-allow: cross-tenant — the games the page's cases name, by id.
+    db.openGame.findMany({
+      where: { id: { in: gameIds } },
+      select: {
+        id: true,
+        note: true,
+        updatedAt: true,
+        booking: {
+          select: {
+            bookedByUserId: true,
+            startTs: true,
+            endTs: true,
+            resource: { select: { venue: { select: { name: true, timezone: true } } } },
+          },
+        },
+      },
+      take: gameIds.length,
+    }),
+    // guardrail-allow: cross-tenant — what the reports on these notes said.
+    db.contentReport.findMany({
+      where: { subjectType: 'OPEN_GAME_NOTE', subjectId: { in: gameIds } },
+      select: { subjectId: true, reason: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: gameIds.length * 50,
+    }),
+  ]);
+  const bookerIds = [
+    ...new Set(games.flatMap((g) => (g.booking.bookedByUserId ? [g.booking.bookedByUserId] : []))),
+  ];
+  const bookers = bookerIds.length
+    ? await db.user.findMany({
+        where: { id: { in: bookerIds } },
+        select: { id: true, name: true, deletedAt: true },
+        take: bookerIds.length,
+      })
+    : [];
+  const bookerById = new Map(bookers.map((u) => [u.id, u]));
+  const gameById = new Map(games.map((g) => [g.id, g]));
+
+  for (const c of notes) {
+    const g = gameById.get(c.subjectId);
+    if (!g) continue;
+    const u = g.booking.bookedByUserId ? bookerById.get(g.booking.bookedByUserId) : undefined;
+    const venue = g.booking.resource.venue;
+    out.set(c.id, {
+      subject: 'OPEN_GAME_NOTE',
+      caseId: c.id,
+      reason: c.reason,
+      openedAt: c.createdAt,
+      conversation: {
+        id: g.id,
+        kind: 'game',
+        club: null,
+        game: {
+          venueName: venue.name,
+          startTs: g.booking.startTs.toISOString(),
+          endTs: g.booking.endTs.toISOString(),
+          timezone: venue.timezone,
+        },
+        closed: false,
+      },
+      messages: [
+        {
+          id: g.id,
+          from: {
+            name: u && !u.deletedAt ? u.name : null,
+            deleted: !u || u.deletedAt !== null,
+            clubName: null,
+          },
+          // The note as it stands: its writer may have changed or cleared it
+          // since the report, and a moderator judges what is shown now.
+          body: g.note,
+          deleted: g.note === null,
+          createdAt: g.updatedAt,
+          reported: true,
+        },
+      ],
+      reports: reports
+        .filter((r) => r.subjectId === c.subjectId)
+        .map((r) => ({ reason: r.reason, at: r.createdAt })),
+    });
+  }
+}
+
 export interface ChatCaseResolution {
   caseId: string;
   status: ModerationCaseStatus;
-  /** What the decision removed: the message, the conversation (closed), or nothing. */
-  removed: 'message' | 'conversation' | null;
+  /** What the decision removed: the message, the conversation (closed), a game's note, or nothing. */
+  removed: 'message' | 'conversation' | 'note' | null;
 }
 
 /**
@@ -265,7 +378,7 @@ export async function resolveChatCase(
       where: {
         id: input.caseId,
         status: 'OPEN',
-        subjectType: { in: ['CHAT_MESSAGE', 'CONVERSATION'] },
+        subjectType: { in: ['CHAT_MESSAGE', 'CONVERSATION', 'OPEN_GAME_NOTE'] },
       },
       data: {
         status: input.approve ? 'APPROVED' : 'REJECTED',
@@ -278,7 +391,10 @@ export async function resolveChatCase(
     if (!closed) {
       // guardrail-allow: cross-tenant — only to say WHICH refusal it is.
       const exists = await tx.moderationCase.count({
-        where: { id: input.caseId, subjectType: { in: ['CHAT_MESSAGE', 'CONVERSATION'] } },
+        where: {
+          id: input.caseId,
+          subjectType: { in: ['CHAT_MESSAGE', 'CONVERSATION', 'OPEN_GAME_NOTE'] },
+        },
       });
       throw exists > 0 ? new CaseAlreadyResolvedError() : new ModerationCaseNotFoundError();
     }
@@ -292,6 +408,12 @@ export async function resolveChatCase(
         data: { deletedAt: now, body: '' },
       });
       return { caseId: closed.id, status: closed.status, removed: 'message' };
+    }
+    if (closed.subjectType === 'OPEN_GAME_NOTE') {
+      // The note goes; the game, its booking and its players stay (#526).
+      // guardrail-allow: cross-tenant — the one reported game, by id.
+      await tx.openGame.updateMany({ where: { id: closed.subjectId }, data: { note: null } });
+      return { caseId: closed.id, status: closed.status, removed: 'note' };
     }
     // guardrail-allow: cross-tenant — the one reported conversation, by id.
     await tx.conversation.updateMany({

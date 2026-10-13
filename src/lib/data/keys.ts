@@ -237,6 +237,8 @@ export const V1 = {
   askToJoinGame: (gameId: string) => `${BASE}/games/${seg(gameId)}/requests`,
   /** `DELETE`: withdraw one's request, or leave the game it put one in (#376). */
   withdrawGameRequest: (requestId: string) => `${BASE}/me/game-requests/${seg(requestId)}`,
+  /** Report the public note on a game to the moderators (#526). */
+  reportGameNote: (id: string) => `${BASE}/games/${seg(id)}/report`,
   /** `PUT { spots, levelMin?, levelMax?, note? }` opens; `DELETE` closes (#376). */
   bookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
   /** `POST`: the booker accepts or declines one request (#376). */

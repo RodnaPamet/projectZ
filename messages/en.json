@@ -1642,16 +1642,19 @@
       "chat": {
         "titleMessage": "Reported message",
         "titleConversation": "Reported conversation",
+        "titleNote": "Reported game note",
         "withClub": "Conversation with {club}",
         "betweenPlayers": "Conversation between players",
         "gameChatAt": "Game chat at {venue}, {when}",
         "gameChat": "Game chat",
+        "gameNoteAt": "Note on a game at {venue}, {when}",
         "closed": "closed",
         "reportsLabel": "Reports",
         "contextLabel": "The latest messages in the conversation",
         "unnamed": "Unnamed player",
         "reported": "reported",
         "deleted": "Message deleted",
+        "deletedNote": "The note is no longer there",
         "reason": {
           "spam": "Spam or advertising",
           "abuse": "Insults or harassment",
@@ -1660,6 +1663,7 @@
         },
         "keep": "Keep",
         "removeMessage": "Remove the message",
+        "removeNote": "Remove the note",
         "closeConversation": "Close the conversation"
       }
     },
@@ -2607,6 +2611,7 @@
     "report": {
       "titleMessage": "Report a message",
       "titleConversation": "Report a conversation",
+      "titleNote": "Report a game note",
       "description": "Your report goes to playerz's moderators. The other side is not told, and moderators do not see who reported.",
       "reasonLabel": "What is wrong?",
       "reason": {
@@ -2664,7 +2669,8 @@
       "manage": "Your game",
       "toBooking": "Go to the booking",
       "ask": "I want to play",
-      "withdraw": "Withdraw the request"
+      "withdraw": "Withdraw the request",
+      "reportNote": "Report"
     },
     "status": {
       "PENDING": "Awaiting an answer",
