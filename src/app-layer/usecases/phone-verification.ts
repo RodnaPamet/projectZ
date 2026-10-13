@@ -1,5 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
 
+import {
+  PHONE_CHALLENGE_TTL_MS,
+  readPhoneChallenge,
+  signPhoneChallenge,
+} from '@/lib/account/phone-challenge';
 import { maskPhone, phoneFingerprint } from '@/lib/account/phone-fingerprint';
 import { normalizePhone } from '@/lib/booking/phone';
 import { runAsUserOnly } from '@/lib/db/rls-middleware';
@@ -26,13 +31,19 @@ import { inheritNoShowStandingByPhone } from './no-show-carry';
  *
  * ═══ THE TWO STEPS ═══
  *
- *   start     the person types a number; a code is sent to it by SMS
- *   confirm   the person types the code; the number becomes the account's
+ *   start     the person types a number; a code is sent to it by SMS, and
+ *             the client gets a challenge to send back
+ *   confirm   the person types the code; with the challenge and the same
+ *             number, the number becomes the account's
  *
- * The code is Twilio Verify's from start to end (src/lib/sms/phone-verifier.ts):
- * playerz never holds one. What playerz adds is its own limits, on the person
- * and on the number, so a signed-in account cannot use the step to text the
- * same stranger again and again.
+ * The code is the SMS provider's from start to end (Infobip's 2FA API,
+ * src/lib/sms/phone-verifier.ts): playerz never holds one. What playerz adds
+ * is its own limits, on the person and on the number, so a signed-in account
+ * cannot use the step to text the same stranger again and again; and the
+ * CHALLENGE that `start` hands out and `confirm` takes back
+ * (src/lib/account/phone-challenge.ts), which ties the code that was sent to
+ * this account and this number. The provider checks a code by its own id and
+ * knows nothing of either.
  *
  * ═══ "THIS NUMBER IS TAKEN" IS SAID ONLY TO ITS HOLDER ═══
  *
@@ -97,7 +108,7 @@ export class PhoneRequiredError extends Error {
   }
 }
 
-/** Codes one account may ask for: a few, then a pause. Twilio has its own limits beneath. */
+/** Codes one account may ask for: a few, then a pause. The provider has its own limits beneath. */
 export const PHONE_START_PER_USER: RateLimitConfig = { maxAttempts: 5, windowMs: 60 * 60_000 };
 /** Codes one NUMBER may be sent, whoever asks: nobody is texted more than this by us. */
 export const PHONE_START_PER_NUMBER: RateLimitConfig = { maxAttempts: 3, windowMs: 60 * 60_000 };
@@ -105,7 +116,7 @@ export const PHONE_START_PER_NUMBER_DAILY: RateLimitConfig = {
   maxAttempts: 6,
   windowMs: 24 * 60 * 60_000,
 };
-/** Guesses one account may make. Twilio stops a single code after five. */
+/** Guesses one account may make. The provider stops a single code after a few. */
 export const PHONE_CONFIRM_PER_USER: RateLimitConfig = { maxAttempts: 10, windowMs: 60 * 60_000 };
 
 async function limited(key: string, config: RateLimitConfig, message: string): Promise<void> {
@@ -116,7 +127,7 @@ async function limited(key: string, config: RateLimitConfig, message: string): P
 function verifierOrThrow() {
   const verifier = phoneVerifier();
   if (!verifier) {
-    logger.error('the phone step was used with no verifier configured (TWILIO_* unset)', {
+    logger.error('the phone step was used with no verifier configured (INFOBIP_* unset)', {
       component: 'phone-verify',
     });
     throw new PhoneVerifyUnavailableError();
@@ -166,7 +177,8 @@ export async function startPhoneVerification(
   userId: string,
   rawPhone: string,
   rawLocale: unknown,
-): Promise<{ sent: true; number: string }> {
+  now: Date = new Date(),
+): Promise<{ sent: true; number: string; challenge: string }> {
   const verifier = verifierOrThrow();
   const e164 = e164OrThrow(rawPhone);
   const fingerprint = phoneFingerprint(e164);
@@ -195,7 +207,17 @@ export async function startPhoneVerification(
     }
     throw new PhoneVerifyUnavailableError();
   }
-  return { sent: true, number: maskPhone(e164) };
+  return {
+    sent: true,
+    number: maskPhone(e164),
+    // What `confirm` takes back: this account, this number, this code.
+    challenge: signPhoneChallenge({
+      userId,
+      fingerprint,
+      ref: started.ref,
+      expiresAt: now.getTime() + PHONE_CHALLENGE_TTL_MS,
+    }),
+  };
 }
 
 /**
@@ -207,6 +229,8 @@ export async function confirmPhoneVerification(
   userId: string,
   rawPhone: string,
   code: string,
+  challengeToken: string,
+  now: Date = new Date(),
 ): Promise<{ verified: true; number: string; inherited: number }> {
   const verifier = verifierOrThrow();
   const e164 = e164OrThrow(rawPhone);
@@ -218,7 +242,15 @@ export async function confirmPhoneVerification(
     'Too many attempts. Try again in an hour.',
   );
 
-  const checked = await verifier.check(e164, code);
+  // The challenge from `start`: ours, not expired, made for THIS account and
+  // for THIS number. Anything else is "ask for a new code": it says nothing
+  // about why, and nothing is asked of the provider.
+  const challenge = readPhoneChallenge(challengeToken, now.getTime());
+  if (!challenge || challenge.userId !== userId || challenge.fingerprint !== fingerprint) {
+    throw new PhoneCodeExpiredError();
+  }
+
+  const checked = await verifier.check(challenge.ref, code);
   if (!checked.ok) {
     if (checked.reason === 'wrong') throw new PhoneCodeWrongError();
     if (checked.reason === 'expired') throw new PhoneCodeExpiredError();

@@ -21,5 +21,7 @@ export const phoneConfirmBodySchema = z
       .string()
       .transform((v) => v.replace(/\s+/g, ''))
       .pipe(z.string().regex(/^\d{4,10}$/)),
+    /** What `/me/phone/start` answered with: it ties the code to this account and number. */
+    challenge: z.string().min(16).max(2048),
   })
   .strict();

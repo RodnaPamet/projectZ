@@ -141,26 +141,37 @@ export const env = createEnv({
 
     // ═══ THE PHONE CHECK (#500) ═══
     //
-    // A player or coach confirms a phone number by an SMS code. Twilio Verify
-    // sends and checks the code (src/lib/sms/phone-verifier.ts): the account,
-    // its auth token, and the Verify SERVICE (VA…), all three or none.
+    // A player or coach confirms a phone number by an SMS code. Infobip's 2FA
+    // API sends and checks the code (src/lib/sms/phone-verifier.ts; owner
+    // decision 2026-10-13): the account's own API host, an API key allowed to
+    // send and verify 2FA PINs, the 2FA APPLICATION, and the MESSAGE TEMPLATE
+    // in Bulgarian. All four or none. A second template in English is
+    // optional; without it everybody gets the Bulgarian text.
     //
-    // REQUIRE_PHONE=1 is what turns the rule on: booking, asking to join a
-    // game and writing a message then need a confirmed number
-    // (`PHONE_REQUIRED`). Off by default, so a deployment without the keys
-    // behaves as before; `1` without the keys refuses the check loudly at use
-    // (503), never silently lets it pass.
-    TWILIO_ACCOUNT_SID: z
+    // REQUIRE_PHONE=1 is what turns the rule on: booking, joining a game and
+    // writing a message then need a confirmed number (`PHONE_REQUIRED`). Off
+    // by default, so a deployment without the keys behaves as before; `1`
+    // without them refuses the check loudly at use (503), never silently lets
+    // it pass.
+    INFOBIP_BASE_URL: z
       .string()
-      .regex(/^AC[0-9a-fA-F]{32}$/)
+      .regex(/^https:\/\/[a-z0-9.-]+\.infobip\.com\/?$/i)
       .optional(),
-    TWILIO_AUTH_TOKEN: z.string().min(16).optional(),
-    TWILIO_VERIFY_SERVICE_SID: z
+    INFOBIP_API_KEY: z.string().min(16).optional(),
+    INFOBIP_2FA_APPLICATION_ID: z
       .string()
-      .regex(/^VA[0-9a-fA-F]{32}$/)
+      .regex(/^[0-9A-Za-z]{16,64}$/)
+      .optional(),
+    INFOBIP_2FA_MESSAGE_ID: z
+      .string()
+      .regex(/^[0-9A-Za-z]{16,64}$/)
+      .optional(),
+    INFOBIP_2FA_MESSAGE_ID_EN: z
+      .string()
+      .regex(/^[0-9A-Za-z]{16,64}$/)
       .optional(),
     REQUIRE_PHONE: z.enum(['0', '1']).default('0'),
-    // The tests' stand-in for the SMS: with DEPLOY_ENV=test and no Twilio
+    // The tests' stand-in for the SMS: with DEPLOY_ENV=test and no Infobip
     // keys, this code confirms any number. Ignored everywhere else.
     PHONE_VERIFY_TEST_CODE: z
       .string()
@@ -491,9 +502,11 @@ export const env = createEnv({
 
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
-    TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
-    TWILIO_VERIFY_SERVICE_SID: process.env.TWILIO_VERIFY_SERVICE_SID,
+    INFOBIP_BASE_URL: process.env.INFOBIP_BASE_URL,
+    INFOBIP_API_KEY: process.env.INFOBIP_API_KEY,
+    INFOBIP_2FA_APPLICATION_ID: process.env.INFOBIP_2FA_APPLICATION_ID,
+    INFOBIP_2FA_MESSAGE_ID: process.env.INFOBIP_2FA_MESSAGE_ID,
+    INFOBIP_2FA_MESSAGE_ID_EN: process.env.INFOBIP_2FA_MESSAGE_ID_EN,
     REQUIRE_PHONE: process.env.REQUIRE_PHONE,
     PHONE_VERIFY_TEST_CODE: process.env.PHONE_VERIFY_TEST_CODE,
     FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,

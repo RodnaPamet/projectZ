@@ -104,7 +104,9 @@ describe('the phone step', () => {
   });
 
   it('sends the number as typed, then asks for the code and says where it went', async () => {
-    const calls = installFakeFetch(() => ok({ sent: true, number: '+35988*****56' }));
+    const calls = installFakeFetch(() =>
+      ok({ sent: true, number: '+35988*****56', challenge: 'chal-1' }),
+    );
     mount();
     type('phone-input', '0888 123 456');
     fireEvent.click(screen.getByTestId('phone-send'));
@@ -123,7 +125,7 @@ describe('the phone step', () => {
   it('confirms with the same number and the code, then goes on to where the person was going', async () => {
     const calls = installFakeFetch((c) =>
       c.url.endsWith('/start')
-        ? ok({ sent: true, number: '+35988*****56' })
+        ? ok({ sent: true, number: '+35988*****56', challenge: 'chal-1' })
         : ok({ id: 'usr_new' }),
     );
     mount('/venues/alfa?day=2026-10-20&confirm=1');
@@ -139,7 +141,8 @@ describe('the phone step', () => {
     expect(calls.at(-1)).toMatchObject({
       method: 'POST',
       url: '/api/v1/me/phone/confirm',
-      body: { phone: '0888 123 456', code: '314 159' },
+      // The challenge the send answered goes back with the code.
+      body: { phone: '0888 123 456', code: '314 159', challenge: 'chal-1' },
     });
   });
 
@@ -162,7 +165,9 @@ describe('the phone step', () => {
     ['PHONE_IN_USE', 409],
   ] as const)('a refused code says why and stays on the code: %s', async (code, status) => {
     installFakeFetch((c) =>
-      c.url.endsWith('/start') ? ok({ sent: true, number: '+35988*****56' }) : fail(status, code),
+      c.url.endsWith('/start')
+        ? ok({ sent: true, number: '+35988*****56', challenge: 'chal-1' })
+        : fail(status, code),
     );
     mount();
     type('phone-input', '0888 123 456');
@@ -183,8 +188,13 @@ describe('the phone step', () => {
     expect(phoneStepErrorKey(new Error('offline'))).toBe('FAILED');
   });
 
-  it('«Изпрати отново» sends a new code to the same number and says so', async () => {
-    const calls = installFakeFetch(() => ok({ sent: true, number: '+35988*****56' }));
+  it('«Изпрати отново» sends a new code to the same number, says so, and confirms with the NEW challenge', async () => {
+    let sends = 0;
+    const calls = installFakeFetch((c) =>
+      c.url.endsWith('/start')
+        ? ok({ sent: true, number: '+35988*****56', challenge: `chal-${++sends}` })
+        : ok({ id: 'usr_new' }),
+    );
     mount();
     type('phone-input', '0888 123 456');
     fireEvent.click(screen.getByTestId('phone-send'));
@@ -193,10 +203,20 @@ describe('the phone step', () => {
 
     expect(await screen.findByTestId('phone-resent')).toHaveTextContent(s.code.resent);
     expect(calls.filter((c) => c.url.endsWith('/start'))).toHaveLength(2);
+
+    type('phone-code-input', '271828');
+    fireEvent.click(screen.getByTestId('phone-confirm'));
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    // The first code is dead once a second was sent; so is its challenge.
+    expect(calls.at(-1)!.body).toEqual({
+      phone: '0888 123 456',
+      code: '271828',
+      challenge: 'chal-2',
+    });
   });
 
   it('«Друг номер» goes back to the number, kept as typed', async () => {
-    installFakeFetch(() => ok({ sent: true, number: '+35988*****56' }));
+    installFakeFetch(() => ok({ sent: true, number: '+35988*****56', challenge: 'chal-1' }));
     mount();
     type('phone-input', '0888 123 456');
     fireEvent.click(screen.getByTestId('phone-send'));

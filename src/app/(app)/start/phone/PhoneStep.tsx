@@ -38,9 +38,10 @@ export function phoneStepErrorKey(e: unknown): PhoneStepErrorKey {
  *   2. the code from the SMS → «Потвърди», with «Друг номер» and
  *      «Изпрати отново» beside it
  *
- * The number is sent again with the code: the server holds no "pending
- * number" for the account, so what is confirmed is exactly what the person
- * sees on this screen. On success they go on to where they were going.
+ * The number is sent again with the code, and with the `challenge` the send
+ * answered: the server holds no "pending number" for the account, and the
+ * challenge is what ties this code to this account and this number. On
+ * success they go on to where they were going.
  */
 export function PhoneStep({ to, initialNumber = '' }: { to: string; initialNumber?: string }) {
   const t = useTranslations('phone.step');
@@ -50,14 +51,18 @@ export function PhoneStep({ to, initialNumber = '' }: { to: string; initialNumbe
   const [code, setCode] = useState('');
   /** The number a code went to, hidden in the middle; null on the first screen. */
   const [sentTo, setSentTo] = useState<string | null>(null);
+  /** What the send answered with; the confirm sends it back with the code. */
+  const [challenge, setChallenge] = useState('');
   const [resent, setResent] = useState(false);
   const [error, setError] = useState<PhoneStepErrorKey | null>(null);
 
-  const start = useV1Mutation<{ phone: string }, { sent: true; number: string }>({
-    url: () => V1.startPhone(),
-    body: (arg) => arg,
-  });
-  const confirm = useV1Mutation<{ phone: string; code: string }>({
+  const start = useV1Mutation<{ phone: string }, { sent: true; number: string; challenge: string }>(
+    {
+      url: () => V1.startPhone(),
+      body: (arg) => arg,
+    },
+  );
+  const confirm = useV1Mutation<{ phone: string; code: string; challenge: string }>({
     url: () => V1.confirmPhone(),
     body: (arg) => arg,
   });
@@ -68,6 +73,7 @@ export function PhoneStep({ to, initialNumber = '' }: { to: string; initialNumbe
     try {
       const res = await start.trigger({ phone });
       setSentTo(res?.number ?? phone);
+      setChallenge(res?.challenge ?? '');
       setCode('');
       setResent(again);
     } catch (e) {
@@ -79,7 +85,7 @@ export function PhoneStep({ to, initialNumber = '' }: { to: string; initialNumbe
     setError(null);
     setResent(false);
     try {
-      await confirm.trigger({ phone, code });
+      await confirm.trigger({ phone, code, challenge });
       router.replace(to);
       router.refresh();
     } catch (e) {

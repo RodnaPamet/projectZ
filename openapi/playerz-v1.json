@@ -6171,7 +6171,7 @@
       "post": {
         "operationId": "startPhoneVerification",
         "summary": "Send an SMS code to a phone number.",
-        "description": "The phone step (#500), part one. A player or coach confirms a phone number before their first booking, join request or message (`Me.phone.required`). Type the number as people write it (`0888 123 456`, `+359 88 812 3456`); it is normalised to E.164, and a national Bulgarian number gets +359. A code is sent by SMS and lives ten minutes. Then `POST /me/phone/confirm`.\n\nAnswers `sent: true` for ANY number that can receive a code. Whether another account holds the number is not said here: it is said at confirm, to whoever holds the phone.",
+        "description": "The phone step (#500), part one. A player or coach confirms a phone number before their first booking, join request or message (`Me.phone.required`). Type the number as people write it (`0888 123 456`, `+359 88 812 3456`); it is normalised to E.164, and a national Bulgarian number gets +359. A code is sent by SMS and lives ten minutes. Keep the `challenge` from the answer and send it to `POST /me/phone/confirm` with the code.\n\nAnswers `sent: true` for ANY number that can receive a code. Whether another account holds the number is not said here: it is said at confirm, to whoever holds the phone.",
         "tags": ["Me"],
         "security": [
           {
@@ -6268,7 +6268,7 @@
       "post": {
         "operationId": "confirmPhoneVerification",
         "summary": "Confirm the phone number with the code from the SMS.",
-        "description": "The phone step (#500), part two. `phone` is the number given to `/me/phone/start`, `code` the digits from the SMS (spaces are ignored). On success the number is the account's and the account is answered as `GET /me`, with `phone.verified: true`.\n\nA number confirms ONE account at a time. If a deleted account left a no-show standing under this number, it passes to this account (the same carry-over as by address). To change the number, run the two steps again with the new one.",
+        "description": "The phone step (#500), part two. `phone` is the number given to `/me/phone/start`, `code` the digits from the SMS (spaces are ignored), `challenge` what that call answered. On success the number is the account's and the account is answered as `GET /me`, with `phone.verified: true`.\n\nThe challenge is what ties the code to this account and this number: a code sent to one number cannot confirm another. Asking for a new code gives a new challenge, and the earlier one stops working.\n\nA number confirms ONE account at a time. If a deleted account left a no-show standing under this number, it passes to this account (the same carry-over as by address). To change the number, run the two steps again with the new one.",
         "tags": ["Me"],
         "security": [
           {
@@ -6311,7 +6311,7 @@
             }
           },
           "400": {
-            "description": "`PHONE_CODE_WRONG` — not the code. `PHONE_CODE_EXPIRED` — the code expired, was used, or none was sent to this number: ask for a new one. `PHONE_INVALID`, `BAD_REQUEST` as at start.",
+            "description": "`PHONE_CODE_WRONG` — not the code. `PHONE_CODE_EXPIRED` — the code expired or was used, or the `challenge` is not this account's, not this number's, altered or older than ten minutes: ask for a new code. `PHONE_INVALID`, `BAD_REQUEST` as at start.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6341,7 +6341,7 @@
             }
           },
           "429": {
-            "description": "Code `RATE_LIMITED`: 10 attempts an hour per account, and the provider stops a single code after five wrong guesses. Also the default mutation budget.",
+            "description": "Code `RATE_LIMITED`: 10 attempts an hour per account, and the SMS provider stops a single code after a few wrong guesses. Also the default mutation budget.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds to wait before retrying.",
@@ -13181,7 +13181,7 @@
       },
       "ConfirmPhoneRequest": {
         "type": "object",
-        "required": ["phone", "code"],
+        "required": ["phone", "code", "challenge"],
         "properties": {
           "phone": {
             "type": "string",
@@ -13194,13 +13194,19 @@
             "type": "string",
             "description": "The digits from the SMS, 4 to 10 of them. Spaces are ignored.",
             "example": "123456"
+          },
+          "challenge": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 2048,
+            "description": "The `challenge` that `POST /me/phone/start` answered for this number."
           }
         },
         "additionalProperties": false
       },
       "PhoneCodeSent": {
         "type": "object",
-        "required": ["sent", "number"],
+        "required": ["sent", "number", "challenge"],
         "properties": {
           "sent": {
             "type": "boolean",
@@ -13210,6 +13216,10 @@
             "type": "string",
             "description": "The number the code went to, with its middle hidden.",
             "example": "+35988*****56"
+          },
+          "challenge": {
+            "type": "string",
+            "description": "Send this back, unchanged, to `POST /me/phone/confirm` with the code. It ties the code that was sent to this account and this number, and is good for ten minutes. Opaque: do not parse it."
           }
         },
         "additionalProperties": false
