@@ -162,7 +162,10 @@ jobs:
     name: Integration
     needs: [preflight]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # A normal run is 11–17 minutes. 25 was cancelled on a slow runner with
+    # every suite passing (#531), so the limit leaves room for one; a real
+    # hang still ends here rather than at the six-hour default.
+    timeout-minutes: 35
     services:
       postgres:
         image: postgis/postgis:16-3.4
