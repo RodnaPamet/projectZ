@@ -13,7 +13,10 @@
 -- again (docs/deploy-gcp.md, "Rolling back past p61").
 --
 -- What it does, in one transaction: every notification row of those kinds is
--- copied to p61_parked_notification and removed. Then every column of type
+-- copied to p61_parked_notification and removed, and every email_outbox row of
+-- those kinds to p61_parked_email_outbox (#555: the outbox keeps a row after
+-- it is sent, so without this the check below refused on any database where
+-- open play had been used). Then every column of type
 -- NotificationKind, found from the catalogue, is checked; if any still holds
 -- an OPEN_PLAY_ value, the transaction is rolled back. The open-play tables
 -- and columns stay: the previous image does not map them.
@@ -31,6 +34,13 @@ ALTER TABLE "p61_parked_notification" ALTER COLUMN "kind" TYPE TEXT;
 INSERT INTO "p61_parked_notification"
 SELECT * FROM "notification" WHERE "kind"::text LIKE 'OPEN\_PLAY\_%';
 DELETE FROM "notification" WHERE "kind"::text LIKE 'OPEN\_PLAY\_%';
+
+CREATE TABLE IF NOT EXISTS "p61_parked_email_outbox" (LIKE "email_outbox");
+ALTER TABLE "p61_parked_email_outbox" ALTER COLUMN "kind" TYPE TEXT;
+
+INSERT INTO "p61_parked_email_outbox"
+SELECT * FROM "email_outbox" WHERE "kind"::text LIKE 'OPEN\_PLAY\_%';
+DELETE FROM "email_outbox" WHERE "kind"::text LIKE 'OPEN\_PLAY\_%';
 
 DO $$
 DECLARE
