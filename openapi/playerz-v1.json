@@ -12658,6 +12658,1022 @@
           }
         }
       }
+    },
+    "/me/coach-links": {
+      "get": {
+        "operationId": "listMyCoachLinks",
+        "summary": "The venues I teach at, or asked to",
+        "tags": ["Me"],
+        "description": "A coach's own links, across every club (#546). A link is one coach at one venue: `REQUESTED` until the club's owner or manager answers, then `ACTIVE` or `DECLINED`; `ENDED` once either side ends it.\n\nEach comes with the club, the venue, the terms the coach set there, the lengths the venue's courts allow, and what an active link still needs before a lesson can be booked on it.\n\n**For COACH accounts.**",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The links.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachLinksEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "requestToTeach",
+        "summary": "Ask to teach at a venue",
+        "tags": ["Me"],
+        "description": "An approved coach asks a club's venue (#546; owner decision 4). The club's owner or manager then accepts or declines.\n\nA link that was declined or ended can be asked for again: it starts over, keeping the terms the coach had there. Asking makes the coach nothing at the club until it accepts.\n\nAnswers with the whole list.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestToTeachRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Asked. The whole list, with the new request.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachLinksEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `venueId` is missing or is not an id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. `COACH_NOT_APPROVED` — the platform has not approved the coach's profile yet. `COACH_SUSPENDED_AT_CLUB` — the club suspended this account; it lifts that before it takes them on.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`VENUE_NOT_FOUND` — no such venue, or it or its club is not open.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_LINK_EXISTS` — the coach and this venue already have a request waiting or a link running; `details.status` says which.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-links/{id}": {
+      "put": {
+        "operationId": "saveMyTeachingTerms",
+        "summary": "Set my rates, lengths and cancellation cutoff at a venue",
+        "tags": ["Me"],
+        "description": "What the coach charges and teaches at one venue (#546; owner decisions 2, 5, 6 and 9), all four together: an hourly rate for one player, an optional rate for a group of two or more, the lesson lengths (chosen from the lengths the venue's courts are booked for), and how long before a lesson a player may still cancel.\n\nFor an `ACTIVE` link. The club's audit log records the change. Answers with the whole list.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The link's id, from `GET /me/coach-links`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTeachingTermsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved. The whole list.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachLinksEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `details.field` is `hourlyRateCents`, `groupRateCents`, `lessonMinutes` or `cancelCutoffHours`; `details.reason` is `REQUIRED`, `OUT_OF_RANGE` or `NOT_A_COURT_LENGTH`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_LINK_NOT_FOUND` — no such link, or it is another coach's. The two are not told apart.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_LINK_STATE` — the link is not in a state this can be done to; `details.status` says which.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "endMyCoachLink",
+        "summary": "Stop teaching at a venue, or take a request back",
+        "tags": ["Me"],
+        "description": "Ends a `REQUESTED` or `ACTIVE` link from the coach's side (#546). Lessons already booked stay until they are cancelled; no new ones can be booked. The weekly hours there are deleted. Answers with the whole list.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The link's id, from `GET /me/coach-links`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ended. The whole list.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachLinksEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_LINK_NOT_FOUND` — no such link, or it is another coach's. The two are not told apart.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_LINK_STATE` — the link is not in a state this can be done to; `details.status` says which. An ended or declined link cannot be ended again.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-links/{id}/hours": {
+      "put": {
+        "operationId": "saveMyTeachingHours",
+        "summary": "Set my weekly hours at a venue",
+        "tags": ["Me"],
+        "description": "The weekly hours the coach teaches at one venue (#546; owner decision 14), replacing the week that was there. Up to four stretches a day; two may touch, none may overlap. An empty week is valid: no regular hours here, so no lesson can be booked.\n\nDays off are separate and apply at every venue at once: `/me/coach-time-off`.\n\nFor an `ACTIVE` link. Answers with the whole list of links.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The link's id, from `GET /me/coach-links`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTeachingHoursRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved. The whole list.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachLinksEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `details.field` is `hours`; `details.reason` is `BAD_DAY`, `BAD_TIME` (not `HH:MM`, off the quarter hour, or 24:00), `ENDS_BEFORE_IT_STARTS`, `OVERLAP` or `TOO_MANY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_LINK_NOT_FOUND` — no such link, or it is another coach's. The two are not told apart.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_LINK_STATE` — the link is not in a state this can be done to; `details.status` says which.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-time-off": {
+      "get": {
+        "operationId": "listMyCoachTimeOff",
+        "summary": "My days off",
+        "tags": ["Me"],
+        "description": "A coach's days off (#546; owner decision 14): calendar dates, both ends included, on which the coach teaches at no venue. Only the stretches that are not over. **For COACH accounts.**",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The days off.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachTimeOffEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addMyCoachTimeOff",
+        "summary": "Add days off",
+        "tags": ["Me"],
+        "description": "Adds a stretch of days off. It may already have started but not have ended, starts at most a year ahead, and is at most 92 days long. Without `endDate` it is one day. Stretches that are over are cleared as this runs.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCoachTimeOffRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added. What the coach has now.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachTimeOffEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `details.field` is `startDate`, `endDate` or `note`; `details.reason` is `BAD_DATE`, `ENDS_BEFORE_IT_STARTS`, `IN_THE_PAST`, `TOO_FAR` or `TOO_LONG`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_TIME_OFF_LIMIT` — the coach already keeps 50 stretches.\n\n`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-time-off/{id}": {
+      "delete": {
+        "operationId": "removeMyCoachTimeOff",
+        "summary": "Take days off back",
+        "tags": ["Me"],
+        "description": "Removes one stretch of the caller's days off.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The stretch's id, from `GET /me/coach-time-off`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed. What is left.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachTimeOffEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's. A coach profile belongs to a COACH account only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_TIME_OFF_NOT_FOUND` — no such stretch, or it is another coach's.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`. 60 mutations per 60 seconds, keyed by client IP and shared across all v1 mutations from that IP. The body is the canonical `Error` envelope and omits `error.requestId`; the wait is in the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying, minimum 1.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests permitted per window (60).",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Always `0` on this response.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Unix epoch seconds at which the window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -19253,6 +20269,293 @@
                 "format": "date-time"
               }
             }
+          }
+        }
+      },
+      "CoachTeachingHours": {
+        "type": "object",
+        "required": ["dayOfWeek", "open", "close"],
+        "properties": {
+          "dayOfWeek": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6,
+            "description": "0 = Sunday to 6 = Saturday, as the courts' own hours are."
+          },
+          "open": {
+            "type": "string",
+            "pattern": "^\\d{1,2}:\\d{2}$",
+            "description": "`HH:MM` in the venue's time, on the quarter hour."
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^\\d{1,2}:\\d{2}$",
+            "description": "`HH:MM`, after `open`, the same day. The latest is 23:45."
+          }
+        }
+      },
+      "MyCoachLink": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "startedBy",
+          "club",
+          "venue",
+          "lengthOptions",
+          "hourlyRateCents",
+          "groupRateCents",
+          "currency",
+          "lessonMinutes",
+          "cancelCutoffHours",
+          "hours",
+          "missing",
+          "createdAt",
+          "decidedAt",
+          "endedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["REQUESTED", "INVITED", "ACTIVE", "DECLINED", "ENDED"],
+            "description": "`REQUESTED`: the coach asked and the club has not answered. `ACTIVE`: teaching there. `DECLINED`: the club said no. `ENDED`: either side ended it, or the coach took the request back."
+          },
+          "startedBy": {
+            "type": "string",
+            "enum": ["COACH", "CLUB"],
+            "description": "`CLUB`: the coach accepted the club's email invitation."
+          },
+          "club": {
+            "type": "object",
+            "required": ["name", "slug"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            }
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "name", "city", "timezone"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string"
+              }
+            }
+          },
+          "lengthOptions": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "The lengths, in minutes, this venue's courts are booked for: what `lessonMinutes` is chosen from. Every length any of its courts allows, shortest first."
+          },
+          "hourlyRateCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Per hour, one player. Null until the coach sets it."
+          },
+          "groupRateCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Per hour, two or more players. Null: no group lessons here."
+          },
+          "currency": {
+            "type": "string"
+          },
+          "lessonMinutes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "The lengths the coach teaches here."
+          },
+          "cancelCutoffHours": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 168,
+            "description": "How long before a lesson a player may still cancel. A lesson follows the stricter of this and the club's own."
+          },
+          "hours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachTeachingHours"
+            },
+            "description": "The weekly hours, sorted by day and time."
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["rate", "lengths", "hours"]
+            },
+            "description": "What an `ACTIVE` link still needs before a lesson can be booked on it. Empty for any other status."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      },
+      "MyCoachLinksEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["approved", "links"],
+            "properties": {
+              "approved": {
+                "type": "boolean",
+                "description": "Whether the platform approved the caller's coach profile. Asking a club needs it."
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MyCoachLink"
+                },
+                "description": "Every venue the coach teaches at, asked, or once taught at, across all clubs, newest first."
+              }
+            }
+          }
+        }
+      },
+      "RequestToTeachRequest": {
+        "type": "object",
+        "required": ["venueId"],
+        "properties": {
+          "venueId": {
+            "type": "string",
+            "description": "The venue's id, as the venue index gives it."
+          }
+        }
+      },
+      "SaveTeachingTermsRequest": {
+        "type": "object",
+        "required": ["hourlyRateCents", "lessonMinutes"],
+        "properties": {
+          "hourlyRateCents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "groupRateCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Null or absent: no group lessons at this venue."
+          },
+          "lessonMinutes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer"
+            },
+            "description": "One or more of the link's `lengthOptions`."
+          },
+          "cancelCutoffHours": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 168,
+            "default": 24
+          }
+        }
+      },
+      "SaveTeachingHoursRequest": {
+        "type": "object",
+        "properties": {
+          "hours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachTeachingHours"
+            },
+            "description": "The whole week. Empty or absent: no regular hours here."
+          }
+        }
+      },
+      "CoachTimeOff": {
+        "type": "object",
+        "required": ["id", "startDate", "endDate", "note"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Included. The same as `startDate` for one day."
+          },
+          "note": {
+            "type": ["string", "null"],
+            "maxLength": 200,
+            "description": "The coach's own; shown to nobody else."
+          }
+        }
+      },
+      "CoachTimeOffEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CoachTimeOff"
+                },
+                "description": "The stretches that are not over, soonest first."
+              }
+            }
+          }
+        }
+      },
+      "AddCoachTimeOffRequest": {
+        "type": "object",
+        "required": ["startDate"],
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Absent: one day."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
           }
         }
       }

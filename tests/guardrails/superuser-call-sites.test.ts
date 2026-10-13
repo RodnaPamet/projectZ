@@ -227,6 +227,17 @@ const ALLOWED: Record<string, string> = {
     'session, like the sweeps. The rows themselves are WRITTEN bound to the recipient ' +
     '(runAsUserOnly, owner-only RLS); only the drain bypasses, and `queueOperatorEmail` ' +
     '(#545): one insert of a row for the operator\u2019s inbox, which belongs to no user.',
+  'src/app-layer/usecases/coach-directory.ts':
+    'coaches (#546): the public card of a coach (the name, and for a coach the platform ' +
+    'approved, the text, qualifications and sports). A coach\u2019s profile belongs to a person ' +
+    'and is owner-only under RLS, so a club or a player looking at a coach cannot read it ' +
+    'bound as themselves. Never a draft, never the certificate or that one exists.',
+  'src/app-layer/usecases/coach-links.ts':
+    'coaches (#546): three reads keyed on the caller. Which club a venue belongs to, when ' +
+    'a coach who is nothing at that club yet asks to teach there (through publicVenueFilter); ' +
+    'which club one of the coach\u2019s OWN links belongs to (by the link\u2019s id and the ' +
+    'coach\u2019s account); and the coach\u2019s own links across the clubs they teach at. ' +
+    'Every write then runs bound to that one club, under its row security.',
   'src/app-layer/usecases/messaging-directory.ts':
     'messaging (#375): the reads that span people and clubs by their nature — whether two ' +
     'players shared a booking at ANY club, a player\u2019s public card (sports and levels are ' +

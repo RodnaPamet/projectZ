@@ -155,6 +155,14 @@ export const AUDIT_ACTIONS = {
   /// the club's own log the values before and after.
   CLUB_FEE_TERMS_CHANGED: 'CLUB_FEE_TERMS_CHANGED',
   CLUB_STATUS_CHANGED: 'CLUB_STATUS_CHANGED',
+  /// A coach and a club's venue (#546). The coach asked to teach there
+  /// (actor: the coach); the club accepted or declined (actor: staff); either
+  /// side ended it; the coach changed the rates, lengths, cutoff or hours.
+  COACH_REQUESTED: 'COACH_REQUESTED',
+  COACH_ACCEPTED: 'COACH_ACCEPTED',
+  COACH_DECLINED: 'COACH_DECLINED',
+  COACH_LINK_ENDED: 'COACH_LINK_ENDED',
+  COACH_TERMS_CHANGED: 'COACH_TERMS_CHANGED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

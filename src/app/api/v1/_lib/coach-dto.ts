@@ -4,6 +4,7 @@ import type {
   CoachApplicationItem,
   CoachDecisionResult,
 } from '@/app-layer/usecases/coach-approval';
+import type { MyCoachLink } from '@/app-layer/usecases/coach-links';
 import { rfc3339 } from '@/app/api/v1/_lib/dto';
 
 /** The shapes the coach routes answer with (#545): dates as RFC 3339, nothing else changed. */
@@ -64,4 +65,31 @@ export function toCoachApplication(a: CoachApplication) {
 
 export function toCoachDecision(d: CoachDecisionResult) {
   return { userId: d.userId, status: d.status, decidedAt: rfc3339(d.decidedAt) };
+}
+
+// ─── A coach and a club's venue (#546) ──────────────────────────────────────
+
+export function toMyCoachLinks(v: { approved: boolean; links: MyCoachLink[] }) {
+  return {
+    /** Whether the platform approved the coach's profile: asking a club needs it. */
+    approved: v.approved,
+    links: v.links.map((l) => ({
+      id: l.id,
+      status: l.status,
+      startedBy: l.startedBy,
+      club: l.club,
+      venue: l.venue,
+      lengthOptions: l.lengthOptions,
+      hourlyRateCents: l.hourlyRateCents,
+      groupRateCents: l.groupRateCents,
+      currency: l.currency,
+      lessonMinutes: l.lessonMinutes,
+      cancelCutoffHours: l.cancelCutoffHours,
+      hours: l.hours,
+      missing: l.missing,
+      createdAt: rfc3339(l.createdAt),
+      decidedAt: at(l.decidedAt),
+      endedAt: at(l.endedAt),
+    })),
+  };
 }

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import type { PrismaClient, Role } from '@prisma/client';
 
 import { readAccountStanding } from '@/app-layer/repositories/account';
+import { linkInvitedCoach } from '@/app-layer/usecases/coach-links';
 import {
   decideInviteAcceptance,
   type AccountKindRefusal,
@@ -206,6 +207,8 @@ export interface InvitePreview {
   tenantSlug: string;
   email: string;
   role: Role;
+  /** Who sent it; null once that account is gone. */
+  invitedById: string | null;
 }
 
 /**
@@ -236,6 +239,7 @@ export async function previewInvite(
       tenantId: true,
       email: true,
       role: true,
+      invitedById: true,
       tenant: { select: { name: true, slug: true } },
     },
   });
@@ -249,6 +253,7 @@ export async function previewInvite(
     tenantSlug: invite.tenant.slug,
     email: invite.email,
     role: invite.role,
+    invitedById: invite.invitedById,
   };
 }
 
@@ -378,6 +383,17 @@ export async function acceptInvite(
       after: { userId, role: preview.role, invitedEmail: preview.email },
     },
   });
+
+  // A coach who accepts a club's invitation teaches at its venues (#546):
+  // the club agreed by inviting, the coach by accepting. Only a COACH account
+  // gets this far with a COACH invitation (`decideInviteAcceptance`).
+  if (preview.role === 'COACH') {
+    await linkInvitedCoach(db, {
+      tenantId: preview.tenantId,
+      userId,
+      invitedByUserId: preview.invitedById,
+    });
+  }
 
   return { tenantId: preview.tenantId, tenantSlug: preview.tenantSlug, role: preview.role };
 }
