@@ -17,6 +17,9 @@ export const EXPORT_EXCLUDED_COLUMNS = [
   'mfaLastUsedStep',
   'codeHash',
   'sessionVersion',
+  // The keyed fingerprint of the confirmed phone number (#500): an internal
+  // lookup value. The number itself is the person's, and the export has it.
+  'phoneHash',
   // Session and refresh tokens.
   'tokenHash',
   'refreshTokenHash',

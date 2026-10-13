@@ -14,7 +14,9 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
  *             there is no standing anywhere.
  *   inherit   a sign-in to an account with that address takes them over: its
  *             standing at each club counts them, until each lapses, exactly
- *             as the deleted account's would have.
+ *             as the deleted account's would have. So does an account that
+ *             confirms the phone number the deleted account had confirmed
+ *             (#500): a new address does not shed the standing.
  *   purge     the completion sweep drops each one the moment it stops
  *             counting (90 days after its booking started).
  *
@@ -37,7 +39,13 @@ const windowStart = (now: Date) => new Date(now.getTime() - NO_SHOW_WINDOW_DAYS 
  */
 export async function carryNoShowStanding(
   db: PrismaClient,
-  input: { userId: string; email: string; now: Date },
+  input: {
+    userId: string;
+    email: string;
+    /** The fingerprint of the number the account had confirmed (#500), if any. */
+    phoneFingerprint?: string | null;
+    now: Date;
+  },
 ): Promise<number> {
   const { userId, now } = input;
   const from = windowStart(now);
@@ -85,6 +93,7 @@ export async function carryNoShowStanding(
     data: counting.map((s) => ({
       tenantId: s.tenantId,
       fingerprint,
+      phoneFingerprint: input.phoneFingerprint ?? null,
       deletedUserId: userId,
       startedAt: s.startedAt,
     })),
@@ -99,11 +108,29 @@ export async function carryNoShowStanding(
  * at every sign-in costs one indexed lookup.
  */
 export async function inheritNoShowStanding(userId: string, email: string): Promise<number> {
-  const fingerprint = noShowFingerprint(email);
+  return takeOver(userId, { fingerprint: noShowFingerprint(email) });
+}
+
+/**
+ * When an account confirms a phone number (#500): the standing a deleted
+ * account left under that number passes to it, whatever its address. The same
+ * take-over as by address, and as idempotent.
+ */
+export async function inheritNoShowStandingByPhone(
+  userId: string,
+  phoneFingerprint: string,
+): Promise<number> {
+  return takeOver(userId, { phoneFingerprint });
+}
+
+async function takeOver(
+  userId: string,
+  match: { fingerprint: string } | { phoneFingerprint: string },
+): Promise<number> {
   return runAsSuperuser(async (db) => {
     // guardrail-allow: cross-tenant — carried rows wait under no club binding.
     const waiting = await db.noShowCarry.findMany({
-      where: { fingerprint, inheritedByUserId: null, NOT: { deletedUserId: userId } },
+      where: { ...match, inheritedByUserId: null, NOT: { deletedUserId: userId } },
       select: { id: true, tenantId: true },
       take: CARRY_CAP,
     });

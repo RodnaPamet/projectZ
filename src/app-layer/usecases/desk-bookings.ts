@@ -12,6 +12,7 @@ import type {
   UpdateDeskBookingBody,
 } from '@/app-layer/schemas/desk';
 import { appendAuditEntries, appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
+import { phoneFingerprint } from '@/lib/account/phone-fingerprint';
 import { normalizePhone } from '@/lib/booking/phone';
 import { isExclusionViolation } from '@/lib/db/pg-errors';
 import {
@@ -282,8 +283,8 @@ export const CUSTOMER_MATCH_LIMIT = 20;
  *
  * ═══ ONLY THIS CLUB'S PLAYERS, EVER ═══
  *
- * The phone is compared against people this club already knows — its players'
- * own `User.phone`, and the phone on an earlier desk booking the club linked
+ * The phone is compared against people this club already knows — the number
+ * each of its players confirmed (#500), and the phone on an earlier desk booking the club linked
  * to an account — never against every user. Searching all of playerz would
  * answer "is +359… on playerz?" for anybody, to staff of any club, which is
  * exactly the disclosure Q30 rules out. The phone itself is not returned.
@@ -321,18 +322,19 @@ export async function findClubCustomers(
   // A deleted account is listed by the players screen and linked to nothing.
   const byId = new Map(players.filter((p) => !p.deleted).map((p) => [p.playerUserId, p]));
 
-  // Step 2, by id, bounded by step 1: which of the club's players gave this
-  // phone themselves. Stored as typed, so compared normalised.
+  // Step 2, by id, bounded by step 1: which of the club's players CONFIRMED
+  // this phone themselves (#500). The number is stored encrypted, so it is
+  // matched by its keyed fingerprint, which is unique: at most one account.
   const users = byId.size
     ? await db.user.findMany({
-        where: { id: { in: [...byId.keys()] }, phone: { not: null } },
-        select: { id: true, phone: true },
-        take: byId.size,
+        where: { id: { in: [...byId.keys()] }, phoneHash: phoneFingerprint(phone) },
+        select: { id: true },
+        take: 1,
       })
     : [];
 
   const ids = new Set<string>();
-  for (const u of users) if (u.phone && normalizePhone(u.phone) === phone) ids.add(u.id);
+  for (const u of users) ids.add(u.id);
   for (const b of linked)
     if (b.bookedByUserId && byId.has(b.bookedByUserId)) ids.add(b.bookedByUserId);
 

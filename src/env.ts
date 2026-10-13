@@ -138,6 +138,34 @@ export const env = createEnv({
     // and its MICROSOFT_* variables were removed with its group sync.
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+    // ═══ THE PHONE CHECK (#500) ═══
+    //
+    // A player or coach confirms a phone number by an SMS code. Twilio Verify
+    // sends and checks the code (src/lib/sms/phone-verifier.ts): the account,
+    // its auth token, and the Verify SERVICE (VA…), all three or none.
+    //
+    // REQUIRE_PHONE=1 is what turns the rule on: booking, asking to join a
+    // game and writing a message then need a confirmed number
+    // (`PHONE_REQUIRED`). Off by default, so a deployment without the keys
+    // behaves as before; `1` without the keys refuses the check loudly at use
+    // (503), never silently lets it pass.
+    TWILIO_ACCOUNT_SID: z
+      .string()
+      .regex(/^AC[0-9a-fA-F]{32}$/)
+      .optional(),
+    TWILIO_AUTH_TOKEN: z.string().min(16).optional(),
+    TWILIO_VERIFY_SERVICE_SID: z
+      .string()
+      .regex(/^VA[0-9a-fA-F]{32}$/)
+      .optional(),
+    REQUIRE_PHONE: z.enum(['0', '1']).default('0'),
+    // The tests' stand-in for the SMS: with DEPLOY_ENV=test and no Twilio
+    // keys, this code confirms any number. Ignored everywhere else.
+    PHONE_VERIFY_TEST_CODE: z
+      .string()
+      .regex(/^\d{4,10}$/)
+      .optional(),
     // The Meta app's App ID and App Secret (#361). Redirect URI to register:
     // <NEXTAUTH_URL>/api/auth/callback/facebook — docs/oauth-setup.md.
     FACEBOOK_CLIENT_ID: z.string().optional(),
@@ -463,6 +491,11 @@ export const env = createEnv({
 
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
+    TWILIO_VERIFY_SERVICE_SID: process.env.TWILIO_VERIFY_SERVICE_SID,
+    REQUIRE_PHONE: process.env.REQUIRE_PHONE,
+    PHONE_VERIFY_TEST_CODE: process.env.PHONE_VERIFY_TEST_CODE,
     FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
     FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET,
     TEST_PASSWORD_SIGN_IN: process.env.TEST_PASSWORD_SIGN_IN,

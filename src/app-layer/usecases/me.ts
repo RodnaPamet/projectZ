@@ -3,7 +3,10 @@ import type { AccountKind, Locale, Role, SportType } from '@prisma/client';
 import { readMemberships } from '@/app-layer/usecases/landing';
 import { decideLanding, type LandingMembership, type LandingReason } from '@/lib/auth/landing';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { maskPhone } from '@/lib/account/phone-fingerprint';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
+import { decryptField } from '@/lib/security/encryption';
+import { phoneRequired } from '@/lib/sms/phone-verifier';
 
 /**
  * Who the signed-in person is, and where their account sends them:
@@ -60,11 +63,27 @@ export interface Me {
   searchable: boolean;
   /** Null = undecided: an account #263's migration would not decide by rule. */
   accountKind: AccountKind | null;
+  /**
+   * The phone number the account confirmed by SMS code (#500). `required`
+   * says whether booking, asking to join a game and writing a message need
+   * one; `number` has its middle hidden, and is null until confirmed.
+   */
+  phone: { required: boolean; verified: boolean; number: string | null };
   landing: {
     reason: LandingReason;
     /** The club the account lands on, when there is one, and its role there. */
     club: { slug: string; name: string; role: Role } | null;
   };
+}
+
+/** The confirmed number with its middle hidden; null when this key cannot read it. */
+function maskedPhone(stored: string | null): string | null {
+  if (!stored) return null;
+  try {
+    return maskPhone(decryptField(stored));
+  } catch {
+    return null;
+  }
 }
 
 /** Null when the account row is gone or deleted — the route answers that as signed out. */
@@ -80,6 +99,8 @@ export async function getMe(userId: string): Promise<Me | null> {
         locale: true,
         accountKind: true,
         searchable: true,
+        phone: true,
+        phoneVerifiedAt: true,
         deletedAt: true,
         // The person's own levels (#359), by the session-derived id like
         // everything else here; the enum's order, so the list is stable.
@@ -113,6 +134,11 @@ export async function getMe(userId: string): Promise<Me | null> {
       sports: user.sportLevels.map((s) => ({ sport: s.sport, level: s.level })),
       searchable: user.searchable,
       accountKind: user.accountKind,
+      phone: {
+        required: phoneRequired(),
+        verified: user.phoneVerifiedAt !== null,
+        number: user.phoneVerifiedAt ? maskedPhone(user.phone) : null,
+      },
       landing: {
         reason: decision.reason,
         club:

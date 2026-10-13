@@ -253,6 +253,9 @@ export const V1 = {
   acceptBookingInvite: () => `${BASE}/booking-invites/accept`,
   /** `POST { kind }`: "Играч или треньор?", once (#360). */
   chooseAccountKind: () => `${BASE}/me/account-kind`,
+  /** The phone step (#500): send a code, then confirm it. */
+  startPhone: () => `${BASE}/me/phone/start`,
+  confirmPhone: () => `${BASE}/me/phone/confirm`,
   /** The terms and privacy versions the account has accepted; POST accepts those in force (#462). */
   legalAcceptance: () => `${BASE}/me/legal-acceptance`,
   mfaEnrol: () => `${BASE}/me/mfa/enrolment`,

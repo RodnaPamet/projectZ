@@ -64,7 +64,21 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'User',
     field: 'phone',
     action: 'anonymise',
-    reason: 'Set to null.',
+    reason:
+      'The number the account confirmed by SMS code (#500), stored encrypted. Set to null, with phoneVerifiedAt.',
+  },
+  {
+    model: 'User',
+    field: 'phoneVerifiedAt',
+    action: 'anonymise',
+    reason: 'Set to null with the number it described.',
+  },
+  {
+    model: 'User',
+    field: 'phoneHash',
+    action: 'anonymise',
+    reason:
+      'The keyed fingerprint of that number, set to null (pinned by the CHECK app_user_deleted_has_no_phone), so the number can confirm another account. While the account has a no-show standing, the fingerprint waits on its carried rows instead: see NoShowCarry.phoneFingerprint.',
   },
   {
     model: 'User',
@@ -251,6 +265,13 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     action: 'keep',
     reason:
       'A keyed HMAC of the address (src/lib/account/no-show-fingerprint.ts), never the address: how the next account made with the same address takes the standing over. Kept and dropped with its row; rotating DATA_ENCRYPTION_KEY ends every carry-over.',
+  },
+  {
+    model: 'NoShowCarry',
+    field: 'phoneFingerprint',
+    action: 'keep',
+    reason:
+      'A keyed HMAC of the phone number the account had confirmed (src/lib/account/phone-fingerprint.ts), never the number: how the next account to confirm that number takes the no-show standing over (#500, owner decision 2026-10-13: a number carries blocks). Written only while a no-show still counts, and deleted with the row when it lapses (90 days).',
   },
   {
     model: 'NoShowCarry',

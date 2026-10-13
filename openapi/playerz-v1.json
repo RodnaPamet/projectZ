@@ -6167,6 +6167,210 @@
         }
       }
     },
+    "/me/phone/start": {
+      "post": {
+        "operationId": "startPhoneVerification",
+        "summary": "Send an SMS code to a phone number.",
+        "description": "The phone step (#500), part one. A player or coach confirms a phone number before their first booking, join request or message (`Me.phone.required`). Type the number as people write it (`0888 123 456`, `+359 88 812 3456`); it is normalised to E.164, and a national Bulgarian number gets +359. A code is sent by SMS and lives ten minutes. Then `POST /me/phone/confirm`.\n\nAnswers `sent: true` for ANY number that can receive a code. Whether another account holds the number is not said here: it is said at confirm, to whoever holds the phone.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartPhoneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A code was sent.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneCodeSentEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`PHONE_INVALID` — not a number that can receive an SMS code (a landline, too short, letters). `BAD_REQUEST` — the body fails the `.strict()` schema.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: 5 codes an hour per account; 3 an hour and 6 a day per number, whoever asks. Also the default mutation budget.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`PHONE_VERIFY_UNAVAILABLE` — the SMS provider is not configured or did not answer. Nothing was sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/phone/confirm": {
+      "post": {
+        "operationId": "confirmPhoneVerification",
+        "summary": "Confirm the phone number with the code from the SMS.",
+        "description": "The phone step (#500), part two. `phone` is the number given to `/me/phone/start`, `code` the digits from the SMS (spaces are ignored). On success the number is the account's and the account is answered as `GET /me`, with `phone.verified: true`.\n\nA number confirms ONE account at a time. If a deleted account left a no-show standing under this number, it passes to this account (the same carry-over as by address). To change the number, run the two steps again with the new one.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPhoneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account, with its number confirmed.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`PHONE_CODE_WRONG` — not the code. `PHONE_CODE_EXPIRED` — the code expired, was used, or none was sent to this number: ask for a new one. `PHONE_INVALID`, `BAD_REQUEST` as at start.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a token whose session has been revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`PHONE_IN_USE` — the number already confirms another account. Said only here, after the code proved the caller holds the phone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Code `RATE_LIMITED`: 10 attempts an hour per account, and the provider stops a single code after five wrong guesses. Also the default mutation budget.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`PHONE_VERIFY_UNAVAILABLE` — the SMS provider is not configured or did not answer. Nothing was confirmed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/notifications": {
       "get": {
         "operationId": "listMyNotifications",
@@ -12843,7 +13047,8 @@
           "landing",
           "avatarUrl",
           "sports",
-          "searchable"
+          "searchable",
+          "phone"
         ],
         "properties": {
           "id": {
@@ -12898,6 +13103,9 @@
           "searchable": {
             "type": "boolean",
             "description": "“Показвай ме в търсенето” (#375): whether other players find this person by name to write to them. On by default; off, only people they played with or already talk to can write."
+          },
+          "phone": {
+            "$ref": "#/components/schemas/MePhone"
           }
         }
       },
@@ -12956,6 +13164,84 @@
             "$ref": "#/components/schemas/LegalStanding"
           }
         }
+      },
+      "StartPhoneRequest": {
+        "type": "object",
+        "required": ["phone"],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "description": "As typed: `0888 123 456`, `+359 88 812 3456`, `00359888123456`. Normalised to E.164 by the server.",
+            "example": "0888 123 456"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfirmPhoneRequest": {
+        "type": "object",
+        "required": ["phone", "code"],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "description": "As typed: `0888 123 456`, `+359 88 812 3456`, `00359888123456`. Normalised to E.164 by the server.",
+            "example": "0888 123 456"
+          },
+          "code": {
+            "type": "string",
+            "description": "The digits from the SMS, 4 to 10 of them. Spaces are ignored.",
+            "example": "123456"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PhoneCodeSent": {
+        "type": "object",
+        "required": ["sent", "number"],
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "enum": [true]
+          },
+          "number": {
+            "type": "string",
+            "description": "The number the code went to, with its middle hidden.",
+            "example": "+35988*****56"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PhoneCodeSentEnvelope": {
+        "type": "object",
+        "title": "PhoneCodeSentEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoneCodeSent"
+          }
+        }
+      },
+      "MePhone": {
+        "type": "object",
+        "description": "The phone number the account confirmed by SMS code (#500).",
+        "required": ["required", "verified", "number"],
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "description": "Whether booking, asking to join a game and writing a message need a confirmed number on this deployment. When true and `verified` is false, those answer 403 `PHONE_REQUIRED`: show the phone step first."
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": ["string", "null"],
+            "description": "The confirmed number with its middle hidden (`+35988*****56`), or null until one is confirmed."
+          }
+        },
+        "additionalProperties": false
       },
       "MyBooking": {
         "type": "object",

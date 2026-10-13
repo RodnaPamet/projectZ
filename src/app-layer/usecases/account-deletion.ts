@@ -301,8 +301,14 @@ export async function deleteAccount(
   // the same row (P52's `account_not_deleted`), so none can slip a booking in
   // between the check below and the commit.
   const [locked] = await db.$queryRaw<
-    Array<{ id: string; email: string; accountKind: string | null; deletedAt: Date | null }>
-  >`SELECT id, email, "accountKind"::text AS "accountKind", "deletedAt"
+    Array<{
+      id: string;
+      email: string;
+      accountKind: string | null;
+      deletedAt: Date | null;
+      phoneHash: string | null;
+    }>
+  >`SELECT id, email, "accountKind"::text AS "accountKind", "deletedAt", "phoneHash"
       FROM app_user WHERE id = ${userId} FOR UPDATE`;
   if (!locked || locked.deletedAt) throw new AccountNotFoundForDeletionError();
 
@@ -440,7 +446,17 @@ export async function deleteAccount(
   // there to read: what still counts at each club waits for the next account
   // made with this address (P53, owner decision: "carry the no-show block
   // over"). Nothing is kept when nothing counts.
-  count('NoShowCarry', await carryNoShowStanding(db, { userId, email: locked.email, now }));
+  // The number the account had confirmed carries it too (#500): a new address
+  // with the same phone takes the standing over.
+  count(
+    'NoShowCarry',
+    await carryNoShowStanding(db, {
+      userId,
+      email: locked.email,
+      phoneFingerprint: locked.phoneHash,
+      now,
+    }),
+  );
   count('TenantMembership', (await db.tenantMembership.deleteMany({ where: { userId } })).count);
   count(
     'TenantMembership.invitedBy',
@@ -698,6 +714,10 @@ export async function deleteAccount(
       email: tombstoneEmail(userId),
       name: null,
       phone: null,
+      // The number is free again for whoever holds it next (#500); the CHECK
+      // app_user_deleted_has_no_phone keeps both null on a tombstone.
+      phoneHash: null,
+      phoneVerifiedAt: null,
       avatarUrl: null,
       passwordHash: null,
       emailVerified: null,

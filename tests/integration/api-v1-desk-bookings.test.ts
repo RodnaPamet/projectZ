@@ -29,6 +29,7 @@ import {
   seedTenant,
   type SeededTenant,
 } from '../helpers/db';
+import { confirmPhoneFor } from '../helpers/phone';
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
@@ -517,14 +518,11 @@ describe('desk bookings and weekly series (#364)', () => {
   // ─── customers ──────────────────────────────────────────────────────
 
   it('matches a phone only among this club’s players, and never returns the phone', async () => {
-    await asAppSuperuser(db, (tx) =>
-      tx.user.update({ where: { id: player.userId }, data: { phone: '+359 888 123 456' } }),
-    );
-    // Somebody else on playerz with the same number, who never played here.
+    // The number the player confirmed (#500): one number, one account.
+    await confirmPhoneFor(db, player.userId, '+359888123456');
+    // Somebody else on playerz, with a number of their own, who never played here.
     const stranger = await seedPlayer(db, other.tenant.tenantId);
-    await asAppSuperuser(db, (tx) =>
-      tx.user.update({ where: { id: stranger }, data: { phone: '0888123456' } }),
-    );
+    await confirmPhoneFor(db, stranger, '+359888654321');
 
     const here = await customers('0888 123 456');
     expect(here.status).toBe(200);
@@ -534,15 +532,21 @@ describe('desk bookings and weekly series (#364)', () => {
     expect(JSON.stringify(items)).not.toContain('888');
 
     // The other club's staff, asking the same number at THEIR club, learn
-    // nothing about this club's player.
+    // nothing about this club's player: the number is on playerz, and not
+    // among their players.
     const slug = other.tenant.tenantSlug;
-    const there = await customersRoute(
-      new NextRequest(`${url(slug, 'customers')}?q=0888123456`, { headers: headers(other.staff) }),
-      { params: Promise.resolve({ slug }) },
-    ).then(read);
-    expect((there.body.data as unknown as Array<{ userId: string }>).map((m) => m.userId)).toEqual([
-      stranger,
-    ]);
+    const askThere = (q: string) =>
+      customersRoute(
+        new NextRequest(`${url(slug, 'customers')}?q=${q}`, { headers: headers(other.staff) }),
+        { params: Promise.resolve({ slug }) },
+      )
+        .then(read)
+        .then((r) => (r.body.data as unknown as Array<{ userId: string }>).map((m) => m.userId));
+    expect(await askThere('0888123456')).toEqual([]);
+    // Their own player's number, they do find.
+    expect(await askThere('0888654321')).toEqual([stranger]);
+    // And this club does not find theirs.
+    expect((await customers('0888 654 321')).body.data).toEqual([]);
   });
 
   it('remembers a phone the desk linked before', async () => {
