@@ -1,7 +1,6 @@
-import { readFileSync, existsSync, globSync } from 'node:fs';
-import { dirname, join, normalize } from 'node:path';
+import { existsSync, globSync } from 'node:fs';
 
-import { aliasTarget } from '../../scripts/ui-sync/inflect-package.mjs';
+import { ENTRY_POINTS, reachableFromEntryPoints } from './reachable-from-routes';
 
 /**
  * EVERY USE CASE IS REACHABLE FROM A ROUTE — OR SAYS WHY NOT.
@@ -42,30 +41,6 @@ import { aliasTarget } from '../../scripts/ui-sync/inflect-package.mjs';
  * somebody's ignore list.
  */
 
-/** Entry points: anything Next.js will actually run. */
-const ENTRY_POINTS = [
-  ...globSync('src/app/**/route.ts').map((f) => f.toString()),
-  ...globSync('src/app/**/page.tsx').map((f) => f.toString()),
-  // A layout renders on every request beneath it, as surely as its pages do:
-  // the club admin layout reads the club's public venue for its way out (#362).
-  ...globSync('src/app/**/layout.tsx').map((f) => f.toString()),
-  // ═══ SERVER ACTIONS ARE ENTRY POINTS TOO ═══
-  //
-  // A `'use server'` module compiles to POST endpoints the client can call
-  // directly — as reachable as any route.ts, and reachable WITHOUT the page
-  // that rendered the form. Omitting them would report a use case wired to an
-  // action as unreachable scaffolding, which is the opposite of true and would
-  // push the next author to add it to NOT_WIRED_YET and stop thinking.
-  //
-  // Matched on the directive rather than a filename, because there is no
-  // convention yet and `actions.ts` is only where the first ones happened to
-  // land.
-  ...globSync('src/app/**/*.ts')
-    .map((f) => f.toString())
-    .filter((f) => /^\s*['"]use server['"]/.test(readFileSync(f, 'utf8'))),
-  'src/middleware.ts',
-].filter((f) => existsSync(f));
-
 const USE_CASES = globSync('src/app-layer/usecases/*.ts')
   .map((f) => f.toString())
   .filter((f) => !f.endsWith('.d.ts'));
@@ -84,41 +59,6 @@ const NOT_WIRED_YET: Record<string, string> = {
   tournaments: 'bracket generation is done; no routes',
   wearables: 'the Strava importer runs from a script, never from a request',
 };
-
-/**
- * `@/lib/x` and `@inflect/ui/lib/x` → `src/lib/x` (tsconfig.json maps both);
- * `./sibling` → resolved against the importer.
- */
-function resolveImport(spec: string, fromFile: string): string | null {
-  let base = aliasTarget(spec);
-  if (base === null && spec.startsWith('.')) base = normalize(join(dirname(fromFile), spec));
-  if (base === null) return null; // a package, not ours
-
-  for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
-}
-
-function reachableFromEntryPoints(): Set<string> {
-  const seen = new Set<string>();
-  const queue = [...ENTRY_POINTS];
-
-  while (queue.length > 0) {
-    const file = queue.pop()!;
-    if (seen.has(file)) continue;
-    seen.add(file);
-
-    const src = readFileSync(file, 'utf8');
-    // `from '...'`, `import('...')`, `require('...')`
-    for (const m of src.matchAll(/(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]/g)) {
-      const target = resolveImport(m[1]!, file);
-      if (target && !seen.has(target)) queue.push(target);
-    }
-  }
-
-  return seen;
-}
 
 describe('use-case reachability', () => {
   const reachable = reachableFromEntryPoints();
