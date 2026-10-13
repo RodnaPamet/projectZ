@@ -9,7 +9,7 @@ import { GET as listBookings, POST as createBooking } from '@/app/api/v1/t/[slug
 import { POST as connectOnboarding } from '@/app/api/v1/t/[slug]/connect/onboarding/route';
 import { GET as me } from '@/app/api/v1/t/[slug]/me/route';
 import { hashPassword } from '@/lib/auth/passwords';
-import { config as middlewareConfig, middleware } from '@/middleware';
+import { config as proxyConfig, proxy } from '@/proxy';
 
 import { signInAs } from '../helpers/auth';
 import { prismaTestClient, seedTenant, type SeededTenant } from '../helpers/db';
@@ -21,7 +21,7 @@ import { asAppSuperuser } from '../helpers/rls';
  * ═══ WHY NOTHING CAUGHT #250 ═══
  *
  * Every other integration test calls a route handler directly —
- * `POST(new NextRequest(...))` — which skips `src/middleware.ts` entirely. The
+ * `POST(new NextRequest(...))` — which skips `src/proxy.ts` entirely. The
  * handlers were right; the edge in front of them refused every
  * `/api/v1/t/{slug}/**` call from a native token, and every call at a club
  * joined after sign-in, and no test ever sent a request through it.
@@ -91,9 +91,9 @@ async function send(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
-  expect(unstable_doesMiddlewareMatch({ config: middlewareConfig, url: path })).toBe(true);
+  expect(unstable_doesMiddlewareMatch({ config: proxyConfig, url: path })).toBe(true);
 
-  const edge = await middleware(new NextRequest(url, init()));
+  const edge = await proxy(new NextRequest(url, init()));
   if (edge.headers.get('x-middleware-next') !== '1') {
     return { status: edge.status, by: 'edge', body: await edge.json().catch(() => null) };
   }
@@ -485,7 +485,7 @@ describe('an anonymous caller', () => {
   });
 
   it('is sent to sign in from a club page, with the page to come back to', async () => {
-    const res = await middleware(
+    const res = await proxy(
       new NextRequest(`http://localhost:3000/t/${clubA.tenantSlug}/admin/calendar`),
     );
 

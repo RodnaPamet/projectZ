@@ -2,7 +2,7 @@ import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
 import { NextRequest } from 'next/server';
 
 import { GET as me } from '@/app/api/v1/me/route';
-import { config as middlewareConfig, middleware } from '@/middleware';
+import { config as proxyConfig, proxy } from '@/proxy';
 
 import { signInAs } from '../helpers/auth';
 import { prismaTestClient, seedAccount, seedTenant } from '../helpers/db';
@@ -158,11 +158,9 @@ describe('GET /api/v1/me', () => {
     /** The middleware first, and the route only if it let the request on. */
     async function send(headers: Record<string, string>) {
       const url = 'http://localhost:3000/api/v1/me';
-      expect(unstable_doesMiddlewareMatch({ config: middlewareConfig, url: '/api/v1/me' })).toBe(
-        true,
-      );
+      expect(unstable_doesMiddlewareMatch({ config: proxyConfig, url: '/api/v1/me' })).toBe(true);
 
-      const edge = await middleware(new NextRequest(url, { headers }));
+      const edge = await proxy(new NextRequest(url, { headers }));
       if (edge.headers.get('x-middleware-next') !== '1') {
         return { by: 'edge' as const, status: edge.status, body: await edge.json() };
       }

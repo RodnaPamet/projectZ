@@ -28,7 +28,7 @@ const FORBIDDEN = /\b(?:token|session|claims|jwt|raw)(?:\.user)?\.(permissions|r
 /**
  * ONLY the file that MINTS them.
  *
- * ═══ WHY guard.ts, middleware.ts AND context.ts ARE NOT HERE ═══
+ * ═══ WHY guard.ts, proxy.ts AND context.ts ARE NOT HERE ═══
  *
  * They were, and that made this rule unable to catch the bug it exists for.
  *

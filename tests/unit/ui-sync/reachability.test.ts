@@ -23,7 +23,7 @@ const FIXTURE: Record<string, string> = {
     "// import { Commented } from '@/components/ui/commented';",
     'export default function Page() { return [A, Everything, Lazy] as unknown as T; }',
   ].join('\n'),
-  'src/middleware.ts': [
+  'src/proxy.ts': [
     "import { mw } from '@/components/ui/mw';",
     // A vendored file's import of a module upstream moved into its package.
     "import { moved } from '@inflect/ui/components/ui/moved';",
@@ -134,7 +134,7 @@ describe('analyseReachability', () => {
 describe('the pieces it is built from', () => {
   it('globToRegExp: ** spans directories, * does not', () => {
     expect(globToRegExp('src/app/**').test('src/app/(app)/me/page.tsx')).toBe(true);
-    expect(globToRegExp('src/*.ts').test('src/middleware.ts')).toBe(true);
+    expect(globToRegExp('src/*.ts').test('src/proxy.ts')).toBe(true);
     expect(globToRegExp('src/*.ts').test('src/lib/cn.ts')).toBe(false);
     expect(globToRegExp('tests/guardrails/**').test('tests/guardrails/a.test.ts')).toBe(true);
   });

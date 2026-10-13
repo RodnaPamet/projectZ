@@ -50,7 +50,7 @@ const config = [
   },
   {
     // Security-critical paths hold a harder line on `any`.
-    files: ['src/lib/security/**', 'src/middleware.ts'],
+    files: ['src/lib/security/**', 'src/proxy.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'error' },
   },
   {

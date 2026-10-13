@@ -35,7 +35,7 @@ import { exportsMethod } from '../helpers/route-exports';
  *
  * ═══ WHAT `public` DOES NOT SKIP ═══
  *
- * The mutation permission check. `middleware.ts` treats `public` and `allow`
+ * The mutation permission check. `proxy.ts` treats `public` and `allow`
  * identically at that switch and falls through to `requiredPermission`. Worth
  * knowing before adding a prefix here: it opens the tenant check, not
  * authorisation generally.

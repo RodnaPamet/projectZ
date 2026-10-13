@@ -11,7 +11,7 @@ import {
  *
  * ═══ WHY THE ACCESS TOKEN IS SHORT ═══
  *
- * The edge middleware never checks revocation. `middleware.ts` reads the token
+ * The edge middleware never checks revocation. `proxy.ts` reads the token
  * and inspects its CLAIMS — `checkTenantAccess` is pure claim inspection, and
  * `checkSession` runs only inside a route via `contextFromRequest`.
  *

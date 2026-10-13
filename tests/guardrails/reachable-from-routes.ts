@@ -36,7 +36,7 @@ export const ENTRY_POINTS = [
   ...globSync('src/app/**/*.ts')
     .map((f) => f.toString())
     .filter((f) => /^\s*['"]use server['"]/.test(readFileSync(f, 'utf8'))),
-  'src/middleware.ts',
+  'src/proxy.ts',
 ].filter((f) => existsSync(f));
 
 /**

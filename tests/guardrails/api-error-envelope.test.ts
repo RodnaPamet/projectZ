@@ -61,7 +61,7 @@ const EXEMPT_FILES = new Set(EXEMPT.map((e) => e.file));
 /**
  * Everything that BUILDS a response, not just everything that routes one.
  *
- * This was `src/middleware.ts` plus `src/app/api/**` route files. The 429 body
+ * This was `src/proxy.ts` plus `src/app/api/**` route files. The 429 body
  * is built in src/lib/security/rate-limit-middleware.ts — shared by every v1
  * route through `defineV1Route` — and was therefore never scanned. It carried
  * `retryAfterSeconds` and `scope` inside `error` for as long as this rule has
@@ -76,7 +76,7 @@ const EXEMPT_FILES = new Set(EXEMPT.map((e) => e.file));
  * invisible to it.
  */
 const SOURCES = [
-  'src/middleware.ts',
+  'src/proxy.ts',
   ...globSync('src/app/api/**/route.ts').map((f) => f.toString()),
   ...globSync('src/lib/**/*.ts').map((f) => f.toString()),
   ...globSync('src/app-layer/**/*.ts').map((f) => f.toString()),
@@ -102,7 +102,7 @@ const SOURCES = [
  *
  * It was also blind in the other direction: matching raw text meant
  * `const shape = { error: 'x' }` counted as a response, and it could not see
- * the ternary at src/middleware.ts:70 — the one file the second describe block
+ * the ternary at src/proxy.ts:70 — the one file the second describe block
  * below exists to pin. Inspecting only `.json()` arguments fixes both.
  *
  * KNOWN GAP, stated rather than papered over: a body built into a variable and
@@ -216,7 +216,7 @@ describe('every hand-written error response uses the canonical envelope', () => 
   it('the scan found the sources it is meant to police', () => {
     // Without this, a broken glob turns the whole suite green.
     expect(SOURCES.length).toBeGreaterThan(1);
-    expect(SOURCES).toContain('src/middleware.ts');
+    expect(SOURCES).toContain('src/proxy.ts');
   });
 
   it('every exemption still points at a file that exists', () => {
@@ -247,12 +247,12 @@ describe('every hand-written error response uses the canonical envelope', () => 
 });
 
 describe('the middleware copy stays pinned to the original', () => {
-  // The Edge runtime cannot import src/lib/errors/types.ts, so middleware.ts
+  // The Edge runtime cannot import src/lib/errors/types.ts, so proxy.ts
   // hand-writes the envelope. Duplication is the right call there — but only
   // if the copy is held against the original by something.
 
   it('middleware emits code AND message, the two required fields', () => {
-    const src = code(readFileSync('src/middleware.ts', 'utf8'));
+    const src = code(readFileSync('src/proxy.ts', 'utf8'));
 
     expect(src).toMatch(/\bcode\b/);
     expect(src).toMatch(/\bmessage\b/);
@@ -263,7 +263,7 @@ describe('the middleware copy stays pinned to the original', () => {
     // ACCESS_DENIED for the same condition is the same bug as a different
     // shape, one level down: the client switches on `code`.
     const types = readFileSync('src/lib/errors/types.ts', 'utf8');
-    const middleware = code(readFileSync('src/middleware.ts', 'utf8'));
+    const middleware = code(readFileSync('src/proxy.ts', 'utf8'));
 
     const emitted = [...middleware.matchAll(/apiError\(\s*\d{3},\s*'([A-Z_]+)'/g)].map(
       (m) => m[1]!,

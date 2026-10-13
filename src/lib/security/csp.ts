@@ -2,7 +2,7 @@
  * CSP (Content Security Policy) — nonce generation and header builder.
  *
  * Architecture:
- *   middleware.ts → generateNonce() → buildCspHeader(nonce)
+ *   proxy.ts → generateNonce() → buildCspHeader(nonce)
  *                → sets x-csp-nonce request header  (server components read it)
  *                → sets Content-Security-Policy[-Report-Only] response header
  *

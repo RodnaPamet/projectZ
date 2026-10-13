@@ -8,7 +8,20 @@ import { requiredPermission } from '@/lib/security/route-permissions';
 import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
 
 /**
- * Edge middleware.
+ * The proxy: what Next 16 calls the code that runs before every request
+ * (`middleware.ts` until #270; the file convention was renamed, the job was
+ * not).
+ *
+ * ═══ IT READS NO DATABASE, BY RULE AND NOT BY ACCIDENT ═══
+ *
+ * As `middleware.ts` this ran on the Edge runtime, which could not import
+ * Prisma, and everything here and in `guard.ts` was written on that premise.
+ * A proxy runs on Node, where it could. It still must not: #250 moved every
+ * membership and permission decision into `contextFromRequest`, so the
+ * database answers them once, in one place, and a second place deciding them
+ * is how the claim-based bugs of #250 happened. This file reads the token and
+ * the request, and nothing else. `proxy-stays-database-free` fails the build
+ * if this file, or anything it imports, reaches for the database.
  *
  * ORDER MATTERS, and it is the reverse of what feels natural:
  *
@@ -59,7 +72,7 @@ import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
  * readiness probe starts 401ing; the orchestrator then pulls every pod out
  * of rotation, and the cause is three files away from the edit.
  *
- * It also paid a JWE decrypt on every probe, on the edge, several times a
+ * It also paid a JWE decrypt on every probe, several times a
  * second per pod — including during the incident when the orchestrator is
  * deciding whether this pod still deserves traffic.
  *
@@ -78,8 +91,9 @@ const CLUB_INDEX = /^\/t\/([^/]+)\/?$/;
  * The canonical error envelope, hand-written.
  *
  * `withApiErrorHandling` owns this shape for route handlers
- * (`ApiErrorResponse` in `@/lib/errors/types`), but this file runs on the
- * Edge runtime and that module pulls in Node-only code. So the shape is
+ * (`ApiErrorResponse` in `@/lib/errors/types`), but that module pulls in the
+ * logger, the request context and the rest of the server, and this file
+ * imports as little as it can (it runs before every request). So the shape is
  * duplicated here deliberately, and `api-error-envelope` pins the copy to
  * the original.
  *
@@ -97,7 +111,7 @@ function apiError(status: number, code: string, message: string, details?: unkno
   );
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 1. Probes bypass everything.

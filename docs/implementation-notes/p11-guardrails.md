@@ -42,7 +42,7 @@ type guarantee downstream of it** — and the code still compiles, still passes
 review, and still looks exactly like the safe version.
 
 Baseline is 0, on `lib/auth`, `lib/security`, `app-layer/policies` and
-`middleware.ts`. A number that can only fall.
+`proxy.ts`. A number that can only fall.
 
 ## Logging hygiene
 

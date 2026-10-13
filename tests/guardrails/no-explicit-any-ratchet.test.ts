@@ -18,7 +18,7 @@ const CRITICAL = [
   'src/lib/auth/**/*.ts',
   'src/lib/security/**/*.ts',
   'src/app-layer/policies/**/*.ts',
-  'src/middleware.ts',
+  'src/proxy.ts',
 ];
 
 const ANY_RE = /:\s*any\b|<any>|as\s+any\b|\bany\[\]/;

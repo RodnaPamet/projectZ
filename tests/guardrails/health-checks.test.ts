@@ -139,7 +139,7 @@ describe('readiness DOES check its dependencies', () => {
 describe('the middleware probe bypass names routes that exist', () => {
   // ═══ A PHANTOM PROBE PATH IS INVISIBLE UNTIL IT IS AN OUTAGE ═══
   //
-  // `HEALTH_PATHS` in src/middleware.ts decides which requests skip the auth
+  // `HEALTH_PATHS` in src/proxy.ts decides which requests skip the auth
   // pipeline entirely. It once named `/api/livez` and `/api/readyz` — neither
   // of which is a route here. Readiness still answered 200, because it fell
   // through `checkTenantAccess`'s "no tenant in this path" default.
@@ -149,7 +149,7 @@ describe('the middleware probe bypass names routes that exist', () => {
   // pulling healthy pods. Naming a path that does not exist is the failure —
   // not the 404 it would produce, but the real path it silently leaves out.
 
-  const MIDDLEWARE = 'src/middleware.ts';
+  const MIDDLEWARE = 'src/proxy.ts';
 
   function healthPaths(): string[] {
     const src = readFileSync(MIDDLEWARE, 'utf8');

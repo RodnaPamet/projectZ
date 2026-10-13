@@ -69,7 +69,7 @@ describe('route permissions', () => {
   // ── Versioned API prefix ──────────────────────────────────────────
   //
   // These rules deny by MATCHING. A pattern that does not match returns
-  // `null` from `requiredPermission`, and `middleware.ts` reads `null` as
+  // `null` from `requiredPermission`, and `proxy.ts` reads `null` as
   // "no permission required" — so a rule that misses `/api/v1` does not
   // half-protect the route, it leaves it open to every authenticated
   // member of the tenant, PLAYERs included.
