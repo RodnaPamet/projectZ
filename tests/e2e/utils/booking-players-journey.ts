@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { expect, type Browser, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
-import { signIn } from '../fixtures';
+import { signIn, testClientIp } from '../fixtures';
 import { streamed } from './streamed';
 import { E2E_PASSWORD, prisma } from './create-isolated-tenant';
 import { destroyPlayer, type E2EPlayer } from './create-player';
@@ -88,7 +88,11 @@ export async function shareAndJoin(
   if (opts.screenshot) await page.screenshot({ path: opts.screenshot });
 
   // The second player, in their own browser: the game first, then sign-in.
-  const context = await browser.newContext(opts.viewport ? { viewport: opts.viewport } : {});
+  // The friend's browser is a second client (#539).
+  const context = await browser.newContext({
+    ...(opts.viewport ? { viewport: opts.viewport } : {}),
+    extraHTTPHeaders: { 'x-forwarded-for': testClientIp() },
+  });
   const other = await context.newPage();
   try {
     const path = new URL(link).pathname;
