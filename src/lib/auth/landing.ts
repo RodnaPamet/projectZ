@@ -50,6 +50,18 @@ export const START_PATH = '/start';
 export const KIND_CHOOSER_PATH = '/start/kind';
 
 /**
+ * The phone step (#500): where a player confirms a phone number by SMS code,
+ * before their first booking, join request or message. `next` is where they
+ * were going.
+ */
+export const PHONE_STEP_PATH = '/start/phone';
+
+/** The phone step, with the way back to `next` (a path on this site). */
+export function phoneStepHref(next?: string | null): string {
+  return next ? `${PHONE_STEP_PATH}?next=${encodeURIComponent(next)}` : PHONE_STEP_PATH;
+}
+
+/**
  * Where a person lands right after choosing PLAYER: Играй, the venue index,
  * because a new player has nothing in Резервации yet.
  */

@@ -74,6 +74,8 @@ const NO_FRAME: Record<string, string> = {
     'signed in, its layout redirects to Играй (SIGNED_IN_HOME), whose page wears the frame: asserted below',
   '(app)/start/kind':
     'the kind chooser (#360): until an account has chosen, nothing is offered but signing out',
+  '(app)/start/phone':
+    'the phone step (#500): one field, then a code; «Не сега» and signing out are the ways out',
   '(app)/start/terms':
     'the terms step (#462): until the account accepts the version in force, nothing is offered but the texts, the profile and signing out',
   '(app)/t/[slug]':

@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useEnterSubmit } from '@/components/ui/hooks';
 import { ChevronLeft, Flag, PaperPlane } from '@/components/ui/icons/nucleo';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
+import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Textarea } from '@/components/ui/textarea';
 import { Caption, Heading } from '@/components/ui/typography';
@@ -516,7 +517,11 @@ export function ConversationView({ side, seed, back, counterpartHref }: Conversa
           {t('tooLong', { max: MAX_BODY_LENGTH })}
         </InlineNotice>
       ) : null}
-      {sendError ? (
+      {sendError === 'PHONE_REQUIRED' ? (
+        // A confirmed phone number before the first message (#500). The text
+        // stays in the box for when they are back.
+        <PhoneRequiredNotice className="mt-2" />
+      ) : sendError ? (
         <InlineNotice variant="error" className="mt-2" data-testid="conversation-send-error">
           {t(`sendError.${SEND_ERRORS.includes(sendError) ? sendError : 'UNKNOWN'}`)}
         </InlineNotice>

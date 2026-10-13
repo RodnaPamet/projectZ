@@ -1,6 +1,7 @@
 import { CardListSkeleton } from '@/components/loading/shapes';
 import { RouteSkeleton } from '@/components/loading/route-skeleton';
 import { Skeleton, SkeletonPill } from '@/components/ui/skeleton';
+import { phoneStanding } from '@/app-layer/usecases/phone-verification';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { toAvailability } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
@@ -8,6 +9,7 @@ import { playerChrome } from '@/components/layout/player-chrome';
 import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
+import { phoneRequired } from '@/lib/sms/phone-verifier';
 import { countPageUsage } from '@/lib/usage/record';
 
 import { bookingDays, parseInitialPick } from './booking-days';
@@ -69,8 +71,14 @@ export async function VenueSlots({
   // An account that has not answered "Играч или треньор?" yet (#360) cannot
   // book: the API refuses it. So «Резервирай» takes it to that question and
   // back to this slot, rather than into a sheet that can only refuse (#416).
-  const viewer: Viewer =
+  const who: Viewer =
     landing?.href === KIND_CHOOSER_PATH ? 'undecided' : kind === 'coach' ? 'player' : kind;
+  // And a player with no confirmed phone number, once the rule is on (#500),
+  // confirms one first and comes back to the slot: one read, only then.
+  const viewer: Viewer =
+    who === 'player' && me && phoneRequired() && !(await phoneStanding(me.userId))?.verified
+      ? 'no-phone'
+      : who;
 
   // A player back from sign-in with `?confirm=1` lands on the confirm sheet
   // already open (VenueBooking), so the funnel's "sheet opened" (#371) is
