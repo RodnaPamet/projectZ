@@ -6,8 +6,8 @@ import {
   expectAxeClean,
   expectCutoffPassed,
   openAndCancel,
-  streamed,
 } from './utils/booking-detail-journey';
+import { streamed } from './utils/streamed';
 import { destroyPlayedClub, seedPlayedClub, type PlayedClub } from './utils/seed-my-bookings';
 import { settleAnimations } from './utils/settle-animations';
 

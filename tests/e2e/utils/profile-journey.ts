@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
-import { streamed } from './booking-detail-journey';
+import { streamed } from './streamed';
 
 /**
  * The #359 profile journey, shared by the 1280 px spec and its 393 px twin:

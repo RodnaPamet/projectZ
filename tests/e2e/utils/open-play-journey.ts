@@ -2,7 +2,7 @@ import { expect, type Browser, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
 import { signIn, testClientIp } from '../fixtures';
-import { streamed } from './booking-detail-journey';
+import { streamed } from './streamed';
 import { prisma } from './create-isolated-tenant';
 import type { E2EPlayer } from './create-player';
 import type { PlayedClub } from './seed-my-bookings';

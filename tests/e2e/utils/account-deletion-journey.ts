@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { expect, type Locator, type Page } from '@playwright/test';
 
 import bg from '../../../messages/bg.json';
-import { expectAxeClean, streamed } from './booking-detail-journey';
+import { expectAxeClean } from './booking-detail-journey';
+import { streamed } from './streamed';
 import { prisma } from './create-isolated-tenant';
 import { settleAnimations } from './settle-animations';
 
