@@ -108,6 +108,7 @@ describe('the capability list', () => {
   });
 
   it('classifies TENANT_SUSPEND and REVIEW_MODERATE as writes and the reads as reads', () => {
+    // Enabled (#254) and still a write: it needs a step-up like every write.
     expect(isWriteCapability(PlatformCapability.TENANT_SUSPEND)).toBe(true);
     // Enabled is not the same as "not a write". Relabelling it a read would
     // have enabled it too — by making the refusal a matter of naming.
@@ -140,24 +141,24 @@ describe('the capability list', () => {
 });
 
 describe('which writes the binding refuses', () => {
-  it('enables exactly two writes, by name — REVIEW_MODERATE and CLUB_FEE_MANAGE, behind a step-up', () => {
+  it('enables exactly three writes, by name, behind a step-up', () => {
     // Pinned so enabling another cross-club write is an edit to THIS file as
     // well as to the set, and a reviewer sees both. The terms each is enabled
     // on are written beside STEP_UP_PLATFORM_WRITES. CLUB_FEE_MANAGE (#372)
     // sets one club's fee terms, which only affect fee lines written after it.
+    // TENANT_SUSPEND (#254) takes one club offline, by the owner's decision of
+    // 2026-10-13.
     expect([...STEP_UP_PLATFORM_WRITES]).toEqual([
       PlatformCapability.REVIEW_MODERATE,
       PlatformCapability.CLUB_FEE_MANAGE,
+      PlatformCapability.TENANT_SUSPEND,
     ]);
-  });
-
-  it('still refuses TENANT_SUSPEND', () => {
-    expect(isRefusedWrite(PlatformCapability.TENANT_SUSPEND)).toBe(true);
   });
 
   it('refuses no read and not the enabled writes', () => {
     expect(isRefusedWrite(PlatformCapability.REVIEW_MODERATE)).toBe(false);
     expect(isRefusedWrite(PlatformCapability.CLUB_FEE_MANAGE)).toBe(false);
+    expect(isRefusedWrite(PlatformCapability.TENANT_SUSPEND)).toBe(false);
     for (const read of [
       PlatformCapability.TENANT_READ,
       PlatformCapability.AUDIT_READ,
@@ -176,9 +177,12 @@ describe('which writes the binding refuses', () => {
   });
 
   it('refuses every write that is not enabled by name — the default stays refusal', () => {
+    // Every write declared today is enabled (TENANT_SUSPEND was the last, #254),
+    // so the rule is checked on its definition: a write capability missing
+    // from STEP_UP_PLATFORM_WRITES is refused.
     const refused = [...PLATFORM_WRITE_CAPABILITIES].filter((c) => !STEP_UP_PLATFORM_WRITES.has(c));
-    expect(refused.length).toBeGreaterThan(0);
     for (const c of refused) expect(isRefusedWrite(c)).toBe(true);
+    expect(isRefusedWrite.toString()).toMatch(/STEP_UP_PLATFORM_WRITES\.has/);
   });
 });
 

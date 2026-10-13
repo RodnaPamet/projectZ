@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import type { RequestContext } from '@/app-layer/types';
 import type { PlatformCapability } from '@/lib/platform/capabilities';
 import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
-import { membershipContext } from '@/lib/auth/page-context';
+import { ClubNotActiveError, membershipContext } from '@/lib/auth/page-context';
 import { checkSession } from '@/lib/auth/sessions';
 import { AppError, ForbiddenError, UnauthorizedError } from '@/lib/errors/types';
 import { requiredPermission } from '@/lib/security/route-permissions';
@@ -119,6 +119,9 @@ function notAMember(): ForbiddenError {
 function lacksPermission(permission: string): AppError {
   return new AppError('Forbidden', 'FORBIDDEN', 403, true, { requiredPermission: permission });
 }
+
+/** The methods a suspended or closed club still answers for its members (#254). */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export async function contextFromRequest(
   req: NextRequest,
@@ -312,6 +315,12 @@ export async function contextFromRequest(
   // from token.permissions, and no longer from the token's role for this club
   // either — that claim can be a week old.
   if (needed && !held.permissions.includes(needed)) throw lacksPermission(needed);
+
+  // A club the platform has suspended or closed is read-only for its members
+  // (#254): every write to it is refused here, whatever the permission.
+  if (held.clubStatus !== 'ACTIVE' && !SAFE_METHODS.has(req.method)) {
+    throw new ClubNotActiveError(held.clubStatus);
+  }
 
   return {
     ...base,

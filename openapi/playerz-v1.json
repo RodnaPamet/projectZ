@@ -9744,6 +9744,112 @@
           }
         }
       }
+    },
+    "/platform/clubs/{clubId}/status": {
+      "put": {
+        "operationId": "setPlatformClubStatus",
+        "summary": "Suspend, close or reopen a club",
+        "tags": ["Platform"],
+        "description": "Moves a club's status (#254). SUSPENDED or CLOSED: the club is hidden from players and takes no bookings, every upcoming booking (PENDING or CONFIRMED, not yet started) is cancelled as the club with notice to its players, weekly series are cut at today, and the club's staff keep read-only access (their writes answer 403 `CLUB_NOT_ACTIVE`). ACTIVE: back from a suspension; the bookings it cancelled stay cancelled. CLOSED is final.\n\nThe status commits first, then the bookings are cancelled one by one, at most 2000 per call; `bookings.remaining` > 0 only when a club had more than that: the club is already hidden and unbookable, and the rest need an engineer (docs/platform-admin-runbook.md, \"Suspending a club\").\n\n**Needs `TENANT_SUSPEND`, a write capability, and so a second-factor step-up on this session from the last 15 minutes.** Audited twice: the platform row (`PLATFORM_CLUB_SUSPENDED` / `PLATFORM_CLUB_CLOSED` / `PLATFORM_CLUB_REOPENED`, with the reason) and the club's own (`CLUB_STATUS_CHANGED`, before and after).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clubId",
+            "in": "path",
+            "required": true,
+            "description": "The club (`VenueOrg.id`).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetClubStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The change, and what happened to the club's upcoming bookings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubStatusChangeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`REASON_REQUIRED` / `REASON_TOO_LONG` — the body's `reason`. `BAD_REQUEST` — `status` is not ACTIVE, SUSPENDED or CLOSED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no valid access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLATFORM_AUTHORITY_REQUIRED` — no live grant. `PLATFORM_CAPABILITY_REQUIRED` — a live grant without `TENANT_SUSPEND`. `STEP_UP_REQUIRED` — no step-up from the last 15 minutes; `POST /me/mfa/step-up` and retry. `MFA_ENROLMENT_REQUIRED` — the caller has no second factor. `CROSS_SITE_REQUEST` — a cookie-authenticated write from another site. All refused before the audit row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no club with this id. Nothing is written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLICT` — the change is not allowed from the club's current status (the same status again, or anything from CLOSED). Nothing is written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — too many writes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -11068,7 +11174,7 @@
       },
       "PlatformTenant": {
         "type": "object",
-        "required": ["id", "slug", "name", "country", "createdAt"],
+        "required": ["id", "slug", "name", "country", "createdAt", "status"],
         "properties": {
           "id": {
             "type": "string"
@@ -11089,6 +11195,11 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "SUSPENDED", "CLOSED"],
+            "description": "Suspended or closed clubs are hidden from players and read-only for their staff (#254)."
           }
         }
       },
@@ -15046,6 +15157,64 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/PlatformMessageResolution"
+          }
+        }
+      },
+      "SetClubStatusRequest": {
+        "type": "object",
+        "required": ["status", "reason"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "SUSPENDED", "CLOSED"],
+            "description": "The status to move the club to."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 500,
+            "description": "Why. The audit reason of the change, on both audit rows."
+          }
+        }
+      },
+      "ClubStatusChangeEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["clubId", "from", "to", "bookings"],
+            "properties": {
+              "clubId": {
+                "type": "string"
+              },
+              "from": {
+                "type": "string",
+                "enum": ["ACTIVE", "SUSPENDED", "CLOSED"]
+              },
+              "to": {
+                "type": "string",
+                "enum": ["ACTIVE", "SUSPENDED", "CLOSED"]
+              },
+              "bookings": {
+                "type": "object",
+                "required": ["cancelled", "failed", "remaining"],
+                "description": "Upcoming bookings cancelled by this change: always zeros for ACTIVE.",
+                "properties": {
+                  "cancelled": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer",
+                    "description": "Could not be cancelled; logged with each booking id."
+                  },
+                  "remaining": {
+                    "type": "integer",
+                    "description": "Beyond this call's cap of 2000."
+                  }
+                }
+              }
+            }
           }
         }
       }

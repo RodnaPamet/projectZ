@@ -7,7 +7,7 @@ import type { PlayerzJWT } from '@/lib/auth/jwt-claims';
 import { checkSession } from '@/lib/auth/sessions';
 import { getPermissionsForRole, type Permission } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
-import type { Role } from '@prisma/client';
+import type { Role, TenantStatus } from '@prisma/client';
 
 /**
  * Who is asking, about which club — for a SERVER COMPONENT.
@@ -71,6 +71,12 @@ export interface TenantPageContext {
   tenantName: string;
   role: Role;
   permissions: readonly Permission[];
+  /**
+   * The club's own status (#254). Not ACTIVE means suspended or closed by the
+   * platform: its staff may still READ their admin, and every write is
+   * refused (`requireTenantAction`, and `contextFromRequest` for v1 writes).
+   */
+  clubStatus: TenantStatus;
 }
 
 export type TenantPageResult =
@@ -155,7 +161,11 @@ export async function membershipContext(userId: string, slug: string): Promise<T
       // are not now. Any of the three rendering an admin screen would be a
       // membership check that only asks whether a row exists.
       where: { userId, status: 'ACTIVE', tenant: { slug } },
-      select: { tenantId: true, role: true, tenant: { select: { slug: true, name: true } } },
+      select: {
+        tenantId: true,
+        role: true,
+        tenant: { select: { slug: true, name: true, status: true } },
+      },
     });
     // `!row.tenant`: the club was deleted between Prisma's two selects, which
     // returns a required relation as null (#419). No club, no member.
@@ -174,6 +184,7 @@ export async function membershipContext(userId: string, slug: string): Promise<T
       role: membership.role,
       // Derived from the membership that matches THIS slug. Never the token.
       permissions: getPermissionsForRole(membership.role),
+      clubStatus: membership.tenant.status,
     },
   };
 }
@@ -213,6 +224,17 @@ export class TenantActionDeniedError extends Error {
   }
 }
 
+/**
+ * A write at a club the platform has suspended or closed (#254). Its staff
+ * keep read-only access; nothing they do may change it.
+ */
+export class ClubNotActiveError extends Error {
+  constructor(readonly status: TenantStatus) {
+    super(`This club is ${status.toLowerCase()}: its admin is read-only.`);
+    this.name = 'ClubNotActiveError';
+  }
+}
+
 export async function requireTenantAction(
   slug: string,
   permission: Permission,
@@ -221,6 +243,8 @@ export async function requireTenantAction(
   if (result.kind !== 'ok' || !result.ctx.permissions.includes(permission)) {
     throw new TenantActionDeniedError(slug, permission);
   }
+  // Every Server Action is a write (#254): a club that is not ACTIVE takes none.
+  if (result.ctx.clubStatus !== 'ACTIVE') throw new ClubNotActiveError(result.ctx.clubStatus);
   return result.ctx;
 }
 

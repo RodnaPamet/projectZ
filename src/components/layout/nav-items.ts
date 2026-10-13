@@ -45,6 +45,7 @@ export type NavIconKey =
   | 'reports'
   | 'moderation'
   | 'fees'
+  | 'clubs'
   | 'usage'
   | 'security'
   | 'contactRequests'
@@ -275,6 +276,17 @@ export function platformNav(): NavSection<PlatformNavItem>[] {
           href: '/platform/fees',
           labelKey: 'fees',
           iconKey: 'fees',
+          requires: 'TENANT_READ',
+          prefetch: 'auto',
+        },
+        {
+          // Every club and its status (#254). Reading is TENANT_READ;
+          // suspending, closing or reopening one needs TENANT_SUSPEND and a
+          // step-up, and the page shows those controls only to a grant that
+          // carries it.
+          href: '/platform/clubs',
+          labelKey: 'clubs',
+          iconKey: 'clubs',
           requires: 'TENANT_READ',
           prefetch: 'auto',
         },

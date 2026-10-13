@@ -165,6 +165,8 @@ export const KEYS = {
    */
   platformFees: (params: { month: string; reason: string }) =>
     `${BASE}/platform/fees${query(params)}`,
+  /** Every club, with its status (#254): the first page, for /platform/clubs. */
+  platformClubs: (params: { reason: string }) => `${BASE}/platform/tenants${query(params)}`,
   /** One club's statement, from the platform (#372). */
   platformClubStatement: (clubId: string, params: { month: string; reason: string }) =>
     `${BASE}/platform/fees/${seg(clubId)}/statement${query(params)}`,
@@ -245,6 +247,8 @@ export const V1 = {
     `${BASE}/platform/fees/${seg(clubId)}/statement/csv${query(params)}`,
   /** `PUT { feePercent, feeStartsOn, reason }`: a club's fee terms (#372). */
   clubFeeTerms: (clubId: string) => `${BASE}/platform/fees/${seg(clubId)}/terms`,
+  /** Suspend, close or reopen a club (#254). */
+  clubStatus: (clubId: string) => `${BASE}/platform/clubs/${seg(clubId)}/status`,
   /** Open a conversation (#375): `{ playerId }` or `{ club }` for a player; `{ playerId }` for a club. */
   openConversation: (side: InboxSide) => `${inboxBase(side)}/conversations`,
   sendMessage: (side: InboxSide, id: string) =>

@@ -35,10 +35,9 @@ export const PLATFORM_CAPABILITIES = [
  * Capabilities that WRITE across clubs.
  *
  * Every one of them needs a fresh second-factor step-up on the session that
- * asks (#262) — see `requiresStepUp` below. `TENANT_SUSPEND` is still declared
- * and NOT enabled at all: there is no route for it, and a guardrail asserts no
- * route asks for it. Having a second factor does not by itself make taking a
- * club offline a power worth shipping; that is a product decision of its own.
+ * asks (#262) — see `requiresStepUp` below. Each is also enabled by name in
+ * `STEP_UP_PLATFORM_WRITES`; `TENANT_SUSPEND` was the last to be, once the
+ * owner decided taking a club offline is a power worth having (#254).
  *
  * This set is what makes both rules data rather than special cases — a write
  * capability added later inherits the step-up AND the refusal automatically,
@@ -84,6 +83,13 @@ export const STEP_UP_PLATFORM_WRITES: ReadonlySet<PlatformCapability> = new Set(
   // platform row, and the club's own with the values before and after. Granted
   // only explicitly; no other capability implies it.
   PlatformCapability.CLUB_FEE_MANAGE,
+  // Suspending, closing or reopening a club (#254), the owner's decision of
+  // 2026-10-13. Its reach is one club at a time: the club is hidden from
+  // players, its upcoming bookings are cancelled with notice, and its staff
+  // keep read-only access. Reopening brings the club back, not the cancelled
+  // bookings. CLOSED is final. Every change states a reason and is audited
+  // twice, on the platform and in the club's own log.
+  PlatformCapability.TENANT_SUSPEND,
 ]);
 
 export function isWriteCapability(capability: PlatformCapability): boolean {

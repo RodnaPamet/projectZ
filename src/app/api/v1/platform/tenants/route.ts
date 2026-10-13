@@ -125,7 +125,15 @@ async function handler(req: NextRequest) {
 
       const rows = await db.venueOrg.findMany({
         where: { id: { in: ids } },
-        select: { id: true, slug: true, name: true, city: true, country: true, createdAt: true },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          city: true,
+          country: true,
+          status: true,
+          createdAt: true,
+        },
         // Bounded by `ids` already — it cannot exceed PAGE_SIZE + 1 — but
         // stated, because `query-shape` D2 takes no view on whether an `in`
         // happens to be short today, and it is right not to.

@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
+import { InlineNotice } from '@/components/ui/inline-notice';
 // NOT from a 'use client' module: the server CALLS this, and every export of
 // a client module is a client reference that throws when called (#195-#227).
 import { clubShell } from '@/components/layout/nav-items';
@@ -79,7 +80,10 @@ export default async function ClubAdminLayout({
   }
   if (result.kind === 'not-a-member') notFound();
 
-  const nouns = await clubResourceNouns(result.ctx.tenantId);
+  const [nouns, tAdmin] = await Promise.all([
+    clubResourceNouns(result.ctx.tenantId),
+    getTranslations('admin.clubStatus'),
+  ]);
   const club = clubShell(result.ctx, {
     platform: grant?.capabilities ?? [],
     me,
@@ -101,6 +105,12 @@ export default async function ClubAdminLayout({
       fullBleedSegment="calendar"
       messages={club.messages}
     >
+      {result.ctx.clubStatus !== 'ACTIVE' && (
+        // Suspended or closed by the platform (#254): read-only, and why.
+        <InlineNotice variant="warning" className="mb-default" data-testid="club-not-active">
+          {tAdmin(result.ctx.clubStatus === 'CLOSED' ? 'closed' : 'suspended')}
+        </InlineNotice>
+      )}
       {children}
     </ClubAdminShell>
   );

@@ -408,13 +408,14 @@ describe('a platform grant holder: "Платформа" lists the pages the gran
     });
   });
 
-  it('every capability: all five platform pages', async () => {
+  it('every capability: all six platform pages', async () => {
     resolvePlatformAuthority.mockResolvedValue(EVERY_CAPABILITY);
     await renderChrome();
 
     expect(railLinks().slice(PLAYER_ITEMS.length)).toEqual([
       [n.moderation, '/platform/moderation'],
       [n.fees, '/platform/fees'],
+      [n.clubs, '/platform/clubs'],
       [n.usage, '/platform/usage'],
       [n.contactRequests, '/platform/contact-requests'],
       [n.security, '/platform/security'],
