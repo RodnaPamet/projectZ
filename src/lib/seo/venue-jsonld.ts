@@ -47,6 +47,8 @@ export interface VenueJsonLdInput {
   phone?: string | null;
   /** The page's canonical absolute URL. */
   url: string;
+  /** The absolute URL of the club's page (`/clubs/{slug}`), when known. */
+  clubUrl?: string;
   /** Photo URLs, absolute or site-relative, best first. Empty: no `image`. */
   images: readonly string[];
   /** Display names of the sports played, in the page's language. */
@@ -129,6 +131,11 @@ export function buildVenueJsonLd(input: VenueJsonLdInput): JsonLd {
       ? { geo: { '@type': 'GeoCoordinates', latitude, longitude } }
       : {}),
     ...(input.phone ? { telephone: input.phone } : {}),
+    // The club that runs it (#410), by the `@id` its own page gives the
+    // SportsClub (club-jsonld.ts), so a crawler joins the two pages.
+    ...(input.clubUrl
+      ? { parentOrganization: { '@type': 'SportsClub', '@id': `${input.clubUrl}#club` } }
+      : {}),
     ...(images.length > 0 ? { image: images } : {}),
     ...(priceRange ? { priceRange } : {}),
     ...(sports.length > 0

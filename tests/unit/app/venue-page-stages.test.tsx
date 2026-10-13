@@ -21,7 +21,13 @@ import { VenueSlots, VenueSlotsSkeleton } from '@/app/(public)/venues/[slug]/Ven
 
 jest.mock('@/lib/db/rls-middleware', () => {
   const db = {
-    venueOrg: { findUnique: jest.fn(async () => ({ slug: 'sofia-club', status: 'ACTIVE' })) },
+    venueOrg: {
+      findUnique: jest.fn(async () => ({
+        slug: 'sofia-club',
+        name: 'Sofia Club',
+        status: 'ACTIVE',
+      })),
+    },
   };
   return { runAsSuperuser: jest.fn((fn: (h: unknown) => unknown) => Promise.resolve(fn(db))) };
 });
@@ -102,6 +108,11 @@ describe('the venue page, two stages (#403)', () => {
     const header = all.find(([el]) => el.type === VenueHeader);
     expect(header).toBeDefined();
     expect((header![0].props as { name: string }).name).toBe('Sofia Padel Club');
+    // #410: the header links the venue to its club's page.
+    expect((header![0].props as { club: unknown }).club).toEqual({
+      name: 'Sofia Club',
+      href: '/clubs/sofia-club',
+    });
     expect(header![1]).toEqual([]); // outside every Suspense boundary
 
     const slots = all.find(([el]) => el.type === VenueSlots);

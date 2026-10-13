@@ -15,7 +15,7 @@ import { splitPhotos } from '@/lib/media/photo-view';
 import { cityLabel } from '@/lib/geo/cities';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { bookingNoun } from '@/lib/sports/resource-kinds';
-import { venuePath } from '@/lib/seo/sitemap';
+import { clubPath, venuePath } from '@/lib/seo/sitemap';
 import { readModules } from '@/lib/modules';
 import { countPageUsage } from '@/lib/usage/record';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
@@ -81,10 +81,10 @@ const readVenue = cache(async (publicSlug: string) => {
     if (!venue) return null;
     const club = await db.venueOrg.findUnique({
       where: { id: venue.tenantId },
-      select: { slug: true },
+      select: { slug: true, name: true },
     });
     if (!club) return null;
-    return { venue, clubSlug: club.slug };
+    return { venue, clubSlug: club.slug, clubName: club.name };
   });
 });
 
@@ -190,12 +190,12 @@ export default async function VenuePage({
   const found = await readVenue(slug);
   if (!found) notFound();
 
-  const { venue, clubSlug } = found;
+  const { venue, clubSlug, clubName } = found;
   const publicSlug = venue.publicSlug ?? slug;
   // The funnel's venue-page step (#371): anonymous, counted after the response.
   await countPageUsage('VENUE_VIEW', { venueId: venue.id });
   const sports = [...new Set(venue.resources.map((r) => r.sport))];
-  const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug));
+  const jsonLd = await venueJsonLd(venue, sports, venuePath(publicSlug), clubPath(clubSlug));
   const { cover, gallery } = splitPhotos(venue.photos);
   const [tCities, tNav, me] = await Promise.all([
     getTranslations('cities'),
@@ -232,6 +232,7 @@ export default async function VenuePage({
           city={cityLabel(tCities, venue.city)}
           sports={sports}
           cover={cover}
+          club={{ name: clubName, href: clubPath(clubSlug) }}
         />
         {/* #375: a signed-in player writes to the venue's club, while messaging is on. */}
         <WriteToClub clubSlug={clubSlug} className="in-shell:px-0 -mt-2 px-6 md:px-0" />
@@ -266,7 +267,7 @@ export default async function VenuePage({
 type FoundVenue = NonNullable<Awaited<ReturnType<typeof readVenue>>>['venue'];
 
 /** The page's SportsActivityLocation, in the page's language. */
-async function venueJsonLd(venue: FoundVenue, sports: string[], path: string) {
+async function venueJsonLd(venue: FoundVenue, sports: string[], path: string, club: string) {
   const [tSports, locale] = await Promise.all([getTranslations('sports'), getLocale()]);
   return buildVenueJsonLd({
     name: venue.name,
@@ -278,6 +279,7 @@ async function venueJsonLd(venue: FoundVenue, sports: string[], path: string) {
     lng: venue.lng,
     phone: venue.phone,
     url: absoluteUrl(path),
+    clubUrl: absoluteUrl(club),
     images: venueImages(venue),
     sports: sports.map((s) => tSports(s as never)),
     courts: venue.resources,

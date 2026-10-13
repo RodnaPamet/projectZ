@@ -244,6 +244,7 @@
     },
     "metaDescription": "{name}, {address}, {city}. Free times and online booking, paid at the club.",
     "back": "Back to venues",
+    "club": "Run by <link>{name}</link>",
     "sportsLabel": "Sports",
     "day": {
       "label": "Day",
