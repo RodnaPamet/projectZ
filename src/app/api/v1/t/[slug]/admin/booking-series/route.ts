@@ -6,6 +6,7 @@ import { notifySeriesCreated } from '@/app-layer/usecases/booking-notifications'
 import {
   createSeries,
   getSeries,
+  listLiveSeries,
   SeriesClashError,
   seriesClashes,
 } from '@/app-layer/usecases/desk-bookings';
@@ -75,3 +76,14 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ slug: s
 }
 
 export const POST = defineV1Route(handler);
+
+/** GET: the club's series with a live week from today on, soonest first (#415). */
+async function list(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const ctx = await contextFromRequest(req, { slug, requestId: getRequestId() });
+  requireDesk(ctx);
+  const items = await inTenant(ctx, (db) => listLiveSeries(db, ctx.tenantId));
+  return ok({ items });
+}
+
+export const GET = defineV1Route(list);
