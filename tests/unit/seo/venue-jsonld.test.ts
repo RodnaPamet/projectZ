@@ -35,8 +35,11 @@ const SHAPES: Record<string, { required: string[]; allowed: string[] }> = {
       'telephone',
       'priceRange',
       'amenityFeature',
+      'parentOrganization',
     ],
   },
+  // A reference to the club's own node (#410): the type and the id, no more.
+  SportsClub: { required: ['@id'], allowed: ['@type', '@id'] },
   PostalAddress: {
     required: ['streetAddress', 'addressLocality', 'addressCountry'],
     allowed: [
@@ -122,6 +125,16 @@ describe('buildVenueJsonLd (#396)', () => {
       },
       geo: { '@type': 'GeoCoordinates', latitude: 42.6977123, longitude: 23.3219456 },
     });
+  });
+
+  it('points at its club by the id the club page gives itself (#410)', () => {
+    expect(buildVenueJsonLd(base)).not.toHaveProperty('parentOrganization');
+    const ld = buildVenueJsonLd({ ...base, clubUrl: 'https://playerz.bg/clubs/arena' });
+    expect(ld.parentOrganization).toEqual({
+      '@type': 'SportsClub',
+      '@id': 'https://playerz.bg/clubs/arena#club',
+    });
+    expect(validate(ld)).toEqual([]);
   });
 
   it('lists each sport once, as an amenity feature', () => {

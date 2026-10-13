@@ -244,6 +244,7 @@
     },
     "metaDescription": "{name}, {address}, {city}. Свободни часове и резервация онлайн с плащане на място.",
     "back": "Към обектите",
+    "club": "Обект на <link>{name}</link>",
     "sportsLabel": "Спортове",
     "day": {
       "label": "Ден",

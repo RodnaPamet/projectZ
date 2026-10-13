@@ -25,6 +25,8 @@ export default function Loading() {
           </div>
           <div className="in-shell:px-0 flex flex-col gap-2 px-6 md:px-0">
             <PageTitleSkeleton />
+            {/* The club's line (#410), then the address. */}
+            <Skeleton className="h-4 w-1/3" />
             <Skeleton className="h-4 w-2/3" />
             <div className="flex gap-1">
               <SkeletonPill />
