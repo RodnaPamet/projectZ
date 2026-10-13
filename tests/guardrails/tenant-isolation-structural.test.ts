@@ -31,6 +31,8 @@ const GLOBAL_MODELS = new Set([
   'playerProfile',
   'skillRatingHistory',
   'venueOrg', // keyed on its own id, not a tenantId column
+  // The platform's terms, accepted by a person (#462): owner-only RLS (P64).
+  'legalAcceptance',
   'tenantMembership', // the membership IS the tenant link
 
   // ── P15 messaging ──────────────────────────────────────────────────

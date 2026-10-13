@@ -52,8 +52,8 @@ export default async function KindChooserPage({
 
   const [t, locale] = await Promise.all([getTranslations('onboarding.kind'), getLocale()]);
   // "Продължавайки, приемате …" (#370): only when both texts exist in this
-  // language, since the sentence links to both. Recording the acceptance is
-  // #462; this is the notice.
+  // language, since the sentence links to both. Continuing records the
+  // acceptance (#462, `POST /me/account-kind`).
   const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
   const terms = legal.terms;
   const privacy = legal.privacy;

@@ -306,6 +306,10 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
 
       await tx.playerProfile.create({ data: { userId, displayName: 'Иван', bio: 'Играя падел' } });
       await tx.playerSportLevel.create({ data: { userId, sport: 'PADEL', level: 4 } });
+      // The terms it accepted (#462): kept, as the record of what it agreed to.
+      await tx.legalAcceptance.create({
+        data: { userId, document: 'terms', version: '2026-11-01', locale: 'bg' },
+      });
       await tx.userSession.create({
         data: {
           userId,
@@ -572,6 +576,10 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
       venue: await tx.venue.findUniqueOrThrow({ where: { id: court.venueId } }),
       feeLines: await tx.clubFeeLine.count({ where: { bookingId: ids.mine } }),
       ledger: await tx.creditLedgerEntry.count({ where: { userId } }),
+      accepted: await tx.legalAcceptance.findMany({
+        where: { userId },
+        select: { document: true, version: true, locale: true },
+      }),
       othersBell: await tx.notification.count({
         where: { userId: otherId, kind: 'BOOKING_CONFIRMED' },
       }),
@@ -629,6 +637,7 @@ describe('what a deletion does to every table (#370, deletion-plan.ts)', () => {
     expect(after.place).toMatchObject({ userId, bookingId: ids.theirs });
     expect(after.feeLines).toBe(1);
     expect(after.ledger).toBe(1);
+    expect(after.accepted).toEqual([{ document: 'terms', version: '2026-11-01', locale: 'bg' }]);
     expect(after.othersBell).toBe(1);
     // The rating its review moved is recomputed: no review left, no rating.
     expect(after.venue.reviewCount).toBe(0);

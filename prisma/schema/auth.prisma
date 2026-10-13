@@ -223,7 +223,9 @@ model User {
   platformGrants PlatformAdminGrant[] @relation("PlatformGrantHolder")
 
   /// The sports this person plays, each at a level they declared (#359).
-  sportLevels PlayerSportLevel[]
+  sportLevels      PlayerSportLevel[]
+  /// Which terms and privacy versions the person accepted (#462).
+  legalAcceptances LegalAcceptance[]
 
   @@map("app_user")
 }
@@ -241,6 +243,32 @@ model User {
 /// `PlayerProfile`, because a profile row needs a display name and most
 /// accounts have none; a person can say they play padel before they have
 /// told us what to call them.
+/// Which version of the terms or the privacy policy a person accepted, and when
+/// (#462). One row per person, text and version; never updated. The versions
+/// are content/legal-versions.json (src/lib/legal/versions.ts).
+///
+/// GLOBAL: no tenantId, the terms are the platform's. Owner-only RLS (P64):
+/// bound to a person, a query reads and adds that person's rows; nothing
+/// bound to a person updates or deletes one.
+model LegalAcceptance {
+  id     String @id @default(cuid())
+  userId String
+
+  /// "terms" | "privacy" (CHECK legal_acceptance_document).
+  document String
+  /// The version in force when they accepted.
+  version  String
+  /// The language they read it in.
+  locale   String
+
+  acceptedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, document, version])
+  @@map("legal_acceptance")
+}
+
 model PlayerSportLevel {
   userId String
   sport  SportType

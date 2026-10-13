@@ -27,7 +27,9 @@ import { facebookConfigured, googleConfigured } from '@/lib/auth/sign-in-methods
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
+import { acceptedCurrentVersions } from '@/app-layer/usecases/legal-acceptance';
 import { chosenLocale } from '@/lib/i18n/chosen-locale';
+import { encodeLegalVersions } from '@/lib/legal/versions';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import { ownAvatar } from '@/lib/media/avatar-url';
 import { getMediaStorage } from '@/lib/media/storage';
@@ -454,6 +456,11 @@ export const authOptions: NextAuthOptions = {
             .then((u) => u?.locale ?? DEFAULT_LOCALE),
         );
 
+        // The terms and privacy versions this account has accepted (#462), so
+        // the middleware can send it to the acceptance step without a database
+        // read. Empty while no version is in force.
+        token.legal = encodeLegalVersions(await acceptedCurrentVersions(user.id));
+
         // Default to the first membership; the tenant switcher re-mints.
         const first = memberships[0];
         token.tenantId = first?.tenantId ?? null;
@@ -548,6 +555,10 @@ export const authOptions: NextAuthOptions = {
         if (row) {
           token.locale = row.locale;
           token.name = row.name;
+          // And what the account has accepted (#462): the acceptance step and
+          // the first-sign-in screen refresh the session once they have
+          // recorded it. Read from the database, as everything here.
+          token.legal = encodeLegalVersions(await acceptedCurrentVersions(token.sub));
         }
       }
 

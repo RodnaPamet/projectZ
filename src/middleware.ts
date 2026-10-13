@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 import { checkTenantAccess, permissionsForPath, type TokenClaims } from '@/lib/auth/guard';
+import { owedStep } from '@/lib/auth/owed-step';
 import { requiredPermission } from '@/lib/security/route-permissions';
 import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
 
@@ -16,6 +17,7 @@ import { LOCALE_COOKIE, isLocale } from '@/lib/i18n/locales';
  *   2. read the token once.
  *   3. tenant access — are you signed in, and does the token list this club?
  *   4. permission — are you allowed to do THIS to it?
+ *   5. a step the account owes first — new terms to accept (#462).
  *
  * Steps 3 and 4 are defence in depth, not the defence. Postgres RLS is the
  * guarantee: even if this file were deleted, a query bound to the wrong
@@ -166,6 +168,20 @@ export async function middleware(req: NextRequest) {
       return apiError(403, 'FORBIDDEN', 'Forbidden', { requiredPermission: needed });
     }
   }
+
+  // 5. A step the account owes first (#462): new terms, accepted once. Pages
+  //    only, from the token alone; `/start/terms` asks the database.
+  const step = owedStep(
+    {
+      pathname,
+      search: req.nextUrl.search,
+      method: req.method,
+      accept: req.headers.get('accept'),
+      rsc: req.headers.has('rsc'),
+    },
+    token,
+  );
+  if (step) return withLocaleCookie(NextResponse.redirect(new URL(step, req.url)), req, token);
 
   return withLocaleCookie(NextResponse.next(), req, token);
 }

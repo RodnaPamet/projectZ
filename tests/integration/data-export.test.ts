@@ -105,6 +105,15 @@ describe('GET /api/v1/me/export (#370)', () => {
         data: { name: 'Петър Съиграч', phone: NOT_HERS.coPlayerPhone },
       });
       await tx.playerSportLevel.create({ data: { userId, sport: 'TENNIS', level: 3 } });
+      await tx.legalAcceptance.create({
+        data: {
+          userId,
+          document: 'privacy',
+          version: '2026-11-01',
+          locale: 'en',
+          acceptedAt: new Date('2026-11-02T08:00:00Z'),
+        },
+      });
       await tx.playerProfile.create({
         data: { userId, displayName: 'Мария', bio: 'Обичам тенис' },
       });
@@ -352,7 +361,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'messages',
       'openPlay',
     ]);
-    expect(json.version).toBe(3);
+    expect(json.version).toBe(4);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
@@ -360,6 +369,15 @@ describe('GET /api/v1/me/export (#370)', () => {
       avatarUrl: `https://media.playerz.test/avatars/${player.userId}/google-${'b'.repeat(32)}.webp`,
       accountKind: 'PLAYER',
       sports: [{ sport: 'TENNIS', level: 3 }],
+      // The terms the account accepted, and when (#462).
+      acceptedTerms: [
+        {
+          document: 'privacy',
+          version: '2026-11-01',
+          language: 'en',
+          acceptedAt: '2026-11-02T08:00:00.000Z',
+        },
+      ],
       playerProfile: { displayName: 'Мария', bio: 'Обичам тенис' },
     });
     expect(json.memberships).toEqual([

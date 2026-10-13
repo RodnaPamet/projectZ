@@ -5,6 +5,8 @@ import { cache } from 'react';
 
 import type { Locale } from '@/lib/i18n/locales';
 
+import { LEGAL_HREF, LEGAL_SLUGS, type LegalSlug } from './slugs';
+
 /**
  * The legal texts (#370): the privacy policy, the terms and the cookie policy,
  * in Bulgarian and English, written by the owner or a lawyer and never by us.
@@ -29,15 +31,7 @@ import type { Locale } from '@/lib/i18n/locales';
  * carries `content/` (Dockerfile), so adding a text is a commit and a deploy.
  */
 
-export const LEGAL_SLUGS = ['privacy', 'terms', 'cookies'] as const;
-export type LegalSlug = (typeof LEGAL_SLUGS)[number];
-
-/** Where each text is served. */
-export const LEGAL_HREF: Readonly<Record<LegalSlug, string>> = {
-  privacy: '/privacy',
-  terms: '/terms',
-  cookies: '/cookies',
-};
+export { LEGAL_HREF, LEGAL_SLUGS, type LegalSlug };
 
 /**
  * The directory the texts live in. `LEGAL_CONTENT_DIR` points a test at a

@@ -101,6 +101,13 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
       'The trigger app_user_tombstone_final refuses ever changing deletedAt again, so it is never revived; the CHECK app_user_deleted_is_scrubbed keeps every personal column null while it is set. Other columns may still be written, so a maintenance UPDATE across app_user does not abort on a tombstone.',
   },
   {
+    model: 'LegalAcceptance',
+    field: 'userId',
+    action: 'keep',
+    reason:
+      'Which version of the terms and the privacy policy the account accepted, and when (#462). Kept: the bookings made under those terms stay in the clubs’ records, and this is the record that the account agreed to them. A row holds the text’s name, its version, a language and a moment; it names the account only by its id, which now points at a tombstone.',
+  },
+  {
     model: 'PlayerProfile',
     action: 'delete',
     reason: 'The display name, bio, date of birth, hand and ratings are the person’s own.',

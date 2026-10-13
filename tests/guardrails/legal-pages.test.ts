@@ -99,9 +99,9 @@ describe('every link to a legal page asks whether its text exists', () => {
   // without a fragment or a query after it.
   const HREF = new RegExp(`['"\`]/(?:${LEGAL_SLUGS.join('|')})(?=['"\`#?])`);
 
-  it('no file but src/lib/legal/texts.ts spells one out', () => {
+  it('no file but src/lib/legal/slugs.ts spells one out', () => {
     const offenders = SOURCES.filter(
-      (f) => f !== 'src/lib/legal/texts.ts' && HREF.test(codeOf(readFileSync(f, 'utf8'))),
+      (f) => f !== 'src/lib/legal/slugs.ts' && HREF.test(codeOf(readFileSync(f, 'utf8'))),
     );
     if (offenders.length > 0) {
       throw new Error(
