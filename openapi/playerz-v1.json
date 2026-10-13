@@ -9850,6 +9850,78 @@
           }
         }
       }
+    },
+    "/clubs/{slug}": {
+      "get": {
+        "operationId": "getClub",
+        "summary": "A club's public page",
+        "tags": ["Venues"],
+        "security": [],
+        "description": "What /clubs/{slug} shows on the web (#411): the club's name, logo and phone, and its venues, oldest first (the first is the main one), each with its address, sports, court types and cover photo. A venue's free times are `GET /venues/{id}/availability`.\n\nPublic. A suspended or closed club is a 404, indistinguishable from none.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The club's slug, as in `/clubs/{slug}` and every `/t/{slug}` route.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The club.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClubPublic"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no club with that slug, or it is not ACTIVE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -15212,6 +15284,106 @@
                     "type": "integer",
                     "description": "Beyond this call's cap of 2000."
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ClubPublic": {
+        "type": "object",
+        "required": ["id", "slug", "name", "logoUrl", "phone", "cover", "venues"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": ["string", "null"]
+          },
+          "phone": {
+            "type": ["string", "null"],
+            "description": "The club's own number, else its main venue's."
+          },
+          "cover": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VenuePhoto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "venues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "publicSlug",
+                "name",
+                "addressLine",
+                "city",
+                "country",
+                "timezone",
+                "phone",
+                "sports",
+                "resourceTypes",
+                "cover"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "publicSlug": {
+                  "type": "string",
+                  "description": "The venue's public address: /venues/{publicSlug}."
+                },
+                "name": {
+                  "type": "string"
+                },
+                "addressLine": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "country": {
+                  "type": "string"
+                },
+                "timezone": {
+                  "type": "string"
+                },
+                "phone": {
+                  "type": ["string", "null"]
+                },
+                "sports": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "resourceTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "cover": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/VenuePhoto"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }

@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 
+import type { ClubPage } from '@/app-layer/usecases/club-public-page';
 import type { Me } from '@/app-layer/usecases/me';
 import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/my-notifications';
 
@@ -868,3 +869,53 @@ export function toNotificationDto(n: MyNotification): NotificationDto {
 
 /** `GET`/`PATCH /api/v1/me/notification-settings` (#367): the email switches. */
 export type NotificationSettingsDto = NotificationSettings;
+
+/** A club's public page (#411): GET /clubs/{slug}, the web's /clubs/{slug}. */
+export interface ClubPublicDto {
+  id: string;
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+  /** The club's own number, else its main venue's. */
+  phone: string | null;
+  /** The first venue's cover that exists, oldest venue first. */
+  cover: VenuePhotoDto | null;
+  /** Oldest first: the first is the club's main venue. */
+  venues: Array<{
+    id: string;
+    publicSlug: string;
+    name: string;
+    addressLine: string;
+    city: string;
+    country: string;
+    timezone: string;
+    phone: string | null;
+    sports: string[];
+    resourceTypes: string[];
+    cover: VenuePhotoDto | null;
+  }>;
+}
+
+export function toClubPublicDto(c: ClubPage): ClubPublicDto {
+  return {
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    logoUrl: c.logoUrl,
+    phone: c.phone,
+    cover: c.cover,
+    venues: c.venues.map((v) => ({
+      id: v.id,
+      publicSlug: v.publicSlug,
+      name: v.name,
+      addressLine: v.addressLine,
+      city: v.city,
+      country: v.country,
+      timezone: v.timezone,
+      phone: v.phone,
+      sports: [...v.sports],
+      resourceTypes: [...v.resourceTypes],
+      cover: v.cover,
+    })),
+  };
+}
