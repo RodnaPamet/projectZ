@@ -1,0 +1,405 @@
+import type { PrismaClient } from '@prisma/client';
+import { NextRequest } from 'next/server';
+
+import { DELETE as leaveRoute } from '@/app/api/v1/me/bookings/[id]/participation/route';
+import { POST as answerConfirmRoute } from '@/app/api/v1/me/results/[id]/confirm/route';
+import { POST as reportRoute } from '@/app/api/v1/me/bookings/[id]/result/route';
+import { POST as confirmEntryRoute } from '@/app/api/v1/t/[slug]/admin/tournament-entries/[id]/confirm/route';
+import { POST as scheduleRoute } from '@/app/api/v1/t/[slug]/admin/tournament-matches/[id]/schedule/route';
+import { POST as walkoverRoute } from '@/app/api/v1/t/[slug]/admin/tournament-matches/[id]/walkover/route';
+import { POST as drawRoute } from '@/app/api/v1/t/[slug]/admin/tournaments/[id]/draw/route';
+import { POST as openRoute } from '@/app/api/v1/t/[slug]/admin/tournaments/[id]/open/route';
+import { POST as createRoute } from '@/app/api/v1/t/[slug]/admin/tournaments/route';
+import { POST as enterRoute } from '@/app/api/v1/tournaments/[id]/entries/route';
+import { GET as playerDrawRoute } from '@/app/api/v1/tournaments/[id]/draw/route';
+import { DELETE as withdrawRoute } from '@/app/api/v1/me/tournament-entries/[id]/route';
+
+import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
+import {
+  prismaTestClient,
+  seedAccount,
+  seedTenant,
+  seedVenue,
+  type SeededTenant,
+} from '../helpers/db';
+import { asAppSuperuser } from '../helpers/rls';
+
+/**
+ * A CLUB TOURNAMENT'S DRAW, THROUGH THE ROUTES (#580; decisions 40, 54, 55,
+ * 57, 59, 61): the draw is made, a match goes on a court, its players report
+ * the result as for any booking, and the draw moves on.
+ */
+const DAY = 86_400_000;
+const HOUR = 3_600_000;
+
+describe('a tournament draw', () => {
+  const db: PrismaClient = prismaTestClient();
+  let club: SeededTenant;
+  let venueId: string;
+  let resourceId: string;
+  let desk: TestIdentity;
+  let players: TestIdentity[];
+
+  beforeEach(async () => {
+    club = await seedTenant({}, db);
+    ({ venueId, resourceId } = await seedVenue(club.tenantId, {}, db));
+    const deskId = await seedAccount('CLUB', db);
+    await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.create({
+        data: { tenantId: club.tenantId, userId: deskId, role: 'STAFF', status: 'ACTIVE' },
+      }),
+    );
+    desk = await signInAs(db, {
+      userId: deskId,
+      memberships: [{ tenantId: club.tenantId, tenantSlug: club.tenantSlug, role: 'STAFF' }],
+    });
+    players = await Promise.all(
+      Array.from({ length: 6 }, async (_, i) =>
+        signInAs(db, {
+          userId: await seedPlayer(db, club.tenantId, `p${i}`),
+          memberships: [{ tenantId: club.tenantId, tenantSlug: club.tenantSlug, role: 'PLAYER' }],
+        }),
+      ),
+    );
+    // Declared levels: p0 is the strongest, p5 the weakest.
+    await asAppSuperuser(db, (tx) =>
+      tx.playerSportLevel.createMany({
+        data: players.map((p, i) => ({ userId: p.userId, sport: 'PADEL', level: 7 - i })),
+      }),
+    );
+  });
+
+  const slug = () => club.tenantSlug;
+  const call = async (
+    route: (
+      req: NextRequest,
+      ctx: { params: Promise<Record<string, string>> },
+    ) => Promise<Response>,
+    method: 'GET' | 'POST' | 'DELETE',
+    url: string,
+    who: TestIdentity,
+    params: Record<string, string>,
+    body?: unknown,
+  ) => {
+    const res = await route(
+      new NextRequest(`http://t${url}`, {
+        method,
+        headers: { authorization: `Bearer ${who.bearer}`, 'content-type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }),
+      { params: Promise.resolve(params) },
+    );
+    return { status: res.status, body: (await res.json()) as Record<string, any> };
+  };
+
+  /** A tournament with `n` players confirmed, sign-up still open. */
+  async function withEntries(n: number, over: Record<string, unknown> = {}): Promise<string> {
+    const made = await call(
+      createRoute as never,
+      'POST',
+      `/api/v1/t/${slug()}/admin/tournaments`,
+      desk,
+      { slug: slug() },
+      {
+        name: 'Купа',
+        sport: 'PADEL',
+        format: 'SINGLE_ELIMINATION',
+        teamSize: 1,
+        venueId,
+        startsAt: new Date(Date.now() + 7 * DAY).toISOString(),
+        drawSize: 8,
+        entryFeeCents: 0,
+        feePayment: 'AT_CLUB',
+        ...over,
+      },
+    );
+    const id = made.body.data.id as string;
+    await call(
+      openRoute as never,
+      'POST',
+      `/api/v1/t/${slug()}/admin/tournaments/${id}/open`,
+      desk,
+      { slug: slug(), id },
+    );
+    for (const p of players.slice(0, n)) {
+      const entered = await call(
+        enterRoute as never,
+        'POST',
+        `/api/v1/tournaments/${id}/entries`,
+        p,
+        { id },
+        {},
+      );
+      const entryId = entered.body.data.myEntry.id as string;
+      await call(
+        confirmEntryRoute as never,
+        'POST',
+        `/api/v1/t/${slug()}/admin/tournament-entries/${entryId}/confirm`,
+        desk,
+        {
+          slug: slug(),
+          id: entryId,
+        },
+      );
+    }
+    return id;
+  }
+
+  const draw = (id: string, body: Record<string, unknown> = {}) =>
+    call(
+      drawRoute as never,
+      'POST',
+      `/api/v1/t/${slug()}/admin/tournaments/${id}/draw`,
+      desk,
+      { slug: slug(), id },
+      body,
+    );
+  const schedule = (matchId: string, startTs: Date) =>
+    call(
+      scheduleRoute as never,
+      'POST',
+      `/api/v1/t/${slug()}/admin/tournament-matches/${matchId}/schedule`,
+      desk,
+      {
+        slug: slug(),
+        id: matchId,
+      },
+      { resourceId, startTs: startTs.toISOString(), durationMinutes: 60 },
+    );
+  const walkover = (matchId: string, winnerSide: 0 | 1) =>
+    call(
+      walkoverRoute as never,
+      'POST',
+      `/api/v1/t/${slug()}/admin/tournament-matches/${matchId}/walkover`,
+      desk,
+      {
+        slug: slug(),
+        id: matchId,
+      },
+      { winnerSide },
+    );
+  const playerOf = (entry: { players: Array<{ userId: string }> }) =>
+    players.find((p) => p.userId === entry.players[0]!.userId)!;
+  const tournamentStatus = (id: string) =>
+    asAppSuperuser(db, (tx) =>
+      tx.tournament.findUniqueOrThrow({ where: { id }, select: { status: true } }),
+    ).then((t) => t.status);
+
+  it('a knockout of four, seeded by level, with a match for third: played, walked over, finished', async () => {
+    const id = await withEntries(4);
+    const drawn = await draw(id, { thirdPlace: true });
+    expect(drawn.status).toBe(201);
+    const [semis, final] = drawn.body.data.knockout as Array<Array<Record<string, any>>>;
+    expect(semis).toHaveLength(2);
+    expect(final).toHaveLength(1);
+    // Seeds 1 and 2 (p0, p1) are in different semi-finals.
+    const semiOf = (u: string) =>
+      semis.findIndex((m) => [m.sideA, m.sideB].some((s) => s.players[0].userId === u));
+    expect(semiOf(players[0]!.userId)).not.toBe(semiOf(players[1]!.userId));
+    expect(drawn.body.data.thirdPlace).toMatchObject({ status: 'PENDING' });
+    expect(await tournamentStatus(id)).toBe('IN_PROGRESS');
+
+    // Semi 1 goes on a court, yesterday, and is played: the booking's result.
+    const semi = semis[0]!;
+    const on = await schedule(semi.id, new Date(Date.now() - DAY));
+    expect(on.status).toBe(200);
+    const bookingId = on.body.data.knockout[0][0].scheduled.bookingId as string;
+    await asAppSuperuser(db, (tx) =>
+      tx.booking.update({ where: { id: bookingId }, data: { status: 'COMPLETED' } }),
+    );
+    const a = playerOf(semi.sideA);
+    const b = playerOf(semi.sideB);
+
+    // The draw sets the sides: a booking's result cannot change them.
+    const report = (who: TestIdentity, sides: string[][]) =>
+      call(
+        reportRoute as never,
+        'POST',
+        `/api/v1/me/bookings/${bookingId}/result`,
+        who,
+        { id: bookingId },
+        {
+          sides,
+          score: [
+            [6, 3],
+            [6, 4],
+          ],
+        },
+      );
+    // Side B's player reports a win for side B.
+    const reported = await report(b, [[b.userId], [a.userId]]);
+    expect(reported.status).toBe(201);
+    expect(reported.body.data.fixedSides).toHaveLength(2);
+    // A player on a tournament match does not leave its booking (#580).
+    const left = await call(
+      leaveRoute as never,
+      'DELETE',
+      `/api/v1/me/bookings/${bookingId}/participation`,
+      a,
+      {
+        id: bookingId,
+      },
+    );
+    expect(left.body.error.code).toBe('BOOKING_IS_TOURNAMENT_MATCH');
+    // Side A confirms: it counts, and B goes to the final, A to third place.
+    const reportId = reported.body.data.result.id as string;
+    expect(
+      (
+        await call(
+          answerConfirmRoute as never,
+          'POST',
+          `/api/v1/me/results/${reportId}/confirm`,
+          a,
+          { id: reportId },
+          {},
+        )
+      ).status,
+    ).toBe(200);
+
+    const after = await call(playerDrawRoute as never, 'GET', `/api/v1/tournaments/${id}/draw`, a, {
+      id,
+    });
+    const s1 = after.body.data.knockout[0][0];
+    expect(s1).toMatchObject({ status: 'PLAYED', winnerSide: 1, mine: true });
+    // The score as the match's sides read it: side A first.
+    expect(s1.score).toEqual([
+      [3, 6],
+      [4, 6],
+    ]);
+    const finalNow = after.body.data.knockout[1][0];
+    expect([finalNow.sideA?.players[0].userId, finalNow.sideB?.players[0].userId]).toContain(
+      b.userId,
+    );
+    const third = after.body.data.thirdPlace;
+    expect([third.sideA?.players[0].userId, third.sideB?.players[0].userId]).toContain(a.userId);
+    // Played results are rated (29).
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        tx.skillRatingHistory.count({ where: { userId: b.userId } }),
+      ),
+    ).toBe(1);
+
+    // Semi 2 is a walkover: the final and the match for third are ready.
+    const w = await walkover(semis[1]!.id, 0);
+    expect(w.body.data.knockout[1][0].status).toBe('READY');
+    expect(w.body.data.thirdPlace.status).toBe('READY');
+
+    // A finalist withdraws (59): the final is a walkover to the other.
+    const finalist = playerOf(w.body.data.knockout[1][0].sideA);
+    const mine = await asAppSuperuser(db, (tx) =>
+      tx.tournamentEntry.findFirstOrThrow({
+        where: { tournamentId: id, playerUserId: finalist.userId },
+      }),
+    );
+    expect(
+      (
+        await withdrawRoute(
+          new NextRequest(`http://t/api/v1/me/tournament-entries/${mine.id}`, {
+            method: 'DELETE',
+            headers: { authorization: `Bearer ${finalist.bearer}` },
+          }),
+          { params: Promise.resolve({ id: mine.id }) },
+        )
+      ).status,
+    ).toBe(200);
+    const done = await call(playerDrawRoute as never, 'GET', `/api/v1/tournaments/${id}/draw`, a, {
+      id,
+    });
+    expect(done.body.data.knockout[1][0]).toMatchObject({ status: 'WALKOVER', winnerSide: 1 });
+    // The match for third still to play; then it is over.
+    expect(await tournamentStatus(id)).toBe('IN_PROGRESS');
+    await walkover(done.body.data.thirdPlace.id, 0);
+    expect(await tournamentStatus(id)).toBe('COMPLETE');
+  });
+
+  it('six in a knockout of eight: the top two seeds get the byes', async () => {
+    const id = await withEntries(6);
+    const drawn = await draw(id);
+    const round1 = drawn.body.data.knockout[0] as Array<Record<string, any>>;
+    const byes = round1
+      .filter((m) => m.status === 'WALKOVER')
+      .map((m) => (m.sideA ?? m.sideB).players[0].userId);
+    expect(byes.sort()).toEqual([players[0]!.userId, players[1]!.userId].sort());
+    // Each went straight on to round 2.
+    const round2 = drawn.body.data.knockout[1] as Array<Record<string, any>>;
+    const there = round2
+      .flatMap((m) => [m.sideA, m.sideB])
+      .filter(Boolean)
+      .map((s: any) => s.players[0].userId);
+    expect(there.sort()).toEqual(byes.sort());
+  });
+
+  it('groups (55): snake-seeded, round robins, then the top two of each into a knockout', async () => {
+    const id = await withEntries(6, { format: 'GROUPS_KNOCKOUT' });
+    const drawn = await draw(id, { groupCount: 2, qualifiersPerGroup: 2 });
+    const groups = drawn.body.data.groups as Array<{
+      groupNo: number;
+      matches: Array<Record<string, any>>;
+    }>;
+    expect(groups.map((g) => g.matches.length)).toEqual([3, 3]);
+    expect(drawn.body.data.knockout).toEqual([]);
+    // Every group match decided (walkovers to side A): the knockout is drawn.
+    let last: Record<string, any> = {};
+    for (const g of groups) for (const m of g.matches) last = await walkover(m.id, 0);
+    expect(last.body.data.knockout[0]).toHaveLength(2);
+    const qualifiers = last.body.data.knockout[0].flatMap((m: any) => [m.sideA.id, m.sideB.id]);
+    expect(new Set(qualifiers).size).toBe(4);
+  });
+
+  it('a round robin of three is over when its three matches are', async () => {
+    const id = await withEntries(3, { format: 'ROUND_ROBIN' });
+    const drawn = await draw(id);
+    const matches = drawn.body.data.groups[0].matches as Array<Record<string, any>>;
+    expect(matches).toHaveLength(3);
+    for (const m of matches) await walkover(m.id, 0);
+    expect(await tournamentStatus(id)).toBe('COMPLETE');
+    const tableRows = (
+      await call(playerDrawRoute as never, 'GET', `/api/v1/tournaments/${id}/draw`, players[0]!, {
+        id,
+      })
+    ).body.data.groups[0].table as Array<{ points: number }>;
+    // 3 matches, 3 points a win: 9 points in all.
+    expect(tableRows.reduce((n, r) => n + r.points, 0)).toBe(9);
+  });
+
+  it('the draw is made once, with two entries at least; the waiting ones are declined', async () => {
+    const id = await withEntries(1);
+    expect((await draw(id)).body.error.code).toBe('TOURNAMENT_TOO_FEW');
+    const two = await withEntries(2);
+    // A third entry still waits when the draw is made: it does not get in.
+    const late = await call(
+      enterRoute as never,
+      'POST',
+      `/api/v1/tournaments/${two}/entries`,
+      players[5]!,
+      { id: two },
+      {},
+    );
+    expect((await draw(two)).status).toBe(201);
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        tx.tournamentEntry.findUniqueOrThrow({
+          where: { id: late.body.data.myEntry.id },
+          select: { status: true },
+        }),
+      ),
+    ).toEqual({ status: 'DECLINED' });
+    expect((await draw(two)).body.error.code).toBe('TOURNAMENT_STATE');
+    // A player cannot make a draw.
+    expect(
+      (
+        await call(
+          drawRoute as never,
+          'POST',
+          `/api/v1/t/${slug()}/admin/tournaments/${two}/draw`,
+          players[0]!,
+          {
+            slug: slug(),
+            id: two,
+          },
+          {},
+        )
+      ).status,
+    ).toBe(403);
+  });
+});

@@ -894,15 +894,9 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
   },
   {
     model: 'TournamentMatch',
-    field: 'homeUserId',
+    field: 'decidedByUserId',
     action: 'keep',
-    reason: 'A fixture other people played; the id names a tombstone.',
-  },
-  {
-    model: 'TournamentMatch',
-    field: 'awayUserId',
-    action: 'keep',
-    reason: 'As homeUserId.',
+    reason: 'The club staff member who recorded a walkover (#580); the id names a tombstone.',
   },
   {
     model: 'WearableConnection',
@@ -1118,8 +1112,7 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
     why: 'Written by the person withdrawing, signed in and on the entry: an account being deleted has none left to withdraw, deletion waits until they have (`upcoming`), and the row is their own.',
   },
   'Tournament.createdByUserId': actor('the club staff member who created a tournament'),
-  'TournamentMatch.homeUserId': UNWRITTEN,
-  'TournamentMatch.awayUserId': UNWRITTEN,
+  'TournamentMatch.decidedByUserId': actor('the club staff member who recorded a walkover'),
   'MatchParticipant.userId': RATED_ON_A_RESULT,
   'MatchResultRecord.reportedByUserId': actor('who reported or decided a counted result'),
   // A result (#575): who reported it and who answered it have P79's trigger;

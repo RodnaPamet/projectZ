@@ -756,6 +756,14 @@
       "cancelled": {
         "title": "Tournament cancelled: {tournament}",
         "body": "{day}, {venue}. The club cancelled the tournament."
+      },
+      "drawn": {
+        "title": "The draw is out: {tournament}",
+        "body": "{day}, {venue}. See who you play."
+      },
+      "scheduled": {
+        "title": "Your match: {when}, {court}",
+        "body": "{tournament}. Enter the result after the match."
       }
     }
   },
@@ -1703,6 +1711,34 @@
           "MEXICANO": "Pairs are drawn from the standings after each round; players sign up alone; no ratings.",
           "LEAGUE": "Divisions playing everyone over the weeks, each round by a deadline."
         }
+      },
+      "withdrawEntry": "Withdraw",
+      "draw": {
+        "heading": "Draw",
+        "before": "{confirmed} confirmed. When sign-up is done, make the draw: the entries still waiting do not get in.",
+        "make": "Make the draw",
+        "notYet": "The draw is not made yet.",
+        "makeTitle": "The draw",
+        "makeDescription": "The seeds, by level, are kept apart; the rest are drawn at random.",
+        "makeHint": "A draw once made does not change. Everyone entered is told.",
+        "groupCount": "Groups",
+        "qualifiers": "Through from each group",
+        "thirdPlace": "Third-place match",
+        "cancel": "Cancel",
+        "schedule": "Schedule",
+        "move": "Move",
+        "walkover": "Walkover",
+        "walkoverTitle": "Walkover",
+        "walkoverDescription": "The match is not played and not rated. The winner goes on.",
+        "wins": "{name} wins",
+        "scheduleTitle": "A match on a court",
+        "court": "Court",
+        "startsAt": "Starts",
+        "duration": "Length (minutes)",
+        "scheduleProblem": "Choose a court, a start, and a length of 15 minutes or more.",
+        "scheduleHint": "The match shows in the diary as a booking. The players enter its result from it, as for any booking.",
+        "moveHint": "The old booking is cancelled and a new one made.",
+        "save": "Save"
       }
     }
   },
@@ -3033,7 +3069,15 @@
         "subject": "{tournament} is cancelled",
         "intro": "The club cancelled {tournament}, {day}, {venue}."
       },
-      "link": "The tournament"
+      "link": "The tournament",
+      "drawn": {
+        "subject": "The draw for {tournament} is out",
+        "intro": "The club made the draw for {tournament}, {day}, {venue}. See who you play."
+      },
+      "scheduled": {
+        "subject": "Your {tournament} match: {when}",
+        "intro": "Your {tournament} match is on {court}, {when}. After it, enter the result from the booking."
+      }
     }
   },
   "billing": {
@@ -3903,6 +3947,40 @@
       "PHONE_REQUIRED": "Confirm your phone number.",
       "RATE_LIMITED": "Too many attempts. Try again in a moment.",
       "FAILED": "Something went wrong. Try again."
+    },
+    "draw": {
+      "heading": "Draw",
+      "signIn": "Sign in to see the draw.",
+      "tbd": "To be decided",
+      "unnamed": "Player",
+      "withdrawn": "withdrawn",
+      "final": "Final",
+      "semis": "Semi-finals",
+      "quarters": "Quarter-finals",
+      "round": "Round {n}",
+      "group": "Group {letter}",
+      "table": "Table",
+      "entry": "Entry",
+      "col": {
+        "played": "Played",
+        "won": "Won",
+        "drawn": "Drawn",
+        "lost": "Lost",
+        "points": "Points"
+      },
+      "colShort": {
+        "played": "P",
+        "won": "W",
+        "drawn": "D",
+        "lost": "L",
+        "points": "Pts"
+      },
+      "thirdPlace": "Third-place match",
+      "bye": "Bye",
+      "walkover": "Walkover",
+      "scheduled": "{when}, {court}",
+      "notScheduled": "Not on a court yet",
+      "toBooking": "To the booking: enter the result there"
     }
   }
 }

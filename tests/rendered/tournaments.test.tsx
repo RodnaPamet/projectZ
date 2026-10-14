@@ -174,7 +174,14 @@ describe('a tournament, for the club', () => {
       <AdminTournamentDetail
         slug="alfa"
         seed={club()}
-        venues={[{ id: 'v1', name: 'Алфа Кортове', sports: ['PADEL'] }]}
+        venues={[
+          {
+            id: 'v1',
+            name: 'Алфа Кортове',
+            sports: ['PADEL'],
+            courts: [{ id: 'r1', name: 'Корт 1' }],
+          },
+        ]}
       />,
     );
     const rows = screen.getAllByTestId('admin-tournament-entry');

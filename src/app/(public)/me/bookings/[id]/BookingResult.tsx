@@ -181,6 +181,7 @@ export function BookingResult({ bookingId, seed }: { bookingId: string; seed: Bo
           <ResultEditor
             players={view.players}
             format={view.format as 'PERIODS' | 'TOTAL'}
+            fixedSides={view.fixedSides ?? null}
             busy={report.isMutating}
             submitLabel={t('send')}
             onSubmit={(draft) => void send(draft)}

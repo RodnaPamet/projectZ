@@ -69,6 +69,7 @@ export function DiaryResult({ slug, bookingId }: { slug: string; bookingId: stri
         <ResultEditor
           players={data.players}
           format={data.format}
+          fixedSides={data.fixedSides ?? null}
           busy={enter.isMutating}
           submitLabel={t('save')}
           onSubmit={(draft) => void send(draft)}

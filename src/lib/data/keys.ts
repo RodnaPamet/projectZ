@@ -238,6 +238,10 @@ export const KEYS = {
   /** One of the club's tournaments with every entry (#579). */
   clubTournament: (slug: string, id: string) =>
     `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}`,
+  /** A tournament's draw (#580): signed-in, or the club's own. */
+  tournamentDraw: (id: string) => `${BASE}/tournaments/${seg(id)}/draw`,
+  clubTournamentDraw: (slug: string, id: string) =>
+    `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}/draw`,
   /** The caller's own ratings, points and all (#576). */
   myRatings: () => `${BASE}/me/ratings`,
   /** A booking's result for the caller (#575): it, and whether they may report or answer it. */
@@ -335,6 +339,15 @@ export const V1 = {
   /** `POST`: open sign-up, or cancel (#579). */
   tournamentAction: (slug: string, id: string, action: 'open' | 'cancel') =>
     `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}/${action}`,
+  /** `POST { groupCount?, qualifiersPerGroup?, thirdPlace? }`: make the draw (#580). */
+  drawTournament: (slug: string, id: string) =>
+    `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}/draw`,
+  /** `POST`: put a match on a court, or give it as a walkover (#580). */
+  tournamentMatchAction: (slug: string, matchId: string, action: 'schedule' | 'walkover') =>
+    `${BASE}/t/${seg(slug)}/admin/tournament-matches/${seg(matchId)}/${action}`,
+  /** `POST`: the club withdraws an entry from a tournament under way (#580). */
+  withdrawTournamentEntryAsClub: (slug: string, entryId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/tournament-entries/${seg(entryId)}/withdraw`,
   /** `POST`: the club confirms or declines an entry (#579). */
   decideTournamentEntry: (slug: string, entryId: string, verb: 'confirm' | 'decline') =>
     `${BASE}/t/${seg(slug)}/admin/tournament-entries/${seg(entryId)}/${verb}`,

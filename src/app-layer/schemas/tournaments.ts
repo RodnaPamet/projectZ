@@ -44,3 +44,26 @@ export const openTournamentsQuerySchema = z.object({
   city: z.string().trim().max(60).optional(),
   sport: sportSchema.optional(),
 });
+
+/** `POST /t/{slug}/admin/tournaments/{id}/draw` (#580; decisions 55, 61). */
+export const drawBodySchema = z
+  .object({
+    groupCount: z.number().int().min(1).max(32).nullable().optional(),
+    qualifiersPerGroup: z.number().int().min(1).max(8).nullable().optional(),
+    thirdPlace: z.boolean().optional(),
+  })
+  .strict();
+
+/** `POST /t/{slug}/admin/tournament-matches/{id}/schedule` (#580, decision 40). */
+export const scheduleMatchBodySchema = z
+  .object({
+    resourceId: z.string().min(1).max(64),
+    startTs: at,
+    durationMinutes: z.number().int().min(15).max(480),
+  })
+  .strict();
+
+/** `POST /t/{slug}/admin/tournament-matches/{id}/walkover` (#580; decisions 58, 59). */
+export const walkoverBodySchema = z
+  .object({ winnerSide: z.union([z.literal(0), z.literal(1)]) })
+  .strict();

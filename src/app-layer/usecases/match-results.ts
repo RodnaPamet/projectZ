@@ -2,8 +2,9 @@ import type { PrismaClient, ResultStatus, SportType } from '@prisma/client';
 
 import { bookingPlayerIds, locate } from '@/app-layer/usecases/booking-players';
 import { recordMatch } from '@/app-layer/usecases/ratings';
+import { matchPlayedFromBooking, tournamentMatchRules } from '@/app-layer/usecases/tournament-draw';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
-import { scoreFormatFor, winnerOf, type ScoreFormat } from '@/lib/ranking/score';
+import { InvalidScoreError, scoreFormatFor, winnerOf, type ScoreFormat } from '@/lib/ranking/score';
 import { SPORTS } from '@/lib/sports/registry';
 
 /**
@@ -139,6 +140,11 @@ export interface BookingResultState {
   format: ScoreFormat;
   /** The booking's players, for picking the sides. */
   players: ResultPlayer[];
+  /**
+   * The sides a tournament's draw set (#580), when the booking is a
+   * tournament match: the result keeps them, and the form does not ask.
+   */
+  fixedSides: ResultPlayer[][] | null;
 }
 
 // ─── Reading a booking for a result ─────────────────────────────────────
@@ -274,12 +280,16 @@ export async function readBookingResult(
     };
   }
 
+  const rules = await runInTenantContext(at.tenantId, (db) =>
+    tournamentMatchRules(db, at.tenantId, bookingId),
+  );
   return {
     result,
     canReport,
     reportableUntil: canReport ? until.toISOString() : null,
     format,
     players: b.players.map(player),
+    fixedSides: rules ? rules.sides.map((s) => s.map(player)) : null,
   };
 }
 
@@ -338,6 +348,7 @@ export async function reportResult(
 
   const sides = checkSides(b.sport, input.sides, b.players, userId);
   const winnerSide = winnerOf(b.sport, input.score);
+  await checkTournamentMatch(at.tenantId, bookingId, sides, winnerSide);
 
   try {
     const row = await runInTenantContext(at.tenantId, (db) =>
@@ -510,6 +521,8 @@ export interface ClubBookingResultState {
   canEnter: boolean;
   format: ScoreFormat;
   players: ResultPlayer[];
+  /** A tournament match's sides, set by the draw (#580). */
+  fixedSides: ResultPlayer[][] | null;
 }
 
 /**
@@ -532,6 +545,10 @@ export async function readClubBookingResult(
     : null;
   const person = await peopleOf(b.players);
   const format = scoreFormatFor(b.sport);
+  // A tournament match (#580): the draw's sides, all of them the booking's players.
+  const rules = await runInTenantContext(tenantId, (db) =>
+    tournamentMatchRules(db, tenantId, bookingId),
+  );
   return {
     result,
     canEnter:
@@ -540,6 +557,7 @@ export async function readClubBookingResult(
       (format === 'PERIODS' || format === 'TOTAL' || (format === 'ORDER' && b.players.length >= 2)),
     format,
     players: b.players.map(person),
+    fixedSides: rules ? rules.sides.map((side) => side.map(person)) : null,
   };
 }
 
@@ -587,6 +605,12 @@ export async function decideResult(
         scoreJson = decision.score;
         winnerSide = winnerOf(b.sport, decision.score);
       }
+      await checkTournamentMatch(
+        actor.tenantId,
+        report.bookingId,
+        sidesJson,
+        winnerSide === undefined ? 0 : winnerSide,
+      );
     }
     data = {
       status: 'DECIDED',
@@ -630,6 +654,7 @@ export async function enterClubResult(
     typeof reporter === 'string' ? reporter : '',
   );
   const winnerSide = winnerOf(b.sport, input.score);
+  await checkTournamentMatch(actor.tenantId, bookingId, sides, winnerSide);
   try {
     const row = await runInTenantContext(actor.tenantId, (db) =>
       db.matchReport.create({
@@ -735,6 +760,7 @@ async function countResult(tenantId: string, reportId: string): Promise<void> {
         sport: true,
         kind: true,
         sidesJson: true,
+        scoreJson: true,
         winnerSide: true,
         reportedByUserId: true,
         status: true,
@@ -771,5 +797,42 @@ async function countResult(tenantId: string, reportId: string): Promise<void> {
         data: { matchResultId: counted.id },
       });
     }
+    // A tournament match's booking (#580): the match is played, and the draw
+    // moves on. Nothing for any other booking.
+    if (!race) {
+      await matchPlayedFromBooking(
+        db,
+        { id: r.bookingId, tenantId },
+        {
+          sides,
+          winnerSide: r.winnerSide,
+          score: Array.isArray(r.scoreJson) ? (r.scoreJson as number[][]) : null,
+        },
+      );
+    }
   });
+}
+
+/**
+ * A tournament match's booking (#580): its result keeps the sides the draw set
+ * (in either order), and a knockout's has a winner. Nothing for any other
+ * booking.
+ */
+async function checkTournamentMatch(
+  tenantId: string,
+  bookingId: string,
+  sides: readonly string[][],
+  winnerSide: number | null,
+): Promise<void> {
+  const rules = await runInTenantContext(tenantId, (db) =>
+    tournamentMatchRules(db, tenantId, bookingId),
+  );
+  if (!rules) return;
+  const same = (x: readonly string[] | undefined, y: readonly string[] | undefined) =>
+    !!x && !!y && x.length === y.length && x.every((id) => y.includes(id));
+  const [a, b] = rules.sides;
+  const kept = (same(sides[0], a) && same(sides[1], b)) || (same(sides[0], b) && same(sides[1], a));
+  if (!kept) throw new ResultSidesError('the draw sets the sides');
+  if (rules.knockout && winnerSide === null)
+    throw new InvalidScoreError('a knockout match has a winner');
 }

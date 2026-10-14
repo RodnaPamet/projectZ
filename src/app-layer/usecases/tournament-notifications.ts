@@ -134,7 +134,8 @@ async function tell(
       | 'TOURNAMENT_ENTRY_RECEIVED'
       | 'TOURNAMENT_PARTNER_NAMED'
       | 'TOURNAMENT_ENTRY_DECIDED'
-      | 'TOURNAMENT_ENTRY_WITHDRAWN';
+      | 'TOURNAMENT_ENTRY_WITHDRAWN'
+      | 'TOURNAMENT_ROUND';
     href: string;
     event: string;
     /** Email and push: something this person acts on or turns up for. */
@@ -313,5 +314,94 @@ export async function notifyEntryWithdrawn(entryId: string, wasConfirmed: boolea
     }
   } catch (err) {
     warn('withdrawn', err);
+  }
+}
+
+/**
+ * The draw is made (#580): every confirmed entry's players are told, and the
+ * entries that waited and did not get in are told the club's answer.
+ */
+export async function notifyDrawMade(
+  tournamentId: string,
+  declined: readonly string[],
+): Promise<void> {
+  try {
+    // guardrail-allow: cross-tenant — one tournament's confirmed entries, by id.
+    const entries = await runAsSuperuser((db) =>
+      db.tournamentEntry.findMany({
+        where: { tournamentId, status: 'CONFIRMED' },
+        select: { id: true },
+        take: 512,
+      }),
+    );
+    for (const { id } of entries) {
+      const f = await entryFacts(id);
+      if (!f) continue;
+      for (const userId of [f.playerUserId, f.partnerUserId].filter((x): x is string => !!x)) {
+        await tell(
+          userId,
+          f,
+          { kind: 'drawn' },
+          {
+            kind: 'TOURNAMENT_ROUND',
+            href: tournamentHref(f.tournamentId),
+            event: `drawn-${userId}`,
+            loud: true,
+          },
+        );
+      }
+    }
+    for (const id of declined) await notifyEntryDecided(id);
+  } catch (err) {
+    warn('drawn', err);
+  }
+}
+
+/** A match is on a court (#580, decision 40): its players are told where and when. */
+export async function notifyMatchScheduled(matchId: string): Promise<void> {
+  try {
+    // guardrail-allow: cross-tenant — one match by id, its booking's court and
+    // time, and the two entries on it.
+    const m = await runAsSuperuser((db) =>
+      db.tournamentMatch.findUnique({
+        where: { id: matchId },
+        select: {
+          entryAId: true,
+          entryBId: true,
+          booking: { select: { id: true, startTs: true, resource: { select: { name: true } } } },
+        },
+      }),
+    );
+    if (!m?.booking) return;
+    const booking = m.booking;
+    for (const entryId of [m.entryAId, m.entryBId].filter((x): x is string => !!x)) {
+      const f = await entryFacts(entryId);
+      if (!f) continue;
+      for (const userId of [f.playerUserId, f.partnerUserId].filter((x): x is string => !!x)) {
+        const reader = await readerOf(userId);
+        const when = new Intl.DateTimeFormat(reader?.locale === 'en' ? 'en-GB' : 'bg-BG', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: ZONE,
+        }).format(booking.startTs);
+        await tell(
+          userId,
+          // One notice a booking: a match moved is told again.
+          { ...f, entryId: `${matchId}-${booking.id}` },
+          { kind: 'scheduled', when, court: booking.resource.name },
+          {
+            kind: 'TOURNAMENT_ROUND',
+            href: `/me/bookings/${encodeURIComponent(booking.id)}`,
+            event: `scheduled-${userId}`,
+            loud: true,
+          },
+        );
+      }
+    }
+  } catch (err) {
+    warn('scheduled', err);
   }
 }
