@@ -1198,8 +1198,10 @@ describe('where a booked lesson is seen', () => {
       const text = JSON.stringify(res.items);
       expect(text).not.toContain(p.userId);
       expect(text).not.toMatch(/@playerz\.test|email/i);
-      // And the court's price is the club's: not in the coach's list.
-      expect(text).not.toContain('2400');
+      // And the court's price is the club's: not in the coach's list. As a
+      // value: an id can hold the digits "2400" (cmv7l2400…), and did once.
+      expect(text).not.toMatch(/:2400\b/);
+      expect(text).not.toContain('courtPriceCents');
     });
 
     it('a cancelled lesson moves from upcoming to past', async () => {

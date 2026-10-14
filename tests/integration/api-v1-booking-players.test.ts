@@ -232,7 +232,8 @@ describe('players on a booking (#358)', () => {
       expect(wire).not.toContain('Петров');
       expect(wire).not.toContain('@playerz.test');
       expect(wire).not.toContain(id);
-      expect(wire).not.toContain('2400');
+      // The price, as a value: an id can hold the digits "2400".
+      expect(wire).not.toMatch(/:2400\b/);
     });
 
     it('answers every unusable token the same 404', async () => {
