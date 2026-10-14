@@ -193,10 +193,10 @@ model CoachTimeOff {
 /// at a time, across every club) cannot be walked round by a code path that
 /// forgot the coach.
 model CoachLesson {
-  id        String @id @default(cuid())
-  tenantId  String
-  bookingId String @unique
-  coachId   String
+  id          String @id @default(cuid())
+  tenantId    String
+  bookingId   String @unique
+  coachId     String
   /// The coach's account: what the cross-club exclusion is on.
   coachUserId String
 
@@ -216,9 +216,9 @@ model CoachLesson {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  coach   Coach       @relation(fields: [coachId], references: [id])
-  booking Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  review  CoachReview?
+  coach   Coach         @relation(fields: [coachId], references: [id])
+  booking Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reviews CoachReview[]
 
   @@index([coachUserId, startTs])
   @@index([tenantId, startTs])
@@ -226,26 +226,35 @@ model CoachLesson {
   @@map("coach_lesson")
 }
 
-/// A player's review of a coach after a lesson (decision 16): once per lesson,
-/// moderated as venue reviews are.
+/// A player's review of a coach (#551; decisions 16, 24, 25): ONE per coach
+/// per player, written after a lesson the player was on, by any player on it.
+/// Moderated as venue reviews are (P74).
 model CoachReview {
   id       String @id @default(cuid())
+  /// The club the lesson was at: its tenant policy and its moderation case.
   tenantId String
-  lessonId String @unique
+  /// The lesson that proves the author was taught by this coach.
+  lessonId String
 
-  coachUserId  String
-  authorUserId String
-  rating       Int
-  body         String?
-  status       ReviewStatus @default(PUBLISHED)
+  coachUserId          String
+  authorUserId         String
+  rating               Int
+  /// NOT encrypted. Sanitised on the way in; at most 1000 characters.
+  body                 String?
+  /// Nothing shows until moderation has passed on it, as for `Review`.
+  status               ReviewStatus @default(PENDING_REVIEW)
+  /// What the classifier saw, for the human who judges the case.
+  moderationScoresJson Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   lesson CoachLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
+  @@unique([coachUserId, authorUserId])
   @@index([coachUserId, status, createdAt])
   @@index([tenantId])
   @@index([authorUserId])
+  @@index([lessonId])
   @@map("coach_review")
 }

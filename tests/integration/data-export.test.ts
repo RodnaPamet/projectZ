@@ -360,13 +360,14 @@ describe('GET /api/v1/me/export (#370)', () => {
       'credit',
       'noShowStanding',
       'reviews',
+      'coachReviews',
       'notifications',
       'notificationSettings',
       'inviteLinks',
       'messages',
       'openPlay',
     ]);
-    expect(json.version).toBe(4);
+    expect(json.version).toBe(5);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',

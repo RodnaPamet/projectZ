@@ -89,6 +89,9 @@ describe('toMyBookingDto', () => {
         groupFeeCents: 6000,
         courtPriceCents: 2400,
         totalCents: 6400,
+        // Nobody has reviewed the coach, and nothing says one may (#551).
+        myReview: null,
+        canReview: false,
       });
       // The coach's account id and the cutoff are for the server, not the wire.
       expect(JSON.stringify(dto)).not.toMatch(/u_coach|cancelCutoffHours|coachUserId/);

@@ -15,6 +15,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { ChevronRight } from '@/components/ui/icons/nucleo';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge, type StatusBadgeVariant } from '@/components/ui/status-badge';
+import { COACH_REVIEW_MAX_LENGTH } from '@/lib/coaches/reviews';
 import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type InfiniteKey, type V1Page } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
@@ -50,6 +51,10 @@ import type { BookingTab } from './tabs';
  * replaces the guess with the stored status (a star-only review is published
  * at once). On failure SWR restores the rows and the form says why, in the
  * existing words for each refusal.
+ *
+ * A LESSON'S COACH (#551) is reviewed the same way, from the same row, under
+ * its own key (`coach:<booking>`): one review per coach, so every row with
+ * that coach changes together.
  *
  * The drafts and errors live HERE, keyed by booking, not in the form: the form
  * unmounts the moment the optimistic review replaces it, and the one that
@@ -107,6 +112,46 @@ export function withPendingReview(pages: Pages, arg: ReviewArg, tempId: string):
         : b,
     ),
   }));
+}
+
+interface CoachReviewArg {
+  bookingId: string;
+  /** The coach's page address, which the rows share; null once unlisted. */
+  coachSlug: string | null;
+  rating: number;
+  body: string;
+}
+
+/**
+ * The optimistic change for a coach's review: this row, and every other row
+ * with the same coach, now carries the caller's review, pending, and offers
+ * no form (one per coach, decision 24). Pure, as `withPendingReview`.
+ */
+export function withPendingCoachReview(pages: Pages, arg: CoachReviewArg, tempId: string): Pages {
+  const myReview = { id: tempId, rating: arg.rating, status: 'PENDING_REVIEW' };
+  return pages.map((p) => ({
+    ...p,
+    items: p.items.map((b) =>
+      b.lesson &&
+      (b.id === arg.bookingId || (arg.coachSlug !== null && b.lesson.coach.slug === arg.coachSlug))
+        ? { ...b, lesson: { ...b.lesson, myReview, canReview: false } }
+        : b,
+    ),
+  }));
+}
+
+/** The coach review route's refusal → its words (#551). */
+export function coachReviewErrorKey(e: unknown): ReviewErrorKey {
+  if (!isApiClientError(e)) return 'FAILED';
+  switch (e.code) {
+    case 'NO_LESSON_TO_REVIEW':
+    case 'COACH_ALREADY_REVIEWED':
+      return e.code;
+    case 'INVALID_RATING':
+      return 'RATING_REQUIRED';
+    default:
+      return 'FAILED';
+  }
 }
 
 /**
@@ -176,6 +221,14 @@ export function MyBookingsList({
     fallback: [seed ?? EMPTY_PAGE],
   });
 
+  const coachReview = useV1Mutation<CoachReviewArg, unknown, Pages>({
+    url: ({ bookingId }) => V1.coachReview(bookingId),
+    body: ({ rating, body }) => ({ rating, body: body.trim() === '' ? null : body }),
+    target: { infinite: mutate, getKey: getKey as InfiniteKey<unknown> },
+    update: (pages, arg, { id }) => withPendingCoachReview(pages, arg, id),
+    fallback: [seed ?? EMPTY_PAGE],
+  });
+
   const setDraft = useCallback(
     (id: string, draft: ReviewDraft) => setDrafts((prev) => ({ ...prev, [id]: draft })),
     [],
@@ -228,6 +281,27 @@ export function MyBookingsList({
     }
   }
 
+  async function submitCoach(b: Item, draft: ReviewDraft) {
+    if (!b.lesson) return;
+    const key = `coach:${b.id}`;
+    if (draft.rating === null) {
+      setErrors((prev) => ({ ...prev, [key]: 'RATING_REQUIRED' }));
+      return;
+    }
+    setErrors(({ [key]: _cleared, ...rest }) => rest);
+    try {
+      await coachReview.trigger({
+        bookingId: b.id,
+        coachSlug: b.lesson.coach.slug,
+        rating: draft.rating,
+        body: draft.body,
+      });
+      setDrafts(({ [key]: _done, ...rest }) => rest);
+    } catch (e) {
+      setErrors((prev) => ({ ...prev, [key]: coachReviewErrorKey(e) }));
+    }
+  }
+
   if (items.length === 0) {
     return (
       // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
@@ -260,6 +334,10 @@ export function MyBookingsList({
             onDraft={(d) => setDraft(b.id, d)}
             error={errors[b.id] ?? null}
             onSubmit={(d) => void submit(b, d)}
+            coachDraft={drafts[`coach:${b.id}`] ?? EMPTY_DRAFT}
+            onCoachDraft={(d) => setDraft(`coach:${b.id}`, d)}
+            coachError={errors[`coach:${b.id}`] ?? null}
+            onCoachSubmit={(d) => void submitCoach(b, d)}
           />
         ))}
       </ul>
@@ -289,6 +367,10 @@ function BookingCard({
   onDraft,
   error,
   onSubmit,
+  coachDraft,
+  onCoachDraft,
+  coachError,
+  onCoachSubmit,
 }: {
   booking: Item;
   reviewMaxLength: number;
@@ -296,6 +378,10 @@ function BookingCard({
   onDraft: (draft: ReviewDraft) => void;
   error: ReviewErrorKey | null;
   onSubmit: (draft: ReviewDraft) => void;
+  coachDraft: ReviewDraft;
+  onCoachDraft: (draft: ReviewDraft) => void;
+  coachError: ReviewErrorKey | null;
+  onCoachSubmit: (draft: ReviewDraft) => void;
 }) {
   const t = useTranslations('myBookings');
   const tSports = useTranslations('sports');
@@ -378,6 +464,29 @@ function BookingCard({
           onDraft={onDraft}
           error={error}
           onSubmit={onSubmit}
+        />
+      ) : null}
+
+      {/* The lesson's coach (#551): one review per coach, from any of their lessons. */}
+      {b.lesson?.myReview ? (
+        <p
+          className="text-content-default mt-compact text-sm"
+          data-testid="booking-card-coach-review"
+        >
+          {t('review.coach.yours', { rating: b.lesson.myReview.rating })}{' '}
+          <span className="text-content-muted">
+            · {t(`review.status.${b.lesson.myReview.status}` as never)}
+          </span>
+        </p>
+      ) : b.lesson?.canReview ? (
+        <ReviewForm
+          kind="coach"
+          bookingId={b.id}
+          maxLength={COACH_REVIEW_MAX_LENGTH}
+          draft={coachDraft}
+          onDraft={onCoachDraft}
+          error={coachError}
+          onSubmit={onCoachSubmit}
         />
       ) : null}
     </Card>

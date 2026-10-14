@@ -16,7 +16,15 @@ import { GET as myLessonsGet } from '@/app/api/v1/me/coach-lessons/route';
 import { POST as lessonCancelPost } from '@/app/api/v1/me/coach-lessons/[id]/cancel/route';
 import { POST as lessonNoShowPost } from '@/app/api/v1/me/coach-lessons/[id]/no-show/route';
 import { loadDiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
+import { GET as coachGet } from '@/app/api/v1/coaches/[slug]/route';
+import { GET as reviewsGet } from '@/app/api/v1/coaches/[slug]/reviews/route';
+import { POST as reviewReportPost } from '@/app/api/v1/coach-reviews/[id]/report/route';
+import { POST as coachReviewPost } from '@/app/api/v1/me/bookings/[id]/coach-review/route';
+import { DELETE as myReviewDelete } from '@/app/api/v1/me/coach-reviews/[id]/route';
 import { sendBookingReminders } from '@/app-layer/usecases/booking-notifications';
+import { createCoachReview } from '@/app-layer/usecases/coach-reviews';
+import { listModerationCases } from '@/app-layer/usecases/moderation-queue';
+import { resolveCase } from '@/app-layer/usecases/reviews';
 import { clearAllRateLimits } from '@/lib/security/rate-limit';
 
 import { signInAs, type TestIdentity } from '../helpers/auth';
@@ -2088,5 +2096,330 @@ describe('who is told about a lesson, and how (#550; decisions 22, 23)', () => {
     const [mail] = await mailOf(p.userId);
     expect(mail!.text).not.toContain('Треньор');
     expect(await asAppSuperuser(db, (tx) => tx.notification.count())).toBe(1);
+  });
+});
+
+describe('reviews of a coach (#551; decisions 16, 24–27)', () => {
+  interface ReviewsDto {
+    rating: { avgRating: number; reviewCount: number };
+    items: Array<{
+      id: string;
+      rating: number;
+      body: string | null;
+      author: string | null;
+      createdAt: string;
+      mine: boolean;
+    }>;
+    nextCursor: string | null;
+  }
+  const review = (who: TestIdentity, bookingId: string, json: unknown) =>
+    call(
+      coachReviewPost,
+      `/api/v1/me/bookings/${bookingId}/coach-review`,
+      { method: 'POST', bearer: who.bearer, json },
+      { id: bookingId },
+    );
+  const page = async (slug: string, who?: TestIdentity, cursor?: string) => {
+    const r = await call(
+      reviewsGet,
+      `/api/v1/coaches/${slug}/reviews${cursor ? `?cursor=${cursor}` : ''}`,
+      { bearer: who?.bearer },
+      { slug },
+    );
+    return { status: r.status, data: r.json.data as unknown as ReviewsDto };
+  };
+  const report = (who: TestIdentity, id: string, json: unknown) =>
+    call(
+      reviewReportPost,
+      `/api/v1/coach-reviews/${id}/report`,
+      { method: 'POST', bearer: who.bearer, json },
+      { id },
+    );
+  const complete = (bookingId: string, status: 'COMPLETED' | 'NO_SHOW' = 'COMPLETED') =>
+    asAppSuperuser(db, (tx) => tx.booking.update({ where: { id: bookingId }, data: { status } }));
+  const named = (who: TestIdentity, name: string) =>
+    asAppSuperuser(db, (tx) => tx.user.update({ where: { id: who.userId }, data: { name } }));
+  const myBooking = async (who: TestIdentity, id: string) =>
+    (await call(myBookingGet, `/api/v1/me/bookings/${id}`, { bearer: who.bearer }, { id })).json
+      .data as unknown as {
+      lesson: {
+        myReview: { id: string; rating: number; status: string } | null;
+        canReview: boolean;
+      };
+    };
+
+  /** Ivan teaches at A; a player with a name has had a lesson with him, now over. */
+  async function taught(time = '10:00', who?: TestIdentity) {
+    const p = who ?? (await player());
+    if (!who) await named(p, 'Петя Иванова Играч');
+    const res = await book(p, 'ivan-petrov', { linkId: linkA, startTs: at(time), minutes: 60 });
+    expect(res.status).toBe(201);
+    return { p, bookingId: res.booking.id };
+  }
+  let ivan: string;
+  let linkA: string;
+  beforeEach(async () => {
+    ivan = await coach('ivan-petrov', 'Иван Петров');
+    linkA = await teaches(ivan, A(), { groupRateCents: 6000 });
+  });
+
+  it('after a lesson is over, stars alone are published at once and shown as «Петя И.», with the rating', async () => {
+    const { p, bookingId } = await taught();
+    // Not before it is over.
+    expect((await review(p, bookingId, { rating: 5 })).json.error?.code).toBe(
+      'NO_LESSON_TO_REVIEW',
+    );
+    expect((await myBooking(p, bookingId)).lesson).toMatchObject({ canReview: false });
+
+    await complete(bookingId);
+    expect((await myBooking(p, bookingId)).lesson).toMatchObject({
+      canReview: true,
+      myReview: null,
+    });
+    const res = await review(p, bookingId, { rating: 5 });
+    expect(res.status).toBe(201);
+    expect(res.json.data).toMatchObject({ bookingId, rating: 5, body: null, status: 'PUBLISHED' });
+
+    const seen = await page('ivan-petrov');
+    expect(seen.status).toBe(200);
+    // One 5★ reads as 4.1, as a venue's does (decision 27).
+    expect(seen.data.rating).toEqual({ avgRating: 4.1, reviewCount: 1 });
+    expect(seen.data.items).toEqual([
+      {
+        id: expect.any(String),
+        rating: 5,
+        body: null,
+        author: 'Петя И.',
+        createdAt: expect.stringMatching(/Z$/),
+        mine: false,
+      },
+    ]);
+    // The author's own, when they look.
+    expect((await page('ivan-petrov', p)).data.items[0]!.mine).toBe(true);
+    // And the coach's public card carries the rating too.
+    const card = await call(coachGet, '/api/v1/coaches/ivan-petrov', {}, { slug: 'ivan-petrov' });
+    expect((card.json.data as { rating: unknown }).rating).toEqual({
+      avgRating: 4.1,
+      reviewCount: 1,
+    });
+    // The lesson row now carries it, and offers no second.
+    expect((await myBooking(p, bookingId)).lesson).toMatchObject({
+      canReview: false,
+      myReview: { rating: 5, status: 'PUBLISHED' },
+    });
+  });
+
+  it('one review per coach (24): a later lesson, even at another club, offers none and is refused', async () => {
+    const linkB = await teaches(ivan, B());
+    const { p, bookingId } = await taught();
+    await complete(bookingId);
+    expect((await review(p, bookingId, { rating: 4 })).status).toBe(201);
+
+    const again = await book(p, 'ivan-petrov', {
+      linkId: linkB,
+      startTs: at('11:00'),
+      minutes: 60,
+    });
+    expect(again.status).toBe(201);
+    await complete(again.booking.id);
+    expect((await myBooking(p, again.booking.id)).lesson.canReview).toBe(false);
+    expect((await review(p, again.booking.id, { rating: 1 })).json.error?.code).toBe(
+      'COACH_ALREADY_REVIEWED',
+    );
+    expect((await page('ivan-petrov')).data.rating.reviewCount).toBe(1);
+  });
+
+  it('every player on a group lesson may review (25); a no-show, a stranger and the coach may not', async () => {
+    const { p, bookingId } = await taught();
+    const friend = await player();
+    await named(friend, 'Мария');
+    await asAppSuperuser(db, (tx) =>
+      tx.bookingParticipant.create({
+        data: { tenantId: club.tenantId, bookingId, userId: friend.userId, position: 2 },
+      }),
+    );
+    await complete(bookingId);
+    expect((await review(friend, bookingId, { rating: 4 })).status).toBe(201);
+    expect((await review(p, bookingId, { rating: 5 })).status).toBe(201);
+    const seen = await page('ivan-petrov');
+    expect(seen.data.items.map((r) => r.author).sort()).toEqual(['Мария', 'Петя И.']);
+
+    const stranger = await player();
+    expect((await review(stranger, bookingId, { rating: 1 })).json.error?.code).toBe(
+      'NO_LESSON_TO_REVIEW',
+    );
+    const coachSelf = await signInAs(db, { userId: ivan, memberships: [] });
+    expect((await review(coachSelf, bookingId, { rating: 5 })).json.error?.code).toBe(
+      'NO_LESSON_TO_REVIEW',
+    );
+
+    const missed = await taught('11:00');
+    await complete(missed.bookingId, 'NO_SHOW');
+    expect((await review(missed.p, missed.bookingId, { rating: 1 })).json.error?.code).toBe(
+      'NO_LESSON_TO_REVIEW',
+    );
+  });
+
+  it('a text waits for a moderator when the classifier cannot say, and the queue shows it with the coach', async () => {
+    const { p, bookingId } = await taught();
+    await complete(bookingId);
+    // No classifier key in the test environment: an outage, which a human judges.
+    const res = await review(p, bookingId, { rating: 2, body: 'Закъсня с двайсет минути.' });
+    expect(res.json.data).toMatchObject({ status: 'PENDING_REVIEW' });
+    expect((await page('ivan-petrov')).data).toMatchObject({
+      rating: { reviewCount: 0 },
+      items: [],
+    });
+
+    const { items } = await asAppSuperuser(db, (tx) => listModerationCases(tx, {}));
+    expect(items).toEqual([
+      expect.objectContaining({
+        subject: 'COACH_REVIEW',
+        reason: 'classifier_unavailable',
+        review: expect.objectContaining({ rating: 2, body: 'Закъсня с двайсет минути.' }),
+        coach: { name: 'Иван Петров', slug: 'ivan-petrov' },
+        club: expect.objectContaining({ name: 'Клуб Алфа' }),
+      }),
+    ]);
+    const decided = await asAppSuperuser(db, (tx) =>
+      resolveCase(tx as never, { caseId: items[0]!.caseId, moderatorUserId: admin, approve: true }),
+    );
+    expect(decided.review).toMatchObject({ status: 'PUBLISHED' });
+    expect((await page('ivan-petrov')).data.items.map((r) => r.body)).toEqual([
+      'Закъсня с двайсет минути.',
+    ]);
+  });
+
+  it('the classifier’s verdict decides when it can: passed is published, refused waits hidden with a case', async () => {
+    const one = await taught();
+    const two = await taught('11:00');
+    await named(two.p, 'Георги');
+    await complete(one.bookingId);
+    await complete(two.bookingId);
+    const passed = await createCoachReview(
+      { authorUserId: one.p.userId, bookingId: one.bookingId, rating: 5, body: 'Много търпелив.' },
+      async () => ({ decision: 'APPROVED', maxScore: 0.01, reason: null, scores: { abuse: 0.01 } }),
+    );
+    const refused = await createCoachReview(
+      { authorUserId: two.p.userId, bookingId: two.bookingId, rating: 1, body: 'нещо грубо' },
+      async () => ({
+        decision: 'REJECTED',
+        maxScore: 0.97,
+        reason: 'abuse',
+        scores: { abuse: 0.97 },
+      }),
+    );
+    expect([passed.status, refused.status]).toEqual(['PUBLISHED', 'REJECTED']);
+    expect((await page('ivan-petrov')).data.items.map((r) => r.body)).toEqual([
+      'Много търпелив.',
+    ]);
+    const { items } = await asAppSuperuser(db, (tx) => listModerationCases(tx, {}));
+    expect(items.map((i) => [i.subject, i.reason])).toEqual([['COACH_REVIEW', 'abuse']]);
+  });
+
+  it('a published review can be reported by anyone signed in, the coach included; one case however many report', async () => {
+    const { p, bookingId } = await taught();
+    await complete(bookingId);
+    const made = await review(p, bookingId, { rating: 1 });
+    const id = (made.json.data as { id: string }).id;
+
+    const reader = await player();
+    const coachSelf = await signInAs(db, { userId: ivan, memberships: [] });
+    expect((await report(reader, id, { reason: 'abuse', details: 'лъже' })).status).toBe(201);
+    expect((await report(coachSelf, id, { reason: 'other' })).status).toBe(201);
+    // One's own is deleted, not reported.
+    expect((await report(p, id, { reason: 'spam' })).json.error?.code).toBe('REPORT_OWN_REVIEW');
+    expect((await report(reader, 'nosuchreview1', { reason: 'spam' })).json.error?.code).toBe(
+      'COACH_REVIEW_NOT_FOUND',
+    );
+
+    const { items } = await asAppSuperuser(db, (tx) => listModerationCases(tx, {}));
+    expect(items).toEqual([
+      expect.objectContaining({ subject: 'COACH_REVIEW', reason: 'user_report' }),
+    ]);
+    // Still shown while a moderator looks; taken down by their decision.
+    expect((await page('ivan-petrov')).data.items).toHaveLength(1);
+    await asAppSuperuser(db, (tx) =>
+      resolveCase(tx as never, {
+        caseId: items[0]!.caseId,
+        moderatorUserId: admin,
+        approve: false,
+      }),
+    );
+    expect((await page('ivan-petrov')).data).toMatchObject({
+      rating: { reviewCount: 0 },
+      items: [],
+    });
+  });
+
+  it('the author deletes theirs: gone from the page, its open case closed, and a new one may be written', async () => {
+    const { p, bookingId } = await taught();
+    await complete(bookingId);
+    const made = await review(p, bookingId, { rating: 3, body: 'Средно.' });
+    const id = (made.json.data as { id: string }).id;
+    // Not anybody else's to delete.
+    const other = await player();
+    expect(
+      (
+        await call(
+          myReviewDelete,
+          `/api/v1/me/coach-reviews/${id}`,
+          { method: 'DELETE', bearer: other.bearer },
+          { id },
+        )
+      ).json.error?.code,
+    ).toBe('COACH_REVIEW_NOT_FOUND');
+
+    const del = await call(
+      myReviewDelete,
+      `/api/v1/me/coach-reviews/${id}`,
+      { method: 'DELETE', bearer: p.bearer },
+      { id },
+    );
+    expect(del.status).toBe(204);
+    const cases = await asAppSuperuser(db, (tx) =>
+      tx.moderationCase.findMany({ where: { subjectId: id }, select: { status: true } }),
+    );
+    expect(cases).toEqual([{ status: 'REJECTED' }]);
+    expect((await asAppSuperuser(db, (tx) => listModerationCases(tx, {}))).items).toEqual([]);
+    expect((await myBooking(p, bookingId)).lesson).toMatchObject({
+      canReview: true,
+      myReview: null,
+    });
+    expect((await review(p, bookingId, { rating: 4 })).status).toBe(201);
+  });
+
+  it('refuses what is not a review: a rating out of range, a text too long, a field it does not know', async () => {
+    const { p, bookingId } = await taught();
+    await complete(bookingId);
+    expect((await review(p, bookingId, { rating: 6 })).json.error?.code).toBe('INVALID_RATING');
+    expect((await review(p, bookingId, { rating: '5' })).status).toBe(400);
+    expect((await review(p, bookingId, { rating: 5, body: 'а'.repeat(1001) })).status).toBe(400);
+    expect((await review(p, bookingId, { rating: 5, coachUserId: 'x' })).status).toBe(400);
+    expect((await page('nobody-here')).status).toBe(404);
+  });
+
+  it('newest first, ten to a page', async () => {
+    const reviewers: TestIdentity[] = [];
+    const { bookingId } = await taught();
+    for (let i = 0; i < 12; i++) {
+      const p = await player();
+      await named(p, `Играч${i} Фамилия`);
+      reviewers.push(p);
+      await asAppSuperuser(db, (tx) =>
+        tx.bookingParticipant.create({
+          data: { tenantId: club.tenantId, bookingId, userId: p.userId, position: i + 2 },
+        }),
+      );
+    }
+    await complete(bookingId);
+    for (const p of reviewers) expect((await review(p, bookingId, { rating: 4 })).status).toBe(201);
+    const first = await page('ivan-petrov');
+    expect(first.data.items).toHaveLength(10);
+    expect(first.data.rating.reviewCount).toBe(12);
+    expect(first.data.items[0]!.author).toBe('Играч11 Ф.');
+    const second = await page('ivan-petrov', undefined, first.data.nextCursor!);
+    expect(second.data.items.map((r) => r.author)).toEqual(['Играч1 Ф.', 'Играч0 Ф.']);
+    expect(second.data.nextCursor).toBeNull();
   });
 });

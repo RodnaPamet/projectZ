@@ -240,7 +240,7 @@ describe('the game chat (#376)', () => {
 
     const { items } = await asAppSuperuser(db, (tx) => listModerationCases(tx, {}));
     const item = items
-      .flatMap((i) => (i.subject === 'REVIEW' ? [] : [i]))
+      .flatMap((i) => (i.subject === 'REVIEW' || i.subject === 'COACH_REVIEW' ? [] : [i]))
       .find((i) => i.conversation.id === chatId)!;
     const booking = await asAppSuperuser(db, (tx) =>
       tx.booking.findUniqueOrThrow({

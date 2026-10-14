@@ -231,6 +231,28 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p74
+
+`20261014070000_p74_coach_reviews` (#551) adds `COACH_REVIEW` to
+`ModerationSubject`: a case about a player's review of a coach. The previous
+image's moderation queue reads every open case, so one such case would break
+the queue. Park them before starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p74-park.sql
+```
+
+and give them back after rolling forward again, with the p74 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p74-unpark.sql
+```
+
+The reviews themselves stay where they are: the previous image never reads
+`coach_review` except to delete a deleted account's rows.
+
 ### Rolling back past p73
 
 `20261014060000_p73_lesson_notifications` (#550) adds seven values to

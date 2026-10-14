@@ -395,7 +395,19 @@ export async function resolveCase(
     }
 
     const none = { caseId: closed.id, status: closed.status, review: null, venue: null };
-    if (closed.subjectType !== 'REVIEW' || !closed.tenantId) return none;
+    if (!closed.tenantId) return none;
+
+    // A review of a coach (#551): published or hidden, and the coach's rating,
+    // read from its published reviews each time, follows on its own.
+    if (closed.subjectType === 'COACH_REVIEW') {
+      const [coachReview] = await tx.coachReview.updateManyAndReturn({
+        where: { id: closed.subjectId, tenantId: closed.tenantId },
+        data: { status: input.approve ? 'PUBLISHED' : 'REJECTED' },
+        select: { id: true, status: true },
+      });
+      return coachReview ? { ...none, review: coachReview } : none;
+    }
+    if (closed.subjectType !== 'REVIEW') return none;
 
     const [review] = await tx.review.updateManyAndReturn({
       where: { id: closed.subjectId, tenantId: closed.tenantId },
@@ -436,7 +448,8 @@ export async function reportContent(
   db: PrismaClient,
   input: {
     tenantId?: string;
-    subjectType: 'REVIEW' | 'CHAT_MESSAGE' | 'PROFILE' | 'CONVERSATION' | 'OPEN_GAME_NOTE';
+    subjectType:
+      'REVIEW' | 'CHAT_MESSAGE' | 'PROFILE' | 'CONVERSATION' | 'OPEN_GAME_NOTE' | 'COACH_REVIEW';
     subjectId: string;
     reporterUserId: string;
     reason: string;

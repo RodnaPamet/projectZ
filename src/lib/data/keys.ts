@@ -219,6 +219,8 @@ export const KEYS = {
     coachSlug: string,
     params: { linkId: string; date: string; minutes: number; sport?: string },
   ) => `${BASE}/coaches/${seg(coachSlug)}/lesson-times${query(params)}`,
+  /** A coach's published reviews and rating (#551), newest first, by cursor. */
+  coachReviews: (coachSlug: string) => paged(`${BASE}/coaches/${seg(coachSlug)}/reviews`),
   /** Open play on one of the caller's bookings: the booker's requests, or their own. */
   meBookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
   /** One player's public card. */
@@ -238,6 +240,12 @@ export const V1 = {
     `${BASE}/t/${seg(slug)}/bookings/${seg(bookingId)}/cancel`,
   review: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/bookings/${seg(bookingId)}/review`,
+  /** `POST { rating, body? }`: review the coach of a lesson the caller was on (#551). */
+  coachReview: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/coach-review`,
+  /** `DELETE`: one's own review of a coach (#551). */
+  myCoachReview: (reviewId: string) => `${BASE}/me/coach-reviews/${seg(reviewId)}`,
+  /** `POST { reason, details? }`: report a review on a coach's page (#551). */
+  reportCoachReview: (reviewId: string) => `${BASE}/coach-reviews/${seg(reviewId)}/report`,
   resolveCase: (caseId: string) => `${BASE}/platform/moderation/cases/${seg(caseId)}/resolve`,
   /** `POST { event }`: a funnel step only the browser sees (#371). See usage-beacon.ts. */
   usageEvents: (venueId: string) => `${BASE}/venues/${seg(venueId)}/usage-events`,

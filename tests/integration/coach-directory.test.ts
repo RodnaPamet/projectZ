@@ -192,6 +192,8 @@ describe('who is listed', () => {
           ],
           fromRateCents: 4000,
           currency: 'EUR',
+          // No review yet (#551).
+          rating: { avgRating: 0, reviewCount: 0 },
           venues: [
             {
               linkId,

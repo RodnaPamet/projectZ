@@ -170,6 +170,8 @@ describe('the detail page', () => {
       groupFeeCents: 6000,
       courtPriceCents: 2400,
       totalCents: 6400,
+      myReview: null,
+      canReview: false,
     };
     installFakeFetch(() => ok(detail({ lesson })));
     mount(detail({ lesson }), START - 48 * HOUR);
@@ -192,6 +194,8 @@ describe('the detail page', () => {
       groupFeeCents: null,
       courtPriceCents: 2400,
       totalCents: 6400,
+      myReview: null,
+      canReview: false,
     };
     installFakeFetch(() => ok(detail({ lesson })));
     mount(detail({ lesson }), START - 48 * HOUR);

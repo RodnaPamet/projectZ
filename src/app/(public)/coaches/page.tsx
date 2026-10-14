@@ -134,6 +134,17 @@ export default async function CoachesPage({ searchParams }: { searchParams: Prom
                           }),
                         })
                   }
+                  rating={
+                    c.rating.reviewCount > 0
+                      ? t('cardRating', {
+                          rating: format.number(c.rating.avgRating, {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          }),
+                          count: c.rating.reviewCount,
+                        })
+                      : null
+                  }
                   places={[
                     ...new Set(c.venues.map((v) => `${v.name}, ${cityLabel(tCities, v.city)}`)),
                   ]

@@ -55,6 +55,33 @@ jest.mock('@/app/(public)/coaches/[slug]/CoachLessons', () => ({
   ),
   CoachLessonsSkeleton: () => null,
 }));
+// «Отзиви» (#551) is the page's third stage, tested on its own
+// (coach-reviews.test.tsx); here, what it was given.
+const approvedCoachId = jest.fn();
+const listCoachReviews = jest.fn();
+jest.mock('@/app-layer/usecases/coach-reviews', () => ({
+  approvedCoachId: (...a: unknown[]) => approvedCoachId(...a),
+  listCoachReviews: (...a: unknown[]) => listCoachReviews(...a),
+}));
+jest.mock('@/app/(public)/coaches/[slug]/CoachReviews', () => ({
+  CoachReviews: ({
+    slug,
+    seed,
+    signedIn,
+  }: {
+    slug: string;
+    seed: { rating: { reviewCount: number }; items: unknown[] };
+    signedIn: boolean;
+  }) => (
+    <div
+      data-testid="coach-reviews-stage"
+      data-slug={slug}
+      data-count={seed.rating.reviewCount}
+      data-items={seed.items.length}
+      data-signed-in={String(signedIn)}
+    />
+  ),
+}));
 const notFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND');
 });
@@ -74,6 +101,7 @@ const coach = (over: Partial<PublicCoach> = {}): PublicCoach => ({
   ],
   fromRateCents: 3000,
   currency: 'EUR',
+  rating: { avgRating: 0, reviewCount: 0 },
   venues: [
     {
       linkId: 'l2',
@@ -125,6 +153,21 @@ beforeEach(() => {
   publicCoachSports.mockReset().mockResolvedValue([]);
   publicCoachBySlug.mockReset().mockResolvedValue(null);
   coachesAtVenue.mockReset().mockResolvedValue([]);
+  approvedCoachId.mockReset().mockResolvedValue('usr_coach');
+  listCoachReviews.mockReset().mockResolvedValue({
+    rating: { avgRating: 4.1, reviewCount: 1 },
+    reviews: [
+      {
+        id: 'cr1',
+        rating: 5,
+        body: null,
+        author: 'Петя И.',
+        createdAt: new Date('2026-10-10T10:00:00Z'),
+        mine: false,
+      },
+    ],
+    nextCursor: null,
+  });
   notFound.mockClear();
 });
 
@@ -269,6 +312,18 @@ describe('a coach’s page', () => {
     const lessons = screen.getByTestId('coach-lessons');
     expect(lessons).toHaveAttribute('data-coach', 'ivan-petrov');
     expect(lessons).toHaveAttribute('data-name', 'Иван Петров');
+  });
+
+  it('«Отзиви» comes with the page: page one for this coach, with the viewer (#551)', async () => {
+    publicCoachBySlug.mockResolvedValue(coach());
+    signedIn = true;
+    await openCoach();
+    const stage = screen.getByTestId('coach-reviews-stage');
+    expect(stage).toHaveAttribute('data-slug', 'ivan-petrov');
+    expect(stage).toHaveAttribute('data-count', '1');
+    expect(stage).toHaveAttribute('data-items', '1');
+    expect(stage).toHaveAttribute('data-signed-in', 'true');
+    expect(listCoachReviews).toHaveBeenCalledWith({ coachUserId: 'usr_coach', viewerId: 'u1' });
   });
 
   it('an approved coach who teaches nowhere yet: the page says so, and is kept out of search', async () => {

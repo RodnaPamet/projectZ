@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient, type SportType } from '@prisma/client';
 
 import { publicVenueFilter, type PublicVenueFilter } from '@/app-layer/repositories/public-venue';
+import { NO_RATING, readCoachRatings, type CoachRating } from '@/app-layer/usecases/coach-ratings';
 import type { CoachSportInput } from '@/lib/coaches/profile';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
@@ -147,6 +148,8 @@ export interface PublicCoach {
   /** The lowest hourly rate among them; null with no venue. */
   fromRateCents: number | null;
   currency: string;
+  /** From their published reviews, at every club (#551, decision 27). */
+  rating: CoachRating;
 }
 
 /** Who teaches a lesson, as the player on it and the club see them. */
@@ -292,6 +295,10 @@ async function loadPublic(
     sportsAt.set(c.venueId, (sportsAt.get(c.venueId) ?? new Set()).add(c.sport));
   }
 
+  const ratings = await readCoachRatings(
+    db,
+    profiles.map((p) => p.userId),
+  );
   const out = new Map<string, PublicCoach>();
   for (const p of profiles) {
     const user = userOf.get(p.userId);
@@ -326,6 +333,7 @@ async function loadPublic(
       venues,
       fromRateCents: venues[0]?.hourlyRateCents ?? null,
       currency: venues[0]?.currency ?? 'EUR',
+      rating: ratings.get(p.userId) ?? NO_RATING,
     });
   }
   return out;

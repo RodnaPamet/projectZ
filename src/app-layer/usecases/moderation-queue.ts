@@ -32,7 +32,7 @@ export const QUEUE_PAGE_SIZE = 50;
  * A case in the queue: a review, or (#375) a reported message or
  * conversation — `moderation-messages.ts` builds those.
  */
-export type QueueItem = ReviewQueueItem | ChatQueueItem;
+export type QueueItem = ReviewQueueItem | CoachReviewQueueItem | ChatQueueItem;
 
 export interface ReviewQueueItem {
   subject: 'REVIEW';
@@ -54,6 +54,22 @@ export interface ReviewQueueItem {
 }
 
 /** Scores as stored — `Json` — reduced to what they claim to be. */
+/**
+ * A player's review of a coach (#551): the same judgement as a venue's, with
+ * the coach where a venue's review has the venue. The coach's page address is
+ * null once they are no longer listed.
+ */
+export interface CoachReviewQueueItem {
+  subject: 'COACH_REVIEW';
+  caseId: string;
+  reason: string;
+  openedAt: Date;
+  scores: Record<string, number>;
+  review: ReviewQueueItem['review'];
+  coach: { name: string | null; slug: string | null };
+  club: { id: string; slug: string; name: string };
+}
+
 function toScores(raw: unknown): Record<string, number> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out: Record<string, number> = {};
@@ -121,10 +137,30 @@ export async function listModerationCases(
     take: cases.length,
   });
 
-  const venueIds = [...new Set(reviews.map((r) => r.venueId))];
-  const tenantIds = [...new Set(reviews.map((r) => r.tenantId))];
+  const coachReviews = await db.coachReview.findMany({
+    where: {
+      id: { in: cases.flatMap((c) => (c.subjectType === 'COACH_REVIEW' ? [c.subjectId] : [])) },
+    },
+    select: {
+      id: true,
+      tenantId: true,
+      coachUserId: true,
+      rating: true,
+      body: true,
+      status: true,
+      createdAt: true,
+      moderationScoresJson: true,
+    },
+    take: cases.length,
+  });
+  const coachIds = [...new Set(coachReviews.map((r) => r.coachUserId))];
 
-  const [venues, clubs] = await Promise.all([
+  const venueIds = [...new Set(reviews.map((r) => r.venueId))];
+  const tenantIds = [
+    ...new Set([...reviews.map((r) => r.tenantId), ...coachReviews.map((r) => r.tenantId)]),
+  ];
+
+  const [venues, clubs, coachUsers, coachProfiles] = await Promise.all([
     // guardrail-allow: cross-tenant — the venues those reviews are about, by id.
     // public-venue-filter: not a public read — the platform moderation queue
     // names the venue a reported review is about, whatever its club's status.
@@ -138,7 +174,20 @@ export async function listModerationCases(
       select: { id: true, slug: true, name: true },
       take: tenantIds.length,
     }),
+    db.user.findMany({
+      where: { id: { in: coachIds } },
+      select: { id: true, name: true },
+      take: coachIds.length,
+    }),
+    db.coachProfile.findMany({
+      where: { userId: { in: coachIds }, status: 'APPROVED' },
+      select: { userId: true, slug: true },
+      take: coachIds.length,
+    }),
   ]);
+  const coachReviewById = new Map(coachReviews.map((r) => [r.id, r]));
+  const coachNameOf = new Map(coachUsers.map((u) => [u.id, u.name]));
+  const coachSlugOf = new Map(coachProfiles.map((p) => [p.userId, p.slug]));
 
   const caseById = new Map(cases.map((c) => [c.id, c]));
   const reviewById = new Map(reviews.map((r) => [r.id, r]));
@@ -152,6 +201,32 @@ export async function listModerationCases(
     const c = caseById.get(id);
     // Resolved between the id read and this one, by another moderator.
     if (!c) continue;
+    if (c.subjectType === 'COACH_REVIEW') {
+      const review = coachReviewById.get(c.subjectId);
+      const club = review ? clubById.get(review.tenantId) : undefined;
+      // Deleted by its author, or with the account: nothing left to decide.
+      if (!review || !club) continue;
+      items.push({
+        subject: 'COACH_REVIEW',
+        caseId: c.id,
+        reason: c.reason,
+        openedAt: c.createdAt,
+        scores: toScores(c.scoresJson ?? review.moderationScoresJson),
+        review: {
+          id: review.id,
+          rating: review.rating,
+          body: review.body,
+          status: review.status,
+          createdAt: review.createdAt,
+        },
+        coach: {
+          name: coachNameOf.get(review.coachUserId) ?? null,
+          slug: coachSlugOf.get(review.coachUserId) ?? null,
+        },
+        club: { id: club.id, slug: club.slug, name: club.name },
+      });
+      continue;
+    }
     if (c.subjectType !== 'REVIEW') {
       const item = chat.get(c.id);
       if (item) items.push(item);

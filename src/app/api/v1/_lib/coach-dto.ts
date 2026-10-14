@@ -5,6 +5,11 @@ import type {
   CoachDecisionResult,
 } from '@/app-layer/usecases/coach-approval';
 import type { PublicCoach } from '@/app-layer/usecases/coach-directory';
+import type {
+  CoachRating,
+  CoachReviewsPage,
+  CreatedCoachReview,
+} from '@/app-layer/usecases/coach-reviews';
 import type { MyCoachLink } from '@/app-layer/usecases/coach-links';
 import type {
   BookedLesson,
@@ -123,6 +128,7 @@ export function toPublicCoach(c: PublicCoach) {
     sports: c.sports.map((s) => ({ sport: s.sport, levelMin: s.levelMin, levelMax: s.levelMax })),
     fromRateCents: c.fromRateCents,
     currency: c.currency,
+    rating: toCoachRating(c.rating),
     venues: c.venues.map((v) => ({
       linkId: v.linkId,
       venueId: v.venueId,
@@ -137,6 +143,40 @@ export function toPublicCoach(c: PublicCoach) {
       currency: v.currency,
       lessonMinutes: v.lessonMinutes,
     })),
+  };
+}
+
+/** A coach's rating (#551): the weighted average, rounded to one place, and the count. */
+export function toCoachRating(r: CoachRating) {
+  return { avgRating: Math.round(r.avgRating * 10) / 10, reviewCount: r.reviewCount };
+}
+
+/** One page of a coach's published reviews (`GET /coaches/{slug}/reviews`). */
+export function toCoachReviewsPage(p: CoachReviewsPage) {
+  return {
+    rating: toCoachRating(p.rating),
+    items: p.reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      body: r.body,
+      author: r.author,
+      createdAt: rfc3339(r.createdAt),
+      mine: r.mine,
+    })),
+    nextCursor: p.nextCursor,
+  };
+}
+export type CoachReviewsPageDto = ReturnType<typeof toCoachReviewsPage>;
+
+/** The review just written (`POST /me/bookings/{id}/coach-review`). */
+export function toCreatedCoachReview(r: CreatedCoachReview) {
+  return {
+    id: r.id,
+    bookingId: r.bookingId,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: rfc3339(r.createdAt),
   };
 }
 

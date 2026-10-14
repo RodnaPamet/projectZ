@@ -125,7 +125,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 4;
+  version: 5;
   exportedAt: string;
   profile: {
     id: string;
@@ -243,6 +243,15 @@ export interface PersonalDataExport {
   }>;
   reviews: Array<{
     venue: string;
+    rating: number;
+    text: string | null;
+    status: string;
+    createdAt: string;
+  }>;
+  /** The person's reviews of coaches (#551; version 5). */
+  coachReviews: Array<{
+    /** The coach's name; empty once their account is gone. */
+    coach: string;
     rating: number;
     text: string | null;
     status: string;
@@ -470,7 +479,7 @@ export async function readPersonalData(
   });
   if (!user || user.deletedAt) return null;
 
-  const [memberships, booked, played, reviews, links] = await Promise.all([
+  const [memberships, booked, played, reviews, links, coachReviews] = await Promise.all([
     db.tenantMembership.findMany({
       where: { userId },
       select: {
@@ -518,7 +527,27 @@ export async function readPersonalData(
       orderBy: { createdAt: 'asc' },
       take: EXPORT_ROW_CAP,
     }),
+    // guardrail-allow: cross-tenant — the person's own reviews of coaches, by their id.
+    db.coachReview.findMany({
+      where: { authorUserId: userId },
+      select: { coachUserId: true, rating: true, body: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
   ]);
+  // The coaches' names, for the person's reviews of them: the name only.
+  const coachIds = [...new Set(coachReviews.map((r) => r.coachUserId))];
+  const coachNames = new Map(
+    coachIds.length === 0
+      ? []
+      : (
+          await db.user.findMany({
+            where: { id: { in: coachIds }, deletedAt: null },
+            select: { id: true, name: true },
+            take: coachIds.length,
+          })
+        ).map((u) => [u.id, u.name ?? '']),
+  );
 
   const messaging = await readMessaging(db, userId);
   const openPlay = await readOpenPlay(db, userId);
@@ -679,7 +708,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 4,
+    version: 5,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -790,6 +819,13 @@ export async function readPersonalData(
     noShowStanding: noShows,
     reviews: reviews.map((r) => ({
       venue: r.venue?.name ?? '',
+      rating: r.rating,
+      text: r.body,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    })),
+    coachReviews: coachReviews.map((r) => ({
+      coach: coachNames.get(r.coachUserId) ?? '',
       rating: r.rating,
       text: r.body,
       status: r.status,

@@ -52,6 +52,17 @@ export async function VenueCoaches({ venueId }: { venueId: string }) {
                 name={c.name?.trim() || t('noName')}
                 avatarUrl={c.avatarUrl}
                 sports={c.sports.map((s) => tSports(s.sport as never))}
+                rating={
+                  c.rating.reviewCount > 0
+                    ? t('cardRating', {
+                        rating: format.number(c.rating.avgRating, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        }),
+                        count: c.rating.reviewCount,
+                      })
+                    : null
+                }
                 // Their page opens with the lesson picker on THIS venue.
                 at={here?.venueId === venueId ? here.linkId : null}
                 line={
