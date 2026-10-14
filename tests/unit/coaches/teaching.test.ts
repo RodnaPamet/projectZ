@@ -283,14 +283,18 @@ describe('days off', () => {
 
 describe('what a link needs before a lesson can be booked on it', () => {
   it('a rate, a length and some hours; each is named when it is missing', () => {
-    const ready = { hourlyRateCents: 4000, lessonMinutes: [60], hours: [{}] };
+    const ready = { hourlyRateCents: 4000, lessonMinutes: [60], hours: [{}], courts: 2 };
     expect(missingForLessons(ready)).toEqual([]);
     // Free lessons are a rate: zero is not "missing".
     expect(missingForLessons({ ...ready, hourlyRateCents: 0 })).toEqual([]);
-    expect(missingForLessons({ hourlyRateCents: null, lessonMinutes: [], hours: [] })).toEqual([
-      'rate',
-      'lengths',
-      'hours',
-    ]);
+    expect(
+      missingForLessons({ hourlyRateCents: null, lessonMinutes: [], hours: [], courts: 1 }),
+    ).toEqual(['rate', 'lengths', 'hours']);
+    // No court in use at the venue for a sport the coach teaches: named first,
+    // because nothing the coach sets here would make a lesson bookable.
+    expect(missingForLessons({ ...ready, courts: 0 })).toEqual(['courts']);
+    expect(
+      missingForLessons({ hourlyRateCents: null, lessonMinutes: [], hours: [], courts: 0 }),
+    ).toEqual(['courts', 'rate', 'lengths', 'hours']);
   });
 });

@@ -14,7 +14,7 @@ import type {
 import { appendAuditEntries, appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { phoneFingerprint } from '@/lib/account/phone-fingerprint';
 import { normalizePhone } from '@/lib/booking/phone';
-import { isExclusionViolation } from '@/lib/db/pg-errors';
+import { isDeadlock, isExclusionViolation } from '@/lib/db/pg-errors';
 import {
   InvalidSeriesError,
   MAX_SERIES_WEEKS,
@@ -1020,7 +1020,8 @@ export async function moveSeriesFrom(
       });
     }
   } catch (err) {
-    if (isExclusionViolation(err)) throw new SlotTakenError();
+    // A deadlock is the same race lost at the same instant (#560; `createBooking`).
+    if (isExclusionViolation(err) || isDeadlock(err)) throw new SlotTakenError();
     throw err;
   }
 

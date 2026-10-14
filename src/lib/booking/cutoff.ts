@@ -37,6 +37,21 @@ export function playerCancellableUntil(startTs: Date, cutoffHours: number): Date
  * exactly 24.0 h is inside it, as `computeRefundAmount` decided for its own
  * bands — and never at or after the start, which matters for a cutoff of 0.
  */
+/**
+ * The cutoff a booking is held to. A plain court booking: the club's. A
+ * LESSON (#377, owner decision 7): the stricter of the club's and the coach's,
+ * which is the one further from the start, because either of them may need
+ * the notice. `lessonHours` is the coach's cutoff as it stood when the lesson
+ * was booked (`coach_lesson.cancelCutoffHours`); null or absent for a booking
+ * with no lesson on it.
+ */
+export function bookingCutoffHours(
+  venueHours: number,
+  lessonHours: number | null | undefined,
+): number {
+  return Math.max(venueHours, lessonHours ?? 0);
+}
+
 export function playerMayCancel(startTs: Date, cutoffHours: number, now: Date): boolean {
   return (
     now.getTime() <= playerCancellableUntil(startTs, cutoffHours).getTime() &&

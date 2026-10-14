@@ -122,7 +122,7 @@ async function coach(name: string, opts: { approved?: boolean } = {}) {
         submittedAt: new Date(),
         decidedAt: new Date(),
         decidedByUserId: admin,
-        sports: { create: [{ sport: 'TENNIS', levelMin: 1, levelMax: 5 }] },
+        sports: { create: [{ sport: 'PADEL', levelMin: 1, levelMax: 5 }] },
       },
     });
   });
@@ -221,7 +221,7 @@ describe('a coach asks to teach at a venue', () => {
         approved: true,
         bio: expect.stringContaining('тенис и падел'),
         qualifications: 'Лиценз ББФТ',
-        sports: [{ sport: 'TENNIS', levelMin: 1, levelMax: 5 }],
+        sports: [{ sport: 'PADEL', levelMin: 1, levelMax: 5 }],
       },
     });
     // Never an address, a phone, or anything about a certificate.
@@ -554,7 +554,7 @@ describe('what the coach sets at a venue', () => {
     });
   });
 
-  it('a second court booked differently widens what can be chosen', async () => {
+  it('a second court booked differently widens what can be chosen, once it is for a sport the coach teaches', async () => {
     const c = await teachingAtA();
     expect(
       (await setTerms(c.bearer, c.linkId, { hourlyRateCents: 4000, lessonMinutes: [45] })).json
@@ -576,6 +576,20 @@ describe('what the coach sets at a venue', () => {
           maxBookingMinutes: 45,
           slotStepMinutes: 15,
         },
+      }),
+    );
+    // A table for a sport this coach does not teach changes nothing for them:
+    // a 45-minute lesson would be one no court of theirs could be booked for.
+    expect(linksOf(await myLinks(c.bearer))[0]!.lengthOptions).toEqual([60, 120, 180]);
+    expect(
+      (await setTerms(c.bearer, c.linkId, { hourlyRateCents: 4000, lessonMinutes: [45] })).json
+        .error,
+    ).toMatchObject({ details: { field: 'lessonMinutes', reason: 'NOT_A_COURT_LENGTH' } });
+
+    // Once they teach it too, its lengths are theirs to offer.
+    await asAppSuperuser(db, (tx) =>
+      tx.coachProfileSport.create({
+        data: { userId: c.userId, sport: 'TABLE_TENNIS', levelMin: 1, levelMax: 5 },
       }),
     );
     expect(linksOf(await myLinks(c.bearer))[0]!.lengthOptions).toEqual([45, 60, 120, 180]);
@@ -677,6 +691,50 @@ describe('weekly hours', () => {
       hours: [],
       missing: ['hours'],
     });
+  });
+
+  it('a venue with no court for a sport the coach teaches: said to the coach and to the club, and no length is offered', async () => {
+    const c = await teachingAtA();
+    await setTerms(c.bearer, c.linkId, { hourlyRateCents: 4000, lessonMinutes: [60] });
+    await setHours(c.bearer, c.linkId, [{ dayOfWeek: 1, open: '09:00', close: '12:00' }]);
+    expect(linksOf(await myLinks(c.bearer))[0]).toMatchObject({ missing: [] });
+
+    // The coach now teaches tennis only; venue A has a padel court and nothing else.
+    await asAppSuperuser(db, async (tx) => {
+      await tx.coachProfileSport.deleteMany({ where: { userId: c.userId } });
+      await tx.coachProfileSport.create({
+        data: { userId: c.userId, sport: 'TENNIS', levelMin: 1, levelMax: 5 },
+      });
+    });
+    expect(linksOf(await myLinks(c.bearer))[0]).toMatchObject({
+      lengthOptions: [],
+      missing: ['courts'],
+    });
+    expect((await listClubCoaches(clubA.tenantId))[0]).toMatchObject({ missing: ['courts'] });
+
+    // A tennis court that is not in use does not count; one in use does.
+    const court = await asAppSuperuser(db, (tx) =>
+      tx.resource.create({
+        data: {
+          tenantId: clubA.tenantId,
+          venueId: venueA.venueId,
+          name: 'Tennis 1',
+          sport: 'TENNIS',
+          surface: 'CLAY',
+          basePriceCents: 2000,
+          status: 'CLOSED',
+        },
+      }),
+    );
+    expect(linksOf(await myLinks(c.bearer))[0]!.missing).toEqual(['courts']);
+    await asAppSuperuser(db, (tx) =>
+      tx.resource.update({ where: { id: court.id }, data: { status: 'ACTIVE' } }),
+    );
+    expect(linksOf(await myLinks(c.bearer))[0]).toMatchObject({
+      lengthOptions: [60, 120, 180],
+      missing: [],
+    });
+    expect((await listClubCoaches(clubA.tenantId))[0]).toMatchObject({ missing: [] });
   });
 
   it.each([

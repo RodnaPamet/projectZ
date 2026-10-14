@@ -275,7 +275,7 @@ function CoachCard({
             </div>
             {coach.missing.length > 0 ? (
               <p className="text-content-muted" data-testid="club-coach-missing">
-                {t('missing')}
+                {coach.missing.includes('courts') ? t('missingCourts') : t('missing')}
               </p>
             ) : null}
           </>

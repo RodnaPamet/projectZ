@@ -104,6 +104,9 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // own profile is under `/api/v1/me/…` and is not.
   /^\/coaches(\/|$)/,
   /^\/api\/v1\/coaches(\/[^/]+)?$/,
+  // The times a lesson can start (#548): looked at before signing in, as a
+  // venue's free slots are. Booking one is not public.
+  /^\/api\/v1\/coaches\/[^/]+\/lesson-times$/,
   /^\/design-system(\/|$)/,
   // Sign-in must be public, and EXPLICITLY so.
   //

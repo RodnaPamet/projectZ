@@ -123,7 +123,11 @@ export interface PublicCoachVenue {
   city: string;
   /** The venue page's address, when it has one. */
   publicSlug: string | null;
+  /** IANA zone: a lesson's day and times are the venue's. */
+  timezone: string;
   club: { name: string; slug: string };
+  /** The sports a lesson can be in here: the coach's, that the venue has a court in use for. */
+  sports: SportType[];
   hourlyRateCents: number;
   /** For two or more players. Null: no group lessons here. */
   groupRateCents: number | null;
@@ -150,12 +154,21 @@ export const PUBLIC_COACHES_MAX = 50;
 /** Coaches listed on one venue's page. */
 export const VENUE_COACHES_MAX = 50;
 
-/** A link a lesson can be booked on, as SQL over `coach c` joined to `venue v`. */
-const readyLink = (publicVenue: PublicVenueFilter) => Prisma.sql`
+/**
+ * A link a lesson can be booked on, as SQL over `coach c` joined to `venue v`.
+ * Exported for `coach-lessons.ts`, which books on exactly the links this lists.
+ */
+export const readyLink = (publicVenue: PublicVenueFilter) => Prisma.sql`
   c."status" = 'ACTIVE'
   AND c."hourlyRateCents" IS NOT NULL
   AND cardinality(c."lessonMinutes") > 0
   AND EXISTS (SELECT 1 FROM "coach_availability" a WHERE a."coachId" = c."id")
+  -- A court in use there for a sport the coach teaches: a lesson is on one.
+  -- ("court" is the physical table behind the Resource model.)
+  AND EXISTS (
+    SELECT 1 FROM "court" r
+      JOIN "coach_profile_sport" s ON s."userId" = c."userId" AND s."sport" = r."sport"
+     WHERE r."venueId" = c."venueId" AND r."tenantId" = c."tenantId" AND r."status" = 'ACTIVE')
   AND ${publicVenue.sql('v')}`;
 
 /** The public page of each of these accounts, by account id. Only approved coaches. */
@@ -197,6 +210,7 @@ async function loadPublic(
         venueName: string;
         city: string;
         publicSlug: string | null;
+        timezone: string;
         hourlyRateCents: number;
         groupRateCents: number | null;
         currency: string;
@@ -204,7 +218,8 @@ async function loadPublic(
       }>
     >`
       SELECT c."id", c."userId", c."tenantId", c."venueId", v."name" AS "venueName", v."city",
-             v."publicSlug", c."hourlyRateCents", c."groupRateCents", c."currency", c."lessonMinutes"
+             v."publicSlug", v."timezone", c."hourlyRateCents", c."groupRateCents", c."currency",
+             c."lessonMinutes"
         FROM "coach" c
         JOIN "venue" v ON v."id" = c."venueId"
        WHERE c."userId" IN (${Prisma.join(ids)})
@@ -219,6 +234,18 @@ async function loadPublic(
   });
   const clubOf = new Map(clubs.map((c) => [c.id, c]));
   const userOf = new Map(users.map((u) => [u.id, u]));
+  // guardrail-allow: cross-tenant — which sports each of those venues has a
+  // court in use for; the venue pages list the same courts.
+  const courts = await db.resource.findMany({
+    where: { venueId: { in: [...new Set(links.map((l) => l.venueId))] }, status: 'ACTIVE' },
+    select: { venueId: true, sport: true },
+    distinct: ['venueId', 'sport'],
+    take: Math.max(1, links.length) * 64,
+  });
+  const sportsAt = new Map<string, Set<SportType>>();
+  for (const c of courts) {
+    sportsAt.set(c.venueId, (sportsAt.get(c.venueId) ?? new Set()).add(c.sport));
+  }
 
   const out = new Map<string, PublicCoach>();
   for (const p of profiles) {
@@ -234,7 +261,9 @@ async function loadPublic(
           name: l.venueName,
           city: l.city,
           publicSlug: l.publicSlug,
+          timezone: l.timezone,
           club: { name: club.name, slug: club.slug },
+          sports: p.sports.map((s) => s.sport).filter((s) => sportsAt.get(l.venueId)?.has(s)),
           hourlyRateCents: l.hourlyRateCents,
           groupRateCents: l.groupRateCents,
           currency: l.currency,

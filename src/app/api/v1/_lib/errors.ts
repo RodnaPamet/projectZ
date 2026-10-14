@@ -81,6 +81,15 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // unchanged will never succeed, which is exactly what separates this from
   // SlotTakenError below.
   SlotNotBookableError: { status: 400, code: 'SLOT_NOT_BOOKABLE' },
+  // A lesson (#548) of a length the coach does not teach at that venue;
+  // `details.offered` lists the ones they do.
+  LessonLengthNotOfferedError: {
+    status: 400,
+    code: 'LESSON_LENGTH_NOT_OFFERED',
+    details: (e) => ({ offered: (e as Error & { offered: number[] }).offered }),
+  },
+  // A coach booking a lesson with themself.
+  OwnLessonError: { status: 400, code: 'OWN_LESSON' },
   ShareSumMismatchError: { status: 400, code: 'SHARE_SUM_MISMATCH' },
   UnsupportedCapabilityError: { status: 400, code: 'UNSUPPORTED_CAPABILITY' },
   GuestContactRequiredError: { status: 400, code: 'GUEST_CONTACT_REQUIRED' },
@@ -246,6 +255,12 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // These are the ones a mobile client MUST distinguish, because every one of
   // them is "try again with fresh data", not "you did something wrong".
   SlotTakenError: { status: 409, code: 'SLOT_TAKEN' },
+  // A lesson (#548): the coach was booked for that time first, here or at
+  // another club. `SLOT_TAKEN` above is the other half: no court is left.
+  CoachTakenError: { status: 409, code: 'COACH_TAKEN' },
+  // The coach does not teach then: outside their hours, a day off, or the
+  // time has started. Refetch the times.
+  LessonTimeNotOfferedError: { status: 409, code: 'LESSON_TIME_NOT_OFFERED' },
   // The number already confirms another account (#500). Said only after the
   // code proved the caller holds the phone.
   PhoneInUseError: { status: 409, code: 'PHONE_IN_USE' },
@@ -419,6 +434,9 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   CoachSuspendedAtClubError: { status: 403, code: 'COACH_SUSPENDED_AT_CLUB' },
   CoachVenueNotFoundError: { status: 404, code: 'VENUE_NOT_FOUND' },
   CoachLinkNotFoundError: { status: 404, code: 'COACH_LINK_NOT_FOUND' },
+  // Booking a lesson (#548). No such coach at a venue, or a lesson cannot be
+  // booked with them there: not approved, the link ended, no terms or hours.
+  LessonLinkNotFoundError: { status: 404, code: 'COACH_NOT_BOOKABLE' },
   CoachLinkExistsError: {
     status: 409,
     code: 'COACH_LINK_EXISTS',

@@ -92,6 +92,17 @@ const BOOKING_FIELDS = {
       venue: { select: { id: true, name: true, timezone: true, cancellationCutoffHours: true } },
     },
   },
+  // The lesson on it, if it is one (#548): the coach's fee and the coach's own
+  // cancellation cutoff, which a lesson is held to when it is the stricter.
+  lesson: {
+    select: {
+      id: true,
+      coachUserId: true,
+      coachFeeCents: true,
+      groupRateCents: true,
+      cancelCutoffHours: true,
+    },
+  },
 } as const;
 
 /**
@@ -303,6 +314,8 @@ export async function listUpcomingBookingsForUser(
           venue: { select: { name: true, timezone: true, cancellationCutoffHours: true } },
         },
       },
+      // A lesson is cancelled by the stricter of the two cutoffs (#377).
+      lesson: { select: { cancelCutoffHours: true } },
     },
     orderBy: [{ startTs: 'asc' }, { id: 'asc' }],
     take: input.take,

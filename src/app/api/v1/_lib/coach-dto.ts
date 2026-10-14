@@ -6,7 +6,10 @@ import type {
 } from '@/app-layer/usecases/coach-approval';
 import type { PublicCoach } from '@/app-layer/usecases/coach-directory';
 import type { MyCoachLink } from '@/app-layer/usecases/coach-links';
+import type { BookedLesson, LessonLink, LessonOffer } from '@/app-layer/usecases/coach-lessons';
 import { rfc3339 } from '@/app/api/v1/_lib/dto';
+import { bookingCutoffHours } from '@/lib/booking/cutoff';
+import { coachFeeCents } from '@/lib/coaches/lessons';
 
 /** The shapes the coach routes answer with (#545): dates as RFC 3339, nothing else changed. */
 
@@ -114,11 +117,60 @@ export function toPublicCoach(c: PublicCoach) {
       name: v.name,
       city: v.city,
       publicSlug: v.publicSlug,
+      timezone: v.timezone,
       club: v.club,
+      sports: v.sports,
       hourlyRateCents: v.hourlyRateCents,
       groupRateCents: v.groupRateCents,
       currency: v.currency,
       lessonMinutes: v.lessonMinutes,
     })),
+  };
+}
+
+/** The times a lesson can start on one day (`GET /coaches/{slug}/lesson-times`). */
+export function toLessonTimes(input: {
+  link: LessonLink;
+  date: string;
+  minutes: number;
+  times: LessonOffer[];
+}) {
+  const { link } = input;
+  return {
+    linkId: link.linkId,
+    venue: { id: link.venue.id, name: link.venue.name, timezone: link.venue.timezone },
+    date: input.date,
+    minutes: input.minutes,
+    currency: link.currency,
+    // One player's fee for this length; the same at every time.
+    coachFeeCents: coachFeeCents(link.hourlyRateCents, input.minutes),
+    // From the second player on; null when the coach gives no group lessons.
+    groupFeeCents:
+      link.groupRateCents === null ? null : coachFeeCents(link.groupRateCents, input.minutes),
+    // How long before the start the player may still cancel: the stricter of
+    // the club's cutoff and the coach's (owner decision 7).
+    cancelCutoffHours: bookingCutoffHours(link.venueCutoffHours, link.cancelCutoffHours),
+    times: input.times.map((t) => ({
+      startTs: rfc3339(t.startTs),
+      endTs: rfc3339(t.endTs),
+      sport: t.sport,
+      court: { id: t.resourceId, name: t.courtName },
+      courtPriceCents: t.courtPriceCents,
+      totalCents: t.totalCents,
+    })),
+  };
+}
+
+/** The lesson on a booking: who teaches it and what each part costs. */
+export function toBookedLesson(l: BookedLesson) {
+  return {
+    id: l.lessonId,
+    coach: { slug: l.coach.slug, name: l.coach.name },
+    minutes: l.minutes,
+    coachFeeCents: l.coachFeeCents,
+    groupFeeCents: l.groupRateCents === null ? null : coachFeeCents(l.groupRateCents, l.minutes),
+    courtPriceCents: l.courtPriceCents,
+    totalCents: l.totalCents,
+    currency: l.currency,
   };
 }

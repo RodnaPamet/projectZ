@@ -102,7 +102,7 @@ async function coach(
         status,
         ...(decided ? { decidedAt: new Date(), decidedByUserId: admin } : {}),
         sports: {
-          create: (opts.sports ?? ['TENNIS']).map((sport) => ({
+          create: (opts.sports ?? ['PADEL']).map((sport) => ({
             sport: sport as never,
             levelMin: 1,
             levelMax: 5,
@@ -199,7 +199,10 @@ describe('who is listed', () => {
               name: 'Алфа Кортове',
               city: 'Sofia',
               publicSlug: expect.any(String),
+              timezone: 'Europe/Sofia',
               club: { name: 'Клуб Алфа', slug: club.tenantSlug },
+              // They teach tennis too, and this venue has no tennis court.
+              sports: ['PADEL'],
               hourlyRateCents: 4000,
               groupRateCents: 6000,
               currency: 'EUR',
@@ -230,6 +233,37 @@ describe('who is listed', () => {
     const page = await one('ivan-petrov');
     expect(page.status).toBe(200);
     expect(page.coach).toMatchObject({ venues: [], fromRateCents: null });
+  });
+
+  it('not at a venue with no court in use for a sport they teach: nothing there could be booked', async () => {
+    // Venue A has one padel court. A tennis coach has a link there, with a
+    // rate, lengths and hours: ready in every way but one.
+    const id = await coach('ivan-petrov', 'Иван Петров', { sports: ['TENNIS'] });
+    await teaches(id, A());
+    expect((await list()).page.items).toEqual([]);
+    expect((await atVenue(venue.venueId)).items).toEqual([]);
+    expect((await one('ivan-petrov')).coach.venues).toEqual([]);
+
+    // A tennis court that is not in use changes nothing; one in use lists them.
+    const court = await asAppSuperuser(db, (tx) =>
+      tx.resource.create({
+        data: {
+          tenantId: club.tenantId,
+          venueId: venue.venueId,
+          name: 'Tennis 1',
+          sport: 'TENNIS',
+          surface: 'CLAY',
+          basePriceCents: 2000,
+          status: 'CLOSED',
+        },
+      }),
+    );
+    expect((await list()).page.items).toEqual([]);
+    await asAppSuperuser(db, (tx) =>
+      tx.resource.update({ where: { id: court.id }, data: { status: 'ACTIVE' } }),
+    );
+    expect((await list()).page.items.map((c) => c.slug)).toEqual(['ivan-petrov']);
+    expect((await atVenue(venue.venueId)).items.map((c) => c.slug)).toEqual(['ivan-petrov']);
   });
 
   it.each([['DRAFT'], ['SUBMITTED'], ['DECLINED']] as const)(
@@ -288,6 +322,19 @@ describe('the list', () => {
       await coach('boris', 'Борис', { sports: ['PADEL'] }),
       await coach('viktor', 'Виктор', { sports: ['TENNIS', 'PADEL'] }),
     ];
+    // Venue A is seeded with a padel court; Anna needs a tennis one to teach on.
+    await asAppSuperuser(db, (tx) =>
+      tx.resource.create({
+        data: {
+          tenantId: club.tenantId,
+          venueId: venue.venueId,
+          name: 'Tennis 1',
+          sport: 'TENNIS',
+          surface: 'CLAY',
+          basePriceCents: 2000,
+        },
+      }),
+    );
     for (const id of [c, a, b]) await teaches(id, A());
 
     expect((await list()).page.items.map((i) => i.slug)).toEqual(['anna', 'boris', 'viktor']);

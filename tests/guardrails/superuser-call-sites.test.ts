@@ -232,6 +232,13 @@ const ALLOWED: Record<string, string> = {
     'approved, the text, qualifications and sports). A coach\u2019s profile belongs to a person ' +
     'and is owner-only under RLS, so a club or a player looking at a coach cannot read it ' +
     'bound as themselves. Never a draft, never the certificate or that one exists.',
+  'src/app-layer/usecases/coach-lessons.ts':
+    'coaches (#548): whether a lesson can start at a time. That depends on the lessons a ' +
+    'coach has at EVERY club (a coach is in one place at a time) and on their days off, ' +
+    'which belong to the person and are owner-only under RLS; a handle bound to one club ' +
+    'sees neither. Read through publicVenueFilter for a link the public can book, and ' +
+    'answered as times only: never where the other lesson is, nor that a day is a day off. ' +
+    'The booking itself is then written bound to that one club.',
   'src/app-layer/usecases/coach-links.ts':
     'coaches (#546): three reads keyed on the caller. Which club a venue belongs to, when ' +
     'a coach who is nothing at that club yet asks to teach there (through publicVenueFilter); ' +

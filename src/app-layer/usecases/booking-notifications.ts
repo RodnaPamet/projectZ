@@ -1,6 +1,7 @@
 import type { Locale, NotificationKind, OpenGameRequestStatus, Prisma } from '@prisma/client';
 
 import { deliver, type EmailCategory } from '@/app-layer/usecases/notification-outbox';
+import { bookingCutoffHours } from '@/lib/booking/cutoff';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import {
   bellCopy,
@@ -80,6 +81,8 @@ const BOOKING_SELECT = {
       venue: { select: { name: true, timezone: true, cancellationCutoffHours: true } },
     },
   },
+  // A lesson is cancelled by the stricter of the two cutoffs (#377).
+  lesson: { select: { cancelCutoffHours: true } },
 } satisfies Prisma.BookingSelect;
 
 type BookingRow = Prisma.BookingGetPayload<{ select: typeof BOOKING_SELECT }>;
@@ -93,7 +96,10 @@ function factsOf(b: BookingRow): BookingFacts {
     startTs: b.startTs,
     endTs: b.endTs,
     timezone: b.resource.venue.timezone,
-    cutoffHours: b.resource.venue.cancellationCutoffHours,
+    cutoffHours: bookingCutoffHours(
+      b.resource.venue.cancellationCutoffHours,
+      b.lesson?.cancelCutoffHours,
+    ),
   };
 }
 

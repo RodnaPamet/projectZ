@@ -183,7 +183,9 @@ export function CoachVenuesSection({
               </Caption>
             ) : null}
             {l.missing.length > 0 ? (
-              <Caption data-testid="coach-venue-missing">{t('missing')}</Caption>
+              <Caption data-testid="coach-venue-missing">
+                {l.missing.includes('courts') ? t('missingCourts') : t('missing')}
+              </Caption>
             ) : null}
             <div className="gap-tight flex flex-wrap">
               {l.status === 'ACTIVE' ? (

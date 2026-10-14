@@ -1,6 +1,7 @@
 import {
   accountKindViolation,
   isCheckViolation,
+  isDeadlock,
   isExclusionViolation,
   isSerializationFailure,
   isUniqueViolation,
@@ -41,6 +42,47 @@ describe('pg error discrimination', () => {
     expect(isSerializationFailure(wrapped('40P01'))).toBe(false);
   });
 
+  it('knows a deadlock, in both shapes it arrives in (measured through Prisma 7)', () => {
+    // A model call: Prisma's own P2034, the SQLSTATE in the adapter's cause.
+    const model = {
+      name: 'PrismaClientKnownRequestError',
+      code: 'P2034',
+      meta: {
+        modelName: 'Booking',
+        driverAdapterError: {
+          name: 'DriverAdapterError',
+          cause: {
+            originalCode: '40P01',
+            originalMessage: 'deadlock detected',
+            kind: 'TransactionWriteConflict',
+          },
+        },
+      },
+    };
+    // A raw query: P2010, the same cause.
+    const raw = {
+      ...model,
+      code: 'P2010',
+      meta: { driverAdapterError: model.meta.driverAdapterError },
+    };
+    for (const err of [model, raw]) {
+      expect(pgErrorCode(err)).toBe('40P01');
+      expect(isDeadlock(err)).toBe(true);
+      // The booking code treats it as the race it is, and as nothing else.
+      expect(isExclusionViolation(err)).toBe(false);
+      expect(isSerializationFailure(err)).toBe(false);
+      expect(isUniqueViolation(err)).toBe(false);
+    }
+    // And nothing else is a deadlock: not the ordinary lost race, not a
+    // serialization failure, not Prisma's P2034 with no SQLSTATE to read.
+    for (const code of ['23P01', '40001', '23505', '23514']) {
+      expect(isDeadlock(wrapped(code))).toBe(false);
+    }
+    expect(isDeadlock({ name: 'PrismaClientKnownRequestError', code: 'P2034', meta: {} })).toBe(
+      false,
+    );
+  });
+
   it('returns false rather than throwing on things that are not pg errors', () => {
     // A null return from `pgErrorCode` must not read as a match. An
     // `undefined === undefined` bug here would classify a TypeError — a real
@@ -50,6 +92,7 @@ describe('pg error discrimination', () => {
       expect(isUniqueViolation(notAnError)).toBe(false);
       expect(isExclusionViolation(notAnError)).toBe(false);
       expect(isCheckViolation(notAnError)).toBe(false);
+      expect(isDeadlock(notAnError)).toBe(false);
     }
   });
 });
