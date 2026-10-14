@@ -116,10 +116,10 @@
     {
       "path": "src/components/ui/date-picker/date-picker.tsx",
       "inflectPath": "src/components/ui/date-picker/date-picker.tsx",
-      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
-      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "baseSha": "1d707f74f9c7619f4ddf2b611f6b2a4b61f7f243",
+      "sha": "1d707f74f9c7619f4ddf2b611f6b2a4b61f7f243",
       "status": "vendored",
-      "sha256": "5d7f9666f03549171601c79e05fe24fdcd9c4761cfe3d7f307c56b45aa827869"
+      "sha256": "c6a6dd42d28851f0d9ac5ebeda96a757aa01007aa3be9afe38ab123676dcb6dc"
     },
     {
       "path": "src/components/ui/date-picker/date-utils.ts",

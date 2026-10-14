@@ -344,14 +344,13 @@ describe('getting around the diary (audit C07, C08)', () => {
     const trigger = screen.getByRole('button', { name: c.nav.pickDay });
     expect(trigger).toHaveAttribute('data-value', '2026-09-29');
 
-    // The calendar opens at the current month (upstream picks it, whatever
-    // is selected), so the day chosen is the 15th of this month.
-    const now = new Date();
-    const target = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`;
+    // The calendar opens at the chosen day's month (#585, inflect #3532),
+    // September 2026 here, wherever today is: its 15th is on screen.
+    const target = '2026-09-15';
     fireEvent.click(trigger);
     const day = await waitFor(() => {
       const cell = document.querySelector(`[data-day="${target}"] button`);
-      if (!cell) throw new Error('the 15th is not shown yet');
+      if (!cell) throw new Error('the chosen month is not shown');
       return cell as HTMLElement;
     });
     fireEvent.click(day);
