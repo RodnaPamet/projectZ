@@ -135,7 +135,13 @@ export function BookingPlayers({
         <Heading level={2} tone="muted" className="text-sm" id="booking-players">
           {td('players')}
         </Heading>
-        <Caption data-testid="booking-spots-left">{t('spotsLeft', { count: b.spotsLeft })}</Caption>
+        {/* A lesson takes no more players yet (#549): free places it cannot
+            be filled into are not advertised. */}
+        {b.lesson ? null : (
+          <Caption data-testid="booking-spots-left">
+            {t('spotsLeft', { count: b.spotsLeft })}
+          </Caption>
+        )}
       </div>
 
       <Card elevation="flat" density="none">

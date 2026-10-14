@@ -296,27 +296,33 @@ export function LessonBooking({
         {t('at', { venue: venue.name, club: venue.club })}
       </Caption>
 
+      {/* Each in a block of its own, so the group is as wide as its options
+          rather than stretched across the column. */}
       {venue.sports.length > 1 && (
-        <ToggleGroup
-          size="sm"
-          ariaLabel={t('sportLabel')}
-          options={venue.sports.map((s) => ({ value: s, label: tSports(s as never) }))}
-          selected={choice.sport}
-          selectAction={(v) => choose({ sport: v })}
-        />
+        <div>
+          <ToggleGroup
+            size="sm"
+            ariaLabel={t('sportLabel')}
+            options={venue.sports.map((s) => ({ value: s, label: tSports(s as never) }))}
+            selected={choice.sport}
+            selectAction={(v) => choose({ sport: v })}
+          />
+        </div>
       )}
 
       {venue.lessonMinutes.length > 1 && (
-        <ToggleGroup
-          size="sm"
-          ariaLabel={t('lengthLabel')}
-          options={venue.lessonMinutes.map((m) => ({
-            value: String(m),
-            label: tVenue('slots.minutes', { minutes: m }),
-          }))}
-          selected={String(choice.minutes)}
-          selectAction={(v) => choose({ minutes: Number(v) })}
-        />
+        <div>
+          <ToggleGroup
+            size="sm"
+            ariaLabel={t('lengthLabel')}
+            options={venue.lessonMinutes.map((m) => ({
+              value: String(m),
+              label: tVenue('slots.minutes', { minutes: m }),
+            }))}
+            selected={String(choice.minutes)}
+            selectAction={(v) => choose({ minutes: Number(v) })}
+          />
+        </div>
       )}
 
       {/* The day picker scrolls sideways inside itself, never the page. */}

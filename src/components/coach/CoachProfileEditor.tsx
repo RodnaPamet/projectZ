@@ -93,9 +93,16 @@ const TIME_ZONE = 'Europe/Sofia';
  */
 export function CoachProfileEditor({
   seed,
+  lead,
   children,
 }: {
   seed: CoachProfileView;
+  /**
+   * What comes before the profile's own fields: the coach's lessons (#548).
+   * A coach opens this page far more often to see who they teach tomorrow
+   * than to change their text, so that is not below a long form.
+   */
+  lead?: ReactNode;
   /** What follows the profile on the page: the coach's clubs and days off (#546). */
   children?: ReactNode;
 }) {
@@ -253,6 +260,8 @@ export function CoachProfileEditor({
           </span>
         ) : null}
       </InlineNotice>
+
+      {lead}
 
       <ProfileSection title={t('about.title')} testId="coach-profile-about">
         <div className="gap-compact grid px-4 py-3">

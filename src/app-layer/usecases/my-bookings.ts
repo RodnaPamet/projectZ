@@ -7,6 +7,7 @@ import {
   type BookingPlayer,
   type BookingWhen,
 } from '@/app-layer/repositories/booking';
+import { isOpenForPlayers } from '@/app-layer/usecases/booking-players';
 import { lessonCoaches } from '@/app-layer/usecases/coach-directory';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
@@ -192,8 +193,9 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
       spotsLeft: Math.max(0, capacity - 1 - b.participants.length),
       // Players may be added, leave or be removed until the game starts, while
       // the booking holds its court (`booking-players`'s own rule).
-      playersOpen:
-        (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTs.getTime() > now.getTime(),
+      // Not a lesson, until its fee follows the players (#549): see
+      // `isOpenForPlayers`, which is the rule the writes apply.
+      playersOpen: isOpenForPlayers(b, now),
     };
   });
 }

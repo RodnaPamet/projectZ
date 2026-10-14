@@ -168,6 +168,29 @@ describe('the players list', () => {
     expect(screen.getByTestId('booking-spots-left')).toHaveTextContent('2 свободни места');
   });
 
+  it('a lesson shows who is on it and offers no way to add anybody (#549)', () => {
+    installFakeFetch(() => ok({}));
+    const lesson = {
+      id: 'ls1',
+      coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+      coachFeeCents: 4000,
+      groupFeeCents: 6000,
+      courtPriceCents: 2400,
+      totalCents: 6400,
+    };
+    wrap(
+      <BookingPlayers
+        booking={booking({ lesson, playersOpen: false })}
+        date="20 окт."
+        time="19:00"
+      />,
+    );
+    expect(screen.getByTestId('booking-players')).toBeInTheDocument();
+    // Free places it cannot be filled into are not advertised.
+    expect(screen.queryByTestId('booking-spots-left')).toBeNull();
+    expect(screen.queryByTestId('booking-invite-open')).toBeNull();
+  });
+
   it('an added player gets Напусни, and no invite or remove', () => {
     installFakeFetch(() => ok({}));
     wrap(
