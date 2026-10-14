@@ -41,7 +41,11 @@ export function ResultSummary({
                 key={i}
                 className={won ? 'text-content-emphasis font-semibold' : 'text-content-default'}
               >
-                <th scope="row" className="py-1 pr-3 text-left font-[inherit]">
+                <th
+                  scope="row"
+                  // A header cell is bold by default; only the winners' row is.
+                  className={cn('py-1 pr-3 text-left', won ? 'font-semibold' : 'font-normal')}
+                >
                   {format.list(side.map(name), { type: 'conjunction' })}
                   {won ? <span className="sr-only">{` (${t('winner')})`}</span> : null}
                 </th>
