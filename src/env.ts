@@ -138,6 +138,11 @@ export const env = createEnv({
     // and its MICROSOFT_* variables were removed with its group sync.
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+    // The iOS app's Google OAuth client (#444): a different client from the
+    // web's, with no secret. A Google ID token the app sends must be
+    // addressed to it (`aud`). Comma-separated if an Android client joins.
+    // Absent: the app's Google sign-in answers 403 SIGN_IN_METHOD_DISABLED.
+    GOOGLE_IOS_CLIENT_ID: z.string().optional(),
 
     // ═══ THE PHONE CHECK (#500) ═══
     //
@@ -504,6 +509,7 @@ export const env = createEnv({
 
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID,
     INFOBIP_BASE_URL: process.env.INFOBIP_BASE_URL,
     INFOBIP_API_KEY: process.env.INFOBIP_API_KEY,
     INFOBIP_2FA_APPLICATION_ID: process.env.INFOBIP_2FA_APPLICATION_ID,

@@ -27,7 +27,8 @@ const SCRIPTS = globSync('scripts/**/*.ts').map((f) => f.toString());
 
 /** Files that read `avatarUrl` and hand nothing to a page, and why. */
 const READS_WITHOUT_SHOWING: Record<string, string> = {
-  'src/auth.ts': 'reads the stored key at sign-in, to decide whether to copy the picture again',
+  'src/app-layer/usecases/provider-account.ts':
+    'reads the stored key at sign-in (web and app, #444), to decide whether to copy the picture again',
   'src/lib/media/avatar-objects.ts':
     'the sweep compares stored keys with the objects in storage, and shows nothing',
 };
@@ -113,12 +114,13 @@ describe('profile pictures are ours (#458)', () => {
     );
     expect(show(found)).toEqual([]);
     // And sign-in, the account deletion and the backfill are among the writers.
+    // Sign-in's account step is shared by the web and the app (#444).
     const writers = [...SRC, ...SCRIPTS].filter((f) =>
       /avatarUrl:\s*(null|ownAvatar\()/.test(readFileSync(f, 'utf8')),
     );
     expect(writers).toEqual(
       expect.arrayContaining([
-        'src/auth.ts',
+        'src/app-layer/usecases/provider-account.ts',
         'src/app-layer/usecases/account-deletion.ts',
         'scripts/backfill-avatars.ts',
       ]),

@@ -3,7 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import FacebookProvider from 'next-auth/providers/facebook';
 import GoogleProvider from 'next-auth/providers/google';
 
-import { inheritNoShowStanding } from '@/app-layer/usecases/no-show-carry';
+import { resolveProviderAccount } from '@/app-layer/usecases/provider-account';
 
 import {
   FACEBOOK_AUTHORIZATION_URL,
@@ -32,8 +32,6 @@ import { phoneClaimFor } from '@/app-layer/usecases/phone-claim';
 import { chosenLocale } from '@/lib/i18n/chosen-locale';
 import { encodeLegalVersions } from '@/lib/legal/versions';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
-import { ownAvatar } from '@/lib/media/avatar-url';
-import { getMediaStorage } from '@/lib/media/storage';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -324,107 +322,23 @@ export const authOptions: NextAuthOptions = {
       // made for them is "linked when they first sign in with Google or
       // Facebook as this address".
 
-      // Upsert, not find-then-create: two tabs racing a first sign-in would
-      // otherwise both miss and one would die on the unique constraint.
+      // ═══ THE ACCOUNT ═══
       //
-      // `update: {}` is deliberate. Re-running this on every sign-in would let
-      // the provider overwrite a name or avatar the person has since changed in
-      // the app, silently, on each login.
-      //
-      // A NEW account starts in the language its visitor chose signed out
-      // (#431): the footer switch writes the cookie, and without this the
-      // account was created in Bulgarian and the middleware then flipped an
-      // English visitor back on their first signed-in page. Only on create;
-      // an existing account keeps what its profile says.
-      const locale = await chosenLocale();
-      const row = await runAsSuperuser((db) =>
-        db.user.upsert({
-          where: { email },
-          create: {
-            email,
-            ...(locale ? { locale } : {}),
-            name: typeof user.name === 'string' ? user.name : null,
-            // Never the provider's URL (#458): the copy below fills it.
-            avatarUrl: null,
-            // The provider asserted it, and for Google we just checked it.
-            emailVerified: new Date(),
-            // A first sign-in holds nothing and has decided nothing: the
-            // person is asked "Играч или треньор?" before anything else
-            // (#360, Q13), and `/start` sends an undecided account to that
-            // question. Stated rather than left to the column default
-            // (PLAYER, which scripts and the previous image still rely on),
-            // because it is a decision. A staff invite or being made an owner
-            // still turns an EMPTY undecided account into a CLUB account
-            // (`account-kind.ts`), as it did an empty player.
-            accountKind: null,
-          },
-          update: {},
-          select: { id: true, avatarUrl: true },
-        }),
-      );
-
-      // ═══ THE PICTURE IS OURS (#458) ═══
-      //
-      // The provider's picture is fetched here, on the server, and a copy of
-      // it kept in our media storage (`@/lib/media/avatars`): a provider's URL
-      // would send every viewer's IP address to Google or Meta, and Facebook's
-      // expire. The first sign-in copies it; a Facebook sign-in re-reads
-      // Facebook's, since it may have changed; nothing replaces a picture from
-      // the other provider (`copiesAvatar`). Saved only over the value read
-      // above, so two sign-ins racing cannot write over each other.
-      //
-      // Contained: a picture is not worth failing a sign-in over, and one that
-      // was not copied leaves the initials. `syncAvatarAtSignIn` never throws;
-      // loading it can (the image library is native), so that is caught too.
-      // Loaded here, so the routes that only read `authOptions` do not load
-      // the image library.
-      try {
-        const { syncAvatarAtSignIn } = await import('@/lib/media/avatars');
-        await syncAvatarAtSignIn(
-          {
-            provider: account.provider,
-            userId: row.id,
-            stored: row.avatarUrl,
-            picture: typeof user.image === 'string' ? user.image : null,
-            save: async (avatarUrl) =>
-              (
-                await runAsSuperuser((db) =>
-                  db.user.updateMany({
-                    where: { id: row.id, avatarUrl: row.avatarUrl, deletedAt: null },
-                    data: { avatarUrl: ownAvatar(avatarUrl) },
-                  }),
-                )
-              ).count === 1,
-          },
-          getMediaStorage(),
-        );
-      } catch (error) {
-        logger.warn('sign-in: the profile picture step failed', {
-          component: 'auth',
-          error: error instanceof Error ? error.name : 'unknown',
-        });
-      }
-
-      // ═══ A DELETED ACCOUNT'S NO-SHOW STANDING WAITS FOR THIS ADDRESS ═══
-      //
-      // If an account with this address was deleted while it had no-shows
-      // that still counted at a club, this account takes them over (#370
-      // review, P53): the club's block holds as it would have. Idempotent and
-      // one indexed lookup, so it runs at every sign-in; a first sign-in after
-      // the deletion is the one that finds something. Contained: a failure here
-      // is logged, and the next sign-in tries again.
-      try {
-        await inheritNoShowStanding(row.id, email);
-      } catch (error) {
-        logger.warn('sign-in: a carried no-show standing was not taken over', {
-          component: 'auth',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      // Found or created by address, its picture copied, a deleted account's
+      // no-show standing taken over: the same function the app's token
+      // exchange calls (#444), so the web and the app cannot match an address
+      // differently. See `@/app-layer/usecases/provider-account`.
+      const { userId } = await resolveProviderAccount({
+        provider: account.provider === 'facebook' ? 'facebook' : 'google',
+        email,
+        name: typeof user.name === 'string' ? user.name : null,
+        picture: typeof user.image === 'string' ? user.image : null,
+        locale: await chosenLocale(),
+      });
 
       // The rest of the chain reads this object: `token.sub`, the membership
       // lookup, and the user_session foreign key all come from it.
-      user.id = row.id;
+      user.id = userId;
       user.email = email;
       return true;
     },

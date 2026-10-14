@@ -100,6 +100,27 @@ GOOGLE_CLIENT_ID=...apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
 ```
 
+### 5. The iOS app's client (#444)
+
+The app signs in with Google's iOS SDK, which needs a client of its own. In the
+same project: **Create client** → **iOS**.
+
+| Field     | Value            |
+| --------- | ---------------- |
+| Bundle ID | `bg.playerz.app` |
+| Team ID   | `9423GKWL67`     |
+
+It has no secret. Copy its **Client ID**. The app is built with it, and the
+server checks that every Google ID token the app sends is addressed to it.
+`POST /api/v1/auth/token` refuses a token minted for any other client, the web's
+included:
+
+```
+GOOGLE_IOS_CLIENT_ID=...apps.googleusercontent.com
+```
+
+The consent screen is the project's, so it is the one already published above.
+
 ---
 
 ## Facebook
@@ -204,12 +225,16 @@ They go into `/opt/playerz/.env` (production) and `/opt/playerz/.env.staging`,
 and the app is recreated. A deployment still carrying `MICROSOFT_*` variables is
 harmless — nothing reads them since #361 — but they can go. Then:
 
+`GOOGLE_IOS_CLIENT_ID` goes into the same two files; it is an identifier, not a
+secret. Then:
+
 ```bash
 curl -s https://playerz.bg/api/ready | jq .features.signIn
-# {"google":"configured","facebook":"configured","credentials":"disabled"}
+# {"google":"configured","facebook":"configured","googleApp":"configured","credentials":"disabled"}
 ```
 
-and the two buttons appear on `/login`.
+and the two buttons appear on `/login`. The app's Facebook sign-in uses the
+same Meta app, so `facebook` answers for both.
 
 ## If a callback fails
 
