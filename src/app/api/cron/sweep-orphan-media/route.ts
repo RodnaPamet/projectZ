@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { sweepStaleCertificates } from '@/app-layer/usecases/coach-certificate-retention';
 import { sweepOrphanMedia } from '@/app-layer/usecases/venue-photos';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { sweepOrphanAvatars } from '@/lib/media/avatar-objects';
@@ -63,8 +64,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // A coach's certificate that was never sent (#557, decision 28): in the
+  // database, not the bucket, so it is swept whether or not storage is set.
+  const certificates = await sweepStaleCertificates();
+  if (certificates.deleted > 0) {
+    logger.info('deleted certificates kept past their 30 days', {
+      component: 'cron',
+      ...certificates,
+    });
+  }
+
   const storage = getMediaStorage();
-  if (!storage) return NextResponse.json({ scanned: 0, deleted: 0, truncated: false });
+  if (!storage) {
+    return NextResponse.json({ scanned: 0, deleted: 0, truncated: false, certificates });
+  }
 
   // Machine work with no human actor, across every club: runAsSuperuser, as
   // the other sweeps. It reads `venue_photo.objectKey` and writes nothing.
@@ -83,5 +96,6 @@ export async function POST(req: NextRequest) {
     scanned: venues.scanned + avatars.scanned,
     deleted: venues.deleted + avatars.deleted,
     truncated: venues.truncated || avatars.truncated,
+    certificates,
   });
 }

@@ -86,3 +86,36 @@ test.describe('the venue page, 393 px', () => {
     await expectAxeClean(page);
   });
 });
+
+test.describe('the booking sheet on a small phone (#561)', () => {
+  test('320 × 568 with the text half again as large: the details can be reached and scrolled from the keyboard', async ({
+    playerPage: page,
+    venue,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto(`/venues?q=${encodeURIComponent(venue.venueName)}`);
+    await page.getByRole('link', { name: venue.venueName }).click();
+    await expect(page.getByRole('heading', { level: 1, name: venue.venueName })).toBeVisible();
+    // A reader who has raised the text size in their browser.
+    await page.addStyleTag({ content: 'html { font-size: 150% !important; }' });
+    await pickTomorrow(page, venue);
+    await pickFirstTime(page);
+    await page.getByRole('button', { name: v.book }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText(v.sheet.payAtClub)).toBeVisible();
+    await dialog.evaluate((el) =>
+      Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)),
+    );
+
+    // What #561 asked to measure: does the body scroll at this size?
+    const body = page.getByTestId('booking-sheet');
+    const overflows = await body.evaluate((el) => el.scrollHeight > el.clientHeight);
+    test
+      .info()
+      .annotations.push({ type: 'booking-sheet-overflows', description: String(overflows) });
+    await expectAxeClean(page);
+    // Whether it scrolls or not, the details are one stop for the keyboard.
+    await body.focus();
+    await expect(body).toBeFocused();
+  });
+});

@@ -362,6 +362,11 @@ services:
   #  objects over a day old are touched. Daily, request first, as the
   #  grant warning: a restarted container should not wait a day. With
   #  media storage not configured the route answers `"scanned":0`.
+  #
+  #  The same run deletes a coach's certificate on a profile left DRAFT or
+  #  DECLINED for 30 days (#557, owner decision 28): in the database, so
+  #  whether or not storage is set. `certificates` says how many went and
+  #  how many are stored, with their bytes.
   # ═══════════════════════════════════════════════════════════════════
   media-sweep:
     image: alpine:3
@@ -387,7 +392,7 @@ services:
             --header="x-cron-secret: $${CRON_SECRET}" \
             "$${MEDIA_SWEEP_URL}" 2>&1) \
             && case "$$body" in
-                 *'"deleted":0'*'"truncated":false'*) : ;;   # nothing orphaned — stay quiet
+                 *'"deleted":0'*'"truncated":false'*'"certificates":{"deleted":0'*) : ;;   # nothing to do — stay quiet
                  *) echo "media-sweep: $$body" ;;
                esac \
             || echo "media-sweep: request FAILED -> $$body"

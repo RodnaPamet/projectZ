@@ -664,6 +664,10 @@ to run (503) until `CRON_SECRET` is set:
 | `sweep-orphan-media` (#366)     | daily   | photo objects whose rows are gone stay in the bucket (`docs/media-storage.md`)   |
 | `report-dead-emails` (#425)     | daily   | an email that died after every retry is seen by nobody (it emails `ALERT_EMAIL`) |
 
+`sweep-orphan-media` also deletes a coach's certificate on a profile left
+DRAFT or DECLINED for 30 days with no change (#557, owner decision 28); its
+answer's `certificates` says how many went and how many are stored.
+
 `ops/sweep.compose.yml` runs all seven as small `alpine` loops. It is an
 overlay on `docker-compose.prod.yml`, so copy it beside that file and name
 both:

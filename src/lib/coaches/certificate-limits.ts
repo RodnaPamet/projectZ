@@ -25,3 +25,9 @@ export function certificateSize(bytes: number): { value: number; unit: 'KB' | 'M
     ? { value: Math.round((bytes / MB) * 10) / 10, unit: 'MB' }
     : { value: Math.max(1, Math.round(bytes / 1024)), unit: 'KB' };
 }
+
+/**
+ * A certificate on a profile that stays DRAFT or DECLINED this many days with
+ * no change is deleted (#557, owner decision 28); the page says so first.
+ */
+export const DRAFT_CERTIFICATE_KEPT_DAYS = 30;

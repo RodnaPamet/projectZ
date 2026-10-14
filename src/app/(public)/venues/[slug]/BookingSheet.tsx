@@ -171,7 +171,17 @@ export function BookingSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={t('title')} description={venueName}>
       <Sheet.Header title={t('title')} description={venueName} />
-      <Sheet.Body className="flex flex-col gap-4">
+      {/* On a small phone, or with the text made larger, the details scroll
+          (#561, measured at 320 × 568 with the text at 150 %), and nothing in
+          here takes focus: the buttons are in the actions row. So the body
+          itself does, under a name, as the lesson sheet's does. */}
+      <Sheet.Body
+        className="flex flex-col gap-4"
+        data-testid="booking-sheet"
+        role="group"
+        aria-label={t('details')}
+        tabIndex={0}
+      >
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="text-content-muted">
             {t(selection.noun === 'court' ? 'court' : `${selection.noun}.court`)}

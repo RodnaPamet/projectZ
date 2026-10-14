@@ -194,6 +194,9 @@ queue on its own (its case is closed as deleted).
 
 ### Approving coaches (#545)
 
+The module as a whole (switching it on, certificates, what a coach is sent) is
+`docs/coaches.md`.
+
 A coach fills in a profile and uploads a certificate; the platform owner
 approves or declines. Give whoever does this `COACH_APPROVE`. Nothing else
 implies it, and it should not travel with capabilities it does not need:
