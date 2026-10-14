@@ -12536,7 +12536,7 @@
         "operationId": "decidePlatformCoachApplication",
         "summary": "Approve, decline or remove a coach",
         "tags": ["Platform"],
-        "description": "The platform owner's decision on a coach's profile (#545; owner decisions 13 and 17).\n\n- `APPROVE`: a waiting profile is approved.\n- `DECLINE`: a waiting profile is declined; the coach reads `note`, corrects the profile and may send it again. The certificate is kept.\n- `REMOVE`: an approved coach is stopped. The profile is declined with `note`, **the certificate is deleted**, and the coach's links to venues end. Refused while a lesson is still to be taught.\n\n**Needs `COACH_APPROVE` and a step-up.** Audited as `PLATFORM_COACH_APPLICATION_DECIDE` with the decision and `note` as its reason. The coach is told in the bell and by email; for a decline or a removal the email carries `note`.",
+        "description": "The platform owner's decision on a coach's profile (#545; owner decisions 13 and 17).\n\n- `APPROVE`: a waiting profile is approved.\n- `DECLINE`: a waiting profile is declined; the coach reads `note`, corrects the profile and may send it again. The certificate is kept.\n- `REMOVE`: an approved coach is stopped. The profile is declined with `note`, **the certificate is deleted**, the coach's links to venues end, and **every lesson they have not yet started is cancelled** (owner decision 21): the courts are released and each player is told by bell and email. `upcomingLessons` on the queue item says how many that is; show it before the owner confirms. A lesson already under way is left to finish.\n\n**Needs `COACH_APPROVE` and a step-up.** Audited as `PLATFORM_COACH_APPLICATION_DECIDE` with the decision and `note` as its reason. The coach is told in the bell and by email; for a decline or a removal the email carries `note`.",
         "security": [
           {
             "bearerAuth": []
@@ -12615,7 +12615,7 @@
             }
           },
           "409": {
-            "description": "`COACH_APPLICATION_STATE` — the decision does not fit the state the profile is in (`details.status`): approving or declining one that is not waiting, removing one that is not approved, or one another admin has just decided. Nothing was changed. `COACH_HAS_UPCOMING_LESSONS` — a removal while the coach still has `details.lessons` lessons to teach.",
+            "description": "`COACH_APPLICATION_STATE` — the decision does not fit the state the profile is in (`details.status`): approving or declining one that is not waiting, removing one that is not approved, or one another admin has just decided. Nothing was changed. `COACH_HAS_UPCOMING_LESSONS` — the coach has more lessons to teach (`details.lessons`) than one removal cancels (500). Not reached by a coach who teaches; nothing was changed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20831,7 +20831,8 @@
           "bio",
           "qualifications",
           "decisionNote",
-          "certificate"
+          "certificate",
+          "upcomingLessons"
         ],
         "properties": {
           "userId": {
@@ -20875,6 +20876,11 @@
           },
           "certificate": {
             "$ref": "#/components/schemas/CoachCertificateInfo"
+          },
+          "upcomingLessons": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Lessons booked with the coach that have not started. A `REMOVE` cancels exactly these, so show the number before the owner confirms."
           }
         }
       },
@@ -20967,7 +20973,7 @@
           "upcomingLessons": {
             "type": "integer",
             "minimum": 0,
-            "description": "Lessons the coach still has to teach. A removal is refused while this is above zero."
+            "description": "Lessons booked with the coach that have not started. A `REMOVE` cancels exactly these."
           }
         }
       },
@@ -21002,7 +21008,7 @@
         "properties": {
           "data": {
             "type": "object",
-            "required": ["userId", "status", "decidedAt"],
+            "required": ["userId", "status", "decidedAt", "cancelledLessons"],
             "properties": {
               "userId": {
                 "type": "string"
@@ -21015,6 +21021,11 @@
               "decidedAt": {
                 "type": "string",
                 "format": "date-time"
+              },
+              "cancelledLessons": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "How many lessons a `REMOVE` cancelled; 0 for an approval or a decline. Each of their players is told by bell and email."
               }
             }
           }

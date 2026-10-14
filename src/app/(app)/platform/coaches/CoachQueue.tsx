@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
@@ -56,6 +57,11 @@ const MIN_REASON = 12;
 const TIME_ZONE = 'Europe/Sofia';
 
 type Item = ReturnType<typeof toCoachApplicationItem>;
+
+// Asked only before a removal that cancels lessons.
+const ConfirmDialog = dynamic(() =>
+  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+);
 type Status = Item['status'];
 type Decision = 'APPROVE' | 'DECLINE' | 'REMOVE';
 
@@ -336,6 +342,12 @@ function CoachCard({
   const noteReady = note.trim().length >= MIN_REASON;
   const noteId = `coach-note-${item.userId}`;
   const decidable = item.status !== 'DECLINED';
+  // Removing a coach cancels the lessons they have not started (decision
+  // 21). The card says how many, and the removal asks once more before it
+  // cancels other people's plans; with none booked it is one press, as before.
+  const [confirming, setConfirming] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const lessons = item.status === 'APPROVED' ? item.upcomingLessons : 0;
 
   return (
     <li
@@ -461,14 +473,35 @@ function CoachCard({
                 type="button"
                 variant="destructive"
                 disabled={!noteReady}
-                onClick={() => onDecide('REMOVE')}
+                onClick={() => {
+                  if (lessons === 0) return onDecide('REMOVE');
+                  setConfirming(true);
+                  setConfirmOpen(true);
+                }}
                 data-testid="coach-remove"
               >
                 {t('remove')}
               </Button>
             )}
           </div>
+          {lessons > 0 ? (
+            <p className="text-content-muted text-sm" data-testid="coach-upcoming-lessons">
+              {t('removeLessons', { count: lessons })}
+            </p>
+          ) : null}
         </div>
+      ) : null}
+      {confirming ? (
+        <ConfirmDialog
+          showModal={confirmOpen}
+          setShowModal={setConfirmOpen}
+          tone="danger"
+          title={t('removeConfirm.title')}
+          description={t('removeConfirm.description', { count: lessons })}
+          confirmLabel={t('removeConfirm.yes')}
+          cancelLabel={t('removeConfirm.no')}
+          onConfirm={() => onDecide('REMOVE')}
+        />
       ) : null}
       {error && (
         <InlineNotice variant="error" className="mt-3" data-testid="coach-card-error">

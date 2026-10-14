@@ -369,8 +369,12 @@ export async function cancelBooking(
      * booking. Not held to the player's cutoff, and held to one rule of their
      * own: until the lesson starts. The caller has already established that
      * the booking is that coach's lesson.
+     *
+     * `PLATFORM` (decision 21): the platform owner removed the lesson's coach.
+     * Like the club's own cancel, held to no cutoff; reached only from the
+     * audited removal in `coach-approval.ts`.
      */
-    actor: 'PLAYER' | 'STAFF' | 'COACH';
+    actor: 'PLAYER' | 'STAFF' | 'COACH' | 'PLATFORM';
     cancelledByUserId?: string | null;
     reason?: string;
     now?: Date;
@@ -536,7 +540,9 @@ export async function cancelBooking(
               ? 'Cancelled by the club'
               : input.actor === 'COACH'
                 ? 'Cancelled by the coach'
-                : 'Cancelled by the player',
+                : input.actor === 'PLATFORM'
+                  ? 'Cancelled by the platform'
+                  : 'Cancelled by the player',
           detailsJson: {
             category: 'booking',
             summary:
@@ -544,7 +550,9 @@ export async function cancelBooking(
                 ? 'Staff cancelled the booking'
                 : input.actor === 'COACH'
                   ? 'The coach cancelled the lesson'
-                  : 'The player cancelled their booking',
+                  : input.actor === 'PLATFORM'
+                    ? 'The platform removed the coach, which cancelled the lesson'
+                    : 'The player cancelled their booking',
             before: { status: booking.status },
             after: { status: 'CANCELLED' },
             actor: input.actor,

@@ -35,6 +35,7 @@ const coaches = (messages as unknown as { platform: { coaches: unknown } }).plat
   approve: string;
   decline: string;
   remove: string;
+  removeConfirm: { title: string; yes: string; no: string };
   decidedElsewhere: string;
   done: Record<string, string>;
   status: Record<string, string>;
@@ -112,6 +113,7 @@ const coach = (userId: string, name: string, over: Record<string, unknown> = {})
     byteSize: 1_572_864,
     uploadedAt: '2026-10-13T09:00:00Z',
   },
+  upcomingLessons: 0,
   ...over,
 });
 
@@ -389,6 +391,80 @@ describe('deciding', () => {
     await decide('Иван Петров', 'Лицензът е проверен в регистъра.', coaches.approve);
     expect(await screen.findByTestId('coaches-notice')).toHaveTextContent(coaches.decidedElsewhere);
     expect(screen.queryByText('Иван Петров')).toBeNull();
+  });
+
+  describe('removing a coach who has lessons booked (decision 21)', () => {
+    const approved = (lessons: number) =>
+      coach('u9', 'Одобрен Треньор', {
+        status: 'APPROVED',
+        decidedAt: '2026-10-10T08:00:00Z',
+        upcomingLessons: lessons,
+      });
+    async function openApproved(lessons: number) {
+      const calls = installFakeFetch((c) =>
+        c.method === 'POST'
+          ? ok({
+              userId: 'u9',
+              status: 'DECLINED',
+              decidedAt: '2026-10-14T09:00:00Z',
+              cancelledLessons: lessons,
+            })
+          : ok({ items: [approved(lessons)], nextCursor: null }),
+      );
+      mount();
+      await userEvent.type(screen.getByLabelText(coaches.reason.label), REASON);
+      await userEvent.click(screen.getByRole('radio', { name: coaches.status.APPROVED }));
+      await userEvent.click(screen.getByRole('button', { name: coaches.open }));
+      await screen.findByText('Одобрен Треньор');
+      return calls;
+    }
+    const posts = (calls: FakeCall[]) => calls.filter((x) => x.method === 'POST');
+
+    it('the card says how many, and what removing does to them', async () => {
+      await openApproved(2);
+      expect(
+        within(card('Одобрен Треньор')).getByTestId('coach-upcoming-lessons'),
+      ).toHaveTextContent(
+        'Има 2 предстоящи урока. При спиране всичко предстоящо се отменя, кортовете се освобождават, а играчите получават известие и имейл.',
+      );
+    });
+
+    it('asks once more before it cancels them; «Не» sends nothing', async () => {
+      const calls = await openApproved(2);
+      await decide('Одобрен Треньор', 'Спираме профила след оплакване.', coaches.remove);
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveTextContent(coaches.removeConfirm.title);
+      expect(dialog).toHaveTextContent('2 предстоящи урока ще бъдат отменени');
+      await userEvent.click(within(dialog).getByRole('button', { name: coaches.removeConfirm.no }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(posts(calls)).toEqual([]);
+      expect(screen.getByText('Одобрен Треньор')).toBeInTheDocument();
+    });
+
+    it('confirmed: one decision is sent, with the note as its reason', async () => {
+      const calls = await openApproved(1);
+      expect(
+        within(card('Одобрен Треньор')).getByTestId('coach-upcoming-lessons'),
+      ).toHaveTextContent('Има 1 предстоящ урок. При спиране всичко предстоящо се отменя');
+      await decide('Одобрен Треньор', 'Спираме профила след оплакване.', coaches.remove);
+      const dialog = await screen.findByRole('dialog');
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: coaches.removeConfirm.yes }),
+      );
+      await waitFor(() => expect(posts(calls)).toHaveLength(1));
+      expect(posts(calls)[0]!.body).toEqual({
+        decision: 'REMOVE',
+        note: 'Спираме профила след оплакване.',
+      });
+    });
+
+    it('with no lesson booked it is one press, and nothing about lessons is said', async () => {
+      const calls = await openApproved(0);
+      expect(within(card('Одобрен Треньор')).queryByTestId('coach-upcoming-lessons')).toBeNull();
+      await decide('Одобрен Треньор', 'Спираме профила след оплакване.', coaches.remove);
+      await waitFor(() => expect(posts(calls)).toHaveLength(1));
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 
   it('a refusal puts the card back with its note and says why', async () => {

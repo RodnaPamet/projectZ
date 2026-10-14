@@ -2149,6 +2149,13 @@
       "approve": "Approve",
       "decline": "Decline",
       "remove": "Stop the coach",
+      "removeLessons": "{count, plural, one {# lesson is booked} other {# lessons are booked}} with them. Removing the coach cancels every upcoming lesson, releases the courts and tells the players by notification and email.",
+      "removeConfirm": {
+        "title": "Remove this coach?",
+        "description": "{count, plural, one {# upcoming lesson will be cancelled} other {# upcoming lessons will be cancelled}}. The courts are released, and each player gets a notification and an email.",
+        "yes": "Remove and cancel the lessons",
+        "no": "No"
+      },
       "done": {
         "APPROVE": "The profile is approved. The coach has been told.",
         "DECLINE": "The profile is declined. The coach has been told.",
@@ -2164,7 +2171,7 @@
         "UNAUTHORIZED": "Your session has ended. Sign in again.",
         "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
         "COACH_APPLICATION_NOT_FOUND": "That profile is no longer in the list, or has no certificate.",
-        "COACH_HAS_UPCOMING_LESSONS": "The coach has lessons still to teach. They cannot be stopped until those have passed or been cancelled.",
+        "COACH_HAS_UPCOMING_LESSONS": "The coach has more than 500 upcoming lessons. That many cannot be cancelled in one action.",
         "NETWORK": "Could not reach the server.",
         "VIEWER_CHANGED": "This tab was opened for another account. Reload the page.",
         "STEP_UP_REQUIRED": "Confirm with a code from your app to continue, then try again.",

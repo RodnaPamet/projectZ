@@ -730,6 +730,8 @@ describe('the platform’s queue', () => {
         byteSize: PDF.byteLength,
         uploadedAt: expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/),
       },
+      // Nothing booked with somebody who is not approved yet.
+      upcomingLessons: 0,
     });
     // What was uploaded, never the file.
     expect(JSON.stringify(res.json)).not.toMatch(/%PDF|content|sha256/);
@@ -1105,24 +1107,83 @@ describe('the owner’s decision', () => {
       return { la: la.id, lb: lb.id, bookingId: booking.id };
     });
 
-    // A lesson still to be taught: refused, and nothing changed.
-    expect((await one(admin.bearer, coach.userId)).json.data!.upcomingLessons).toBe(1);
-    const held = await decide(admin.bearer, coach.userId, { decision: 'REMOVE', note: NOTE });
-    expect(held.status).toBe(409);
-    expect(held.json.error).toMatchObject({
-      code: 'COACH_HAS_UPCOMING_LESSONS',
-      details: { lessons: 1 },
+    // A second lesson, already under way: it is being taught as this runs.
+    const underway = await asAppSuperuser(db, async (tx) => {
+      const start = new Date(Date.now() - 20 * 60_000);
+      const end = new Date(start.getTime() + 3_600_000);
+      const booking = await tx.booking.create({
+        data: {
+          tenantId: a.tenantId,
+          resourceId: va.resourceId,
+          startTs: start,
+          endTs: end,
+          status: 'CONFIRMED',
+          totalCents: 2400,
+          idempotencyKey: 'lesson-underway',
+          bookedByUserId: player,
+        },
+        select: { id: true },
+      });
+      await tx.coachLesson.create({
+        data: {
+          tenantId: a.tenantId,
+          bookingId: booking.id,
+          coachId: links.la,
+          coachUserId: coach.userId,
+          startTs: start,
+          endTs: end,
+          hourlyRateCents: 4000,
+          cancelCutoffHours: 24,
+          coachFeeCents: 4000,
+        },
+      });
+      return booking.id;
     });
-    expect((await profileRow(coach.userId))!.status).toBe('APPROVED');
-    expect(await asAppSuperuser(db, (tx) => tx.coachCertificate.count())).toBe(1);
 
-    // The lesson is cancelled (the booking is; the lesson follows it).
-    await asAppSuperuser(db, (tx) =>
-      tx.booking.update({ where: { id: links.bookingId }, data: { status: 'CANCELLED' } }),
-    );
+    // The queue says how many lessons a removal would cancel: the one not
+    // yet started. Both the list and the single read say it.
+    expect((await one(admin.bearer, coach.userId)).json.data!.upcomingLessons).toBe(1);
+    await asAppSuperuser(db, async (tx) => {
+      await tx.notification.deleteMany({ where: { userId: player } });
+      await tx.emailOutbox.deleteMany({ where: { userId: player } });
+    });
+
+    // Owner decision 21: removing the coach cancels it, in the same act.
     const res = await decide(admin.bearer, coach.userId, { decision: 'REMOVE', note: NOTE });
     expect(res.status).toBe(200);
-    expect(res.json.data).toMatchObject({ status: 'DECLINED' });
+    expect(res.json.data).toMatchObject({ status: 'DECLINED', cancelledLessons: 1 });
+
+    const [cancelled, still, cancellation, clubAudit] = await asAppSuperuser(db, async (tx) => [
+      await tx.booking.findUniqueOrThrow({ where: { id: links.bookingId } }),
+      await tx.booking.findUniqueOrThrow({ where: { id: underway } }),
+      await tx.cancellation.findFirst({ where: { bookingId: links.bookingId } }),
+      await tx.auditEntry.findFirst({
+        where: { action: 'BOOKING_CANCELLED', entityId: links.bookingId },
+      }),
+    ]);
+    // The court is released; the lesson under way is left to finish.
+    expect(cancelled.status).toBe('CANCELLED');
+    expect(still.status).toBe('CONFIRMED');
+    // On the club's own record, as the platform's act, by the admin who did it.
+    expect(cancellation).toMatchObject({ cancelledByUserId: admin.userId });
+    expect(clubAudit).toMatchObject({
+      tenantId: a.tenantId,
+      actorUserId: admin.userId,
+      details: 'Cancelled by the platform',
+    });
+    // The player is told, in the bell and by email, and told why.
+    const [playerBell, playerMail] = await asAppSuperuser(db, async (tx) => [
+      await tx.notification.findMany({ where: { userId: player }, take: 5 }),
+      await tx.emailOutbox.findMany({ where: { userId: player }, take: 5 }),
+    ]);
+    expect(playerBell).toHaveLength(1);
+    expect(playerBell[0]).toMatchObject({
+      kind: 'BOOKING_CANCELLED',
+      title: 'Урокът ви е отменен',
+    });
+    expect(playerBell[0]!.body).toContain('вече не преподава в playerz.bg');
+    expect(playerMail).toHaveLength(1);
+    expect(playerMail[0]!.text).toContain('не дължите нищо');
 
     expect(await profileRow(coach.userId)).toMatchObject({
       status: 'DECLINED',
@@ -1146,15 +1207,20 @@ describe('the owner’s decision', () => {
       { status: 'ENDED', endedByUserId: admin.userId },
     ]);
     expect(await asAppSuperuser(db, (tx) => tx.coachAvailability.count())).toBe(0);
-    // The lesson that was booked stays with its booking.
-    expect(await asAppSuperuser(db, (tx) => tx.coachLesson.count())).toBe(1);
+    // The lessons stay with their bookings, as what was booked and what became of it.
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        tx.coachLesson.findMany({ select: { active: true }, orderBy: { startTs: 'asc' } }),
+      ),
+    ).toEqual([{ active: true }, { active: false }]);
 
     const told = (await bell(coach.userId)).at(-1)!;
     expect(told).toMatchObject({
       kind: 'COACH_PROFILE_DECLINED',
       title: 'Профилът ви на треньор е спрян',
     });
-    const mail = (await outbox()).at(-1)!;
+    // The coach's own email (the player's, about the lesson, is checked above).
+    const mail = (await outbox()).filter((m) => m.userId === coach.userId).at(-1)!;
     expect(mail.subject).toBe('Профилът ви на треньор е спрян');
     expect(mail.text).toContain(NOTE);
     expect(mail.text).toContain('сертификатът ви е изтрит');
