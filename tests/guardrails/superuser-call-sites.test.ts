@@ -49,6 +49,8 @@ const ALLOWED: Record<string, string> = {
 
   // ── Sign-in, which must read a User before any tenant exists ────────
   'src/auth.ts': 'the jwt/session callbacks: no tenant is bound during sign-in',
+  'src/app-layer/usecases/apple-sign-in.ts':
+    'Sign in with Apple (#442): finds a User by its Apple subject and links it, before any tenant is known',
   'src/app-layer/usecases/provider-account.ts':
     'a provider sign-in (web or app, #444) finds or creates the User by email: no tenant is bound yet',
   'src/lib/auth/sessions.ts': 'session rows are keyed on the user, not a tenant',

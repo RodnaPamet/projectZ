@@ -63,10 +63,11 @@ import { decryptField } from '@/lib/security/encryption';
  *
  * ═══ SIGN-IN PROVIDERS ═══
  *
- * playerz keeps no provider account: no Google or Facebook id, no token. An
- * account is found by its email at every sign-in (src/auth.ts), so the
- * address IS the sign-in record, and `providerAccounts` is empty by
- * construction. Saying so beats leaving the section out.
+ * playerz keeps no Google or Facebook id and no token. An account is found by
+ * its email at every sign-in (src/auth.ts), so the address IS the sign-in
+ * record. The one provider id it keeps is Apple's subject (#442, version 7):
+ * a person who hid their address behind Apple's relay is found by it, so it
+ * is in `providerAccounts`, and that list is otherwise empty.
  *
  * ═══ WHY THIS BINDS SUPERUSER ═══
  *
@@ -125,7 +126,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 6;
+  version: 7;
   exportedAt: string;
   profile: {
     id: string;
@@ -157,8 +158,11 @@ export interface PersonalDataExport {
   signIn: {
     email: string;
     emailVerifiedAt: string | null;
-    /** Always empty: no provider id or token is stored. See the header. */
-    providerAccounts: never[];
+    /**
+     * The provider ids playerz keeps (#442): Apple's subject, when the
+     * account signs in with Apple. No token is ever stored. See the header.
+     */
+    providerAccounts: Array<{ provider: 'apple'; subject: string }>;
     twoStepVerification: boolean;
     /** Every session playerz still has on record, newest first. */
     sessions: Array<{
@@ -510,6 +514,7 @@ export async function readPersonalData(
       email: true,
       phone: true,
       phoneVerifiedAt: true,
+      appleSubject: true,
       avatarUrl: true,
       locale: true,
       accountKind: true,
@@ -772,7 +777,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 6,
+    version: 7,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -805,7 +810,9 @@ export async function readPersonalData(
     signIn: {
       email: user.email,
       emailVerifiedAt: iso(user.emailVerified),
-      providerAccounts: [],
+      providerAccounts: user.appleSubject
+        ? [{ provider: 'apple', subject: user.appleSubject }]
+        : [],
       twoStepVerification: user.mfaEnabledAt !== null,
       sessions: sessions.map((s) => ({
         signedInAt: s.createdAt.toISOString(),

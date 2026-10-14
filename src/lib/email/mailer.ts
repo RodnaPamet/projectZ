@@ -4,7 +4,8 @@ import { emailProvider } from './provider';
 
 /**
  * One email sent now, to an address that may not belong to any account yet:
- * a staff invite (#199). Everything else goes through the notification outbox,
+ * a staff invite (#199), or the code that confirms an address after a hidden
+ * Apple sign-in (#442). Everything else goes through the notification outbox,
  * which resolves its recipient from a user id at send time.
  *
  * ═══ THE SAME ADAPTER AS EVERY OTHER EMAIL (#425) ═══
@@ -50,6 +51,8 @@ export interface Mail {
   text: string;
   /** Stable for one message, so a provider that dedupes can. */
   idempotencyKey?: string;
+  /** What kind of message, for the provider's tags and the log. */
+  ref?: 'staff-invite' | 'apple-email-code';
 }
 
 export async function sendMail(mail: Mail): Promise<{ delivered: boolean }> {
@@ -74,9 +77,13 @@ export async function sendMail(mail: Mail): Promise<{ delivered: boolean }> {
     subject: mail.subject,
     text: mail.text,
     idempotencyKey: mail.idempotencyKey,
-    ref: 'staff-invite',
+    ref: mail.ref ?? 'staff-invite',
   });
   if (!outcome.ok) throw new MailNotSentError(outcome.error);
-  logger.info('email sent', { component: 'email', provider: provider.name, ref: 'staff-invite' });
+  logger.info('email sent', {
+    component: 'email',
+    provider: provider.name,
+    ref: mail.ref ?? 'staff-invite',
+  });
   return { delivered: true };
 }

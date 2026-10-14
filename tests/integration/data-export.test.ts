@@ -374,7 +374,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'openPlay',
       'coach',
     ]);
-    expect(json.version).toBe(6);
+    expect(json.version).toBe(7);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',

@@ -90,9 +90,9 @@
     "/auth/token": {
       "post": {
         "operationId": "authSignIn",
-        "summary": "Sign in from the app: Google or Facebook (email and password in test runs only)",
+        "summary": "Sign in from the app: Apple, Google or Facebook (email and password in test runs only)",
         "tags": ["Auth"],
-        "description": "Exchanges a provider's token for an access/refresh token pair (#444). `grant` chooses how:\n\n- `google`: `idToken`, the ID token Google's iOS SDK returns. Verified against Google's keys, and addressed to the app's own OAuth client (`GOOGLE_IOS_CLIENT_ID`), not the web's.\n- `facebook`: either `accessToken` from Facebook Login (checked with Graph's `debug_token` as issued to this app, then `/me` is read), or `idToken` from Limited Login (verified against Meta's keys, addressed to this app), with the `nonce` the app passed to the SDK if it wants that checked.\n- `password`: `email` + `password`, with or without `grant`. **Test runs only (#361):** in production and on staging it answers `403 PASSWORD_SIGN_IN_DISABLED`, before the throttle and without checking anything.\n\nThe account is resolved exactly as the web's sign-in does it: found by email (lower-cased), or created. A created account is undecided: the app asks \"player or coach?\" before anything else (#360), and it starts in `locale` when the app sends `bg` or `en`. A provider name or picture never overwrites what an existing account has. Two refusals come first, as on the web: no email address (`EMAIL_REQUIRED`), and a Google address Google has not verified (`EMAIL_UNVERIFIED`).\n\nEvery grant draws on the sign-in throttle shared with the web login (`login:<ip>`, 10 attempts per 15 min, 15 min lockout), after the body is read (capped at 16 KB) and before any provider is asked. A successful sign-in still consumes one attempt.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
+        "description": "Exchanges a provider's token for an access/refresh token pair (#444). `grant` chooses how:\n\n- `apple` (#442): `idToken` from Sign in with Apple, verified against Apple's keys and addressed to the app. An account that remembers this Apple ID, or a real address Apple vouches for, signs in at once. A hidden (relay) address answers `403 REAL_EMAIL_REQUIRED` with `error.details.ticket`: the app asks for a real address and finishes with `POST /auth/apple/email` and `POST /auth/apple/confirm`.\n- `google`: `idToken`, the ID token Google's iOS SDK returns. Verified against Google's keys, and addressed to the app's own OAuth client (`GOOGLE_IOS_CLIENT_ID`), not the web's.\n- `facebook`: either `accessToken` from Facebook Login (checked with Graph's `debug_token` as issued to this app, then `/me` is read), or `idToken` from Limited Login (verified against Meta's keys, addressed to this app), with the `nonce` the app passed to the SDK if it wants that checked.\n- `password`: `email` + `password`, with or without `grant`. **Test runs only (#361):** in production and on staging it answers `403 PASSWORD_SIGN_IN_DISABLED`, before the throttle and without checking anything.\n\nThe account is resolved exactly as the web's sign-in does it: found by email (lower-cased), or created. A created account is undecided: the app asks \"player or coach?\" before anything else (#360), and it starts in `locale` when the app sends `bg` or `en`. A provider name or picture never overwrites what an existing account has. Two refusals come first, as on the web: no email address (`EMAIL_REQUIRED`), and a Google address Google has not verified (`EMAIL_UNVERIFIED`).\n\nEvery grant draws on the sign-in throttle shared with the web login (`login:<ip>`, 10 attempts per 15 min, 15 min lockout), after the body is read (capped at 16 KB) and before any provider is asked. A successful sign-in still consumes one attempt.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -130,7 +130,7 @@
             }
           },
           "400": {
-            "description": "`UNSUPPORTED_GRANT` — `grant` is not `google`, `facebook` or `password`; no throttle is drawn. `BAD_REQUEST` — a provider grant without its token (`google` needs `idToken`; `facebook` needs exactly one of `accessToken` and `idToken`). Written inline: NO `requestId`.",
+            "description": "`UNSUPPORTED_GRANT` — `grant` is not `apple`, `google`, `facebook` or `password`; no throttle is drawn. `BAD_REQUEST` — a provider grant without its token (`apple` and `google` need `idToken`; `facebook` needs exactly one of `accessToken` and `idToken`). Written inline: NO `requestId`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -150,7 +150,7 @@
             }
           },
           "403": {
-            "description": "Refused, and retrying unchanged will not help:\n\n- `PASSWORD_SIGN_IN_DISABLED` — the password grant in production or on staging (#361).\n- `SIGN_IN_METHOD_DISABLED` — this deployment is not set up for that provider from the app (no `GOOGLE_IOS_CLIENT_ID`, or no Facebook app pair). `/api/ready` reports `googleApp` and `facebook`.\n- `EMAIL_REQUIRED` — the provider shared no email address, and accounts are found by email. `error.details.emailPermission` says why, for a Facebook Login token: `declined` / `not-requested` / `unknown` (ask again with the email permission re-requested), or `granted` (Facebook has no address to give; asking again cannot help). Always `unknown` for a Limited Login token.\n- `EMAIL_UNVERIFIED` — Google says the address is not verified. Linking by an unproved address would be a way into whoever's account has it.\n\nWritten inline: NO `requestId`.",
+            "description": "Refused, and retrying unchanged will not help:\n\n- `REAL_EMAIL_REQUIRED` — Sign in with Apple, with Apple's hidden (relay) address. `error.details.ticket` (good for 30 minutes) goes to `POST /auth/apple/email` with the address the person types (owner decision 2026-10-14).\n- `PASSWORD_SIGN_IN_DISABLED` — the password grant in production or on staging (#361).\n- `SIGN_IN_METHOD_DISABLED` — this deployment is not set up for that provider from the app (no `GOOGLE_IOS_CLIENT_ID`, or no Facebook app pair). `/api/ready` reports `googleApp` and `facebook`.\n- `EMAIL_REQUIRED` — the provider shared no email address, and accounts are found by email. `error.details.emailPermission` says why, for a Facebook Login token: `declined` / `not-requested` / `unknown` (ask again with the email permission re-requested), or `granted` (Facebook has no address to give; asking again cannot help). Always `unknown` for a Limited Login token.\n- `EMAIL_UNVERIFIED` — Google says the address is not verified. Linking by an unproved address would be a way into whoever's account has it.\n\nWritten inline: NO `requestId`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2909,7 +2909,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 6`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 7`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -14740,6 +14740,146 @@
           }
         }
       }
+    },
+    "/auth/apple/email": {
+      "post": {
+        "operationId": "authAppleEmail",
+        "summary": "Sign in with Apple, hidden address: send a code to the real one",
+        "tags": ["Auth"],
+        "security": [],
+        "description": "After the `apple` grant answered `403 REAL_EMAIL_REQUIRED` (#442): send a six-digit code to the address the person typed. Says nothing about whether an account has that address; that is settled at confirm, once the code proves the inbox.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppleEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The code is on its way. Show the code field; `challenge` goes back with it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppleEmailSent"
+                }
+              }
+            },
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. `2026-04-29`. Stamped on every v1 response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; echoed from the request's `x-request-id` when supplied.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`APPLE_SIGN_IN_EXPIRED` — the ticket is older than 30 minutes or not ours: sign in with Apple again. `EMAIL_INVALID`, `EMAIL_IS_RELAY` (the relay address itself was typed), `BAD_REQUEST` (malformed body).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 3 codes an hour per Apple ID, and 3 an hour to one address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`EMAIL_UNAVAILABLE` — the email could not be sent. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/apple/confirm": {
+      "post": {
+        "operationId": "authAppleConfirm",
+        "summary": "Sign in with Apple, hidden address: confirm the code and sign in",
+        "tags": ["Auth"],
+        "security": [],
+        "description": "The code is right, so the address is the person's (#442). The account is found or made by it exactly as a Google sign-in's would be, remembers the Apple ID (the next Apple sign-in asks nothing), and the token pair comes back as from `POST /auth/token`. Draws on the shared sign-in throttle (`login:<ip>`).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppleConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in. Same shape as `POST /auth/token`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeTokensResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker, e.g. `2026-04-29`. Stamped on every v1 response.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; echoed from the request's `x-request-id` when supplied.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`EMAIL_CODE_WRONG`; `EMAIL_CODE_EXPIRED` — the challenge is older than 10 minutes or not ours: ask for a new code; `BAD_REQUEST` (malformed body).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the sign-in throttle, or 5 tries at one Apple ID's code per 10 minutes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14811,6 +14951,9 @@
       "AuthTokenRequest": {
         "title": "AuthTokenRequest",
         "oneOf": [
+          {
+            "$ref": "#/components/schemas/AuthTokenAppleRequest"
+          },
           {
             "$ref": "#/components/schemas/AuthTokenGoogleRequest"
           },
@@ -19148,9 +19291,21 @@
               },
               "providerAccounts": {
                 "type": "array",
-                "maxItems": 0,
-                "items": {},
-                "description": "Always empty: an account is found by its email at every sign-in, and no provider id or token is stored."
+                "items": {
+                  "type": "object",
+                  "required": ["provider", "subject"],
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": ["apple"]
+                    },
+                    "subject": {
+                      "type": "string",
+                      "description": "The `sub` of Apple's identity token."
+                    }
+                  }
+                },
+                "description": "The provider ids playerz keeps (#442): Apple's subject, when the account signs in with Apple; otherwise empty. An account is found by its email at every Google or Facebook sign-in, and no token is ever stored."
               },
               "twoStepVerification": {
                 "type": "boolean"
@@ -22695,6 +22850,92 @@
             "type": "string",
             "enum": ["bg", "en"],
             "description": "The language a NEW account starts in. Ignored for an existing account, and when it is not one of these."
+          }
+        }
+      },
+      "AuthTokenAppleRequest": {
+        "type": "object",
+        "title": "AuthTokenAppleRequest",
+        "required": ["grant", "idToken"],
+        "properties": {
+          "grant": {
+            "type": "string",
+            "const": "apple"
+          },
+          "idToken": {
+            "type": "string",
+            "maxLength": 8192,
+            "description": "The identity token from Sign in with Apple (`ASAuthorizationAppleIDCredential.identityToken`). Its `aud` must be one of `APPLE_CLIENT_IDS` (the app's bundle id)."
+          },
+          "nonce": {
+            "type": "string",
+            "description": "The raw nonce the app gave Apple; Apple puts its SHA-256 in the token. Sent, it must match."
+          },
+          "givenName": {
+            "type": "string",
+            "description": "From the credential's `fullName`, which Apple gives the app only at the FIRST authorisation and never puts in the token."
+          },
+          "familyName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["bg", "en"],
+            "description": "The language a NEW account starts in. Ignored for an existing account, and when it is not one of these."
+          }
+        }
+      },
+      "AppleEmailRequest": {
+        "type": "object",
+        "title": "AppleEmailRequest",
+        "required": ["ticket", "email"],
+        "additionalProperties": false,
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "description": "`error.details.ticket` from the `apple` grant's 403 REAL_EMAIL_REQUIRED."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "The address the person reads. Not Apple's relay."
+          }
+        }
+      },
+      "AppleEmailSent": {
+        "type": "object",
+        "title": "AppleEmailSent",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["challenge", "expiresInSeconds"],
+            "properties": {
+              "challenge": {
+                "type": "string",
+                "description": "Goes back to `POST /auth/apple/confirm` with the code."
+              },
+              "expiresInSeconds": {
+                "type": "integer",
+                "description": "How long the code is good for (600)."
+              }
+            }
+          }
+        }
+      },
+      "AppleConfirmRequest": {
+        "type": "object",
+        "title": "AppleConfirmRequest",
+        "required": ["challenge", "code"],
+        "additionalProperties": false,
+        "properties": {
+          "challenge": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "The six digits from the email; spaces are ignored."
           }
         }
       }

@@ -2775,6 +2775,12 @@
       "subject": "A new coach profile is waiting for approval",
       "intro": "A coach sent their profile and certificate for approval.",
       "link": "The coaches queue"
+    },
+    "appleCode": {
+      "subject": "Your playerz.bg code: {code}",
+      "intro": "Someone is signing in to playerz.bg with Apple and gave this address. If that was you, enter this code in the app:",
+      "lasts": "The code is good for {minutes} minutes.",
+      "footer": "If it was not you, do nothing: without the code your address cannot be used."
     }
   },
   "billing": {

@@ -168,10 +168,14 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // impossible to obtain a token — which would be unrecoverable for a native
   // client, since there is no cookie path it could fall back to.
   //
-  // Scoped to the three that must be anonymous. /api/v1/auth is NOT wildcarded:
+  // Scoped to the ones that must be anonymous. /api/v1/auth is NOT wildcarded:
   // this list's polarity is the opposite of the tenant matchers', so a loose
   // pattern here over-EXPOSES rather than over-enforces.
   /^\/api\/v1\/auth\/(token|refresh|logout)$/,
+  // Sign in with Apple's hidden-address step (#442): it finishes a sign-in,
+  // so nobody holds a session yet. Each takes a signed ticket or challenge
+  // from the step before it.
+  /^\/api\/v1\/auth\/apple\/(email|confirm)$/,
 ];
 
 /**

@@ -143,6 +143,11 @@ export const env = createEnv({
     // addressed to it (`aud`). Comma-separated if an Android client joins.
     // Absent: the app's Google sign-in answers 403 SIGN_IN_METHOD_DISABLED.
     GOOGLE_IOS_CLIENT_ID: z.string().optional(),
+    // Sign in with Apple (#442): the client ids Apple's identity tokens may be
+    // addressed to, comma-separated: the iOS app's bundle id (bg.playerz.app)
+    // and, once the web has one, its Services ID. Identifiers, not secrets.
+    // Absent: Apple sign-in answers 403 SIGN_IN_METHOD_DISABLED.
+    APPLE_CLIENT_IDS: z.string().optional(),
 
     // ═══ THE PHONE CHECK (#500) ═══
     //
@@ -510,6 +515,7 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID,
+    APPLE_CLIENT_IDS: process.env.APPLE_CLIENT_IDS,
     INFOBIP_BASE_URL: process.env.INFOBIP_BASE_URL,
     INFOBIP_API_KEY: process.env.INFOBIP_API_KEY,
     INFOBIP_2FA_APPLICATION_ID: process.env.INFOBIP_2FA_APPLICATION_ID,

@@ -49,6 +49,12 @@ export interface SignInMethods {
    */
   googleApp: MethodState;
   /**
+   * Sign in with Apple (#442): `APPLE_CLIENT_IDS`, the app's bundle id
+   * (`bg.playerz.app`) and, when the web gets it, the Services ID. The
+   * identity tokens Apple issues are addressed to one of them.
+   */
+  apple: MethodState;
+  /**
    * Email and password.
    *
    * `disabled` in every deployment: it exists for the test suites, which set
@@ -80,11 +86,23 @@ export function facebookConfigured(env: Env = process.env): boolean {
  * client's, and an Android one's should it come (comma-separated). A client
  * id alone, with no secret: a native client has none to keep.
  */
-export function googleAppClientIds(env: Env = process.env): string[] {
-  return (env.GOOGLE_IOS_CLIENT_ID ?? '')
+const idList = (value: string | undefined): string[] =>
+  (value ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+
+export function googleAppClientIds(env: Env = process.env): string[] {
+  return idList(env.GOOGLE_IOS_CLIENT_ID);
+}
+
+/**
+ * The client ids an Apple identity token may be addressed to: the iOS app's
+ * bundle id, and the web's Services ID once there is one (comma-separated).
+ * Identifiers, not secrets.
+ */
+export function appleClientIds(env: Env = process.env): string[] {
+  return idList(env.APPLE_CLIENT_IDS);
 }
 
 const state = (present: boolean): MethodState => (present ? 'configured' : 'disabled');
@@ -94,6 +112,7 @@ export function signInMethods(env: Env = process.env): SignInMethods {
     google: state(googleConfigured(env)),
     facebook: state(facebookConfigured(env)),
     googleApp: state(googleAppClientIds(env).length > 0),
+    apple: state(appleClientIds(env).length > 0),
     credentials: state(passwordSignInEnabled(env)),
   };
 }

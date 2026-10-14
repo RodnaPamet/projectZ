@@ -140,6 +140,12 @@ model User {
   /// app_user_deleted_has_no_phone, P65).
   phoneHash       String?   @unique
   phoneVerifiedAt DateTime? @db.Timestamptz(3)
+  /// The `sub` of the Apple identity token this account signs in with (#442,
+  /// P76). UNIQUE: one Apple ID, one account. Set at the first Apple sign-in,
+  /// after a hidden (relay) address has been swapped for a confirmed real one;
+  /// the next Apple sign-in finds the account by it. Cleared when the account
+  /// is deleted (CHECK app_user_deleted_has_no_apple_subject).
+  appleSubject    String?   @unique
   avatarUrl       String?
   locale          Locale    @default(bg)
 

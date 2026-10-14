@@ -3,8 +3,11 @@
  */
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from 'jose';
 
+import { createHash } from 'node:crypto';
+
 import {
   NativeGrantError,
+  verifyAppleIdToken,
   verifyFacebookAccessToken,
   verifyFacebookIdToken,
   verifyGoogleIdToken,
@@ -296,5 +299,66 @@ describe('verifyFacebookAccessToken (Facebook Login)', () => {
       ),
     ).toBe('SIGN_IN_METHOD_DISABLED');
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('verifyAppleIdToken (#442)', () => {
+  const BUNDLE = 'bg.playerz.app';
+  const apple = (claims: Record<string, unknown>, opts: { aud?: string; iss?: string } = {}) =>
+    sign(
+      { sub: '001234.abcdef.1200', ...claims },
+      { iss: opts.iss ?? 'https://appleid.apple.com', aud: opts.aud ?? BUNDLE },
+    );
+  const verify = (token: string, nonce?: string) =>
+    verifyAppleIdToken(token, { audiences: [BUNDLE], keys, ...(nonce ? { nonce } : {}) });
+
+  it('returns the Apple ID and a real address; Apple sends its booleans as strings too', async () => {
+    const token = await apple({
+      email: 'Petya@Example.bg',
+      email_verified: 'true',
+      is_private_email: 'false',
+    });
+    await expect(verify(token)).resolves.toEqual({
+      provider: 'apple',
+      email: 'petya@example.bg',
+      emailVerified: true,
+      name: null,
+      picture: null,
+      subject: '001234.abcdef.1200',
+      privateEmail: false,
+    });
+  });
+
+  it('marks the relay address private, by the claim or by its domain', async () => {
+    const byClaim = await apple({
+      email: 'x1@privaterelay.appleid.com',
+      email_verified: true,
+      is_private_email: true,
+    });
+    const byDomain = await apple({ email: 'x2@privaterelay.appleid.com', email_verified: true });
+    await expect(verify(byClaim)).resolves.toMatchObject({ privateEmail: true });
+    await expect(verify(byDomain)).resolves.toMatchObject({ privateEmail: true });
+  });
+
+  it("checks the nonce against Apple's SHA-256 of it", async () => {
+    const raw = 'raw-nonce-from-the-app';
+    const token = await apple({ nonce: createHash('sha256').update(raw).digest('hex') });
+    await expect(verify(token, raw)).resolves.toMatchObject({ subject: '001234.abcdef.1200' });
+    expect(await codeOf(verify(token, 'another'))).toBe('INVALID_PROVIDER_TOKEN');
+  });
+
+  it.each([
+    ['for another app', { aud: 'com.example.other' }],
+    ['from another issuer', { iss: 'https://accounts.google.com' }],
+  ])('refuses a token %s', async (_label, opts) => {
+    expect(await codeOf(verify(await apple({ email: 'a@b.bg' }, opts)))).toBe(
+      'INVALID_PROVIDER_TOKEN',
+    );
+  });
+
+  it('is disabled when no client id is configured', async () => {
+    expect(await codeOf(verifyAppleIdToken('x', { audiences: [], keys }))).toBe(
+      'SIGN_IN_METHOD_DISABLED',
+    );
   });
 });

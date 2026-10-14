@@ -764,6 +764,9 @@ export async function deleteAccount(
       // app_user_deleted_has_no_phone keeps both null on a tombstone.
       phoneHash: null,
       phoneVerifiedAt: null,
+      // The Apple ID can sign up afresh (#442); the CHECK
+      // app_user_deleted_has_no_apple_subject keeps it null on a tombstone.
+      appleSubject: null,
       avatarUrl: null,
       passwordHash: null,
       emailVerified: null,
