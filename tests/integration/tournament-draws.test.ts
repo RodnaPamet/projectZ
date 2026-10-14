@@ -291,6 +291,10 @@ describe('a tournament draw', () => {
     expect(w.body.data.knockout[1][0].status).toBe('READY');
     expect(w.body.data.thirdPlace.status).toBe('READY');
 
+    // The final goes on a court next week; a withdrawal frees it.
+    const placed = await schedule(w.body.data.knockout[1][0].id, new Date(Date.now() + 7 * DAY));
+    const finalBooking = placed.body.data.knockout[1][0].scheduled.bookingId as string;
+
     // A finalist withdraws (59): the final is a walkover to the other.
     const finalist = playerOf(w.body.data.knockout[1][0].sideA);
     const mine = await asAppSuperuser(db, (tx) =>
@@ -313,6 +317,13 @@ describe('a tournament draw', () => {
       id,
     });
     expect(done.body.data.knockout[1][0]).toMatchObject({ status: 'WALKOVER', winnerSide: 1 });
+    expect(
+      (
+        await asAppSuperuser(db, (tx) =>
+          tx.booking.findUniqueOrThrow({ where: { id: finalBooking }, select: { status: true } }),
+        )
+      ).status,
+    ).toBe('CANCELLED');
     // The match for third still to play; then it is over.
     expect(await tournamentStatus(id)).toBe('IN_PROGRESS');
     await walkover(done.body.data.thirdPlace.id, 0);

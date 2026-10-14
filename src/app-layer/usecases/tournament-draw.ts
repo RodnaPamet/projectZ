@@ -929,21 +929,7 @@ export async function recordWalkover(
       decidedByUserId: actor.userId,
     });
     // Not played: its court is freed.
-    if (m.bookingId) {
-      const b = await db.booking.findFirst({
-        where: { id: m.bookingId, tenantId: actor.tenantId },
-        select: { status: true, startTs: true },
-      });
-      if (b && (b.status === 'CONFIRMED' || b.status === 'PENDING') && b.startTs > now) {
-        await cancelBooking(db, actor.tenantId, {
-          bookingId: m.bookingId,
-          actor: 'STAFF',
-          cancelledByUserId: actor.userId,
-          reason: 'The tournament match was a walkover.',
-          now,
-        });
-      }
-    }
+    await freeCourt(db, actor.tenantId, m.bookingId, actor.userId, now);
     return { tournamentId: m.tournamentId, bookingId: m.bookingId };
   });
 }
@@ -958,6 +944,8 @@ export async function walkoversForWithdrawn(
   db: PrismaClient,
   tenantId: string,
   entryId: string,
+  /** Who withdrew it: the player, or the club's desk. */
+  byUserId: string,
   now: Date = new Date(),
 ): Promise<void> {
   const ready = await db.tournamentMatch.findMany({
@@ -971,7 +959,7 @@ export async function walkoversForWithdrawn(
         { entryB2Id: entryId },
       ],
     },
-    select: { id: true, entryAId: true, entryA2Id: true },
+    select: { id: true, entryAId: true, entryA2Id: true, bookingId: true },
     take: 512,
   });
   for (const m of ready) {
@@ -979,6 +967,36 @@ export async function walkoversForWithdrawn(
     await decide(db, tenantId, m.id, onA ? 1 : 0, {
       status: 'WALKOVER',
       score: null,
+      now,
+    });
+    // Not to be played: a court booked or held for it is freed.
+    await freeCourt(db, tenantId, m.bookingId, byUserId, now);
+  }
+}
+
+/**
+ * A match decided without being played: its booking, if it is still to come,
+ * is cancelled so the court is free. A league's proposed time (#591) is held
+ * as PENDING and goes the same way.
+ */
+async function freeCourt(
+  db: PrismaClient,
+  tenantId: string,
+  bookingId: string | null,
+  byUserId: string,
+  now: Date,
+): Promise<void> {
+  if (!bookingId) return;
+  const b = await db.booking.findFirst({
+    where: { id: bookingId, tenantId },
+    select: { status: true, startTs: true },
+  });
+  if (b && (b.status === 'CONFIRMED' || b.status === 'PENDING') && b.startTs > now) {
+    await cancelBooking(db, tenantId, {
+      bookingId,
+      actor: 'STAFF',
+      cancelledByUserId: byUserId,
+      reason: 'The tournament match was a walkover.',
       now,
     });
   }
