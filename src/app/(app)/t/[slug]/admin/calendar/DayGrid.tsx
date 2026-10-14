@@ -125,6 +125,8 @@ export interface DayBooking {
    * price shown is then the court's and the coach's fee together.
    */
   lessonCoach: string | null;
+  /** A lesson still ahead: the desk can cancel it from its sheet (#549). */
+  lessonCancellable: boolean;
   /** The players besides the booker (#358), open-play joiners marked (#376). */
   players: DiaryPlayer[];
 }
@@ -800,8 +802,10 @@ function BookingBlock({
   }
 
   // Other players on it (#358, #376), or a number to call the booker on
-  // while the booking is still ahead (#500): the sheet shows both.
-  if (b.players.length > 0 || b.bookerPhone) {
+  // while the booking is still ahead (#500): the sheet shows both. A lesson
+  // (#549) opens it too: it says who teaches, and it is where the desk
+  // cancels one.
+  if (b.players.length > 0 || b.bookerPhone || b.lessonCoach) {
     return (
       <button
         type="button"

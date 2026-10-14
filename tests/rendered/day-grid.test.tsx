@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import type { DiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
 
 import { messages as bg, withIntl } from '../helpers/intl';
+import { fail, installFakeFetch, ok } from '../unit/data/fake-v1';
 
 /**
  * THE DIARY ON THE PRIMITIVES (T26).
@@ -60,6 +61,7 @@ const booking = (over: Partial<DayBooking> = {}): DayBooking => ({
   bookerPhone: null,
   seriesId: null,
   lessonCoach: null,
+  lessonCancellable: false,
   players: [],
   ...over,
 });
@@ -155,6 +157,76 @@ describe('DayGrid on the primitives', () => {
     const block = marks[0]!.closest('[data-booking-status]')!;
     expect(block).toHaveTextContent('Иван');
     expect(block).toHaveTextContent('64,00 €');
+  });
+
+  describe('a lesson still ahead (#549): the desk opens it, sees who teaches, and can cancel it', () => {
+    const lessonDay = () =>
+      dayOf({
+        bookings: [
+          booking({
+            id: 'l1',
+            lessonCoach: 'Мария Иванова',
+            lessonCancellable: true,
+            canMarkNoShow: false,
+            priceLabel: '64,00 €',
+          }),
+        ],
+      });
+    const p = c.players;
+    const openLesson = async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Иван, 18:00–19:00/ }));
+      return (await screen.findByRole('dialog')) as HTMLElement;
+    };
+
+    it('the sheet names the coach; cancelling asks first, in place, and «Назад» sends nothing', async () => {
+      const calls = installFakeFetch(() => ok({ bookingId: 'l1' }));
+      grid(nextClub(), lessonDay());
+      const sheet = await openLesson();
+      expect(sheet.querySelector('[data-diary-lesson]')).toHaveTextContent('Урок с Мария Иванова');
+
+      fireEvent.click(within(sheet).getByRole('button', { name: p.cancelLesson.button }));
+      expect(within(sheet).getByText(p.cancelLesson.title)).toBeVisible();
+      expect(within(sheet).getByText(p.cancelLesson.description)).toBeVisible();
+      fireEvent.click(within(sheet).getByRole('button', { name: p.cancelLesson.no }));
+      expect(within(sheet).getByRole('button', { name: p.cancelLesson.button })).toBeVisible();
+      expect(calls).toEqual([]);
+    });
+
+    it('confirmed: one cancel is sent for that booking, as the club’s, and the sheet closes', async () => {
+      const slug = nextClub();
+      const calls = installFakeFetch(() => ok({ bookingId: 'l1' }));
+      grid(slug, lessonDay());
+      const sheet = await openLesson();
+      fireEvent.click(within(sheet).getByRole('button', { name: p.cancelLesson.button }));
+      fireEvent.click(within(sheet).getByRole('button', { name: p.cancelLesson.yes }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(calls.map((x) => [x.method, x.url])).toEqual([
+        ['POST', `/api/v1/t/${slug}/bookings/l1/cancel`],
+      ]);
+    });
+
+    it('a cancel that failed is said, and the sheet stays for another try', async () => {
+      installFakeFetch(() => fail(500, 'INTERNAL'));
+      grid(nextClub(), lessonDay());
+      const sheet = await openLesson();
+      fireEvent.click(within(sheet).getByRole('button', { name: p.cancelLesson.button }));
+      fireEvent.click(within(sheet).getByRole('button', { name: p.cancelLesson.yes }));
+      expect(await within(sheet).findByText(p.cancelLesson.failed)).toBeVisible();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('once it has started there is no cancel: what is left is whether the player came', async () => {
+      installFakeFetch(() => ok({}));
+      grid(
+        nextClub(),
+        dayOf({
+          bookings: [booking({ id: 'l1', lessonCoach: 'Мария Иванова', lessonCancellable: false })],
+        }),
+      );
+      const sheet = await openLesson();
+      expect(within(sheet).queryByRole('button', { name: p.cancelLesson.button })).toBeNull();
+      expect(within(sheet).getByRole('button', { name: p.markBooking })).toBeVisible();
+    });
   });
 
   it('the legend and a pending block’s expiry are StatusBadges; the timezone badge stays', () => {
