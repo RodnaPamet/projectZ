@@ -20,17 +20,18 @@ const ALL_ON = {
     clubChanges: true,
     messages: true,
     openPlay: true,
+    lessonsTaught: true,
   },
 };
 
-function mount() {
+function mount(coach = false) {
   return render(
     withIntl(
       <DataProvider>
         <SWRConfig value={{ provider: () => new Map(), revalidateOnMount: false }}>
           <TooltipProvider>
             <ViewerScope viewerId="usr_player">
-              <NotificationSettingsRow seed={ALL_ON} />
+              <NotificationSettingsRow seed={ALL_ON} coach={coach} />
             </ViewerScope>
           </TooltipProvider>
         </SWRConfig>
@@ -83,4 +84,49 @@ it('a refused save puts the switch back and says so', async () => {
 
   expect(await screen.findByTestId('profile-notifications-failed')).toHaveTextContent(t.saveFailed);
   await waitFor(() => expect(club).toBeChecked());
+});
+
+describe('«Уроци, които водя»: the sixth switch (#550, decision 22)', () => {
+  it('a player is not shown it, and is not told they have five of six', async () => {
+    installFakeFetch(() => ok(ALL_ON));
+    mount();
+    expect(screen.getByTestId('profile-notifications-summary')).toHaveTextContent(
+      t.summary.replace('{on}', '5').replace('{total}', '5'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: t.editLabel }));
+    expect(await screen.findByText(t.sheetDescription)).toBeInTheDocument();
+    expect(screen.getAllByRole('switch')).toHaveLength(5);
+    expect(screen.queryByRole('switch', { name: t.lessonsTaught })).toBeNull();
+  });
+
+  it('a coach has it, counted with the rest, and turning it off PATCHes just that', async () => {
+    let stored = ALL_ON;
+    const calls = installFakeFetch((c) => {
+      if (c.method === 'PATCH') {
+        const body = c.body as { email: Partial<typeof ALL_ON.email> };
+        stored = { email: { ...stored.email, ...body.email } };
+      }
+      return ok(stored);
+    });
+    mount(true);
+    expect(screen.getByTestId('profile-notifications-summary')).toHaveTextContent(
+      t.summary.replace('{on}', '6').replace('{total}', '6'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: t.editLabel }));
+    const lessons = await screen.findByRole('switch', { name: t.lessonsTaught });
+    expect(screen.getAllByRole('switch')).toHaveLength(6);
+    expect(lessons).toBeChecked();
+    fireEvent.click(lessons);
+    await waitFor(() => expect(lessons).not.toBeChecked());
+    expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({
+      email: { lessonsTaught: false },
+    });
+    expect(screen.getByTestId('profile-notifications-summary')).toHaveTextContent(
+      t.summary.replace('{on}', '5').replace('{total}', '6'),
+    );
+  });
+
+  it('the cancellation switch says it covers a coach’s cancel too (decision 23)', () => {
+    expect(t.clubChanges).toBe('Отмяна от клуба или треньора');
+  });
 });

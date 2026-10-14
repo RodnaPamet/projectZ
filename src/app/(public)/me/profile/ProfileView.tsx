@@ -167,7 +167,8 @@ export function ProfileView({
             }}
           />
         </div>
-        <NotificationSettingsRow seed={notificationSettings} />
+        {/* A coach, with the coaches module on, has a sixth switch (#550). */}
+        <NotificationSettingsRow seed={notificationSettings} coach={coachHref !== null} />
         <div className={`${ROW} md:hidden`} data-testid="profile-theme-row">
           <span className="text-content-default text-sm">{tCommon('theme')}</span>
           <ThemeToggle id="profile-theme-toggle" />

@@ -59,6 +59,8 @@ export type EmailCategory =
   | 'clubChanges'
   | 'messages'
   | 'openPlay'
+  // A coach's emails about the lessons they teach (#550, decision 22).
+  | 'lessonsTaught'
   | 'contact'
   // The answer to something the person asked of the platform about their own
   // account (P72: whether they may teach). No setting turns it off.
@@ -272,6 +274,7 @@ function wants(
     emailClubChanges: boolean;
     emailMessages: boolean;
     emailOpenPlay: boolean;
+    emailLessonsTaught: boolean;
   },
   category: string,
 ): boolean {
@@ -286,6 +289,8 @@ function wants(
       return user.emailClubChanges;
     case 'openPlay':
       return user.emailOpenPlay;
+    case 'lessonsTaught':
+      return user.emailLessonsTaught;
     default:
       return true;
   }
@@ -350,6 +355,7 @@ export async function drainEmailOutbox(
           emailClubChanges: true,
           emailMessages: true,
           emailOpenPlay: true,
+          emailLessonsTaught: true,
         },
         take: userIds.length,
       }),
@@ -473,6 +479,7 @@ function skipReason(
         emailClubChanges: boolean;
         emailMessages: boolean;
         emailOpenPlay: boolean;
+        emailLessonsTaught: boolean;
       }
     | string
     | null

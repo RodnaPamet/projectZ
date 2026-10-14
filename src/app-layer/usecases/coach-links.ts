@@ -452,7 +452,7 @@ export async function requestToTeach(
   userId: string,
   venueId: string,
   now: Date = new Date(),
-): Promise<{ linkId: string }> {
+): Promise<{ linkId: string; tenantId: string }> {
   const { approved } = await coachStanding(userId);
   if (!approved) throw new CoachNotApprovedError();
   const tenantId = await clubOfVenue(venueId);
@@ -505,7 +505,7 @@ export async function requestToTeach(
           after: { venueId, coachUserId: userId, status: 'REQUESTED' },
         },
       });
-      return { linkId };
+      return { linkId, tenantId };
     });
   } catch (err) {
     // Two requests at once: the unique index let one through. The other is
@@ -712,7 +712,7 @@ export async function answerCoachRequest(
   linkId: string,
   accept: boolean,
   now: Date = new Date(),
-): Promise<void> {
+): Promise<LinkChange> {
   const link = await lockLink(db, actor.tenantId, linkId);
   if (!link) throw new CoachLinkNotFoundError();
   if (link.status !== 'REQUESTED') throw new CoachLinkStateError(link.status);
@@ -745,6 +745,16 @@ export async function answerCoachRequest(
       after: { status: next, venueId: link.venueId, coachUserId: link.userId },
     },
   });
+  return { event: accept ? 'linkAccepted' : 'linkDeclined', at: now };
+}
+
+/**
+ * What the club did to a link, for the coach to be told (#550): a request
+ * turned away by ending it is told as a decline, since to the coach it is one.
+ */
+export interface LinkChange {
+  event: 'linkAccepted' | 'linkDeclined' | 'linkEnded';
+  at: Date;
 }
 
 /** The club ends a coach teaching at a venue, or turns away a request by ending it. */
@@ -753,11 +763,12 @@ export async function endCoachLink(
   actor: Actor,
   linkId: string,
   now: Date = new Date(),
-): Promise<void> {
+): Promise<LinkChange> {
   const link = await lockLink(db, actor.tenantId, linkId);
   if (!link) throw new CoachLinkNotFoundError();
   if (!LIVE.includes(link.status)) throw new CoachLinkStateError(link.status);
   await end(db, link, actor, now);
+  return { event: link.status === 'ACTIVE' ? 'linkEnded' : 'linkDeclined', at: now };
 }
 
 /**

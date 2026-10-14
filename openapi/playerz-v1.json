@@ -17869,7 +17869,23 @@
               "BOOKING_PLAYER_JOINED",
               "BOOKING_PLAYER_LEFT",
               "BOOKING_PLAYER_ADDED",
-              "BOOKING_PLAYER_REMOVED"
+              "BOOKING_PLAYER_REMOVED",
+              "CONTACT_REQUEST",
+              "OPEN_PLAY_REQUESTED",
+              "OPEN_PLAY_ACCEPTED",
+              "OPEN_PLAY_DECLINED",
+              "OPEN_PLAY_LAPSED",
+              "OPEN_PLAY_CLOSED",
+              "COACH_PROFILE_SUBMITTED",
+              "COACH_PROFILE_APPROVED",
+              "COACH_PROFILE_DECLINED",
+              "LESSON_BOOKED",
+              "LESSON_CANCELLED",
+              "LESSON_REMINDER",
+              "COACH_LINK_REQUESTED",
+              "COACH_LINK_ACCEPTED",
+              "COACH_LINK_DECLINED",
+              "COACH_LINK_ENDED"
             ],
             "description": "Treat an unknown value as a generic notification: kinds are added over time."
           },
@@ -17999,7 +18015,14 @@
         "properties": {
           "email": {
             "type": "object",
-            "required": ["confirmation", "reminder", "clubChanges", "messages", "openPlay"],
+            "required": [
+              "confirmation",
+              "reminder",
+              "clubChanges",
+              "messages",
+              "openPlay",
+              "lessonsTaught"
+            ],
             "properties": {
               "confirmation": {
                 "type": "boolean"
@@ -18017,6 +18040,10 @@
               "openPlay": {
                 "type": "boolean",
                 "description": "«Игри» (#376): a request to join one's game, and the answer to one's own request."
+              },
+              "lessonsTaught": {
+                "type": "boolean",
+                "description": "«Уроци, които водя» (#550): a coach's emails about the lessons they TEACH (one booked, one cancelled, the reminder). Every account has the setting; show the switch to coach accounts only."
               }
             }
           }
@@ -18057,6 +18084,10 @@
               },
               "openPlay": {
                 "type": "boolean"
+              },
+              "lessonsTaught": {
+                "type": "boolean",
+                "description": "«Уроци, които водя» (#550): a coach's emails about the lessons they TEACH (one booked, one cancelled, the reminder). Every account has the setting; show the switch to coach accounts only."
               }
             }
           }

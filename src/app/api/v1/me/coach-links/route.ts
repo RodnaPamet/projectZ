@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server';
 
+import { notifyCoachLinkRequested } from '@/app-layer/usecases/coach-link-notifications';
 import { myCoachLinks, requestToTeach } from '@/app-layer/usecases/coach-links';
 import { toMyCoachLinks } from '@/app/api/v1/_lib/coach-dto';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -45,7 +46,9 @@ async function postHandler(req: NextRequest) {
   if (typeof venueId !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(venueId)) {
     throw new ValidationError('`venueId` is required', { field: 'venueId' });
   }
-  await requestToTeach(ctx.userId, venueId);
+  const made = await requestToTeach(ctx.userId, venueId);
+  // The club's owners and managers hear of it (#550), after it committed.
+  await notifyCoachLinkRequested({ ...made, at: new Date() });
   return ok(toMyCoachLinks(await myCoachLinks(ctx.userId)), { status: 201 });
 }
 

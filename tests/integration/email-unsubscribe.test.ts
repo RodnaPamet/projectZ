@@ -27,6 +27,7 @@ describe('one-click unsubscribe (#528)', () => {
     clubChanges: true,
     messages: true,
     openPlay: true,
+    lessonsTaught: true,
   };
   const emails = async (userId: string) => (await getMyNotificationSettings(userId))?.email;
 
@@ -59,6 +60,13 @@ describe('one-click unsubscribe (#528)', () => {
     expect(await unsubscribeStanding(token)).toEqual({ category: 'reminder', on: false });
     // Nobody else's settings moved.
     expect(await emails(other)).toEqual(ALL_ON);
+  });
+
+  it('a coach’s lesson emails have their own link, which leaves the rest on (#550)', async () => {
+    const token = unsubscribeToken(me, 'lessonsTaught');
+    expect(await unsubscribeStanding(token)).toEqual({ category: 'lessonsTaught', on: true });
+    expect((await post(token)).status).toBe(200);
+    expect(await emails(me)).toEqual({ ...ALL_ON, lessonsTaught: false });
   });
 
   it('pressing twice is pressing once, and a second kind needs its own link', async () => {

@@ -399,6 +399,7 @@ describe('GET /api/v1/me/export (#370)', () => {
         clubChanges: true,
         messages: true,
         openPlay: true,
+        lessonsTaught: true,
       },
     });
     expect(json.openPlay).toEqual({ gamesOpened: [], requests: [] });

@@ -16,6 +16,7 @@ import { GET as myLessonsGet } from '@/app/api/v1/me/coach-lessons/route';
 import { POST as lessonCancelPost } from '@/app/api/v1/me/coach-lessons/[id]/cancel/route';
 import { POST as lessonNoShowPost } from '@/app/api/v1/me/coach-lessons/[id]/no-show/route';
 import { loadDiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
+import { sendBookingReminders } from '@/app-layer/usecases/booking-notifications';
 import { clearAllRateLimits } from '@/lib/security/rate-limit';
 
 import { signInAs, type TestIdentity } from '../helpers/auth';
@@ -1115,7 +1116,8 @@ describe('where a booked lesson is seen', () => {
     const bell = await asAppSuperuser(db, (tx) =>
       tx.notification.findMany({ where: { userId: p.userId }, take: 5 }),
     );
-    expect(bell.map((n) => n.title)).toEqual(['Клубът отмени резервацията ви']);
+    // Said as a lesson, not as a court booking (#550).
+    expect(bell.map((n) => n.title)).toEqual(['Клубът отмени урока ви']);
     // It is gone from the diary, and the time can be booked again.
     const day = await loadDiaryDay(club.tenantId, DAY, { locale: 'bg', labels: LABELS });
     expect(day.bookings).toEqual([]);
@@ -1842,5 +1844,249 @@ describe('the coach and their lessons (#549; decisions 8, 11, 12)', () => {
       ]);
       expect(await asAppSuperuser(db, (tx) => tx.playerVenueRelationship.count())).toBe(0);
     });
+  });
+});
+
+describe('who is told about a lesson, and how (#550; decisions 22, 23)', () => {
+  const HOUR = 3_600_000;
+  const bellOf = (userId: string) =>
+    asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+        select: { kind: true, title: true, body: true, href: true },
+        take: 20,
+      }),
+    );
+  const mailOf = (userId: string) =>
+    asAppSuperuser(db, (tx) =>
+      tx.emailOutbox.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+        select: { kind: true, category: true, subject: true, text: true },
+        take: 20,
+      }),
+    );
+  const clear = () =>
+    asAppSuperuser(db, async (tx) => {
+      await tx.notification.deleteMany({});
+      await tx.emailOutbox.deleteMany({});
+    });
+
+  /** Ivan teaches at A; Petya, with a name, books ten o'clock with him. */
+  async function booked(over: Parameters<typeof teaches>[2] = {}) {
+    const coachId = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(coachId, A(), over);
+    const p = await player();
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: p.userId }, data: { name: 'Петя Играч' } }),
+    );
+    const res = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    expect(res.status).toBe(201);
+    return { coachId, linkId, p, bookingId: res.booking.id, lessonId: res.booking.lesson.id };
+  }
+
+  it('booked: the player hears it as a lesson, with the coach and both prices; the coach hears who and for how much', async () => {
+    const { coachId, p, bookingId } = await booked();
+
+    // The player: the booking's own notification, in a lesson's words.
+    expect(await bellOf(p.userId)).toEqual([
+      {
+        kind: 'BOOKING_CONFIRMED',
+        title: 'Урокът е записан',
+        body: expect.stringMatching(/^Алфа Кортове, Court 1 · .*10:00–11:00 · с Иван Петров$/),
+        href: `/me/bookings/${bookingId}`,
+      },
+    ]);
+    const [mail] = await mailOf(p.userId);
+    expect(mail).toMatchObject({ kind: 'BOOKING_CONFIRMED', category: 'confirmation' });
+    expect(mail!.subject).toMatch(/^Урокът е записан: Алфа Кортове, /);
+    expect(mail!.text).toContain('Треньор: Иван Петров');
+    expect(mail!.text).toMatch(/Цена: 64,00\s€ \(40,00\s€ за треньора \+ 24,00\s€ за корта\)/);
+    expect(mail!.text).toContain('Плащане: на място в клуба');
+    expect(mail!.text).toContain('Можете да отмените до');
+
+    // The coach: a kind of their own, pointing at «Уроци».
+    expect(await bellOf(coachId)).toEqual([
+      {
+        kind: 'LESSON_BOOKED',
+        title: 'Нов урок: Петя Играч',
+        body: expect.stringMatching(/^Алфа Кортове, Court 1 · .*10:00–11:00$/),
+        href: '/me/coach',
+      },
+    ]);
+    const [toCoach] = await mailOf(coachId);
+    expect(toCoach).toMatchObject({ kind: 'LESSON_BOOKED', category: 'lessonsTaught' });
+    expect(toCoach!.subject).toMatch(/^Нов урок: Алфа Кортове, /);
+    expect(toCoach!.text).toContain('Играч: Петя Играч');
+    expect(toCoach!.text).toMatch(/Вашият хонорар: 40,00\s€/);
+    expect(toCoach!.text).toContain('/me/coach');
+    // The court's price is the club's, and the phone is not for a mailbox.
+    expect(toCoach!.text).not.toContain('24,00');
+    expect(toCoach!.text).not.toMatch(/\+359/);
+  });
+
+  it('the player cancels: the coach is told who, and that the time is free', async () => {
+    const { coachId, p, bookingId } = await booked();
+    await clear();
+    const res = await call(
+      cancelRoute,
+      `/api/v1/t/${club.tenantSlug}/bookings/${bookingId}/cancel`,
+      { method: 'POST', bearer: p.bearer, json: {} },
+      { slug: club.tenantSlug, id: bookingId },
+    );
+    expect(res.status).toBe(200);
+    expect(await bellOf(coachId)).toEqual([
+      {
+        kind: 'LESSON_CANCELLED',
+        title: 'Петя Играч отмени урок',
+        body: expect.stringContaining('Часът ви е свободен.'),
+        href: '/me/coach',
+      },
+    ]);
+    const [mail] = await mailOf(coachId);
+    expect(mail).toMatchObject({ kind: 'LESSON_CANCELLED', category: 'lessonsTaught' });
+    expect(mail!.text).toContain('Играчът отмени урока.');
+    // A cancelled lesson has no fee to state.
+    expect(mail!.text).not.toContain('Вашият хонорар');
+    // The player is not told about their own act.
+    expect(await bellOf(p.userId)).toEqual([]);
+  });
+
+  it('the club cancels: the player and the coach are each told the club did', async () => {
+    const { coachId, p, bookingId } = await booked();
+    await clear();
+    const owner = await signInAs(db, {
+      userId: club.userId,
+      memberships: [{ tenantId: club.tenantId, tenantSlug: club.tenantSlug, role: 'OWNER' }],
+    });
+    await call(
+      cancelRoute,
+      `/api/v1/t/${club.tenantSlug}/bookings/${bookingId}/cancel`,
+      { method: 'POST', bearer: owner.bearer, json: {} },
+      { slug: club.tenantSlug, id: bookingId },
+    );
+    expect((await bellOf(p.userId)).map((n) => [n.kind, n.title])).toEqual([
+      ['BOOKING_CANCELLED', 'Клубът отмени урока ви'],
+    ]);
+    expect((await mailOf(p.userId)).map((m) => m.category)).toEqual(['clubChanges']);
+    expect((await bellOf(coachId)).map((n) => [n.kind, n.title])).toEqual([
+      ['LESSON_CANCELLED', 'Клубът отмени ваш урок'],
+    ]);
+    expect((await mailOf(coachId)).map((m) => m.category)).toEqual(['lessonsTaught']);
+  });
+
+  it('the coach cancels: the player is told; the coach is not told of their own act', async () => {
+    const { coachId, p, lessonId } = await booked();
+    await clear();
+    const ivan = await signInAs(db, { userId: coachId, memberships: [] });
+    const res = await call(
+      lessonCancelPost,
+      `/api/v1/me/coach-lessons/${lessonId}/cancel`,
+      { method: 'POST', bearer: ivan.bearer, json: {} },
+      { id: lessonId },
+    );
+    expect(res.status).toBe(200);
+    expect((await bellOf(p.userId)).map((n) => n.title)).toEqual(['Треньорът отмени урока ви']);
+    expect(await bellOf(coachId)).toEqual([]);
+    expect(await mailOf(coachId)).toEqual([]);
+  });
+
+  it('about three hours before: the player is reminded of a lesson, and the coach that they teach', async () => {
+    const { coachId, p } = await booked();
+    await clear();
+    const now = new Date(new Date(at('10:00')).getTime() - 2.5 * HOUR);
+    const result = await sendBookingReminders({ now });
+    expect(result).toEqual({ claimed: 1, notified: 2 });
+
+    expect((await bellOf(p.userId)).map((n) => [n.kind, n.title])).toEqual([
+      ['BOOKING_REMINDER', 'Имате урок след 3 часа'],
+    ]);
+    expect((await mailOf(p.userId)).map((m) => [m.category, m.subject.slice(0, 23)])).toEqual([
+      ['reminder', 'След 3 часа имате урок:'],
+    ]);
+    expect((await bellOf(coachId)).map((n) => [n.kind, n.title, n.href])).toEqual([
+      ['LESSON_REMINDER', 'Водите урок след 3 часа', '/me/coach'],
+    ]);
+    expect((await mailOf(coachId)).map((m) => [m.kind, m.category])).toEqual([
+      ['LESSON_REMINDER', 'lessonsTaught'],
+    ]);
+    // Once: a second pass reminds nobody again.
+    expect(await sendBookingReminders({ now })).toEqual({ claimed: 0, notified: 0 });
+  });
+
+  it('«Уроци, които водя» off: the bell still tells the coach, and no email is queued', async () => {
+    const coachId = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(coachId, A());
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: coachId }, data: { emailLessonsTaught: false } }),
+    );
+    const res = await book(await player(), 'ivan-petrov', {
+      linkId,
+      startTs: at('10:00'),
+      minutes: 60,
+    });
+    expect(res.status).toBe(201);
+    expect((await bellOf(coachId)).map((n) => n.kind)).toEqual(['LESSON_BOOKED']);
+    expect(await mailOf(coachId)).toEqual([]);
+  });
+
+  it('the coach’s own court bookings are under their other switches: muting those does not mute lessons', async () => {
+    const coachId = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(coachId, A());
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({
+        where: { id: coachId },
+        data: {
+          emailBookingConfirmations: false,
+          emailBookingReminders: false,
+          emailClubChanges: false,
+        },
+      }),
+    );
+    await book(await player(), 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    expect((await mailOf(coachId)).map((m) => m.category)).toEqual(['lessonsTaught']);
+  });
+
+  it('a group lesson: the coach’s email says how many are coming and the group fee', async () => {
+    const { coachId, bookingId } = await booked({ groupRateCents: 6000 });
+    // A second player joins, then the reminder goes out.
+    await asAppSuperuser(db, async (tx) => {
+      await tx.bookingParticipant.create({
+        data: { tenantId: club.tenantId, bookingId, guestName: 'Гост', position: 2 },
+      });
+      await tx.coachLesson.updateMany({ where: { bookingId }, data: { coachFeeCents: 6000 } });
+    });
+    await clear();
+    await sendBookingReminders({ now: new Date(new Date(at('10:00')).getTime() - 2.5 * HOUR) });
+    const [mail] = await mailOf(coachId);
+    expect(mail!.text).toContain('Играчи: 2');
+    expect(mail!.text).toMatch(/Вашият хонорар: 60,00\s€/);
+  });
+
+  it('a plain court booking is said as before, and tells no coach', async () => {
+    const p = await player();
+    await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.create({
+        data: { tenantId: club.tenantId, userId: p.userId, role: 'PLAYER', status: 'ACTIVE' },
+      }),
+    );
+    const { POST: courtPost } = await import('@/app/api/v1/t/[slug]/bookings/route');
+    const res = await call(
+      courtPost,
+      `/api/v1/t/${club.tenantSlug}/bookings`,
+      {
+        method: 'POST',
+        bearer: p.bearer,
+        key: 'plain-court',
+        json: { resourceId: venue.resourceId, startTs: at('15:00'), endTs: at('16:00') },
+      },
+      { slug: club.tenantSlug },
+    );
+    expect(res.status).toBe(201);
+    expect((await bellOf(p.userId)).map((n) => n.title)).toEqual(['Резервацията е потвърдена']);
+    const [mail] = await mailOf(p.userId);
+    expect(mail!.text).not.toContain('Треньор');
+    expect(await asAppSuperuser(db, (tx) => tx.notification.count())).toBe(1);
   });
 });

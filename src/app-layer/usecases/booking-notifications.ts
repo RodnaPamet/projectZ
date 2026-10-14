@@ -2,6 +2,7 @@ import type { Locale, NotificationKind, OpenGameRequestStatus, Prisma } from '@p
 
 import { deliver, type EmailCategory } from '@/app-layer/usecases/notification-outbox';
 import { bookingCutoffHours } from '@/lib/booking/cutoff';
+import { COACH_PROFILE_HREF } from '@/lib/coaches/hrefs';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import {
   bellCopy,
@@ -9,13 +10,16 @@ import {
   bookingHref,
   formatDate,
   GAMES_REQUESTS_HREF,
+  lessonCoachEmail,
   openPlayEmail,
   seriesCancelledEmail,
   type BookingBellEvent,
   type BookingFacts,
+  type LessonCoachEvent,
 } from '@/lib/notifications/booking-copy';
 import { dedupeKey } from '@/lib/notifications/dedupe';
 import { logger } from '@/lib/observability/logger';
+import { absoluteUrl } from '@/lib/seo/site-url';
 
 /**
  * Who hears about a booking, and how (#367, Q22).
@@ -28,6 +32,15 @@ import { logger } from '@/lib/observability/logger';
  *   cancelled by the club         booker + added players    clubChanges
  *   series cancelled by the club  the players on it         clubChanges
  *   cancelled by the booker       the added players         —
+ *
+ * A LESSON (#550) is a booking, so its players hear all of the above, in a
+ * lesson's words («Урокът е записан», with the coach and both prices). Its
+ * COACH hears too, under a switch of their own (`tellCoach`):
+ *
+ *   lesson booked                 the coach                 lessonsTaught
+ *   3 hours before the start      the coach                 lessonsTaught
+ *   cancelled by player or club   the coach                 lessonsTaught
+ *   cancelled by the coach        booker + added players    clubChanges
  *   a player joined / left        the booker                —   (#416)
  *   added / removed by booker     that player               —   (#416)
  *
@@ -54,6 +67,7 @@ interface Recipient {
   emailBookingReminders: boolean;
   emailClubChanges: boolean;
   emailOpenPlay: boolean;
+  emailLessonsTaught: boolean;
 }
 
 const RECIPIENT_SELECT = {
@@ -64,6 +78,7 @@ const RECIPIENT_SELECT = {
   emailBookingReminders: true,
   emailClubChanges: true,
   emailOpenPlay: true,
+  emailLessonsTaught: true,
 } satisfies Prisma.UserSelect;
 
 const BOOKING_SELECT = {
@@ -73,6 +88,8 @@ const BOOKING_SELECT = {
   startTs: true,
   endTs: true,
   bookedByUserId: true,
+  totalCents: true,
+  currency: true,
   participants: { select: { userId: true }, take: 32 },
   resource: {
     select: {
@@ -81,13 +98,43 @@ const BOOKING_SELECT = {
       venue: { select: { name: true, timezone: true, cancellationCutoffHours: true } },
     },
   },
-  // A lesson is cancelled by the stricter of the two cutoffs (#377).
-  lesson: { select: { cancelCutoffHours: true } },
+  // The lesson on it (#377, #550): a lesson is cancelled by the stricter of
+  // the two cutoffs, its coach is told what happens to it, and the player's
+  // own notifications say whose lesson it is and what it costs.
+  lesson: { select: { cancelCutoffHours: true, coachUserId: true, coachFeeCents: true } },
 } satisfies Prisma.BookingSelect;
 
 type BookingRow = Prisma.BookingGetPayload<{ select: typeof BOOKING_SELECT }>;
 
-function factsOf(b: BookingRow): BookingFacts {
+/** The names of a lesson's two people, by account; for a plain booking, nobody's. */
+type LessonNames = ReadonlyMap<string, string | null>;
+const NO_NAMES: LessonNames = new Map();
+
+/**
+ * The coach's and the booker's names for the lessons among these bookings:
+ * one read, and none at all when no row is a lesson. An account that is gone
+ * has no name here, and the copy says "a coach" or "a player" in its place.
+ */
+async function lessonNames(rows: readonly BookingRow[]): Promise<LessonNames> {
+  const ids = [
+    ...new Set(
+      rows.flatMap((b) =>
+        b.lesson ? [b.lesson.coachUserId, ...(b.bookedByUserId ? [b.bookedByUserId] : [])] : [],
+      ),
+    ),
+  ];
+  if (ids.length === 0) return NO_NAMES;
+  const users = await runAsSuperuser((db) =>
+    db.user.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      select: { id: true, name: true },
+      take: ids.length,
+    }),
+  );
+  return new Map(users.map((u) => [u.id, u.name]));
+}
+
+function factsOf(b: BookingRow, names: LessonNames = NO_NAMES): BookingFacts {
   return {
     bookingId: b.id,
     venueName: b.resource.venue.name,
@@ -100,7 +147,68 @@ function factsOf(b: BookingRow): BookingFacts {
       b.resource.venue.cancellationCutoffHours,
       b.lesson?.cancelCutoffHours,
     ),
+    ...(b.lesson
+      ? {
+          lesson: {
+            coachName: names.get(b.lesson.coachUserId) ?? null,
+            playerName: b.bookedByUserId ? (names.get(b.bookedByUserId) ?? null) : null,
+            players: 1 + b.participants.length,
+            coachFeeCents: b.lesson.coachFeeCents,
+            courtPriceCents: b.totalCents,
+            currency: b.currency,
+          },
+        }
+      : {}),
   };
+}
+
+/**
+ * ═══ THE COACH'S SIDE OF A LESSON (#550) ═══
+ *
+ * A lesson has a third person the booking code does not know: its coach. So
+ * the three things that happen to a booking are told to them from here, in
+ * the same place the players are told, rather than at each route that books,
+ * cancels or reminds: a lesson the coach did not hear about is a coach who is
+ * not on court.
+ *
+ *   booked      LESSON_BOOKED      «Нов урок: …»
+ *   cancelled   LESSON_CANCELLED   by the player or the club; never for the
+ *                                  coach's own cancel, which is their act
+ *   reminder    LESSON_REMINDER    with the players', about three hours before
+ *
+ * Bell always; email under the coach's own switch, «Уроци, които водя»
+ * (`lessonsTaught`, owner decision 22). The bell row points at «Уроци».
+ */
+async function tellCoach(
+  b: BookingRow,
+  facts: BookingFacts,
+  what: {
+    kind: 'LESSON_BOOKED' | 'LESSON_CANCELLED' | 'LESSON_REMINDER';
+    event: LessonCoachEvent;
+    key: string;
+    now?: Date;
+  },
+): Promise<boolean> {
+  if (!b.lesson) return false;
+  const coach = (await readRecipients([b.lesson.coachUserId])).get(b.lesson.coachUserId);
+  if (!coach) return false;
+  await send({
+    recipient: coach,
+    tenantId: b.tenantId,
+    kind: what.kind,
+    key: dedupeKey('lesson', b.id, what.key),
+    bell: what.event,
+    facts,
+    href: COACH_PROFILE_HREF,
+    email: {
+      category: 'lessonsTaught',
+      render: () =>
+        lessonCoachEmail(coach.locale, what.event, facts, absoluteUrl(COACH_PROFILE_HREF)),
+      // Nothing about a lesson is worth sending once it has started.
+      expiresAt: b.startTs,
+    },
+  });
+  return true;
 }
 
 /** The booker first, then the added players with an account. */
@@ -142,6 +250,7 @@ function wantsEmail(r: Recipient, category: EmailCategory): boolean {
   if (category === 'reminder') return r.emailBookingReminders;
   if (category === 'clubChanges') return r.emailClubChanges;
   if (category === 'openPlay') return r.emailOpenPlay;
+  if (category === 'lessonsTaught') return r.emailLessonsTaught;
   return true;
 }
 
@@ -218,22 +327,26 @@ export async function notifyBookingConfirmed(input: {
   await guarded('confirmed', input.bookingId, async () => {
     const [b] = await readBookings(input.tenantId, [input.bookingId]);
     if (!b || b.status !== 'CONFIRMED' || !b.bookedByUserId) return;
+    const facts = factsOf(b, await lessonNames([b]));
+    // A lesson is said as one, to the player: whose it is and what it costs.
+    const event = b.lesson ? 'lessonConfirmed' : 'confirmed';
     const r = (await readRecipients([b.bookedByUserId])).get(b.bookedByUserId);
-    if (!r) return;
-    const facts = factsOf(b);
-    await send({
-      recipient: r,
-      tenantId: b.tenantId,
-      kind: 'BOOKING_CONFIRMED',
-      key: dedupeKey('booking', b.id, 'confirmed'),
-      bell: 'confirmed',
-      facts,
-      email: {
-        category: 'confirmation',
-        render: () => bookingEmail(r.locale, 'confirmed', facts, input.now),
-        expiresAt: b.startTs,
-      },
-    });
+    if (r) {
+      await send({
+        recipient: r,
+        tenantId: b.tenantId,
+        kind: 'BOOKING_CONFIRMED',
+        key: dedupeKey('booking', b.id, 'confirmed'),
+        bell: event,
+        facts,
+        email: {
+          category: 'confirmation',
+          render: () => bookingEmail(r.locale, event, facts, input.now),
+          expiresAt: b.startTs,
+        },
+      });
+    }
+    await tellCoach(b, facts, { kind: 'LESSON_BOOKED', event: 'coachLessonBooked', key: 'booked' });
   });
 }
 
@@ -352,7 +465,10 @@ export async function notifyBookingCancelled(input: {
       (id) => id !== input.actorUserId && (event !== null || id !== b.bookedByUserId),
     );
     const people = await readRecipients(ids);
-    const facts = factsOf(b);
+    const facts = factsOf(b, await lessonNames([b]));
+    // The club cancelling a LESSON is said as that; the coach's own cancel
+    // and a removal already are.
+    const said = event === 'cancelledByClub' && b.lesson ? 'lessonCancelledByClub' : event;
     for (const id of ids) {
       const r = people.get(id);
       if (!r) continue;
@@ -361,14 +477,25 @@ export async function notifyBookingCancelled(input: {
         tenantId: b.tenantId,
         kind: 'BOOKING_CANCELLED',
         key: dedupeKey('booking', b.id, 'cancelled'),
-        bell: event ?? 'cancelledByBooker',
+        bell: said ?? 'cancelledByBooker',
         facts,
-        email: event
+        email: said
           ? {
               category: 'clubChanges',
-              render: () => bookingEmail(r.locale, event, facts, input.now),
+              render: () => bookingEmail(r.locale, said, facts, input.now),
             }
           : undefined,
+      });
+    }
+    // The coach hears when somebody else cancelled their lesson: the player
+    // or the club. Not their own cancel, and not a removal (they are told of
+    // that as a decision on their profile).
+    if (input.by === 'BOOKER' || input.by === 'CLUB') {
+      await tellCoach(b, facts, {
+        kind: 'LESSON_CANCELLED',
+        event:
+          input.by === 'BOOKER' ? 'coachLessonCancelledByPlayer' : 'coachLessonCancelledByClub',
+        key: 'cancelled',
       });
     }
   });
@@ -686,10 +813,12 @@ export async function sendBookingReminders(opts: { now?: Date } = {}): Promise<R
     claimed.map((c) => c.id),
   );
   const people = await readRecipients([...new Set(rows.flatMap(playersOf))]);
+  const names = await lessonNames(rows);
 
   let notified = 0;
   for (const b of rows) {
-    const facts = factsOf(b);
+    const facts = factsOf(b, names);
+    const event = b.lesson ? 'lessonReminder' : 'reminder';
     for (const id of playersOf(b)) {
       const r = people.get(id);
       if (!r) continue;
@@ -699,17 +828,26 @@ export async function sendBookingReminders(opts: { now?: Date } = {}): Promise<R
           tenantId: b.tenantId,
           kind: 'BOOKING_REMINDER',
           key: dedupeKey('booking', b.id, 'reminder'),
-          bell: 'reminder',
+          bell: event,
           facts,
           email: {
             category: 'reminder',
-            render: () => bookingEmail(r.locale, 'reminder', facts, now),
+            render: () => bookingEmail(r.locale, event, facts, now),
             expiresAt: b.startTs,
           },
         }),
       );
       notified++;
     }
+    // The coach of a lesson is reminded with its players (#550).
+    await guarded('lesson-reminder', b.id, async () => {
+      const told = await tellCoach(b, facts, {
+        kind: 'LESSON_REMINDER',
+        event: 'coachLessonReminder',
+        key: 'reminder',
+      });
+      if (told) notified++;
+    });
   }
   return { claimed: claimed.length, notified };
 }

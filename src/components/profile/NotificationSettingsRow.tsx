@@ -10,13 +10,12 @@ import { KEYS, V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 
-import type { EmailCategory } from './NotificationSettingsSheet';
+import { emailCategoriesFor, type EmailCategory } from './NotificationSettingsSheet';
 import { PROFILE_ROW } from './ProfileSection';
 
 const NotificationSettingsSheet = dynamic(() => import('./NotificationSettingsSheet'));
 
 /** Confirmation, reminder, club changes, messages (#375) and Игри (#376). */
-const CATEGORY_COUNT = 5;
 
 /**
  * "Известия" in the profile's Настройки (#367, Q22): which emails to get.
@@ -27,7 +26,14 @@ const CATEGORY_COUNT = 5;
  * /api/v1/me/notification-settings`), optimistically: a refusal puts it back
  * and says so. The bell has no switch, and the sheet says why.
  */
-export function NotificationSettingsRow({ seed }: { seed: NotificationSettings }) {
+export function NotificationSettingsRow({
+  seed,
+  coach = false,
+}: {
+  seed: NotificationSettings;
+  /** A coach account (with the coaches module on): shown its sixth switch. */
+  coach?: boolean;
+}) {
   const t = useTranslations('profile.notifications');
   const [open, setOpen] = useState(false);
   // Mounted from the first open on, so it can animate closed.
@@ -51,7 +57,10 @@ export function NotificationSettingsRow({ seed }: { seed: NotificationSettings }
     fallback: seed,
   });
 
-  const on = Object.values(settings.email).filter(Boolean).length;
+  // Counted over the switches this account is shown, not over every setting
+  // there is: a player is not told they have five of six.
+  const shown = emailCategoriesFor(coach);
+  const on = shown.filter((c) => settings.email[c]).length;
 
   function toggle(category: EmailCategory, value: boolean) {
     setFailed(false);
@@ -64,7 +73,7 @@ export function NotificationSettingsRow({ seed }: { seed: NotificationSettings }
         <div className="min-w-0">
           <p className="text-content-default text-sm">{t('row')}</p>
           <p className="text-content-muted text-xs" data-testid="profile-notifications-summary">
-            {t('summary', { on, total: CATEGORY_COUNT })}
+            {t('summary', { on, total: shown.length })}
           </p>
         </div>
         <Button
@@ -88,6 +97,7 @@ export function NotificationSettingsRow({ seed }: { seed: NotificationSettings }
           open={open}
           onOpenChange={setOpen}
           settings={settings}
+          coach={coach}
           onToggle={toggle}
           failed={failed}
         />

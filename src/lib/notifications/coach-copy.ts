@@ -59,6 +59,66 @@ export async function coachDecisionEmail(
 }
 
 /**
+ * A coach and a club (#550): the coach asked to teach at a venue, and the
+ * club accepted, declined, or later ended it.
+ */
+export type CoachLinkEvent = 'linkRequested' | 'linkAccepted' | 'linkDeclined' | 'linkEnded';
+
+export interface CoachLinkValues {
+  venue: string;
+  /** The coach's name, for the club; null in what the coach is told. */
+  coach: string | null;
+}
+
+async function linkValues(locale: 'bg' | 'en', v: CoachLinkValues) {
+  return {
+    venue: oneLine(v.venue),
+    coach: v.coach?.trim()
+      ? oneLine(v.coach)
+      : await translateFor(locale, 'notifications.coach.aCoach'),
+  };
+}
+
+export async function coachLinkBellCopy(
+  rawLocale: unknown,
+  event: CoachLinkEvent,
+  v: CoachLinkValues,
+): Promise<{ title: string; body: string }> {
+  const locale = resolveLocale(rawLocale);
+  const values = await linkValues(locale, v);
+  const [title, body] = await Promise.all([
+    translateFor(locale, `notifications.coach.${event}.title`, values),
+    translateFor(locale, `notifications.coach.${event}.body`, values),
+  ]);
+  return { title: oneLine(title), body: oneLine(body) };
+}
+
+/**
+ * The email about a link: one paragraph and where to go. To the coach it
+ * points at their own page; to the club, at «Треньори» in its admin.
+ */
+export async function coachLinkEmail(
+  rawLocale: unknown,
+  event: CoachLinkEvent,
+  v: CoachLinkValues,
+  url: string,
+): Promise<{ subject: string; text: string }> {
+  const locale = resolveLocale(rawLocale);
+  const values = await linkValues(locale, v);
+  const toClub = event === 'linkRequested';
+  const [subject, intro, lLink, footer] = await Promise.all([
+    translateFor(locale, `emails.coach.${event}.subject`, values),
+    translateFor(locale, `emails.coach.${event}.intro`, values),
+    translateFor(locale, toClub ? 'emails.coach.clubLink' : 'emails.coach.link'),
+    translateFor(locale, toClub ? 'emails.coach.clubFooter' : 'emails.coach.linkFooter'),
+  ]);
+  return {
+    subject: oneLine(subject),
+    text: [intro, '', `${lLink}: ${url}`, '', '—', footer].join('\n'),
+  };
+}
+
+/**
  * To the operator: a profile is waiting. It names nobody: the queue is where
  * the application is read, behind the grant and the second factor, and an
  * inbox is neither.
