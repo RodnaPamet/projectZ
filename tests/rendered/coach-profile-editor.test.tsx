@@ -442,6 +442,39 @@ describe('after the decision', () => {
   });
 });
 
+describe('how long a certificate is kept (#557, decision 28)', () => {
+  const kept = () => t.certificate.keptDays!.replace('{days}', '30');
+
+  it('a draft, and a declined profile, say a certificate is kept 30 days unless sent', () => {
+    installFakeFetch(() => ok(COMPLETE));
+    const { unmount } = mount(COMPLETE);
+    expect(screen.getByTestId('coach-profile-certificate-kept')).toHaveTextContent(kept());
+    unmount();
+    mount({ ...COMPLETE, state: 'DECLINED', decisionNote: 'Снимката не се чете.' });
+    expect(screen.getByTestId('coach-profile-certificate-kept')).toHaveTextContent(kept());
+  });
+
+  it('waiting, approved, or with no certificate, there is nothing to warn about', () => {
+    installFakeFetch(() => ok(COMPLETE));
+    const { unmount } = mount({
+      ...COMPLETE,
+      state: 'SUBMITTED',
+      canEdit: { text: false, certificate: false },
+    });
+    expect(screen.queryByTestId('coach-profile-certificate-kept')).toBeNull();
+    unmount();
+    const again = mount({
+      ...COMPLETE,
+      state: 'APPROVED',
+      canEdit: { text: true, certificate: false },
+    });
+    expect(screen.queryByTestId('coach-profile-certificate-kept')).toBeNull();
+    again.unmount();
+    mount({ ...COMPLETE, certificate: null });
+    expect(screen.queryByTestId('coach-profile-certificate-kept')).toBeNull();
+  });
+});
+
 describe('what is still missing follows the form', () => {
   it('ticking a sport and typing enough text clears each line as it is done', async () => {
     installFakeFetch(() => ok(profile()));

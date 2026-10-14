@@ -227,6 +227,11 @@ const ALLOWED: Record<string, string> = {
     'session, like the sweeps. The rows themselves are WRITTEN bound to the recipient ' +
     '(runAsUserOnly, owner-only RLS); only the drain bypasses, and `queueOperatorEmail` ' +
     '(#545): one insert of a row for the operator\u2019s inbox, which belongs to no user.',
+  'src/app-layer/usecases/coach-certificate-retention.ts':
+    'coaches (#557, owner decision 28): the daily sweep that deletes a certificate on a ' +
+    'profile left DRAFT or DECLINED for 30 days. Certificates are a person and owner-only ' +
+    'under RLS, and the sweep is the platform, bound to no person; it reads no content, ' +
+    'deletes by the profile state alone, and counts what is left for the operator.',
   'src/app-layer/usecases/coach-directory.ts':
     'coaches (#546): the public card of a coach (the name, and for a coach the platform ' +
     'approved, the text, qualifications and sports). A coach\u2019s profile belongs to a person ' +

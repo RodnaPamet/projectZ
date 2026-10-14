@@ -7,7 +7,13 @@ import { encryptField } from '@/lib/security/encryption';
 import { clearAllRateLimits } from '@/lib/security/rate-limit';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
-import { prismaTestClient, seedTenant, seedVenue, type SeededTenant } from '../helpers/db';
+import {
+  prismaTestClient,
+  seedAccount,
+  seedTenant,
+  seedVenue,
+  type SeededTenant,
+} from '../helpers/db';
 import { asAppSuperuser } from '../helpers/rls';
 import { EXPORT_EXCLUDED_COLUMNS } from '../helpers/export-excluded';
 
@@ -366,8 +372,9 @@ describe('GET /api/v1/me/export (#370)', () => {
       'inviteLinks',
       'messages',
       'openPlay',
+      'coach',
     ]);
-    expect(json.version).toBe(5);
+    expect(json.version).toBe(6);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
@@ -546,6 +553,147 @@ describe('GET /api/v1/me/export (#370)', () => {
     for (const column of EXPORT_EXCLUDED_COLUMNS) {
       expect({ column, present: keys.has(column) }).toEqual({ column, present: false });
     }
+  });
+
+  it('a coach gets what they did as a coach, and only how many players they taught (#552)', async () => {
+    const coachId = await seedAccount('COACH', db);
+    const admin = await seedAccount('PLAYER', db);
+    const coach = await signInAs(db, { userId: coachId, memberships: [] });
+    const start = new Date(Date.now() - 2 * DAY);
+    await asAppSuperuser(db, async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT set_config('app.platform_admin_id', $1, true)`, admin);
+      await tx.coachProfile.create({
+        data: {
+          userId: coachId,
+          slug: 'ivan-export',
+          bio: 'Треньор по тенис.',
+          status: 'APPROVED',
+          submittedAt: new Date(),
+          decidedAt: new Date(),
+          decidedByUserId: admin,
+          sports: { create: [{ sport: 'TENNIS', levelMin: 1, levelMax: 5 }] },
+        },
+      });
+      await tx.coachCertificate.create({
+        data: {
+          userId: coachId,
+          fileName: 'licence.pdf',
+          mimeType: 'application/pdf',
+          byteSize: 4,
+          sha256: 'c'.repeat(64),
+          content: Buffer.from('%PDF'),
+        },
+      });
+      const link = await tx.coach.create({
+        data: {
+          tenantId: club.tenantId,
+          venueId: court.venueId,
+          userId: coachId,
+          status: 'ACTIVE',
+          startedBy: 'COACH',
+          hourlyRateCents: 4000,
+          lessonMinutes: [60],
+          cancelCutoffHours: 12,
+        },
+      });
+      await tx.coachAvailability.create({
+        data: {
+          tenantId: club.tenantId,
+          coachId: link.id,
+          dayOfWeek: 1,
+          openTime: new Date('1970-01-01T09:00:00Z'),
+          closeTime: new Date('1970-01-01T12:00:00Z'),
+        },
+      });
+      await tx.coachTimeOff.create({
+        data: {
+          userId: coachId,
+          startDate: new Date('2026-12-24'),
+          endDate: new Date('2026-12-26'),
+          note: 'Коледа',
+        },
+      });
+      const booking = await tx.booking.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: court.resourceId,
+          startTs: start,
+          endTs: new Date(start.getTime() + HOUR),
+          status: 'COMPLETED',
+          totalCents: 2400,
+          idempotencyKey: `export-lesson-${coachId}`,
+          bookedByUserId: player.userId,
+        },
+      });
+      const lesson = await tx.coachLesson.create({
+        data: {
+          tenantId: club.tenantId,
+          bookingId: booking.id,
+          coachId: link.id,
+          coachUserId: coachId,
+          startTs: booking.startTs,
+          endTs: booking.endTs,
+          hourlyRateCents: 4000,
+          cancelCutoffHours: 12,
+          coachFeeCents: 4000,
+        },
+      });
+      await tx.coachReview.create({
+        data: {
+          tenantId: club.tenantId,
+          lessonId: lesson.id,
+          coachUserId: coachId,
+          authorUserId: player.userId,
+          rating: 5,
+          body: 'Търпелив.',
+          status: 'PUBLISHED',
+        },
+      });
+    });
+
+    const { json, text } = await download(coach);
+    expect(json.coach).toEqual({
+      profile: expect.objectContaining({
+        slug: 'ivan-export',
+        status: 'APPROVED',
+        sports: [{ sport: 'TENNIS', levelMin: 1, levelMax: 5 }],
+      }),
+      certificate: {
+        fileName: 'licence.pdf',
+        mimeType: 'application/pdf',
+        byteSize: 4,
+        sha256: 'c'.repeat(64),
+        uploadedAt: expect.any(String),
+      },
+      venues: [
+        expect.objectContaining({
+          club: 'Клуб Алфа',
+          venue: 'Алфа Кортове',
+          status: 'ACTIVE',
+          hourlyRateCents: 4000,
+          lessonMinutes: [60],
+          hours: [{ dayOfWeek: 1, open: '09:00', close: '12:00' }],
+        }),
+      ],
+      daysOff: [{ from: '2026-12-24', to: '2026-12-26', note: 'Коледа' }],
+      lessonsTaught: [
+        expect.objectContaining({
+          club: 'Клуб Алфа',
+          venue: 'Алфа Кортове',
+          status: 'COMPLETED',
+          coachFeeCents: 4000,
+          players: 1,
+        }),
+      ],
+      reviewsReceived: [expect.objectContaining({ rating: 5, text: 'Търпелив.' })],
+    });
+    // The player they taught is a count, never a name or a number; the
+    // certificate is described, never carried.
+    expect(text).not.toContain('Мария Иванова');
+    expect(text).not.toContain('+359888000111');
+    expect(text).not.toContain('%PDF');
+    // And a player who never coached has none of it.
+    expect((await download(player)).json.coach).toBeNull();
   });
 
   it('a club account gets its holder’s own data, not the club’s', async () => {

@@ -20,6 +20,7 @@ import {
   CERTIFICATE_MAX_BYTES,
   CERTIFICATE_TYPES,
   certificateSize,
+  DRAFT_CERTIFICATE_KEPT_DAYS,
 } from '@/lib/coaches/certificate-limits';
 import {
   COACH_BIO_MAX,
@@ -382,6 +383,12 @@ export function CoachProfileEditor({
                 })
               : t('certificate.none')}
           </p>
+          {/* Decision 28 (#557): a certificate nobody will look at is not kept. */}
+          {profile.certificate && (profile.state === 'DRAFT' || profile.state === 'DECLINED') ? (
+            <Caption data-testid="coach-profile-certificate-kept">
+              {t('certificate.keptDays', { days: DRAFT_CERTIFICATE_KEPT_DAYS })}
+            </Caption>
+          ) : null}
           {canFile ? (
             <div className="gap-compact flex flex-wrap items-center">
               <label

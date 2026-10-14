@@ -310,7 +310,8 @@
         "signedOut": "Sign in again to book this time.",
         "failedTitle": "The booking was not made",
         "failed": "Try again. If the connection dropped, trying again will not make a second booking."
-      }
+      },
+      "details": "Booking details"
     },
     "gallery": {
       "title": "Photos",
@@ -3160,7 +3161,8 @@
       "upload": "Upload",
       "remove": "Remove",
       "lockedSubmitted": "The certificate cannot be changed while the profile is being read.",
-      "lockedApproved": "You were approved on this certificate. To change it, write to us."
+      "lockedApproved": "You were approved on this certificate. To change it, write to us.",
+      "keptDays": "A certificate on a profile that is not sent is kept for {days} days. If the profile is not sent for approval by then, the certificate is deleted and you will need to upload it again."
     },
     "save": "Save",
     "saved": "Saved.",

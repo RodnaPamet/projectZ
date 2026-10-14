@@ -125,7 +125,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 5;
+  version: 6;
   exportedAt: string;
   profile: {
     id: string;
@@ -336,6 +336,69 @@ export interface PersonalDataExport {
       decidedAt: string | null;
     }>;
   };
+  /**
+   * What the person did as a coach (#552; version 6). Null for an account
+   * that never was one. Of the players they taught, only how many: their
+   * names and phones are other people's.
+   */
+  coach: {
+    profile: {
+      slug: string;
+      status: string;
+      bio: string | null;
+      qualifications: string | null;
+      sports: Array<{ sport: string; levelMin: number; levelMax: number }>;
+      submittedAt: string | null;
+      decidedAt: string | null;
+      /** The platform's note on a decline or a removal, as written to them. */
+      decisionNote: string | null;
+    } | null;
+    /**
+     * The certificate they uploaded, described: the file itself is the one
+     * they sent, kept only while decision 17 or 28 keeps it.
+     */
+    certificate: {
+      fileName: string;
+      mimeType: string;
+      byteSize: number;
+      sha256: string;
+      uploadedAt: string;
+    } | null;
+    /** Where they teach, or asked to: the terms and the weekly hours. */
+    venues: Array<{
+      club: string;
+      venue: string;
+      status: string;
+      startedBy: string;
+      hourlyRateCents: number | null;
+      groupRateCents: number | null;
+      currency: string;
+      lessonMinutes: number[];
+      cancelCutoffHours: number;
+      hours: Array<{ dayOfWeek: number; open: string; close: string }>;
+      createdAt: string;
+      decidedAt: string | null;
+      endedAt: string | null;
+    }>;
+    daysOff: Array<{ from: string; to: string; note: string | null }>;
+    lessonsTaught: Array<{
+      club: string;
+      venue: string;
+      court: string;
+      start: string;
+      end: string;
+      status: string;
+      coachFeeCents: number;
+      players: number;
+    }>;
+    /** Reviews of them (#551), without who wrote each. */
+    reviewsReceived: Array<{
+      rating: number;
+      text: string | null;
+      status: string;
+      createdAt: string;
+    }>;
+  } | null;
 }
 
 export interface ExportedBooking {
@@ -551,6 +614,7 @@ export async function readPersonalData(
 
   const messaging = await readMessaging(db, userId);
   const openPlay = await readOpenPlay(db, userId);
+  const coach = await readCoach(db, userId);
 
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own sessions, by their id.
@@ -708,7 +772,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 5,
+    version: 6,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -868,6 +932,167 @@ export async function readPersonalData(
     })),
     messages: { shownInPlayerSearch: user.searchable, ...messaging },
     openPlay,
+    coach,
+  };
+}
+
+/** A wall-clock `time` column, "09:00". */
+const hhmm = (d: Date) => d.toISOString().slice(11, 16);
+
+/**
+ * The person as a coach (#552): their profile and certificate (described),
+ * their links with terms and hours, days off, the lessons they taught and the
+ * reviews of them. Null when there is none of it.
+ */
+async function readCoach(db: PrismaClient, userId: string): Promise<PersonalDataExport['coach']> {
+  const [profile, certificate, links, daysOff, lessons, reviews] = await Promise.all([
+    db.coachProfile.findUnique({
+      where: { userId },
+      select: {
+        slug: true,
+        status: true,
+        bio: true,
+        qualifications: true,
+        submittedAt: true,
+        decidedAt: true,
+        decisionNote: true,
+        sports: {
+          select: { sport: true, levelMin: true, levelMax: true },
+          orderBy: { sport: 'asc' },
+        },
+      },
+    }),
+    db.coachCertificate.findUnique({
+      where: { userId },
+      // Never the content: the export describes the file.
+      select: { fileName: true, mimeType: true, byteSize: true, sha256: true, uploadedAt: true },
+    }),
+    // guardrail-allow: cross-tenant — the person's own links, at every club, by their id.
+    db.coach.findMany({
+      where: { userId },
+      select: {
+        tenantId: true,
+        status: true,
+        startedBy: true,
+        hourlyRateCents: true,
+        groupRateCents: true,
+        currency: true,
+        lessonMinutes: true,
+        cancelCutoffHours: true,
+        createdAt: true,
+        decidedAt: true,
+        endedAt: true,
+        venue: { select: { name: true } },
+        availability: {
+          select: { dayOfWeek: true, openTime: true, closeTime: true },
+          orderBy: [{ dayOfWeek: 'asc' }, { openTime: 'asc' }],
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    db.coachTimeOff.findMany({
+      where: { userId },
+      select: { startDate: true, endDate: true, note: true },
+      orderBy: { startDate: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the lessons the person taught, at every club, by their id.
+    db.coachLesson.findMany({
+      where: { coachUserId: userId },
+      select: {
+        tenantId: true,
+        startTs: true,
+        endTs: true,
+        coachFeeCents: true,
+        booking: {
+          select: {
+            status: true,
+            _count: { select: { participants: true } },
+            resource: { select: { name: true, venue: { select: { name: true } } } },
+          },
+        },
+      },
+      orderBy: { startTs: 'desc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the reviews of the person as a coach, by their id.
+    db.coachReview.findMany({
+      where: { coachUserId: userId },
+      select: { rating: true, body: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+  ]);
+  if (!profile && !certificate && links.length === 0 && lessons.length === 0) return null;
+
+  const tenantIds = [...new Set([...links, ...lessons].map((r) => r.tenantId))];
+  const clubs = new Map(
+    tenantIds.length === 0
+      ? []
+      : (
+          await db.venueOrg.findMany({
+            where: { id: { in: tenantIds } },
+            select: { id: true, name: true },
+            take: tenantIds.length,
+          })
+        ).map((c) => [c.id, c.name]),
+  );
+  const iso = (d: Date | null) => d?.toISOString() ?? null;
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+
+  return {
+    profile: profile
+      ? {
+          slug: profile.slug,
+          status: profile.status,
+          bio: profile.bio,
+          qualifications: profile.qualifications,
+          sports: profile.sports,
+          submittedAt: iso(profile.submittedAt),
+          decidedAt: iso(profile.decidedAt),
+          decisionNote: profile.decisionNote,
+        }
+      : null,
+    certificate: certificate
+      ? { ...certificate, uploadedAt: certificate.uploadedAt.toISOString() }
+      : null,
+    venues: links.map((l) => ({
+      club: clubs.get(l.tenantId) ?? '',
+      venue: l.venue.name,
+      status: l.status,
+      startedBy: l.startedBy,
+      hourlyRateCents: l.hourlyRateCents,
+      groupRateCents: l.groupRateCents,
+      currency: l.currency,
+      lessonMinutes: l.lessonMinutes,
+      cancelCutoffHours: l.cancelCutoffHours,
+      hours: l.availability.map((h) => ({
+        dayOfWeek: h.dayOfWeek,
+        open: hhmm(h.openTime),
+        close: hhmm(h.closeTime),
+      })),
+      createdAt: l.createdAt.toISOString(),
+      decidedAt: iso(l.decidedAt),
+      endedAt: iso(l.endedAt),
+    })),
+    daysOff: daysOff.map((d) => ({ from: day(d.startDate), to: day(d.endDate), note: d.note })),
+    lessonsTaught: lessons.map((l) => ({
+      club: clubs.get(l.tenantId) ?? '',
+      venue: l.booking.resource.venue.name,
+      court: l.booking.resource.name,
+      start: l.startTs.toISOString(),
+      end: l.endTs.toISOString(),
+      status: l.booking.status,
+      coachFeeCents: l.coachFeeCents,
+      players: 1 + l.booking._count.participants,
+    })),
+    reviewsReceived: reviews.map((r) => ({
+      rating: r.rating,
+      text: r.body,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    })),
   };
 }
 
