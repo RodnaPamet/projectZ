@@ -299,7 +299,10 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2]
-    timeout-minutes: 25
+    # A half takes about 10 minutes; on a slow runner (2026-10-14, train 17)
+    # one took 24 and was cancelled with every test passing. 40 still stops
+    # a hang well before GitHub's six hours.
+    timeout-minutes: 40
     services:
       postgres:
         image: postgis/postgis:16-3.4
