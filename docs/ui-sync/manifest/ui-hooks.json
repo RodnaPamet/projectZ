@@ -2,52 +2,12 @@
   "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
   "rows": [
     {
-      "path": "src/components/ui/hooks/__tests__/use-threshold-load-more.test.tsx",
-      "inflectPath": "packages/ui/src/components/ui/hooks/__tests__/use-threshold-load-more.test.tsx",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "2c744fafb6600966ad85ff34d0294e9e021900b3f968095a8d22b895664556f0"
-    },
-    {
-      "path": "src/components/ui/hooks/__tests__/use-toast-with-undo.test.ts",
-      "inflectPath": "src/components/ui/hooks/__tests__/use-toast-with-undo.test.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "cc800eeffdae12dbe3e6deadd1bd9df52d28ee1c6e629c63903340ebc0b76be4"
-    },
-    {
-      "path": "src/components/ui/hooks/index.ts",
-      "inflectPath": "src/components/ui/hooks/index.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "ddbb3d7d9db6dd9867e368f43d9cc26a30627e39ca09e1337016e8d1a95df99b"
-    },
-    {
-      "path": "src/components/ui/hooks/use-column-visibility.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-column-visibility.ts",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "status": "vendored",
-      "sha256": "4e9a507e30f33cc8437aca019b626d16c69920dd149118876ebceb6767c756b6"
-    },
-    {
       "path": "src/components/ui/hooks/use-copy-to-clipboard.tsx",
       "inflectPath": "packages/ui/src/components/ui/hooks/use-copy-to-clipboard.tsx",
       "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
       "status": "vendored",
       "sha256": "61261193c39a81079179dfc2aa6711460317165a3cc52d81711020cefeac526f"
-    },
-    {
-      "path": "src/components/ui/hooks/use-cursor-pagination.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-cursor-pagination.ts",
-      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "status": "vendored",
-      "sha256": "446885d8c5b74081b0bfac65dc5b4fecaacf1a34764c73dd4d740571f04f3103"
     },
     {
       "path": "src/components/ui/hooks/use-enter-submit.ts",
@@ -64,22 +24,6 @@
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
       "sha256": "d429d6c072f54e20b8a87cc033e218361441a3332b7ac2738d74c66cde32a481"
-    },
-    {
-      "path": "src/components/ui/hooks/use-input-focused.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-input-focused.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "fcd8fe899e5426820861a6c35ed07f993daf55e81383990803175bd7fcc645c1"
-    },
-    {
-      "path": "src/components/ui/hooks/use-intersection-observer.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-intersection-observer.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "9f582f3c1269286d344dd4649af69f8353dc439645e888bf5ba0325d619c736e"
     },
     {
       "path": "src/components/ui/hooks/use-is-below-md.ts",
@@ -114,28 +58,12 @@
       "sha256": "f2d2a36174cb7773c21ce72469f4f2a8d05cf2279a703e53436c49f625e81ebc"
     },
     {
-      "path": "src/components/ui/hooks/use-optimistic-update.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-optimistic-update.ts",
-      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "status": "vendored",
-      "sha256": "b2674b604ef3cb6ce1da386864a29653092921c5d2a85eb3191cbd08f8a44f1a"
-    },
-    {
       "path": "src/components/ui/hooks/use-resize-observer.ts",
       "inflectPath": "packages/ui/src/components/ui/hooks/use-resize-observer.ts",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
       "sha256": "33241c1ed570d005a74d1554397c0f76926743c87258372518cdfa22f6cfe382"
-    },
-    {
-      "path": "src/components/ui/hooks/use-responsive-presentation.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-responsive-presentation.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "50c812289b190cbe57f3d2df4150cf65858e0e4b70babfd2388c45a066f3f58b"
     },
     {
       "path": "src/components/ui/hooks/use-scroll-progress.ts",
@@ -146,52 +74,12 @@
       "sha256": "06330b694ae0ef7d87dfb4a38cf83b7dbea1e73053bdfddd1bc527c880297f91"
     },
     {
-      "path": "src/components/ui/hooks/use-scroll.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-scroll.ts",
-      "baseSha": "1520b8b87",
-      "sha": null,
-      "status": "pending",
-      "sha256": "ac4b2cdb28f908ad4b7849266d622bf62989c6e008e5c04d412360a28bda3fb0"
-    },
-    {
       "path": "src/components/ui/hooks/use-ssr-fallback.ts",
       "inflectPath": "packages/ui/src/components/ui/hooks/use-ssr-fallback.ts",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
       "sha256": "df3c842e413e54e515b18d6fbb65f78720619cefaa9b46014f2db8d293cc3c60"
-    },
-    {
-      "path": "src/components/ui/hooks/use-threshold-load-more.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-threshold-load-more.ts",
-      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "status": "vendored",
-      "sha256": "2211ca4844ec0f9e546d0fed76abbe1f5aabffc73abc318da71ddb86be68ef76"
-    },
-    {
-      "path": "src/components/ui/hooks/use-toast-with-undo.ts",
-      "inflectPath": "src/components/ui/hooks/use-toast-with-undo.ts",
-      "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
-      "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
-      "status": "vendored",
-      "sha256": "00faa8f47f37e4b353944d528c360e055512918e8b58b3e09143a3afd0f2e15e"
-    },
-    {
-      "path": "src/components/ui/hooks/use-toast.ts",
-      "inflectPath": "packages/ui/src/components/ui/hooks/use-toast.ts",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "status": "vendored",
-      "sha256": "6e0acae4288dbfd21aed30598c3cff0fa025f3a13ed3b4b92e596a9e33e12d55"
-    },
-    {
-      "path": "src/components/ui/hooks/use-view-mode.ts",
-      "inflectPath": "src/components/ui/hooks/use-view-mode.ts",
-      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "status": "vendored",
-      "sha256": "0ed1eef8a239e1fdd253f561ed3bf66e6336c227d02f52f22ee4b538c926379b"
     }
   ]
 }

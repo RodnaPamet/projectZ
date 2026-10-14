@@ -7,7 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { ConversationDto, MessageDto } from '@/app/api/v1/_lib/messaging';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { useEnterSubmit } from '@/components/ui/hooks';
+import { useEnterSubmit } from '@/components/ui/hooks/use-enter-submit';
 import { ChevronLeft, Flag, PaperPlane } from '@/components/ui/icons/nucleo';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';

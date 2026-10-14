@@ -61,10 +61,6 @@ interface Allowed {
   reason: string;
 }
 
-const PENDING_UPSTREAM =
-  'pending row, a stale 2026-07 copy; upstream comment to neutralise, ' +
-  'https://github.com/RodnaPamet/inflect-compliance/issues/3133';
-
 const ALLOWED: Allowed[] = [
   // The HKDF info strings and salt that derive the field-encryption keys. They
   // are inputs to the key derivation, not words: changing one makes every
@@ -79,13 +75,6 @@ const ALLOWED: Allowed[] = [
     line: /'inflect-dev-encryption-key-not-for-production-use!!'/,
     reason: 'the dev fallback key; renaming it orphans every locally encrypted value',
   },
-  // Stale pending copies whose upstream file still says it.
-  {
-    file: 'src/components/ui/hooks/index.ts',
-    line: /inflect|coverage|Audit/i,
-    reason: PENDING_UPSTREAM,
-  },
-  { file: 'src/components/ui/icons/index.tsx', line: /\bdub\b/i, reason: PENDING_UPSTREAM },
 ];
 
 interface Finding {
@@ -285,7 +274,9 @@ const isAllowed = (f: Finding, a: Allowed) => a.file === f.file && a.line.test(f
 describe('the scan is not vacuous', () => {
   it('reads the whole tree, and splits it into vendored and owned', () => {
     expect(SOURCE).toEqual(treeFiles(['src'], /\.(?:ts|tsx|js|jsx|mjs|css)$/));
-    expect(ROWS.length).toBeGreaterThan(400);
+    // 357 rows after #336 retired the icon and hook barrels and the 78 files
+    // only they reached (moved to available.json).
+    expect(ROWS.length).toBeGreaterThan(300);
     // Owned sentinels, and a vendored one that must NOT be in the owned set.
     for (const f of [
       'src/components/layout/nav-items.ts',

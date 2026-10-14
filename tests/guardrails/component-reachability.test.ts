@@ -45,8 +45,13 @@ const KEPT: Record<string, string> = {
     'surface to render; it is mounted when the chess analysis page lands',
 };
 
-/** heldByBarrel at T29. Lower it when a re-sync drops a barrel line; never raise it. */
-const HELD_CEILING = 326;
+/**
+ * heldByBarrel: 326 at T29; 219 after #336, when the primitives stopped
+ * importing the icon and hook barrels and those barrels and the 78 files only
+ * they reached were retired. What is left is held by `icons/nucleo`'s barrel.
+ * Lower it when a re-sync drops a barrel line; never raise it.
+ */
+const HELD_CEILING = 219;
 
 const SCOPE = ['src/components/'];
 
