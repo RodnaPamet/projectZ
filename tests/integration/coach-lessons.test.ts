@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server';
 import { POST as cancelRoute } from '@/app/api/v1/t/[slug]/bookings/[id]/cancel/route';
 import { GET as timesGet } from '@/app/api/v1/coaches/[slug]/lesson-times/route';
 import { POST as lessonPost } from '@/app/api/v1/coaches/[slug]/lessons/route';
+import { GET as gameGet, PUT as gamePut } from '@/app/api/v1/me/bookings/[id]/game/route';
+import { POST as inviteLinkPost } from '@/app/api/v1/me/bookings/[id]/invite-links/route';
 import { GET as myBookingGet } from '@/app/api/v1/me/bookings/[id]/route';
 import { GET as myBookingsGet } from '@/app/api/v1/me/bookings/route';
 import { GET as myLessonsGet } from '@/app/api/v1/me/coach-lessons/route';
@@ -1038,6 +1040,52 @@ describe('where a booked lesson is seen', () => {
     expect(
       (both.json.data as { items: Array<{ lesson: unknown }> }).items.map((b) => b.lesson !== null),
     ).toEqual([true, false]);
+  });
+
+  it('a lesson takes no more players and does not look for any, until its fee follows them (#549)', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
+      groupRateCents: 6000,
+    });
+    const p = await player();
+    const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const id = booked.booking.id;
+    const params = { id };
+
+    // The booking page is told so: nothing to add players with.
+    const one = await call(myBookingGet, `/api/v1/me/bookings/${id}`, { bearer: p.bearer }, params);
+    expect(one.json.data).toMatchObject({ playersOpen: false, players: [{ isBooker: true }] });
+
+    // And the writes refuse: no invite link, no open game.
+    const link = await call(
+      inviteLinkPost,
+      `/api/v1/me/bookings/${id}/invite-links`,
+      { method: 'POST', bearer: p.bearer, json: {} },
+      params,
+    );
+    expect([link.status, link.json.error?.code]).toEqual([409, 'BOOKING_PLAYERS_CLOSED']);
+    const view = await call(
+      gameGet,
+      `/api/v1/me/bookings/${id}/game`,
+      { bearer: p.bearer },
+      params,
+    );
+    expect(view.json.data).toMatchObject({ canOpen: false, game: null });
+    const open = await call(
+      gamePut,
+      `/api/v1/me/bookings/${id}/game`,
+      { method: 'PUT', bearer: p.bearer, json: { spots: 1 } },
+      params,
+    );
+    expect([open.status, open.json.error?.code]).toEqual([409, 'GAME_NOT_OPENABLE']);
+    expect(
+      await asAppSuperuser(db, async (tx) => [
+        await tx.bookingInviteLink.count(),
+        await tx.openGame.count(),
+        await tx.bookingParticipant.count(),
+      ]),
+    ).toEqual([0, 0, 0]);
+    // The coach's fee is still the one-player fee it was booked at.
+    expect((await rows()).lessons[0]).toMatchObject({ coachFeeCents: 4000 });
   });
 
   it('a coach the platform has since removed: the lesson still names them and links nowhere', async () => {

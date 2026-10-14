@@ -59,8 +59,10 @@ export default async function CoachProfilePage() {
   return (
     <ViewerScope viewerId={userId}>
       <PageBreadcrumbs items={coachProfileCrumbs(tNav)} />
-      <CoachProfileEditor seed={toMyCoachProfile(profile)}>
-        {showLessons ? <CoachLessonsSection seed={lessonSeed} /> : null}
+      <CoachProfileEditor
+        seed={toMyCoachProfile(profile)}
+        lead={showLessons ? <CoachLessonsSection seed={lessonSeed} /> : null}
+      >
         <CoachVenuesSection seed={toMyCoachLinks(links)} timeOffSeed={timeOff ?? []} />
       </CoachProfileEditor>
     </ViewerScope>

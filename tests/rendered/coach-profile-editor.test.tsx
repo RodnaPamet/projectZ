@@ -499,3 +499,34 @@ describe('the small rules', () => {
     expect(t.error[key]).toEqual(expect.any(String));
   });
 });
+
+describe('what the page puts around the profile', () => {
+  it('`lead` comes after the status and before the profile’s own fields; `children` after them', () => {
+    installFakeFetch(() => ok({}));
+    const seed = profile();
+    render(
+      withIntl(
+        <DataProvider>
+          <SWRConfig value={{ provider: () => new Map() }}>
+            <TooltipProvider>
+              <ViewerScope viewerId="usr_coach">
+                <CoachProfileEditor seed={seed} lead={<div data-testid="slot-lead" />}>
+                  <div data-testid="slot-after" />
+                </CoachProfileEditor>
+              </ViewerScope>
+            </TooltipProvider>
+          </SWRConfig>
+        </DataProvider>,
+      ),
+    );
+    const order = (a: HTMLElement, b: HTMLElement) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+    const state = screen.getByTestId('coach-profile-state');
+    const lead = screen.getByTestId('slot-lead');
+    const about = screen.getByTestId('coach-profile-about');
+    const after = screen.getByTestId('slot-after');
+    expect(order(state, lead)).toBeTruthy();
+    expect(order(lead, about)).toBeTruthy();
+    expect(order(about, after)).toBeTruthy();
+  });
+});

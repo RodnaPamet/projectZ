@@ -49,11 +49,16 @@ export async function approveCoach(coachId: string, adminId: string): Promise<st
   return slug;
 }
 
-/** A link a lesson can be booked on: accepted, with a rate, a length and Monday mornings. */
+/**
+ * A link a lesson can be booked on: accepted, with a rate, a length and
+ * Monday mornings; or, with `allWeek`, every day from eight to ten at night,
+ * for a journey that books a lesson whatever day it runs on.
+ */
 export async function seedTeaching(
   coachId: string,
   at: { tenantId: string; venueId: string },
   hourlyRateCents = 4000,
+  opts: { allWeek?: boolean } = {},
 ): Promise<string> {
   return prisma().$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
@@ -70,23 +75,33 @@ export async function seedTeaching(
       },
       select: { id: true },
     });
-    await tx.coachAvailability.create({
-      data: {
-        tenantId: at.tenantId,
-        coachId: link.id,
-        dayOfWeek: 1,
-        openTime: new Date('1970-01-01T09:00:00Z'),
-        closeTime: new Date('1970-01-01T12:00:00Z'),
-      },
+    await tx.coachAvailability.createMany({
+      data: opts.allWeek
+        ? Array.from({ length: 7 }, (_, dayOfWeek) => ({
+            tenantId: at.tenantId,
+            coachId: link.id,
+            dayOfWeek,
+            openTime: new Date('1970-01-01T08:00:00Z'),
+            closeTime: new Date('1970-01-01T22:00:00Z'),
+          }))
+        : [
+            {
+              tenantId: at.tenantId,
+              coachId: link.id,
+              dayOfWeek: 1,
+              openTime: new Date('1970-01-01T09:00:00Z'),
+              closeTime: new Date('1970-01-01T12:00:00Z'),
+            },
+          ],
     });
     return link.id;
   });
 }
 
-/** The club's owner, in a browser of their own. */
-export async function signInClubOwner(
+/** Somebody signed in, in a browser of their own. */
+export async function signInElsewhere(
   browser: Browser,
-  club: IsolatedTenant,
+  account: { email: string; password: string },
   contextOptions: Parameters<Browser['newContext']>[0] = {},
 ) {
   const context = await browser.newContext({
@@ -94,9 +109,16 @@ export async function signInClubOwner(
     extraHTTPHeaders: { 'x-forwarded-for': testClientIp() },
   });
   const page = await context.newPage();
-  await signIn(page, club);
+  await signIn(page, account);
   return { page, close: () => context.close() };
 }
+
+/** The club's owner, in a browser of their own. */
+export const signInClubOwner = (
+  browser: Browser,
+  club: IsolatedTenant,
+  contextOptions: Parameters<Browser['newContext']>[0] = {},
+) => signInElsewhere(browser, club, contextOptions);
 
 const row = (page: Page, venue: ClubVenue) =>
   page.locator(`[data-testid="coach-venue"][data-venue="${venue.venueId}"]`);
@@ -209,6 +231,8 @@ export async function clearCoachLinks(userId: string) {
   await prisma().$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
     await tx.coachTimeOff.deleteMany({ where: { userId } });
+    // A lesson holds its link; it goes with the booking it is on.
+    await tx.booking.deleteMany({ where: { lesson: { coachUserId: userId } } });
     await tx.coach.deleteMany({ where: { userId } });
     await tx.coachProfile.deleteMany({ where: { userId } });
   });

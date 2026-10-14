@@ -263,6 +263,8 @@ export interface LockedBooking {
   sport: SportType;
   /** The club's cancellation cutoff, in hours before the start (#354, #376). */
   cutoffHours: number;
+  /** A lesson with a coach is on this booking (#548). */
+  lesson: boolean;
   participants: Array<{ id: string; userId: string | null; position: number }>;
 }
 
@@ -302,6 +304,7 @@ export async function lockBooking(
         select: { id: true, userId: true, position: true },
         orderBy: { position: 'asc' },
       },
+      lesson: { select: { id: true } },
     },
   });
   if (!b) return null;
@@ -314,14 +317,31 @@ export async function lockBooking(
     capacity: b.resource.capacity,
     sport: b.resource.sport,
     cutoffHours: b.resource.venue.cancellationCutoffHours,
+    lesson: b.lesson !== null,
     participants: b.participants,
   };
 }
 
-/** PENDING or CONFIRMED, and not started: the only time its players may change. */
-export function isOpenForPlayers(b: { status: string; startTs: Date }, now: Date): boolean {
+/**
+ * PENDING or CONFIRMED, and not started: the only time its players may change.
+ *
+ * ═══ NOT A LESSON, UNTIL ITS FEE FOLLOWS THE PLAYERS (#549) ═══
+ *
+ * A lesson's coach is paid the hourly rate for one player and the group rate
+ * from the second (owner decision 9). Nothing changes the fee when a player
+ * is added yet; that arrives with #549, with the page saying what the fee
+ * becomes before anybody is added. Until then a lesson takes no more players
+ * and cannot look for any: a second player at the one-player fee would be a
+ * coach paid the wrong amount, quietly.
+ */
+export function isOpenForPlayers(
+  b: { status: string; startTs: Date; lesson?: boolean | { id: string } | null },
+  now: Date,
+): boolean {
   return (
-    (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTs.getTime() > now.getTime()
+    (b.status === 'PENDING' || b.status === 'CONFIRMED') &&
+    b.startTs.getTime() > now.getTime() &&
+    !b.lesson
   );
 }
 
@@ -421,6 +441,7 @@ export async function listBookingPlayers(input: {
           select: { id: true, userId: true, guestName: true, position: true },
           orderBy: { position: 'asc' },
         },
+        lesson: { select: { id: true } },
       },
     });
     if (!b) return null;

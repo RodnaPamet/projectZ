@@ -3188,6 +3188,7 @@
       "book": "Book lesson",
       "sheet": {
         "title": "Confirm the lesson",
+        "details": "Lesson details",
         "coach": "Coach",
         "venue": "Venue",
         "court": "Court",

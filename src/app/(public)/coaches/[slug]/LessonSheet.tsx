@@ -181,7 +181,17 @@ export function LessonSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={t('title')} description={coachName}>
       <Sheet.Header title={t('title')} description={coachName} />
-      <Sheet.Body className="flex flex-col gap-4" data-testid="lesson-sheet">
+      {/* On a phone the details are taller than the sheet and its body
+          scrolls. A region that scrolls must be reachable from the keyboard,
+          and nothing inside this one takes focus (the buttons are in the
+          actions row), so the body itself does, under a name. */}
+      <Sheet.Body
+        className="flex flex-col gap-4"
+        data-testid="lesson-sheet"
+        role="group"
+        aria-label={t('details')}
+        tabIndex={0}
+      >
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="text-content-muted">{t('coach')}</dt>
           <dd className="text-content-emphasis">{coachName}</dd>

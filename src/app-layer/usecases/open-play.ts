@@ -558,6 +558,7 @@ export async function getBookingGame(input: {
         status: true,
         startTs: true,
         participants: { select: { id: true, userId: true } },
+        lesson: { select: { id: true } },
         resource: {
           select: {
             sport: true,
@@ -614,7 +615,13 @@ export async function getBookingGame(input: {
     bookingId: input.bookingId,
     sport: read.resource.sport,
     cutoffAt: playerCancellableUntil(read.startTs, cutoffHours),
-    canOpen: at.role === 'BOOKER' && read.status === 'CONFIRMED' && beforeCutoff && free > 0,
+    // A lesson does not look for players (`isOpenForPlayers`, #549).
+    canOpen:
+      at.role === 'BOOKER' &&
+      read.status === 'CONFIRMED' &&
+      beforeCutoff &&
+      free > 0 &&
+      read.lesson === null,
     maxSpots: free,
     game: g
       ? {
@@ -726,6 +733,9 @@ export async function openGame(input: {
       );
     }
     if (!playerMayCancel(b.startTs, b.cutoffHours, now)) throw cutoffPassed();
+    if (b.lesson) {
+      throw new OpenPlayError('GAME_NOT_OPENABLE', 409, 'A lesson does not look for players.');
+    }
 
     const free = b.capacity - 1 - b.participants.length;
     if (free <= 0) throw new BookingFullError(b.capacity);
