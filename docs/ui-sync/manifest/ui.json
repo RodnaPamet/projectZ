@@ -27,7 +27,7 @@
     },
     {
       "path": "src/components/ui/button-variants.ts",
-      "inflectPath": "src/components/ui/button-variants.ts",
+      "inflectPath": "packages/ui/src/components/ui/button-variants.ts",
       "baseSha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
       "sha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
       "status": "vendored",
@@ -35,7 +35,7 @@
     },
     {
       "path": "src/components/ui/button.tsx",
-      "inflectPath": "src/components/ui/button.tsx",
+      "inflectPath": "packages/ui/src/components/ui/button.tsx",
       "baseSha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
       "sha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
       "status": "vendored",
@@ -51,7 +51,7 @@
     },
     {
       "path": "src/components/ui/card.tsx",
-      "inflectPath": "src/components/ui/card.tsx",
+      "inflectPath": "packages/ui/src/components/ui/card.tsx",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
@@ -99,7 +99,7 @@
     },
     {
       "path": "src/components/ui/empty-state.tsx",
-      "inflectPath": "src/components/ui/empty-state.tsx",
+      "inflectPath": "packages/ui/src/components/ui/empty-state.tsx",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
@@ -107,7 +107,7 @@
     },
     {
       "path": "src/components/ui/error-state.tsx",
-      "inflectPath": "src/components/ui/error-state.tsx",
+      "inflectPath": "packages/ui/src/components/ui/error-state.tsx",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
@@ -147,7 +147,7 @@
     },
     {
       "path": "src/components/ui/hit-area.ts",
-      "inflectPath": "src/components/ui/hit-area.ts",
+      "inflectPath": "packages/ui/src/components/ui/hit-area.ts",
       "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
       "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
       "status": "vendored",
@@ -284,10 +284,10 @@
     {
       "path": "src/components/ui/toggle-group.tsx",
       "inflectPath": "src/components/ui/toggle-group.tsx",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "baseSha": "63ae2cbd728a483581cd3311b117ca40e64304ea",
+      "sha": "63ae2cbd728a483581cd3311b117ca40e64304ea",
       "status": "vendored",
-      "sha256": "96e911c4e0e7d9e8b57762016ac538b44eba132cd8da0a0d289661a5eebc6ed2"
+      "sha256": "aa322f64107766b5478107d7d5909b7d8d3973c1f8355f0a64b11fc4083e9939"
     },
     {
       "path": "src/components/ui/tooltip.tsx",
@@ -299,7 +299,7 @@
     },
     {
       "path": "src/components/ui/typography.tsx",
-      "inflectPath": "src/components/ui/typography.tsx",
+      "inflectPath": "packages/ui/src/components/ui/typography.tsx",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
