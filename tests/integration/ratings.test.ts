@@ -417,3 +417,47 @@ describe('the performance dashboard', () => {
     expect(stats.engine).toBe('OPENSKILL');
   });
 });
+
+describe('a first rating starts at the declared level (#378, Q24)', () => {
+  it('a player who said 6 at padel starts there, one who said nothing in the middle', async () => {
+    const [declared, silent] = await seedUsers(2);
+    await asAppSuperuser(db, (tx) =>
+      tx.playerSportLevel.create({ data: { userId: declared!, sport: 'PADEL', level: 6 } }),
+    );
+
+    const [a, b] = await Promise.all([
+      currentRating(db, declared!, 'PADEL'),
+      currentRating(db, silent!, 'PADEL'),
+    ]);
+
+    expect(a.state.mu).toBe(33);
+    expect(b.state.mu).toBe(25);
+    // The same uncertainty: the claim decides where they start, not how sure.
+    expect(a.state.sigma).toBe(b.state.sigma);
+  });
+
+  it('the first result moves from the declared level, and the next ones from the history', async () => {
+    const [strong, weak] = await seedUsers(2);
+    await asAppSuperuser(db, (tx) =>
+      tx.playerSportLevel.createMany({
+        data: [
+          { userId: strong!, sport: 'TENNIS', level: 7 },
+          { userId: weak!, sport: 'TENNIS', level: 1 },
+        ],
+      }),
+    );
+    // The weak player beats the strong one: a large upset moves both a lot.
+    await recordMatch(db, {
+      tenantId: tenant.tenantId,
+      sport: 'TENNIS',
+      teams: [[weak!], [strong!]],
+      dedupeKey: `seed-test:${weak}:${strong}`,
+    });
+    const [w, s] = await Promise.all([
+      currentRating(db, weak!, 'TENNIS'),
+      currentRating(db, strong!, 'TENNIS'),
+    ]);
+    expect(w.state.mu).toBeGreaterThan(13);
+    expect(s.state.mu).toBeLessThan(37);
+  });
+});
