@@ -14,8 +14,9 @@ import { getRequestId } from '@/lib/observability/context';
 
 /**
  * GET /api/v1/me/notification-settings — which emails the caller gets (#367,
- * Q22): `{ email: { confirmation, reminder, clubChanges } }`. The bell is
- * always on and has no switch.
+ * Q22), and which kinds ring their phone (#529):
+ * `{ email: { confirmation, … }, push: { confirmation, … }, pushDevices }`.
+ * The bell is always on and has no switch.
  */
 async function getHandler(req: NextRequest) {
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
@@ -27,16 +28,16 @@ async function getHandler(req: NextRequest) {
 }
 
 /**
- * PATCH /api/v1/me/notification-settings — turn email categories on or off.
- * `.strict()`: `{ email: { reminder: false } }` and nothing else; at least one
- * category. Answers the settings as stored.
+ * PATCH /api/v1/me/notification-settings — turn email or push kinds on or
+ * off. `.strict()`: `{ email: { reminder: false } }`, `{ push: { messages:
+ * false } }` or both; at least one kind. Answers the settings as stored.
  */
 async function patchHandler(req: NextRequest) {
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
   if (!ctx.userId) throw new UnauthorizedError('Authentication required');
 
   const body = await parseJsonBody(req, notificationSettingsPatchSchema, 'settings');
-  const settings = await updateMyNotificationSettings(ctx.userId, body.email);
+  const settings = await updateMyNotificationSettings(ctx.userId, body);
   if (!settings) throw new UnauthorizedError('Authentication required');
   return ok(settings);
 }

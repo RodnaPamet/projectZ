@@ -162,22 +162,35 @@ export async function markMyNotificationsRead(input: {
 
 // ─── Email settings (Q22) ───────────────────────────────────────────────
 
+/** The kinds a person switches, for email and for the phone alike. */
+export interface NotificationKinds {
+  confirmation: boolean;
+  reminder: boolean;
+  clubChanges: boolean;
+  messages: boolean;
+  /** «Игри» (#376): requests to one's game, and answers to one's requests. */
+  openPlay: boolean;
+  /**
+   * «Уроци, които водя» (#550, owner decision 22): a coach's notifications
+   * about the lessons they teach. Every account has the setting; only a coach
+   * is shown it, and only a coach is ever sent one.
+   */
+  lessonsTaught: boolean;
+}
+
 export interface NotificationSettings {
   /** The bell is always on; these switch the emails only. */
-  email: {
-    confirmation: boolean;
-    reminder: boolean;
-    clubChanges: boolean;
-    messages: boolean;
-    /** «Игри» (#376): requests to one's game, and answers to one's requests. */
-    openPlay: boolean;
-    /**
-     * «Уроци, които водя» (#550, owner decision 22): a coach's emails about
-     * the lessons they teach. Every account has the setting; only a coach is
-     * shown it, and only a coach is ever sent such an email.
-     */
-    lessonsTaught: boolean;
-  };
+  email: NotificationKinds;
+  /**
+   * The same kinds on the phone (#529, P77): whether an event also pushes to
+   * the person's registered devices.
+   */
+  push: NotificationKinds;
+  /**
+   * How many phones this account has registered for push. At 0 the push
+   * switches decide nothing yet, and a screen may leave them out.
+   */
+  pushDevices: number;
 }
 
 const SETTINGS_SELECT = {
@@ -187,26 +200,46 @@ const SETTINGS_SELECT = {
   emailMessages: true,
   emailOpenPlay: true,
   emailLessonsTaught: true,
+  pushBookingConfirmations: true,
+  pushBookingReminders: true,
+  pushClubChanges: true,
+  pushMessages: true,
+  pushOpenPlay: true,
+  pushLessonsTaught: true,
 } as const;
 
-function toSettings(u: {
-  emailBookingConfirmations: boolean;
-  emailBookingReminders: boolean;
-  emailClubChanges: boolean;
-  emailMessages: boolean;
-  emailOpenPlay: boolean;
-  emailLessonsTaught: boolean;
-}): NotificationSettings {
-  return {
-    email: {
-      confirmation: u.emailBookingConfirmations,
-      reminder: u.emailBookingReminders,
-      clubChanges: u.emailClubChanges,
-      messages: u.emailMessages,
-      openPlay: u.emailOpenPlay,
-      lessonsTaught: u.emailLessonsTaught,
-    },
-  };
+type SettingsRow = { -readonly [K in keyof typeof SETTINGS_SELECT]: boolean };
+
+/** Each kind's column, per channel. One table, read by both directions. */
+const COLUMN: Record<'email' | 'push', Record<keyof NotificationKinds, keyof SettingsRow>> = {
+  email: {
+    confirmation: 'emailBookingConfirmations',
+    reminder: 'emailBookingReminders',
+    clubChanges: 'emailClubChanges',
+    messages: 'emailMessages',
+    openPlay: 'emailOpenPlay',
+    lessonsTaught: 'emailLessonsTaught',
+  },
+  push: {
+    confirmation: 'pushBookingConfirmations',
+    reminder: 'pushBookingReminders',
+    clubChanges: 'pushClubChanges',
+    messages: 'pushMessages',
+    openPlay: 'pushOpenPlay',
+    lessonsTaught: 'pushLessonsTaught',
+  },
+};
+
+const KINDS = Object.keys(COLUMN.email) as Array<keyof NotificationKinds>;
+
+function kindsOf(u: SettingsRow, channel: 'email' | 'push'): NotificationKinds {
+  return Object.fromEntries(
+    KINDS.map((k) => [k, u[COLUMN[channel][k]]]),
+  ) as unknown as NotificationKinds;
+}
+
+function toSettings(u: SettingsRow, pushDevices: number): NotificationSettings {
+  return { email: kindsOf(u, 'email'), push: kindsOf(u, 'push'), pushDevices };
 }
 
 /** Null when the account row is gone; the route answers that as signed out. */
@@ -214,26 +247,33 @@ export async function getMyNotificationSettings(
   userId: string,
 ): Promise<NotificationSettings | null> {
   // `app_user` carries no row security (P04); the WHERE is the session's id.
-  const u = await runAsUserOnly(userId, (db) =>
-    db.user.findUnique({ where: { id: userId }, select: SETTINGS_SELECT }),
-  );
-  return u ? toSettings(u) : null;
+  // `device_token` is the person's own (owner-only under RLS).
+  return runAsUserOnly(userId, async (db) => {
+    const u = await db.user.findUnique({ where: { id: userId }, select: SETTINGS_SELECT });
+    if (!u) return null;
+    return toSettings(u, await db.deviceToken.count({ where: { userId } }));
+  });
 }
 
 export async function updateMyNotificationSettings(
   userId: string,
-  patch: Partial<NotificationSettings['email']>,
+  patch: {
+    email?: Partial<NotificationKinds>;
+    push?: Partial<NotificationKinds>;
+  },
 ): Promise<NotificationSettings | null> {
-  const data = {
-    ...(patch.confirmation !== undefined ? { emailBookingConfirmations: patch.confirmation } : {}),
-    ...(patch.reminder !== undefined ? { emailBookingReminders: patch.reminder } : {}),
-    ...(patch.clubChanges !== undefined ? { emailClubChanges: patch.clubChanges } : {}),
-    ...(patch.messages !== undefined ? { emailMessages: patch.messages } : {}),
-    ...(patch.openPlay !== undefined ? { emailOpenPlay: patch.openPlay } : {}),
-    ...(patch.lessonsTaught !== undefined ? { emailLessonsTaught: patch.lessonsTaught } : {}),
-  };
-  const u = await runAsUserOnly(userId, (db) =>
-    db.user.update({ where: { id: userId }, data, select: SETTINGS_SELECT }).catch(() => null),
-  );
-  return u ? toSettings(u) : null;
+  const data: Partial<SettingsRow> = {};
+  for (const channel of ['email', 'push'] as const) {
+    for (const k of KINDS) {
+      const value = patch[channel]?.[k];
+      if (value !== undefined) data[COLUMN[channel][k]] = value;
+    }
+  }
+  return runAsUserOnly(userId, async (db) => {
+    const u = await db.user
+      .update({ where: { id: userId }, data, select: SETTINGS_SELECT })
+      .catch(() => null);
+    if (!u) return null;
+    return toSettings(u, await db.deviceToken.count({ where: { userId } }));
+  });
 }

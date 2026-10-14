@@ -1,5 +1,6 @@
 import type { NotificationKind, Prisma } from '@prisma/client';
 
+import { pushToAllDevices } from '@/app-layer/usecases/notifications';
 import { runAsSuperuser, runAsUserOnly } from '@/lib/db/rls-middleware';
 import { contactInboxAddress } from '@/lib/email/contact-inbox';
 import {
@@ -66,6 +67,13 @@ export type EmailCategory =
   // account (P72: whether they may teach). No setting turns it off.
   | 'account';
 
+/**
+ * The kinds that ring the phone (#529), each with its own switch (P77). The
+ * email kinds without `contact` (the operator's, never a person's); `account`
+ * has no switch, as for email.
+ */
+export type PushKind = Exclude<EmailCategory, 'contact'>;
+
 export const NOTIFICATION_TITLE_MAX = 80;
 export const NOTIFICATION_BODY_MAX = 200;
 export const EMAIL_SUBJECT_MAX = 150;
@@ -89,6 +97,14 @@ export interface Delivery {
   href?: string | null;
   refType?: string | null;
   refId?: string | null;
+  /**
+   * Which push switch decides whether this rings the phone (#529). Left out,
+   * it is the email's category, so an event that would email also pushes;
+   * `null` means the bell only, even when there is an email. A push goes out
+   * once, when the bell row is first written: a hook that fires twice writes
+   * one row, so it rings once.
+   */
+  push?: PushKind | null;
   /** Null: bell only. Given: an outbox row too, if the person wants it. */
   email?: {
     category: EmailCategory;
@@ -113,8 +129,97 @@ export interface Delivery {
   } | null;
 }
 
-/** Persist the bell row and, when wanted, its email. Never throws. */
+/**
+ * Persist the bell row and, when wanted, its email; then, for a new bell row
+ * the person wants on the phone, push it (#529). Never throws.
+ */
 export async function deliver(d: Delivery): Promise<{ bell: boolean; email: boolean }> {
+  const written = await write(d);
+  if (written.bell) await pushOnce(d);
+  return written;
+}
+
+function pushKindOf(d: Delivery): PushKind | null {
+  if (d.push !== undefined) return d.push;
+  const category = d.email?.category;
+  return category && category !== 'contact' ? category : null;
+}
+
+/** Whether the person wants this kind on the phone. `account` always rings. */
+export function wantsPush(
+  user: {
+    pushBookingConfirmations: boolean;
+    pushBookingReminders: boolean;
+    pushClubChanges: boolean;
+    pushMessages: boolean;
+    pushOpenPlay: boolean;
+    pushLessonsTaught: boolean;
+  },
+  kind: PushKind,
+): boolean {
+  switch (kind) {
+    case 'confirmation':
+      return user.pushBookingConfirmations;
+    case 'reminder':
+      return user.pushBookingReminders;
+    case 'clubChanges':
+      return user.pushClubChanges;
+    case 'messages':
+      return user.pushMessages;
+    case 'openPlay':
+      return user.pushOpenPlay;
+    case 'lessonsTaught':
+      return user.pushLessonsTaught;
+    case 'account':
+      return true;
+  }
+}
+
+/**
+ * The phone, after the bell row is written. Contained: a push is a delivery
+ * on top of the row, which already exists, so a failure here is logged and
+ * nothing else. Devices Apple says are dead are removed by the fan-out.
+ */
+async function pushOnce(d: Delivery): Promise<void> {
+  const kind = pushKindOf(d);
+  if (!kind) return;
+  try {
+    await runAsUserOnly(d.userId, async (db) => {
+      const user = await db.user.findUnique({
+        where: { id: d.userId },
+        select: {
+          deletedAt: true,
+          pushBookingConfirmations: true,
+          pushBookingReminders: true,
+          pushClubChanges: true,
+          pushMessages: true,
+          pushOpenPlay: true,
+          pushLessonsTaught: true,
+        },
+      });
+      if (!user || user.deletedAt || !wantsPush(user, kind)) return;
+      await pushToAllDevices(db, {
+        userId: d.userId,
+        payload: {
+          title: sanitizePlainText(d.title).slice(0, NOTIFICATION_TITLE_MAX),
+          body: sanitizePlainText(d.body).slice(0, NOTIFICATION_BODY_MAX),
+          url: d.href ?? '/',
+          // One thread per subject (a booking, a conversation), as the bell's
+          // own `notify` groups them.
+          tag: d.refId ? `${d.refType}:${d.refId}` : undefined,
+        },
+      });
+    });
+  } catch (err) {
+    logger.warn('notification not pushed', {
+      component: 'notifications',
+      kind: d.kind,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+async function write(d: Delivery): Promise<{ bell: boolean; email: boolean }> {
   try {
     return await runAsUserOnly(d.userId, async (db) => {
       const bell = await db.notification.createMany({

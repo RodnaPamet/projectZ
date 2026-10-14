@@ -53,7 +53,9 @@ export function NotificationSettingsRow({
     method: 'PATCH',
     body: (email) => ({ email }),
     target: { key },
-    update: (current, email) => ({ email: { ...current.email, ...email } }),
+    // Only the email half changes here; the phone's switches (#529) and the
+    // device count ride along untouched.
+    update: (current, email) => ({ ...current, email: { ...current.email, ...email } }),
     fallback: seed,
   });
 
