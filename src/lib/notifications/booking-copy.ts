@@ -74,6 +74,10 @@ export type BookingBellEvent =
   | 'reminder'
   | 'cancelledByClub'
   | 'cancelledByBooker'
+  // A lesson, cancelled by its coach (#549, owner decision 8), or because
+  // the platform removed the coach (decision 21).
+  | 'cancelledByCoach'
+  | 'cancelledCoachRemoved'
   | 'seriesCreated'
   | 'seriesMoved'
   | 'seriesCancelled'
@@ -115,7 +119,20 @@ export async function bellCopy(
 }
 
 export type BookingEmailEvent =
-  'confirmed' | 'reminder' | 'cancelledByClub' | 'seriesCreated' | 'seriesMoved';
+  | 'confirmed'
+  | 'reminder'
+  | 'cancelledByClub'
+  | 'cancelledByCoach'
+  | 'cancelledCoachRemoved'
+  | 'seriesCreated'
+  | 'seriesMoved';
+
+/** A cancellation: what no longer applies (payment, the deadline) is left out. */
+const CANCELLED: ReadonlySet<BookingEmailEvent> = new Set([
+  'cancelledByClub',
+  'cancelledByCoach',
+  'cancelledCoachRemoved',
+]);
 
 /**
  * A booking email. The labelled lines are the owner's list (Q22): venue,
@@ -152,7 +169,7 @@ export async function bookingEmail(
     `${await l('zone')}: ${tz}`,
   ];
 
-  if (event !== 'cancelledByClub') {
+  if (!CANCELLED.has(event)) {
     const deadline = new Date(facts.startTs.getTime() - facts.cutoffHours * 3_600_000);
     lines.push(`${await l('payment')}: ${await l('paymentAtClub')}`);
     lines.push(
