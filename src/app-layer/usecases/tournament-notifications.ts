@@ -409,3 +409,149 @@ export async function notifyMatchScheduled(matchId: string): Promise<void> {
     warn('scheduled', err);
   }
 }
+
+/** A booking's start as the reader reads it: «пт, 17 окт., 19:00». */
+const when = (locale: 'bg' | 'en', at: Date) =>
+  new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'bg-BG', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: ZONE,
+  }).format(at);
+
+/** A league match's two sides, by entry, and its booking (#591). */
+async function leagueMatch(matchId: string) {
+  // guardrail-allow: cross-tenant — one match by id, its booking's court,
+  // time and booker, and the two entries on it.
+  return runAsSuperuser((db) =>
+    db.tournamentMatch.findUnique({
+      where: { id: matchId },
+      select: {
+        entryAId: true,
+        entryBId: true,
+        booking: {
+          select: {
+            id: true,
+            startTs: true,
+            bookedByUserId: true,
+            resource: { select: { name: true } },
+          },
+        },
+      },
+    }),
+  );
+}
+
+/** Each side's entry facts, and which side `userId` is on. */
+async function sidesFor(
+  m: { entryAId: string | null; entryBId: string | null },
+  userId: string | null,
+): Promise<{ sides: EntryFacts[]; mine: number } | null> {
+  if (!m.entryAId || !m.entryBId) return null;
+  const sides = await Promise.all([entryFacts(m.entryAId), entryFacts(m.entryBId)]);
+  if (!sides[0] || !sides[1]) return null;
+  const on = (f: EntryFacts) =>
+    !!userId && (f.playerUserId === userId || f.partnerUserId === userId);
+  return { sides: sides as EntryFacts[], mine: on(sides[0]) ? 0 : on(sides[1]) ? 1 : -1 };
+}
+
+const peopleOf = (f: EntryFacts) =>
+  [f.playerUserId, f.partnerUserId].filter((x): x is string => !!x);
+
+/**
+ * One side proposed a time for its league match (#591, 63): the other side is
+ * told, by bell, email and push, to accept or decline it.
+ */
+export async function notifyMatchProposed(matchId: string): Promise<void> {
+  try {
+    const m = await leagueMatch(matchId);
+    if (!m?.booking) return;
+    const booking = m.booking;
+    const s = await sidesFor(m, booking.bookedByUserId);
+    if (!s || s.mine < 0) return;
+    const proposer = s.sides[s.mine]!;
+    const other = s.sides[1 - s.mine]!;
+    const who = proposer.names.get(booking.bookedByUserId!) ?? '';
+    for (const userId of peopleOf(other)) {
+      const reader = await readerOf(userId);
+      if (!reader) continue;
+      await tell(
+        userId,
+        // One notice a proposal: a new time is told again.
+        { ...other, entryId: `${matchId}-${booking.id}` },
+        {
+          kind: 'proposed',
+          who,
+          when: when(reader.locale, booking.startTs),
+          court: booking.resource.name,
+        },
+        {
+          kind: 'TOURNAMENT_ROUND',
+          href: tournamentHref(other.tournamentId),
+          event: `proposed-${userId}`,
+          loud: true,
+        },
+      );
+    }
+  } catch (err) {
+    warn('proposed', err);
+  }
+}
+
+/**
+ * A proposed time let go (#591, 63): declined by the other side, the proposer
+ * is told and proposes again; taken back by the proposer, the other side
+ * hears it on the bell.
+ */
+export async function notifyProposalLetGo(
+  matchId: string,
+  bookingId: string,
+  byUserId: string,
+  answer: 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN',
+): Promise<void> {
+  if (answer === 'ACCEPTED') return;
+  try {
+    const m = await leagueMatch(matchId);
+    if (!m) return;
+    // The released booking, not the match's next one.
+    const booking = await runAsSuperuser((db) =>
+      db.booking.findUnique({
+        where: { id: bookingId },
+        select: { startTs: true, bookedByUserId: true },
+      }),
+    );
+    if (!booking) return;
+    const s = await sidesFor(m, byUserId);
+    if (!s || s.mine < 0) return;
+    const who = s.sides[s.mine]!.names.get(byUserId) ?? '';
+    // The other side: the proposer a decline is for, or whoever a withdrawn time was offered to.
+    const f = s.sides[1 - s.mine]!;
+    const told =
+      answer === 'DECLINED'
+        ? [booking.bookedByUserId].filter((x): x is string => !!x)
+        : peopleOf(f);
+    for (const userId of told) {
+      const reader = await readerOf(userId);
+      if (!reader) continue;
+      await tell(
+        userId,
+        { ...f, entryId: `${matchId}-${bookingId}` },
+        {
+          kind: answer === 'DECLINED' ? 'timeDeclined' : 'timeWithdrawn',
+          who,
+          when: when(reader.locale, booking.startTs),
+        },
+        {
+          kind: 'TOURNAMENT_ROUND',
+          href: tournamentHref(f.tournamentId),
+          event: `${answer.toLowerCase()}-${userId}`,
+          loud: answer === 'DECLINED',
+        },
+      );
+    }
+  } catch (err) {
+    warn('proposal', err);
+  }
+}

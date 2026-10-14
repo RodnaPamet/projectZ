@@ -54,6 +54,16 @@ export const drawBodySchema = z
     /** Americano and Mexicano (#590; decisions 56, 60). */
     rounds: z.number().int().min(1).max(30).nullable().optional(),
     pointsPerMatch: z.number().int().min(4).max(100).nullable().optional(),
+    /** A league (#591, 44): the divisions by entry id, or how many to split by level. */
+    divisions: z
+      .array(z.array(z.string().min(1).max(64)).max(256))
+      .max(32)
+      .nullable()
+      .optional(),
+    divisionCount: z.number().int().min(1).max(32).nullable().optional(),
+    /** The first round's deadline, and the days between one round's and the next. */
+    firstDeadline: at.nullable().optional(),
+    roundDays: z.number().int().min(1).max(60).nullable().optional(),
   })
   .strict();
 
@@ -68,5 +78,15 @@ export const scheduleMatchBodySchema = z
 
 /** `POST /t/{slug}/admin/tournament-matches/{id}/walkover` (#580; decisions 58, 59). */
 export const walkoverBodySchema = z
-  .object({ winnerSide: z.union([z.literal(0), z.literal(1)]) })
+  // null: a league match lost by both (#591, 58).
+  .object({ winnerSide: z.union([z.literal(0), z.literal(1), z.null()]) })
+  .strict();
+
+/** `POST /me/tournament-matches/{id}/proposal` (#591; decisions 62, 63). */
+export const proposeMatchBodySchema = z
+  .object({
+    resourceId: z.string().min(1).max(64),
+    startTs: at,
+    durationMinutes: z.number().int().min(15).max(480),
+  })
   .strict();

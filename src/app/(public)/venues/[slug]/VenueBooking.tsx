@@ -21,6 +21,8 @@ import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 import { resourceNoun } from '@/lib/sports/resource-kinds';
 
+import { allowedMinutes, offersFor, type Offer } from '@/lib/booking/offers';
+
 import { venuePagePath, type InitialPick } from './booking-days';
 import { BookingSheet, type Selection } from './BookingSheet';
 
@@ -64,37 +66,9 @@ interface VenueProps {
   cancellationCutoffHours: number;
 }
 
-/** A free start on one court, offered for one length. */
-interface Offer {
-  startTs: string;
-  endTs: string;
-  minutes: number;
-  priceCents: number;
-}
-
 const MINUTE_MS = 60_000;
 
-/** The lengths a court allows: whole units of its minimum, up to its maximum. */
-export function allowedMinutes(
-  r: Pick<ResourceSlotsDto, 'minBookingMinutes' | 'maxBookingMinutes'>,
-) {
-  const out: number[] = [];
-  const unit = r.minBookingMinutes;
-  if (!(unit > 0)) return out;
-  for (let m = unit; m <= (r.maxBookingMinutes ?? unit); m += unit) out.push(m);
-  return out;
-}
-
-/** The free starts on one court for one length, not yet begun at `now`. */
-export function offersFor(r: ResourceSlotsDto, minutes: number, now: number): Offer[] {
-  const out: Offer[] = [];
-  for (const s of r.slots) {
-    if (!s.available || Date.parse(s.startTs) <= now) continue;
-    const d = s.durations?.find((x) => x.minutes === minutes);
-    if (d) out.push({ startTs: s.startTs, endTs: d.endTs, minutes, priceCents: d.priceCents });
-  }
-  return out;
-}
+export { allowedMinutes, offersFor };
 
 /** The pick the URL asked for, if the seed still offers it. */
 function initialSelection(pick: InitialPick, seed: AvailabilityDto, now: number): Selection | null {

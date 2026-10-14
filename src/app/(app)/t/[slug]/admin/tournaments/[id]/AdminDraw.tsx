@@ -23,6 +23,27 @@ import { useV1SWR } from '@/lib/data/use-v1-swr';
 
 type Court = { id: string; name: string };
 
+/** A league's draw (#591, 44). */
+type LeagueDraw = {
+  divisions?: string[][];
+  divisionCount?: number;
+  firstDeadline?: string;
+  roundDays?: number;
+};
+
+/** The club's divisions by hand: entries by the number typed beside them, 1 by default. */
+function byHandDivisions(
+  entries: ReadonlyArray<{ id: string }>,
+  divisionOf: Record<string, string>,
+): string[][] {
+  const out = new Map<number, string[]>();
+  for (const e of entries) {
+    const n = Math.max(1, Number(divisionOf[e.id] ?? '1') || 1);
+    out.set(n, [...(out.get(n) ?? []), e.id]);
+  }
+  return [...out.keys()].sort((a, b) => a - b).map((n) => out.get(n)!);
+}
+
 /**
  * The draw, for the club (#580): make it, then put each ready match on a court
  * and time (40) or give it as a walkover (58, 59). Results come from the
@@ -57,7 +78,7 @@ export function AdminDraw({
       thirdPlace: boolean;
       rounds?: number;
       pointsPerMatch?: number;
-    },
+    } & LeagueDraw,
     DrawDto
   >({
     url: () => V1.drawTournament(slug, x.id),
@@ -70,7 +91,7 @@ export function AdminDraw({
     url: ({ id }) => V1.tournamentMatchAction(slug, id, 'schedule'),
     body: ({ resourceId, startTs, durationMinutes }) => ({ resourceId, startTs, durationMinutes }),
   });
-  const walkover = useV1Mutation<{ id: string; winnerSide: 0 | 1 }, DrawDto>({
+  const walkover = useV1Mutation<{ id: string; winnerSide: 0 | 1 | null }, DrawDto>({
     url: ({ id }) => V1.tournamentMatchAction(slug, id, 'walkover'),
     body: ({ winnerSide }) => ({ winnerSide }),
   });
@@ -88,8 +109,16 @@ export function AdminDraw({
     }
   }
 
+  // A league's matches past their round's deadline wait for the club (#591, 58).
+  const overdue = draw
+    ? [...draw.groups.flatMap((g) => g.matches), ...draw.knockout.flat()].filter((m) => m.overdue)
+        .length
+    : 0;
   const sideName = (m: DrawMatchDto, i: 0 | 1) =>
-    (i === 0 ? m.sideA : m.sideB)?.players.map((p) => p.name ?? tT('unnamed')).join(' / ') ?? '';
+    (i === 0 ? [m.sideA, m.sideA2] : [m.sideB, m.sideB2])
+      .flatMap((e) => e?.players ?? [])
+      .map((p) => p.name ?? tT('unnamed'))
+      .join(' / ');
 
   return (
     <section className="gap-compact flex flex-col" aria-labelledby="admin-draw">
@@ -115,33 +144,40 @@ export function AdminDraw({
           </Button>
         </>
       ) : drawn && draw ? (
-        <DrawView
-          draw={draw}
-          actions={(m) =>
-            m.status === 'READY' && x.status === 'IN_PROGRESS' ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setScheduling(m)}
-                  data-testid="admin-draw-schedule"
-                >
-                  {m.scheduled ? t('move') : t('schedule')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setWalkingOver(m)}
-                  data-testid="admin-draw-walkover"
-                >
-                  {t('walkover')}
-                </Button>
-              </div>
-            ) : null
-          }
-        />
+        <>
+          {overdue > 0 ? (
+            <InlineNotice variant="warning" data-testid="admin-draw-overdue">
+              {t('overdue', { count: overdue })}
+            </InlineNotice>
+          ) : null}
+          <DrawView
+            draw={draw}
+            actions={(m) =>
+              m.status === 'READY' && x.status === 'IN_PROGRESS' ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setScheduling(m)}
+                    data-testid="admin-draw-schedule"
+                  >
+                    {m.scheduled ? t('move') : t('schedule')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setWalkingOver(m)}
+                    data-testid="admin-draw-walkover"
+                  >
+                    {t('walkover')}
+                  </Button>
+                </div>
+              ) : null
+            }
+          />
+        </>
       ) : drawn ? null : (
         <Caption>{t('notYet')}</Caption>
       )}
@@ -150,6 +186,15 @@ export function AdminDraw({
         <MakeDrawSheet
           format={x.format}
           confirmed={x.confirmed}
+          entries={x.entries
+            .filter((e) => e.status === 'CONFIRMED')
+            .map((e) => ({
+              id: e.id,
+              name: [e.player, e.partner]
+                .filter((p) => !!p)
+                .map((p) => p!.name ?? tT('unnamed'))
+                .join(' / '),
+            }))}
           busy={make.isMutating}
           onClose={() => setMaking(false)}
           onSubmit={(b) =>
@@ -204,6 +249,24 @@ export function AdminDraw({
                 {t('wins', { name: sideName(walkingOver, side) })}
               </Button>
             ))}
+            {/* A league match not played by its deadline may be lost by both (#591, 58). */}
+            {x.format === 'LEAGUE' ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={walkover.isMutating}
+                onClick={() =>
+                  void run(() => walkover.trigger({ id: walkingOver.id, winnerSide: null })).then(
+                    (ok) => {
+                      if (ok) setWalkingOver(null);
+                    },
+                  )
+                }
+                data-testid="admin-draw-walkover-both"
+              >
+                {t('lostByBoth')}
+              </Button>
+            ) : null}
           </Sheet.Body>
         </Sheet>
       ) : null}
@@ -214,21 +277,25 @@ export function AdminDraw({
 function MakeDrawSheet({
   format,
   confirmed,
+  entries,
   busy,
   onClose,
   onSubmit,
 }: {
   format: string;
   confirmed: number;
+  entries: Array<{ id: string; name: string }>;
   busy: boolean;
   onClose: () => void;
-  onSubmit: (b: {
-    groupCount?: number;
-    qualifiersPerGroup?: number;
-    thirdPlace: boolean;
-    rounds?: number;
-    pointsPerMatch?: number;
-  }) => void;
+  onSubmit: (
+    b: {
+      groupCount?: number;
+      qualifiersPerGroup?: number;
+      thirdPlace: boolean;
+      rounds?: number;
+      pointsPerMatch?: number;
+    } & LeagueDraw,
+  ) => void;
 }) {
   const t = useTranslations('admin.tournaments.draw');
   const id = useId();
@@ -237,6 +304,14 @@ function MakeDrawSheet({
   const rotating = format === 'AMERICANO' || format === 'MEXICANO';
   const [rounds, setRounds] = useState(String(Math.max(1, confirmed - 1)));
   const [points, setPoints] = useState('24');
+  // A league (#591, 44): divisions by level or by hand, and the rounds' deadlines.
+  const league = format === 'LEAGUE';
+  const [divisionCount, setDivisionCount] = useState('1');
+  const [byHand, setByHand] = useState(false);
+  const [divisionOf, setDivisionOf] = useState<Record<string, string>>({});
+  const [firstDeadline, setFirstDeadline] = useState('');
+  const [roundDays, setRoundDays] = useState('7');
+  const [problem, setProblem] = useState(false);
   const [groupCount, setGroupCount] = useState(
     String(Math.max(1, Math.min(4, Math.floor(confirmed / 4) || 1))),
   );
@@ -298,7 +373,77 @@ function MakeDrawSheet({
             </div>
           </div>
         ) : null}
-        {format !== 'ROUND_ROBIN' && !rotating ? (
+        {league ? (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="gap-tight flex flex-col">
+                <Label htmlFor={`${id}-divisions`}>{t('divisionCount')}</Label>
+                <Input
+                  id={`${id}-divisions`}
+                  inputMode="numeric"
+                  value={divisionCount}
+                  onChange={(e) => setDivisionCount(e.target.value.replace(/\D/g, ''))}
+                  data-testid="admin-draw-divisions"
+                />
+              </div>
+              <div className="gap-tight flex flex-col">
+                <span className="text-content-default text-sm font-medium">{t('divisionsBy')}</span>
+                <ToggleGroup
+                  options={[
+                    { value: 'level', label: t('byLevel') },
+                    { value: 'hand', label: t('byHand') },
+                  ]}
+                  selected={byHand ? 'hand' : 'level'}
+                  selectAction={(v) => setByHand(v === 'hand')}
+                  ariaLabel={t('divisionsBy')}
+                  size="sm"
+                  className="justify-self-start"
+                />
+              </div>
+            </div>
+            {byHand ? (
+              <ul className="gap-tight flex flex-col" data-testid="admin-draw-division-list">
+                {entries.map((e) => (
+                  <li key={e.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate">{e.name}</span>
+                    <Input
+                      aria-label={t('divisionOf', { name: e.name })}
+                      inputMode="numeric"
+                      className="w-16 shrink-0"
+                      value={divisionOf[e.id] ?? '1'}
+                      onChange={(ev) =>
+                        setDivisionOf((d) => ({ ...d, [e.id]: ev.target.value.replace(/\D/g, '') }))
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="gap-tight flex flex-col">
+                <Label htmlFor={`${id}-deadline`}>{t('firstDeadline')}</Label>
+                <Input
+                  id={`${id}-deadline`}
+                  type="date"
+                  value={firstDeadline}
+                  onChange={(e) => setFirstDeadline(e.target.value)}
+                  data-testid="admin-draw-first-deadline"
+                />
+              </div>
+              <div className="gap-tight flex flex-col">
+                <Label htmlFor={`${id}-days`}>{t('roundDays')}</Label>
+                <Input
+                  id={`${id}-days`}
+                  inputMode="numeric"
+                  value={roundDays}
+                  onChange={(e) => setRoundDays(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            </div>
+            {problem ? <InlineNotice variant="error">{t('leagueProblem')}</InlineNotice> : null}
+          </>
+        ) : null}
+        {format !== 'ROUND_ROBIN' && format !== 'LEAGUE' && !rotating ? (
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor={`${id}-third`}>{t('thirdPlace')}</Label>
             <Switch id={`${id}-third`} checked={thirdPlace} onCheckedChange={setThirdPlace} />
@@ -310,15 +455,30 @@ function MakeDrawSheet({
             type="button"
             loading={busy}
             disabled={busy}
-            onClick={() =>
+            onClick={() => {
+              if (league && !firstDeadline) {
+                setProblem(true);
+                return;
+              }
+              setProblem(false);
               onSubmit({
                 ...(groups
                   ? { groupCount: Number(groupCount), qualifiersPerGroup: Number(qualifiers) }
                   : {}),
                 ...(rotating ? { rounds: Number(rounds), pointsPerMatch: Number(points) } : {}),
+                ...(league
+                  ? {
+                      ...(byHand
+                        ? { divisions: byHandDivisions(entries, divisionOf) }
+                        : { divisionCount: Number(divisionCount) }),
+                      // The round's deadline is the end of that day.
+                      firstDeadline: new Date(`${firstDeadline}T23:59:59`).toISOString(),
+                      roundDays: Number(roundDays),
+                    }
+                  : {}),
                 thirdPlace,
-              })
-            }
+              });
+            }}
             data-testid="admin-draw-confirm"
           >
             {t('make')}

@@ -30,12 +30,14 @@ async function getHandler(req: NextRequest, { params }: Params) {
 
 /**
  * POST /api/v1/t/{slug}/admin/tournaments/{id}/draw (#580): the club makes the
- * draw, `{ groupCount?, qualifiersPerGroup?, thirdPlace? }` (55, 61). The
+ * draw, `{ groupCount?, qualifiersPerGroup?, thirdPlace? }` (55, 61); for
+ * Americano and Mexicano `{ rounds, pointsPerMatch }` (56, 60); for a league
+ * `{ divisions | divisionCount, firstDeadline, roundDays }` (44). The
  * confirmed entries are seeded by level (54); those still waiting are
  * declined. Everyone entered is told.
  *
  * 400 TOURNAMENT_INVALID; 409 TOURNAMENT_STATE, TOURNAMENT_TOO_FEW,
- * TOURNAMENT_DRAW_UNSUPPORTED (Americano and Mexicano #590, a league #591).
+ * TOURNAMENT_DRAW_UNSUPPORTED.
  */
 async function postHandler(req: NextRequest, { params }: Params) {
   const { slug, id } = await params;

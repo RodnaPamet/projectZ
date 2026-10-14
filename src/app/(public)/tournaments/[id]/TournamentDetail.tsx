@@ -263,7 +263,11 @@ export function TournamentDetail({
 
       {/* The draw (#580), once it is made. */}
       {x.status === 'IN_PROGRESS' || x.status === 'COMPLETE' ? (
-        <PlayerDraw tournamentId={x.id} signedIn={signedIn} />
+        <PlayerDraw
+          tournamentId={x.id}
+          signedIn={signedIn}
+          venue={x.venue ? { id: x.venue.id, timezone: x.venue.timezone } : null}
+        />
       ) : null}
 
       {withdrawing ? (

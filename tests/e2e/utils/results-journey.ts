@@ -79,7 +79,8 @@ export async function confirmAndSeeRating(
   await expect(shown(other, 'booking-result-status')).toHaveText(results.status.CONFIRMED);
 
   await booker.goto('/me/profile');
-  const padel = booker.getByTestId('profile-rating-PADEL');
+  // Visible only: the profile streams a hidden copy beside the shown one.
+  const padel = shown(booker, 'profile-rating-PADEL');
   await expect(padel).toBeVisible();
   await expect(padel).toContainText('1 мач');
 }

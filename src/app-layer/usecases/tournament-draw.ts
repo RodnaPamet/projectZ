@@ -64,6 +64,7 @@ export const DRAWN_FORMATS: readonly TournamentFormatKind[] = [
   'GROUPS_KNOCKOUT',
   'AMERICANO',
   'MEXICANO',
+  'LEAGUE',
 ];
 
 /** Players sign up alone and are partnered round by round (#590, 60). */
@@ -75,7 +76,11 @@ export type TournamentDrawCode =
   | 'TOURNAMENT_STATE'
   | 'TOURNAMENT_INVALID'
   | 'TOURNAMENT_MATCH_NOT_FOUND'
-  | 'TOURNAMENT_MATCH_NOT_READY';
+  | 'TOURNAMENT_MATCH_NOT_READY'
+  /** A league match already on a court, or with a time waiting for an answer (#591). */
+  | 'TOURNAMENT_MATCH_PLACED'
+  /** No proposed time for this player to answer (#591, 63). */
+  | 'TOURNAMENT_NO_PROPOSAL';
 
 export class TournamentDrawError extends AppError {
   constructor(
@@ -89,7 +94,7 @@ export class TournamentDrawError extends AppError {
   }
 }
 
-const notFound = () =>
+export const notFound = () =>
   new TournamentDrawError('TOURNAMENT_MATCH_NOT_FOUND', 404, 'Match not found.');
 
 /** A cuid-shaped id, as `@default(cuid())` makes: the draw links matches before writing them. */
@@ -112,19 +117,23 @@ interface LockedTournament {
   thirdPlace: boolean;
   rounds: number | null;
   pointsPerMatch: number | null;
+  venueId: string | null;
 }
 
 async function lock(db: PrismaClient, tenantId: string, id: string): Promise<LockedTournament> {
   const rows = await db.$queryRaw<LockedTournament[]>`
     SELECT "id", "tenantId", "name", "sport", "format", "status", "teamSize",
-           "groupCount", "qualifiersPerGroup", "thirdPlace", "rounds", "pointsPerMatch"
+           "groupCount", "qualifiersPerGroup", "thirdPlace", "rounds", "pointsPerMatch", "venueId"
       FROM "tournament" WHERE "id" = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
   const t = rows[0];
   if (!t) throw new TournamentDrawError('TOURNAMENT_STATE', 404, 'Tournament not found.');
   return t;
 }
 
-const playersOf = (e: { playerUserId: string; partnerUserId: string | null }) =>
+/** The tournament's row, locked for the rest of the transaction. */
+export const lockTournament = lock;
+
+export const playersOf = (e: { playerUserId: string; partnerUserId: string | null }) =>
   e.partnerUserId ? [e.playerUserId, e.partnerUserId] : [e.playerUserId];
 
 // ─── Making the draw ────────────────────────────────────────────────────
@@ -138,6 +147,15 @@ export interface DrawOptions {
   /** Americano and Mexicano (56, 60): the rounds, and the points a match is played to. */
   rounds?: number | null;
   pointsPerMatch?: number | null;
+  /**
+   * A league (#591, 44): who is in each division, best first, by entry id; or
+   * only how many divisions, split by level. The first round's deadline, and
+   * the days between one and the next.
+   */
+  divisions?: string[][] | null;
+  divisionCount?: number | null;
+  firstDeadline?: Date | null;
+  roundDays?: number | null;
 }
 
 /**
@@ -168,7 +186,7 @@ export async function drawTournament(
       throw new TournamentDrawError(
         'TOURNAMENT_DRAW_UNSUPPORTED',
         409,
-        'This format’s draw is not built yet: a league (#591).',
+        'This format has no draw here.',
       );
     }
     const entries = await db.tournamentEntry.findMany({
@@ -254,7 +272,88 @@ export async function drawTournament(
     let specs: MatchSpec[];
     const groupOf = new Map<string, number>();
     const seedOf = new Map<string, number>();
-    if (rotating) {
+    const league = t.format === 'LEAGUE';
+    const roundDays = league ? (opts.roundDays ?? 7) : null;
+    if (league) {
+      if (!opts.firstDeadline || opts.firstDeadline <= now) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'The first round’s deadline is later than now.',
+          {
+            field: 'firstDeadline',
+          },
+        );
+      }
+      if (!Number.isInteger(roundDays) || roundDays! < 1 || roundDays! > 60) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'One to sixty days between rounds.',
+          {
+            field: 'roundDays',
+          },
+        );
+      }
+    }
+
+    if (league) {
+      // The divisions (44): the club's, or split by level, the strongest first.
+      const byLevel = [...strengths].sort((a, b) => b.strength - a.strength);
+      byLevel.forEach((e, i) => seedOf.set(e.id, i + 1));
+      let divisions: string[][];
+      if (opts.divisions?.length) {
+        const all = opts.divisions.flat();
+        const confirmed = new Set(strengths.map((e) => e.id));
+        if (
+          all.length !== confirmed.size ||
+          new Set(all).size !== all.length ||
+          all.some((id) => !confirmed.has(id))
+        ) {
+          throw new TournamentDrawError(
+            'TOURNAMENT_INVALID',
+            400,
+            'Every confirmed entry is in one division.',
+            {
+              field: 'divisions',
+            },
+          );
+        }
+        divisions = opts.divisions.filter((d) => d.length > 0);
+      } else {
+        const count = opts.divisionCount ?? 1;
+        if (!Number.isInteger(count) || count < 1 || count * 2 > byLevel.length) {
+          throw new TournamentDrawError(
+            'TOURNAMENT_INVALID',
+            400,
+            'Each division needs two entries at least.',
+            {
+              field: 'divisionCount',
+            },
+          );
+        }
+        const size = Math.ceil(byLevel.length / count);
+        divisions = Array.from({ length: count }, (_, i) =>
+          byLevel.slice(i * size, (i + 1) * size).map((e) => e.id),
+        );
+      }
+      if (divisions.some((d) => d.length < 2)) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'Each division needs two entries at least.',
+          {
+            field: 'divisions',
+          },
+        );
+      }
+      divisions.forEach((d, i) => d.forEach((id) => groupOf.set(id, i + 1)));
+      const first = opts.firstDeadline!.getTime();
+      specs = groupMatches(divisions).map((m) => ({
+        ...m,
+        deadline: new Date(first + (m.round - 1) * roundDays! * 86_400_000),
+      }));
+    } else if (rotating) {
       const byLevel = [...strengths].sort((a, b) => b.strength - a.strength);
       byLevel.forEach((e, i) => {
         seedOf.set(e.id, i + 1);
@@ -319,6 +418,7 @@ export async function drawTournament(
         thirdPlace,
         rounds,
         pointsPerMatch,
+        roundDays,
       },
     });
 
@@ -349,6 +449,7 @@ async function writeMatches(
       entryBId: s.entryB,
       entryA2Id: s.entryA2 ?? null,
       entryB2Id: s.entryB2 ?? null,
+      deadline: s.deadline ?? null,
       status: (s.entryA && s.entryB ? 'READY' : 'PENDING') as TournamentMatchStatus,
       nextMatchId: s.next ? ids.get(s.next.key)! : null,
       nextSide: s.next?.side ?? null,
@@ -784,7 +885,8 @@ async function nextMexicanoRound(
 export async function recordWalkover(
   actor: { userId: string; tenantId: string },
   matchId: string,
-  winnerSide: 0 | 1,
+  /** null: a league match lost by both (#591, 58). */
+  winnerSide: 0 | 1 | null,
   now: Date = new Date(),
 ): Promise<{ tournamentId: string; bookingId: string | null }> {
   // guardrail-allow: cross-tenant — moving a draw on reads its entries' status;
@@ -802,7 +904,17 @@ export async function recordWalkover(
       },
     });
     if (!m) throw notFound();
-    await lock(db, actor.tenantId, m.tournamentId);
+    const t = await lock(db, actor.tenantId, m.tournamentId);
+    if (winnerSide === null && t.format !== 'LEAGUE') {
+      throw new TournamentDrawError(
+        'TOURNAMENT_INVALID',
+        400,
+        'Only a league match is lost by both.',
+        {
+          field: 'winnerSide',
+        },
+      );
+    }
     if (m.status !== 'READY' || !m.entryAId || !m.entryBId) {
       throw new TournamentDrawError(
         'TOURNAMENT_MATCH_NOT_READY',
@@ -817,21 +929,7 @@ export async function recordWalkover(
       decidedByUserId: actor.userId,
     });
     // Not played: its court is freed.
-    if (m.bookingId) {
-      const b = await db.booking.findFirst({
-        where: { id: m.bookingId, tenantId: actor.tenantId },
-        select: { status: true, startTs: true },
-      });
-      if (b && (b.status === 'CONFIRMED' || b.status === 'PENDING') && b.startTs > now) {
-        await cancelBooking(db, actor.tenantId, {
-          bookingId: m.bookingId,
-          actor: 'STAFF',
-          cancelledByUserId: actor.userId,
-          reason: 'The tournament match was a walkover.',
-          now,
-        });
-      }
-    }
+    await freeCourt(db, actor.tenantId, m.bookingId, actor.userId, now);
     return { tournamentId: m.tournamentId, bookingId: m.bookingId };
   });
 }
@@ -846,6 +944,8 @@ export async function walkoversForWithdrawn(
   db: PrismaClient,
   tenantId: string,
   entryId: string,
+  /** Who withdrew it: the player, or the club's desk. */
+  byUserId: string,
   now: Date = new Date(),
 ): Promise<void> {
   const ready = await db.tournamentMatch.findMany({
@@ -859,7 +959,7 @@ export async function walkoversForWithdrawn(
         { entryB2Id: entryId },
       ],
     },
-    select: { id: true, entryAId: true, entryA2Id: true },
+    select: { id: true, entryAId: true, entryA2Id: true, bookingId: true },
     take: 512,
   });
   for (const m of ready) {
@@ -867,6 +967,36 @@ export async function walkoversForWithdrawn(
     await decide(db, tenantId, m.id, onA ? 1 : 0, {
       status: 'WALKOVER',
       score: null,
+      now,
+    });
+    // Not to be played: a court booked or held for it is freed.
+    await freeCourt(db, tenantId, m.bookingId, byUserId, now);
+  }
+}
+
+/**
+ * A match decided without being played: its booking, if it is still to come,
+ * is cancelled so the court is free. A league's proposed time (#591) is held
+ * as PENDING and goes the same way.
+ */
+async function freeCourt(
+  db: PrismaClient,
+  tenantId: string,
+  bookingId: string | null,
+  byUserId: string,
+  now: Date,
+): Promise<void> {
+  if (!bookingId) return;
+  const b = await db.booking.findFirst({
+    where: { id: bookingId, tenantId },
+    select: { status: true, startTs: true },
+  });
+  if (b && (b.status === 'CONFIRMED' || b.status === 'PENDING') && b.startTs > now) {
+    await cancelBooking(db, tenantId, {
+      bookingId,
+      actor: 'STAFF',
+      cancelledByUserId: byUserId,
+      reason: 'The tournament match was a walkover.',
       now,
     });
   }
@@ -956,12 +1086,22 @@ export async function scheduleMatch(
     });
     const players = sideIds.flatMap((id) => playersOf(entries.find((e) => e.id === id)!));
 
+    const endTs = new Date(input.startTs.getTime() + input.durationMinutes * 60_000);
     // A match moving: its old booking is cancelled first, so the court is free.
     if (m.bookingId) {
       const old = await db.booking.findFirst({
         where: { id: m.bookingId, tenantId: actor.tenantId },
-        select: { status: true },
+        select: { status: true, resourceId: true, startTs: true, endTs: true },
       });
+      // The same court and time again, as a retried request is: nothing to do.
+      if (
+        old?.status === 'CONFIRMED' &&
+        old.resourceId === input.resourceId &&
+        old.startTs.getTime() === input.startTs.getTime() &&
+        old.endTs.getTime() === endTs.getTime()
+      ) {
+        return { bookingId: m.bookingId, tournamentId: m.tournamentId, players };
+      }
       if (old && (old.status === 'CONFIRMED' || old.status === 'PENDING')) {
         await cancelBooking(db, actor.tenantId, {
           bookingId: m.bookingId,
@@ -973,13 +1113,14 @@ export async function scheduleMatch(
       }
     }
 
-    const endTs = new Date(input.startTs.getTime() + input.durationMinutes * 60_000);
     const created = await createBooking(db, actor.tenantId, {
       resourceId: input.resourceId,
       startTs: input.startTs,
       endTs,
       totalCents: 0,
-      idempotencyKey: `tmatch:${m.id}:${input.startTs.getTime()}:${input.resourceId}`,
+      // With the booking it replaces: back to a slot it had before is a new booking,
+      // never the cancelled one replayed.
+      idempotencyKey: `tmatch:${m.id}:${m.bookingId ?? '-'}:${input.startTs.getTime()}:${input.resourceId}`,
       bookedByUserId: null,
       guestContact: { name: t.name },
       notes: t.name,
@@ -1031,6 +1172,25 @@ export interface DrawMatchView {
   score: number[][] | null;
   /** On a court, while its booking stands. */
   scheduled: { bookingId: string; courtName: string; startTs: Date; endTs: Date } | null;
+  /**
+   * A league match's time one side proposed (#591, 63): the court is held
+   * until `until`, waiting for the other side to accept.
+   */
+  proposal: {
+    bookingId: string;
+    courtName: string;
+    startTs: Date;
+    endTs: Date;
+    until: Date;
+    side: 0 | 1 | null;
+    priceCents: number;
+  } | null;
+  /** The viewer's side of the match, if they play it. */
+  mySide: 0 | 1 | null;
+  /** A league's round (#591, 44): played by then. */
+  deadline: Date | null;
+  /** Past its deadline and not played: the club decides it (58). */
+  overdue: boolean;
   /** The viewer plays it. */
   mine: boolean;
 }
@@ -1056,8 +1216,9 @@ export interface DrawView {
 export async function readDraw(
   tournamentId: string,
   viewerId: string | null,
-  opts: { tenantId?: string } = {},
+  opts: { tenantId?: string; now?: Date } = {},
 ): Promise<DrawView | null> {
+  const now = opts.now ?? new Date();
   // guardrail-allow: cross-tenant — one tournament's draw by id, with the
   // names of the people on it; the caller is signed in, or the club's desk.
   return runAsSuperuser(async (db) => {
@@ -1097,6 +1258,7 @@ export async function readDraw(
           entryBId: true,
           entryA2Id: true,
           entryB2Id: true,
+          deadline: true,
           status: true,
           winnerSide: true,
           scoreJson: true,
@@ -1106,6 +1268,9 @@ export async function readDraw(
               status: true,
               startTs: true,
               endTs: true,
+              expiresAt: true,
+              bookedByUserId: true,
+              totalCents: true,
               resource: { select: { name: true } },
             },
           },
@@ -1141,7 +1306,23 @@ export async function readDraw(
       const b = of(m.entryBId);
       const a2 = of(m.entryA2Id);
       const b2 = of(m.entryB2Id);
-      const live = m.booking && m.booking.status !== 'CANCELLED' ? m.booking : null;
+      // On the diary: a PENDING booking is a time one side proposed (#591, 63).
+      const live =
+        m.booking && m.booking.status !== 'CANCELLED' && m.booking.status !== 'PENDING'
+          ? m.booking
+          : null;
+      const held =
+        m.booking?.status === 'PENDING' && m.booking.expiresAt && m.booking.expiresAt > now
+          ? m.booking
+          : null;
+      const onSide = (userId: string | null) =>
+        !userId
+          ? null
+          : [a, a2].some((s) => s?.players.some((p) => p.userId === userId))
+            ? 0
+            : [b, b2].some((s) => s?.players.some((p) => p.userId === userId))
+              ? 1
+              : null;
       return {
         id: m.id,
         stage: m.stage,
@@ -1163,6 +1344,21 @@ export async function readDraw(
               endTs: live.endTs,
             }
           : null,
+        proposal:
+          held && m.status === 'READY'
+            ? {
+                bookingId: held.id,
+                courtName: held.resource.name,
+                startTs: held.startTs,
+                endTs: held.endTs,
+                until: held.expiresAt!,
+                side: onSide(held.bookedByUserId),
+                priceCents: held.totalCents,
+              }
+            : null,
+        mySide: onSide(viewerId),
+        deadline: m.deadline,
+        overdue: !!m.deadline && m.deadline < now && m.status === 'READY',
         mine:
           !!viewerId && [a, b, a2, b2].some((s) => s?.players.some((p) => p.userId === viewerId)),
       };

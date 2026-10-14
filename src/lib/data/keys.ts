@@ -345,6 +345,14 @@ export const V1 = {
   /** `POST`: put a match on a court, or give it as a walkover (#580). */
   tournamentMatchAction: (slug: string, matchId: string, action: 'schedule' | 'walkover') =>
     `${BASE}/t/${seg(slug)}/admin/tournament-matches/${seg(matchId)}/${action}`,
+  /**
+   * A league match's time (#591, 63): `POST { resourceId, startTs,
+   * durationMinutes }` proposes one, `DELETE` declines or takes it back.
+   */
+  matchProposal: (matchId: string) => `${BASE}/me/tournament-matches/${seg(matchId)}/proposal`,
+  /** `POST`: the other side accepts the proposed time (#591, 63). */
+  acceptMatchProposal: (matchId: string) =>
+    `${BASE}/me/tournament-matches/${seg(matchId)}/proposal/accept`,
   /** `POST`: the club withdraws an entry from a tournament under way (#580). */
   withdrawTournamentEntryAsClub: (slug: string, entryId: string) =>
     `${BASE}/t/${seg(slug)}/admin/tournament-entries/${seg(entryId)}/withdraw`,

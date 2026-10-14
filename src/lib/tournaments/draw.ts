@@ -44,6 +44,8 @@ export interface MatchSpec {
   next: { key: string; side: 0 | 1 } | null;
   /** The match the loser goes to: a semi-final's, the third-place match. */
   loserNext: { key: string; side: 0 | 1 } | null;
+  /** A league's round (#591, 44): played by then. */
+  deadline?: Date | null;
 }
 
 /** A random number in [0, 1): injected so a draw can be tested. */
@@ -254,7 +256,11 @@ export function table(entryIds: readonly string[], matches: readonly PlayedMatch
     if (!a || !b) continue;
     a.played++;
     b.played++;
-    if (m.winnerSide === null) {
+    if (m.winnerSide === null && m.walkover) {
+      // A league match the club recorded as a loss for both (58).
+      a.lost++;
+      b.lost++;
+    } else if (m.winnerSide === null) {
       a.drawn++;
       b.drawn++;
       a.points += POINTS.draw;

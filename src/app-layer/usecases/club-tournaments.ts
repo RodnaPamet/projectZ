@@ -130,7 +130,13 @@ export interface TournamentSummary {
   feePayment: TournamentFeePayment;
   description: string | null;
   club: { slug: string; name: string };
-  venue: { id: string; name: string; city: string; publicSlug: string | null } | null;
+  venue: {
+    id: string;
+    name: string;
+    city: string;
+    publicSlug: string | null;
+    timezone: string;
+  } | null;
 }
 
 export interface MyTournamentEntry {
@@ -183,7 +189,7 @@ const SUMMARY_SELECT = {
   entryFeeCents: true,
   feePayment: true,
   description: true,
-  venue: { select: { id: true, name: true, city: true, publicSlug: true } },
+  venue: { select: { id: true, name: true, city: true, publicSlug: true, timezone: true } },
 } as const satisfies Prisma.TournamentSelect;
 
 type SummaryRow = Prisma.TournamentGetPayload<{ select: typeof SUMMARY_SELECT }>;
@@ -947,7 +953,9 @@ export async function withdrawEntry(
       data: { status: 'WITHDRAWN', withdrawnAt: now, withdrawnByUserId: userId },
     });
     // Under way (59): played results stand; its other matches are walkovers.
-    if (t.status === 'IN_PROGRESS') await walkoversForWithdrawn(db, found.tenantId, entryId, now);
+    if (t.status === 'IN_PROGRESS') {
+      await walkoversForWithdrawn(db, found.tenantId, entryId, userId, now);
+    }
     return {
       tenantId: found.tenantId,
       tournamentId: found.tournamentId,
@@ -1040,7 +1048,7 @@ export async function withdrawEntryAsClub(
       where: { id: entryId },
       data: { status: 'WITHDRAWN', withdrawnAt: now, withdrawnByUserId: actor.userId },
     });
-    await walkoversForWithdrawn(db, actor.tenantId, entryId, now);
+    await walkoversForWithdrawn(db, actor.tenantId, entryId, actor.userId, now);
     return { tournamentId: entry.tournamentId };
   });
 }
