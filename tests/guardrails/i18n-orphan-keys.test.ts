@@ -32,6 +32,11 @@ interface Family {
 
 const FAMILIES: Family[] = [
   {
+    prefix: 'common.fileKinds.',
+    via: 'src/components/ui/file-type-icon.tsx',
+    why: "one name per file kind the resolver returns, read as t(kind) for the icon's label",
+  },
+  {
     prefix: 'sports.',
     via: 'src/app/(public)/venues/VenueList.tsx',
     why: 'one label per Sport enum value, looked up as t(sport)',

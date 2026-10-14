@@ -7,10 +7,14 @@ import { useTranslations } from 'next-intl';
 
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { Button } from '@/components/ui/button';
-import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
+import {
+  FileDropzone,
+  type FileDropzoneHandle,
+  type FileUploadHandlerCtx,
+} from '@/components/ui/FileDropzone';
 import { FormField } from '@/components/ui/form-field';
-import { ChevronUp, CloudUpload, Trash } from '@/components/ui/icons/nucleo';
+import { ChevronUp, Trash } from '@/components/ui/icons/nucleo';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Caption, Heading, TextLink } from '@/components/ui/typography';
@@ -58,12 +62,11 @@ function useErrorText() {
  * The photo screen's interactive half (#366). The page reads and authorises;
  * this holds the forms.
  *
- * Vendored upstream pieces only: Card, Button, FormField, Input, InlineNotice
- * and ConfirmDialog. The file picker is a visually hidden native input inside
- * a label drawn with `buttonVariants`, because upstream's FileUpload and
- * FileDropzone fail playerz's portability check (English copy, raw palette
- * classes; 31 findings) and so cannot be vendored until upstream fixes them.
- * Reordering is up/down buttons: upstream has no sortable list.
+ * Vendored upstream pieces only: Card, Button, FileDropzone, FormField, Input,
+ * InlineNotice and ConfirmDialog. FileDropzone came once upstream made it
+ * portable (#428, upstream be83732e8): its copy is `common.upload`, in the
+ * reader's language. Reordering is up/down buttons: upstream has no sortable
+ * list.
  */
 export function PhotosBoard({
   slug,
@@ -309,8 +312,12 @@ function PhotoEditor({
 }
 
 /**
- * Choose a file, describe it, upload it. Posts multipart to the upload route
- * (an event handler, not an effect), then refreshes the page's server data.
+ * Choose a file, describe it, upload it (#366). The file is picked in the
+ * vendored FileDropzone (#428): by drag-and-drop or by browsing, checked
+ * against the accepted types and the size limit there, in the reader's
+ * language. It waits (`autoStart={false}`) until the description is written
+ * and the form is sent; the upload posts multipart to the upload route (an
+ * event handler, not an effect), then refreshes the page's server data.
  *
  * `accept` lists JPEG, PNG and WebP and NOT HEIC on purpose: iOS then converts
  * a photo from the library to JPEG as it hands it over (image.ts).
@@ -332,82 +339,85 @@ function UploadForm({
   const errorText = useErrorText();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const dropRef = useRef<FileDropzoneHandle>(null);
+  // The refusal of the upload in flight, read once the drop zone settles.
+  const failure = useRef<ErrorCode | null>(null);
   const [busy, setBusy] = useState(false);
-  const [state, setState] = useState<{ ok: true } | { ok: false; error: ErrorCode } | null>(null);
+  const [state, setState] = useState<
+    { ok: true } | { ok: false; error: ErrorCode } | { ok: false; noFile: true } | null
+  >(null);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const data = new FormData(form);
-    const file = data.get('file');
-    if (!(file instanceof File) || file.size === 0) {
-      setState({ ok: false, error: 'UNREADABLE' });
-      return;
-    }
-    if (file.size > limits.maxBytes) {
-      setState({ ok: false, error: 'TOO_LARGE' });
-      return;
-    }
+  /** One file to the upload route; a refusal becomes the row's own words. */
+  async function upload(file: File, ctx: FileUploadHandlerCtx) {
+    const data = new FormData();
+    data.set('file', file);
+    data.set('alt', String(new FormData(formRef.current ?? undefined).get('alt') ?? ''));
     data.set('kind', kind);
-    setBusy(true);
-    setState(null);
+    ctx.onProgress(null);
+    let error: ErrorCode;
     try {
       const res = await fetch(
         `/api/t/${encodeURIComponent(slug)}/admin/venues/${encodeURIComponent(venueId)}/photos`,
-        { method: 'POST', body: data, credentials: 'same-origin' },
+        { method: 'POST', body: data, credentials: 'same-origin', signal: ctx.signal },
       );
-      if (res.ok) {
-        formRef.current?.reset();
-        setFileName(null);
-        setState({ ok: true });
-        router.refresh();
-      } else {
-        const body = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
-        const code = body?.error?.code;
-        setState({ ok: false, error: isKnown(code) ? code : 'generic' });
-      }
+      if (res.ok) return null;
+      const body = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
+      const code = body?.error?.code;
+      error = isKnown(code) ? code : 'generic';
     } catch {
-      setState({ ok: false, error: 'generic' });
+      // The browser's own wording ("Failed to fetch") would reach the row.
+      error = 'generic';
+    }
+    failure.current = error;
+    throw new Error(errorText(error, limits));
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const queued = dropRef.current?.getEntries().filter((x) => x.status === 'queued') ?? [];
+    if (queued.length === 0) {
+      setState({ ok: false, noFile: true });
+      return;
+    }
+    failure.current = null;
+    setBusy(true);
+    setState(null);
+    try {
+      await dropRef.current?.startAll();
     } finally {
       setBusy(false);
     }
+    if (failure.current) {
+      setState({ ok: false, error: failure.current });
+      return;
+    }
+    formRef.current?.reset();
+    setState({ ok: true });
+    router.refresh();
   }
 
-  const inputId = `upload-${venueId}-${kind}`;
   return (
     <form
       ref={formRef}
       onSubmit={onSubmit}
-      className="border-border-subtle gap-compact grid rounded-md border border-dashed p-3"
+      className="gap-compact grid"
       data-testid={`photo-upload-${kind}`}
     >
-      <div className="gap-compact flex flex-wrap items-center">
-        <label
-          htmlFor={inputId}
-          className={cn(
-            buttonVariants({ variant: 'secondary' }),
-            'cursor-pointer focus-within:ring-2',
-          )}
-        >
-          <CloudUpload aria-hidden="true" />
-          {label}
-          <input
-            id={inputId}
-            name="file"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="sr-only"
-            required
-            onChange={(e) => setFileName(e.currentTarget.files?.[0]?.name ?? null)}
-          />
-        </label>
-        <Caption>
-          {fileName
-            ? t('upload.chosen', { name: fileName })
-            : t('upload.hint', { mb: limits.maxMb })}
-        </Caption>
-      </div>
+      <FileDropzone
+        ref={dropRef}
+        accept="image/jpeg,image/png,image/webp"
+        maxFileSizeMB={limits.maxMb}
+        multiple={false}
+        autoStart={false}
+        clearAfterMs={4000}
+        compact
+        title={label}
+        hint={t('upload.hint', { mb: limits.maxMb })}
+        onUpload={upload}
+        onPick={() => setState(null)}
+        inputId={`upload-${venueId}-${kind}`}
+        data-testid={`photo-dropzone-${kind}`}
+      />
       <div className="gap-compact flex flex-wrap items-end">
         <div className="min-w-0 flex-1">
           <FormField label={t('upload.alt')} description={t('upload.altHint')} required>
@@ -419,7 +429,9 @@ function UploadForm({
         </Button>
       </div>
       {state && !busy && !state.ok && (
-        <InlineNotice variant="error">{errorText(state.error, limits)}</InlineNotice>
+        <InlineNotice variant="error">
+          {'noFile' in state ? t('upload.noFile') : errorText(state.error, limits)}
+        </InlineNotice>
       )}
       {state?.ok && !busy && <InlineNotice variant="success">{t('upload.done')}</InlineNotice>}
     </form>
