@@ -2628,10 +2628,10 @@
     {
       "path": "src/components/ui/icons/sort-order.tsx",
       "inflectPath": "packages/ui/src/components/ui/icons/sort-order.tsx",
-      "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
-      "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+      "baseSha": "63ae2cbd728a483581cd3311b117ca40e64304ea",
+      "sha": "63ae2cbd728a483581cd3311b117ca40e64304ea",
       "status": "vendored",
-      "sha256": "1fe9b825c6e6b2b1333bb8a7891e2da85acd440c138eb636948a815fb17aac33"
+      "sha256": "6a69e8e4b8aef7d1a241d03bdfe772b7d8a9da5e095f9200b53b021e346564a4"
     },
     {
       "path": "src/components/ui/icons/success.tsx",

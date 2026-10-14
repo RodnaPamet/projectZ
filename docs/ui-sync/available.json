@@ -81,7 +81,7 @@
   },
   {
     "path": "src/components/ui/charts/areas.tsx",
-    "inflectPath": "src/components/ui/charts/areas.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/areas.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -89,7 +89,7 @@
   },
   {
     "path": "src/components/ui/charts/bars.tsx",
-    "inflectPath": "src/components/ui/charts/bars.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/bars.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -97,7 +97,7 @@
   },
   {
     "path": "src/components/ui/charts/chart-context.ts",
-    "inflectPath": "src/components/ui/charts/chart-context.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/chart-context.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -113,7 +113,7 @@
   },
   {
     "path": "src/components/ui/charts/chart-gloss.tsx",
-    "inflectPath": "src/components/ui/charts/chart-gloss.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/chart-gloss.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -121,7 +121,7 @@
   },
   {
     "path": "src/components/ui/charts/chart-gradient.tsx",
-    "inflectPath": "src/components/ui/charts/chart-gradient.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/chart-gradient.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -129,7 +129,7 @@
   },
   {
     "path": "src/components/ui/charts/chart-legend.tsx",
-    "inflectPath": "src/components/ui/charts/chart-legend.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/chart-legend.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -137,7 +137,7 @@
   },
   {
     "path": "src/components/ui/charts/chart-motion.tsx",
-    "inflectPath": "src/components/ui/charts/chart-motion.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/chart-motion.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -145,7 +145,7 @@
   },
   {
     "path": "src/components/ui/charts/examples.ts",
-    "inflectPath": "src/components/ui/charts/examples.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/examples.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -161,7 +161,7 @@
   },
   {
     "path": "src/components/ui/charts/index.ts",
-    "inflectPath": "src/components/ui/charts/index.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/index.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -169,7 +169,7 @@
   },
   {
     "path": "src/components/ui/charts/interaction.tsx",
-    "inflectPath": "src/components/ui/charts/interaction.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/interaction.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -177,7 +177,7 @@
   },
   {
     "path": "src/components/ui/charts/layout.ts",
-    "inflectPath": "src/components/ui/charts/layout.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/layout.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -201,7 +201,7 @@
   },
   {
     "path": "src/components/ui/charts/time-series-chart.tsx",
-    "inflectPath": "src/components/ui/charts/time-series-chart.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/time-series-chart.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -209,7 +209,7 @@
   },
   {
     "path": "src/components/ui/charts/tooltip-sync.tsx",
-    "inflectPath": "src/components/ui/charts/tooltip-sync.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/tooltip-sync.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -217,7 +217,7 @@
   },
   {
     "path": "src/components/ui/charts/types.ts",
-    "inflectPath": "src/components/ui/charts/types.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/types.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -225,7 +225,7 @@
   },
   {
     "path": "src/components/ui/charts/use-heat-scale.ts",
-    "inflectPath": "src/components/ui/charts/use-heat-scale.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/use-heat-scale.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -233,7 +233,7 @@
   },
   {
     "path": "src/components/ui/charts/use-tooltip.ts",
-    "inflectPath": "src/components/ui/charts/use-tooltip.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/use-tooltip.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -241,7 +241,7 @@
   },
   {
     "path": "src/components/ui/charts/utils.ts",
-    "inflectPath": "src/components/ui/charts/utils.ts",
+    "inflectPath": "packages/ui/src/components/ui/charts/utils.ts",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -249,7 +249,7 @@
   },
   {
     "path": "src/components/ui/charts/x-axis.tsx",
-    "inflectPath": "src/components/ui/charts/x-axis.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/x-axis.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
@@ -257,7 +257,7 @@
   },
   {
     "path": "src/components/ui/charts/y-axis.tsx",
-    "inflectPath": "src/components/ui/charts/y-axis.tsx",
+    "inflectPath": "packages/ui/src/components/ui/charts/y-axis.tsx",
     "baseSha": "1520b8b87",
     "sha": null,
     "status": "pending",
