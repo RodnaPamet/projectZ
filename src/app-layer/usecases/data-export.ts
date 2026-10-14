@@ -6,6 +6,7 @@ import {
   noShowStanding,
 } from '@/app-layer/usecases/booking-rules';
 import { gameChatsFor } from '@/app-layer/usecases/messaging-directory';
+import { myRatingsIn } from '@/app-layer/usecases/shown-ratings';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
 import { decryptField } from '@/lib/security/encryption';
@@ -126,7 +127,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 8;
+  version: 9;
   exportedAt: string;
   profile: {
     id: string;
@@ -350,6 +351,44 @@ export interface PersonalDataExport {
     }>;
   };
   /**
+   * Results and ratings (#582; version 9). The other players on a result are
+   * other people's: only how many were on each side.
+   */
+  ranking: {
+    /** «Показвай нивото ми» (#576): whether others saw the level. */
+    levelShown: boolean;
+    /** Each sport's rating now: the level everyone saw, the points only the person did. */
+    ratings: Array<{
+      sport: string;
+      level: number;
+      provisional: boolean;
+      points: number | null;
+      matchesPlayed: number;
+      lastPlayedAt: string | null;
+    }>;
+    /** Every change, oldest first. */
+    history: Array<{ sport: string; points: number; matchesPlayed: number; at: string }>;
+    /** The results of bookings they played, reported, answered or entered. */
+    results: Array<{
+      club: string;
+      start: string;
+      sport: string;
+      status: string;
+      /** Players on each side; a race, one a place. */
+      sidePlayers: number[];
+      /** Their own side or place, from 1; null for one they entered for the club. */
+      yourSide: number | null;
+      score: number[][] | null;
+      /** won, lost, draw; or their place in a race. */
+      outcome: string | null;
+      reportedByYou: boolean;
+      answeredByYou: boolean;
+      /** What they wrote when they disputed it. */
+      yourRejectNote: string | null;
+      reportedAt: string;
+    }>;
+  };
+  /**
    * What the person did as a coach (#552; version 6). Null for an account
    * that never was one. Of the players they taught, only how many: their
    * names and phones are other people's.
@@ -543,6 +582,7 @@ export async function readPersonalData(
       pushOpenPlay: true,
       pushLessonsTaught: true,
       searchable: true,
+      ratingPublic: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
       legalAcceptances: {
@@ -635,6 +675,7 @@ export async function readPersonalData(
   const messaging = await readMessaging(db, userId);
   const openPlay = await readOpenPlay(db, userId);
   const coach = await readCoach(db, userId);
+  const ranking = await readRanking(db, userId, user.ratingPublic, now);
 
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own sessions, by their id.
@@ -792,7 +833,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 8,
+    version: 9,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -962,7 +1003,118 @@ export async function readPersonalData(
     })),
     messages: { shownInPlayerSearch: user.searchable, ...messaging },
     openPlay,
+    ranking,
     coach,
+  };
+}
+
+/**
+ * Results and ratings (#582): the person's ratings and their history, the
+ * results they were on, reported, answered or entered, and the visibility
+ * setting. Of the other players, only how many.
+ */
+async function readRanking(
+  db: PrismaClient,
+  userId: string,
+  levelShown: boolean,
+  now: Date,
+): Promise<PersonalDataExport['ranking']> {
+  const [mine, history, reports] = await Promise.all([
+    myRatingsIn(db, userId, now),
+    // A rating is the person's own, at every club (no tenant).
+    db.skillRatingHistory.findMany({
+      where: { userId },
+      select: { sport: true, displayRating: true, matchesPlayed: true, computedAt: true },
+      orderBy: { computedAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the person's own results, at every club.
+    db.$queryRaw<
+      Array<{
+        tenantId: string;
+        sport: string;
+        status: string;
+        kind: string;
+        sidesJson: unknown;
+        scoreJson: unknown;
+        winnerSide: number | null;
+        reportedByUserId: string;
+        answeredByUserId: string | null;
+        rejectNote: string | null;
+        reportedAt: Date;
+        startTs: Date;
+      }>
+    >`
+      SELECT r."tenantId", r."sport"::text, r."status"::text, r."kind"::text, r."sidesJson",
+             r."scoreJson", r."winnerSide", r."reportedByUserId", r."answeredByUserId",
+             r."rejectNote", r."reportedAt", b."startTs"
+        FROM "match_report" r
+        JOIN "booking" b ON b."id" = r."bookingId"
+       WHERE r."reportedByUserId" = ${userId}
+          OR r."answeredByUserId" = ${userId}
+          OR r."decidedByUserId" = ${userId}
+          -- [[a, b], [c]] @> [[a]]: on any side, alone or with a partner.
+          OR r."sidesJson" @> ${JSON.stringify([[userId]])}::jsonb
+       ORDER BY r."reportedAt" ASC
+       LIMIT ${EXPORT_ROW_CAP}`,
+  ]);
+  const tenantIds = [...new Set(reports.map((r) => r.tenantId))];
+  const clubs = tenantIds.length
+    ? await db.venueOrg.findMany({
+        where: { id: { in: tenantIds } },
+        select: { id: true, name: true },
+        take: tenantIds.length,
+      })
+    : [];
+  const clubName = new Map(clubs.map((c) => [c.id, c.name]));
+
+  return {
+    levelShown,
+    ratings: mine.items.map((r) => ({
+      sport: r.sport,
+      level: r.level,
+      provisional: r.provisional,
+      points: r.points,
+      matchesPlayed: r.matchesPlayed,
+      lastPlayedAt: iso(r.lastPlayedAt),
+    })),
+    history: history.map((h) => ({
+      sport: h.sport,
+      points: Number(h.displayRating),
+      matchesPlayed: h.matchesPlayed,
+      at: h.computedAt.toISOString(),
+    })),
+    results: reports.map((r) => {
+      const sides = Array.isArray(r.sidesJson)
+        ? (r.sidesJson as unknown[]).map((s) => (Array.isArray(s) ? (s as string[]) : []))
+        : [];
+      const side = sides.findIndex((s) => s.includes(userId));
+      const race = r.kind === 'ORDER';
+      const outcome =
+        side < 0
+          ? null
+          : race
+            ? `place ${side + 1}`
+            : r.winnerSide === null
+              ? 'draw'
+              : r.winnerSide === side
+                ? 'won'
+                : 'lost';
+      return {
+        club: clubName.get(r.tenantId) ?? '',
+        start: r.startTs.toISOString(),
+        sport: r.sport,
+        status: r.status,
+        sidePlayers: sides.map((s) => s.length),
+        yourSide: side < 0 ? null : side + 1,
+        score: Array.isArray(r.scoreJson) ? (r.scoreJson as number[][]) : null,
+        outcome,
+        reportedByYou: r.reportedByUserId === userId,
+        answeredByYou: r.answeredByUserId === userId,
+        yourRejectNote: r.answeredByUserId === userId ? r.rejectNote : null,
+        reportedAt: r.reportedAt.toISOString(),
+      };
+    }),
   };
 }
 

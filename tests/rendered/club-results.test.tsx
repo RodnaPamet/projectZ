@@ -28,12 +28,12 @@ const disputed: ClubResultDto = {
   courtName: 'Корт 1',
   sides: [
     [
-      { userId: 'u_ana', name: 'Ана' },
-      { userId: 'u_boris', name: 'Борис' },
+      { userId: 'u_ana', name: 'Ана', deleted: false },
+      { userId: 'u_boris', name: 'Борис', deleted: false },
     ],
     [
-      { userId: 'u_cveta', name: 'Цвета' },
-      { userId: 'u_dimo', name: null },
+      { userId: 'u_cveta', name: 'Цвета', deleted: false },
+      { userId: 'u_dimo', name: null, deleted: true },
     ],
   ],
   score: [
@@ -78,7 +78,7 @@ describe('the club’s results', () => {
 
     const waiting = within(screen.getByTestId('club-results-waiting'));
     expect(waiting.getByTestId('club-result-note')).toHaveTextContent('Вторият сет беше 4:6');
-    expect(waiting.getByTestId('result-summary')).toHaveTextContent(messages.results.unnamed);
+    expect(waiting.getByTestId('result-summary')).toHaveTextContent(messages.common.deletedUser);
     expect(waiting.getByTestId('club-result-confirm')).toHaveTextContent(a.confirm);
 
     // The disputed one is not listed twice.

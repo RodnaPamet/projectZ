@@ -20092,7 +20092,8 @@
           "notificationSettings",
           "inviteLinks",
           "messages",
-          "openPlay"
+          "openPlay",
+          "ranking"
         ],
         "properties": {
           "format": {
@@ -20101,7 +20102,7 @@
           },
           "version": {
             "type": "integer",
-            "const": 3
+            "const": 9
           },
           "exportedAt": {
             "type": "string",
@@ -20556,6 +20557,34 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "ranking": {
+            "type": "object",
+            "description": "Results and ratings (#582; version 9): the level shown, each sport's rating with the points only the person saw, every rating change, and the results they played, reported, answered or entered. Of the other players on a result, only how many on each side.",
+            "required": ["levelShown", "ratings", "history", "results"],
+            "properties": {
+              "levelShown": {
+                "type": "boolean"
+              },
+              "ratings": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "history": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object"
                 }
               }
             }

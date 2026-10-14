@@ -34,7 +34,13 @@ export function RaceOrderEditor({
   const [order, setOrder] = useState(() => drivers.map((d) => d.userId));
   const [out, setOut] = useState<ReadonlySet<string>>(new Set());
   const [problem, setProblem] = useState(false);
-  const nameOf = new Map(drivers.map((d) => [d.userId, d.name ?? tResults('unnamed')]));
+  const tCommon = useTranslations('common');
+  const nameOf = new Map(
+    drivers.map((d) => [
+      d.userId,
+      d.deleted ? tCommon('deletedUser') : (d.name ?? tResults('unnamed')),
+    ]),
+  );
   const racing = order.filter((id) => !out.has(id));
 
   function move(id: string, by: -1 | 1) {

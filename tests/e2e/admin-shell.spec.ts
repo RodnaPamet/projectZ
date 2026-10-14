@@ -28,6 +28,8 @@ const MAIN_NAV = `aside nav[aria-label="${bg.common.ui.mainNav}"]`;
 const PAGES = [
   'calendar',
   'messages',
+  // The ranking module is on for the run (#582).
+  'results',
   'courts',
   'pricing',
   'photos',
@@ -135,7 +137,8 @@ test.describe('club admin shell — desktop', () => {
     isolatedTenant,
   }) => {
     const slug = isolatedTenant.tenantSlug;
-    // The club admin's home offers staff its three pages, as the rail does.
+    // The club admin's home offers staff its four pages, as the rail does:
+    // «Резултати» too, the desk's to decide (#575; ranking is on for the run).
     await page.goto(`/t/${slug}/admin`);
     await streamed(page);
     await expect(
@@ -144,12 +147,14 @@ test.describe('club admin shell — desktop', () => {
     await expect(page.locator('main').getByRole('link')).toHaveText([
       bg.common.nav.calendar,
       bg.common.nav.messages,
+      bg.common.nav.results,
       bg.common.nav.players,
     ]);
     const nav = page.locator(MAIN_NAV);
-    await expect(nav.getByRole('link')).toHaveCount(3);
+    await expect(nav.getByRole('link')).toHaveCount(4);
     await expect(nav.locator(`a[href="/t/${slug}/admin/calendar"]`)).toBeVisible();
     await expect(nav.locator(`a[href="/t/${slug}/admin/messages"]`)).toBeVisible();
+    await expect(nav.locator(`a[href="/t/${slug}/admin/results"]`)).toBeVisible();
     await expect(nav.locator(`a[href="/t/${slug}/admin/players"]`)).toBeVisible();
 
     // By URL: the app's not-found, INSIDE the admin shell, not a bare page.
@@ -189,6 +194,8 @@ test.describe('club admin shell — desktop', () => {
     await expect(pages).toHaveText([
       bg.common.nav.calendar,
       bg.common.nav.messages,
+      // The ranking module is on for the run (#582): the disputed results.
+      bg.common.nav.results,
       bg.common.nav.courts,
       bg.common.nav.pricing,
       bg.common.nav.photos,

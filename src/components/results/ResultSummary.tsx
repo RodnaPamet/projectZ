@@ -26,8 +26,10 @@ export function ResultSummary({
   className?: string;
 }) {
   const t = useTranslations('results');
+  const tCommon = useTranslations('common');
   const format = useFormatter();
-  const name = (p: ResultPlayerDto) => p.name ?? t('unnamed');
+  const name = (p: ResultPlayerDto) =>
+    p.deleted ? tCommon('deletedUser') : (p.name ?? t('unnamed'));
 
   if (scoreFormat === 'ORDER') {
     return (

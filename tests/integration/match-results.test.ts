@@ -440,6 +440,33 @@ describe('a booking result', () => {
     expect(await stored(id)).toBeNull();
   });
 
+  it('a player who deleted the account since: shown as deleted, rated against, given no history (#582)', async () => {
+    const id = await booking();
+    await report(id, a);
+    await runAsSuperuser((tx) => deleteAccount(tx, { userId: d.userId, by: 'self' }));
+    expect(await confirmDueResults(new Date(Date.now() + 49 * HOUR))).toBe(1);
+
+    const history = (userId: string) =>
+      asAppSuperuser(db, (tx) => tx.skillRatingHistory.count({ where: { userId } }));
+    expect(await history(a.userId)).toBe(1);
+    expect(await history(c.userId)).toBe(1);
+    expect(await history(d.userId)).toBe(0);
+    // The match is kept for the others, with the tombstone in it.
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        tx.matchParticipant.count({
+          where: { userId: d.userId, match: { dedupeKey: `booking:${id}` } },
+        }),
+      ),
+    ).toBe(1);
+
+    const view = await call(resultGetRoute as never, `/api/v1/me/bookings/${id}/result`, a, { id });
+    expect(view.body.data.result.sides[1]).toEqual([
+      { userId: c.userId, name: 'Test Player', deleted: false },
+      { userId: d.userId, name: null, deleted: true },
+    ]);
+  });
+
   describe('karting: the track enters the finishing order (#577)', () => {
     /** A completed session on a track, booked by `a` with b, c and d driving too. */
     async function session(): Promise<string> {

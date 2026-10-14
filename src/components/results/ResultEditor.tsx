@@ -46,6 +46,9 @@ export function ResultEditor({
 }) {
   const t = useTranslations('results.editor');
   const tResults = useTranslations('results');
+  const tCommon = useTranslations('common');
+  const nameOf = (p: ResultPlayerDto) =>
+    p.deleted ? tCommon('deletedUser') : (p.name ?? tResults('unnamed'));
   const id = useId();
   const [seats, setSeats] = useState<Record<string, Seat>>(() => firstSeats(players, initial));
   const [rows, setRows] = useState<string[][]>(() =>
@@ -112,14 +115,12 @@ export function ResultEditor({
               className="flex flex-wrap items-center justify-between gap-2"
               data-testid="result-editor-player"
             >
-              <span className="text-content-default min-w-0 truncate text-sm">
-                {p.name ?? tResults('unnamed')}
-              </span>
+              <span className="text-content-default min-w-0 truncate text-sm">{nameOf(p)}</span>
               <ToggleGroup
                 options={seatOptions}
                 selected={seats[p.userId] ?? 'out'}
                 selectAction={(v) => setSeats((s) => ({ ...s, [p.userId]: v as Seat }))}
-                ariaLabel={t('sideOf', { name: p.name ?? tResults('unnamed') })}
+                ariaLabel={t('sideOf', { name: nameOf(p) })}
                 size="sm"
               />
             </li>

@@ -11,9 +11,9 @@ import { messages, withIntl } from '../helpers/intl';
  */
 const race = messages.results.race;
 const DRIVERS = [
-  { userId: 'u_ana', name: 'Ана' },
-  { userId: 'u_boris', name: 'Борис' },
-  { userId: 'u_cveta', name: 'Цвета' },
+  { userId: 'u_ana', name: 'Ана', deleted: false },
+  { userId: 'u_boris', name: 'Борис', deleted: false },
+  { userId: 'u_cveta', name: 'Цвета', deleted: false },
 ];
 
 function mount(onSubmit: (order: string[]) => void) {

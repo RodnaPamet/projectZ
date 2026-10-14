@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 
+import { recordMatch } from '@/app-layer/usecases/ratings';
 import { GET as exportRoute } from '@/app/api/v1/me/export/route';
 import { DELETE as deleteMe } from '@/app/api/v1/me/route';
 import { phoneFingerprint } from '@/lib/account/phone-fingerprint';
@@ -372,9 +373,10 @@ describe('GET /api/v1/me/export (#370)', () => {
       'inviteLinks',
       'messages',
       'openPlay',
+      'ranking',
       'coach',
     ]);
-    expect(json.version).toBe(8);
+    expect(json.version).toBe(9);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
@@ -703,6 +705,79 @@ describe('GET /api/v1/me/export (#370)', () => {
     expect(text).not.toContain('%PDF');
     // And a player who never coached has none of it.
     expect((await download(player)).json.coach).toBeNull();
+  });
+
+  it('results and ratings: hers, and of the others on a result only how many (#582)', async () => {
+    const past = new Date(Date.now() - 3 * DAY);
+    const other = await asAppSuperuser(db, async (tx) => {
+      const b = await tx.booking.findUniqueOrThrow({
+        where: { id: theirsId },
+        select: { bookedByUserId: true },
+      });
+      // The co-player reported the booking they played; she disputed it.
+      await tx.matchReport.create({
+        data: {
+          tenantId: club.tenantId,
+          bookingId: theirsId,
+          sport: 'PADEL',
+          kind: 'SCORE',
+          sidesJson: [[b.bookedByUserId!], [player.userId]],
+          scoreJson: [
+            [6, 4],
+            [6, 2],
+          ],
+          winnerSide: 0,
+          status: 'REJECTED',
+          reportedByUserId: b.bookedByUserId!,
+          reportedAt: past,
+          answeredByUserId: player.userId,
+          answeredAt: past,
+          rejectNote: 'Не беше така',
+        },
+      });
+      return b.bookedByUserId!;
+    });
+    await recordMatch(db, {
+      tenantId: club.tenantId,
+      sport: 'PADEL',
+      teams: [[player.userId], [other]],
+      dedupeKey: `export:${player.userId}`,
+    });
+
+    const { json } = await download(player);
+    const ranking = json.ranking as Record<string, any>;
+    expect(ranking.levelShown).toBe(true);
+    expect(ranking.ratings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sport: 'PADEL', matchesPlayed: 1, points: expect.any(Number) }),
+        // Declared, never played: where a rating would start, no points.
+        expect.objectContaining({ sport: 'TENNIS', level: 3, points: null, matchesPlayed: 0 }),
+      ]),
+    );
+    expect(ranking.history).toEqual([
+      expect.objectContaining({ sport: 'PADEL', matchesPlayed: 1, points: expect.any(Number) }),
+    ]);
+    expect(ranking.results).toEqual([
+      {
+        club: 'Клуб Алфа',
+        start: expect.any(String),
+        sport: 'PADEL',
+        status: 'REJECTED',
+        sidePlayers: [1, 1],
+        yourSide: 2,
+        score: [
+          [6, 4],
+          [6, 2],
+        ],
+        outcome: 'lost',
+        reportedByYou: false,
+        answeredByYou: true,
+        yourRejectNote: 'Не беше така',
+        reportedAt: past.toISOString(),
+      },
+    ]);
+    // Nothing of the co-player's: not even the id.
+    expect(JSON.stringify(ranking)).not.toContain(other);
   });
 
   it('a club account gets its holder’s own data, not the club’s', async () => {

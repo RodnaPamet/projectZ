@@ -12,6 +12,8 @@ export interface ResultPlayerDto {
   userId: string;
   /** Null for a deleted account, or one with no name. */
   name: string | null;
+  /** The account was deleted (#582): «Изтрит потребител». */
+  deleted: boolean;
 }
 
 export interface ResultViewDto {

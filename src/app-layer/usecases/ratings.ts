@@ -159,6 +159,18 @@ export async function recordMatch(
 
   const before = new Map<string, SportRating>();
   const playedBefore = new Map<string, number>();
+  // A player who deleted the account since (#582) is rated on as an opponent,
+  // from where their rating stood, but gets no history: theirs was deleted
+  // with the account, and a tombstone has no rating to keep.
+  const gone = new Set(
+    (
+      await db.user.findMany({
+        where: { id: { in: players }, deletedAt: { not: null } },
+        select: { id: true },
+        take: players.length,
+      })
+    ).map((u) => u.id),
+  );
 
   for (const userId of players) {
     before.set(userId, await currentRating(db, userId, input.sport));
@@ -210,6 +222,7 @@ export async function recordMatch(
     });
 
     for (const [userId, rating] of after) {
+      if (gone.has(userId)) continue;
       const previous = before.get(userId)!;
 
       await tx.skillRatingHistory.create({

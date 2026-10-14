@@ -109,7 +109,10 @@ export class ResultNotAwaitingError extends Error {
 
 export interface ResultPlayer {
   userId: string;
+  /** Null for a deleted account, or one with no name. */
   name: string | null;
+  /** The account was deleted (#582): shown as «Изтрит потребител». */
+  deleted: boolean;
 }
 
 export interface ResultView {
@@ -178,20 +181,30 @@ async function bookingForResult(
   });
 }
 
-/** The display names of people on one booking, who already see each other there. */
-async function namesOf(ids: readonly string[]): Promise<Map<string, string | null>> {
-  if (ids.length === 0) return new Map();
-  // guardrail-allow: cross-tenant — the names of the people on one booking,
-  // whom every player on it already sees in its list of players.
-  const rows = await runAsSuperuser((db) =>
-    db.user.findMany({
-      where: { id: { in: [...ids] } },
-      select: { id: true, name: true, deletedAt: true },
-      // A booking's players and the ids on a result's sides: a handful.
-      take: 100,
-    }),
-  );
-  return new Map(rows.map((u) => [u.id, u.deletedAt ? null : u.name]));
+/**
+ * The people on bookings' results, by id: their names, which every player on
+ * a booking already sees in its list of players, and whether the account is
+ * gone. An id with no account reads as deleted.
+ */
+async function peopleOf(ids: readonly string[]): Promise<(id: string) => ResultPlayer> {
+  const unique = [...new Set(ids)];
+  // guardrail-allow: cross-tenant — the names of the people on bookings'
+  // results, whom every player on each booking already sees.
+  const rows = unique.length
+    ? await runAsSuperuser((db) =>
+        db.user.findMany({
+          where: { id: { in: unique } },
+          select: { id: true, name: true, deletedAt: true },
+          take: unique.length,
+        }),
+      )
+    : [];
+  const byId = new Map(rows.map((u) => [u.id, u]));
+  return (id) => {
+    const u = byId.get(id);
+    const gone = !u || !!u.deletedAt;
+    return { userId: id, name: gone ? null : (u?.name ?? null), deleted: gone };
+  };
 }
 
 function sidesOf(json: unknown): string[][] {
@@ -232,8 +245,7 @@ export async function readBookingResult(
   );
   const ids = new Set(b.players);
   for (const side of sidesOf(report?.sidesJson)) for (const id of side) ids.add(id);
-  const names = await namesOf([...ids]);
-  const player = (id: string): ResultPlayer => ({ userId: id, name: names.get(id) ?? null });
+  const player = await peopleOf([...ids]);
 
   const format = scoreFormatFor(b.sport);
   const until = reportableUntil(b);
@@ -475,7 +487,7 @@ export async function listClubResults(
       booking: { select: { startTs: true, resource: { select: { name: true } } } },
     },
   });
-  const names = await namesOf([...new Set(rows.flatMap((r) => sidesOf(r.sidesJson).flat()))]);
+  const person = await peopleOf(rows.flatMap((r) => sidesOf(r.sidesJson).flat()));
   return rows.map((r) => ({
     id: r.id,
     bookingId: r.bookingId,
@@ -484,9 +496,7 @@ export async function listClubResults(
     format: scoreFormatFor(r.sport),
     startTs: r.booking.startTs.toISOString(),
     courtName: r.booking.resource.name,
-    sides: sidesOf(r.sidesJson).map((s) =>
-      s.map((id) => ({ userId: id, name: names.get(id) ?? null })),
-    ),
+    sides: sidesOf(r.sidesJson).map((s) => s.map(person)),
     score: Array.isArray(r.scoreJson) ? (r.scoreJson as number[][]) : null,
     winnerSide: r.winnerSide,
     rejectNote: r.rejectNote,
@@ -520,7 +530,7 @@ export async function readClubBookingResult(
         await runInTenantContext(tenantId, (db) => listClubResults(db, tenantId, { bookingId }))
       )[0] ?? null)
     : null;
-  const names = await namesOf(b.players);
+  const person = await peopleOf(b.players);
   const format = scoreFormatFor(b.sport);
   return {
     result,
@@ -529,7 +539,7 @@ export async function readClubBookingResult(
       b.status === 'COMPLETED' &&
       (format === 'PERIODS' || format === 'TOTAL' || (format === 'ORDER' && b.players.length >= 2)),
     format,
-    players: b.players.map((id) => ({ userId: id, name: names.get(id) ?? null })),
+    players: b.players.map(person),
   };
 }
 
