@@ -7,7 +7,7 @@ import {
   newRatingFor,
   rateMatch,
 } from '@/lib/ratings/engine';
-import { seedRating } from '@/lib/ratings/levels';
+import { seedRating, withInactivity } from '@/lib/ratings/levels';
 
 /**
  * Recording results and moving ratings.
@@ -45,11 +45,16 @@ export class UnknownPlayerRatingError extends Error {
  * The declared level is the player's own row (`player_sport_level`, owner-only
  * under RLS): rating a match re-rates every player in it, so the caller binds
  * a handle that can read each of theirs, or every newcomer starts at level 4.
+ *
+ * A player back after time away starts the next match less certain, never
+ * lower (decision 48, `withInactivity`): the stored rows are as each match
+ * left them, and the growth is applied here, as of `now`.
  */
 export async function currentRating(
   db: PrismaClient,
   userId: string,
   sport: SportType,
+  now: Date = new Date(),
 ): Promise<SportRating> {
   const latest = await db.skillRatingHistory.findFirst({
     where: { userId, sport },
@@ -69,23 +74,28 @@ export async function currentRating(
   // wrote them — otherwise a chess history renders as a cliff where the rating
   // apparently fell from 1500 to 25 overnight.
   if (latest.engine === 'GLICKO2') {
-    return {
-      engine: 'GLICKO2',
-      state: {
-        mu: Number(latest.mu),
-        // The CHECK constraint guarantees phi is present on a Glicko row. The
-        // fallback is defensive only, and would be a bug if it ever fired.
-        phi: Number(latest.phi ?? 350),
-        sigma: Number(latest.sigma),
-        matchesPlayed: latest.matchesPlayed,
+    return withInactivity(
+      {
+        engine: 'GLICKO2',
+        state: {
+          mu: Number(latest.mu),
+          // The CHECK constraint guarantees phi is present on a Glicko row. The
+          // fallback is defensive only, and would be a bug if it ever fired.
+          phi: Number(latest.phi ?? 350),
+          sigma: Number(latest.sigma),
+          matchesPlayed: latest.matchesPlayed,
+        },
       },
-    };
+      latest.computedAt,
+      now,
+    );
   }
 
-  return {
-    engine: 'OPENSKILL',
-    state: { mu: Number(latest.mu), sigma: Number(latest.sigma) },
-  };
+  return withInactivity(
+    { engine: 'OPENSKILL', state: { mu: Number(latest.mu), sigma: Number(latest.sigma) } },
+    latest.computedAt,
+    now,
+  );
 }
 
 export interface RecordMatchInput {

@@ -8,6 +8,7 @@ import {
 } from '@/app-layer/usecases/account-deletion';
 import { getMe } from '@/app-layer/usecases/me';
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
+import { myRatings } from '@/app-layer/usecases/shown-ratings';
 import { profileCrumbs } from '@/components/layout/crumbs';
 import { COACH_PROFILE_HREF } from '@/lib/coaches/hrefs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
@@ -95,6 +96,9 @@ export default async function ProfilePage() {
     ]);
   const legal = await legalHrefs(isLocale(locale) ? locale : DEFAULT_LOCALE);
   if (!me || !mine || !notificationSettings || !standing) redirect('/login?next=/me/profile');
+  // «Класиране» (#576): a player's, while the ranking module is on.
+  const ratings =
+    readModules().ranking && mine.accountKind !== 'CLUB' ? await myRatings(userId) : null;
 
   // #359's sections read and write `GET`/`PATCH /api/v1/me`; this is their
   // seed, from the same use case, so the first paint is the account and not a
@@ -116,6 +120,17 @@ export default async function ProfilePage() {
         notificationSettings={notificationSettings}
         deletion={standingView(standing)}
         legal={legal}
+        ratings={
+          ratings
+            ? {
+                public: ratings.public,
+                items: ratings.items.map((r) => ({
+                  ...r,
+                  lastPlayedAt: r.lastPlayedAt?.toISOString() ?? null,
+                })),
+              }
+            : null
+        }
       />
     </ViewerScope>
   );

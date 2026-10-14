@@ -1,5 +1,13 @@
 import { engineFor } from '@/lib/ratings/engine';
-import { levelOf, meanForLevel, seedRating } from '@/lib/ratings/levels';
+import {
+  isProvisional,
+  levelOf,
+  levelOfMean,
+  meanForLevel,
+  PROVISIONAL_AFTER_DAYS,
+  seedRating,
+  withInactivity,
+} from '@/lib/ratings/levels';
 
 /**
  * THE 1–7 LEVEL AND THE ENGINES (#378, decisions 31 and Q24).
@@ -60,5 +68,56 @@ describe('ratings on the 1–7 level scale', () => {
   it('a declared level outside 1–7 is held to the scale', () => {
     expect(levelOf(seedRating('PADEL', 12))).toBe(7);
     expect(levelOf(seedRating('PADEL', -3))).toBe(1);
+  });
+});
+
+describe('provisional, and time away (decisions 47, 48)', () => {
+  const now = new Date('2026-10-14T12:00:00Z');
+  const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
+
+  it('is provisional under 5 matches, settled from 5, and provisional again after six months away', () => {
+    expect(isProvisional(0, null, now)).toBe(true);
+    expect(isProvisional(4, daysAgo(1), now)).toBe(true);
+    expect(isProvisional(5, daysAgo(1), now)).toBe(false);
+    expect(isProvisional(40, daysAgo(PROVISIONAL_AFTER_DAYS), now)).toBe(false);
+    expect(isProvisional(40, daysAgo(PROVISIONAL_AFTER_DAYS + 1), now)).toBe(true);
+  });
+
+  it('time away leaves the mean, and so the level, where it was', () => {
+    const settled = { engine: 'OPENSKILL' as const, state: { mu: 31, sigma: 2.5 } };
+    const back = withInactivity(settled, daysAgo(200), now);
+    expect(back.state.mu).toBe(31);
+    expect(levelOf(back)).toBe(levelOf(settled));
+  });
+
+  it('…and grows the uncertainty, slowly, to a newcomer’s after a year and never past it', () => {
+    const settled = { engine: 'OPENSKILL' as const, state: { mu: 31, sigma: 2.5 } };
+    const newcomer = seedRating('PADEL', 4).state.sigma;
+    const month = withInactivity(settled, daysAgo(30), now).state.sigma;
+    const year = withInactivity(settled, daysAgo(365), now).state.sigma;
+    const decade = withInactivity(settled, daysAgo(3650), now).state.sigma;
+    expect(month).toBeGreaterThan(2.5);
+    expect(month).toBeLessThan(year);
+    expect(year).toBeCloseTo(newcomer, 5);
+    expect(decade).toBeCloseTo(newcomer, 5);
+    // No time, no change.
+    expect(withInactivity(settled, now, now)).toEqual(settled);
+  });
+
+  it('Glicko-2 grows φ the same way, to 350', () => {
+    const chess = {
+      engine: 'GLICKO2' as const,
+      state: { mu: 1700, phi: 70, sigma: 0.06, matchesPlayed: 30 },
+    };
+    const back = withInactivity(chess, daysAgo(365), now);
+    expect(back.state.mu).toBe(1700);
+    expect(back.engine === 'GLICKO2' && back.state.phi).toBeCloseTo(350, 5);
+  });
+
+  it('a stored mean reads as the same level as the rating it came from', () => {
+    expect(levelOfMean('OPENSKILL', 27)).toBe(
+      levelOf({ engine: 'OPENSKILL', state: { mu: 27, sigma: 3 } }),
+    );
+    expect(levelOfMean('GLICKO2', 1600)).toBe(4.5);
   });
 });

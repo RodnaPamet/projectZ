@@ -11,6 +11,8 @@ export interface AccountPatch {
   sports?: Array<{ sport: string; level: number }>;
   /** "Показвай ме в търсенето" (#375). */
   searchable?: boolean;
+  /** "Показвай нивото ми" (#576). */
+  ratingPublic?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function useAccount(seed: MeDto) {
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.sports !== undefined ? { sports: patch.sports as MeDto['sports'] } : {}),
       ...(patch.searchable !== undefined ? { searchable: patch.searchable } : {}),
+      ...(patch.ratingPublic !== undefined ? { ratingPublic: patch.ratingPublic } : {}),
     }),
     fallback: seed,
   });

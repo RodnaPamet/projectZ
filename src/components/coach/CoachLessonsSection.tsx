@@ -241,12 +241,20 @@ export function CoachLessonsSection({
               </Caption>
               <Caption data-testid="coach-lesson-player">
                 {l.player
-                  ? l.player.level === null
-                    ? t('player', { name: l.player.name ?? t('unnamed') })
-                    : t('playerLevel', {
+                  ? l.player.rating
+                    ? t(l.player.rating.provisional ? 'playerLevelProvisional' : 'playerLevel', {
                         name: l.player.name ?? t('unnamed'),
-                        level: l.player.level,
+                        level: format.number(l.player.rating.level, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        }),
                       })
+                    : l.player.level === null
+                      ? t('player', { name: l.player.name ?? t('unnamed') })
+                      : t('playerLevel', {
+                          name: l.player.name ?? t('unnamed'),
+                          level: l.player.level,
+                        })
                   : t('noPlayer')}
                 {l.players > 1 ? ` · ${t('group', { count: l.players })}` : ''}
               </Caption>

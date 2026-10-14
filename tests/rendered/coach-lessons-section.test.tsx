@@ -36,7 +36,7 @@ const lesson = (over: Partial<MyLessonDto> = {}): MyLessonDto => ({
   venue: { id: 'v1', name: 'Алфа Кортове', timezone: 'Europe/Sofia' },
   club: 'Клуб Алфа',
   court: { name: 'Корт 1', sport: 'TENNIS' },
-  player: { name: 'Петя Играч', level: 4, phone: '+359888123456' },
+  player: { name: 'Петя Играч', level: 4, rating: null, phone: '+359888123456' },
   players: 1,
   coachFeeCents: 4000,
   currency: 'EUR',
@@ -98,7 +98,11 @@ describe('«Уроци»: what a coach is shown', () => {
     mount(
       page([
         lesson({ players: 3, coachFeeCents: 6000 }),
-        lesson({ id: 'ls2', bookingId: 'bk2', player: { name: 'Иво', level: null, phone: null } }),
+        lesson({
+          id: 'ls2',
+          bookingId: 'bk2',
+          player: { name: 'Иво', level: null, rating: null, phone: null },
+        }),
         lesson({ id: 'ls3', bookingId: 'bk3', player: null }),
       ]),
     );

@@ -15,6 +15,8 @@ import {
 } from '@/components/profile/DeleteAccountSection';
 import { NotificationSettingsRow } from '@/components/profile/NotificationSettingsRow';
 import { PersonalDataSection } from '@/components/profile/PersonalDataSection';
+import { MyRatingsSection, type MyRatingsDto } from '@/components/profile/MyRatingsSection';
+import { RatingVisibilityRow } from '@/components/profile/RatingVisibilityRow';
 import { SportLevelsSection } from '@/components/profile/SportLevelsSection';
 import { SearchVisibilityRow } from '@/components/profile/SearchVisibilityRow';
 import { useAccount } from '@/components/profile/use-account';
@@ -81,6 +83,7 @@ export function ProfileView({
   notificationSettings,
   deletion,
   legal,
+  ratings = null,
 }: {
   name: string | null;
   email: string | null;
@@ -95,6 +98,8 @@ export function ProfileView({
   notificationSettings: NotificationSettingsDto;
   /** May the account delete itself, and if not, why (#370). */
   deletion: DeletionStandingView;
+  /** The player's own ratings (#576), while the ranking module is on; null otherwise. */
+  ratings?: MyRatingsDto | null;
   /** The legal texts that exist in this language (#370), null for the rest. */
   legal: { privacy: string | null; terms: string | null; cookies: string | null };
 }) {
@@ -139,6 +144,8 @@ export function ProfileView({
         }}
       />
       {showSports ? <SportLevelsSection seed={seed} /> : null}
+      {/* «Класиране» (#576): the level, and the points only the player sees. */}
+      {ratings ? <MyRatingsSection seed={ratings} /> : null}
 
       {/* #545: a coach's own profile and where it stands with the platform.
           Its own page; here is the way to it. */}
@@ -187,6 +194,8 @@ export function ProfileView({
         {/* Whoever can be found by name can switch that off: a player, and a
             coach, who plays too (#377). */}
         {playsAsPlayer(seed.accountKind) ? <SearchVisibilityRow seed={seed} /> : null}
+        {/* #576: whether others see the rating; while ranking is on. */}
+        {ratings ? <RatingVisibilityRow seed={seed} /> : null}
         {/* #370: everything playerz holds about the account, as a file. */}
         <DataExportRow href={V1.exportMyData()} />
         {/* The owner's texts, once they exist in this language; how to delete
