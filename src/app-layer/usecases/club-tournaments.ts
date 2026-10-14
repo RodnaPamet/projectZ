@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 
 import { blockedEitherWay, isLivePlayer } from '@/app-layer/usecases/messaging-directory';
+import { walkoversForWithdrawn } from '@/app-layer/usecases/tournament-draw';
 import { requirePlayerAccount } from '@/app-layer/usecases/booking-players';
 import { assertPhoneConfirmed } from '@/app-layer/usecases/phone-verification';
 import { publicVenueFilter } from '@/app-layer/repositories/public-venue';
@@ -931,8 +932,8 @@ export async function withdrawEntry(
   }
   return runInTenantContext(found.tenantId, async (db) => {
     const t = await lockTournament(db, found.tenantId, found.tournamentId);
-    if (t.status !== 'REGISTRATION' && t.status !== 'DRAFT') {
-      throw new TournamentError('TOURNAMENT_STATE', 409, 'The tournament has started.');
+    if (t.status !== 'REGISTRATION' && t.status !== 'DRAFT' && t.status !== 'IN_PROGRESS') {
+      throw new TournamentError('TOURNAMENT_STATE', 409, 'The tournament is over.');
     }
     const entry = await db.tournamentEntry.findFirstOrThrow({
       where: { id: entryId, tenantId: found.tenantId },
@@ -945,6 +946,8 @@ export async function withdrawEntry(
       where: { id: entryId },
       data: { status: 'WITHDRAWN', withdrawnAt: now, withdrawnByUserId: userId },
     });
+    // Under way (59): played results stand; its other matches are walkovers.
+    if (t.status === 'IN_PROGRESS') await walkoversForWithdrawn(db, found.tenantId, entryId, now);
     return {
       tenantId: found.tenantId,
       tournamentId: found.tournamentId,
@@ -976,16 +979,26 @@ export async function myTournamentEntries(
 }
 
 /** The club's venues and the sports their courts are for: where a tournament can be played. */
-export async function clubVenuesForTournaments(
-  tenantId: string,
-): Promise<Array<{ id: string; name: string; sports: SportType[] }>> {
+export async function clubVenuesForTournaments(tenantId: string): Promise<
+  Array<{
+    id: string;
+    name: string;
+    sports: SportType[];
+    courts: Array<{ id: string; name: string }>;
+  }>
+> {
   return runInTenantContext(tenantId, async (db) => {
     const venues = await db.venue.findMany({
       where: { tenantId, status: 'ACTIVE' },
       select: {
         id: true,
         name: true,
-        resources: { where: { status: 'ACTIVE' }, select: { sport: true }, take: 200 },
+        resources: {
+          where: { status: 'ACTIVE' },
+          select: { id: true, name: true, sport: true },
+          orderBy: { name: 'asc' },
+          take: 200,
+        },
       },
       orderBy: { name: 'asc' },
       take: 50,
@@ -994,6 +1007,40 @@ export async function clubVenuesForTournaments(
       id: v.id,
       name: v.name,
       sports: [...new Set(v.resources.map((r) => r.sport))],
+      courts: v.resources.map((r) => ({ id: r.id, name: r.name })),
     }));
+  });
+}
+
+/**
+ * The club withdraws an entry from a tournament under way (59): its played
+ * results stand, its other matches are walkovers. Before the draw, the club
+ * declines an entry instead.
+ */
+export async function withdrawEntryAsClub(
+  actor: { userId: string; tenantId: string },
+  entryId: string,
+  now: Date = new Date(),
+): Promise<{ tournamentId: string }> {
+  return runInTenantContext(actor.tenantId, async (db) => {
+    const entry = await db.tournamentEntry.findFirst({
+      where: { id: entryId, tenantId: actor.tenantId },
+      select: { tournamentId: true, status: true },
+    });
+    if (!entry) throw new TournamentError('TOURNAMENT_ENTRY_NOT_FOUND', 404, 'Entry not found.');
+    const t = await lockTournament(db, actor.tenantId, entry.tournamentId);
+    if (t.status !== 'IN_PROGRESS' || entry.status !== 'CONFIRMED') {
+      throw new TournamentError(
+        'TOURNAMENT_ENTRY_NOT_ACTIVE',
+        409,
+        'Only a confirmed entry is withdrawn from a tournament under way.',
+      );
+    }
+    await db.tournamentEntry.update({
+      where: { id: entryId },
+      data: { status: 'WITHDRAWN', withdrawnAt: now, withdrawnByUserId: actor.userId },
+    });
+    await walkoversForWithdrawn(db, actor.tenantId, entryId, now);
+    return { tournamentId: entry.tournamentId };
   });
 }

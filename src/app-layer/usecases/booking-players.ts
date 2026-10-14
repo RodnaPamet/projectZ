@@ -827,6 +827,14 @@ export async function acceptBookingInvite(input: {
 // ─── Leaving and removing ───────────────────────────────────────────────
 
 /** The caller leaves a booking they were added to. The booker cancels instead. */
+/** A tournament match's booking (#580): its players come from the draw, not the booking. */
+export class TournamentMatchBookingError extends Error {
+  constructor() {
+    super('This booking is a tournament match: withdraw from the tournament instead.');
+    this.name = 'TournamentMatchBookingError';
+  }
+}
+
 export async function leaveBooking(input: {
   userId: string;
   bookingId: string;
@@ -837,6 +845,15 @@ export async function leaveBooking(input: {
   // The booker is not a participant: leaving their own booking is cancelling
   // it, which has its own route, cutoff and audit.
   if (at.role === 'BOOKER') throw new BookerCannotLeaveError();
+  // A tournament match on a court (#580): its players are the draw's, and
+  // one who cannot play withdraws from the tournament instead (59).
+  const match = await runInTenantContext(at.tenantId, (tx) =>
+    tx.tournamentMatch.findFirst({
+      where: { bookingId: input.bookingId, tenantId: at.tenantId },
+      select: { id: true },
+    }),
+  );
+  if (match) throw new TournamentMatchBookingError();
   const now = input.now ?? new Date();
 
   const participantId = await runInTenantContext(at.tenantId, async (tx) => {

@@ -16500,7 +16500,7 @@
         "operationId": "withdrawTournamentEntry",
         "summary": "Withdraw an entry",
         "tags": ["Tournaments"],
-        "description": "The entrant or the partner withdraws a live entry before it starts (50). The other of the pair is told, and the desk if confirmed. Answers the tournament as the caller now sees it, or null.",
+        "description": "The entrant or the partner withdraws a live entry before it starts (50). The other of the pair is told, and the desk if confirmed. Answers the tournament as the caller now sees it, or null. Under way (#580, 59): its played results stand, and its other matches are walkovers.",
         "responses": {
           "200": {
             "description": "OK",
@@ -16579,6 +16579,486 @@
           }
         },
         "security": []
+      }
+    },
+    "/t/{slug}/admin/tournaments/{id}/draw": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getClubDraw",
+        "summary": "The draw, for the club",
+        "tags": ["Tournaments"],
+        "description": "Groups with tables and matches, the knockout by round, the match for third, each match's court and time (#580).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No draw yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "drawTournament",
+        "summary": "Make the draw",
+        "tags": ["Tournaments"],
+        "description": "The club makes the draw (#580): the confirmed entries are seeded by level (54), into groups by a snake (55) or straight into a knockout, with a match for third when asked (61). The entries still waiting are declined. Everyone entered is told.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "TOURNAMENT_INVALID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_STATE, TOURNAMENT_TOO_FEW, TOURNAMENT_DRAW_UNSUPPORTED (Americano and Mexicano #590, a league #591).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrawRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/tournament-matches/{id}/schedule": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "scheduleTournamentMatch",
+        "summary": "Put a match on a court",
+        "tags": ["Tournaments"],
+        "description": "A booking on the diary with the match's players on it, free; their result is the match's (40). A match already on a court moves. Its players are told.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "TOURNAMENT_INVALID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_MATCH_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_MATCH_NOT_READY, SLOT_TAKEN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleMatchRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/tournament-matches/{id}/walkover": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "recordTournamentWalkover",
+        "summary": "Record a walkover",
+        "tags": ["Tournaments"],
+        "description": "The club gives a ready match to one side unplayed (58, 59): unrated, the winner goes on, its court is freed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_MATCH_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_MATCH_NOT_READY.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalkoverRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/t/{slug}/admin/tournament-entries/{id}/withdraw": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "withdrawTournamentEntryAsClub",
+        "summary": "Withdraw an entry from a tournament under way",
+        "tags": ["Tournaments"],
+        "description": "Played results stand; its other matches are walkovers (59).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubTournamentEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_ENTRY_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_ENTRY_NOT_ACTIVE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournaments/{id}/draw": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTournamentDraw",
+        "summary": "The draw",
+        "tags": ["Tournaments"],
+        "description": "For signed-in callers (names, decision 49): groups with tables, the knockout by round, the match for third, each match's court, time and result, and which are the caller's (`mine`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No draw yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -24915,7 +25395,7 @@
       "BookingResultState": {
         "type": "object",
         "title": "BookingResultState",
-        "required": ["result", "canReport", "reportableUntil", "format", "players"],
+        "required": ["result", "canReport", "reportableUntil", "format", "players", "fixedSides"],
         "properties": {
           "result": {
             "oneOf": [
@@ -24946,6 +25426,16 @@
               "$ref": "#/components/schemas/ResultPlayer"
             },
             "description": "The booking's players, to pick the two sides from."
+          },
+          "fixedSides": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ResultPlayer"
+              }
+            },
+            "description": "The sides a tournament's draw set (#580), when the booking is a tournament match: the result keeps them (in either order), and a knockout's has a winner."
           }
         }
       },
@@ -25815,6 +26305,293 @@
                 "type": "string"
               }
             }
+          }
+        }
+      },
+      "DrawEntry": {
+        "type": "object",
+        "required": ["id", "seed", "withdrawn", "players"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "seed": {
+            "type": ["integer", "null"]
+          },
+          "withdrawn": {
+            "type": "boolean"
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TournamentPerson"
+            }
+          }
+        }
+      },
+      "DrawMatch": {
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "round",
+          "slot",
+          "groupNo",
+          "sideA",
+          "sideB",
+          "status",
+          "winnerSide",
+          "score",
+          "scheduled",
+          "mine"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string",
+            "enum": ["GROUP", "KNOCKOUT", "THIRD_PLACE"]
+          },
+          "round": {
+            "type": "integer"
+          },
+          "slot": {
+            "type": "integer"
+          },
+          "groupNo": {
+            "type": "integer",
+            "description": "1.. in the group stage; 0 in a knockout."
+          },
+          "sideA": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DrawEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sideB": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DrawEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["PENDING", "READY", "PLAYED", "WALKOVER"],
+            "description": "PENDING: a side not known yet; READY: to play; PLAYED: its result counted (rated, 29); WALKOVER: a bye, a withdrawal (59) or the club's decision (58)."
+          },
+          "winnerSide": {
+            "type": ["integer", "null"]
+          },
+          "score": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "description": "Side A first."
+          },
+          "scheduled": {
+            "type": ["object", "null"],
+            "required": ["bookingId", "courtName", "startTs", "endTs"],
+            "properties": {
+              "bookingId": {
+                "type": "string"
+              },
+              "courtName": {
+                "type": "string"
+              },
+              "startTs": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endTs": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "description": "On a court, while its booking stands (40). Its players report its result from the booking."
+          },
+          "mine": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Draw": {
+        "type": "object",
+        "title": "Draw",
+        "required": ["tournamentId", "format", "status", "groups", "knockout", "thirdPlace"],
+        "properties": {
+          "tournamentId": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["DRAFT", "REGISTRATION", "IN_PROGRESS", "COMPLETE", "CANCELLED"]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["groupNo", "table", "matches"],
+              "properties": {
+                "groupNo": {
+                  "type": "integer"
+                },
+                "table": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "entryId",
+                      "rank",
+                      "played",
+                      "won",
+                      "drawn",
+                      "lost",
+                      "points",
+                      "setsDiff",
+                      "gamesDiff",
+                      "entry"
+                    ],
+                    "properties": {
+                      "entryId": {
+                        "type": "string"
+                      },
+                      "rank": {
+                        "type": "integer"
+                      },
+                      "played": {
+                        "type": "integer"
+                      },
+                      "won": {
+                        "type": "integer"
+                      },
+                      "drawn": {
+                        "type": "integer"
+                      },
+                      "lost": {
+                        "type": "integer"
+                      },
+                      "points": {
+                        "type": "integer",
+                        "description": "A win 3, a draw 1, a loss 0 (57)."
+                      },
+                      "setsDiff": {
+                        "type": "integer"
+                      },
+                      "gamesDiff": {
+                        "type": "integer"
+                      },
+                      "entry": {
+                        "$ref": "#/components/schemas/DrawEntry"
+                      }
+                    }
+                  }
+                },
+                "matches": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DrawMatch"
+                  }
+                }
+              }
+            },
+            "description": "The group stage, or one group for a round robin; ties by head-to-head, then sets or goals, then games difference (57)."
+          },
+          "knockout": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DrawMatch"
+              }
+            },
+            "description": "Round by round, the final last."
+          },
+          "thirdPlace": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DrawMatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "DrawEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Draw"
+          }
+        }
+      },
+      "DrawRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupCount": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 32,
+            "description": "Groups feeding a knockout (55); default 2."
+          },
+          "qualifiersPerGroup": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 8,
+            "description": "From each group into the knockout (55); default 2."
+          },
+          "thirdPlace": {
+            "type": "boolean",
+            "description": "A match for third between the semi-final losers (61)."
+          }
+        }
+      },
+      "ScheduleMatchRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceId", "startTs", "durationMinutes"],
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 15,
+            "maximum": 480
+          }
+        }
+      },
+      "WalkoverRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["winnerSide"],
+        "properties": {
+          "winnerSide": {
+            "type": "integer",
+            "enum": [0, 1]
           }
         }
       }

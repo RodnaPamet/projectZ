@@ -277,6 +277,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   },
   ResultAlreadyReportedError: { status: 409, code: 'RESULT_ALREADY_REPORTED' },
   ResultNotAwaitingError: { status: 409, code: 'RESULT_NOT_AWAITING' },
+  // A tournament match's booking (#580): leave the tournament, not the booking.
+  TournamentMatchBookingError: { status: 409, code: 'BOOKING_IS_TOURNAMENT_MATCH' },
   //
   // These are the ones a mobile client MUST distinguish, because every one of
   // them is "try again with fresh data", not "you did something wrong".
@@ -310,7 +312,6 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // The number already confirms another account (#500). Said only after the
   // code proved the caller holds the phone.
   PhoneInUseError: { status: 409, code: 'PHONE_IN_USE' },
-  TournamentStateError: { status: 409, code: 'TOURNAMENT_STATE' },
   IdempotencyRaceError: { status: 409, code: 'IDEMPOTENCY_RACE' },
   // The expiry sweeper (or another tab) moved the booking out of a cancellable
   // state between our read and our write. Refetch and the client will see why.

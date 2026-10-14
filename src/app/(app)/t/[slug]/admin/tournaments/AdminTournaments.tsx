@@ -32,7 +32,12 @@ export function AdminTournaments({
 }: {
   slug: string;
   seed: TournamentDto[];
-  venues: Array<{ id: string; name: string; sports: string[] }>;
+  venues: Array<{
+    id: string;
+    name: string;
+    sports: string[];
+    courts?: Array<{ id: string; name: string }>;
+  }>;
 }) {
   const t = useTranslations('admin.tournaments');
   const tT = useTranslations('tournaments');

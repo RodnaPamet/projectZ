@@ -63,6 +63,14 @@ model Tournament {
   feePayment      TournamentFeePayment @default(AT_CLUB)
   createdByUserId String?
 
+  /// Groups feeding a knockout (55): how many groups, and how many from each go through.
+  groupCount         Int?
+  qualifiersPerGroup Int?
+  /// A match for third place between the semi-final losers (61).
+  thirdPlace         Boolean   @default(false)
+  /// When the club made the draw (#580): from then on it is IN_PROGRESS.
+  drawnAt            DateTime?
+
   currentRound Int @default(0)
   totalRounds  Int @default(0)
 
@@ -103,6 +111,9 @@ model TournamentEntry {
   decidedByUserId   String?
   /// Who withdrew it: the entrant, the partner, or the club.
   withdrawnByUserId String?
+  /// In the group stage, the group (55); its seed in the draw (54).
+  groupNo           Int?
+  seed              Int?
   /// Seed weight at the moment of entry. Frozen: a player's live rating moving
   /// mid-event must not re-seed a bracket that is already being played.
   seedRating        Int?
@@ -124,28 +135,73 @@ model TournamentEntry {
   @@map("tournament_entry")
 }
 
+/// Where a match sits in a club tournament's draw (#580, P81).
+enum TournamentStage {
+  GROUP
+  KNOCKOUT
+  /// The semi-final losers, when the club chose one (decision 61).
+  THIRD_PLACE
+}
+
+/// A draw's match through the tournament (#580, P81).
+enum TournamentMatchStatus {
+  /// A side is not known yet: an earlier match decides it.
+  PENDING
+  /// Both sides known; not played yet.
+  READY
+  /// Played, and its result counted: rated (29), the draw moved on.
+  PLAYED
+  /// Won without playing: a bye, a withdrawal (59), or the club's decision (58).
+  WALKOVER
+}
+
+/// One match of a club tournament's draw (#580, P81). Every match of a
+/// knockout exists from the draw, pointing at the one its winner goes on to;
+/// a group's are everyone against everyone. Its sides are entries, a player
+/// or a pair. Put on a court, it is a booking (decision 40), and the booking's
+/// result is the match's.
 model TournamentMatch {
   id           String @id @default(cuid())
   tenantId     String
   tournamentId String
 
-  round Int
+  stage   TournamentStage
+  round   Int
+  slot    Int
+  /// 1.. in the group stage; 0 in a knockout.
+  groupNo Int             @default(0)
 
-  homeUserId String
-  /// NULL = a bye. Somebody has to sit out an odd round.
-  awayUserId String?
+  /// Null until an earlier match decides it; side B null in round 1 is a bye.
+  entryAId String?
+  entryBId String?
 
-  homeScore Float?
-  awayScore Float?
+  status     TournamentMatchStatus @default(PENDING)
+  /// 0 = side A won, 1 = side B, null = not decided or a group draw.
+  winnerSide Int?
+  /// Side A first in each pair, as the result counted it.
+  scoreJson  Json?
 
-  reportedAt DateTime?
+  /// The booking that put it on a court and time (40). Its result is the match's.
+  bookingId String? @unique
+
+  /// Where the winner goes, and on which side; where a semi-final's loser goes (61).
+  nextMatchId      String?
+  nextSide         Int?
+  loserNextMatchId String?
+  loserNextSide    Int?
+
+  /// The club staff member who recorded a walkover (58, 59).
+  decidedByUserId String?
+  playedAt        DateTime?
+  createdAt       DateTime  @default(now())
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  booking    Booking?   @relation(fields: [bookingId], references: [id], onDelete: SetNull)
 
-  /// A fixture exists once. A redelivered "report result" must not create a
-  /// second copy of the same game with a different score.
-  @@unique([tournamentId, round, homeUserId])
+  /// A match exists once in its place in the draw.
+  @@unique([tournamentId, stage, groupNo, round, slot])
   @@index([tenantId])
-  @@index([tournamentId, round])
+  @@index([entryAId])
+  @@index([entryBId])
   @@map("tournament_match")
 }

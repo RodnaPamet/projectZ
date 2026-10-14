@@ -61,7 +61,7 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
   // too (decision 52). The desk's permission, as the diary's.
   {
     pattern:
-      /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:results|bookings\/[^/]+\/result|tournaments|tournament-entries)(?:\/|$)/,
+      /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:results|bookings\/[^/]+\/result|tournaments|tournament-entries|tournament-matches)(?:\/|$)/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'bookings.view_all',
   },

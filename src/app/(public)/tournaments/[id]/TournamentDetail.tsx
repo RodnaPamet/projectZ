@@ -9,6 +9,7 @@ import type { PlayerCardDto as PlayerCard } from '@/app/api/v1/_lib/messaging';
 import type { TournamentViewDto } from '@/app/api/v1/_lib/tournament-dto';
 import { PhoneRequiredNotice } from '@/components/phone/PhoneRequiredNotice';
 import { PartnerPicker } from '@/components/tournaments/PartnerPicker';
+import { PlayerDraw } from '@/components/tournaments/PlayerDraw';
 import {
   tournamentErrorKey,
   type TournamentErrorKey,
@@ -259,6 +260,11 @@ export function TournamentDetail({
           </InlineNotice>
         ) : null}
       </section>
+
+      {/* The draw (#580), once it is made. */}
+      {x.status === 'IN_PROGRESS' || x.status === 'COMPLETE' ? (
+        <PlayerDraw tournamentId={x.id} signedIn={signedIn} />
+      ) : null}
 
       {withdrawing ? (
         <ConfirmDialog

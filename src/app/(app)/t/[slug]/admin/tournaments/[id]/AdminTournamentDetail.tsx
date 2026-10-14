@@ -21,6 +21,7 @@ import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 
 import { TournamentForm, type TournamentFormValue } from '../TournamentForm';
+import { AdminDraw } from './AdminDraw';
 
 const ConfirmDialog = dynamic(() =>
   import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
@@ -47,7 +48,12 @@ export function AdminTournamentDetail({
 }: {
   slug: string;
   seed: ClubTournamentDto;
-  venues: Array<{ id: string; name: string; sports: string[] }>;
+  venues: Array<{
+    id: string;
+    name: string;
+    sports: string[];
+    courts: Array<{ id: string; name: string }>;
+  }>;
 }) {
   const t = useTranslations('admin.tournaments');
   const tT = useTranslations('tournaments');
@@ -66,6 +72,10 @@ export function AdminTournamentDetail({
   });
   const decide = useV1Mutation<{ id: string; verb: 'confirm' | 'decline' }, ClubTournamentDto>({
     url: ({ id, verb }) => V1.decideTournamentEntry(slug, id, verb),
+  });
+  // A tournament under way (#580, 59): the club withdraws an entry.
+  const withdraw = useV1Mutation<{ id: string }, ClubTournamentDto>({
+    url: ({ id }) => V1.withdrawTournamentEntryAsClub(slug, id),
   });
   const update = useV1Mutation<TournamentFormValue, ClubTournamentDto>({
     url: () => V1.updateTournament(slug, x.id),
@@ -110,6 +120,18 @@ export function AdminTournamentDetail({
       <StatusBadge variant={ENTRY_TONE[e.status]} icon={null}>
         {tT(`entry.${e.status}`)}
       </StatusBadge>
+      {x.status === 'IN_PROGRESS' && e.status === 'CONFIRMED' ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={withdraw.isMutating}
+          onClick={() => void run(() => withdraw.trigger({ id: e.id }))}
+          data-testid="admin-tournament-withdraw"
+        >
+          {t('withdrawEntry')}
+        </Button>
+      ) : null}
       {x.status === 'REGISTRATION' && (e.status === 'PENDING' || e.status === 'CONFIRMED') ? (
         <div className="flex gap-2">
           {e.status === 'PENDING' ? (
@@ -206,6 +228,13 @@ export function AdminTournamentDetail({
           {x.description}
         </p>
       ) : null}
+
+      <AdminDraw
+        slug={slug}
+        tournament={x}
+        courts={venues.find((v) => v.id === x.venue?.id)?.courts ?? venues.flatMap((v) => v.courts)}
+        onChanged={() => void mutate()}
+      />
 
       <section className="gap-compact flex flex-col" aria-labelledby="admin-tournament-entries">
         <Heading level={2} className="text-base" id="admin-tournament-entries">

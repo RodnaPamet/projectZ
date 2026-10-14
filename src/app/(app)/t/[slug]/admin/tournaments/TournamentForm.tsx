@@ -58,7 +58,12 @@ export function TournamentForm({
   onSubmit,
   onCancel,
 }: {
-  venues: Array<{ id: string; name: string; sports: string[] }>;
+  venues: Array<{
+    id: string;
+    name: string;
+    sports: string[];
+    courts?: Array<{ id: string; name: string }>;
+  }>;
   initial?: TournamentDto | null;
   busy: boolean;
   submitLabel: string;

@@ -35,9 +35,12 @@ export function ResultEditor({
   submitLabel,
   onSubmit,
   onCancel,
+  fixedSides = null,
 }: {
   players: ResultPlayerDto[];
   format: 'PERIODS' | 'TOTAL';
+  /** A tournament match's sides (#580): set by the draw, shown, not asked. */
+  fixedSides?: ResultPlayerDto[][] | null;
   initial?: ResultDraft | null;
   busy: boolean;
   submitLabel: string;
@@ -50,7 +53,12 @@ export function ResultEditor({
   const nameOf = (p: ResultPlayerDto) =>
     p.deleted ? tCommon('deletedUser') : (p.name ?? tResults('unnamed'));
   const id = useId();
-  const [seats, setSeats] = useState<Record<string, Seat>>(() => firstSeats(players, initial));
+  const [seats, setSeats] = useState<Record<string, Seat>>(() =>
+    firstSeats(
+      players,
+      fixedSides ? { sides: fixedSides.map((s) => s.map((p) => p.userId)), score: [] } : initial,
+    ),
+  );
   const [rows, setRows] = useState<string[][]>(() =>
     initial?.score.length
       ? initial.score.map((pair) => pair.map(String))
@@ -108,24 +116,36 @@ export function ResultEditor({
             {t('sides')}
           </Heading>
         </legend>
-        <ul className="gap-tight flex flex-col">
-          {players.map((p) => (
-            <li
-              key={p.userId}
-              className="flex flex-wrap items-center justify-between gap-2"
-              data-testid="result-editor-player"
-            >
-              <span className="text-content-default min-w-0 truncate text-sm">{nameOf(p)}</span>
-              <ToggleGroup
-                options={seatOptions}
-                selected={seats[p.userId] ?? 'out'}
-                selectAction={(v) => setSeats((s) => ({ ...s, [p.userId]: v as Seat }))}
-                ariaLabel={t('sideOf', { name: nameOf(p) })}
-                size="sm"
-              />
-            </li>
-          ))}
-        </ul>
+        {fixedSides ? (
+          // The draw set them (#580): the result keeps them.
+          <ul className="gap-tight flex flex-col" data-testid="result-editor-fixed">
+            {fixedSides.map((side, i) => (
+              <li key={i} className="text-content-default text-sm">
+                <span className="text-content-muted">{t('side', { n: i + 1 })}: </span>
+                {side.map(nameOf).join(' / ')}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="gap-tight flex flex-col">
+            {players.map((p) => (
+              <li
+                key={p.userId}
+                className="flex flex-wrap items-center justify-between gap-2"
+                data-testid="result-editor-player"
+              >
+                <span className="text-content-default min-w-0 truncate text-sm">{nameOf(p)}</span>
+                <ToggleGroup
+                  options={seatOptions}
+                  selected={seats[p.userId] ?? 'out'}
+                  selectAction={(v) => setSeats((s) => ({ ...s, [p.userId]: v as Seat }))}
+                  ariaLabel={t('sideOf', { name: nameOf(p) })}
+                  size="sm"
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </fieldset>
 
       <fieldset className="gap-tight flex flex-col">

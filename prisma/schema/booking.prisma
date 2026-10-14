@@ -61,21 +61,23 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  resource      Resource             @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  participants  BookingParticipant[]
-  payments      Payment[]
-  refunds       Refund[]
-  checkIns      CheckIn[]
-  cancellation  Cancellation?
-  bookingSplits BookingSplit[]
-  series        BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
-  inviteLinks   BookingInviteLink[]
+  resource        Resource             @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  participants    BookingParticipant[]
+  payments        Payment[]
+  refunds         Refund[]
+  checkIns        CheckIn[]
+  cancellation    Cancellation?
+  bookingSplits   BookingSplit[]
+  series          BookingSeries?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  inviteLinks     BookingInviteLink[]
   /// Open play (#376): the booker looking for more players, or null.
-  openGame      OpenGame?
+  openGame        OpenGame?
   /// A lesson (#377): the coach this booking also takes, or null.
-  lesson        CoachLesson?
+  lesson          CoachLesson?
   /// Its result (#378), once a player or the club reports one.
-  result        MatchReport?
+  result          MatchReport?
+  /// The tournament match this booking puts on a court (#580, decision 40).
+  tournamentMatch TournamentMatch?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, resourceId, startTs])

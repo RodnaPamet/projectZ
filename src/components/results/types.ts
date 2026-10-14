@@ -34,6 +34,8 @@ export interface BookingResultDto {
   reportableUntil: string | null;
   format: ResultFormatDto;
   players: ResultPlayerDto[];
+  /** A tournament match's sides, set by the draw (#580). */
+  fixedSides?: ResultPlayerDto[][] | null;
 }
 
 export interface ClubResultDto {
@@ -56,6 +58,8 @@ export interface ClubBookingResultDto {
   canEnter: boolean;
   format: ResultFormatDto;
   players: ResultPlayerDto[];
+  /** A tournament match's sides, set by the draw (#580). */
+  fixedSides?: ResultPlayerDto[][] | null;
 }
 
 /** What a report, or the club's entry or correction, sends. */

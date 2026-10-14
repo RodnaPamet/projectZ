@@ -51,6 +51,8 @@ const ALLOWED: Record<string, string> = {
   'src/auth.ts': 'the jwt/session callbacks: no tenant is bound during sign-in',
   'src/app-layer/usecases/club-tournaments.ts':
     'a club’s tournament (#579): the public list across clubs (decision 53), one tournament by id before its club is known, the names on the club’s own entries, and the person’s own entries at every club',
+  'src/app-layer/usecases/tournament-draw.ts':
+    'a club tournament’s draw (#580): the seeds read each player’s own rating and declared level; a booking’s result moves the draw on inside the counting transaction; the draw is read by id for a signed-in viewer, with the names on it; every tournament row by the club’s tenantId',
   'src/app-layer/usecases/tournament-notifications.ts':
     'a tournament’s notices (#579): one entry by id with its tournament, club and the two names on it, and the club’s desk to tell',
   'src/app-layer/usecases/leaderboards.ts':
