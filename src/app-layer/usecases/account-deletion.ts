@@ -775,6 +775,7 @@ export async function deleteAccount(
       emailClubChanges: false,
       emailMessages: false,
       emailOpenPlay: false,
+      emailLessonsTaught: false,
       locale: DEFAULT_LOCALE,
       sessionVersion: { increment: 1 },
       deletedAt: now,

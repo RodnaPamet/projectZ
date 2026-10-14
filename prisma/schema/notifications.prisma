@@ -40,6 +40,20 @@ enum NotificationKind {
   COACH_PROFILE_APPROVED
   /// The platform declined a coach's profile, or removed an approved coach.
   COACH_PROFILE_DECLINED
+  /// #550, to the COACH of a lesson: a player booked one with them.
+  LESSON_BOOKED
+  /// To the coach: the player or the club cancelled a lesson of theirs.
+  LESSON_CANCELLED
+  /// To the coach: a lesson of theirs starts in about three hours.
+  LESSON_REMINDER
+  /// To a club's owners and managers: a coach asked to teach at a venue.
+  COACH_LINK_REQUESTED
+  /// To the coach: the club accepted their request.
+  COACH_LINK_ACCEPTED
+  /// To the coach: the club declined their request.
+  COACH_LINK_DECLINED
+  /// To the coach: the club ended their link to a venue.
+  COACH_LINK_ENDED
 }
 
 /// Where an email stands in the outbox (#367).

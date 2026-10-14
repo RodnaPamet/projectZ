@@ -557,6 +557,35 @@
       "openPlayCancelled": {
         "title": "The game was cancelled",
         "body": "{venue} · {when}"
+      },
+      "aCoach": "a coach",
+      "lessonConfirmed": {
+        "title": "Lesson booked",
+        "body": "{venue}, {court} · {when} · with {coach}"
+      },
+      "lessonReminder": {
+        "title": "Your lesson is in 3 hours",
+        "body": "{venue}, {court} · {when} · with {coach}"
+      },
+      "lessonCancelledByClub": {
+        "title": "The club cancelled your lesson",
+        "body": "{venue}, {court} · {when}. The court has been released."
+      },
+      "coachLessonBooked": {
+        "title": "New lesson: {player}",
+        "body": "{venue}, {court} · {when}"
+      },
+      "coachLessonCancelledByPlayer": {
+        "title": "{player} cancelled a lesson",
+        "body": "{venue}, {court} · {when}. Your time is free."
+      },
+      "coachLessonCancelledByClub": {
+        "title": "The club cancelled a lesson of yours",
+        "body": "{venue}, {court} · {when}. Your time is free."
+      },
+      "coachLessonReminder": {
+        "title": "You teach in 3 hours",
+        "body": "{venue}, {court} · {when} · {player}"
       }
     },
     "message": {
@@ -594,6 +623,23 @@
       "removed": {
         "title": "Your coach profile has been stopped",
         "body": "Read the note on your coach profile."
+      },
+      "aCoach": "A coach",
+      "linkRequested": {
+        "title": "{coach} asks to teach at your club",
+        "body": "{venue}. Accept or decline under Coaches."
+      },
+      "linkAccepted": {
+        "title": "{venue} accepted you as a coach",
+        "body": "Set your hours and your rate there so that players can book lessons."
+      },
+      "linkDeclined": {
+        "title": "{venue} did not accept your request",
+        "body": "Your request to teach there was not accepted."
+      },
+      "linkEnded": {
+        "title": "You no longer teach at {venue}",
+        "body": "The club ended the link. Lessons already booked stay."
       }
     }
   },
@@ -2272,12 +2318,13 @@
       "sheetDescription": "The bell in the app always shows everything. Here you choose which emails you get.",
       "confirmation": "Booking confirmation",
       "reminder": "Reminder 3 hours before a game",
-      "clubChanges": "Cancelled by the club",
+      "clubChanges": "Cancelled by the club or the coach",
       "saveFailed": "The setting was not saved. Please try again.",
       "edit": "Change",
       "editLabel": "Change notifications",
       "messages": "Unread messages",
-      "openPlay": "Games: requests and answers"
+      "openPlay": "Games: requests and answers",
+      "lessonsTaught": "Lessons I teach"
     },
     "data": {
       "row": "A copy of your data",
@@ -2489,6 +2536,34 @@
       "seriesCancelled": {
         "subject": "The club cancelled your weekly games: {venue}",
         "intro": "The club cancelled your weekly games from {date} on. Games cancelled: {count}. If you have questions, please contact the club."
+      },
+      "lessonConfirmed": {
+        "subject": "Lesson booked: {venue}, {date}",
+        "intro": "Your lesson is booked."
+      },
+      "lessonReminder": {
+        "subject": "Your lesson is in 3 hours: {venue}, {time}",
+        "intro": "A reminder that you have a lesson in about 3 hours."
+      },
+      "lessonCancelledByClub": {
+        "subject": "The club cancelled your lesson: {venue}, {date}",
+        "intro": "The club cancelled your lesson. The court has been released and you owe nothing. If you have questions, please contact the club."
+      },
+      "coachLessonBooked": {
+        "subject": "New lesson: {venue}, {date}",
+        "intro": "A lesson has been booked with you."
+      },
+      "coachLessonCancelledByPlayer": {
+        "subject": "Lesson cancelled: {venue}, {date}",
+        "intro": "The player cancelled the lesson. Your time is free again."
+      },
+      "coachLessonCancelledByClub": {
+        "subject": "The club cancelled a lesson of yours: {venue}, {date}",
+        "intro": "The club cancelled this lesson. Your time is free again."
+      },
+      "coachLessonReminder": {
+        "subject": "You teach in 3 hours: {venue}, {time}",
+        "intro": "A reminder that you teach a lesson in about 3 hours."
       }
     },
     "labels": {
@@ -2509,7 +2584,15 @@
       "link": "Your booking",
       "footer": "You are getting this email because you have a booking on playerz.bg.",
       "settings": "Choose which emails you get in Profile → Notifications: {url}",
-      "unsubscribe": "Stop these emails with one click: {url}"
+      "unsubscribe": "Stop these emails with one click: {url}",
+      "coach": "Coach",
+      "price": "Price",
+      "priceParts": "{total} ({fee} for the coach + {court} for the court)",
+      "player": "Player",
+      "players": "Players",
+      "yourFee": "Your fee",
+      "lessonsLink": "Your lessons",
+      "coachFooter": "You are getting this email because you teach lessons on playerz.bg."
     },
     "contactRequest": {
       "subject": "Club enquiry: {club}",
@@ -2588,7 +2671,26 @@
       },
       "note": "A note from playerz.bg",
       "link": "Your coach profile",
-      "footer": "You are receiving this email because you sent a coach profile for approval on playerz.bg."
+      "footer": "You are receiving this email because you sent a coach profile for approval on playerz.bg.",
+      "linkRequested": {
+        "subject": "{coach} asks to teach at {venue}",
+        "intro": "{coach} asks to teach at {venue}. The coach is approved by playerz.bg. Accept or decline the request under Coaches in the club admin."
+      },
+      "linkAccepted": {
+        "subject": "{venue} accepted you as a coach",
+        "intro": "{venue} accepted your request. Set the hours you teach there and your rate: without them players cannot book lessons with you."
+      },
+      "linkDeclined": {
+        "subject": "{venue} did not accept your request",
+        "intro": "{venue} did not accept your request to teach there. You can ask to teach at other clubs."
+      },
+      "linkEnded": {
+        "subject": "You no longer teach at {venue}",
+        "intro": "{venue} ended its link with you as a coach. No new lessons can be booked there. Lessons already booked stay: teach them, or cancel them under Lessons."
+      },
+      "clubLink": "The club’s coaches",
+      "clubFooter": "You are getting this email because you manage a club on playerz.bg.",
+      "linkFooter": "You are getting this email because you are a coach on playerz.bg."
     },
     "coachSubmitted": {
       "subject": "A new coach profile is waiting for approval",

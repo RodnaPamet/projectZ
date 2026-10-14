@@ -19,6 +19,16 @@ export const EMAIL_CATEGORIES: EmailCategory[] = [
   // #376: a request to one's game, and the answer to one's own request.
   'openPlay',
 ];
+/**
+ * «Уроци, които водя» (#550, owner decision 22): a coach's emails about the
+ * lessons they teach. A switch for coaches only: nobody else is ever sent one.
+ */
+export const COACH_EMAIL_CATEGORY: EmailCategory = 'lessonsTaught';
+
+/** The switches this account is shown. */
+export function emailCategoriesFor(coach: boolean): EmailCategory[] {
+  return coach ? [...EMAIL_CATEGORIES, COACH_EMAIL_CATEGORY] : EMAIL_CATEGORIES;
+}
 
 /**
  * The email switches (#367), in the vendored `Sheet`: one vendored `Switch`
@@ -29,12 +39,15 @@ export default function NotificationSettingsSheet({
   open,
   onOpenChange,
   settings,
+  coach,
   onToggle,
   failed,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settings: NotificationSettings;
+  /** A coach account: shown the switch for the lessons they teach. */
+  coach: boolean;
   onToggle: (category: EmailCategory, value: boolean) => void;
   failed: boolean;
 }) {
@@ -46,6 +59,7 @@ export default function NotificationSettingsSheet({
     clubChanges: t('clubChanges'),
     messages: t('messages'),
     openPlay: t('openPlay'),
+    lessonsTaught: t('lessonsTaught'),
   };
 
   return (
@@ -53,7 +67,7 @@ export default function NotificationSettingsSheet({
       <Sheet.Header title={t('row')} description={t('sheetDescription')} />
       <Sheet.Body>
         <div className="gap-tight grid">
-          {EMAIL_CATEGORIES.map((c) => (
+          {emailCategoriesFor(coach).map((c) => (
             <div key={c} className="gap-tight flex min-h-11 items-center justify-between">
               <Label htmlFor={`${ids}-${c}`} className="cursor-pointer py-3">
                 {label[c]}

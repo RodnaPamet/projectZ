@@ -3,7 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
-import { answerCoachRequest, endCoachLink } from '@/app-layer/usecases/coach-links';
+import { notifyCoachLinkAnswered } from '@/app-layer/usecases/coach-link-notifications';
+import {
+  answerCoachRequest,
+  endCoachLink,
+  type LinkChange,
+} from '@/app-layer/usecases/coach-links';
 import { createInvite } from '@/app-layer/usecases/invites';
 import { env } from '@/env';
 import { requireTenantAction } from '@/lib/auth/page-context';
@@ -44,8 +49,9 @@ export async function answerCoachRequestAction(
   accept: boolean,
 ): Promise<ActionResult> {
   const ctx = await requireTenantAction(slug, 'admin.staff_manage');
+  let change: LinkChange;
   try {
-    await runInTenantContext(ctx.tenantId, (db) =>
+    change = await runInTenantContext(ctx.tenantId, (db) =>
       answerCoachRequest(db, { tenantId: ctx.tenantId, actorUserId: ctx.userId }, linkId, accept),
     );
   } catch (err) {
@@ -54,14 +60,17 @@ export async function answerCoachRequestAction(
     revalidatePath(`/t/${slug}/admin/coaches`);
     return mapped;
   }
+  // The coach hears the answer (#550), once it committed.
+  await notifyCoachLinkAnswered({ tenantId: ctx.tenantId, linkId, ...change });
   revalidatePath(`/t/${slug}/admin/coaches`);
   return { ok: true };
 }
 
 export async function endCoachLinkAction(slug: string, linkId: string): Promise<ActionResult> {
   const ctx = await requireTenantAction(slug, 'admin.staff_manage');
+  let change: LinkChange;
   try {
-    await runInTenantContext(ctx.tenantId, (db) =>
+    change = await runInTenantContext(ctx.tenantId, (db) =>
       endCoachLink(db, { tenantId: ctx.tenantId, actorUserId: ctx.userId }, linkId),
     );
   } catch (err) {
@@ -69,6 +78,7 @@ export async function endCoachLinkAction(slug: string, linkId: string): Promise<
     revalidatePath(`/t/${slug}/admin/coaches`);
     return mapped;
   }
+  await notifyCoachLinkAnswered({ tenantId: ctx.tenantId, linkId, ...change });
   revalidatePath(`/t/${slug}/admin/coaches`);
   return { ok: true };
 }

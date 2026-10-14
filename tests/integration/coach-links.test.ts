@@ -8,6 +8,10 @@ import { GET as timeOffGet, POST as timeOffPost } from '@/app/api/v1/me/coach-ti
 import { deleteAccount } from '@/app-layer/usecases/account-deletion';
 import { coachCards } from '@/app-layer/usecases/coach-directory';
 import {
+  notifyCoachLinkAnswered,
+  notifyCoachLinkRequested,
+} from '@/app-layer/usecases/coach-link-notifications';
+import {
   answerCoachRequest,
   endCoachLink,
   listClubCoaches,
@@ -908,5 +912,173 @@ describe('the public card', () => {
       sports: [],
     });
     expect(JSON.stringify([...cards.values()])).not.toContain('Чернова');
+  });
+});
+
+// ─── Telling each other (#550) ─────────────────────────────────────────────
+
+describe('a coach and a club tell each other (#550)', () => {
+  const bellOf = (userId: string) =>
+    asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+        select: { kind: true, title: true, body: true, href: true, tenantId: true },
+        take: 20,
+      }),
+    );
+  const mailOf = (userId: string) =>
+    asAppSuperuser(db, (tx) =>
+      tx.emailOutbox.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+        select: { kind: true, category: true, subject: true, text: true },
+        take: 20,
+      }),
+    );
+  /** One more person at club A, with this role. */
+  async function member(role: 'MANAGER' | 'STAFF', status: 'ACTIVE' | 'SUSPENDED' = 'ACTIVE') {
+    const userId = await seedAccount('CLUB', db);
+    await asAppSuperuser(db, (tx) =>
+      tx.tenantMembership.create({ data: { tenantId: clubA.tenantId, userId, role, status } }),
+    );
+    return userId;
+  }
+  /** What the route does after a request: ask, then tell the club. */
+  async function askAndTell(bearer: string, venueId: string) {
+    const res = await ask(bearer, venueId);
+    expect(res.status).toBe(201);
+    return linksOf(res).find((l) => l.venue.id === venueId)!.id;
+  }
+
+  it('a request reaches the club’s owners and managers, bell and email, and nobody else', async () => {
+    const manager = await member('MANAGER');
+    const staff = await member('STAFF');
+    const suspended = await member('MANAGER', 'SUSPENDED');
+    const c = await coach('Иван Петров');
+    await askAndTell(c.bearer, venueA.venueId);
+
+    const href = `/t/${clubA.tenantSlug}/admin/coaches`;
+    for (const id of [clubA.userId, manager]) {
+      expect(await bellOf(id)).toEqual([
+        {
+          kind: 'COACH_LINK_REQUESTED',
+          title: 'Иван Петров иска да преподава при вас',
+          body: 'Venue A. Приемете или откажете от «Треньори».',
+          href,
+          tenantId: clubA.tenantId,
+        },
+      ]);
+      const [mail] = await mailOf(id);
+      expect(mail).toMatchObject({ kind: 'COACH_LINK_REQUESTED', category: 'account' });
+      expect(mail!.subject).toBe('Иван Петров иска да преподава в Venue A');
+      expect(mail!.text).toContain(href);
+    }
+    // Front desk staff do not answer for the club's people; a suspended
+    // manager answers for nothing; the other club hears nothing.
+    for (const id of [staff, suspended, clubB.userId]) expect(await bellOf(id)).toEqual([]);
+    // The coach is not told of their own act.
+    expect(await bellOf(c.userId)).toEqual([]);
+  });
+
+  it('a request taken back and made again: a bell each time, but one email a day', async () => {
+    const c = await coach('Иван Петров');
+    const linkId = await askAndTell(c.bearer, venueA.venueId);
+    expect((await endMine(c.bearer, linkId)).status).toBe(200);
+    // A moment later, so the second request is its own event.
+    await new Promise((r) => setTimeout(r, 5));
+    await askAndTell(c.bearer, venueA.venueId);
+    expect((await bellOf(clubA.userId)).map((n) => n.kind)).toEqual([
+      'COACH_LINK_REQUESTED',
+      'COACH_LINK_REQUESTED',
+    ]);
+    expect(await mailOf(clubA.userId)).toHaveLength(1);
+  });
+
+  it('accepted: the coach is told where, and to set hours and a rate', async () => {
+    const c = await coach('Иван Петров');
+    const linkId = await askAndTell(c.bearer, venueA.venueId);
+    const change = await asClub(clubA, (tx) => answerCoachRequest(tx, actor(clubA), linkId, true));
+    expect(change.event).toBe('linkAccepted');
+    await notifyCoachLinkAnswered({ tenantId: clubA.tenantId, linkId, ...change });
+    expect(await bellOf(c.userId)).toEqual([
+      {
+        kind: 'COACH_LINK_ACCEPTED',
+        title: 'Venue A ви прие като треньор',
+        body: expect.stringContaining('часовете и цената'),
+        href: '/me/coach',
+        tenantId: clubA.tenantId,
+      },
+    ]);
+    expect((await mailOf(c.userId)).map((m) => [m.kind, m.category])).toEqual([
+      ['COACH_LINK_ACCEPTED', 'account'],
+    ]);
+    // Run twice (a retried action), it is still one.
+    await notifyCoachLinkAnswered({ tenantId: clubA.tenantId, linkId, ...change });
+    expect(await bellOf(c.userId)).toHaveLength(1);
+  });
+
+  it('declined, or a request turned away by ending it: told as not accepted', async () => {
+    const c = await coach('Иван Петров');
+    const one = await askAndTell(c.bearer, venueA.venueId);
+    const two = await askAndTell(c.bearer, venueA2.venueId);
+    const declined = await asClub(clubA, (tx) => answerCoachRequest(tx, actor(clubA), one, false));
+    const turnedAway = await asClub(clubA, (tx) => endCoachLink(tx, actor(clubA), two));
+    expect([declined.event, turnedAway.event]).toEqual(['linkDeclined', 'linkDeclined']);
+    await notifyCoachLinkAnswered({ tenantId: clubA.tenantId, linkId: one, ...declined });
+    await notifyCoachLinkAnswered({ tenantId: clubA.tenantId, linkId: two, ...turnedAway });
+    expect((await bellOf(c.userId)).map((n) => [n.kind, n.title])).toEqual([
+      ['COACH_LINK_DECLINED', 'Venue A не прие заявката ви'],
+      ['COACH_LINK_DECLINED', 'Venue A2 не прие заявката ви'],
+    ]);
+    expect((await mailOf(c.userId)).map((m) => m.category)).toEqual(['account', 'account']);
+  });
+
+  it('a running link ended by the club: the coach is told, and that booked lessons stay', async () => {
+    const c = await teachingAtA();
+    const change = await asClub(clubA, (tx) => endCoachLink(tx, actor(clubA), c.linkId));
+    expect(change.event).toBe('linkEnded');
+    await notifyCoachLinkAnswered({ tenantId: clubA.tenantId, linkId: c.linkId, ...change });
+    expect((await bellOf(c.userId)).map((n) => [n.kind, n.title, n.body])).toEqual([
+      [
+        'COACH_LINK_ENDED',
+        'Вече не преподавате в Venue A',
+        'Клубът прекрати връзката. Вече записаните уроци остават.',
+      ],
+    ]);
+    const [mail] = await mailOf(c.userId);
+    expect(mail).toMatchObject({ kind: 'COACH_LINK_ENDED', category: 'account' });
+    expect(mail!.text).toContain('/me/coach');
+  });
+
+  it('says nothing when the link has moved on before the notice ran', async () => {
+    const c = await teachingAtA();
+    // The acceptance's notice runs late, after the club already ended it.
+    await asClub(clubA, (tx) => endCoachLink(tx, actor(clubA), c.linkId));
+    await notifyCoachLinkAnswered({
+      tenantId: clubA.tenantId,
+      linkId: c.linkId,
+      event: 'linkAccepted',
+      at: new Date(),
+    });
+    // A request's notice that runs after it was taken back.
+    const d = await coach('Петя Треньор');
+    const linkId = await askAndTell(d.bearer, venueA2.venueId);
+    await asAppSuperuser(db, (tx) => tx.notification.deleteMany({}));
+    await endMine(d.bearer, linkId);
+    await notifyCoachLinkRequested({ tenantId: clubA.tenantId, linkId, at: new Date() });
+    expect(await bellOf(c.userId)).toEqual([]);
+    expect(await bellOf(clubA.userId)).toEqual([]);
+  });
+
+  it('in English for an account that reads English', async () => {
+    const c = await coach('Ivan Petrov');
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: clubA.userId }, data: { locale: 'en' } }),
+    );
+    await askAndTell(c.bearer, venueA.venueId);
+    expect((await bellOf(clubA.userId)).map((n) => n.title)).toEqual([
+      'Ivan Petrov asks to teach at your club',
+    ]);
   });
 });

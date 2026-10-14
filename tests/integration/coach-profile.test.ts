@@ -913,6 +913,7 @@ describe('the owner’s decision', () => {
           emailClubChanges: false,
           emailMessages: false,
           emailOpenPlay: false,
+          emailLessonsTaught: false,
         },
       }),
     );

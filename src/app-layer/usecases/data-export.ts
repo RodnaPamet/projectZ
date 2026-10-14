@@ -274,6 +274,8 @@ export interface PersonalDataExport {
       clubChanges: boolean;
       messages: boolean;
       openPlay: boolean;
+      /** A coach's emails about the lessons they teach (#550). */
+      lessonsTaught: boolean;
     };
   };
   inviteLinks: Array<{
@@ -447,6 +449,7 @@ export async function readPersonalData(
       emailClubChanges: true,
       emailMessages: true,
       emailOpenPlay: true,
+      emailLessonsTaught: true,
       searchable: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
@@ -818,6 +821,7 @@ export async function readPersonalData(
         clubChanges: user.emailClubChanges,
         messages: user.emailMessages,
         openPlay: user.emailOpenPlay,
+        lessonsTaught: user.emailLessonsTaught,
       },
     },
     inviteLinks: links.map((l) => ({

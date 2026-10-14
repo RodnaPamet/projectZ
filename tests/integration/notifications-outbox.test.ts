@@ -854,6 +854,7 @@ describe('notifications (#367)', () => {
           clubChanges: true,
           messages: true,
           openPlay: true,
+          lessonsTaught: true,
         },
       });
       expect((await patch(booker, { email: { reminder: false } })).body.data).toEqual({
@@ -863,10 +864,15 @@ describe('notifications (#367)', () => {
           clubChanges: true,
           messages: true,
           openPlay: true,
+          lessonsTaught: true,
         },
       });
       expect((await patch(booker, { email: { openPlay: false } })).body.data).toMatchObject({
         email: { reminder: false, openPlay: false },
+      });
+      // The coach's switch (#550): its own, touching none of the others.
+      expect((await patch(booker, { email: { lessonsTaught: false } })).body.data).toMatchObject({
+        email: { confirmation: true, lessonsTaught: false },
       });
       expect((await get(friend)).body.data).toMatchObject({ email: { reminder: true } });
       expect((await patch(booker, { email: {} })).status).toBe(400);

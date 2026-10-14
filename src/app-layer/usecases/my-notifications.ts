@@ -171,6 +171,12 @@ export interface NotificationSettings {
     messages: boolean;
     /** «Игри» (#376): requests to one's game, and answers to one's requests. */
     openPlay: boolean;
+    /**
+     * «Уроци, които водя» (#550, owner decision 22): a coach's emails about
+     * the lessons they teach. Every account has the setting; only a coach is
+     * shown it, and only a coach is ever sent such an email.
+     */
+    lessonsTaught: boolean;
   };
 }
 
@@ -180,6 +186,7 @@ const SETTINGS_SELECT = {
   emailClubChanges: true,
   emailMessages: true,
   emailOpenPlay: true,
+  emailLessonsTaught: true,
 } as const;
 
 function toSettings(u: {
@@ -188,6 +195,7 @@ function toSettings(u: {
   emailClubChanges: boolean;
   emailMessages: boolean;
   emailOpenPlay: boolean;
+  emailLessonsTaught: boolean;
 }): NotificationSettings {
   return {
     email: {
@@ -196,6 +204,7 @@ function toSettings(u: {
       clubChanges: u.emailClubChanges,
       messages: u.emailMessages,
       openPlay: u.emailOpenPlay,
+      lessonsTaught: u.emailLessonsTaught,
     },
   };
 }
@@ -221,6 +230,7 @@ export async function updateMyNotificationSettings(
     ...(patch.clubChanges !== undefined ? { emailClubChanges: patch.clubChanges } : {}),
     ...(patch.messages !== undefined ? { emailMessages: patch.messages } : {}),
     ...(patch.openPlay !== undefined ? { emailOpenPlay: patch.openPlay } : {}),
+    ...(patch.lessonsTaught !== undefined ? { emailLessonsTaught: patch.lessonsTaught } : {}),
   };
   const u = await runAsUserOnly(userId, (db) =>
     db.user.update({ where: { id: userId }, data, select: SETTINGS_SELECT }).catch(() => null),

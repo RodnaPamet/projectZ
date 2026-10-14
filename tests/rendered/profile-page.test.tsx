@@ -92,6 +92,7 @@ function renderProfile(
                 clubChanges: true,
                 messages: true,
                 openPlay: true,
+                lessonsTaught: true,
               },
             }}
             deletion={opts.deletion ?? { kind: 'allowed', credit: [] }}

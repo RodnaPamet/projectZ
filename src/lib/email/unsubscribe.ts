@@ -30,13 +30,15 @@ import { absoluteUrl } from '@/lib/seo/site-url';
  * sent; the footer's other line (Профил → Известия) still works.
  */
 
-/** The kinds a person can switch off: the same five as their settings. */
+/** The kinds a person can switch off: the same ones as their settings. */
 export const UNSUBSCRIBE_CATEGORIES = [
   'confirmation',
   'reminder',
   'clubChanges',
   'messages',
   'openPlay',
+  // A coach's emails about the lessons they teach (#550).
+  'lessonsTaught',
 ] as const;
 export type UnsubscribeCategory = (typeof UNSUBSCRIBE_CATEGORIES)[number];
 

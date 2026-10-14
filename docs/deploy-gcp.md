@@ -231,6 +231,34 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p73
+
+`20261014060000_p73_lesson_notifications` (#550) adds seven values to
+`NotificationKind`: three `LESSON_*` (to a coach, about the lessons they teach)
+and four `COACH_LINK_*` (a coach asked a club; the club accepted, declined or
+ended the link). The bell reads a person's notifications on every page, so one
+such row would break the previous image's bell for that coach or that club's
+owner. Park those rows before starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p73-park.sql
+```
+
+and give them back after rolling forward again, with the p73 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p73-unpark.sql
+```
+
+Queued and already-sent emails of those kinds are parked and returned with the
+bell rows. The rest of p73 stays: `app_user.emailLessonsTaught` is new and
+unmapped in the old image, and the email category `lessonsTaught` is read as
+text by the old image's drain. While parked, a coach is not told about a new
+or cancelled lesson by the old image at all; «Уроци» on their page still
+lists them.
+
 ### Rolling back past p72
 
 `20261014050000_p72_coach_approval` (#545) adds `COACH_APPROVE` to

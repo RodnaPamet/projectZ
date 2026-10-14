@@ -154,6 +154,11 @@ model User {
   /// «Игри» (#376): a new request to join one's game, and the answer to one's
   /// own request (accepted, declined, lapsed, the game closed). On by default.
   emailOpenPlay             Boolean @default(true)
+  /// «Уроци, които водя» (#550, owner decision 22): a coach's emails about the
+  /// lessons they TEACH (one booked, one cancelled, the reminder). Shown to
+  /// coach accounts only; a coach's own court bookings stay under the switches
+  /// above. On by default.
+  emailLessonsTaught        Boolean @default(true)
 
   /// "Показвай ме в търсенето" (#375): whether other players find this person
   /// by name when starting a conversation. On by default. Off, they can still

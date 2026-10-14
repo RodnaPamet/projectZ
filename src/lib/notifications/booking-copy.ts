@@ -27,6 +27,28 @@ export interface BookingFacts {
   timezone: string;
   /** Hours before the start a player may still cancel (#354). */
   cutoffHours: number;
+  /**
+   * The lesson on it (#550): who teaches, who booked, how many play, and the
+   * price in its two parts. Absent for a plain court booking.
+   */
+  lesson?: LessonFacts;
+}
+
+export interface LessonFacts {
+  /** Null when the coach's account has no name, or is gone. */
+  coachName: string | null;
+  /** The player who booked it; null when their account has no name, or is gone. */
+  playerName: string | null;
+  /** Everybody on the lesson: the booker and those they added. */
+  players: number;
+  coachFeeCents: number;
+  courtPriceCents: number;
+  currency: string;
+}
+
+/** "64,00 €" / "€64.00", as the app writes money in that language. */
+export function formatMoney(locale: Locale, cents: number, currency: string): string {
+  return new Intl.NumberFormat(INTL[locale], { style: 'currency', currency }).format(cents / 100);
 }
 
 const INTL: Record<Locale, string> = { bg: 'bg-BG', en: 'en-GB' };
@@ -78,6 +100,15 @@ export type BookingBellEvent =
   // the platform removed the coach (decision 21).
   | 'cancelledByCoach'
   | 'cancelledCoachRemoved'
+  // A lesson, to the player (#550): the booking's own events, in a lesson's words.
+  | 'lessonConfirmed'
+  | 'lessonReminder'
+  | 'lessonCancelledByClub'
+  // A lesson, to its COACH: booked with them, cancelled by somebody else, coming up.
+  | 'coachLessonBooked'
+  | 'coachLessonCancelledByPlayer'
+  | 'coachLessonCancelledByClub'
+  | 'coachLessonReminder'
   | 'seriesCreated'
   | 'seriesMoved'
   | 'seriesCancelled'
@@ -110,6 +141,13 @@ export async function bellCopy(
     when: formatWhen(locale, facts.startTs, facts.endTs, facts.timezone),
     date: extra.date ?? formatDate(locale, facts.startTs, facts.timezone),
     name,
+    // A lesson's two people (#550); a word in their place when there is no name.
+    coach: facts.lesson?.coachName?.trim()
+      ? oneLine(facts.lesson.coachName)
+      : await translateFor(locale, 'notifications.booking.aCoach'),
+    player: facts.lesson?.playerName?.trim()
+      ? oneLine(facts.lesson.playerName)
+      : await translateFor(locale, 'notifications.booking.someone'),
   };
   const [title, body] = await Promise.all([
     translateFor(locale, `notifications.booking.${event}.title`, values),
@@ -124,6 +162,9 @@ export type BookingEmailEvent =
   | 'cancelledByClub'
   | 'cancelledByCoach'
   | 'cancelledCoachRemoved'
+  | 'lessonConfirmed'
+  | 'lessonReminder'
+  | 'lessonCancelledByClub'
   | 'seriesCreated'
   | 'seriesMoved';
 
@@ -132,7 +173,27 @@ const CANCELLED: ReadonlySet<BookingEmailEvent> = new Set([
   'cancelledByClub',
   'cancelledByCoach',
   'cancelledCoachRemoved',
+  'lessonCancelledByClub',
 ]);
+
+/** The lesson's own lines of a player's email: who teaches, and the price in its parts. */
+async function lessonLines(locale: Locale, facts: BookingFacts): Promise<string[]> {
+  const lesson = facts.lesson;
+  if (!lesson) return [];
+  const l = (k: string, v: Record<string, string | number> = {}) =>
+    translateFor(locale, `emails.labels.${k}`, v);
+  const coach = lesson.coachName?.trim()
+    ? oneLine(lesson.coachName)
+    : await translateFor(locale, 'notifications.booking.aCoach');
+  return [
+    `${await l('coach')}: ${coach}`,
+    `${await l('price')}: ${await l('priceParts', {
+      total: formatMoney(locale, lesson.coachFeeCents + lesson.courtPriceCents, lesson.currency),
+      fee: formatMoney(locale, lesson.coachFeeCents, lesson.currency),
+      court: formatMoney(locale, lesson.courtPriceCents, lesson.currency),
+    })}`,
+  ];
+}
 
 /**
  * A booking email. The labelled lines are the owner's list (Q22): venue,
@@ -167,6 +228,8 @@ export async function bookingEmail(
     `${await l(courtLabel(facts))}: ${oneLine(facts.courtName)}`,
     `${await l('when')}: ${formatWhen(locale, facts.startTs, facts.endTs, tz)}`,
     `${await l('zone')}: ${tz}`,
+    // A lesson says who teaches it and what it costs, court and coach (#550).
+    ...(CANCELLED.has(event) ? [] : await lessonLines(locale, facts)),
   ];
 
   if (!CANCELLED.has(event)) {
@@ -184,6 +247,66 @@ export async function bookingEmail(
 
   lines.push('', '—', await l('footer'), await l('settings', { url: absoluteUrl('/me/profile') }));
 
+  return { subject: oneLine(subject), text: lines.join('\n') };
+}
+
+export type LessonCoachEvent =
+  | 'coachLessonBooked'
+  | 'coachLessonCancelledByPlayer'
+  | 'coachLessonCancelledByClub'
+  | 'coachLessonReminder';
+
+/**
+ * An email to a lesson's COACH (#550): one booked with them, one cancelled by
+ * the player or the club, one coming up. The same labelled lines as a booking
+ * email, with what a coach wants of it: who the player is, how many are
+ * coming, and the coach's own fee. Never the court's price, which is the
+ * club's, and never the player's phone: that is on «Уроци», for a lesson
+ * still to come, and not in a mailbox.
+ */
+export async function lessonCoachEmail(
+  rawLocale: unknown,
+  event: LessonCoachEvent,
+  facts: BookingFacts,
+  lessonsUrl: string,
+): Promise<{ subject: string; text: string }> {
+  const locale = resolveLocale(rawLocale);
+  const tz = facts.timezone;
+  const lesson = facts.lesson;
+  const values = {
+    venue: oneLine(facts.venueName),
+    date: formatDate(locale, facts.startTs, tz),
+    time: formatTime(locale, facts.startTs, tz),
+  };
+  const l = (k: string, v: Record<string, string | number> = {}) =>
+    translateFor(locale, `emails.labels.${k}`, v);
+  const [subject, intro] = await Promise.all([
+    translateFor(locale, `emails.booking.${event}.subject`, values),
+    translateFor(locale, `emails.booking.${event}.intro`, values),
+  ]);
+  const player = lesson?.playerName?.trim()
+    ? oneLine(lesson.playerName)
+    : await translateFor(locale, 'notifications.booking.someone');
+  const cancelled = event !== 'coachLessonBooked' && event !== 'coachLessonReminder';
+  const lines = [
+    intro,
+    '',
+    `${await l('venue')}: ${values.venue}`,
+    `${await l(courtLabel(facts))}: ${oneLine(facts.courtName)}`,
+    `${await l('when')}: ${formatWhen(locale, facts.startTs, facts.endTs, tz)}`,
+    `${await l('zone')}: ${tz}`,
+    `${await l('player')}: ${player}`,
+    ...(lesson && lesson.players > 1 ? [`${await l('players')}: ${lesson.players}`] : []),
+    ...(lesson && !cancelled
+      ? [`${await l('yourFee')}: ${formatMoney(locale, lesson.coachFeeCents, lesson.currency)}`]
+      : []),
+    '',
+    `${await l('lessonsLink')}: ${lessonsUrl}`,
+    '',
+    '—',
+    await l('coachFooter'),
+    await l('settings', { url: absoluteUrl('/me/profile') }),
+  ];
   return { subject: oneLine(subject), text: lines.join('\n') };
 }
 
