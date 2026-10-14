@@ -26904,8 +26904,9 @@
               },
               "side": {
                 "type": ["integer", "null"],
-                "enum": [0, 1, null],
-                "description": "The side that proposed it."
+                "description": "The side that proposed it.",
+                "minimum": 0,
+                "maximum": 1
               },
               "priceCents": {
                 "type": "integer",
@@ -26915,8 +26916,9 @@
           },
           "mySide": {
             "type": ["integer", "null"],
-            "enum": [0, 1, null],
-            "description": "The viewer's side of the match, if they play it."
+            "description": "The viewer's side of the match, if they play it.",
+            "minimum": 0,
+            "maximum": 1
           }
         }
       },
@@ -27125,8 +27127,9 @@
         "properties": {
           "winnerSide": {
             "type": ["integer", "null"],
-            "enum": [0, 1, null],
-            "description": "The side given the match; null in a league for a loss for both (#591, 58)."
+            "description": "The side given the match; null in a league for a loss for both (#591, 58).",
+            "minimum": 0,
+            "maximum": 1
           }
         }
       },
