@@ -10,6 +10,7 @@ import {
   clubInvitesCoach,
   coachAcceptsTheInvitation,
   playerCancelsTheLesson,
+  shortCutoffs,
 } from './utils/coach-invite-journey';
 import { playerBooksALesson } from './utils/lesson-booking-journey';
 
@@ -61,6 +62,7 @@ test('a player books a lesson and cancels it; the coach’s «Уроци» no lo
     4000,
     { allWeek: true },
   );
+  await shortCutoffs(venue.venueId, linkId);
   const teacher = await signInElsewhere(browser, coach);
   try {
     const seen = await playerBooksALesson(playerPage, { slug, name: coach.name, linkId }, venue, {

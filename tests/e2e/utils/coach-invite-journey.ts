@@ -71,6 +71,19 @@ export async function coachAcceptsTheInvitation(
   await shot(page, opts.shots, `invite-${opts.tag}-2-teaching`);
 }
 
+/**
+ * Cutoffs short enough that tomorrow's lesson can still be cancelled whatever
+ * hour the run starts at: the club's and the coach's are 24 hours by default,
+ * and the stricter one rules (decision 7).
+ */
+export async function shortCutoffs(venueId: string, linkId: string): Promise<void> {
+  await prisma().$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    await tx.venue.update({ where: { id: venueId }, data: { cancellationCutoffHours: 2 } });
+    await tx.coach.update({ where: { id: linkId }, data: { cancelCutoffHours: 2 } });
+  });
+}
+
 /** The player cancels their lesson from its page; the coach's «Уроци» no longer has it. */
 export async function playerCancelsTheLesson(
   playerPage: Page,
