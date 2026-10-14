@@ -1,6 +1,5 @@
 import { Prisma, type PrismaClient, type SportType } from '@prisma/client';
 
-import { awardXp } from '@/app-layer/usecases/gamification';
 import {
   type SportRating,
   displayFor,
@@ -225,18 +224,10 @@ export async function recordMatch(
     }
   });
 
-  // XP for turning up and playing. Keyed on the match, so a redelivered result
-  // cannot pay twice — though the gate above already stopped us getting here.
-  for (const userId of players) {
-    await awardXp(db, {
-      tenantId: input.tenantId,
-      userId,
-      type: 'MATCH_PLAYED',
-      dedupeKey: `match_played:${input.dedupeKey}:${userId}`,
-      refType: 'match',
-      refId: input.dedupeKey,
-    });
-  }
+  // No XP: the port awarded MATCH_PLAYED points here, and playerz has no
+  // points (#575). Counting a booking's result is what wires this module, and
+  // it must not start a feature nobody decided on, with rows of its own to
+  // export and delete.
 
   return { recorded: true, ratings: deltas };
 }

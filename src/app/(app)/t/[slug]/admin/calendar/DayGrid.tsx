@@ -210,8 +210,11 @@ export function DayGrid({
   slug,
   requestedDay,
   day,
+  ranking = false,
 }: {
   slug: string;
+  /** The ranking module is on (#575): a completed booking's sheet takes its result. */
+  ranking?: boolean;
   /** The URL's `?day=` as given, or null for the club's today. */
   requestedDay: string | null;
   /**
@@ -643,6 +646,7 @@ export function DayGrid({
         <DiaryPlayersSheet
           slug={slug}
           booking={playersBooking}
+          ranking={ranking}
           onClose={() => setPlayersOf(null)}
           onChanged={refresh}
           onMarkBookingNoShow={() => {

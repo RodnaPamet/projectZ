@@ -49,6 +49,7 @@ filter:
     - Games
     - Me
     - Messages
+    - Results
     - Payments
     - Payouts
     - Realtime

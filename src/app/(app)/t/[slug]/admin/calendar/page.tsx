@@ -8,6 +8,7 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
+import { readModules } from '@/lib/modules';
 import { nounMessage } from '@/lib/sports/noun-list';
 import { combineNouns } from '@/lib/sports/resource-kinds';
 
@@ -97,7 +98,12 @@ export default async function CalendarPage({
         signed in is refused (409 VIEWER_CHANGED) instead of booking as them.
       */}
       <ViewerScope viewerId={ctx.userId}>
-        <DayGrid slug={slug} requestedDay={requestedDay} day={day} />
+        <DayGrid
+          slug={slug}
+          requestedDay={requestedDay}
+          day={day}
+          ranking={readModules().ranking}
+        />
       </ViewerScope>
     </section>
   );

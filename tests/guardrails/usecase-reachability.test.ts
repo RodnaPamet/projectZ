@@ -55,7 +55,6 @@ const USE_CASES = globSync('src/app-layer/usecases/*.ts')
  */
 const NOT_WIRED_YET: Record<string, string> = {
   gamification: 'XP and achievements have no surface yet',
-  ratings: 'openskill scoring is done; match results have no route to arrive through',
   tournaments: 'bracket generation is done; no routes',
   wearables: 'the Strava importer runs from a script, never from a request',
 };

@@ -49,6 +49,8 @@ const ALLOWED: Record<string, string> = {
 
   // ── Sign-in, which must read a User before any tenant exists ────────
   'src/auth.ts': 'the jwt/session callbacks: no tenant is bound during sign-in',
+  'src/app-layer/usecases/match-results.ts':
+    'a result (#575): finds a result by id before matching the caller to its sides, sweeps every club for results past 48 h, reads the names on one booking, and rates every player (their own rows)',
   'src/app-layer/usecases/apple-sign-in.ts':
     'Sign in with Apple (#442): finds a User by its Apple subject and links it, before any tenant is known',
   'src/app-layer/usecases/provider-account.ts':

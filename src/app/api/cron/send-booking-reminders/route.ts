@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { sendBookingReminders } from '@/app-layer/usecases/booking-notifications';
+import { confirmDueResults } from '@/app-layer/usecases/match-results';
 import { drainEmailOutbox } from '@/app-layer/usecases/notification-outbox';
 import { lapseOpenPlayRequests } from '@/app-layer/usecases/open-play';
 import { logger } from '@/lib/observability/logger';
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
   // lapse here, and their askers are told. Every read already shows them as
   // lapsed; this is what tells the player, within the run's five minutes.
   const openPlay = await lapseOpenPlayRequests();
+  // Results (#575, Q23): one still waiting 48 hours after it was reported
+  // confirms itself and counts. Its own index; nothing is emailed for it.
+  const confirmedResults = await confirmDueResults();
   const drained = reminders.claimed > 0 || openPlay.lapsed > 0 ? await drainEmailOutbox() : null;
 
   if (reminders.claimed > 0 || openPlay.lapsed > 0) {
@@ -73,5 +77,10 @@ export async function POST(req: NextRequest) {
       sent: drained?.sent ?? 0,
     });
   }
-  return NextResponse.json({ ...reminders, lapsedRequests: openPlay.lapsed, drained });
+  return NextResponse.json({
+    ...reminders,
+    lapsedRequests: openPlay.lapsed,
+    confirmedResults,
+    drained,
+  });
 }

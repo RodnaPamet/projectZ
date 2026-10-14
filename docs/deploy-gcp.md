@@ -231,6 +231,32 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p79
+
+`20261014120000_p79_result_notifications` (#575) adds three values to
+`NotificationKind`: `RESULT_REPORTED` (to the other side of a reported
+result), `RESULT_DISPUTED` (to a club's staff, a rejected result) and
+`RESULT_DECIDED` (to the players, the club's decision). The bell reads a
+person's notifications on every page, so one such row would break the previous
+image's bell. Park those rows before starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p79-park.sql
+```
+
+and give them back after rolling forward again, with the p79 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p79-unpark.sql
+```
+
+Queued and already-sent emails of those kinds are parked and returned with the
+bell rows. The rest of p79 stays: the triggers on `match_report` concern a
+table the old image does not map. Rolling back past P78 needs nothing more:
+`match_report` and `app_user.ratingPublic` are new and unmapped there.
+
 ### Rolling back past p74
 
 `20261014070000_p74_coach_reviews` (#551) adds `COACH_REVIEW` to

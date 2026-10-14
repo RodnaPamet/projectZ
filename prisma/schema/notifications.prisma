@@ -54,6 +54,12 @@ enum NotificationKind {
   COACH_LINK_DECLINED
   /// To the coach: the club ended their link to a venue.
   COACH_LINK_ENDED
+  /// #575, to the other side of a result: it was reported and waits for their answer.
+  RESULT_REPORTED
+  /// #575, to a club's staff: a result was rejected and waits for the club (decision 34).
+  RESULT_DISPUTED
+  /// #575, to the players: the club confirmed a version of the result, or voided it.
+  RESULT_DECIDED
 }
 
 /// Where an email stands in the outbox (#367).

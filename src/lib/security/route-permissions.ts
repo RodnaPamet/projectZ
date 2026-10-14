@@ -56,6 +56,13 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'bookings.view_all',
   },
+  // A booking's result (#575): the club decides a disputed one, or enters one
+  // itself. The desk's permission, as the diary's.
+  {
+    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:results|bookings\/[^/]+\/result)(?:\/|$)/,
+    methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
+    permission: 'bookings.view_all',
+  },
   {
     pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/courts/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],

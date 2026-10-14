@@ -89,6 +89,7 @@ describe('module entries stay dark until their page exists', () => {
     openPlay: 'MODULE_OPEN_PLAY',
     messaging: 'MODULE_MESSAGING',
     coaches: 'MODULE_COACHES',
+    ranking: 'MODULE_RANKING',
   };
   const envSrc = readFileSync('src/env.ts', 'utf8');
 

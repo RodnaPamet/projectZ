@@ -52,6 +52,7 @@ export type NavIconKey =
   | 'security'
   | 'contactRequests'
   | 'coaches'
+  | 'results'
   // The player shell and the bottom tab bar (#362).
   | 'discover'
   | 'games'
@@ -179,6 +180,19 @@ export function clubAdminNav(
                 labelKey: 'messages',
                 iconKey: 'messages' as const,
                 requires: 'messages.club' as const,
+                prefetch: 'auto' as const,
+              },
+            ]
+          : []),
+        // A disputed result waits here for the desk to decide it (#575),
+        // once the ranking module is on. The diary's permission.
+        ...(modules.ranking
+          ? [
+              {
+                href: href('results'),
+                labelKey: 'results',
+                iconKey: 'results' as const,
+                requires: 'bookings.view_all' as const,
                 prefetch: 'auto' as const,
               },
             ]
@@ -472,10 +486,20 @@ export interface ChromeModules {
    * club's coaches page.
    */
   coaches: boolean;
+  /**
+   * Module 4, ranking (#378): a booking's result on the player's booking, and
+   * the club's «Резултати».
+   */
+  ranking: boolean;
 }
 
 /** Every module off: what ships until a flag is switched on. */
-export const MODULES_OFF: ChromeModules = { openPlay: false, messaging: false, coaches: false };
+export const MODULES_OFF: ChromeModules = {
+  openPlay: false,
+  messaging: false,
+  coaches: false,
+  ranking: false,
+};
 
 /**
  * Where each module's entry points once the module ships. Nothing is behind
@@ -486,6 +510,8 @@ export const MODULE_HREFS = {
   openPlay: '/games',
   messaging: '/messages',
   coaches: COACHES_HREF,
+  // The leaderboards (#578); until then a result lives on its booking.
+  ranking: '/rankings',
 } as const satisfies Record<keyof ChromeModules, string>;
 
 /** A link in the player chrome. `labelKey` is under `common.nav`, as for the admin. */

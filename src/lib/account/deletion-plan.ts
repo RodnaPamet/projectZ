@@ -987,6 +987,15 @@ const actor = (who: string): NewRowsRule => ({
  * Every column that names a user, as `Model.column`: the same columns the
  * plan's guardrail finds (a relation to `User`, or a user id by name).
  */
+/**
+ * The rows a counted result writes for each player in it (#575): their part in
+ * the match and their new rating.
+ */
+const RATED_ON_A_RESULT: NewRowsRule = {
+  held: 'reason',
+  why: 'A booking\u2019s result counted for everyone who played it (#575): a player who deleted the account after the match is in it as a tombstone, so the other players are rated on the match they played. Nothing shows a tombstone\u2019s rating or record.',
+};
+
 export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   // ── Bookings and places: the commitments (P52) ──────────────────────────
   'Booking.bookedByUserId': TRIGGER,
@@ -1075,14 +1084,14 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'TournamentEntry.playerUserId': UNWRITTEN,
   'TournamentMatch.homeUserId': UNWRITTEN,
   'TournamentMatch.awayUserId': UNWRITTEN,
-  'MatchParticipant.userId': UNWRITTEN,
-  'MatchResultRecord.reportedByUserId': UNWRITTEN,
-  // #574 lays the table; the reporting workflow (#575) is what writes it, and
-  // must turn the two player columns into TRIGGER with account_not_deleted.
-  'MatchReport.reportedByUserId': UNWRITTEN,
-  'MatchReport.answeredByUserId': UNWRITTEN,
-  'MatchReport.decidedByUserId': UNWRITTEN,
-  'SkillRatingHistory.userId': UNWRITTEN,
+  'MatchParticipant.userId': RATED_ON_A_RESULT,
+  'MatchResultRecord.reportedByUserId': actor('who reported or decided a counted result'),
+  // A result (#575): who reported it and who answered it have P79's trigger;
+  // the club's staff member who decided it is an actor.
+  'MatchReport.reportedByUserId': TRIGGER,
+  'MatchReport.answeredByUserId': TRIGGER,
+  'MatchReport.decidedByUserId': actor('the club staff member who decided or entered a result'),
+  'SkillRatingHistory.userId': RATED_ON_A_RESULT,
   'XpEvent.userId': UNWRITTEN,
   'UserAchievement.userId': UNWRITTEN,
   'WearableConnection.userId': UNWRITTEN,

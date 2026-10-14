@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { readBookingResult } from '@/app-layer/usecases/match-results';
 import { getMyBooking } from '@/app-layer/usecases/my-bookings';
 import { getBookingGame } from '@/app-layer/usecases/open-play';
 import { toMyBookingDetailDto } from '@/app/api/v1/_lib/dto';
@@ -47,11 +48,13 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   const { kind, landing, modules } = await playerChrome();
   if (kind === 'club' && landing) redirect(landing.href);
 
-  const [booking, tNav, game] = await Promise.all([
+  const [booking, tNav, game, result] = await Promise.all([
     getMyBooking({ userId, bookingId: id }),
     getTranslations('common.nav'),
     // Open play (#376): only while the module is on.
     modules.openPlay ? getBookingGame({ userId, bookingId: id }) : Promise.resolve(null),
+    // A booking's result (#575): only while the ranking module is on.
+    modules.ranking ? readBookingResult(userId, id) : Promise.resolve(null),
   ]);
   if (!booking) notFound();
   const seed = toMyBookingDetailDto(booking);
@@ -68,6 +71,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
           serverNow={renderedAt()}
           messaging={modules.messaging}
           game={game ? toBookingGameDto(game) : null}
+          result={result}
         />
       </ViewerScope>
     </div>
