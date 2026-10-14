@@ -37,6 +37,9 @@ export interface MatchSpec {
   groupNo: number;
   entryA: string | null;
   entryB: string | null;
+  /** Americano and Mexicano (#590): the second of each side. */
+  entryA2?: string | null;
+  entryB2?: string | null;
   /** The match the winner goes to, and on which side. */
   next: { key: string; side: 0 | 1 } | null;
   /** The match the loser goes to: a semi-final's, the third-place match. */

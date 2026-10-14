@@ -16705,7 +16705,7 @@
             }
           },
           "409": {
-            "description": "TOURNAMENT_STATE, TOURNAMENT_TOO_FEW, TOURNAMENT_DRAW_UNSUPPORTED (Americano and Mexicano #590, a league #591).",
+            "description": "TOURNAMENT_STATE, TOURNAMENT_TOO_FEW, TOURNAMENT_DRAW_UNSUPPORTED (a league, #591).",
             "content": {
               "application/json": {
                 "schema": {
@@ -25395,7 +25395,15 @@
       "BookingResultState": {
         "type": "object",
         "title": "BookingResultState",
-        "required": ["result", "canReport", "reportableUntil", "format", "players", "fixedSides"],
+        "required": [
+          "result",
+          "canReport",
+          "reportableUntil",
+          "format",
+          "players",
+          "fixedSides",
+          "pointsTotal"
+        ],
         "properties": {
           "result": {
             "oneOf": [
@@ -25436,6 +25444,10 @@
               }
             },
             "description": "The sides a tournament's draw set (#580), when the booking is a tournament match: the result keeps them (in either order), and a knockout's has a winner."
+          },
+          "pointsTotal": {
+            "type": ["integer", "null"],
+            "description": "An Americano or Mexicano match (#590, 56): the points it is played to. Its score is one pair adding up to them, a draw allowed; it moves no ratings (43)."
           }
         }
       },
@@ -26343,7 +26355,9 @@
           "winnerSide",
           "score",
           "scheduled",
-          "mine"
+          "mine",
+          "sideA2",
+          "sideB2"
         ],
         "properties": {
           "id": {
@@ -26424,6 +26438,28 @@
           },
           "mine": {
             "type": "boolean"
+          },
+          "sideA2": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DrawEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Americano and Mexicano (#590): the second of the side."
+          },
+          "sideB2": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DrawEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Americano and Mexicano (#590): the second of the side."
           }
         }
       },
@@ -26562,6 +26598,18 @@
           "thirdPlace": {
             "type": "boolean",
             "description": "A match for third between the semi-final losers (61)."
+          },
+          "rounds": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 30,
+            "description": "Americano and Mexicano: the rounds (60)."
+          },
+          "pointsPerMatch": {
+            "type": ["integer", "null"],
+            "minimum": 4,
+            "maximum": 100,
+            "description": "Americano and Mexicano: the points a match is played to (56); default 24."
           }
         }
       },

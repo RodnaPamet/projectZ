@@ -1738,7 +1738,9 @@
         "scheduleProblem": "Choose a court, a start, and a length of 15 minutes or more.",
         "scheduleHint": "The match shows in the diary as a booking. The players enter its result from it, as for any booking.",
         "moveHint": "The old booking is cancelled and a new one made.",
-        "save": "Save"
+        "save": "Save",
+        "rounds": "Rounds",
+        "pointsPerMatch": "Points a match"
       }
     }
   },
@@ -2065,7 +2067,8 @@
       "reject": "Dispute",
       "rejectNote": "What is wrong? The club will read it. (optional)",
       "rejectSend": "Send to the club",
-      "back": "Back"
+      "back": "Back",
+      "pointsTotal": "A match to {total} points: the two numbers add up to {total}."
     }
   },
   "platform": {

@@ -51,6 +51,9 @@ export const drawBodySchema = z
     groupCount: z.number().int().min(1).max(32).nullable().optional(),
     qualifiersPerGroup: z.number().int().min(1).max(8).nullable().optional(),
     thirdPlace: z.boolean().optional(),
+    /** Americano and Mexicano (#590; decisions 56, 60). */
+    rounds: z.number().int().min(1).max(30).nullable().optional(),
+    pointsPerMatch: z.number().int().min(4).max(100).nullable().optional(),
   })
   .strict();
 

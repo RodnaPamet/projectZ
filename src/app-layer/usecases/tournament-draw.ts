@@ -27,6 +27,7 @@ import {
   type Random,
   type TableRow,
 } from '@/lib/tournaments/draw';
+import { americano, mexicanoRound, pointsTable, type PairMatch } from '@/lib/tournaments/rotating';
 
 /**
  * A CLUB TOURNAMENT'S DRAW, ITS MATCHES ON THE DIARY, AND HOW THEY MOVE ON
@@ -61,7 +62,12 @@ export const DRAWN_FORMATS: readonly TournamentFormatKind[] = [
   'SINGLE_ELIMINATION',
   'ROUND_ROBIN',
   'GROUPS_KNOCKOUT',
+  'AMERICANO',
+  'MEXICANO',
 ];
+
+/** Players sign up alone and are partnered round by round (#590, 60). */
+const ROTATING: ReadonlySet<TournamentFormatKind> = new Set(['AMERICANO', 'MEXICANO']);
 
 export type TournamentDrawCode =
   | 'TOURNAMENT_DRAW_UNSUPPORTED'
@@ -104,12 +110,14 @@ interface LockedTournament {
   groupCount: number | null;
   qualifiersPerGroup: number | null;
   thirdPlace: boolean;
+  rounds: number | null;
+  pointsPerMatch: number | null;
 }
 
 async function lock(db: PrismaClient, tenantId: string, id: string): Promise<LockedTournament> {
   const rows = await db.$queryRaw<LockedTournament[]>`
     SELECT "id", "tenantId", "name", "sport", "format", "status", "teamSize",
-           "groupCount", "qualifiersPerGroup", "thirdPlace"
+           "groupCount", "qualifiersPerGroup", "thirdPlace", "rounds", "pointsPerMatch"
       FROM "tournament" WHERE "id" = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
   const t = rows[0];
   if (!t) throw new TournamentDrawError('TOURNAMENT_STATE', 404, 'Tournament not found.');
@@ -127,6 +135,9 @@ export interface DrawOptions {
   qualifiersPerGroup?: number | null;
   /** A match for third place between the semi-final losers (61). */
   thirdPlace?: boolean;
+  /** Americano and Mexicano (56, 60): the rounds, and the points a match is played to. */
+  rounds?: number | null;
+  pointsPerMatch?: number | null;
 }
 
 /**
@@ -157,7 +168,7 @@ export async function drawTournament(
       throw new TournamentDrawError(
         'TOURNAMENT_DRAW_UNSUPPORTED',
         409,
-        'This format’s draw is not built yet: Americano and Mexicano (#590), a league (#591).',
+        'This format’s draw is not built yet: a league (#591).',
       );
     }
     const entries = await db.tournamentEntry.findMany({
@@ -199,7 +210,36 @@ export async function drawTournament(
         );
       }
     }
-    const thirdPlace = t.format === 'ROUND_ROBIN' ? false : !!opts.thirdPlace;
+    const rotating = ROTATING.has(t.format);
+    const thirdPlace = t.format === 'ROUND_ROBIN' || rotating ? false : !!opts.thirdPlace;
+    // Americano and Mexicano (#590): two against two, the rounds the club sets
+    // (60), each match played to its points (56).
+    const rounds = rotating ? (opts.rounds ?? null) : null;
+    const pointsPerMatch = rotating ? (opts.pointsPerMatch ?? 24) : null;
+    if (rotating) {
+      if (entries.length < 4) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_TOO_FEW',
+          409,
+          'Two against two needs four players.',
+        );
+      }
+      if (!Number.isInteger(rounds) || rounds! < 1 || rounds! > 30) {
+        throw new TournamentDrawError('TOURNAMENT_INVALID', 400, 'One to thirty rounds.', {
+          field: 'rounds',
+        });
+      }
+      if (!Number.isInteger(pointsPerMatch) || pointsPerMatch! < 4 || pointsPerMatch! > 100) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'A match is played to 4 to 100 points.',
+          {
+            field: 'pointsPerMatch',
+          },
+        );
+      }
+    }
 
     // The seeds (54): the mean of the entry's players' ratings, frozen now.
     const strengths: DrawEntry[] = [];
@@ -214,7 +254,19 @@ export async function drawTournament(
     let specs: MatchSpec[];
     const groupOf = new Map<string, number>();
     const seedOf = new Map<string, number>();
-    if (t.format === 'SINGLE_ELIMINATION') {
+    if (rotating) {
+      const byLevel = [...strengths].sort((a, b) => b.strength - a.strength);
+      byLevel.forEach((e, i) => {
+        seedOf.set(e.id, i + 1);
+        groupOf.set(e.id, 1);
+      });
+      const ids = byLevel.map((e) => e.id);
+      specs = (
+        t.format === 'AMERICANO'
+          ? americano(ids, rounds!, random)
+          : mexicanoRound(ids, 1, new Map())
+      ).map(pairSpec);
+    } else if (t.format === 'SINGLE_ELIMINATION') {
       const seeded = seedEntries(strengths, random);
       seeded.forEach((e, i) => seedOf.set(e.id, i + 1));
       specs = knockout(
@@ -265,6 +317,8 @@ export async function drawTournament(
         groupCount,
         qualifiersPerGroup: qualifiers,
         thirdPlace,
+        rounds,
+        pointsPerMatch,
       },
     });
 
@@ -293,6 +347,8 @@ async function writeMatches(
       groupNo: s.groupNo,
       entryAId: s.entryA,
       entryBId: s.entryB,
+      entryA2Id: s.entryA2 ?? null,
+      entryB2Id: s.entryB2 ?? null,
       status: (s.entryA && s.entryB ? 'READY' : 'PENDING') as TournamentMatchStatus,
       nextMatchId: s.next ? ids.get(s.next.key)! : null,
       nextSide: s.next?.side ?? null,
@@ -468,6 +524,43 @@ async function groupTables(
   ]);
   const byGroup = new Map<number, TableRow[]>();
   const groups = [...new Set(entries.map((e) => e.groupNo!))].sort((a, b) => a - b);
+  const t = await db.tournament.findFirst({
+    where: { id: tournamentId, tenantId },
+    select: { format: true },
+  });
+  if (t && ROTATING.has(t.format)) {
+    // Americano and Mexicano (#590, 56): each player keeps their pair's points.
+    const pairs = await db.tournamentMatch.findMany({
+      where: { tenantId, tournamentId, stage: 'GROUP', status: { in: ['PLAYED', 'WALKOVER'] } },
+      select: {
+        entryAId: true,
+        entryA2Id: true,
+        entryBId: true,
+        entryB2Id: true,
+        winnerSide: true,
+        scoreJson: true,
+      },
+      take: 4096,
+    });
+    const rows = pointsTable(
+      entries.map((e) => e.id),
+      pairs
+        .filter((m) => m.entryAId && m.entryA2Id && m.entryBId && m.entryB2Id)
+        .map((m) => ({
+          a: [m.entryAId!, m.entryA2Id!],
+          b: [m.entryBId!, m.entryB2Id!],
+          score: Array.isArray(m.scoreJson)
+            ? ((m.scoreJson as number[][])[0] as [number, number])
+            : null,
+          winnerSide: m.winnerSide as 0 | 1 | null,
+        })),
+    );
+    byGroup.set(
+      1,
+      rows.map((r) => ({ ...r, setsDiff: r.diff, gamesDiff: 0 })),
+    );
+    return byGroup;
+  }
   for (const g of groups) {
     const played: PlayedMatch[] = matches
       .filter((m) => m.groupNo === g && m.entryAId && m.entryBId)
@@ -502,8 +595,26 @@ async function afterGroupMatch(
   if (open > 0) return;
   const t = await db.tournament.findFirstOrThrow({
     where: { id: tournamentId, tenantId },
-    select: { format: true, qualifiersPerGroup: true, thirdPlace: true },
+    select: { format: true, qualifiersPerGroup: true, thirdPlace: true, rounds: true },
   });
+  if (t.format === 'MEXICANO') {
+    // One round at a time (60): the next from the table, while rounds are left.
+    const last = await db.tournamentMatch.aggregate({
+      where: { tenantId, tournamentId, stage: 'GROUP' },
+      _max: { round: true },
+    });
+    const round = (last._max.round ?? 0) + 1;
+    if (round <= (t.rounds ?? 0)) {
+      await writeMatches(
+        db,
+        tenantId,
+        tournamentId,
+        await nextMexicanoRound(db, tenantId, tournamentId, round),
+        now,
+      );
+      return;
+    }
+  }
   if (t.format !== 'GROUPS_KNOCKOUT') {
     await completeIfDone(db, tenantId, tournamentId);
     return;
@@ -570,19 +681,97 @@ export async function tournamentMatchRules(
   db: PrismaClient,
   tenantId: string,
   bookingId: string,
-): Promise<{ sides: string[][]; knockout: boolean } | null> {
+): Promise<{
+  sides: string[][];
+  knockout: boolean;
+  /** Americano and Mexicano (#590, 56): a match is played to these points. */
+  points: number | null;
+  /** Americano and Mexicano move no ratings (43). */
+  rated: boolean;
+} | null> {
   const m = await db.tournamentMatch.findFirst({
     where: { bookingId, tenantId },
-    select: { stage: true, entryAId: true, entryBId: true },
+    select: {
+      stage: true,
+      entryAId: true,
+      entryBId: true,
+      entryA2Id: true,
+      entryB2Id: true,
+      tournament: { select: { format: true, pointsPerMatch: true } },
+    },
   });
   if (!m || !m.entryAId || !m.entryBId) return null;
+  const ids = [m.entryAId, m.entryA2Id, m.entryBId, m.entryB2Id].filter((x): x is string => !!x);
   const entries = await db.tournamentEntry.findMany({
-    where: { tenantId, id: { in: [m.entryAId, m.entryBId] } },
+    where: { tenantId, id: { in: ids } },
     select: { id: true, playerUserId: true, partnerUserId: true },
-    take: 2,
+    take: 4,
   });
-  const of = (id: string) => playersOf(entries.find((e) => e.id === id)!);
-  return { sides: [of(m.entryAId), of(m.entryBId)], knockout: m.stage !== 'GROUP' };
+  const of = (id: string | null) => (id ? playersOf(entries.find((e) => e.id === id)!) : []);
+  const rotating = ROTATING.has(m.tournament.format);
+  return {
+    sides: [
+      [...of(m.entryAId), ...of(m.entryA2Id)],
+      [...of(m.entryBId), ...of(m.entryB2Id)],
+    ],
+    knockout: m.stage !== 'GROUP',
+    points: rotating ? (m.tournament.pointsPerMatch ?? null) : null,
+    rated: !rotating,
+  };
+}
+
+/** A Mexicano match as a draw spec, or an Americano's: the second of each side too. */
+function pairSpec(p: PairMatch): MatchSpec {
+  return {
+    key: `r${p.round}:${p.slot}`,
+    stage: 'GROUP',
+    round: p.round,
+    slot: p.slot,
+    groupNo: 1,
+    entryA: p.a[0],
+    entryA2: p.a[1],
+    entryB: p.b[0],
+    entryB2: p.b[1],
+    next: null,
+    loserNext: null,
+  };
+}
+
+/** Mexicano's next round (60): from the table, the rounds off to whoever has had the fewest. */
+async function nextMexicanoRound(
+  db: PrismaClient,
+  tenantId: string,
+  tournamentId: string,
+  round: number,
+): Promise<MatchSpec[]> {
+  const [tables, players, played] = await Promise.all([
+    groupTables(db, tenantId, tournamentId),
+    db.tournamentEntry.findMany({
+      where: { tenantId, tournamentId, status: 'CONFIRMED', groupNo: 1 },
+      select: { id: true },
+      take: 512,
+    }),
+    db.tournamentMatch.findMany({
+      where: { tenantId, tournamentId, stage: 'GROUP' },
+      select: { round: true, entryAId: true, entryA2Id: true, entryBId: true, entryB2Id: true },
+      take: 4096,
+    }),
+  ]);
+  // A player who withdrew is out of the rounds still to come (59).
+  const live = new Set(players.map((p) => p.id));
+  const ranked = (tables.get(1) ?? []).map((r) => r.entryId).filter((id) => live.has(id));
+  const rounds = new Set(played.map((m) => m.round));
+  const off = new Map<string, number>();
+  for (const r of rounds) {
+    const on = new Set(
+      played
+        .filter((m) => m.round === r)
+        .flatMap((m) => [m.entryAId, m.entryA2Id, m.entryBId, m.entryB2Id])
+        .filter((x): x is string => !!x),
+    );
+    for (const id of ranked) if (!on.has(id)) off.set(id, (off.get(id) ?? 0) + 1);
+  }
+  return mexicanoRound(ranked, round, off).map(pairSpec);
 }
 
 // ─── The club's hand ───────────────────────────────────────────────────
@@ -660,12 +849,22 @@ export async function walkoversForWithdrawn(
   now: Date = new Date(),
 ): Promise<void> {
   const ready = await db.tournamentMatch.findMany({
-    where: { tenantId, status: 'READY', OR: [{ entryAId: entryId }, { entryBId: entryId }] },
-    select: { id: true, entryAId: true },
+    where: {
+      tenantId,
+      status: 'READY',
+      OR: [
+        { entryAId: entryId },
+        { entryBId: entryId },
+        { entryA2Id: entryId },
+        { entryB2Id: entryId },
+      ],
+    },
+    select: { id: true, entryAId: true, entryA2Id: true },
     take: 512,
   });
   for (const m of ready) {
-    await decide(db, tenantId, m.id, m.entryAId === entryId ? 1 : 0, {
+    const onA = m.entryAId === entryId || m.entryA2Id === entryId;
+    await decide(db, tenantId, m.id, onA ? 1 : 0, {
       status: 'WALKOVER',
       score: null,
       now,
@@ -718,6 +917,8 @@ export async function scheduleMatch(
         round: true,
         entryAId: true,
         entryBId: true,
+        entryA2Id: true,
+        entryB2Id: true,
         bookingId: true,
       },
     });
@@ -744,14 +945,16 @@ export async function scheduleMatch(
         },
       );
     }
-    const entries = await db.tournamentEntry.findMany({
-      where: { tenantId: actor.tenantId, id: { in: [m.entryAId, m.entryBId] } },
-      select: { id: true, playerUserId: true, partnerUserId: true },
-      take: 2,
-    });
-    const players = [m.entryAId, m.entryBId].flatMap((id) =>
-      playersOf(entries.find((e) => e.id === id)!),
+    // Side A then side B; in Americano and Mexicano, two entries a side (#590).
+    const sideIds = [m.entryAId, m.entryA2Id, m.entryBId, m.entryB2Id].filter(
+      (x): x is string => !!x,
     );
+    const entries = await db.tournamentEntry.findMany({
+      where: { tenantId: actor.tenantId, id: { in: sideIds } },
+      select: { id: true, playerUserId: true, partnerUserId: true },
+      take: 4,
+    });
+    const players = sideIds.flatMap((id) => playersOf(entries.find((e) => e.id === id)!));
 
     // A match moving: its old booking is cancelled first, so the court is free.
     if (m.bookingId) {
@@ -820,6 +1023,9 @@ export interface DrawMatchView {
   groupNo: number;
   sideA: DrawEntryView | null;
   sideB: DrawEntryView | null;
+  /** Americano and Mexicano (#590): the second of each side. */
+  sideA2: DrawEntryView | null;
+  sideB2: DrawEntryView | null;
   status: TournamentMatchStatus;
   winnerSide: number | null;
   score: number[][] | null;
@@ -880,6 +1086,7 @@ export async function readDraw(
       }),
       db.tournamentMatch.findMany({
         where: { tenantId: t.tenantId, tournamentId },
+        take: 4096,
         select: {
           id: true,
           stage: true,
@@ -888,6 +1095,8 @@ export async function readDraw(
           groupNo: true,
           entryAId: true,
           entryBId: true,
+          entryA2Id: true,
+          entryB2Id: true,
           status: true,
           winnerSide: true,
           scoreJson: true,
@@ -902,7 +1111,6 @@ export async function readDraw(
           },
         },
         orderBy: [{ stage: 'asc' }, { groupNo: 'asc' }, { round: 'asc' }, { slot: 'asc' }],
-        take: 4096,
       }),
     ]);
     const userIds = [...new Set(entries.flatMap(playersOf))];
@@ -928,8 +1136,11 @@ export async function readDraw(
       ]),
     );
     const view = (m: (typeof matches)[number]): DrawMatchView => {
-      const a = m.entryAId ? (entryOf.get(m.entryAId) ?? null) : null;
-      const b = m.entryBId ? (entryOf.get(m.entryBId) ?? null) : null;
+      const of = (id: string | null) => (id ? (entryOf.get(id) ?? null) : null);
+      const a = of(m.entryAId);
+      const b = of(m.entryBId);
+      const a2 = of(m.entryA2Id);
+      const b2 = of(m.entryB2Id);
       const live = m.booking && m.booking.status !== 'CANCELLED' ? m.booking : null;
       return {
         id: m.id,
@@ -939,6 +1150,8 @@ export async function readDraw(
         groupNo: m.groupNo,
         sideA: a,
         sideB: b,
+        sideA2: a2,
+        sideB2: b2,
         status: m.status,
         winnerSide: m.winnerSide,
         score: Array.isArray(m.scoreJson) ? (m.scoreJson as number[][]) : null,
@@ -950,7 +1163,8 @@ export async function readDraw(
               endTs: live.endTs,
             }
           : null,
-        mine: !!viewerId && [a, b].some((s) => s?.players.some((p) => p.userId === viewerId)),
+        mine:
+          !!viewerId && [a, b, a2, b2].some((s) => s?.players.some((p) => p.userId === viewerId)),
       };
     };
 

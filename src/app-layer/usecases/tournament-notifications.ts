@@ -368,13 +368,17 @@ export async function notifyMatchScheduled(matchId: string): Promise<void> {
         select: {
           entryAId: true,
           entryBId: true,
+          entryA2Id: true,
+          entryB2Id: true,
           booking: { select: { id: true, startTs: true, resource: { select: { name: true } } } },
         },
       }),
     );
     if (!m?.booking) return;
     const booking = m.booking;
-    for (const entryId of [m.entryAId, m.entryBId].filter((x): x is string => !!x)) {
+    for (const entryId of [m.entryAId, m.entryA2Id, m.entryBId, m.entryB2Id].filter(
+      (x): x is string => !!x,
+    )) {
       const f = await entryFacts(entryId);
       if (!f) continue;
       for (const userId of [f.playerUserId, f.partnerUserId].filter((x): x is string => !!x)) {
