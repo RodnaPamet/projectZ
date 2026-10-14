@@ -22,6 +22,7 @@ import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { buildVenueJsonLd, serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
 import { isPublicSlug } from './booking-days';
+import { VenueCoaches } from './VenueCoaches';
 import { VenueGallery } from './VenueGallery';
 import { VenueGames } from './VenueGames';
 import { VenueHeader } from './VenueHeader';
@@ -204,7 +205,8 @@ export default async function VenuePage({
     chromeIdentity(),
   ]);
   // Open play (#376): the venue's open games, while the module is on.
-  const games = readModules().openPlay
+  const modules = readModules();
+  const games = modules.openPlay
     ? await listOpenGames({ venueId: venue.id }, { viewerId: me?.userId ?? null })
     : null;
 
@@ -245,6 +247,9 @@ export default async function VenuePage({
             seed={{ items: games.items.map(toOpenGameDto), nextCursor: games.nextCursor }}
           />
         ) : null}
+        {/* #547: who teaches here, while the coaches module is on. Before the
+            slots, like the open games: both are reasons to pick a time. */}
+        {modules.coaches ? <VenueCoaches venueId={venue.id} /> : null}
         {/* The second stage (#403): only the slots wait for the day's
             availability; the header above is already on screen. */}
         <Suspense fallback={<VenueSlotsSkeleton />}>

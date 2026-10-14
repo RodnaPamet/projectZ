@@ -1,4 +1,5 @@
 import { PLAY_PATH, type LandingDecision } from '@/lib/auth/landing';
+import { COACH_PROFILE_HREF, COACHES_HREF } from '@/lib/coaches/hrefs';
 import type { PlatformCapability } from '@/lib/platform/capabilities';
 import type { Permission } from '@/lib/permissions';
 import type { ResourceNouns } from '@/lib/sports/resource-kinds';
@@ -445,7 +446,11 @@ export interface ChromeModules {
   openPlay: boolean;
   /** Module 1, messaging (#375): Съобщения, in the sidebar, and the header's messages icon. */
   messaging: boolean;
-  /** Module 3, coaches (#377): a coach's own «Профил на треньор», in the sidebar and on Профил. */
+  /**
+   * Module 3, coaches (#377): Треньори in the sidebar, a coach's own «Профил
+   * на треньор» there and on Профил, the coaches on a venue page, and the
+   * club's coaches page.
+   */
   coaches: boolean;
 }
 
@@ -460,7 +465,7 @@ export const MODULES_OFF: ChromeModules = { openPlay: false, messaging: false, c
 export const MODULE_HREFS = {
   openPlay: '/games',
   messaging: '/messages',
-  coaches: '/me/coach',
+  coaches: COACHES_HREF,
 } as const satisfies Record<keyof ChromeModules, string>;
 
 /** A link in the player chrome. `labelKey` is under `common.nav`, as for the admin. */
@@ -498,9 +503,11 @@ const MESSAGES: PlayerLink = {
   iconKey: 'messages',
 };
 const PROFILE: PlayerLink = { href: PROFILE_HREF, labelKey: 'profile', iconKey: 'profile' };
+/** Треньори (#547): the coaches a player can book. */
+const COACHES: PlayerLink = { href: COACHES_HREF, labelKey: 'coaches', iconKey: 'coaches' };
 /** A coach's own profile and its standing with the platform (#545). */
 const COACH_PROFILE: PlayerLink = {
-  href: MODULE_HREFS.coaches,
+  href: COACH_PROFILE_HREF,
   labelKey: 'coachProfile',
   iconKey: 'coachProfile',
 };
@@ -515,9 +522,9 @@ export const PUBLIC_HEADER_LINKS: readonly PlayerLink[] = [PLAY];
 /**
  * THE ITEMS EACH SIGNED-IN KIND'S SIDEBAR STARTS WITH, one list per kind.
  *
- * Игри and Съобщения wait for their modules (#376, #375). A coach plays too
- * (#377, owner decision 3), so a coach has every item a player has, and with
- * the coaches module on, «Профил на треньор» before Профил. A CLUB account is
+ * Игри, Съобщения and Треньори wait for their modules (#376, #375, #377). A
+ * coach plays too (owner decision 3), so a coach has every item a player
+ * has, and with the coaches module on, «Профил на треньор» before Профил. A CLUB account is
  * not here: its sidebar is its club's admin (`clubAdminNav`), built by
  * `clubShell`.
  */
@@ -525,6 +532,7 @@ export const SIGNED_IN_NAV: Record<'player' | 'coach', (modules: ChromeModules) 
   player: (m) => [
     PLAY,
     ...(m.openPlay ? [GAMES] : []),
+    ...(m.coaches ? [COACHES] : []),
     BOOKINGS,
     ...(m.messaging ? [MESSAGES] : []),
     PROFILE,

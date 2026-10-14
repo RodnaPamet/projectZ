@@ -1,3 +1,4 @@
+import { COACH_PROFILE_HREF, PLATFORM_COACHES_HREF } from '@/lib/coaches/hrefs';
 import { absoluteUrl } from '@/lib/seo/site-url';
 import { resolveLocale } from '@/lib/i18n/locales';
 import { translateFor } from '@/lib/i18n/server-messages';
@@ -11,10 +12,7 @@ import { translateFor } from '@/lib/i18n/server-messages';
 /** What the platform did with a coach's profile. */
 export type CoachDecisionEvent = 'approved' | 'declined' | 'removed';
 
-/** Where a coach reads and edits their profile. */
-export const COACH_PROFILE_HREF = '/me/coach';
-/** Where the platform owner works the applications. */
-export const PLATFORM_COACHES_HREF = '/platform/coaches';
+export { COACH_PROFILE_HREF, PLATFORM_COACHES_HREF };
 
 /** One line: nothing typed into a note can add a header or a label line. */
 const oneLine = (v: string) => v.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').trim();

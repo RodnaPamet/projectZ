@@ -302,6 +302,25 @@ export async function listPublicCoaches(
   });
 }
 
+/** The sports at least one listed coach teaches: what the list can be narrowed to. */
+export async function publicCoachSports(): Promise<SportType[]> {
+  // guardrail-allow: cross-tenant — the same public list, sports only.
+  return runAsSuperuser(async (db) => {
+    const publicVenue = await publicVenueFilter(db);
+    const rows = await db.$queryRaw<Array<{ sport: SportType }>>`
+      SELECT DISTINCT s."sport"
+        FROM "coach_profile_sport" s
+        JOIN "coach_profile" p ON p."userId" = s."userId" AND p."status" = 'APPROVED'
+        JOIN "app_user" u ON u."id" = p."userId" AND u."deletedAt" IS NULL
+       WHERE EXISTS (
+           SELECT 1 FROM "coach" c JOIN "venue" v ON v."id" = c."venueId"
+            WHERE c."userId" = p."userId" AND ${readyLink(publicVenue)})
+       ORDER BY s."sport" ASC
+       LIMIT 64`;
+    return rows.map((r) => r.sport);
+  });
+}
+
 /** One approved coach by their page address; null for anybody else. */
 export async function publicCoachBySlug(slug: string): Promise<PublicCoach | null> {
   if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(slug)) return null;
