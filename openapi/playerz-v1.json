@@ -16909,6 +16909,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "TOURNAMENT_INVALID: a loss for both outside a league."
           }
         },
         "requestBody": {
@@ -26357,7 +26360,9 @@
           "scheduled",
           "mine",
           "sideA2",
-          "sideB2"
+          "sideB2",
+          "deadline",
+          "overdue"
         ],
         "properties": {
           "id": {
@@ -26460,6 +26465,15 @@
               }
             ],
             "description": "Americano and Mexicano (#590): the second of the side."
+          },
+          "deadline": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "A league's round (#591, 44): played by then."
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "Past its deadline and not played: the club decides it (58)."
           }
         }
       },
@@ -26610,6 +26624,35 @@
             "minimum": 4,
             "maximum": 100,
             "description": "Americano and Mexicano: the points a match is played to (56); default 24."
+          },
+          "divisions": {
+            "type": ["array", "null"],
+            "maxItems": 32,
+            "items": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "A league (#591, 44): every confirmed entry in one division, best division first."
+          },
+          "divisionCount": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 32,
+            "description": "A league: how many divisions to split the entries into by level, when `divisions` is not given."
+          },
+          "firstDeadline": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "A league: the first round's deadline; later than now."
+          },
+          "roundDays": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 60,
+            "description": "A league: the days between one round's deadline and the next; default 7."
           }
         }
       },
@@ -26638,8 +26681,9 @@
         "required": ["winnerSide"],
         "properties": {
           "winnerSide": {
-            "type": "integer",
-            "enum": [0, 1]
+            "type": ["integer", "null"],
+            "enum": [0, 1, null],
+            "description": "The side given the match; null in a league for a loss for both (#591, 58)."
           }
         }
       }

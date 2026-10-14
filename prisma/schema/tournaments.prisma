@@ -74,6 +74,8 @@ model Tournament {
   /// sets, and the points a match is played to.
   rounds             Int?
   pointsPerMatch     Int?
+  /// A league (#591, decision 44): the days between one round's deadline and the next.
+  roundDays          Int?
 
   currentRound Int @default(0)
   totalRounds  Int @default(0)
@@ -198,6 +200,8 @@ model TournamentMatch {
   loserNextMatchId String?
   loserNextSide    Int?
 
+  /// A league's round (#591, 44): played by then, or the club decides it (58).
+  deadline        DateTime?
   /// The club staff member who recorded a walkover (58, 59).
   decidedByUserId String?
   playedAt        DateTime?
@@ -213,5 +217,6 @@ model TournamentMatch {
   @@index([entryBId])
   @@index([entryA2Id])
   @@index([entryB2Id])
+  @@index([status, deadline])
   @@map("tournament_match")
 }

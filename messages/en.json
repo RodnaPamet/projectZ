@@ -1740,7 +1740,17 @@
         "moveHint": "The old booking is cancelled and a new one made.",
         "save": "Save",
         "rounds": "Rounds",
-        "pointsPerMatch": "Points a match"
+        "pointsPerMatch": "Points a match",
+        "lostByBoth": "Lost by both",
+        "divisionCount": "Divisions",
+        "divisionsBy": "Divisions by",
+        "byLevel": "By level",
+        "byHand": "By hand",
+        "divisionOf": "{name}’s division",
+        "firstDeadline": "First round’s deadline",
+        "roundDays": "Days between rounds",
+        "leagueProblem": "Choose the first round’s deadline.",
+        "overdue": "{count, plural, one {# match was not played by its deadline} other {# matches were not played by their deadline}}: decide each — a walkover to one side, or lost by both."
       }
     }
   },
@@ -3983,7 +3993,11 @@
       "walkover": "Walkover",
       "scheduled": "{when}, {court}",
       "notScheduled": "Not on a court yet",
-      "toBooking": "To the booking: enter the result there"
+      "toBooking": "To the booking: enter the result there",
+      "division": "Division {n}",
+      "lostByBoth": "Lost by both",
+      "overdue": "Overdue",
+      "deadline": "Play by {day}"
     }
   }
 }

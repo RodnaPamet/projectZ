@@ -59,7 +59,9 @@ export function DrawView({
         >
           <Heading level={3} className="text-base" id={`draw-group-${g.groupNo}`}>
             {draw.groups.length > 1
-              ? t('group', { letter: String.fromCharCode(64 + g.groupNo) })
+              ? draw.format === 'LEAGUE'
+                ? t('division', { n: g.groupNo })
+                : t('group', { letter: String.fromCharCode(64 + g.groupNo) })
               : t('table')}
           </Heading>
           <div className="overflow-x-auto">
@@ -196,8 +198,20 @@ function MatchCard({
       <div className="flex flex-wrap items-center gap-2">
         {m.status === 'WALKOVER' && !bye ? (
           <StatusBadge variant="neutral" icon={null}>
-            {t('walkover')}
+            {/* A league match the club gave as lost by both (#591, 58). */}
+            {m.winnerSide === null ? t('lostByBoth') : t('walkover')}
           </StatusBadge>
+        ) : null}
+        {m.overdue ? (
+          <StatusBadge variant="warning" icon={null} data-testid="draw-match-overdue">
+            {t('overdue')}
+          </StatusBadge>
+        ) : m.status === 'READY' && m.deadline ? (
+          <Caption data-testid="draw-match-deadline">
+            {t('deadline', {
+              day: format.dateTime(new Date(m.deadline), { day: 'numeric', month: 'short' }),
+            })}
+          </Caption>
         ) : null}
         {m.status === 'READY' && m.scheduled ? (
           <Caption data-testid="draw-match-scheduled">

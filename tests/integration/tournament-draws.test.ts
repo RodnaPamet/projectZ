@@ -166,7 +166,7 @@ describe('a tournament draw', () => {
       },
       { resourceId, startTs: startTs.toISOString(), durationMinutes: 60 },
     );
-  const walkover = (matchId: string, winnerSide: 0 | 1) =>
+  const walkover = (matchId: string, winnerSide: 0 | 1 | null) =>
     call(
       walkoverRoute as never,
       'POST',
@@ -509,6 +509,99 @@ describe('a tournament draw', () => {
       expect(on2).toContain(sat);
       await walkover(round2.id, 1);
       expect(await tournamentStatus(id)).toBe('COMPLETE');
+    });
+  });
+
+  describe('a league over weeks (#591; decisions 44, 57, 58)', () => {
+    it('divisions by level, a round a deadline, and a loss for both counted as a loss', async () => {
+      const id = await withEntries(6, { format: 'LEAGUE' });
+      expect((await draw(id, { divisionCount: 2, roundDays: 7 })).body.error.details).toMatchObject(
+        {
+          field: 'firstDeadline',
+        },
+      );
+      const first = new Date(Date.now() + 3 * DAY);
+      const drawn = await draw(id, {
+        divisionCount: 2,
+        firstDeadline: first.toISOString(),
+        roundDays: 7,
+      });
+      expect(drawn.status).toBe(201);
+      const groups = drawn.body.data.groups as Array<{
+        groupNo: number;
+        matches: Array<Record<string, any>>;
+      }>;
+      // Two divisions of three: everyone plays everyone, a round each week.
+      expect(groups.map((g) => g.matches.length)).toEqual([3, 3]);
+      const deadlines = [...new Set(groups[0]!.matches.map((m) => m.deadline as string))].sort();
+      expect(deadlines.map((d) => Math.round((Date.parse(d) - first.getTime()) / DAY))).toEqual([
+        0, 7, 14,
+      ]);
+      expect(groups[0]!.matches.every((m) => m.status === 'READY' && m.overdue === false)).toBe(
+        true,
+      );
+
+      // Past the deadline the match waits for the club (58).
+      const m = groups[0]!.matches.find((x) => x.round === 1)!;
+      await asAppSuperuser(db, (tx) =>
+        tx.tournamentMatch.update({
+          where: { id: m.id },
+          data: { deadline: new Date(Date.now() - DAY) },
+        }),
+      );
+      const late = await call(
+        playerDrawRoute as never,
+        'GET',
+        `/api/v1/tournaments/${id}/draw`,
+        players[0]!,
+        { id },
+      );
+      expect(late.body.data.groups[0].matches.find((x: any) => x.id === m.id).overdue).toBe(true);
+
+      // The club gives it as lost by both: a loss each, no points.
+      const both = await walkover(m.id, null);
+      expect(both.status).toBe(200);
+      const decided = both.body.data.groups[0];
+      expect(decided.matches.find((x: any) => x.id === m.id)).toMatchObject({
+        status: 'WALKOVER',
+        winnerSide: null,
+        overdue: false,
+      });
+      for (const side of [m.sideA.id, m.sideB.id]) {
+        expect(decided.table.find((r: any) => r.entryId === side)).toMatchObject({
+          played: 1,
+          lost: 1,
+          points: 0,
+        });
+      }
+    });
+
+    it('a loss for both is only a league’s', async () => {
+      const id = await withEntries(4, { format: 'ROUND_ROBIN' });
+      const drawn = await draw(id);
+      const m = drawn.body.data.groups[0].matches[0];
+      const res = await walkover(m.id, null);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('TOURNAMENT_INVALID');
+    });
+
+    it('the club sets the divisions by hand: every confirmed entry in one', async () => {
+      const id = await withEntries(4, { format: 'LEAGUE' });
+      const entries = await asAppSuperuser(db, (tx) =>
+        tx.tournamentEntry.findMany({
+          where: { tournamentId: id },
+          select: { id: true },
+          orderBy: { id: 'asc' },
+        }),
+      );
+      const ids = entries.map((e) => e.id);
+      const at = new Date(Date.now() + DAY).toISOString();
+      const missing = await draw(id, { divisions: [ids.slice(0, 3)], firstDeadline: at });
+      expect(missing.body.error.details).toMatchObject({ field: 'divisions' });
+      const ok = await draw(id, { divisions: [ids.slice(0, 2), ids.slice(2)], firstDeadline: at });
+      expect(ok.status).toBe(201);
+      const tables = ok.body.data.groups.map((g: any) => g.table.map((r: any) => r.entryId).sort());
+      expect(tables).toEqual([ids.slice(0, 2).sort(), ids.slice(2).sort()]);
     });
   });
 });

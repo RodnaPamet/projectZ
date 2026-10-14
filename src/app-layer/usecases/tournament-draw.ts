@@ -64,6 +64,7 @@ export const DRAWN_FORMATS: readonly TournamentFormatKind[] = [
   'GROUPS_KNOCKOUT',
   'AMERICANO',
   'MEXICANO',
+  'LEAGUE',
 ];
 
 /** Players sign up alone and are partnered round by round (#590, 60). */
@@ -112,12 +113,13 @@ interface LockedTournament {
   thirdPlace: boolean;
   rounds: number | null;
   pointsPerMatch: number | null;
+  venueId: string | null;
 }
 
 async function lock(db: PrismaClient, tenantId: string, id: string): Promise<LockedTournament> {
   const rows = await db.$queryRaw<LockedTournament[]>`
     SELECT "id", "tenantId", "name", "sport", "format", "status", "teamSize",
-           "groupCount", "qualifiersPerGroup", "thirdPlace", "rounds", "pointsPerMatch"
+           "groupCount", "qualifiersPerGroup", "thirdPlace", "rounds", "pointsPerMatch", "venueId"
       FROM "tournament" WHERE "id" = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
   const t = rows[0];
   if (!t) throw new TournamentDrawError('TOURNAMENT_STATE', 404, 'Tournament not found.');
@@ -138,6 +140,15 @@ export interface DrawOptions {
   /** Americano and Mexicano (56, 60): the rounds, and the points a match is played to. */
   rounds?: number | null;
   pointsPerMatch?: number | null;
+  /**
+   * A league (#591, 44): who is in each division, best first, by entry id; or
+   * only how many divisions, split by level. The first round's deadline, and
+   * the days between one and the next.
+   */
+  divisions?: string[][] | null;
+  divisionCount?: number | null;
+  firstDeadline?: Date | null;
+  roundDays?: number | null;
 }
 
 /**
@@ -168,7 +179,7 @@ export async function drawTournament(
       throw new TournamentDrawError(
         'TOURNAMENT_DRAW_UNSUPPORTED',
         409,
-        'This format’s draw is not built yet: a league (#591).',
+        'This format has no draw here.',
       );
     }
     const entries = await db.tournamentEntry.findMany({
@@ -254,7 +265,88 @@ export async function drawTournament(
     let specs: MatchSpec[];
     const groupOf = new Map<string, number>();
     const seedOf = new Map<string, number>();
-    if (rotating) {
+    const league = t.format === 'LEAGUE';
+    const roundDays = league ? (opts.roundDays ?? 7) : null;
+    if (league) {
+      if (!opts.firstDeadline || opts.firstDeadline <= now) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'The first round’s deadline is later than now.',
+          {
+            field: 'firstDeadline',
+          },
+        );
+      }
+      if (!Number.isInteger(roundDays) || roundDays! < 1 || roundDays! > 60) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'One to sixty days between rounds.',
+          {
+            field: 'roundDays',
+          },
+        );
+      }
+    }
+
+    if (league) {
+      // The divisions (44): the club's, or split by level, the strongest first.
+      const byLevel = [...strengths].sort((a, b) => b.strength - a.strength);
+      byLevel.forEach((e, i) => seedOf.set(e.id, i + 1));
+      let divisions: string[][];
+      if (opts.divisions?.length) {
+        const all = opts.divisions.flat();
+        const confirmed = new Set(strengths.map((e) => e.id));
+        if (
+          all.length !== confirmed.size ||
+          new Set(all).size !== all.length ||
+          all.some((id) => !confirmed.has(id))
+        ) {
+          throw new TournamentDrawError(
+            'TOURNAMENT_INVALID',
+            400,
+            'Every confirmed entry is in one division.',
+            {
+              field: 'divisions',
+            },
+          );
+        }
+        divisions = opts.divisions.filter((d) => d.length > 0);
+      } else {
+        const count = opts.divisionCount ?? 1;
+        if (!Number.isInteger(count) || count < 1 || count * 2 > byLevel.length) {
+          throw new TournamentDrawError(
+            'TOURNAMENT_INVALID',
+            400,
+            'Each division needs two entries at least.',
+            {
+              field: 'divisionCount',
+            },
+          );
+        }
+        const size = Math.ceil(byLevel.length / count);
+        divisions = Array.from({ length: count }, (_, i) =>
+          byLevel.slice(i * size, (i + 1) * size).map((e) => e.id),
+        );
+      }
+      if (divisions.some((d) => d.length < 2)) {
+        throw new TournamentDrawError(
+          'TOURNAMENT_INVALID',
+          400,
+          'Each division needs two entries at least.',
+          {
+            field: 'divisions',
+          },
+        );
+      }
+      divisions.forEach((d, i) => d.forEach((id) => groupOf.set(id, i + 1)));
+      const first = opts.firstDeadline!.getTime();
+      specs = groupMatches(divisions).map((m) => ({
+        ...m,
+        deadline: new Date(first + (m.round - 1) * roundDays! * 86_400_000),
+      }));
+    } else if (rotating) {
       const byLevel = [...strengths].sort((a, b) => b.strength - a.strength);
       byLevel.forEach((e, i) => {
         seedOf.set(e.id, i + 1);
@@ -319,6 +411,7 @@ export async function drawTournament(
         thirdPlace,
         rounds,
         pointsPerMatch,
+        roundDays,
       },
     });
 
@@ -349,6 +442,7 @@ async function writeMatches(
       entryBId: s.entryB,
       entryA2Id: s.entryA2 ?? null,
       entryB2Id: s.entryB2 ?? null,
+      deadline: s.deadline ?? null,
       status: (s.entryA && s.entryB ? 'READY' : 'PENDING') as TournamentMatchStatus,
       nextMatchId: s.next ? ids.get(s.next.key)! : null,
       nextSide: s.next?.side ?? null,
@@ -784,7 +878,8 @@ async function nextMexicanoRound(
 export async function recordWalkover(
   actor: { userId: string; tenantId: string },
   matchId: string,
-  winnerSide: 0 | 1,
+  /** null: a league match lost by both (#591, 58). */
+  winnerSide: 0 | 1 | null,
   now: Date = new Date(),
 ): Promise<{ tournamentId: string; bookingId: string | null }> {
   // guardrail-allow: cross-tenant — moving a draw on reads its entries' status;
@@ -802,7 +897,17 @@ export async function recordWalkover(
       },
     });
     if (!m) throw notFound();
-    await lock(db, actor.tenantId, m.tournamentId);
+    const t = await lock(db, actor.tenantId, m.tournamentId);
+    if (winnerSide === null && t.format !== 'LEAGUE') {
+      throw new TournamentDrawError(
+        'TOURNAMENT_INVALID',
+        400,
+        'Only a league match is lost by both.',
+        {
+          field: 'winnerSide',
+        },
+      );
+    }
     if (m.status !== 'READY' || !m.entryAId || !m.entryBId) {
       throw new TournamentDrawError(
         'TOURNAMENT_MATCH_NOT_READY',
@@ -1031,6 +1136,10 @@ export interface DrawMatchView {
   score: number[][] | null;
   /** On a court, while its booking stands. */
   scheduled: { bookingId: string; courtName: string; startTs: Date; endTs: Date } | null;
+  /** A league's round (#591, 44): played by then. */
+  deadline: Date | null;
+  /** Past its deadline and not played: the club decides it (58). */
+  overdue: boolean;
   /** The viewer plays it. */
   mine: boolean;
 }
@@ -1056,8 +1165,9 @@ export interface DrawView {
 export async function readDraw(
   tournamentId: string,
   viewerId: string | null,
-  opts: { tenantId?: string } = {},
+  opts: { tenantId?: string; now?: Date } = {},
 ): Promise<DrawView | null> {
+  const now = opts.now ?? new Date();
   // guardrail-allow: cross-tenant — one tournament's draw by id, with the
   // names of the people on it; the caller is signed in, or the club's desk.
   return runAsSuperuser(async (db) => {
@@ -1097,6 +1207,7 @@ export async function readDraw(
           entryBId: true,
           entryA2Id: true,
           entryB2Id: true,
+          deadline: true,
           status: true,
           winnerSide: true,
           scoreJson: true,
@@ -1163,6 +1274,8 @@ export async function readDraw(
               endTs: live.endTs,
             }
           : null,
+        deadline: m.deadline,
+        overdue: !!m.deadline && m.deadline < now && m.status === 'READY',
         mine:
           !!viewerId && [a, b, a2, b2].some((s) => s?.players.some((p) => p.userId === viewerId)),
       };

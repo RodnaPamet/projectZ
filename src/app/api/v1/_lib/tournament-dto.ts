@@ -46,6 +46,7 @@ export type ClubTournamentDto = ReturnType<typeof toClubTournamentDto>;
 function toDrawMatchDto(m: DrawMatchView) {
   return {
     ...m,
+    deadline: iso(m.deadline),
     scheduled: m.scheduled
       ? {
           ...m.scheduled,
