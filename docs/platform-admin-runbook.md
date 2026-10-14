@@ -222,8 +222,13 @@ Each card is everything needed to decide, except the certificate.
 - **Откажи** declines. **The coach is shown the note and receives it by email**,
   so write it to them: what to correct. They may send the profile again.
 - **Спри треньора**, on an approved coach, declines the profile, **deletes the
-  certificate** and ends the coach's links to venues. It is refused while the
-  coach has a lesson still to teach.
+  certificate** and ends the coach's links to venues. **It also cancels every
+  lesson the coach has not yet started** (#549): the courts are released, and
+  each player is told by bell and email that the lesson is off because the
+  coach no longer teaches on the platform. The card says how many lessons that
+  is, and the removal asks once more before it does it. A lesson already under
+  way is left to finish. Each cancellation is on the club's own record as
+  "Cancelled by the platform", by the admin who removed the coach.
 
 The coach is told every outcome in the bell and by email. When
 `CONTACT_INBOX_EMAIL` is set, that inbox gets one line each time a profile is

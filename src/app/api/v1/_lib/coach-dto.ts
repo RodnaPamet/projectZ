@@ -61,6 +61,8 @@ export function toCoachApplicationItem(i: CoachApplicationItem) {
     qualifications: i.qualifications,
     decisionNote: i.decisionNote,
     certificate: certificate(i.certificate),
+    // Lessons not yet started: what removing the coach would cancel.
+    upcomingLessons: i.upcomingLessons,
   };
 }
 
@@ -68,12 +70,17 @@ export function toCoachApplication(a: CoachApplication) {
   return {
     ...toCoachApplicationItem(a),
     decidedByUserId: a.decidedByUserId,
-    upcomingLessons: a.upcomingLessons,
   };
 }
 
 export function toCoachDecision(d: CoachDecisionResult) {
-  return { userId: d.userId, status: d.status, decidedAt: rfc3339(d.decidedAt) };
+  return {
+    userId: d.userId,
+    status: d.status,
+    decidedAt: rfc3339(d.decidedAt),
+    // How many lessons a removal cancelled; 0 for the other decisions.
+    cancelledLessons: d.cancelledLessons.length,
+  };
 }
 
 // ─── A coach and a club's venue (#546) ──────────────────────────────────────

@@ -1,5 +1,6 @@
 import type { CoachProfileStatus, PrismaClient } from '@prisma/client';
 
+import { cancelBooking } from '@/app-layer/usecases/booking';
 import { deliver, queueOperatorEmail } from '@/app-layer/usecases/notification-outbox';
 import { openCertificate, type CertificateMime } from '@/lib/coaches/certificate';
 import {
@@ -40,9 +41,11 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
  *             may be the thing to replace, and that is the coach's to do.
  *   REMOVE    an APPROVED coach becomes DECLINED, with a note. The certificate
  *             is DELETED (it is kept only while the coach is active, decision
- *             17) and the coach's links to venues are ended. Refused while a
- *             lesson is still to be taught: nobody is left without a coach
- *             without being told (#549 decides what removal does then).
+ *             17), the coach's links to venues are ended, and every lesson
+ *             they have not yet started is CANCELLED with it (decision 21):
+ *             the courts are released and each player is told, by bell and
+ *             email, after the removal commits. The queue shows how many
+ *             lessons that is before the owner confirms.
  */
 
 export class CoachApplicationNotFoundError extends Error {
@@ -60,13 +63,20 @@ export class CoachApplicationStateError extends Error {
   }
 }
 
-/** An approved coach with lessons still to teach is not removed. */
+/**
+ * More lessons still to teach than one removal cancels. Not a number a coach
+ * reaches by teaching; it is there so that one request never tries to cancel
+ * an unbounded number of bookings in one transaction.
+ */
 export class CoachHasUpcomingLessonsError extends Error {
   constructor(readonly lessons: number) {
-    super(`The coach has ${lessons} lesson(s) still to teach.`);
+    super(`The coach has ${lessons} lessons still to teach, more than one removal cancels.`);
     this.name = 'CoachHasUpcomingLessonsError';
   }
 }
+
+/** The most lessons one removal cancels. */
+export const MAX_LESSONS_CANCELLED = 500;
 
 export type CoachDecision = 'APPROVE' | 'DECLINE' | 'REMOVE';
 export const COACH_DECISIONS: readonly CoachDecision[] = ['APPROVE', 'DECLINE', 'REMOVE'];
@@ -107,12 +117,15 @@ export interface CoachApplicationItem {
   decisionNote: string | null;
   /** What was uploaded; the file itself is `openCoachCertificate`. */
   certificate: CertificateMeta | null;
+  /**
+   * Lessons booked with them that have not started. Removing the coach
+   * cancels exactly these (decision 21), so the queue says how many first.
+   */
+  upcomingLessons: number;
 }
 
 export interface CoachApplication extends CoachApplicationItem {
   decidedByUserId: string | null;
-  /** Lessons still to be taught: a removal is refused while there are any. */
-  upcomingLessons: number;
 }
 
 const CERT_META = { fileName: true, mimeType: true, byteSize: true, uploadedAt: true } as const;
@@ -139,7 +152,7 @@ async function namesOf(db: PrismaClient, ids: string[]): Promise<Map<string, str
  */
 export async function listCoachApplications(
   db: PrismaClient,
-  opts: { status: CoachQueueStatus; limit?: number; after?: string | null },
+  opts: { status: CoachQueueStatus; limit?: number; after?: string | null; now?: Date },
 ): Promise<{ items: CoachApplicationItem[]; nextCursor: string | null }> {
   const limit = Math.max(1, Math.min(opts.limit ?? COACH_QUEUE_PAGE_SIZE, COACH_QUEUE_PAGE_SIZE));
   const waiting = opts.status === 'SUBMITTED';
@@ -192,7 +205,7 @@ export async function listCoachApplications(
   });
   const page = rows.slice(0, limit);
   const ids = page.map((r) => r.userId);
-  const [names, certificates] = await Promise.all([
+  const [names, certificates, lessons] = await Promise.all([
     namesOf(db, ids),
     db.coachCertificate.findMany({
       where: { userId: { in: ids } },
@@ -200,7 +213,16 @@ export async function listCoachApplications(
       select: { userId: true, ...CERT_META },
       take: COACH_QUEUE_PAGE_SIZE,
     }),
+    // guardrail-allow: cross-tenant — how many lessons a removal would
+    // cancel, at every club, counted by the coaches' accounts under the
+    // platform admin's audited handle.
+    db.coachLesson.groupBy({
+      by: ['coachUserId'],
+      where: { coachUserId: { in: ids }, ...notStarted(opts.now ?? new Date()) },
+      _count: { _all: true },
+    }),
   ]);
+  const lessonsOf = new Map(lessons.map((l) => [l.coachUserId, l._count._all]));
   const certificateOf = new Map(
     certificates.map(({ userId, ...meta }) => [
       userId,
@@ -220,6 +242,7 @@ export async function listCoachApplications(
       qualifications: r.qualifications,
       decisionNote: r.decisionNote,
       certificate: certificateOf.get(r.userId) ?? null,
+      upcomingLessons: lessonsOf.get(r.userId) ?? 0,
     })),
     nextCursor: rows.length > limit ? (page.at(-1)?.userId ?? null) : null,
   };
@@ -229,11 +252,17 @@ export async function listCoachApplications(
 const MAX_LIVE_LINKS = 500;
 
 /** How many lessons the coach still has to teach, at every club. */
+/**
+ * A lesson that is still on and has not started: what a removal cancels. One
+ * already under way is left to finish; it is being taught as this runs.
+ */
+const notStarted = (now: Date) => ({ active: true, startTs: { gt: now } });
+
 const upcomingLessons = (db: PrismaClient, userId: string, now: Date) =>
   // guardrail-allow: cross-tenant — a coach teaches at several clubs and is
   // removed from all of them at once; counted by the coach's account, under
   // the platform admin's audited handle.
-  db.coachLesson.count({ where: { coachUserId: userId, active: true, endTs: { gt: now } } });
+  db.coachLesson.count({ where: { coachUserId: userId, ...notStarted(now) } });
 
 /** One profile, as the owner reads it before deciding. Never a draft. */
 export async function coachApplication(
@@ -318,6 +347,11 @@ export interface CoachDecisionResult {
   status: 'APPROVED' | 'DECLINED';
   event: CoachDecisionEvent;
   decidedAt: Date;
+  /**
+   * The lessons a removal cancelled, for the caller to tell their players
+   * about once the removal has committed. Empty for the other decisions.
+   */
+  cancelledLessons: Array<{ tenantId: string; bookingId: string }>;
 }
 
 /**
@@ -355,9 +389,36 @@ export async function decideCoachApplication(
     if (certificate === 0) throw new CoachApplicationStateError(status);
   }
 
+  const cancelledLessons: CoachDecisionResult['cancelledLessons'] = [];
   if (input.decision === 'REMOVE') {
-    const lessons = await upcomingLessons(db, input.userId, now);
-    if (lessons > 0) throw new CoachHasUpcomingLessonsError(lessons);
+    // ═══ THEIR LESSONS ARE CANCELLED WITH THEM (owner decision 21) ═══
+    //
+    // Every lesson not yet started, at every club: the booking is cancelled
+    // by `cancelBooking`, as any cancellation is, so the court is released,
+    // the club's record says the platform did it, and anything paid online
+    // is returned. All of it inside this one audited transaction: a removal
+    // that fails half way leaves no lesson cancelled.
+    // guardrail-allow: cross-tenant — found by the coach's account, under
+    // the platform admin's audited handle.
+    const lessons = await db.coachLesson.findMany({
+      where: { coachUserId: input.userId, ...notStarted(now) },
+      select: { tenantId: true, bookingId: true },
+      orderBy: [{ startTs: 'asc' }, { id: 'asc' }],
+      take: MAX_LESSONS_CANCELLED + 1,
+    });
+    if (lessons.length > MAX_LESSONS_CANCELLED) {
+      throw new CoachHasUpcomingLessonsError(await upcomingLessons(db, input.userId, now));
+    }
+    for (const lesson of lessons) {
+      await cancelBooking(db, lesson.tenantId, {
+        bookingId: lesson.bookingId,
+        actor: 'PLATFORM',
+        cancelledByUserId: input.actorUserId,
+        reason: 'The coach was removed from the platform',
+        now,
+      });
+      cancelledLessons.push(lesson);
+    }
 
     await db.coachCertificate.deleteMany({ where: { userId: input.userId } });
     // guardrail-allow: cross-tenant — a removed coach stops teaching at every
@@ -395,7 +456,13 @@ export async function decideCoachApplication(
       decisionNote: note,
     },
   });
-  return { userId: input.userId, status: next, event: EVENT[input.decision], decidedAt: now };
+  return {
+    userId: input.userId,
+    status: next,
+    event: EVENT[input.decision],
+    decidedAt: now,
+    cancelledLessons,
+  };
 }
 
 // ─── Telling people ────────────────────────────────────────────────────────

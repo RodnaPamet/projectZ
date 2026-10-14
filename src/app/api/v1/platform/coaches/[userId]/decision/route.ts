@@ -6,6 +6,7 @@ import {
   decideCoachApplication,
   notifyCoachDecision,
 } from '@/app-layer/usecases/coach-approval';
+import { notifyBookingCancelled } from '@/app-layer/usecases/booking-notifications';
 import { asPlatformAdmin } from '@/app/api/v1/_lib/bind';
 import { toCoachDecision } from '@/app/api/v1/_lib/coach-dto';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -86,6 +87,16 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ userId:
   );
   // After the commit: the bell and the email are about a decision that stands.
   await notifyCoachDecision(result);
+  // And the players whose lessons a removal cancelled (decision 21): each is
+  // told the lesson is off, why, and that the court was released.
+  for (const lesson of result.cancelledLessons) {
+    await notifyBookingCancelled({
+      tenantId: lesson.tenantId,
+      bookingId: lesson.bookingId,
+      by: 'COACH_REMOVED',
+      actorUserId,
+    });
+  }
   return ok(toCoachDecision(result));
 }
 
