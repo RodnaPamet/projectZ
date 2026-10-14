@@ -291,19 +291,46 @@ describe('Modal focus (#299)', () => {
     expect(opener).toHaveFocus();
   });
 
-  // The drawer half only proves focus is not dropped to <body> on close. It
-  // cannot prove the round trip: vaul 1.1.2's Root defaults `autoFocus` to
-  // false and preventDefaults Radix's open auto-focus, so focus never enters
-  // the drawer at all (measured: activeElement stays on the opener). The
-  // vendored Modal does not pass `autoFocus`; tracked as #308.
-  it('on a phone (drawer), leaves focus on the opening button after close', async () => {
+  // The phone half of the same round trip (#308). vaul keeps Radix from
+  // focusing the first field, which on a phone would raise the keyboard over
+  // a sheet that has only just opened; until inflect #3489 that left focus on
+  // the opener, behind the overlay. The sheet now takes focus itself.
+  it('on a phone (drawer), moves focus into the sheet, on the sheet itself, and back to the opener on close', async () => {
     render(<Harness />);
     const opener = screen.getByRole('button', { name: 'Cancel booking' });
 
     await userEvent.click(opener);
-    await screen.findByRole('dialog');
+    const sheet = await screen.findByRole('dialog');
+    await waitFor(() => expect(sheet).toContainElement(document.activeElement as HTMLElement));
+    // On the sheet, not on a control inside it: no keyboard is raised, and
+    // the next Tab lands on the first control.
+    expect(sheet).toHaveFocus();
+    expect(opener).not.toHaveFocus();
+
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(opener).toHaveFocus();
+  });
+
+  it('on a phone, a sheet opened with `preventAutoFocus` leaves focus where it was', async () => {
+    function Quiet() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <Button variant="secondary" onClick={() => setOpen(true)}>
+            Open quietly
+          </Button>
+          <Modal showModal={open} setShowModal={setOpen} preventAutoFocus>
+            <p>Nothing to act on</p>
+          </Modal>
+        </>
+      );
+    }
+    render(<Quiet />);
+    const opener = screen.getByRole('button', { name: 'Open quietly' });
+    await userEvent.click(opener);
+    const sheet = await screen.findByRole('dialog');
+    expect(sheet).not.toHaveFocus();
     expect(opener).toHaveFocus();
   });
 });

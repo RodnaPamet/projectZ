@@ -188,10 +188,10 @@
     {
       "path": "src/components/ui/modal.tsx",
       "inflectPath": "src/components/ui/modal.tsx",
-      "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
-      "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+      "baseSha": "fdfb6504c5f5978bb6ef7b59ee7ff6ae36f1f105",
+      "sha": "fdfb6504c5f5978bb6ef7b59ee7ff6ae36f1f105",
       "status": "vendored",
-      "sha256": "b965a23526536b57d10c254aa5a22bd838bf49320563491da181687fc5511ce6"
+      "sha256": "599bc2a97dcdf2041bb8572842298ccd8e8003c39b49d5c3d90696c516f809d9"
     },
     {
       "path": "src/components/ui/overlay-depth.tsx",
