@@ -204,11 +204,7 @@ const missingOf = (row: LinkRow): TeachingMissing[] =>
 /** A minute of the day as the `time` column takes it: a Date pinned to 1970-01-01, UTC. */
 const timeColumn = (minutes: number) => new Date(Date.UTC(1970, 0, 1, 0, minutes));
 
-const COURT_LENGTHS = {
-  minBookingMinutes: true,
-  maxBookingMinutes: true,
-  slotStepMinutes: true,
-} as const;
+const COURT_LENGTHS = { minBookingMinutes: true, maxBookingMinutes: true } as const;
 
 /** The lengths the venue's courts in use are booked for. Bound to the club. */
 async function lengthOptionsOf(db: PrismaClient, tenantId: string, venueId: string) {

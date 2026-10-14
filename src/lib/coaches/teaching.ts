@@ -58,11 +58,14 @@ export class TeachingInvalidError extends Error {
 
 // ─── Lengths ────────────────────────────────────────────────────────────────
 
-/** How a court is booked: from its shortest booking to its longest, in its own steps. */
+/**
+ * How long a court can be booked for: whole units of its minimum booking, up
+ * to its maximum (`slotDurations`, which is what a court booking is priced
+ * and accepted by). The court's step is only the grid its bookings START on.
+ */
 export interface CourtLengths {
   minBookingMinutes: number;
   maxBookingMinutes: number;
-  slotStepMinutes: number;
 }
 
 /** The most lengths one link keeps (coach_lesson_minutes, P71). */
@@ -72,8 +75,13 @@ export const COACH_LENGTHS_MAX = 12;
  * The lengths a lesson at a venue can have: the lengths its courts are booked
  * for (owner decision 5). A lesson is a court booking with a coach on it, so
  * it cannot have a length no court here can be booked for. Each court has its
- * own (a padel court by the hour and a half, a tennis court by the hour), so
- * a venue's are every length any of its courts allows, shortest first.
+ * own (one by the hour, another by the hour and a half), so a venue's are
+ * every length any of its courts allows, shortest first.
+ *
+ * A court booked by the hour for up to three allows 60, 120 and 180 minutes,
+ * and NOT 90: a booking is a whole number of the court's units, whatever grid
+ * it starts on. Offering a coach 90 there would be offering a lesson nobody
+ * could ever book.
  *
  * Never under a quarter of an hour or over four hours, the database's own
  * bounds for a lesson; and at most twelve, the shortest ones.
@@ -81,9 +89,12 @@ export const COACH_LENGTHS_MAX = 12;
 export function lessonLengthOptions(courts: readonly CourtLengths[]): number[] {
   const all = new Set<number>();
   for (const c of courts) {
-    const step = Math.max(5, c.slotStepMinutes);
+    const unit = c.minBookingMinutes;
+    if (!(unit > 0)) continue;
     const max = Math.min(c.maxBookingMinutes, 240);
-    for (let m = Math.max(15, c.minBookingMinutes); m <= max; m += step) all.add(m);
+    for (let m = unit; m <= max; m += unit) {
+      if (m >= 15) all.add(m);
+    }
   }
   return [...all].sort((a, b) => a - b).slice(0, COACH_LENGTHS_MAX);
 }
