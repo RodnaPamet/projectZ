@@ -36,8 +36,18 @@ export type MethodState = 'configured' | 'disabled';
 export interface SignInMethods {
   /** Google OAuth. */
   google: MethodState;
-  /** Facebook Login (#361), provider id `facebook`. */
+  /**
+   * Facebook Login (#361), provider id `facebook`. The app's Facebook grant on
+   * `POST /api/v1/auth/token` (#444) needs the same pair, so this answers for
+   * both.
+   */
   facebook: MethodState;
+  /**
+   * Google from the iOS app (#444): `GOOGLE_IOS_CLIENT_ID`, the app's own
+   * OAuth client, which the ID tokens it sends are addressed to. Separate from
+   * `google`, the web's client: either can be present without the other.
+   */
+  googleApp: MethodState;
   /**
    * Email and password.
    *
@@ -65,12 +75,25 @@ export function facebookConfigured(env: Env = process.env): boolean {
   return pair(env.FACEBOOK_CLIENT_ID, env.FACEBOOK_CLIENT_SECRET);
 }
 
+/**
+ * The OAuth client ids an app's Google ID token may be addressed to: the iOS
+ * client's, and an Android one's should it come (comma-separated). A client
+ * id alone, with no secret: a native client has none to keep.
+ */
+export function googleAppClientIds(env: Env = process.env): string[] {
+  return (env.GOOGLE_IOS_CLIENT_ID ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 const state = (present: boolean): MethodState => (present ? 'configured' : 'disabled');
 
 export function signInMethods(env: Env = process.env): SignInMethods {
   return {
     google: state(googleConfigured(env)),
     facebook: state(facebookConfigured(env)),
+    googleApp: state(googleAppClientIds(env).length > 0),
     credentials: state(passwordSignInEnabled(env)),
   };
 }

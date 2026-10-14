@@ -90,9 +90,9 @@
     "/auth/token": {
       "post": {
         "operationId": "authSignIn",
-        "summary": "Sign in with email and password (test runs only)",
+        "summary": "Sign in from the app: Google or Facebook (email and password in test runs only)",
         "tags": ["Auth"],
-        "description": "**Has no grant in production or staging (#361).** Everyone signs in with Google or Facebook; email + password exists for the test suites only (`TEST_PASSWORD_SIGN_IN=1` with `DEPLOY_ENV=test`). In every deployment this endpoint answers `403 PASSWORD_SIGN_IN_DISABLED` to every request, before the throttle and before reading the body. The native client's way in will be a Google or Facebook token exchange (#444); until then there is none.\n\nIn a test run: exchanges email + password for an access/refresh token pair. This is the native-client equivalent of the web credentials sign-in; both share one throttle bucket keyed `login:<ip>` (10 attempts / 15 min, 15 min lockout), so attempts here draw down the same allowance as the web form — and a SUCCESSFUL sign-in still consumes one attempt (the bucket is never reset).\n\nThe throttle runs BEFORE the body is parsed, so a 429 tells you nothing about the credentials.\n\nThere is no validation error on this endpoint: a missing, malformed or non-JSON body leaves email/password undefined, which falls through to the same opaque 401 as a wrong password. The 401 is deliberately identical for \"no such account\" and \"wrong password\" (and the server burns equal bcrypt time on both), so a client must not try to distinguish them.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
+        "description": "Exchanges a provider's token for an access/refresh token pair (#444). `grant` chooses how:\n\n- `google`: `idToken`, the ID token Google's iOS SDK returns. Verified against Google's keys, and addressed to the app's own OAuth client (`GOOGLE_IOS_CLIENT_ID`), not the web's.\n- `facebook`: either `accessToken` from Facebook Login (checked with Graph's `debug_token` as issued to this app, then `/me` is read), or `idToken` from Limited Login (verified against Meta's keys, addressed to this app), with the `nonce` the app passed to the SDK if it wants that checked.\n- `password`: `email` + `password`, with or without `grant`. **Test runs only (#361):** in production and on staging it answers `403 PASSWORD_SIGN_IN_DISABLED`, before the throttle and without checking anything.\n\nThe account is resolved exactly as the web's sign-in does it: found by email (lower-cased), or created. A created account is undecided: the app asks \"player or coach?\" before anything else (#360), and it starts in `locale` when the app sends `bg` or `en`. A provider name or picture never overwrites what an existing account has. Two refusals come first, as on the web: no email address (`EMAIL_REQUIRED`), and a Google address Google has not verified (`EMAIL_UNVERIFIED`).\n\nEvery grant draws on the sign-in throttle shared with the web login (`login:<ip>`, 10 attempts per 15 min, 15 min lockout), after the body is read (capped at 16 KB) and before any provider is asked. A successful sign-in still consumes one attempt.\n\nOn success the server creates a session row that lives 30 days from THIS moment and attaches the returned refresh token to it.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -129,8 +129,18 @@
               }
             }
           },
+          "400": {
+            "description": "`UNSUPPORTED_GRANT` — `grant` is not `google`, `facebook` or `password`; no throttle is drawn. `BAD_REQUEST` — a provider grant without its token (`google` needs `idToken`; `facebook` needs exactly one of `accessToken` and `idToken`). Written inline: NO `requestId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
-            "description": "`INVALID_CREDENTIALS` — wrong password, unknown account, or a missing/unparseable body. One message for all cases, by design. NOTE: this body is written inline by the handler and carries NO `requestId`.",
+            "description": "`INVALID_PROVIDER_TOKEN` — the provider token is forged, expired, minted for another app, or not a token. Get a fresh one from the SDK; retrying this one cannot succeed. `INVALID_CREDENTIALS` — the password grant (test runs): wrong password, unknown account, or a missing/unparseable body, one message for all cases by design. Written inline: NO `requestId`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -140,7 +150,7 @@
             }
           },
           "403": {
-            "description": "`PASSWORD_SIGN_IN_DISABLED` — every request, in production and on staging (#361): password sign-in exists for the test suites only, and this endpoint has no other grant yet (#444). Written inline before anything else runs: no throttle is drawn, the body is not read, and the body carries NO `requestId`. Not retryable; there is nothing to fix on the client side.",
+            "description": "Refused, and retrying unchanged will not help:\n\n- `PASSWORD_SIGN_IN_DISABLED` — the password grant in production or on staging (#361).\n- `SIGN_IN_METHOD_DISABLED` — this deployment is not set up for that provider from the app (no `GOOGLE_IOS_CLIENT_ID`, or no Facebook app pair). `/api/ready` reports `googleApp` and `facebook`.\n- `EMAIL_REQUIRED` — the provider shared no email address, and accounts are found by email. `error.details.emailPermission` says why, for a Facebook Login token: `declined` / `not-requested` / `unknown` (ask again with the email permission re-requested), or `granted` (Facebook has no address to give; asking again cannot help). Always `unknown` for a Limited Login token.\n- `EMAIL_UNVERIFIED` — Google says the address is not verified. Linking by an unproved address would be a way into whoever's account has it.\n\nWritten inline: NO `requestId`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -169,6 +179,16 @@
           },
           "500": {
             "description": "`INTERNAL` — session creation, refresh-token persistence or token minting failed. Generic message; `requestId` IS present on this one (produced by the error wrapper).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`PROVIDER_UNAVAILABLE` — Google's or Meta's keys, or Graph, did not answer in time. Retry with backoff; the token may still be good. Written inline: NO `requestId`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14789,23 +14809,18 @@
         }
       },
       "AuthTokenRequest": {
-        "type": "object",
         "title": "AuthTokenRequest",
-        "description": "Sign-in credentials. Both fields are functionally required, but omitting either produces a 401, never a validation error.",
-        "required": ["email", "password"],
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "Lower-cased and trimmed server-side before lookup, so casing and surrounding whitespace do not matter.",
-            "examples": ["player@example.com"]
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AuthTokenGoogleRequest"
           },
-          "password": {
-            "type": "string",
-            "format": "password",
-            "description": "Plaintext over TLS; compared with bcrypt. Failure paths burn equal time whether or not the account exists."
+          {
+            "$ref": "#/components/schemas/AuthTokenFacebookRequest"
+          },
+          {
+            "$ref": "#/components/schemas/AuthTokenPasswordRequest"
           }
-        }
+        ]
       },
       "AuthRefreshRequest": {
         "type": "object",
@@ -22605,6 +22620,81 @@
                 "type": ["string", "null"]
               }
             }
+          }
+        }
+      },
+      "AuthTokenPasswordRequest": {
+        "type": "object",
+        "title": "AuthTokenPasswordRequest",
+        "description": "The test runs' grant (#361). `grant` may be omitted. Both fields are functionally required, but omitting either produces a 401, never a validation error.",
+        "required": ["email", "password"],
+        "properties": {
+          "grant": {
+            "type": "string",
+            "const": "password"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Lower-cased and trimmed server-side before lookup, so casing and surrounding whitespace do not matter.",
+            "examples": ["player@example.com"]
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Plaintext over TLS; compared with bcrypt. Failure paths burn equal time whether or not the account exists."
+          }
+        }
+      },
+      "AuthTokenGoogleRequest": {
+        "type": "object",
+        "title": "AuthTokenGoogleRequest",
+        "required": ["grant", "idToken"],
+        "properties": {
+          "grant": {
+            "type": "string",
+            "const": "google"
+          },
+          "idToken": {
+            "type": "string",
+            "maxLength": 8192,
+            "description": "The ID token from Google's iOS SDK (`GIDSignInResult.user.idToken`). Its `aud` must be the app's OAuth client."
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["bg", "en"],
+            "description": "The language a NEW account starts in. Ignored for an existing account, and when it is not one of these."
+          }
+        }
+      },
+      "AuthTokenFacebookRequest": {
+        "type": "object",
+        "title": "AuthTokenFacebookRequest",
+        "required": ["grant"],
+        "description": "Exactly one of `accessToken` and `idToken`.",
+        "properties": {
+          "grant": {
+            "type": "string",
+            "const": "facebook"
+          },
+          "accessToken": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "The user access token from Facebook Login (`AccessToken.current.tokenString`)."
+          },
+          "idToken": {
+            "type": "string",
+            "maxLength": 8192,
+            "description": "The authentication token from Limited Login (`AuthenticationToken.current.tokenString`)."
+          },
+          "nonce": {
+            "type": "string",
+            "description": "With `idToken`: the nonce the app gave the SDK. Sent, it must match the token's."
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["bg", "en"],
+            "description": "The language a NEW account starts in. Ignored for an existing account, and when it is not one of these."
           }
         }
       }

@@ -1,6 +1,6 @@
 import { globSync, readFileSync } from 'node:fs';
 
-import { signInMethods } from '@/lib/auth/sign-in-methods';
+import { googleAppClientIds, signInMethods } from '@/lib/auth/sign-in-methods';
 
 /**
  * "THAT BUTTON IS NOT OFFERED" MUST BE VISIBLE, NOT JUST TRUE.
@@ -20,6 +20,7 @@ const OAUTH = [
   'GOOGLE_CLIENT_SECRET',
   'FACEBOOK_CLIENT_ID',
   'FACEBOOK_CLIENT_SECRET',
+  'GOOGLE_IOS_CLIENT_ID',
   'TEST_PASSWORD_SIGN_IN',
   'DEPLOY_ENV',
 ] as const;
@@ -47,6 +48,7 @@ describe('signInMethods', () => {
     expect(signInMethods()).toEqual({
       google: 'disabled',
       facebook: 'disabled',
+      googleApp: 'disabled',
       credentials: 'disabled',
     });
   });
@@ -71,8 +73,23 @@ describe('signInMethods', () => {
     expect(signInMethods()).toEqual({
       google: 'disabled',
       facebook: 'configured',
+      googleApp: 'disabled',
       credentials: 'disabled',
     });
+  });
+
+  it("reports the app's Google client apart from the web's (#444)", () => {
+    // The iOS client has an id and no secret; the web's pair says nothing
+    // about it, and it says nothing about the web's.
+    process.env.GOOGLE_IOS_CLIENT_ID = 'ios-client.apps.googleusercontent.com';
+    expect(signInMethods()).toMatchObject({ google: 'disabled', googleApp: 'configured' });
+    expect(googleAppClientIds()).toEqual(['ios-client.apps.googleusercontent.com']);
+
+    process.env.GOOGLE_IOS_CLIENT_ID = ' ios-a , ,ios-b ';
+    expect(googleAppClientIds()).toEqual(['ios-a', 'ios-b']);
+
+    process.env.GOOGLE_IOS_CLIENT_ID = '';
+    expect(signInMethods().googleApp).toBe('disabled');
   });
 
   it('treats an empty string as absent', () => {
@@ -112,10 +129,16 @@ describe('signInMethods', () => {
         GOOGLE_CLIENT_SECRET: 'gs', // pragma: allowlist secret
         FACEBOOK_CLIENT_ID: 'f',
         FACEBOOK_CLIENT_SECRET: 'fs', // pragma: allowlist secret
+        GOOGLE_IOS_CLIENT_ID: 'gi',
         TEST_PASSWORD_SIGN_IN: '1',
         DEPLOY_ENV: 'test',
       }),
-    ).toEqual({ google: 'configured', facebook: 'configured', credentials: 'configured' });
+    ).toEqual({
+      google: 'configured',
+      facebook: 'configured',
+      googleApp: 'configured',
+      credentials: 'configured',
+    });
   });
 });
 
