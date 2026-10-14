@@ -61,6 +61,10 @@ export const AUDIT_ACTIONS = {
   BOOKING_NO_SHOW: 'BOOKING_NO_SHOW',
   /// Money arrived that could not be applied to its booking. Always needs a human.
   PAYMENT_UNAPPLIED: 'PAYMENT_UNAPPLIED',
+  /// A tournament entry fee paid online (#581). The webhook decided it.
+  TOURNAMENT_FEE_PAID: 'TOURNAMENT_FEE_PAID',
+  /// A tournament entry fee given back (#581; decisions 64, 65).
+  TOURNAMENT_FEE_REFUNDED: 'TOURNAMENT_FEE_REFUNDED',
   SESSIONS_REVOKED: 'SESSIONS_REVOKED',
   CONNECT_ACCOUNT_CREATED: 'CONNECT_ACCOUNT_CREATED',
   BILLING_CUSTOMER_CREATED: 'BILLING_CUSTOMER_CREATED',

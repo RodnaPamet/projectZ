@@ -6,6 +6,7 @@ import { sendBookingReminders } from '@/app-layer/usecases/booking-notifications
 import { confirmDueResults } from '@/app-layer/usecases/match-results';
 import { drainEmailOutbox } from '@/app-layer/usecases/notification-outbox';
 import { lapseOpenPlayRequests } from '@/app-layer/usecases/open-play';
+import { sweepTournamentPayments } from '@/app-layer/usecases/tournament-payments';
 import { logger } from '@/lib/observability/logger';
 
 /**
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest) {
   // Results (#575, Q23): one still waiting 48 hours after it was reported
   // confirms itself and counts. Its own index; nothing is emailed for it.
   const confirmedResults = await confirmDueResults();
+  // Tournament fees paid online (#581): entries never paid lapse at their
+  // deadline, and refunds still owed (64, 65) are made.
+  const tournamentPayments = await sweepTournamentPayments();
   const drained = reminders.claimed > 0 || openPlay.lapsed > 0 ? await drainEmailOutbox() : null;
 
   if (reminders.claimed > 0 || openPlay.lapsed > 0) {
@@ -81,6 +85,7 @@ export async function POST(req: NextRequest) {
     ...reminders,
     lapsedRequests: openPlay.lapsed,
     confirmedResults,
+    tournamentPayments,
     drained,
   });
 }

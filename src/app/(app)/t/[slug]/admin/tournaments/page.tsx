@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import {
+  clubTakesOnlineFees,
   clubVenuesForTournaments,
   listClubTournaments,
 } from '@/app-layer/usecases/club-tournaments';
@@ -33,11 +34,12 @@ export default async function TournamentsPage({ params }: { params: Promise<{ sl
   const { ctx } = resolved;
   if (!ctx.permissions.includes('bookings.view_all')) notFound();
 
-  const [t, tNav, items, venues] = await Promise.all([
+  const [t, tNav, items, venues, onlineFees] = await Promise.all([
     getTranslations('admin.tournaments'),
     getTranslations('common.nav'),
     listClubTournaments(ctx.tenantId),
     clubVenuesForTournaments(ctx.tenantId),
+    clubTakesOnlineFees(ctx.tenantId),
   ]);
 
   return (
@@ -48,7 +50,12 @@ export default async function TournamentsPage({ params }: { params: Promise<{ sl
         <p className="text-content-muted mt-1 text-sm">{t('subtitle')}</p>
       </header>
       <ViewerScope viewerId={ctx.userId}>
-        <AdminTournaments slug={slug} seed={items.map(toTournamentDto)} venues={venues} />
+        <AdminTournaments
+          slug={slug}
+          seed={items.map(toTournamentDto)}
+          venues={venues}
+          onlineFees={onlineFees}
+        />
       </ViewerScope>
     </section>
   );

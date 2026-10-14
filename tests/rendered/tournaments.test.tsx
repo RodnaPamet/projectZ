@@ -89,6 +89,7 @@ describe('a tournament, for a player', () => {
                 role: 'entrant',
                 partner: null,
                 waitingPosition: 2,
+                payment: null,
                 createdAt: '2026-10-14T10:00:00.000Z',
               },
             }),
@@ -146,6 +147,7 @@ describe('a tournament, for the club', () => {
           decidedAt: '2026-10-14T11:00:00.000Z',
           withdrawnAt: null,
           waitingPosition: null,
+          payment: null,
         },
         {
           id: 'e2',
@@ -156,6 +158,7 @@ describe('a tournament, for the club', () => {
           decidedAt: null,
           withdrawnAt: null,
           waitingPosition: null,
+          payment: null,
         },
         {
           id: 'e3',
@@ -166,6 +169,7 @@ describe('a tournament, for the club', () => {
           decidedAt: null,
           withdrawnAt: null,
           waitingPosition: 1,
+          payment: null,
         },
       ],
       ...over,
@@ -188,6 +192,7 @@ describe('a tournament, for the club', () => {
             courts: [{ id: 'r1', name: 'Корт 1' }],
           },
         ]}
+        onlineFees={false}
       />,
     );
     const rows = screen.getAllByTestId('admin-tournament-entry');

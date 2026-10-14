@@ -59,6 +59,8 @@ interface ClubTerms {
   feePercent: Prisma.Decimal;
   feeStartsOn: Date | null;
   createdAt: Date;
+  /** The cut of entry fees paid online (#581, decision 67). */
+  tournamentFeePercent?: Prisma.Decimal;
 }
 
 /** A club's rate in basis points. A stored value the CHECK admits always parses. */
@@ -259,6 +261,29 @@ export interface ClubTermsView {
   feePercent: string;
   /** The first day the fee is charged, at the club. */
   feeStartsOn: string;
+  /** playerz's cut of entry fees paid online (#581; 66, 67): no free period. */
+  tournamentFeeBps: number;
+  tournamentFeePercent: string;
+}
+
+/** One entry fee paid online, or its refund (#581), on the statement. */
+export interface TournamentStatementLine {
+  id: string;
+  kind: ClubFeeLineKind;
+  entryId: string;
+  tournamentName: string;
+  priceCents: number;
+  feeBps: number;
+  feeCents: number;
+  recordedAt: Date;
+}
+
+export interface TournamentTotals {
+  /** Fees paid, net of refunds. */
+  entriesPaid: number;
+  revenueCents: number;
+  feeCents: number;
+  lineCount: number;
 }
 
 export interface ClubStatement {
@@ -285,14 +310,35 @@ export interface ClubStatement {
    * statement can hold lines for them.
    */
   courtNouns: ResourceNouns;
+  /** Entry fees paid online and refunded (#581): their own lines and totals. */
+  tournaments: { totals: TournamentTotals; lines: TournamentStatementLine[] };
 }
 
 export function termsView(org: ClubTerms): ClubTermsView {
   const feeBps = termsBps(org);
+  const tournamentFeeBps = percentToBps((org.tournamentFeePercent ?? 0).toString()) ?? 0;
   return {
     feeBps,
     feePercent: bpsToPercent(feeBps),
     feeStartsOn: effectiveFeeStartsOn(org.feeStartsOn, org.createdAt),
+    tournamentFeeBps,
+    tournamentFeePercent: bpsToPercent(tournamentFeeBps),
+  };
+}
+
+function tournamentTotalsFrom(
+  groups: Array<{
+    kind: ClubFeeLineKind;
+    _count: { _all: number };
+    _sum: { priceCents: number | null; feeCents: number | null };
+  }>,
+): TournamentTotals {
+  const t = totalsFrom(groups);
+  return {
+    entriesPaid: t.bookingsPlayed,
+    revenueCents: t.revenueCents,
+    feeCents: t.feeCents,
+    lineCount: t.lineCount,
   };
 }
 
@@ -336,11 +382,12 @@ export async function loadClubStatement(
       feePercent: true,
       feeStartsOn: true,
       createdAt: true,
+      tournamentFeePercent: true,
     },
   });
   if (!org) return null;
 
-  const [rows, groups, types] = await Promise.all([
+  const [rows, groups, types, tournamentRows, tournamentGroups] = await Promise.all([
     db.clubFeeLine.findMany({
       where: { tenantId, statementMonth: month },
       orderBy: [{ bookingStartTs: 'asc' }, { kind: 'asc' }, { id: 'asc' }],
@@ -359,6 +406,18 @@ export async function loadClubStatement(
       distinct: ['resourceType'],
       orderBy: { resourceType: 'asc' },
       take: RESOURCE_TYPES.length,
+    }),
+    db.tournamentFeeLine.findMany({
+      where: { tenantId, statementMonth: month },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: STATEMENT_LINE_CAP,
+    }),
+    db.tournamentFeeLine.groupBy({
+      by: ['kind'],
+      where: { tenantId, statementMonth: month },
+      _count: { _all: true },
+      _sum: { priceCents: true, feeCents: true },
+      orderBy: { kind: 'asc' },
     }),
   ]);
 
@@ -391,6 +450,19 @@ export async function loadClubStatement(
     })),
     linesTruncated: rows.length > STATEMENT_LINE_CAP,
     courtNouns: resourceNouns(types.map((r) => r.resourceType)),
+    tournaments: {
+      totals: tournamentTotalsFrom(tournamentGroups),
+      lines: tournamentRows.map((l) => ({
+        id: l.id,
+        kind: l.kind,
+        entryId: l.entryId,
+        tournamentName: l.tournamentName,
+        priceCents: l.priceCents,
+        feeBps: l.feeBps,
+        feeCents: l.feeCents,
+        recordedAt: l.createdAt,
+      })),
+    },
   };
 }
 
@@ -400,6 +472,8 @@ export interface ClubFeeOverviewRow {
   terms: ClubTermsView;
   freePeriod: FreePeriodCover;
   totals: StatementTotals;
+  /** Entry fees paid online (#581): playerz's cut beside the booking fee. */
+  tournamentTotals: TournamentTotals;
 }
 
 /** The overview's ceiling: the pilot has a handful of clubs; the platform page is not paged yet. */
@@ -428,6 +502,7 @@ export async function loadFeeOverview(
       feePercent: true,
       feeStartsOn: true,
       createdAt: true,
+      tournamentFeePercent: true,
     },
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
     take: OVERVIEW_CLUB_CAP + 1,
@@ -444,6 +519,18 @@ export async function loadFeeOverview(
   });
   const byClub = new Map<string, typeof groups>();
   for (const g of groups) byClub.set(g.tenantId, [...(byClub.get(g.tenantId) ?? []), g]);
+  // guardrail-allow: cross-tenant — the month's tournament fee lines of the clubs above.
+  const tournamentGroups = await db.tournamentFeeLine.groupBy({
+    by: ['tenantId', 'kind'],
+    where: { statementMonth: month, tenantId: { in: clubs.map((c) => c.id) } },
+    _count: { _all: true },
+    _sum: { priceCents: true, feeCents: true },
+    orderBy: [{ tenantId: 'asc' }, { kind: 'asc' }],
+  });
+  const tournamentsByClub = new Map<string, typeof tournamentGroups>();
+  for (const g of tournamentGroups) {
+    tournamentsByClub.set(g.tenantId, [...(tournamentsByClub.get(g.tenantId) ?? []), g]);
+  }
 
   return {
     rows: clubs.map((c) => {
@@ -454,6 +541,7 @@ export async function loadFeeOverview(
         terms,
         freePeriod: freePeriodCover(month, terms.feeStartsOn),
         totals: totalsFrom(byClub.get(c.id) ?? []),
+        tournamentTotals: tournamentTotalsFrom(tournamentsByClub.get(c.id) ?? []),
       };
     }),
     truncated: orgs.length > OVERVIEW_CLUB_CAP,
@@ -487,6 +575,8 @@ export async function setClubFeeTerms(
     tenantId: string;
     feeBps: number;
     feeStartsOn: string;
+    /** The tournament cut (#581, 67); left as it is when absent. */
+    tournamentFeeBps?: number;
     actorUserId: string;
     reason: string;
   },
@@ -499,19 +589,31 @@ export async function setClubFeeTerms(
 
   const org = await db.venueOrg.findUniqueOrThrow({
     where: { id: input.tenantId },
-    select: { feePercent: true, feeStartsOn: true, createdAt: true },
+    select: { feePercent: true, feeStartsOn: true, createdAt: true, tournamentFeePercent: true },
   });
   const before = termsView(org);
 
   const feePercent = new Prisma.Decimal(bpsToPercent(input.feeBps));
   const feeStartsOn = new Date(`${input.feeStartsOn}T00:00:00Z`);
-  const after = termsView({ feePercent, feeStartsOn, createdAt: org.createdAt });
-  const changed = before.feeBps !== after.feeBps || before.feeStartsOn !== after.feeStartsOn;
+  const tournamentFeePercent =
+    input.tournamentFeeBps === undefined
+      ? org.tournamentFeePercent
+      : new Prisma.Decimal(bpsToPercent(input.tournamentFeeBps));
+  const after = termsView({
+    feePercent,
+    feeStartsOn,
+    createdAt: org.createdAt,
+    tournamentFeePercent,
+  });
+  const changed =
+    before.feeBps !== after.feeBps ||
+    before.feeStartsOn !== after.feeStartsOn ||
+    before.tournamentFeeBps !== after.tournamentFeeBps;
   if (!changed) return { before, after, changed };
 
   await db.venueOrg.update({
     where: { id: input.tenantId },
-    data: { feePercent, feeStartsOn },
+    data: { feePercent, feeStartsOn, tournamentFeePercent },
   });
 
   await appendAuditEntry(db, {
@@ -521,14 +623,22 @@ export async function setClubFeeTerms(
     entity: 'VenueOrg',
     entityId: input.tenantId,
     action: AUDIT_ACTIONS.CLUB_FEE_TERMS_CHANGED,
-    details: `Club fee set to ${after.feePercent}%, charged from ${after.feeStartsOn}`,
+    details: `Club fee set to ${after.feePercent}%, charged from ${after.feeStartsOn}; tournament cut ${after.tournamentFeePercent}%`,
     detailsJson: {
       category: 'billing',
       summary: 'The platform changed the club fee terms',
       source: 'platform',
       reason: input.reason,
-      before: { feePercent: before.feePercent, feeStartsOn: before.feeStartsOn },
-      after: { feePercent: after.feePercent, feeStartsOn: after.feeStartsOn },
+      before: {
+        feePercent: before.feePercent,
+        feeStartsOn: before.feeStartsOn,
+        tournamentFeePercent: before.tournamentFeePercent,
+      },
+      after: {
+        feePercent: after.feePercent,
+        feeStartsOn: after.feeStartsOn,
+        tournamentFeePercent: after.tournamentFeePercent,
+      },
     },
   });
 

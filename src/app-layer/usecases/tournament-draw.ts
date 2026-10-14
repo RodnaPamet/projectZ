@@ -12,6 +12,7 @@ import type {
 
 import { cancelBooking, createBooking } from '@/app-layer/usecases/booking';
 import { currentRating } from '@/app-layer/usecases/ratings';
+import { markRefundDue } from '@/app-layer/usecases/tournament-payments';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { AppError } from '@/lib/errors/types';
 import {
@@ -407,6 +408,13 @@ export async function drawTournament(
         where: { tenantId: actor.tenantId, id: { in: waiting.map((w) => w.id) } },
         data: { status: 'DECLINED', decidedAt: now, decidedByUserId: actor.userId },
       });
+      // No place, so a fee paid online comes back (64).
+      await markRefundDue(
+        db,
+        actor.tenantId,
+        waiting.map((w) => w.id),
+        now,
+      );
     }
     await db.tournament.updateMany({
       where: { id, tenantId: actor.tenantId },

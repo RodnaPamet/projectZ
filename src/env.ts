@@ -374,6 +374,8 @@ export const env = createEnv({
     // Stripe Billing
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    /** The connected-accounts endpoint's signing secret (#581): a club's `account.updated`. */
+    STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
     // One per paid PlanTier. The names must match `enum PlanTier`
     // (FREE | CLUB | PRO) — this was STRIPE_PRICE_ID_ENTERPRISE, a tier that
     // does not exist in the schema or in the commission table, while CLUB (the
@@ -560,6 +562,7 @@ export const env = createEnv({
     METRICS_TOKEN: process.env.METRICS_TOKEN,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
     STRIPE_PRICE_ID_PRO: process.env.STRIPE_PRICE_ID_PRO,
     STRIPE_PRICE_ID_CLUB: process.env.STRIPE_PRICE_ID_CLUB,
     APP_URL: process.env.APP_URL,

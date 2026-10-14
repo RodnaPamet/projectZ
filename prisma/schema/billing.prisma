@@ -74,3 +74,42 @@ model ClubFeeLine {
   @@index([statementMonth])
   @@map("club_fee_line")
 }
+
+/// playerz's cut of one tournament entry fee paid online (#581; decisions 66,
+/// 67), on the club's monthly statement beside the booking fees. Append-only,
+/// as `club_fee_line` is: a refund adds a REVERSAL, nothing is rewritten.
+model TournamentFeeLine {
+  id       String @id @default(cuid())
+  tenantId String
+
+  entryId         String
+  /// The payment the cut is on. An entry withdrawn and entered again pays
+  /// again, under the same entry, so lines are one per payment, not per entry.
+  paymentIntentId String
+  kind            ClubFeeLineKind
+
+  /// What the statement shows, as it was when the line was written.
+  tournamentId   String
+  tournamentName String
+
+  /// `YYYY-MM` at the club (Europe/Sofia): when the fee was paid for a
+  /// CHARGE, when it was refunded for a REVERSAL.
+  statementMonth String
+
+  /// The entry fee paid. Negative on a REVERSAL.
+  priceCents Int
+  /// The rate in force when the line was written, in basis points.
+  feeBps     Int
+  /// Rounded half-up to the cent. Negative on a REVERSAL.
+  feeCents   Int
+  currency   String
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  /// One charge and at most one reversal per payment.
+  @@unique([paymentIntentId, kind])
+  @@index([entryId])
+  @@index([tenantId, statementMonth])
+  @@index([statementMonth])
+  @@map("tournament_fee_line")
+}

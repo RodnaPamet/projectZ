@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server';
 
 import { decideEntry, getClubTournament } from '@/app-layer/usecases/club-tournaments';
 import { notifyEntryDecided } from '@/app-layer/usecases/tournament-notifications';
+import { processDueRefunds } from '@/app-layer/usecases/tournament-payments';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { requireDesk } from '@/app/api/v1/_lib/desk';
@@ -27,6 +28,8 @@ async function handler(
     id,
     'decline',
   );
+  // Declined, a fee paid online comes back (64): made now, or by the sweep.
+  await processDueRefunds({ entryIds: [id] });
   await notifyEntryDecided(id);
   const t = await getClubTournament(ctx.tenantId, tournamentId);
   return ok(toClubTournamentDto(t!));

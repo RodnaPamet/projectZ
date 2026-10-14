@@ -15,7 +15,10 @@ import { getRequestId } from '@/lib/observability/context';
  * POST /api/v1/tournaments/{id}/entries (#579): a player enters, alone or
  * naming a partner for doubles (decision 50). The entry waits for the club;
  * past the draw size, on the waiting list (51). The desk and the partner are
- * told.
+ * told. With an online fee (#581, decision 64) the entry awaits its payment
+ * (`myEntry.payment.state: DUE`): the client opens
+ * `POST /me/tournament-entries/{id}/checkout`, and the desk and the partner are
+ * told once it is paid.
  *
  * 400 TOURNAMENT_PARTNER_REQUIRED; 403 PLAYER_ACCOUNT_REQUIRED, PHONE_REQUIRED;
  * 404; 409 TOURNAMENT_NOT_OPEN, TOURNAMENT_ALREADY_ENTERED,
@@ -26,12 +29,13 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
   if (!ctx.userId) throw new UnauthorizedError('Authentication required');
   const body = await parseJsonBody(req, enterTournamentBodySchema, 'entry');
-  const { entryId } = await enterTournament({
+  const { entryId, needsPayment } = await enterTournament({
     userId: ctx.userId,
     tournamentId: id,
     partnerUserId: body.partnerUserId ?? null,
   });
-  await notifyEntryReceived(entryId);
+  // An entry paid online is the club's once paid (#581): the webhook tells them then.
+  if (!needsPayment) await notifyEntryReceived(entryId);
   const t = await getTournament(id, ctx.userId);
   return ok(toTournamentViewDto(t!), { status: 201 });
 }

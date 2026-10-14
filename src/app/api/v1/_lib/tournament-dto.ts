@@ -20,8 +20,13 @@ export function toTournamentDto(t: TournamentSummary) {
 }
 export type TournamentDto = ReturnType<typeof toTournamentDto>;
 
+/** An entry's online fee (#581): its deadline as an ISO string. */
+function toPaymentDto(p: MyTournamentEntry['payment']) {
+  return p ? { ...p, dueBy: iso(p.dueBy) } : null;
+}
+
 function toMyEntryDto(e: MyTournamentEntry) {
-  return { ...e, createdAt: e.createdAt.toISOString() };
+  return { ...e, createdAt: e.createdAt.toISOString(), payment: toPaymentDto(e.payment) };
 }
 
 export function toTournamentViewDto(t: TournamentView) {
@@ -35,6 +40,7 @@ function toClubEntryDto(e: ClubEntryRow) {
     createdAt: e.createdAt.toISOString(),
     decidedAt: iso(e.decidedAt),
     withdrawnAt: iso(e.withdrawnAt),
+    payment: toPaymentDto(e.payment),
   };
 }
 

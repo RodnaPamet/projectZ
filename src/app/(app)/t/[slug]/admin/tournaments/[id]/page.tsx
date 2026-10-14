@@ -1,7 +1,11 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { clubVenuesForTournaments, getClubTournament } from '@/app-layer/usecases/club-tournaments';
+import {
+  clubTakesOnlineFees,
+  clubVenuesForTournaments,
+  getClubTournament,
+} from '@/app-layer/usecases/club-tournaments';
 import { toClubTournamentDto } from '@/app/api/v1/_lib/tournament-dto';
 import { clubAdminCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
@@ -29,10 +33,11 @@ export default async function TournamentAdminPage({
   const { ctx } = resolved;
   if (!ctx.permissions.includes('bookings.view_all')) notFound();
 
-  const [tNav, x, venues] = await Promise.all([
+  const [tNav, x, venues, onlineFees] = await Promise.all([
     getTranslations('common.nav'),
     getClubTournament(ctx.tenantId, id),
     clubVenuesForTournaments(ctx.tenantId),
+    clubTakesOnlineFees(ctx.tenantId),
   ]);
   if (!x) notFound();
 
@@ -45,7 +50,12 @@ export default async function TournamentAdminPage({
         ]}
       />
       <ViewerScope viewerId={ctx.userId}>
-        <AdminTournamentDetail slug={slug} seed={toClubTournamentDto(x)} venues={venues} />
+        <AdminTournamentDetail
+          slug={slug}
+          seed={toClubTournamentDto(x)}
+          venues={venues}
+          onlineFees={onlineFees}
+        />
       </ViewerScope>
     </section>
   );

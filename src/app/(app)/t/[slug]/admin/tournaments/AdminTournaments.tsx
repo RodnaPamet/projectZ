@@ -29,6 +29,7 @@ export function AdminTournaments({
   slug,
   seed,
   venues,
+  onlineFees,
 }: {
   slug: string;
   seed: TournamentDto[];
@@ -38,6 +39,8 @@ export function AdminTournaments({
     sports: string[];
     courts?: Array<{ id: string; name: string }>;
   }>;
+  /** Whether the club can take entry fees online (#581). */
+  onlineFees: boolean;
 }) {
   const t = useTranslations('admin.tournaments');
   const tT = useTranslations('tournaments');
@@ -143,6 +146,7 @@ export function AdminTournaments({
             ) : null}
             <TournamentForm
               venues={venues}
+              onlineFees={onlineFees}
               busy={create.isMutating}
               submitLabel={t('create')}
               onSubmit={(v) => void submit(v)}

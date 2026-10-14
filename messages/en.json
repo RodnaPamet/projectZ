@@ -1722,7 +1722,12 @@
           "AMERICANO": "Partners rotate every round: players sign up alone; a points table, no ratings.",
           "MEXICANO": "Pairs are drawn from the standings after each round; players sign up alone; no ratings.",
           "LEAGUE": "Divisions playing everyone over the weeks, each round by a deadline."
-        }
+        },
+        "feePayment": "How the fee is paid",
+        "feePaymentAtClub": "At the club",
+        "feePaymentOnline": "Online",
+        "feePaymentHint": "Online: the player pays on sign-up and the money goes to the club’s account. If you decline an entry or cancel the tournament, the fee is returned automatically.",
+        "feePaymentUnavailable": "Online payment is possible once the club connects its Stripe account."
       },
       "withdrawEntry": "Withdraw",
       "draw": {
@@ -1764,6 +1769,26 @@
         "leagueProblem": "Choose the first round’s deadline.",
         "overdue": "{count, plural, one {# match was not played by its deadline} other {# matches were not played by their deadline}}: decide each — a walkover to one side, or lost by both."
       }
+    },
+    "payouts": {
+      "heading": "Online payments",
+      "status": {
+        "NONE": "Not connected",
+        "PENDING": "Waiting for Stripe",
+        "READY": "Accepted"
+      },
+      "body": {
+        "NONE": "Connect the club’s Stripe account to take tournament fees online. The money goes straight to the club’s account.",
+        "PENDING": "Stripe is checking the club’s details. Once it approves them, you can take payments online. If Stripe asked for more, continue where you left off.",
+        "READY": "The club takes tournament fees online. The money goes to the club’s Stripe account."
+      },
+      "back": {
+        "complete": "Thank you! Stripe is checking the details. This can take a while.",
+        "refresh": "The link to Stripe expired. Continue again."
+      },
+      "failed": "Stripe did not open. Try again.",
+      "connect": "Connect Stripe",
+      "continue": "Continue in Stripe"
     }
   },
   "invite": {
@@ -2382,7 +2407,9 @@
         "startsOnHint": "The first day the fee is charged. Before it is the free period.",
         "reason": "Reason for the change",
         "save": "Save",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "tournamentPercent": "Tournament fee, %",
+        "tournamentPercentHint": "A share of entry fees paid online. 0 until you set it; no free period."
       },
       "error": {
         "PLATFORM_AUTHORITY_REQUIRED": "You have no active platform grant.",
@@ -2403,7 +2430,8 @@
       "statementTitle": "Club statement",
       "statementSubtitle": "The same statement the club sees in its admin.",
       "statementHeading": "{club} — {month}",
-      "back": "← All clubs"
+      "back": "← All clubs",
+      "tournamentRate": "Tournaments: {rate}"
     },
     "contactRequests": {
       "metaTitle": "Club enquiries — playerz.bg",
@@ -3174,6 +3202,20 @@
         "column": {
           "court": "{NounSlash}"
         }
+      },
+      "tournaments": {
+        "heading": "Tournaments: fees paid online",
+        "column": {
+          "tournament": "Tournament",
+          "entryFee": "Entry fee"
+        },
+        "paid": "Paid",
+        "refunded": "Refunded",
+        "total": {
+          "entries": "Entries paid",
+          "revenue": "Paid online",
+          "fee": "Tournament fee"
+        }
       }
     },
     "csv": {
@@ -3205,7 +3247,10 @@
       },
       "several": {
         "court": "{NounSlash}"
-      }
+      },
+      "tournament": "Tournament",
+      "entryFee": "Entry fee ({currency})",
+      "entry": "Entry"
     }
   },
   "legal": {
@@ -3986,7 +4031,8 @@
       "SLOT_TAKEN": "That time was just taken. Choose another.",
       "SLOT_NOT_BOOKABLE": "That time cannot be booked. Choose another.",
       "NO_SHOW_BLOCKED": "The club is not taking your bookings after missed bookings. Contact the club.",
-      "BOOKING_LIMIT_REACHED": "You have the most upcoming bookings the club allows."
+      "BOOKING_LIMIT_REACHED": "You have the most upcoming bookings the club allows.",
+      "TOURNAMENT_PAYMENT_NOT_DUE": "There is no fee to pay on this entry."
     },
     "draw": {
       "heading": "Draw",
@@ -4043,6 +4089,21 @@
       "accept": "Accept",
       "decline": "Decline",
       "withdraw": "Take back"
+    },
+    "payment": {
+      "PAID": "The fee is paid online.",
+      "REFUND_DUE": "The fee is being refunded to your card.",
+      "REFUNDED": "The fee has been refunded to your card.",
+      "processing": "Your payment is being processed. Your entry will appear in a few seconds.",
+      "due": "Your entry counts once you pay the fee. Pay by {by}, or it lapses.",
+      "dueByEntrant": "The entry waits for the fee, which the player who entered you pays.",
+      "pay": "Pay the fee",
+      "admin": {
+        "DUE": "Awaiting payment",
+        "PAID": "Paid online",
+        "REFUND_DUE": "Refund on its way",
+        "REFUNDED": "Refunded"
+      }
     }
   }
 }

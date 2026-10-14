@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { loadClubStatement } from '@/app-layer/usecases/club-fees';
+import { clubPayoutStatus } from '@/app-layer/usecases/connect-onboarding';
+import { PayoutsCard } from '@/components/billing/PayoutsCard';
 import { clubAdminCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { StatementView } from '@/components/billing/StatementView';
@@ -44,7 +46,7 @@ export default async function ReportsPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ month?: string | string[] }>;
+  searchParams: Promise<{ month?: string | string[]; onboarding?: string | string[] }>;
 }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
 
@@ -58,10 +60,12 @@ export default async function ReportsPage({
   // A future month has no lines by construction; an unparseable one is this month.
   const month = isMonth(asked) && asked <= current ? asked : current;
 
-  const [statement, t] = await Promise.all([
+  const [statement, t, payouts] = await Promise.all([
     runInTenantContext(ctx.tenantId, (db) => loadClubStatement(db, ctx.tenantId, month)),
     getTranslations('admin.reports'),
+    runInTenantContext(ctx.tenantId, (db) => clubPayoutStatus(db, ctx.tenantId)),
   ]);
+  const back = sp.onboarding === 'complete' || sp.onboarding === 'refresh' ? sp.onboarding : null;
   if (!statement) notFound();
 
   const months = monthsBack(statement.clubSinceMonth, current);
@@ -79,6 +83,9 @@ export default async function ReportsPage({
 
       <div className="gap-section grid">
         <ReportsMonthNav slug={ctx.tenantSlug} months={months} month={month} />
+
+        {/* Online payments (#581): where the club connects its Stripe account. */}
+        <PayoutsCard slug={ctx.tenantSlug} status={payouts} back={back} />
 
         <StatementView
           statement={toClubStatementDto(statement)}

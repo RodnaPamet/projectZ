@@ -10,7 +10,11 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { createColumns, DataTable } from '@/components/ui/table/data-table';
 import { Heading } from '@/components/ui/typography';
-import type { ClubStatementDto, StatementLineDto } from '@/lib/billing/statement-dto';
+import type {
+  ClubStatementDto,
+  StatementLineDto,
+  TournamentLineDto,
+} from '@/lib/billing/statement-dto';
 import { nounMessage } from '@/lib/sports/noun-list';
 
 /**
@@ -148,6 +152,10 @@ export function StatementView({
 
       {children}
 
+      {statement.tournaments.lines.length > 0 ? (
+        <TournamentFees statement={statement} money={money} percent={percent} />
+      ) : null}
+
       <section aria-labelledby="statement-lines" className="gap-compact grid">
         <Heading level={2} id="statement-lines">
           {t('linesHeading')}
@@ -173,6 +181,83 @@ export function StatementView({
         )}
       </section>
     </div>
+  );
+}
+
+/** Entry fees paid online (#581): playerz's cut, each payment and refund. */
+function TournamentFees({
+  statement,
+  money,
+  percent,
+}: {
+  statement: ClubStatementDto;
+  money: (cents: number) => string;
+  percent: (p: string) => string;
+}) {
+  const t = useTranslations('billing.statement');
+  const format = useFormatter();
+  const { totals, lines } = statement.tournaments;
+  const columns = createColumns<TournamentLineDto>([
+    {
+      id: 'when',
+      header: t('column.when'),
+      cell: ({ row }) =>
+        format.dateTime(new Date(row.original.recordedAt), { dateStyle: 'medium', timeZone: ZONE }),
+    },
+    {
+      id: 'tournament',
+      header: t('tournaments.column.tournament'),
+      cell: ({ row }) => row.original.tournamentName,
+    },
+    {
+      id: 'kind',
+      header: t('column.kind'),
+      cell: ({ row }) =>
+        row.original.kind === 'CHARGE' ? (
+          <StatusBadge variant="neutral">{t('tournaments.paid')}</StatusBadge>
+        ) : (
+          <StatusBadge variant="warning">{t('tournaments.refunded')}</StatusBadge>
+        ),
+    },
+    {
+      id: 'price',
+      header: t('tournaments.column.entryFee'),
+      cell: ({ row }) => money(row.original.priceCents),
+    },
+    { id: 'rate', header: t('column.rate'), cell: ({ row }) => percent(row.original.feePercent) },
+    {
+      id: 'fee',
+      header: t('column.fee'),
+      cell: ({ row }) => (
+        <span className="text-content-emphasis font-medium">{money(row.original.feeCents)}</span>
+      ),
+    },
+  ]);
+  return (
+    <section aria-labelledby="statement-tournaments" className="gap-compact grid">
+      <Heading level={2} id="statement-tournaments">
+        {t('tournaments.heading')}
+      </Heading>
+      <dl
+        className="gap-compact grid grid-cols-2 lg:grid-cols-4"
+        data-testid="statement-tournament-totals"
+      >
+        <Total label={t('tournaments.total.entries')} value={format.number(totals.entriesPaid)} />
+        <Total label={t('tournaments.total.revenue')} value={money(totals.revenueCents)} />
+        <Total label={t('total.rate')} value={percent(statement.tournamentFeePercent)} />
+        <Total label={t('tournaments.total.fee')} value={money(totals.feeCents)} emphasis />
+      </dl>
+      <div className="min-w-0">
+        <DataTable<TournamentLineDto>
+          data={lines}
+          columns={columns}
+          getRowId={(l) => l.id}
+          mobileFallback="card"
+          selectionEnabled={false}
+          data-testid="statement-tournament-lines"
+        />
+      </div>
+    </section>
   );
 }
 
