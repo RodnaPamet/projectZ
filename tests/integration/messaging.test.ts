@@ -231,7 +231,7 @@ describe('messaging (#375)', () => {
       userId: shown.userId,
       name: 'Иван Петров',
       avatarUrl: null,
-      sports: [{ sport: 'PADEL', level: 4 }],
+      sports: [{ sport: 'PADEL', level: 4, rating: null }],
     });
     expect(await findPlayers(me, 'и')).toEqual([]);
   });

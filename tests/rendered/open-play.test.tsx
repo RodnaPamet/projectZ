@@ -38,7 +38,7 @@ const GAME: OpenGameDto = {
   levelMax: 4,
   note: 'Търсим двама за двойки',
   booker: { firstName: 'Иван', avatarUrl: null },
-  viewer: { isBooker: false, isPlaying: false, bookingId: null, request: null },
+  viewer: { isBooker: false, isPlaying: false, bookingId: null, request: null, levelFits: null },
 };
 
 function mount(ui: React.ReactNode) {
@@ -61,6 +61,25 @@ beforeEach(() => {
 });
 
 describe('a game card', () => {
+  it('says «За вашето ниво» to the viewer whose level fits, and nothing otherwise (#576)', () => {
+    installFakeFetch(() => ({ status: 200, body: { data: {} } }));
+    const { unmount } = mount(
+      <GameCard
+        game={{ ...GAME, viewer: { ...GAME.viewer!, levelFits: true } }}
+        signInHref="/login"
+      />,
+    );
+    expect(screen.getByTestId('game-level-fits')).toHaveTextContent(g.card.levelFits);
+    unmount();
+    mount(
+      <GameCard
+        game={{ ...GAME, viewer: { ...GAME.viewer!, levelFits: false } }}
+        signInHref="/login"
+      />,
+    );
+    expect(screen.queryByTestId('game-level-fits')).toBeNull();
+  });
+
   it('shows the game, the wish and the note, and asks with a note', async () => {
     const calls = installFakeFetch(() =>
       ok({ ...GAME, viewer: { ...GAME.viewer!, request: { id: 'r1', status: 'PENDING' } } }),
@@ -212,7 +231,7 @@ describe('the booker’s requests', () => {
           userId: 'u2',
           name: 'Мария Георгиева',
           avatarUrl: null,
-          sports: [{ sport: 'PADEL', level: 4 }],
+          sports: [{ sport: 'PADEL', level: 4, rating: null }],
           deleted: false,
         },
       },

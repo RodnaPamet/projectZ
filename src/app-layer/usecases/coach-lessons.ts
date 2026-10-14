@@ -13,6 +13,7 @@ import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import { readyLink } from '@/app-layer/usecases/coach-directory';
 import { CoachAccountRequiredError } from '@/app-layer/usecases/coach-profile';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
+import { ratingIn, shownRatings, type ShownRating } from '@/app-layer/usecases/shown-ratings';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import {
   coachFeeCents,
@@ -708,6 +709,8 @@ export interface MyLesson {
     name: string | null;
     /** 1 to 7 on the sport's scale; null when they have not said. */
     level: number | null;
+    /** Their rating in the sport while ranking is on and they show it (#576); null otherwise. */
+    rating: ShownRating | null;
     /** E.164. Upcoming lessons only, and only a number they confirmed. */
     phone: string | null;
   } | null;
@@ -795,7 +798,7 @@ export async function listMyLessons(input: {
 
     const playerIds = [...new Set(page.flatMap((r) => r.booking.bookedByUserId ?? []))];
     const tenantIds = [...new Set(page.map((r) => r.tenantId))];
-    const [players, levels, clubs] = await Promise.all([
+    const [players, levels, clubs, ratings] = await Promise.all([
       db.user.findMany({
         where: { id: { in: playerIds }, deletedAt: null },
         // The number is read for every booker on the page and given out
@@ -817,6 +820,8 @@ export async function listMyLessons(input: {
         select: { id: true, name: true },
         take: tenantIds.length,
       }),
+      // What the coach may see of each one's rating (#576).
+      shownRatings(db, playerIds, input.userId, now),
     ]);
     const playerOf = new Map(players.map((u) => [u.id, u]));
     const levelOf = new Map(levels.map((l) => [`${l.userId}|${l.sport}`, l.level]));
@@ -845,6 +850,7 @@ export async function listMyLessons(input: {
       return {
         name: u.name,
         level: levelOf.get(`${u.id}|${r.booking.resource.sport}`) ?? null,
+        rating: ratingIn(ratings, u.id, r.booking.resource.sport),
         phone: phoneFor(r, u),
       };
     };

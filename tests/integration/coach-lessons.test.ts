@@ -1189,7 +1189,12 @@ describe('where a booked lesson is seen', () => {
         court: { name: 'Court 1', sport: 'PADEL' },
         // What a coach is shown of a player (decision 12): the name, the
         // level (none said here) and, the lesson being ahead, the phone.
-        player: { name: 'Петя Играч', level: null, phone: expect.stringMatching(/^\+3598\d+$/) },
+        player: {
+          name: 'Петя Играч',
+          level: null,
+          rating: null,
+          phone: expect.stringMatching(/^\+3598\d+$/),
+        },
         players: 1,
         coachFeeCents: 4000,
         currency: 'EUR',
@@ -1640,6 +1645,7 @@ describe('the coach and their lessons (#549; decisions 8, 11, 12)', () => {
       expect((await mine(c.who))[0]!.player).toEqual({
         name: expect.any(String),
         level: null,
+        rating: null,
         phone: null,
       });
     });
@@ -2312,9 +2318,7 @@ describe('reviews of a coach (#551; decisions 16, 24–27)', () => {
       }),
     );
     expect([passed.status, refused.status]).toEqual(['PUBLISHED', 'REJECTED']);
-    expect((await page('ivan-petrov')).data.items.map((r) => r.body)).toEqual([
-      'Много търпелив.',
-    ]);
+    expect((await page('ivan-petrov')).data.items.map((r) => r.body)).toEqual(['Много търпелив.']);
     const { items } = await asAppSuperuser(db, (tx) => listModerationCases(tx, {}));
     expect(items.map((i) => [i.subject, i.reason])).toEqual([['COACH_REVIEW', 'abuse']]);
   });

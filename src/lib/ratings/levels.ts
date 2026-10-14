@@ -61,7 +61,57 @@ export function seedRating(sport: SportType, declaredLevel?: number | null): Spo
 
 /** The level to show, one decimal, 1–7: «Ниво 4,3». */
 export function levelOf(rating: SportRating): number {
-  const { centre, perLevel } = SCALE[rating.engine];
-  const raw = CENTRE_LEVEL + (rating.state.mu - centre) / perLevel;
+  return levelOfMean(rating.engine, rating.state.mu);
+}
+
+/** The level an engine's mean reads as, as `levelOf`, from a stored row's `mu`. */
+export function levelOfMean(engine: RatingEngine, mu: number): number {
+  const { centre, perLevel } = SCALE[engine];
+  const raw = CENTRE_LEVEL + (mu - centre) / perLevel;
   return Math.round(clampLevel(raw) * 10) / 10;
+}
+
+// ── Provisional, and away (decisions 47, 48) ─────────────────────────────
+
+/** A level is provisional until this many confirmed matches (decision 47). */
+export const PROVISIONAL_MATCHES = 5;
+
+/**
+ * …and again after this long without one (decision 48: "after months without
+ * results the level is provisional again"). Six months, our reading of
+ * "months"; a constant to tune, not a promise in the copy.
+ */
+export const PROVISIONAL_AFTER_DAYS = 180;
+
+/**
+ * A year away brings a settled player back to a newcomer's uncertainty. The
+ * growth is a variance added per day, so it starts slow and is capped at the
+ * engine's starting uncertainty: OpenSkill σ 8.33 (from about 2.5, settled),
+ * Glicko-2 φ 350 (from about 70).
+ */
+const AWAY_FULL_DAYS = 365;
+const SETTLED: Record<RatingEngine, number> = { OPENSKILL: 2.5, GLICKO2: 70 };
+const DAY_MS = 86_400_000;
+
+/** Whether a level is provisional: too few matches, or too long since the last. */
+export function isProvisional(matchesPlayed: number, lastAt: Date | null, now: Date): boolean {
+  if (matchesPlayed < PROVISIONAL_MATCHES || !lastAt) return true;
+  return now.getTime() - lastAt.getTime() > PROVISIONAL_AFTER_DAYS * DAY_MS;
+}
+
+/**
+ * A rating after a time away (decision 48): the mean, and so the level, stays;
+ * the uncertainty grows, so the next results move it faster. Never past a
+ * newcomer's uncertainty.
+ */
+export function withInactivity(rating: SportRating, lastAt: Date, now: Date): SportRating {
+  const days = Math.max(0, (now.getTime() - lastAt.getTime()) / DAY_MS);
+  if (days === 0) return rating;
+  const full = rating.engine === 'GLICKO2' ? defaultRating().phi : newRating().sigma;
+  const perDay = (full * full - SETTLED[rating.engine] ** 2) / AWAY_FULL_DAYS;
+  const grow = (u: number) => Math.min(Math.max(u, full), Math.sqrt(u * u + perDay * days));
+  if (rating.engine === 'GLICKO2') {
+    return { engine: 'GLICKO2', state: { ...rating.state, phi: grow(rating.state.phi) } };
+  }
+  return { engine: 'OPENSKILL', state: { ...rating.state, sigma: grow(rating.state.sigma) } };
 }

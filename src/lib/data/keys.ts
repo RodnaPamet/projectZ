@@ -223,6 +223,8 @@ export const KEYS = {
   coachReviews: (coachSlug: string) => paged(`${BASE}/coaches/${seg(coachSlug)}/reviews`),
   /** Open play on one of the caller's bookings: the booker's requests, or their own. */
   meBookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
+  /** The caller's own ratings, points and all (#576). */
+  myRatings: () => `${BASE}/me/ratings`,
   /** A booking's result for the caller (#575): it, and whether they may report or answer it. */
   meBookingResult: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/result`,
   /** The club's results (#575); `REJECTED` is the ones that wait for it. */

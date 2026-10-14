@@ -168,6 +168,12 @@ export function GameCard({
         <StatusBadge variant="neutral" icon={null}>
           {levelWish(game.levelMin, game.levelMax)}
         </StatusBadge>
+        {/* For the viewer alone, from their own rating (#576). */}
+        {viewer?.levelFits ? (
+          <StatusBadge variant="info" icon={null} data-testid="game-level-fits">
+            {t('levelFits')}
+          </StatusBadge>
+        ) : null}
       </div>
 
       {game.note ? (

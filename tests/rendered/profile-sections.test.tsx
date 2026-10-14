@@ -29,6 +29,7 @@ const me = (over: Partial<MeDto> = {}): MeDto => ({
   locale: 'bg',
   sports: [],
   searchable: true,
+  ratingPublic: true,
   phone: { required: false, verified: false, number: null },
   accountKind: 'PLAYER',
   landing: { reason: 'player', club: null },

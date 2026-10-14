@@ -61,6 +61,11 @@ export interface Me {
    * by name to write to them. On by default.
    */
   searchable: boolean;
+  /**
+   * "Показвай нивото ми" (#576, decision 36): whether others see the rating.
+   * Off, results still rate the player, and others see the declared level.
+   */
+  ratingPublic: boolean;
   /** Null = undecided: an account #263's migration would not decide by rule. */
   accountKind: AccountKind | null;
   /**
@@ -99,6 +104,7 @@ export async function getMe(userId: string): Promise<Me | null> {
         locale: true,
         accountKind: true,
         searchable: true,
+        ratingPublic: true,
         phone: true,
         phoneVerifiedAt: true,
         deletedAt: true,
@@ -133,6 +139,7 @@ export async function getMe(userId: string): Promise<Me | null> {
       locale: user.locale,
       sports: user.sportLevels.map((s) => ({ sport: s.sport, level: s.level })),
       searchable: user.searchable,
+      ratingPublic: user.ratingPublic,
       accountKind: user.accountKind,
       phone: {
         required: phoneRequired(),

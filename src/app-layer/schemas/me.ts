@@ -67,10 +67,20 @@ export const updateMeBodySchema = z
       .optional(),
     /** "Показвай ме в търсенето" (#375). */
     searchable: z.boolean().optional(),
+    /** "Показвай нивото ми" (#576, decision 36). */
+    ratingPublic: z.boolean().optional(),
   })
   .strict()
-  .refine((b) => b.name !== undefined || b.sports !== undefined || b.searchable !== undefined, {
-    message: 'Nothing to change: send `name`, `sports`, `searchable`, or any of them',
-  });
+  .refine(
+    (b) =>
+      b.name !== undefined ||
+      b.sports !== undefined ||
+      b.searchable !== undefined ||
+      b.ratingPublic !== undefined,
+    {
+      message:
+        'Nothing to change: send `name`, `sports`, `searchable`, `ratingPublic`, or any of them',
+    },
+  );
 
 export type UpdateMeBody = z.infer<typeof updateMeBodySchema>;

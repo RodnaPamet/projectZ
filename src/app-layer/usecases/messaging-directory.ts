@@ -1,4 +1,6 @@
 import { Prisma, type PrismaClient, type SportType } from '@prisma/client';
+
+import { ratingIn, shownRatings, type ShownRating } from '@/app-layer/usecases/shown-ratings';
 import { playsAsPlayer } from '@/lib/auth/account-kind';
 
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
@@ -39,7 +41,13 @@ export const PLAYER_SEARCH_LIMIT = 20;
 
 export interface SportLevelCard {
   sport: SportType;
+  /** The level the player declared, 1–7, as always. */
   level: number;
+  /**
+   * Their rating on the same scale (#576), while the ranking module is on and
+   * they show it: what a screen shows instead of `level`. Null otherwise.
+   */
+  rating: ShownRating | null;
 }
 
 /** What anyone may see of a player (#375): never an email, a phone or a booking. */
@@ -69,23 +77,30 @@ function likeEscape(q: string): string {
   return q.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
-/** Each person's declared sports and levels; open play's request cards use it too (#376). */
+/**
+ * Each person's declared sports and levels, and the rating `viewerId` may see
+ * beside each (#576); open play's request cards use it too (#376).
+ */
 export async function sportsOf(
   db: PrismaClient,
   userIds: string[],
+  viewerId: string | null,
 ): Promise<Map<string, SportLevelCard[]>> {
   const out = new Map<string, SportLevelCard[]>();
   if (userIds.length === 0) return out;
-  const rows = await db.playerSportLevel.findMany({
-    where: { userId: { in: userIds } },
-    select: { userId: true, sport: true, level: true },
-    orderBy: [{ userId: 'asc' }, { sport: 'asc' }],
-    // A person declares a level for at most every sport there is.
-    take: userIds.length * 40,
-  });
+  const [rows, ratings] = await Promise.all([
+    db.playerSportLevel.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, sport: true, level: true },
+      orderBy: [{ userId: 'asc' }, { sport: 'asc' }],
+      // A person declares a level for at most every sport there is.
+      take: userIds.length * 40,
+    }),
+    shownRatings(db, userIds, viewerId),
+  ]);
   for (const r of rows) {
     const list = out.get(r.userId) ?? [];
-    list.push({ sport: r.sport, level: r.level });
+    list.push({ sport: r.sport, level: r.level, rating: ratingIn(ratings, r.userId, r.sport) });
     out.set(r.userId, list);
   }
   return out;
@@ -137,6 +152,7 @@ export async function searchPlayers(viewerId: string, query: string): Promise<Pl
     const sports = await sportsOf(
       db,
       users.map((u) => u.id),
+      viewerId,
     );
     return users.map((u) => ({
       userId: u.id,
@@ -208,8 +224,14 @@ export async function reachability(viewerId: string, targetId: string): Promise<
   });
 }
 
-/** A player's public card, by id, with no access decision: the caller makes it. */
-export async function playerCardById(targetId: string): Promise<PlayerCard | null> {
+/**
+ * A player's public card, by id, with no access decision: the caller makes it.
+ * `viewerId` is who looks, for the rating they may see (#576).
+ */
+export async function playerCardById(
+  targetId: string,
+  viewerId: string | null,
+): Promise<PlayerCard | null> {
   // guardrail-allow: cross-tenant — one person by id; the public card only.
   return runAsSuperuser(async (db) => {
     const u = await db.user.findUnique({
@@ -217,7 +239,7 @@ export async function playerCardById(targetId: string): Promise<PlayerCard | nul
       select: { id: true, name: true, avatarUrl: true, accountKind: true, deletedAt: true },
     });
     if (!u || u.deletedAt || !playsAsPlayer(u.accountKind)) return null;
-    const sports = await sportsOf(db, [u.id]);
+    const sports = await sportsOf(db, [u.id], viewerId);
     return {
       userId: u.id,
       name: u.name,

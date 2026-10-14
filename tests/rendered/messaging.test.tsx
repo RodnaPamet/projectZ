@@ -315,7 +315,7 @@ describe('PlayerCardView', () => {
           userId: 'u2',
           name: 'Мария',
           avatarUrl: null,
-          sports: [{ sport: 'PADEL', level: 4 }],
+          sports: [{ sport: 'PADEL', level: 4, rating: null }],
         }}
       />,
     );

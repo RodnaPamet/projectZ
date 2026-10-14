@@ -39,6 +39,8 @@ export interface OpenGameDto {
     isPlaying: boolean;
     bookingId: string | null;
     request: { id: string; status: OpenGameRequestStatusDto } | null;
+    /** The game's level wish fits the viewer (#576); null when there is nothing to say. */
+    levelFits: boolean | null;
   } | null;
 }
 
@@ -76,7 +78,12 @@ export interface OpenGameRequestDto {
     userId: string;
     name: string | null;
     avatarUrl: string | null;
-    sports: Array<{ sport: SportType; level: number }>;
+    /** Declared levels, and the rating beside each while ranking is on (#576). */
+    sports: Array<{
+      sport: SportType;
+      level: number;
+      rating: { level: number; provisional: boolean } | null;
+    }>;
     deleted: boolean;
   };
 }

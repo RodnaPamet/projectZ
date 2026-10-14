@@ -30,6 +30,7 @@ import { cutoffPassed, OpenPlayError } from '@/app-layer/usecases/open-play-rost
 import { assertPhoneConfirmed } from '@/app-layer/usecases/phone-verification';
 import { publicVenueFilter } from '@/app-layer/repositories/public-venue';
 import { listVenueFacets, type VenueFacets } from '@/app-layer/repositories/venue';
+import { ratingIn, shownRatings, type ShownRating } from '@/app-layer/usecases/shown-ratings';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import { playerCancellableUntil, playerMayCancel } from '@/lib/booking/cutoff';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
@@ -182,6 +183,13 @@ export interface OpenGameSummary {
     /** The booking, for the booker and the players on it only: their own page. */
     bookingId: string | null;
     request: { id: string; status: OpenGameRequestStatus } | null;
+    /**
+     * Whether the game's level wish fits the viewer (#576, decision 36): from
+     * their rating, which they see even when they hide it from others. Null
+     * when the game wishes no level, the viewer has none in the sport, or
+     * ranking is off.
+     */
+    levelFits: boolean | null;
   } | null;
 }
 
@@ -259,7 +267,7 @@ async function summarise(
   const bookerIds = [
     ...new Set(rows.flatMap((g) => (g.booking.bookedByUserId ? [g.booking.bookedByUserId] : []))),
   ];
-  const [bookers, mine] = await Promise.all([
+  const [bookers, mine, myLevels] = await Promise.all([
     db.user.findMany({
       where: { id: { in: bookerIds } },
       select: { id: true, name: true, avatarUrl: true, deletedAt: true },
@@ -273,8 +281,21 @@ async function summarise(
           take: rows.length,
         })
       : Promise.resolve([]),
+    viewerId
+      ? shownRatings(db, [viewerId], viewerId)
+      : Promise.resolve(new Map<string, ShownRating>()),
   ]);
   const byId = new Map(bookers.map((u) => [u.id, u]));
+  const fits = (g: GameRow): boolean | null => {
+    if (!viewerId || (g.levelMin === null && g.levelMax === null)) return null;
+    const mine = ratingIn(myLevels, viewerId, g.booking.resource.sport);
+    if (!mine) return null;
+    // A wish is in whole levels; «4,3» is a 4.
+    const level = Math.round(mine.level);
+    return (
+      (g.levelMin === null || level >= g.levelMin) && (g.levelMax === null || level <= g.levelMax)
+    );
+  };
   const myRequest = new Map(mine.map((r) => [r.gameId, r]));
 
   return rows.map((g): OpenGameSummary => {
@@ -323,6 +344,7 @@ async function summarise(
                   ),
                 }
               : null,
+            levelFits: fits(g),
           }
         : null,
     };
@@ -662,7 +684,7 @@ export async function getBookingGame(input: {
             take: people.length,
           })
         : Promise.resolve([]),
-      sportsOf(db, people),
+      sportsOf(db, people, input.userId),
     ]);
     return { users: new Map(users.map((u) => [u.id, u])), sports };
   });

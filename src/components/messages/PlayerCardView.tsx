@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
+import { useLevelLabel } from '@/components/profile/use-level-label';
 
 import { StartConversationButton } from './StartConversationButton';
 
@@ -19,7 +20,7 @@ import { StartConversationButton } from './StartConversationButton';
 export function PlayerCardView({ card }: { card: PlayerCard }) {
   const t = useTranslations('messaging.card');
   const tSports = useTranslations('sports');
-  const tLevel = useTranslations('profile.sports');
+  const levelLabel = useLevelLabel();
   const name = card.name ?? t('unnamed');
 
   return (
@@ -35,7 +36,7 @@ export function PlayerCardView({ card }: { card: PlayerCard }) {
           {card.sports.map((s) => (
             <li key={s.sport}>
               <StatusBadge variant="neutral" icon={null}>
-                {tSports(s.sport as never)} · {tLevel('levelShort', { level: s.level })}
+                {tSports(s.sport as never)} · {levelLabel(s)}
               </StatusBadge>
             </li>
           ))}

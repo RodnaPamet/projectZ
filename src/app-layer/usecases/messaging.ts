@@ -1037,7 +1037,7 @@ export async function viewPlayerCard(
       if (!talking) throw playerNotFound();
     }
   }
-  const card = await playerCardById(targetUserId);
+  const card = await playerCardById(targetUserId, actor.userId);
   if (!card) throw playerNotFound();
   return card;
 }

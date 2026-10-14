@@ -15517,6 +15517,41 @@
           }
         }
       }
+    },
+    "/me/ratings": {
+      "get": {
+        "operationId": "getMyRatings",
+        "summary": "The caller's own ratings",
+        "tags": ["Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "The caller's own ratings (#576): each sport's level (provisional under 5 confirmed matches or after six months away), the points nobody else sees, the matches, and whether others see the level.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyRatingsEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17129,7 +17164,8 @@
           "avatarUrl",
           "sports",
           "searchable",
-          "phone"
+          "phone",
+          "ratingPublic"
         ],
         "properties": {
           "id": {
@@ -17187,6 +17223,10 @@
           },
           "phone": {
             "$ref": "#/components/schemas/MePhone"
+          },
+          "ratingPublic": {
+            "type": "boolean",
+            "description": "«Показвай нивото ми» (#576, decision 36): whether others see the rating. Off, results still rate the player; others see the declared level. On by default."
           }
         }
       },
@@ -18028,7 +18068,7 @@
       "UpdateMeRequest": {
         "type": "object",
         "title": "UpdateMeRequest",
-        "description": "At least one of the two. An absent field is left as it is. ANY other property is a 400 naming it (`details.field`), never ignored: this body writes the account row, which also holds the email, the kind and the language.",
+        "description": "At least one field. An absent field is left as it is. ANY other property is a 400 naming it (`details.field`), never ignored: this body writes the account row, which also holds the email, the kind and the language.",
         "additionalProperties": false,
         "minProperties": 1,
         "properties": {
@@ -18049,6 +18089,10 @@
           "searchable": {
             "type": "boolean",
             "description": "“Показвай ме в търсенето” (#375)."
+          },
+          "ratingPublic": {
+            "type": "boolean",
+            "description": "«Показвай нивото ми» (#576)."
           }
         }
       },
@@ -20952,7 +20996,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["sport", "level"],
+              "required": ["sport", "level", "rating"],
               "properties": {
                 "sport": {
                   "$ref": "#/components/schemas/SportType"
@@ -20961,6 +21005,17 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 7
+                },
+                "rating": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ShownRating"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The rating beside the declared level (#576); null while ranking is off, or when the player hides it from the caller."
                 }
               }
             }
@@ -21449,7 +21504,7 @@
           "viewer": {
             "type": ["object", "null"],
             "description": "The signed-in caller's part in the game; null signed out.",
-            "required": ["isBooker", "isPlaying", "bookingId", "request"],
+            "required": ["isBooker", "isPlaying", "bookingId", "request", "levelFits"],
             "properties": {
               "isBooker": {
                 "type": "boolean"
@@ -21472,6 +21527,10 @@
                     "$ref": "#/components/schemas/OpenGameRequestStatus"
                   }
                 }
+              },
+              "levelFits": {
+                "type": ["boolean", "null"],
+                "description": "Whether the game's level wish fits the caller (#576, decision 36), from their own rating, which they see even when they hide it from others: «За вашето ниво». Null when the game wishes no level, the caller has none in its sport, or ranking is off."
               }
             }
           }
@@ -21557,7 +21616,7 @@
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "required": ["sport", "level"],
+                  "required": ["sport", "level", "rating"],
                   "properties": {
                     "sport": {
                       "$ref": "#/components/schemas/SportType"
@@ -21566,6 +21625,17 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 7
+                    },
+                    "rating": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/ShownRating"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The rating beside the declared level (#576); null while ranking is off, or when the player hides it from the caller."
                     }
                   }
                 }
@@ -23203,7 +23273,7 @@
             "oneOf": [
               {
                 "type": "object",
-                "required": ["name", "level", "phone"],
+                "required": ["name", "level", "rating", "phone"],
                 "properties": {
                   "name": {
                     "type": ["string", "null"]
@@ -23213,6 +23283,17 @@
                     "minimum": 1,
                     "maximum": 7,
                     "description": "The level the player declared for this lesson's sport; null when they have not said."
+                  },
+                  "rating": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ShownRating"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The rating beside the declared level (#576); null while ranking is off, or when the player hides it from the caller."
                   },
                   "phone": {
                     "type": ["string", "null"],
@@ -24070,6 +24151,85 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ClubBookingResultState"
+          }
+        }
+      },
+      "ShownRating": {
+        "type": "object",
+        "title": "ShownRating",
+        "required": ["level", "provisional"],
+        "additionalProperties": false,
+        "description": "A player's rating on the 1–7 level scale (#576, decision 31), while the ranking module is on and they show it: what a screen shows instead of the declared `level`. Starts at the declared level and moves with confirmed results.",
+        "properties": {
+          "level": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 7,
+            "description": "One decimal: «Ниво 4,3»."
+          },
+          "provisional": {
+            "type": "boolean",
+            "description": "Under 5 confirmed matches, or six months without one (decisions 47, 48): «(неокончателно)»."
+          }
+        }
+      },
+      "MyRatings": {
+        "type": "object",
+        "title": "MyRatings",
+        "required": ["public", "items"],
+        "properties": {
+          "public": {
+            "type": "boolean",
+            "description": "Whether others see the level (`Me.ratingPublic`)."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "sport",
+                "level",
+                "provisional",
+                "points",
+                "matchesPlayed",
+                "lastPlayedAt"
+              ],
+              "properties": {
+                "sport": {
+                  "$ref": "#/components/schemas/SportType"
+                },
+                "level": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 7
+                },
+                "provisional": {
+                  "type": "boolean"
+                },
+                "points": {
+                  "type": ["number", "null"],
+                  "description": "The engine's own number (decision 31), shown to the player only. Null before a first confirmed match."
+                },
+                "matchesPlayed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "lastPlayedAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
+                }
+              }
+            },
+            "description": "Every sport the player declared or was rated in, in the sport enum's order."
+          }
+        }
+      },
+      "MyRatingsEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MyRatings"
           }
         }
       }

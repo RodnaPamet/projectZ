@@ -17,6 +17,7 @@ import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
+import { useLevelLabel } from '@/components/profile/use-level-label';
 import { KEYS, keysUnder, V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
@@ -276,7 +277,7 @@ function RequestRow({
   const t = useTranslations('myBookings.game');
   const tCommon = useTranslations('common');
   const tSports = useTranslations('sports');
-  const tLevel = useTranslations('profile.sports');
+  const levelLabel = useLevelLabel();
   const name = r.player.deleted ? tCommon('deletedUser') : (r.player.name ?? t('unnamed'));
 
   return (
@@ -290,7 +291,7 @@ function RequestRow({
               {r.player.sports.map((s) => (
                 <li key={s.sport}>
                   <StatusBadge variant="neutral" icon={null}>
-                    {tSports(s.sport as never)} · {tLevel('levelShort', { level: s.level })}
+                    {tSports(s.sport as never)} · {levelLabel(s)}
                   </StatusBadge>
                 </li>
               ))}

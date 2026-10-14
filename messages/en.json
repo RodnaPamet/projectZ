@@ -2472,7 +2472,9 @@
       },
       "save": "Save",
       "cancel": "Cancel",
-      "failed": "Your sports were not saved. Try again."
+      "failed": "Your sports were not saved. Try again.",
+      "rated": "Level {level}",
+      "ratedProvisional": "Level {level} (provisional)"
     },
     "notifications": {
       "row": "Notifications",
@@ -2548,6 +2550,19 @@
     "coach": {
       "title": "Coach",
       "row": "Coach profile"
+    },
+    "ratings": {
+      "title": "Ranking",
+      "none": "Pick your sports above: your ranking starts at the level you give.",
+      "noMatches": "No confirmed matches yet",
+      "points": "{points} points · {count, plural, one {# match} other {# matches}}",
+      "hint": "Your level moves with every confirmed result, and others see it. Only you see the points.",
+      "hintHidden": "Your level is hidden: you are still ranked, but others see the level you gave. Only you see the points."
+    },
+    "ratingVisibility": {
+      "label": "Show my level",
+      "hint": "Off: you are still ranked, but others see only the level you gave.",
+      "failed": "The setting was not saved. Try again."
     }
   },
   "bookingInvite": {
@@ -3215,7 +3230,8 @@
       "toBooking": "Go to the booking",
       "ask": "I want to play",
       "withdraw": "Withdraw the request",
-      "reportNote": "Report"
+      "reportNote": "Report",
+      "levelFits": "At your level"
     },
     "status": {
       "PENDING": "Awaiting an answer",
@@ -3487,7 +3503,8 @@
       "notAttendable": "The lesson is already cancelled.",
       "gone": "That lesson was not found.",
       "failed": "That did not work. Try again."
-    }
+    },
+    "playerLevelProvisional": "Player: {name} · level {level} (provisional)"
   },
   "coaches": {
     "metaTitle": "Coaches — playerz.bg",
