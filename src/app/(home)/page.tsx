@@ -5,7 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { loadPilotClubs, type PilotClub } from '@/app-layer/usecases/pilot-clubs';
 import { PublicPrefetchLink } from '@/components/layout/PublicPrefetchLink';
 import { buttonVariants } from '@/components/ui/button-variants';
-import { ArrowRight } from '@/components/ui/icons/nucleo';
+import { ArrowRight } from '@/components/ui/icons/nucleo/arrow-right';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Eyebrow, Heading } from '@/components/ui/typography';

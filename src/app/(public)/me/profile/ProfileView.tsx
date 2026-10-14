@@ -23,12 +23,10 @@ import { useAccount } from '@/components/profile/use-account';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-  BadgeCheck,
-  ChevronRight,
-  ShieldCheck,
-  UserArrowRight,
-} from '@/components/ui/icons/nucleo';
+import { BadgeCheck } from '@/components/ui/icons/nucleo/badge-check';
+import { ChevronRight } from '@/components/ui/icons/nucleo/chevron-right';
+import { ShieldCheck } from '@/components/ui/icons/nucleo/shield-check';
+import { UserArrowRight } from '@/components/ui/icons/nucleo/user-arrow-right';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption, Heading } from '@/components/ui/typography';

@@ -8,7 +8,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
-import { ChevronRight } from '@/components/ui/icons/nucleo';
+import { ChevronRight } from '@/components/ui/icons/nucleo/chevron-right';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption } from '@/components/ui/typography';
 import { CONTACT_FORM_HREF } from '@/lib/account/links';

@@ -95,8 +95,9 @@ describe('the manifest is readable, and the scan is not vacuous', () => {
     // 480 shared component files and four lib modules at T09. Far fewer means
     // a manifest went missing or a parse silently returned nothing.
     // 357 rows after #336 retired the icon and hook barrels and the 78 files
-    // only they reached (moved to available.json).
-    expect(ROWS.length).toBeGreaterThan(300);
+    // only they reached; 147 after #583 retired the nucleo barrel and the 217
+    // icons only it reached (all moved to available.json).
+    expect(ROWS.length).toBeGreaterThan(120);
     expect(INFLECT.paths.length).toBeGreaterThan(400);
     expect(INFLECT.sha).toMatch(/^[0-9a-f]{7,40}$/);
   });

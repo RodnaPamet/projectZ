@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { messagesCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { PlayerSearch } from '@/components/messages/PlayerSearch';
-import { ChevronLeft } from '@/components/ui/icons/nucleo';
+import { ChevronLeft } from '@/components/ui/icons/nucleo/chevron-left';
 import { Heading } from '@/components/ui/typography';
 import { ViewerScope } from '@/lib/data/provider';
 

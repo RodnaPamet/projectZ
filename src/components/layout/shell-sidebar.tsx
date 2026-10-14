@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
-import { Gear, Menu3, UserArrowRight } from '@/components/ui/icons/nucleo';
+import { Gear } from '@/components/ui/icons/nucleo/gear';
+import { Menu3 } from '@/components/ui/icons/nucleo/menu3';
+import { UserArrowRight } from '@/components/ui/icons/nucleo/user-arrow-right';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 

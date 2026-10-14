@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
-import { ArrowUpRight, CircleUser, UserArrowRight } from '@/components/ui/icons/nucleo';
+import { ArrowUpRight } from '@/components/ui/icons/nucleo/arrow-up-right';
+import { CircleUser } from '@/components/ui/icons/nucleo/circle-user';
+import { UserArrowRight } from '@/components/ui/icons/nucleo/user-arrow-right';
 import { Popover } from '@/components/ui/popover';
 
 import { NavItem } from './nav-item';

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button-variants';
-import { ArrowLeft } from '@/components/ui/icons/nucleo';
+import { ArrowLeft } from '@/components/ui/icons/nucleo/arrow-left';
 import { cn } from '@/lib/cn';
 
 /**

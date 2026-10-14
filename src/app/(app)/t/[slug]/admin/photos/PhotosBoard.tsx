@@ -14,7 +14,8 @@ import {
   type FileUploadHandlerCtx,
 } from '@/components/ui/FileDropzone';
 import { FormField } from '@/components/ui/form-field';
-import { ChevronUp, Trash } from '@/components/ui/icons/nucleo';
+import { ChevronUp } from '@/components/ui/icons/nucleo/chevron-up';
+import { Trash } from '@/components/ui/icons/nucleo/trash';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Caption, Heading, TextLink } from '@/components/ui/typography';

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
-import { ArrowUpRight } from '@/components/ui/icons/nucleo';
+import { ArrowUpRight } from '@/components/ui/icons/nucleo/arrow-up-right';
 import { persistMyLocale } from '@/lib/i18n/persist-my-locale';
 
 import { AccountMenuRows } from './account-links';
