@@ -127,6 +127,23 @@ model TournamentEntry {
   withdrawnAt DateTime?
   createdAt   DateTime  @default(now())
 
+  /// An entry fee paid ONLINE (#581, decision 64): paid on sign-up, through
+  /// Stripe's hosted checkout. `paymentDueBy` is set while the fee is unpaid:
+  /// until it is paid the club does not see the entry and it holds no place,
+  /// and past it the entry lapses (WITHDRAWN by nobody).
+  paymentDueBy            DateTime? @db.Timestamptz(3)
+  paidAt                  DateTime? @db.Timestamptz(3)
+  paidCents               Int?
+  stripeCheckoutSessionId String?   @unique
+  stripePaymentIntentId   String?   @unique
+  /// A refund owed (decisions 64, 65): set in the same transaction as the
+  /// decline, the cancellation or the withdrawal; Stripe is called after the
+  /// commit and again by the sweep until `refundedAt` is set.
+  refundDueAt             DateTime? @db.Timestamptz(3)
+  refundedAt              DateTime? @db.Timestamptz(3)
+  refundedCents           Int?
+  stripeRefundId          String?   @unique
+
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   /// One entry per player. Without it, a double-tapped "Enter" puts somebody in
@@ -138,6 +155,8 @@ model TournamentEntry {
   @@index([playerUserId])
   @@index([partnerUserId])
   @@index([tournamentId, status, createdAt])
+  @@index([paymentDueBy])
+  @@index([refundDueAt])
   @@map("tournament_entry")
 }
 

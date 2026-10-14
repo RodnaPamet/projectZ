@@ -2,6 +2,7 @@ import type {
   ClubFeeOverviewRow,
   ClubStatement,
   StatementTotals,
+  TournamentTotals,
 } from '@/app-layer/usecases/club-fees';
 import { bpsToPercent } from '@/lib/billing/club-fee';
 import type { ResourceNouns } from '@/lib/sports/resource-kinds';
@@ -55,6 +56,21 @@ export interface ClubStatementDto {
   linesTruncated: boolean;
   /** The court column's nouns (P51, #454): `court`, `pitch`, `track`, or a list (`courtPitch`). */
   courtNouns: ResourceNouns;
+  /** playerz's cut of entry fees paid online (#581; 66, 67). */
+  tournamentFeePercent: string;
+  tournaments: { totals: TournamentTotals; lines: TournamentLineDto[] };
+}
+
+/** One entry fee paid online, or its refund (#581). */
+export interface TournamentLineDto {
+  id: string;
+  kind: 'CHARGE' | 'REVERSAL';
+  entryId: string;
+  tournamentName: string;
+  priceCents: number;
+  feePercent: string;
+  feeCents: number;
+  recordedAt: string;
 }
 
 const totalsDto = (t: StatementTotals): StatementTotalsDto => ({ ...t });
@@ -86,6 +102,20 @@ export function toClubStatementDto(s: ClubStatement): ClubStatementDto {
     })),
     linesTruncated: s.linesTruncated,
     courtNouns: s.courtNouns,
+    tournamentFeePercent: s.terms.tournamentFeePercent,
+    tournaments: {
+      totals: { ...s.tournaments.totals },
+      lines: s.tournaments.lines.map((l) => ({
+        id: l.id,
+        kind: l.kind,
+        entryId: l.entryId,
+        tournamentName: l.tournamentName,
+        priceCents: l.priceCents,
+        feePercent: bpsToPercent(l.feeBps),
+        feeCents: l.feeCents,
+        recordedAt: rfc3339(l.recordedAt),
+      })),
+    },
   };
 }
 
@@ -96,6 +126,8 @@ export interface FeeOverviewRowDto {
   feeStartsOn: string;
   freePeriod: 'all' | 'part' | 'none';
   totals: StatementTotalsDto;
+  tournamentFeePercent: string;
+  tournamentTotals: TournamentTotals;
 }
 
 export function toFeeOverviewRowDto(r: ClubFeeOverviewRow): FeeOverviewRowDto {
@@ -106,5 +138,7 @@ export function toFeeOverviewRowDto(r: ClubFeeOverviewRow): FeeOverviewRowDto {
     feeStartsOn: r.terms.feeStartsOn,
     freePeriod: r.freePeriod,
     totals: totalsDto(r.totals),
+    tournamentFeePercent: r.terms.tournamentFeePercent,
+    tournamentTotals: { ...r.tournamentTotals },
   };
 }

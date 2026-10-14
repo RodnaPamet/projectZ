@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server';
 
 import { getTournament, withdrawEntry } from '@/app-layer/usecases/club-tournaments';
 import { notifyEntryWithdrawn } from '@/app-layer/usecases/tournament-notifications';
+import { processDueRefunds } from '@/app-layer/usecases/tournament-payments';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ok } from '@/app/api/v1/_lib/envelope';
@@ -21,8 +22,10 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
   if (!ctx.userId) throw new UnauthorizedError('Authentication required');
-  const { tournamentId, wasConfirmed } = await withdrawEntry(ctx.userId, id);
-  await notifyEntryWithdrawn(id, wasConfirmed);
+  const { tournamentId, wasConfirmed, wasUnpaid } = await withdrawEntry(ctx.userId, id);
+  if (!wasUnpaid) await notifyEntryWithdrawn(id, wasConfirmed);
+  // A fee paid online and owed back (65): made now, or by the sweep.
+  await processDueRefunds({ entryIds: [id] });
   const t = await getTournament(tournamentId, ctx.userId);
   return ok(t ? toTournamentViewDto(t) : null);
 }

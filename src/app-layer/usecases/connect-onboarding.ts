@@ -148,3 +148,20 @@ export async function startConnectOnboarding(
 
   return { stripeAccountId, url, payoutsEnabled: venue.payoutsEnabled, created };
 }
+
+/**
+ * Where the club's Stripe account stands (#581), for its «Онлайн плащания»
+ * card: none yet, started but not yet paying out, or ready. `payoutsEnabled`
+ * is Stripe's word alone (`account.updated`), never a form being finished.
+ */
+export async function clubPayoutStatus(
+  db: PrismaClient,
+  tenantId: string,
+): Promise<'NONE' | 'PENDING' | 'READY'> {
+  const club = await db.venueOrg.findUnique({
+    where: { id: tenantId },
+    select: { stripeAccountId: true, payoutsEnabled: true },
+  });
+  if (!club?.stripeAccountId) return 'NONE';
+  return club.payoutsEnabled ? 'READY' : 'PENDING';
+}

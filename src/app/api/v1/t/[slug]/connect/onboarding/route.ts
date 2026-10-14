@@ -50,10 +50,12 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ slug: s
     startConnectOnboarding(db, {
       tenantId: ctx.tenantId!,
       actorUserId: ctx.userId!,
-      returnUrl: `${base}/t/${slug}/settings/payouts?onboarding=complete`,
-      // Stripe sends the admin here when a link has expired, so it must start
-      // a NEW onboarding rather than land on a page describing the old one.
-      refreshUrl: `${base}/t/${slug}/settings/payouts?onboarding=refresh`,
+      // «Отчети и такса», where the club's «Онлайн плащания» card is (#581):
+      // the page that started it. `/t/{slug}/settings/payouts` never existed.
+      returnUrl: `${base}/t/${slug}/admin/reports?onboarding=complete`,
+      // Stripe sends the admin here when a link has expired; the card offers
+      // a new link rather than describing the old one.
+      refreshUrl: `${base}/t/${slug}/admin/reports?onboarding=refresh`,
     }),
   );
 

@@ -32,7 +32,7 @@ export interface TournamentFormValue {
   entriesCloseAt: string | null;
   drawSize: number;
   entryFeeCents: number;
-  feePayment: 'AT_CLUB';
+  feePayment: 'AT_CLUB' | 'ONLINE';
   description: string | null;
 }
 
@@ -48,10 +48,12 @@ const iso = (v: string) => (v ? new Date(v).toISOString() : null);
 /**
  * A tournament's details (#579), new or changed: the name, the venue and its
  * sport, the format (decision 37), singles or doubles, the dates, the draw
- * size, the fee (paid at the club until #581), and a description.
+ * size, the fee, paid at the club or online (#581) when the club has
+ * connected its Stripe account, and a description.
  */
 export function TournamentForm({
   venues,
+  onlineFees,
   initial,
   busy,
   submitLabel,
@@ -64,6 +66,8 @@ export function TournamentForm({
     sports: string[];
     courts?: Array<{ id: string; name: string }>;
   }>;
+  /** The club can take entry fees online (#581): its Stripe account is connected. */
+  onlineFees: boolean;
   initial?: TournamentDto | null;
   busy: boolean;
   submitLabel: string;
@@ -88,6 +92,9 @@ export function TournamentForm({
   const [drawSize, setDrawSize] = useState(String(initial?.drawSize ?? 8));
   const [fee, setFee] = useState(initial ? String(initial.entryFeeCents / 100) : '0');
   const [description, setDescription] = useState(initial?.description ?? '');
+  const [feePayment, setFeePayment] = useState<'AT_CLUB' | 'ONLINE'>(
+    initial?.feePayment === 'ONLINE' ? 'ONLINE' : 'AT_CLUB',
+  );
   const [problem, setProblem] = useState<string | null>(null);
 
   // Americano and Mexicano: players sign up alone; partners rotate (60).
@@ -114,7 +121,8 @@ export function TournamentForm({
       entriesCloseAt: iso(entriesCloseAt),
       drawSize: size,
       entryFeeCents: cents,
-      feePayment: 'AT_CLUB',
+      // Online only with a fee to pay and a club that can take it (#581).
+      feePayment: cents > 0 && onlineFees ? feePayment : 'AT_CLUB',
       description: description.trim() || null,
     });
   }
@@ -252,6 +260,25 @@ export function TournamentForm({
           <Caption>{t('feeHint')}</Caption>
         </div>
       </div>
+
+      {Number(fee.replace(',', '.')) > 0 ? (
+        <div className="gap-tight flex flex-col">
+          <span className="text-content-default text-sm font-medium">{t('feePayment')}</span>
+          <ToggleGroup
+            options={[
+              { value: 'AT_CLUB', label: t('feePaymentAtClub') },
+              { value: 'ONLINE', label: t('feePaymentOnline'), disabled: !onlineFees },
+            ]}
+            selected={onlineFees ? feePayment : 'AT_CLUB'}
+            selectAction={(v) => setFeePayment(v === 'ONLINE' ? 'ONLINE' : 'AT_CLUB')}
+            ariaLabel={t('feePayment')}
+            size="sm"
+            className="justify-self-start"
+            data-testid="tournament-form-fee-payment"
+          />
+          <Caption>{onlineFees ? t('feePaymentHint') : t('feePaymentUnavailable')}</Caption>
+        </div>
+      ) : null}
 
       <div className="gap-tight flex flex-col">
         <Label htmlFor={field('description')}>{t('description')}</Label>

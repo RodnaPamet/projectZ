@@ -3,6 +3,7 @@ import { type NextRequest } from 'next/server';
 import { drawBodySchema } from '@/app-layer/schemas/tournaments';
 import { drawTournament, readDraw } from '@/app-layer/usecases/tournament-draw';
 import { notifyDrawMade } from '@/app-layer/usecases/tournament-notifications';
+import { processDueRefunds } from '@/app-layer/usecases/tournament-payments';
 import { parseJsonBody } from '@/app/api/v1/_lib/body';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
@@ -50,6 +51,8 @@ async function postHandler(req: NextRequest, { params }: Params) {
     body,
   );
   await notifyDrawMade(id, declined);
+  // The entries left without a place get a fee paid online back (64).
+  await processDueRefunds({ entryIds: declined });
   const draw = await readDraw(id, ctx.userId, { tenantId: ctx.tenantId });
   return ok(toDrawDto(draw!), { status: 201 });
 }

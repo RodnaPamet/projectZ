@@ -9,6 +9,13 @@ import {
   handleSubscriptionUpserted,
 } from '@/lib/billing/webhook-handlers';
 import { notifyAfterCommit, type LocalisedNotifyInput } from '@/app-layer/usecases/notifications';
+import { notifyEntryReceived } from '@/app-layer/usecases/tournament-notifications';
+import {
+  handleEntryCheckoutCompleted,
+  handleEntryCheckoutExpired,
+  processDueRefunds,
+  type EntryPaymentResult,
+} from '@/app-layer/usecases/tournament-payments';
 import { handlePaymentIntentSucceeded } from '@/lib/billing/booking-payment';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { WebhookSignatureError, verifyStripeWebhook } from '@/lib/stripe';
@@ -62,6 +69,8 @@ export async function POST(req: NextRequest) {
   // banner on the phone even if the transaction — including the event claim —
   // then rolled back.
   let pending: LocalisedNotifyInput | undefined;
+  // A tournament entry paid (#581): its notices and any refund, after the commit.
+  let afterCommit: EntryPaymentResult | undefined;
 
   const dispatch = async (db: PrismaClient): Promise<Record<string, unknown>> => {
     // Claim the event. `createMany` with skipDuplicates compiles to
@@ -85,6 +94,26 @@ export async function POST(req: NextRequest) {
         const { notify, ...body } = r;
         pending = notify;
         return { received: true, type: event.type, ...body };
+      }
+
+      // A tournament entry's fee, paid through hosted checkout (#581). The
+      // club and the partner are told, or a late payment refunded, after the
+      // commit. A subscription's checkout (mode `subscription`) is not this.
+      case 'checkout.session.completed': {
+        const r = await handleEntryCheckoutCompleted(
+          db,
+          event.data.object as Stripe.Checkout.Session,
+        );
+        if (r.handled && r.entryId) afterCommit = r;
+        return { received: true, type: event.type, handled: r.handled };
+      }
+
+      case 'checkout.session.expired': {
+        const r = await handleEntryCheckoutExpired(
+          db,
+          event.data.object as Stripe.Checkout.Session,
+        );
+        return { received: true, type: event.type, handled: r.handled };
       }
 
       // The ONLY thing that may set `payoutsEnabled`. See handleAccountUpdated.
@@ -130,6 +159,10 @@ export async function POST(req: NextRequest) {
   // this a non-2xx, because Stripe would retry an event we have already
   // claimed and the retry would be discarded as a duplicate.
   if (pending) await notifyAfterCommit(pending);
+  if (afterCommit?.entryId) {
+    if (afterCommit.received) await notifyEntryReceived(afterCommit.entryId);
+    if (afterCommit.refundDue) await processDueRefunds({ entryIds: [afterCommit.entryId] });
+  }
 
   return NextResponse.json(body);
 }

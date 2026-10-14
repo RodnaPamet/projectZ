@@ -14,7 +14,9 @@ import { getRequestId } from '@/lib/observability/context';
 /**
  * PUT /api/v1/platform/fees/{clubId}/terms — set a club's fee (#372).
  *
- * Body: `{ feePercent: "12.50", feeStartsOn: "2026-12-01", reason: "…" }`.
+ * Body: `{ feePercent: "12.50", feeStartsOn: "2026-12-01", tournamentFeePercent?: "5",
+ * reason: "…" }`. `tournamentFeePercent` (#581, decision 67) is the cut of entry
+ * fees paid online, 0–30; absent, it is left as it is.
  * `feePercent` is 0–30 with at most two decimals, as a string or a number;
  * `feeStartsOn` is the first calendar day at the club on which the fee is
  * charged (the free period runs until the day before).
@@ -51,6 +53,7 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ clubId:
   const body = (await req.json().catch(() => null)) as {
     feePercent?: unknown;
     feeStartsOn?: unknown;
+    tournamentFeePercent?: unknown;
     reason?: unknown;
   } | null;
 
@@ -78,6 +81,22 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ clubId:
     });
   }
 
+  // The tournament cut (#581, decision 67), when it is given.
+  const rawTournament = body?.tournamentFeePercent;
+  let tournamentFeeBps: number | undefined;
+  if (rawTournament !== undefined) {
+    const bps =
+      typeof rawTournament === 'string' || typeof rawTournament === 'number'
+        ? percentToBps(rawTournament)
+        : null;
+    if (bps === null) {
+      throw new ValidationError('`tournamentFeePercent` must be 0–30 with at most two decimals', {
+        field: 'tournamentFeePercent',
+      });
+    }
+    tournamentFeeBps = bps;
+  }
+
   const actorUserId = ctx.userId;
   const result = await asPlatformAdmin(
     ctx,
@@ -90,7 +109,7 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ clubId:
       subjectTenantId: clubId,
       // What was asked for. The values it replaced are in the club's own
       // audit row, written in the same transaction once they are read.
-      detailsJson: { feeBps, feeStartsOn },
+      detailsJson: { feeBps, feeStartsOn, tournamentFeeBps: tournamentFeeBps ?? null },
     },
     async (db) => {
       try {
@@ -98,6 +117,7 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ clubId:
           tenantId: clubId,
           feeBps,
           feeStartsOn,
+          tournamentFeeBps,
           actorUserId,
           reason: stated.reason,
         });

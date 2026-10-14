@@ -13,6 +13,8 @@ export const TOURNAMENT_ERRORS = [
   'TOURNAMENT_ENTRY_NOT_FOUND',
   'TOURNAMENT_ENTRY_NOT_ACTIVE',
   'TOURNAMENT_STATE',
+  // An entry's online fee (#581).
+  'TOURNAMENT_PAYMENT_NOT_DUE',
   // A league match's players placing it (#591, 63).
   'TOURNAMENT_MATCH_NOT_READY',
   'TOURNAMENT_MATCH_PLACED',

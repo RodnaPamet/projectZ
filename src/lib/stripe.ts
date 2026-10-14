@@ -53,14 +53,33 @@ export class WebhookSignatureError extends Error {
  * That protection is lost the moment anyone "just parses the body to check
  * something first".
  */
+/**
+ * ═══ TWO ENDPOINTS, TWO SECRETS ═══
+ *
+ * Stripe sends a connected account's events (a club's `account.updated`,
+ * which is what sets `payoutsEnabled`, #581) only to an endpoint that listens
+ * on connected accounts, and the platform's own (`checkout.session.*`,
+ * `payment_intent.succeeded`) only to one that does not. Each endpoint has its
+ * own signing secret. Both point at this route, so a payload is accepted when
+ * EITHER secret verifies it: `STRIPE_WEBHOOK_SECRET` (platform) or
+ * `STRIPE_CONNECT_WEBHOOK_SECRET` (connected accounts). Neither verifying is
+ * the same refusal as before.
+ */
 export function verifyStripeWebhook(rawBody: string, signatureHeader: string | null): Stripe.Event {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) throw new WebhookSignatureError('STRIPE_WEBHOOK_SECRET is not set');
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+  ].filter((s): s is string => !!s);
+  if (secrets.length === 0) throw new WebhookSignatureError('STRIPE_WEBHOOK_SECRET is not set');
   if (!signatureHeader) throw new WebhookSignatureError('missing stripe-signature header');
 
-  try {
-    return stripe().webhooks.constructEvent(rawBody, signatureHeader, secret);
-  } catch (e) {
-    throw new WebhookSignatureError(e instanceof Error ? e.message : 'unknown');
+  let last: unknown;
+  for (const secret of secrets) {
+    try {
+      return stripe().webhooks.constructEvent(rawBody, signatureHeader, secret);
+    } catch (e) {
+      last = e;
+    }
   }
+  throw new WebhookSignatureError(last instanceof Error ? last.message : 'unknown');
 }

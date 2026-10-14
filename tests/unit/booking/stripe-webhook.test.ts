@@ -39,6 +39,23 @@ describe('Stripe webhook verification', () => {
     expect(() => verifyStripeWebhook(payload, header)).toThrow(WebhookSignatureError);
   });
 
+  it('accepts the connected-accounts endpoint’s secret too, and still nothing else (#581)', () => {
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_test'; // pragma: allowlist secret
+    try {
+      // A made-up test secret, set just above. pragma: allowlist secret
+      const connect = signStripeWebhook(event, { secret: 'whsec_connect_test' }); // pragma: allowlist secret
+      expect(verifyStripeWebhook(connect.payload, connect.header).type).toBe(
+        'payment_intent.succeeded',
+      );
+      const forged = signStripeWebhook(event, { secret: 'whsec_attacker' });
+      expect(() => verifyStripeWebhook(forged.payload, forged.header)).toThrow(
+        WebhookSignatureError,
+      );
+    } finally {
+      delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    }
+  });
+
   it('REJECTS a missing signature header outright', () => {
     const { payload } = signStripeWebhook(event);
     expect(() => verifyStripeWebhook(payload, null)).toThrow(/missing stripe-signature/);

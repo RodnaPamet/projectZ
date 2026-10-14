@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { PlayerCardDto as PlayerCard } from '@/app/api/v1/_lib/messaging';
@@ -55,11 +56,17 @@ export function TournamentDetail({
   const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState<TournamentErrorKey | null>(null);
 
+  // Back from Stripe's checkout (#581): the webhook records the payment within
+  // seconds, so the entry is read again until it no longer waits for it.
+  const backFromCheckout = useSearchParams().get('paid') === '1';
   const { data, mutate } = useV1SWR<TournamentViewDto>(KEYS.tournament(seed.id), {
     fallbackData: seed,
+    refreshInterval: (latest) =>
+      backFromCheckout && latest?.myEntry?.payment?.state === 'DUE' ? 3000 : 0,
   });
   const x = data ?? seed;
   const mine = x.myEntry;
+  const payment = mine?.payment ?? null;
 
   const enter = useV1Mutation<{ partnerUserId: string | null }, TournamentViewDto>({
     url: () => V1.enterTournament(x.id),
@@ -69,6 +76,21 @@ export function TournamentDetail({
     url: ({ entryId }) => V1.withdrawTournamentEntry(entryId),
     method: 'DELETE',
   });
+  const checkout = useV1Mutation<{ entryId: string }, { checkoutUrl: string; dueBy: string }>({
+    url: ({ entryId }) => V1.tournamentEntryCheckout(entryId),
+  });
+
+  /** To Stripe's hosted page for the fee (#581, decision 64); back to this page after. */
+  async function pay(entryId: string) {
+    setError(null);
+    try {
+      const page = await checkout.trigger({ entryId });
+      if (page?.checkoutUrl) window.location.assign(page.checkoutUrl);
+    } catch (e) {
+      setError(tournamentErrorKey(e));
+      void mutate();
+    }
+  }
 
   async function signUp() {
     setError(null);
@@ -80,6 +102,10 @@ export function TournamentDetail({
       const next = await enter.trigger({ partnerUserId: partner?.userId ?? null });
       setPartner(null);
       if (next) void mutate(next, { revalidate: false });
+      // Paid on sign-up (64): straight on to the payment page.
+      if (next?.myEntry?.payment?.state === 'DUE' && next.myEntry.role === 'entrant') {
+        await pay(next.myEntry.id);
+      }
     } catch (e) {
       setError(tournamentErrorKey(e));
       void mutate();
@@ -195,6 +221,15 @@ export function TournamentDetail({
                   {t('waitingPosition', { place: mine.waitingPosition })}
                 </Caption>
               ) : null}
+              {payment ? (
+                <EntryPaymentLine
+                  payment={payment}
+                  entrant={mine.role === 'entrant'}
+                  backFromCheckout={backFromCheckout}
+                  busy={checkout.isMutating}
+                  onPay={() => void pay(mine.id)}
+                />
+              ) : null}
               {mine.partner ? (
                 <Caption>
                   {t(mine.role === 'entrant' ? 'withPartner' : 'namedBy', {
@@ -290,6 +325,62 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex items-start justify-between gap-4 px-4 py-3">
       <dt className="text-content-muted">{label}</dt>
       <dd className="text-content-default text-right">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * An entry's online fee (#581): to pay, with the deadline, while it waits; then
+ * paid, refund on its way, or refunded.
+ */
+function EntryPaymentLine({
+  payment,
+  entrant,
+  backFromCheckout,
+  busy,
+  onPay,
+}: {
+  payment: NonNullable<NonNullable<TournamentViewDto['myEntry']>['payment']>;
+  entrant: boolean;
+  backFromCheckout: boolean;
+  busy: boolean;
+  onPay: () => void;
+}) {
+  const t = useTranslations('tournaments.payment');
+  const format = useFormatter();
+  if (payment.state !== 'DUE') {
+    const said = {
+      PAID: t('PAID'),
+      REFUND_DUE: t('REFUND_DUE'),
+      REFUNDED: t('REFUNDED'),
+    } as const;
+    return <Caption data-testid="tournament-entry-payment">{said[payment.state]}</Caption>;
+  }
+  if (backFromCheckout) {
+    return (
+      <InlineNotice variant="info" data-testid="tournament-entry-payment">
+        {t('processing')}
+      </InlineNotice>
+    );
+  }
+  const by = payment.dueBy
+    ? format.dateTime(new Date(payment.dueBy), { hour: '2-digit', minute: '2-digit' })
+    : null;
+  return (
+    <div className="gap-tight flex flex-col" data-testid="tournament-entry-payment">
+      <Caption>{entrant ? t('due', { by: by ?? '' }) : t('dueByEntrant')}</Caption>
+      {entrant ? (
+        <Button
+          type="button"
+          className="self-start"
+          loading={busy}
+          disabled={busy}
+          onClick={onPay}
+          data-testid="tournament-pay"
+        >
+          {t('pay')}
+        </Button>
+      ) : null}
     </div>
   );
 }

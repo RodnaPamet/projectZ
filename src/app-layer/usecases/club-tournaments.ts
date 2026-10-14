@@ -12,6 +12,12 @@ import { blockedEitherWay, isLivePlayer } from '@/app-layer/usecases/messaging-d
 import { walkoversForWithdrawn } from '@/app-layer/usecases/tournament-draw';
 import { requirePlayerAccount } from '@/app-layer/usecases/booking-players';
 import { assertPhoneConfirmed } from '@/app-layer/usecases/phone-verification';
+import {
+  awaitingPayment,
+  HOLDS_PLACE,
+  markRefundDue,
+  onlineFee,
+} from '@/app-layer/usecases/tournament-payments';
 import { publicVenueFilter } from '@/app-layer/repositories/public-venue';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 import { AppError, RateLimitedError } from '@/lib/errors/types';
@@ -149,6 +155,29 @@ export interface MyTournamentEntry {
   /** Where a pending entry stands past the draw size: 1 = next in. Null otherwise. */
   waitingPosition: number | null;
   createdAt: Date;
+  /** The fee paid online (#581), or owed: null when nothing is paid through playerz. */
+  payment: EntryPayment | null;
+}
+
+/** An entry's online fee (#581; decisions 64, 65). */
+export interface EntryPayment {
+  /** DUE: not paid yet, until `dueBy`. PAID. REFUND_DUE: owed back. REFUNDED. */
+  state: 'DUE' | 'PAID' | 'REFUND_DUE' | 'REFUNDED';
+  dueBy: Date | null;
+  paidCents: number | null;
+}
+
+function paymentOf(e: {
+  paymentDueBy: Date | null;
+  paidAt: Date | null;
+  paidCents: number | null;
+  refundDueAt: Date | null;
+  refundedAt: Date | null;
+}): EntryPayment | null {
+  if (awaitingPayment(e)) return { state: 'DUE', dueBy: e.paymentDueBy, paidCents: null };
+  if (!e.paidAt) return null;
+  const state = e.refundedAt ? 'REFUNDED' : e.refundDueAt ? 'REFUND_DUE' : 'PAID';
+  return { state, dueBy: null, paidCents: e.paidCents };
 }
 
 export interface TournamentView extends TournamentSummary {
@@ -166,6 +195,8 @@ export interface ClubEntryRow {
   withdrawnAt: Date | null;
   /** A pending entry past the draw size's free places: 1 = next in. */
   waitingPosition: number | null;
+  /** The fee paid online (#581); null when it is paid at the club, or free. */
+  payment: EntryPayment | null;
 }
 
 export interface ClubTournamentDetail extends TournamentSummary {
@@ -220,6 +251,8 @@ async function summarise(
         tenantId: { in: tenantIds },
         tournamentId: { in: ids },
         status: { in: ['PENDING', 'CONFIRMED'] },
+        // An entry awaiting its online fee holds no place (#581).
+        ...HOLDS_PLACE,
       },
       _count: { _all: true },
     }),
@@ -396,6 +429,11 @@ export async function getTournament(
           playerUserId: true,
           partnerUserId: true,
           createdAt: true,
+          paymentDueBy: true,
+          paidAt: true,
+          paidCents: true,
+          refundDueAt: true,
+          refundedAt: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -405,6 +443,7 @@ export async function getTournament(
             tenantId: t.tenantId,
             tournamentId: id,
             status: { in: ['PENDING', 'CONFIRMED'] },
+            ...HOLDS_PLACE,
           },
           select: { id: true, status: true, createdAt: true },
           take: DRAW_SIZE_MAX * 4,
@@ -419,6 +458,7 @@ export async function getTournament(
           partner: otherId ? person(otherId) : null,
           waitingPosition: waitingPositions(t.maxPlayers, entries).get(mine.id) ?? null,
           createdAt: mine.createdAt,
+          payment: paymentOf(mine),
         };
       }
     }
@@ -474,12 +514,30 @@ function check(input: TournamentInput, now: Date): void {
   if (!Number.isInteger(input.entryFeeCents) || input.entryFeeCents < 0) {
     throw invalid('entryFeeCents', 'The fee is a whole number of cents, 0 or more.');
   }
-  if (input.feePayment === 'ONLINE') {
-    // #581: Stripe Connect, the owner's keys and each club's onboarding.
+  if (input.feePayment === 'ONLINE' && input.entryFeeCents <= 0) {
+    throw invalid('feePayment', 'A free tournament has nothing to pay online.');
+  }
+}
+
+/**
+ * Online fees (#581) need the club's Stripe account, connected and paying
+ * out: the money is the club's (41).
+ */
+async function onlineFeeAllowed(
+  db: PrismaClient,
+  tenantId: string,
+  input: Pick<TournamentInput, 'feePayment'>,
+): Promise<void> {
+  if (input.feePayment !== 'ONLINE') return;
+  const club = await db.venueOrg.findUnique({
+    where: { id: tenantId },
+    select: { stripeAccountId: true, payoutsEnabled: true },
+  });
+  if (!club?.stripeAccountId || !club.payoutsEnabled) {
     throw new TournamentError(
       'TOURNAMENT_ONLINE_FEE_UNAVAILABLE',
       409,
-      'Paying the entry fee online is not available yet: it is paid at the club.',
+      'The club has not finished connecting its Stripe account: the fee is paid at the club until it does.',
     );
   }
 }
@@ -501,6 +559,7 @@ export async function createTournament(
   check(input, now);
   return runInTenantContext(actor.tenantId, async (db) => {
     await venueOfClub(db, actor.tenantId, input.venueId);
+    await onlineFeeAllowed(db, actor.tenantId, input);
     return db.tournament.create({
       data: {
         tenantId: actor.tenantId,
@@ -562,6 +621,7 @@ export async function updateTournament(
       throw invalid('drawSize', 'The draw cannot be smaller than the entries confirmed.');
     }
     await venueOfClub(db, actor.tenantId, input.venueId);
+    await onlineFeeAllowed(db, actor.tenantId, input);
     await db.tournament.update({
       where: { id },
       data: {
@@ -594,6 +654,8 @@ async function lockTournament(
   maxPlayers: number;
   startsAt: Date;
   entriesCloseAt: Date | null;
+  entryFeeCents: number;
+  feePayment: string;
 }> {
   const rows = await db.$queryRaw<
     Array<{
@@ -604,8 +666,11 @@ async function lockTournament(
       maxPlayers: number;
       startsAt: Date;
       entriesCloseAt: Date | null;
+      entryFeeCents: number;
+      feePayment: string;
     }>
-  >`SELECT "id", "status", "format", "teamSize", "maxPlayers", "startsAt", "entriesCloseAt"
+  >`SELECT "id", "status", "format", "teamSize", "maxPlayers", "startsAt", "entriesCloseAt",
+           "entryFeeCents", "feePayment"::text AS "feePayment"
       FROM "tournament" WHERE "id" = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
   const t = rows[0];
   if (!t) throw notFound();
@@ -646,11 +711,30 @@ export async function cancelTournament(
         tournamentId: id,
         status: { in: ['PENDING', 'CONFIRMED'] },
       },
-      select: { id: true },
+      select: { id: true, paymentDueBy: true, paidAt: true },
       take: DRAW_SIZE_MAX * 4,
     });
     await db.tournament.update({ where: { id }, data: { status: 'CANCELLED' } });
-    return { entryIds: live.map((e) => e.id) };
+    // Every fee paid online comes back (64).
+    await markRefundDue(
+      db,
+      actor.tenantId,
+      live.map((e) => e.id),
+      new Date(),
+    );
+    // Those still awaiting payment were never told anything: nothing to tell them now.
+    return { entryIds: live.filter((e) => !awaitingPayment(e)).map((e) => e.id) };
+  });
+}
+
+/** Whether the club can take entry fees online (#581): its Stripe account connected and paying out. */
+export async function clubTakesOnlineFees(tenantId: string): Promise<boolean> {
+  return runInTenantContext(tenantId, async (db) => {
+    const club = await db.venueOrg.findUnique({
+      where: { id: tenantId },
+      select: { stripeAccountId: true, payoutsEnabled: true },
+    });
+    return !!club?.stripeAccountId && club.payoutsEnabled;
   });
 }
 
@@ -682,7 +766,8 @@ export async function getClubTournament(
     if (!t) return null;
     const [summary] = await summarise(db, [t], now);
     const entries = await db.tournamentEntry.findMany({
-      where: { tenantId, tournamentId: id },
+      // An entry awaiting its online fee is not the club's yet (#581).
+      where: { tenantId, tournamentId: id, ...HOLDS_PLACE },
       select: {
         id: true,
         status: true,
@@ -691,6 +776,11 @@ export async function getClubTournament(
         createdAt: true,
         decidedAt: true,
         withdrawnAt: true,
+        paymentDueBy: true,
+        paidAt: true,
+        paidCents: true,
+        refundDueAt: true,
+        refundedAt: true,
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: DRAW_SIZE_MAX * 4,
@@ -720,6 +810,7 @@ export async function getClubTournament(
       decidedAt: e.decidedAt,
       withdrawnAt: e.withdrawnAt,
       waitingPosition: waiting.get(e.id) ?? null,
+      payment: paymentOf(e),
     })),
   };
 }
@@ -736,7 +827,8 @@ export async function decideEntry(
 ): Promise<{ tournamentId: string; status: TournamentEntryStatus }> {
   return runInTenantContext(actor.tenantId, async (db) => {
     const entry = await db.tournamentEntry.findFirst({
-      where: { id: entryId, tenantId: actor.tenantId },
+      // One awaiting its online fee is not the club's to decide yet (#581).
+      where: { id: entryId, tenantId: actor.tenantId, ...HOLDS_PLACE },
       select: { id: true, tournamentId: true, status: true },
     });
     if (!entry) throw new TournamentError('TOURNAMENT_ENTRY_NOT_FOUND', 404, 'Entry not found.');
@@ -772,6 +864,8 @@ export async function decideEntry(
       where: { id: entryId },
       data: { status, decidedAt: now, decidedByUserId: actor.userId },
     });
+    // Declined, a fee paid online comes back (64).
+    if (status === 'DECLINED') await markRefundDue(db, actor.tenantId, [entryId], now);
     return { tournamentId: t.id, status };
   });
 }
@@ -786,7 +880,7 @@ export async function decideEntry(
 export async function enterTournament(
   input: { userId: string; tournamentId: string; partnerUserId?: string | null },
   now: Date = new Date(),
-): Promise<{ entryId: string; tenantId: string }> {
+): Promise<{ entryId: string; tenantId: string; needsPayment: boolean }> {
   if (!(await isLivePlayer(input.userId))) {
     await runAsSuperuser((db) => requirePlayerAccount(db, input.userId));
     throw new TournamentError('PLAYER_ACCOUNT_REQUIRED', 403, 'Entering needs a player account.');
@@ -877,8 +971,18 @@ export async function enterTournament(
     // at the back of the queue; a past one as someone's partner is left as it is.
     const prior = await db.tournamentEntry.findUnique({
       where: { tournamentId_playerUserId: { tournamentId: t.id, playerUserId: input.userId } },
-      select: { id: true },
+      select: { id: true, refundDueAt: true, refundedAt: true },
     });
+    // The row is reused, so a refund still owed on it is made first (#581).
+    if (prior?.refundDueAt && !prior.refundedAt) {
+      throw new TournamentError(
+        'TOURNAMENT_STATE',
+        409,
+        'Your last entry fee is still being refunded. Try again in a few minutes.',
+      );
+    }
+    // Paid on sign-up (64): the entry awaits its fee, and holds no place until paid.
+    const fee = onlineFee({ feePayment: t.feePayment, entryFeeCents: t.entryFeeCents });
     // The partner column is unique too: free it from an entry no longer live.
     if (partnerId) {
       await db.tournamentEntry.updateMany({
@@ -899,6 +1003,16 @@ export async function enterTournament(
       decidedByUserId: null,
       withdrawnAt: null,
       withdrawnByUserId: null,
+      // A fresh payment, if there is one: openEntryCheckout sets the page and its deadline.
+      paymentDueBy: fee ? new Date(now.getTime() + 31 * 60_000) : null,
+      paidAt: null,
+      paidCents: null,
+      stripeCheckoutSessionId: null,
+      stripePaymentIntentId: null,
+      refundDueAt: null,
+      refundedAt: null,
+      refundedCents: null,
+      stripeRefundId: null,
     };
     const row = prior
       ? await db.tournamentEntry.update({ where: { id: prior.id }, data, select: { id: true } })
@@ -911,9 +1025,9 @@ export async function enterTournament(
           },
           select: { id: true },
         });
-    return row.id;
+    return { id: row.id, needsPayment: fee !== null };
   });
-  return { entryId, tenantId: found.tenantId };
+  return { entryId: entryId.id, tenantId: found.tenantId, needsPayment: entryId.needsPayment };
 }
 
 /**
@@ -924,7 +1038,7 @@ export async function withdrawEntry(
   userId: string,
   entryId: string,
   now: Date = new Date(),
-): Promise<{ tenantId: string; tournamentId: string; wasConfirmed: boolean }> {
+): Promise<{ tenantId: string; tournamentId: string; wasConfirmed: boolean; wasUnpaid: boolean }> {
   // guardrail-allow: cross-tenant — one entry by id, to find its club; it is
   // matched to the caller before anything else is read.
   const found = await runAsSuperuser((db) =>
@@ -943,7 +1057,7 @@ export async function withdrawEntry(
     }
     const entry = await db.tournamentEntry.findFirstOrThrow({
       where: { id: entryId, tenantId: found.tenantId },
-      select: { status: true },
+      select: { status: true, paymentDueBy: true, paidAt: true },
     });
     if (entry.status !== 'PENDING' && entry.status !== 'CONFIRMED') {
       throw new TournamentError('TOURNAMENT_ENTRY_NOT_ACTIVE', 409, 'This entry is not live.');
@@ -952,6 +1066,10 @@ export async function withdrawEntry(
       where: { id: entryId },
       data: { status: 'WITHDRAWN', withdrawnAt: now, withdrawnByUserId: userId },
     });
+    // A fee paid online comes back in full until entries close, nothing after (65).
+    if (now < (t.entriesCloseAt ?? t.startsAt)) {
+      await markRefundDue(db, found.tenantId, [entryId], now);
+    }
     // Under way (59): played results stand; its other matches are walkovers.
     if (t.status === 'IN_PROGRESS') {
       await walkoversForWithdrawn(db, found.tenantId, entryId, userId, now);
@@ -960,6 +1078,8 @@ export async function withdrawEntry(
       tenantId: found.tenantId,
       tournamentId: found.tournamentId,
       wasConfirmed: entry.status === 'CONFIRMED',
+      // Nobody was told of an entry never paid for: nobody to tell now.
+      wasUnpaid: awaitingPayment(entry),
     };
   });
 }

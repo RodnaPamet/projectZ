@@ -477,6 +477,12 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
       'The platform fee ledger: append-only, and it names no person at all, only the booking, venue and court.',
   },
   {
+    model: 'TournamentFeeLine',
+    action: 'keep',
+    reason:
+      'playerz’s cut of entry fees paid online (#581): append-only, and it names no person, only the entry and the tournament.',
+  },
+  {
     model: 'CreditLedgerEntry',
     field: 'userId',
     action: 'keep',
@@ -965,6 +971,7 @@ export const NOT_PERSONAL: Readonly<Record<string, string>> = {
   'TenantCustomRole.name': 'a club’s role label',
   'ClubFeeLine.venueName': 'a venue’s name on the fee ledger',
   'ClubFeeLine.courtName': 'a court’s name on the fee ledger',
+  'TournamentFeeLine.tournamentName': 'a tournament’s name on the fee ledger',
   'Achievement.name': 'a badge’s name',
   'Tournament.name': 'a tournament’s name',
 };

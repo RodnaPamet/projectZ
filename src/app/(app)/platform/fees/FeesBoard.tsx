@@ -134,6 +134,9 @@ export function FeesBoard({
           <span className="text-content-muted text-sm">
             {t('chargedFrom', { date: day(row.original.feeStartsOn) })}
           </span>
+          <span className="text-content-muted text-sm">
+            {t('tournamentRate', { rate: percent(row.original.tournamentFeePercent) })}
+          </span>
         </span>
       ),
     },
@@ -309,12 +312,13 @@ function TermsForm({
   const ids = useId();
   const [percentText, setPercentText] = useState(row.feePercent);
   const [startsOn, setStartsOn] = useState(row.feeStartsOn);
+  const [tournamentText, setTournamentText] = useState(row.tournamentFeePercent);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [stepUp, setStepUp] = useState(false);
 
   const save = useV1Mutation<
-    { feePercent: string; feeStartsOn: string; reason: string },
+    { feePercent: string; feeStartsOn: string; tournamentFeePercent: string; reason: string },
     { changed: boolean }
   >({
     url: () => V1.clubFeeTerms(row.club.id),
@@ -323,15 +327,22 @@ function TermsForm({
   });
 
   const percent = percentText.trim().replace(',', '.');
+  const tournamentPercent = tournamentText.trim().replace(',', '.');
   const ready =
     /^\d{1,2}(\.\d{1,2})?$/.test(percent) &&
+    /^\d{1,2}(\.\d{1,2})?$/.test(tournamentPercent) &&
     /^\d{4}-\d{2}-\d{2}$/.test(startsOn) &&
     reason.trim().length >= MIN_REASON;
 
   async function submit() {
     setError(null);
     try {
-      await save.trigger({ feePercent: percent, feeStartsOn: startsOn, reason: reason.trim() });
+      await save.trigger({
+        feePercent: percent,
+        feeStartsOn: startsOn,
+        tournamentFeePercent: tournamentPercent,
+        reason: reason.trim(),
+      });
       onSaved();
     } catch (e) {
       const code = knownCode(e);
@@ -368,6 +379,19 @@ function TermsForm({
               type="date"
               value={startsOn}
               onChange={(e) => setStartsOn(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label={t('terms.tournamentPercent')}
+            description={t('terms.tournamentPercentHint')}
+          >
+            <Input
+              id={`${ids}-tournament`}
+              value={tournamentText}
+              onChange={(e) => setTournamentText(e.target.value)}
+              inputMode="decimal"
+              autoComplete="off"
+              data-testid="fee-terms-tournament"
             />
           </FormField>
         </div>

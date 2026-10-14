@@ -45,6 +45,7 @@ export function AdminTournamentDetail({
   slug,
   seed,
   venues,
+  onlineFees,
 }: {
   slug: string;
   seed: ClubTournamentDto;
@@ -54,6 +55,8 @@ export function AdminTournamentDetail({
     sports: string[];
     courts: Array<{ id: string; name: string }>;
   }>;
+  /** Whether the club can take entry fees online (#581). */
+  onlineFees: boolean;
 }) {
   const t = useTranslations('admin.tournaments');
   const tT = useTranslations('tournaments');
@@ -120,6 +123,23 @@ export function AdminTournamentDetail({
       <StatusBadge variant={ENTRY_TONE[e.status]} icon={null}>
         {tT(`entry.${e.status}`)}
       </StatusBadge>
+      {/* The fee paid online (#581), and a refund on its way or made. */}
+      {e.payment ? (
+        <StatusBadge
+          variant={e.payment.state === 'PAID' ? 'success' : 'neutral'}
+          icon={null}
+          data-testid="admin-tournament-entry-paid"
+        >
+          {
+            {
+              DUE: tT('payment.admin.DUE'),
+              PAID: tT('payment.admin.PAID'),
+              REFUND_DUE: tT('payment.admin.REFUND_DUE'),
+              REFUNDED: tT('payment.admin.REFUNDED'),
+            }[e.payment.state]
+          }
+        </StatusBadge>
+      ) : null}
       {x.status === 'IN_PROGRESS' && e.status === 'CONFIRMED' ? (
         <Button
           type="button"
@@ -264,6 +284,7 @@ export function AdminTournamentDetail({
           <Sheet.Body>
             <TournamentForm
               venues={venues}
+              onlineFees={onlineFees}
               initial={x}
               busy={update.isMutating}
               submitLabel={t('save')}

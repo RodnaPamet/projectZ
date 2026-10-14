@@ -353,6 +353,11 @@ export const V1 = {
   /** `POST`: the other side accepts the proposed time (#591, 63). */
   acceptMatchProposal: (matchId: string) =>
     `${BASE}/me/tournament-matches/${seg(matchId)}/proposal/accept`,
+  /** `POST`: start or resume the club's Stripe onboarding (#581): `{ onboardingUrl, … }`. */
+  connectOnboarding: (slug: string) => `${BASE}/t/${seg(slug)}/connect/onboarding`,
+  /** `POST`: a hosted checkout page for an entry's online fee (#581): `{ checkoutUrl, dueBy }`. */
+  tournamentEntryCheckout: (entryId: string) =>
+    `${BASE}/me/tournament-entries/${seg(entryId)}/checkout`,
   /** `POST`: the club withdraws an entry from a tournament under way (#580). */
   withdrawTournamentEntryAsClub: (slug: string, entryId: string) =>
     `${BASE}/t/${seg(slug)}/admin/tournament-entries/${seg(entryId)}/withdraw`,

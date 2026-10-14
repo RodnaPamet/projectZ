@@ -17296,6 +17296,88 @@
           }
         }
       }
+    },
+    "/me/tournament-entries/{id}/checkout": {
+      "post": {
+        "tags": ["Tournaments"],
+        "operationId": "openTournamentEntryCheckout",
+        "summary": "A payment page for an entry's online fee",
+        "description": "A page on Stripe's hosted checkout for an entry whose fee is paid online, on sign-up (#581, decision 64). Only the entrant pays. A new page each time, with a new deadline (31 minutes): until it is paid the club does not see the entry and it holds no place, and past it the entry lapses. Stripe sends the player back to the tournament's page with `?paid=1` (or `?paid=0`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": ["checkoutUrl", "dueBy"],
+                      "properties": {
+                        "checkoutUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "dueBy": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_PAYMENT_NOT_DUE: not the caller's entry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_PAYMENT_NOT_DUE: nothing to pay; TOURNAMENT_ONLINE_FEE_UNAVAILABLE: the club cannot take payments online now.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -21247,7 +21329,9 @@
           "totals",
           "lines",
           "linesTruncated",
-          "courtNouns"
+          "courtNouns",
+          "tournamentFeePercent",
+          "tournaments"
         ],
         "properties": {
           "club": {
@@ -21350,6 +21434,25 @@
               "courtPitchTrackTableSeat"
             ],
             "description": "What the court column is called (P51, #454, #477): the club's one noun when all its resources are of one kind (`court` \"Корт\", `pitch` \"Игрище\", `track` \"Писта\", `table` \"Маса\": table tennis and chess, `seat` \"Място\": esports), or the nouns it holds named in the order court, pitch, track, table, seat (`courtTable`: \"Корт / маса\"). Treat an unknown value as `court`."
+          },
+          "tournamentFeePercent": {
+            "type": "string",
+            "description": "playerz's cut of entry fees paid online (#581; 66, 67), today's terms. No free period."
+          },
+          "tournaments": {
+            "type": "object",
+            "required": ["totals", "lines"],
+            "properties": {
+              "totals": {
+                "$ref": "#/components/schemas/TournamentFeeTotals"
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TournamentStatementLine"
+                }
+              }
+            }
           }
         }
       },
@@ -21366,7 +21469,16 @@
       "PlatformFeeOverviewRow": {
         "type": "object",
         "title": "PlatformFeeOverviewRow",
-        "required": ["club", "currency", "feePercent", "feeStartsOn", "freePeriod", "totals"],
+        "required": [
+          "club",
+          "currency",
+          "feePercent",
+          "feeStartsOn",
+          "freePeriod",
+          "totals",
+          "tournamentFeePercent",
+          "tournamentTotals"
+        ],
         "properties": {
           "club": {
             "type": "object",
@@ -21407,6 +21519,12 @@
           },
           "totals": {
             "$ref": "#/components/schemas/StatementTotals"
+          },
+          "tournamentFeePercent": {
+            "type": "string"
+          },
+          "tournamentTotals": {
+            "$ref": "#/components/schemas/TournamentFeeTotals"
           }
         }
       },
@@ -21462,13 +21580,23 @@
             "minLength": 12,
             "maxLength": 500,
             "description": "Recorded in both audit rows."
+          },
+          "tournamentFeePercent": {
+            "type": ["string", "number"],
+            "description": "The cut of entry fees paid online (#581, 67), 0–30 with at most two decimals. Absent: left as it is."
           }
         }
       },
       "ClubFeeTerms": {
         "type": "object",
         "title": "ClubFeeTerms",
-        "required": ["feeBps", "feePercent", "feeStartsOn"],
+        "required": [
+          "feeBps",
+          "feePercent",
+          "feeStartsOn",
+          "tournamentFeeBps",
+          "tournamentFeePercent"
+        ],
         "properties": {
           "feeBps": {
             "type": "integer",
@@ -21483,6 +21611,12 @@
             "type": "string",
             "format": "date",
             "description": "The first day the fee is charged, at the club. Bookings before it are in the free period."
+          },
+          "tournamentFeeBps": {
+            "type": "integer"
+          },
+          "tournamentFeePercent": {
+            "type": "string"
           }
         }
       },
@@ -26280,7 +26414,7 @@
       },
       "MyTournamentEntry": {
         "type": "object",
-        "required": ["id", "status", "role", "partner", "waitingPosition", "createdAt"],
+        "required": ["id", "status", "role", "partner", "waitingPosition", "createdAt", "payment"],
         "properties": {
           "id": {
             "type": "string"
@@ -26311,6 +26445,17 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "payment": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EntryPayment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The fee paid online (#581); null when it is paid at the club, or free."
           }
         }
       },
@@ -26348,7 +26493,8 @@
           "createdAt",
           "decidedAt",
           "withdrawnAt",
-          "waitingPosition"
+          "waitingPosition",
+          "payment"
         ],
         "properties": {
           "id": {
@@ -26385,6 +26531,17 @@
           },
           "waitingPosition": {
             "type": ["integer", "null"]
+          },
+          "payment": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EntryPayment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The fee paid online (#581); null when it is paid at the club, or free."
           }
         }
       },
@@ -26991,6 +27148,88 @@
             "type": "integer",
             "minimum": 15,
             "maximum": 480
+          }
+        }
+      },
+      "EntryPayment": {
+        "type": "object",
+        "title": "EntryPayment",
+        "description": "An entry's fee paid online (#581; decisions 64, 65). DUE: not paid yet, until `dueBy`: the club does not see the entry and it holds no place; `POST /me/tournament-entries/{id}/checkout` opens the payment page. PAID. REFUND_DUE: owed back (declined, no place, cancelled, or withdrawn before entries close), on its way. REFUNDED.",
+        "required": ["state", "dueBy", "paidCents"],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["DUE", "PAID", "REFUND_DUE", "REFUNDED"]
+          },
+          "dueBy": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "paidCents": {
+            "type": ["integer", "null"]
+          }
+        }
+      },
+      "TournamentFeeTotals": {
+        "type": "object",
+        "title": "TournamentFeeTotals",
+        "required": ["entriesPaid", "revenueCents", "feeCents", "lineCount"],
+        "properties": {
+          "entriesPaid": {
+            "type": "integer",
+            "description": "Fees paid online, net of refunds."
+          },
+          "revenueCents": {
+            "type": "integer"
+          },
+          "feeCents": {
+            "type": "integer"
+          },
+          "lineCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "TournamentStatementLine": {
+        "type": "object",
+        "title": "TournamentStatementLine",
+        "description": "One entry fee paid online, or its refund (#581): playerz's cut at the rate it was charged.",
+        "required": [
+          "id",
+          "kind",
+          "entryId",
+          "tournamentName",
+          "priceCents",
+          "feePercent",
+          "feeCents",
+          "recordedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["CHARGE", "REVERSAL"]
+          },
+          "entryId": {
+            "type": "string"
+          },
+          "tournamentName": {
+            "type": "string"
+          },
+          "priceCents": {
+            "type": "integer"
+          },
+          "feePercent": {
+            "type": "string"
+          },
+          "feeCents": {
+            "type": "integer"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

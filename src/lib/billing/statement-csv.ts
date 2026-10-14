@@ -148,5 +148,31 @@ export async function statementCsv(statement: ClubStatement): Promise<string> {
     ].join(SEPARATOR),
   );
 
-  return BOM + [header.join(SEPARATOR), ...rows].join(EOL) + EOL;
+  // Entry fees paid online (#581): their own block, after a blank row.
+  const tournamentRows: string[] = [];
+  if (statement.tournaments.lines.length > 0) {
+    const [tDate, tName, tPrice, tEntry] = await Promise.all([
+      t('date'),
+      t('tournament'),
+      t('entryFee', { currency }),
+      t('entry'),
+    ]);
+    tournamentRows.push(
+      '',
+      [tDate, tName, kind, tPrice, rate, fee, tEntry].map(textCell).join(SEPARATOR),
+      ...statement.tournaments.lines.map((l) =>
+        [
+          formatInTimeZone(l.recordedAt, FEE_TIME_ZONE, 'dd.MM.yyyy'),
+          textCell(l.tournamentName),
+          textCell(l.kind === 'CHARGE' ? charge : reversal),
+          centsCell(l.priceCents),
+          percentCell(l.feeBps),
+          centsCell(l.feeCents),
+          textCell(l.entryId),
+        ].join(SEPARATOR),
+      ),
+    );
+  }
+
+  return BOM + [header.join(SEPARATOR), ...rows, ...tournamentRows].join(EOL) + EOL;
 }
