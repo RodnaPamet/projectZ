@@ -199,8 +199,9 @@ describe('a coach asks to teach at a venue', () => {
       startedBy: 'COACH',
       club: { name: 'Club A', slug: clubA.tenantSlug },
       venue: { id: venueA.venueId, name: 'Venue A' },
-      // The seeded court: an hour to three, in half hours.
-      lengthOptions: [60, 90, 120, 150, 180],
+      // The seeded court: booked by the hour, for up to three. Whole hours,
+      // though a booking may start on the half hour.
+      lengthOptions: [60, 120, 180],
       hourlyRateCents: null,
       lessonMinutes: [],
       hours: [],
@@ -511,14 +512,14 @@ describe('what the coach sets at a venue', () => {
     const res = await setTerms(c.bearer, c.linkId, {
       hourlyRateCents: 4000,
       groupRateCents: 6000,
-      lessonMinutes: [90, 60],
+      lessonMinutes: [120, 60],
       cancelCutoffHours: 12,
     });
     expect(res.status).toBe(200);
     expect(linksOf(res)[0]).toMatchObject({
       hourlyRateCents: 4000,
       groupRateCents: 6000,
-      lessonMinutes: [60, 90],
+      lessonMinutes: [60, 120],
       cancelCutoffHours: 12,
       // Still no hours.
       missing: ['hours'],
@@ -532,13 +533,13 @@ describe('what the coach sets at a venue', () => {
     expect(changes).toHaveLength(1);
     expect(changes[0]).toMatchObject({
       actorUserId: c.userId,
-      detailsJson: { after: { hourlyRateCents: 4000, lessonMinutes: [60, 90] } },
+      detailsJson: { after: { hourlyRateCents: 4000, lessonMinutes: [60, 120] } },
     });
     // The same again changes nothing and logs nothing.
     await setTerms(c.bearer, c.linkId, {
       hourlyRateCents: 4000,
       groupRateCents: 6000,
-      lessonMinutes: [60, 90],
+      lessonMinutes: [60, 120],
       cancelCutoffHours: 12,
     });
     expect(
@@ -577,7 +578,7 @@ describe('what the coach sets at a venue', () => {
         },
       }),
     );
-    expect(linksOf(await myLinks(c.bearer))[0]!.lengthOptions).toEqual([45, 60, 90, 120, 150, 180]);
+    expect(linksOf(await myLinks(c.bearer))[0]!.lengthOptions).toEqual([45, 60, 120, 180]);
     expect(
       (await setTerms(c.bearer, c.linkId, { hourlyRateCents: 4000, lessonMinutes: [45] })).status,
     ).toBe(200);
@@ -594,6 +595,13 @@ describe('what the coach sets at a venue', () => {
       'no length',
       { hourlyRateCents: 4000, lessonMinutes: [] },
       { field: 'lessonMinutes', reason: 'REQUIRED' },
+    ],
+    // The seeded court is booked by the hour: an hour and a half is a length
+    // no booking there can have, though the court's start grid is 30 minutes.
+    [
+      'a length that fits the start grid but not the court’s units',
+      { hourlyRateCents: 4000, lessonMinutes: [90] },
+      { field: 'lessonMinutes', reason: 'NOT_A_COURT_LENGTH' },
     ],
     [
       'a cutoff over a week',

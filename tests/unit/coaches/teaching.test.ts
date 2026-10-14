@@ -23,40 +23,54 @@ const invalid = (fn: () => unknown) => {
 };
 
 describe('the lengths a lesson can have are the courts’', () => {
-  const court = (
-    minBookingMinutes: number,
-    maxBookingMinutes: number,
-    slotStepMinutes: number,
-  ) => ({
+  const court = (minBookingMinutes: number, maxBookingMinutes: number) => ({
     minBookingMinutes,
     maxBookingMinutes,
-    slotStepMinutes,
   });
 
   it.each([
-    [[court(60, 180, 30)], [60, 90, 120, 150, 180]],
-    [[court(60, 60, 30)], [60]],
-    [[court(90, 120, 60)], [90]],
+    // By the hour, up to three: whole hours. NOT 90 or 150, whatever grid a
+    // booking starts on: a court booking is a whole number of its units.
+    [[court(60, 180)], [60, 120, 180]],
+    [[court(60, 60)], [60]],
+    [[court(90, 120)], [90]],
+    [[court(30, 90)], [30, 60, 90]],
     // A lesson is never longer than four hours, whatever the court allows.
-    [[court(120, 480, 60)], [120, 180, 240]],
+    [[court(120, 480)], [120, 240]],
     // Nor shorter than a quarter of an hour.
-    [[court(5, 30, 15)], [15, 30]],
+    [[court(5, 30)], [15, 20, 25, 30]],
     // Two courts booked differently: every length either allows, shortest first, each once.
     [
-      [court(90, 180, 90), court(60, 120, 60)],
+      [court(90, 180), court(60, 120)],
       [60, 90, 120, 180],
     ],
     // A venue with no court to book has no lesson length.
     [[], []],
+    // A court with no unit to count in offers nothing rather than looping.
+    [[court(0, 120)], []],
   ])('%j → %j', (courts, expected) => {
     expect(lessonLengthOptions(courts)).toEqual(expected);
   });
 
   it('never more than the twelve the database keeps, and those are the shortest', () => {
-    const lengths = lessonLengthOptions([court(15, 240, 5)]);
+    const lengths = lessonLengthOptions([court(15, 240)]);
     expect(lengths).toHaveLength(12);
     expect(lengths[0]).toBe(15);
-    expect(lengths.at(-1)).toBe(70);
+    expect(lengths.at(-1)).toBe(180);
+  });
+
+  it('agrees with what a court booking accepts: every length offered is one `slotDurations` would offer', () => {
+    // The same court as `slotDurations` sees it: units of the minimum up to the maximum.
+    for (const [min, max] of [
+      [60, 180],
+      [30, 120],
+      [45, 180],
+      [90, 90],
+    ] as const) {
+      const offered: number[] = [];
+      for (let m = min; m <= max; m += min) offered.push(m);
+      expect(lessonLengthOptions([court(min, max)])).toEqual(offered);
+    }
   });
 });
 
