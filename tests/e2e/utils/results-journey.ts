@@ -13,6 +13,12 @@ import type { PlayedClub } from './seed-my-bookings';
  */
 
 const r = bg.myBookings.result;
+
+/**
+ * The visible one: under the reveal throttle a streamed page can sit in a
+ * hidden copy beside the shown one (see club-fee-journey.ts).
+ */
+const shown = (page: Page, testId: string) => page.getByTestId(testId).filter({ visible: true });
 const results = bg.results;
 const admin = bg.admin.results;
 
@@ -45,21 +51,21 @@ export async function browserFor(
 /** The booker reports 6:4 6:3 for their side, the players as booked. */
 export async function report(page: Page, bookingId: string): Promise<void> {
   await page.goto(`/me/bookings/${bookingId}`);
-  const section = page.getByTestId('booking-result');
+  const section = shown(page, 'booking-result');
   await expect(section).toContainText(r.report);
-  await page.getByTestId('booking-result-report').click();
-  await expect(page.getByTestId('result-editor-player')).toHaveCount(2);
+  await shown(page, 'booking-result-report').click();
+  await expect(shown(page, 'result-editor-player')).toHaveCount(2);
   for (const [cell, value] of [
     ['0-0', '6'],
     ['0-1', '4'],
     ['1-0', '6'],
     ['1-1', '3'],
   ] as const) {
-    await page.getByTestId(`result-editor-cell-${cell}`).fill(value);
+    await shown(page, `result-editor-cell-${cell}`).fill(value);
   }
-  await page.getByTestId('result-editor-submit').click();
-  await expect(page.getByTestId('booking-result-status')).toHaveText(results.status.REPORTED);
-  await expect(page.getByTestId('result-summary')).toContainText('6');
+  await shown(page, 'result-editor-submit').click();
+  await expect(shown(page, 'booking-result-status')).toHaveText(results.status.REPORTED);
+  await expect(shown(page, 'result-summary')).toContainText('6');
 }
 
 /** The other side confirms; it counts, and the booker's profile shows the match. */
@@ -69,8 +75,8 @@ export async function confirmAndSeeRating(
   bookingId: string,
 ): Promise<void> {
   await other.goto(`/me/bookings/${bookingId}`);
-  await other.getByTestId('booking-result-confirm').click();
-  await expect(other.getByTestId('booking-result-status')).toHaveText(results.status.CONFIRMED);
+  await shown(other, 'booking-result-confirm').click();
+  await expect(shown(other, 'booking-result-status')).toHaveText(results.status.CONFIRMED);
 
   await booker.goto('/me/profile');
   const padel = booker.getByTestId('profile-rating-PADEL');
@@ -81,9 +87,9 @@ export async function confirmAndSeeRating(
 /** The other side disputes it with a note; the club's desk confirms it; both see it decided. */
 export async function disputeAndDecide(other: Page, desk: Page, club: PlayedClub): Promise<void> {
   await other.goto(`/me/bookings/${club.completedId}`);
-  await other.getByTestId('booking-result-reject').click();
+  await shown(other, 'booking-result-reject').click();
   await other.getByLabel(r.rejectNote).fill('Вторият сет беше 3:6');
-  await other.getByTestId('booking-result-reject-send').click();
+  await shown(other, 'booking-result-reject-send').click();
   await expect(other.getByText(r.withClub)).toBeVisible();
 
   await desk.goto(`/t/${club.slug}/admin/results`);
@@ -97,5 +103,5 @@ export async function disputeAndDecide(other: Page, desk: Page, club: PlayedClub
   );
 
   await other.goto(`/me/bookings/${club.completedId}`);
-  await expect(other.getByTestId('booking-result-status')).toHaveText(results.status.DECIDED);
+  await expect(shown(other, 'booking-result-status')).toHaveText(results.status.DECIDED);
 }

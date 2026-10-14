@@ -183,10 +183,13 @@ export async function coachSeesWhoAndCancels(
   await page.goto('/me/coach');
   await streamed(page);
   const row = lessonRow(page, input.bookingId);
+  // The ranking module is on for the run (#576): the coach sees the player's
+  // rating, which starts at the level they declared and is provisional.
+  const level = `${input.level},0 (неокончателно)`;
   await expect(row.getByTestId('coach-lesson-player')).toHaveText(
     input.players > 1
-      ? `Играч: ${input.playerName} · ниво ${input.level} · ${input.players} играчи`
-      : `Играч: ${input.playerName} · ниво ${input.level}`,
+      ? `Играч: ${input.playerName} · ниво ${level} · ${input.players} играчи`
+      : `Играч: ${input.playerName} · ниво ${level}`,
   );
   await expect(row).toContainText(new RegExp(`Вашият хонорар: ${input.fee}\\s€`));
   // Still ahead: it can be cancelled, and there is nothing to mark yet.
