@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 
-import { Dots } from '@/components/ui/icons/nucleo';
+import { Dots } from '@/components/ui/icons/nucleo/dots';
 
 import { NAV_ICONS } from './nav-icons';
 import type { ShellNavItem, ShellNavSection } from './nav-items';

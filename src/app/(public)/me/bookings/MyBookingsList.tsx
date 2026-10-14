@@ -12,7 +12,7 @@ import { CardListSkeleton } from '@/components/loading/shapes';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
-import { ChevronRight } from '@/components/ui/icons/nucleo';
+import { ChevronRight } from '@/components/ui/icons/nucleo/chevron-right';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge, type StatusBadgeVariant } from '@/components/ui/status-badge';
 import { COACH_REVIEW_MAX_LENGTH } from '@/lib/coaches/reviews';

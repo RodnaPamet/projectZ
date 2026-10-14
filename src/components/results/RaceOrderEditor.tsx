@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { ChevronUp } from '@/components/ui/icons/nucleo';
+import { ChevronUp } from '@/components/ui/icons/nucleo/chevron-up';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Switch } from '@/components/ui/switch';
 import { Caption } from '@/components/ui/typography';

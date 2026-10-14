@@ -48,10 +48,11 @@ const KEPT: Record<string, string> = {
 /**
  * heldByBarrel: 326 at T29; 219 after #336, when the primitives stopped
  * importing the icon and hook barrels and those barrels and the 78 files only
- * they reached were retired. What is left is held by `icons/nucleo`'s barrel.
- * Lower it when a re-sync drops a barrel line; never raise it.
+ * they reached were retired; 0 after #583, when playerz's own files took the
+ * nucleo icons by module and `icons/nucleo`'s barrel went with the 217 icons
+ * only it reached. Never raise it: import a vendored file by its module.
  */
-const HELD_CEILING = 219;
+const HELD_CEILING = 0;
 
 const SCOPE = ['src/components/'];
 

@@ -6,7 +6,7 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import type { PlayerCardDto as PlayerCard } from '@/app/api/v1/_lib/messaging';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { UserSearch } from '@/components/ui/icons/nucleo';
+import { UserSearch } from '@/components/ui/icons/nucleo/user-search';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';

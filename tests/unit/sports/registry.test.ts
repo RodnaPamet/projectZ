@@ -1,6 +1,8 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import * as Lucide from 'lucide-react';
 
-import * as Nucleo from '@/components/ui/icons/nucleo';
 import { PROFILE_SPORTS } from '@/lib/profile/limits';
 import {
   SPORTS,
@@ -96,9 +98,17 @@ describe('sport registry', () => {
     // 'Dribbble' since lucide-react 1.x dropped its brand icons. A name that
     // resolves to nothing is the same as no icon, found by whoever first
     // renders one.
+    // The nucleo icons are imported by module since #583: the names their files export.
+    const dir = join(process.cwd(), 'src/components/ui/icons/nucleo');
+    const nucleo = new Set(
+      readdirSync(dir).flatMap((f) =>
+        [...readFileSync(join(dir, f), 'utf8').matchAll(/export (?:function|const) (\w+)/g)].map(
+          (m) => m[1]!,
+        ),
+      ),
+    );
     const exists = (name: string) =>
-      typeof (Nucleo as Record<string, unknown>)[name] === 'function' ||
-      (Lucide as Record<string, unknown>)[name] !== undefined;
+      nucleo.has(name) || (Lucide as Record<string, unknown>)[name] !== undefined;
     const missing = allSports().filter((s) => !exists(s.icon));
     expect(missing.map((s) => `${s.key}: ${s.icon}`)).toEqual([]);
   });

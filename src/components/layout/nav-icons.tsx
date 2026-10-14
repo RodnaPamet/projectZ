@@ -1,29 +1,27 @@
 import type { ComponentType, SVGProps } from 'react';
 
-import {
-  BadgeCheck,
-  CalendarDays,
-  CalendarIcon,
-  Crown,
-  ChartLine,
-  CircleUser,
-  InvoiceDollar,
-  Envelope,
-  LocationPin,
-  Magnifier,
-  MoneyBill,
-  OfficeBuilding,
-  Msgs,
-  NucleoPhoto,
-  ShieldCheck,
-  ShieldKeyhole,
-  ShieldUser,
-  Trophy,
-  UserArrowRight,
-  UserCheck,
-  Users,
-  Users2,
-} from '@/components/ui/icons/nucleo';
+import { BadgeCheck } from '@/components/ui/icons/nucleo/badge-check';
+import { CalendarIcon } from '@/components/ui/icons/nucleo/calendar';
+import { CalendarDays } from '@/components/ui/icons/nucleo/calendar-days';
+import { ChartLine } from '@/components/ui/icons/nucleo/chart-line';
+import { CircleUser } from '@/components/ui/icons/nucleo/circle-user';
+import { Crown } from '@/components/ui/icons/nucleo/crown';
+import { Envelope } from '@/components/ui/icons/nucleo/envelope';
+import { InvoiceDollar } from '@/components/ui/icons/nucleo/invoice-dollar';
+import { LocationPin } from '@/components/ui/icons/nucleo/location-pin';
+import { Magnifier } from '@/components/ui/icons/nucleo/magnifier';
+import { MoneyBill } from '@/components/ui/icons/nucleo/money-bill';
+import { Msgs } from '@/components/ui/icons/nucleo/msgs';
+import { OfficeBuilding } from '@/components/ui/icons/nucleo/office-building';
+import { NucleoPhoto } from '@/components/ui/icons/nucleo/photo';
+import { ShieldCheck } from '@/components/ui/icons/nucleo/shield-check';
+import { ShieldKeyhole } from '@/components/ui/icons/nucleo/shield-keyhole';
+import { ShieldUser } from '@/components/ui/icons/nucleo/shield-user';
+import { Trophy } from '@/components/ui/icons/nucleo/trophy';
+import { UserArrowRight } from '@/components/ui/icons/nucleo/user-arrow-right';
+import { UserCheck } from '@/components/ui/icons/nucleo/user-check';
+import { Users } from '@/components/ui/icons/nucleo/users';
+import { Users2 } from '@/components/ui/icons/nucleo/users2';
 
 import type { NavIconKey } from './nav-items';
 

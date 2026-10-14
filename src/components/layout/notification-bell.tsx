@@ -7,7 +7,7 @@ import { useState } from 'react';
 import type { NotificationDto } from '@/app/api/v1/_lib/dto';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Bell } from '@/components/ui/icons/nucleo';
+import { Bell } from '@/components/ui/icons/nucleo/bell';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Popover } from '@/components/ui/popover';
 import { SkeletonLine } from '@/components/ui/skeleton';

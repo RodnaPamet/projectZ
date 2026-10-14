@@ -12,7 +12,7 @@ import { useLevelWish } from '@/components/games/use-level-wish';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
-import { Msgs } from '@/components/ui/icons/nucleo';
+import { Msgs } from '@/components/ui/icons/nucleo/msgs';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';

@@ -8,17 +8,15 @@ import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import {
-  BoltFill,
-  CalendarDays,
-  CircleCheck,
-  Gift,
-  LocationPin,
-  Magnifier,
-  MoneyBill,
-  Sparkle3,
-  Users2,
-} from '@/components/ui/icons/nucleo';
+import { BoltFill } from '@/components/ui/icons/nucleo/bolt-fill';
+import { CalendarDays } from '@/components/ui/icons/nucleo/calendar-days';
+import { CircleCheck } from '@/components/ui/icons/nucleo/circle-check';
+import { Gift } from '@/components/ui/icons/nucleo/gift';
+import { LocationPin } from '@/components/ui/icons/nucleo/location-pin';
+import { Magnifier } from '@/components/ui/icons/nucleo/magnifier';
+import { MoneyBill } from '@/components/ui/icons/nucleo/money-bill';
+import { Sparkle3 } from '@/components/ui/icons/nucleo/sparkle3';
+import { Users2 } from '@/components/ui/icons/nucleo/users2';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Eyebrow, Heading } from '@/components/ui/typography';
 import { cityLabel } from '@/lib/geo/cities';

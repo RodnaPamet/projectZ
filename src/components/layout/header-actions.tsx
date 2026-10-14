@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Bell, Msgs } from '@/components/ui/icons/nucleo';
+import { Bell } from '@/components/ui/icons/nucleo/bell';
+import { Msgs } from '@/components/ui/icons/nucleo/msgs';
 import { cn } from '@/lib/cn';
 import type { InboxSide } from '@/lib/data/keys';
 import { ViewerScope } from '@/lib/data/provider';

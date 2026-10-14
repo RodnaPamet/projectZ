@@ -1,7 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
-import { LocationPin, MobilePhone } from '@/components/ui/icons/nucleo';
+import { LocationPin } from '@/components/ui/icons/nucleo/location-pin';
+import { MobilePhone } from '@/components/ui/icons/nucleo/mobile-phone';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading, TextLink } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';

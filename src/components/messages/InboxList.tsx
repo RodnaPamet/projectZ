@@ -8,7 +8,7 @@ import type { ConversationSummaryDto } from '@/app/api/v1/_lib/messaging';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Msgs } from '@/components/ui/icons/nucleo';
+import { Msgs } from '@/components/ui/icons/nucleo/msgs';
 import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { CardListSkeleton } from '@/components/loading/shapes';

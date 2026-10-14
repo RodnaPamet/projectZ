@@ -260,7 +260,7 @@ export const SPORTS: Record<SportType, SportConfig> = {
     label: { bg: 'Картинг', en: 'Karting' },
     // The vendored nucleo set (upstream's icons) has no car or chequered flag;
     // its speed gauge is the closest thing it does have.
-    icon: 'Gauge6',
+    icon: 'Gauge',
     // A TRACK is exclusive: karting is always on one, and nothing else is.
     resourceType: 'TRACK',
     // Whoever hired the track: one driver, or a group up to the track's own

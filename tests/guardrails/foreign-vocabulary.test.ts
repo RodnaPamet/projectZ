@@ -275,8 +275,9 @@ describe('the scan is not vacuous', () => {
   it('reads the whole tree, and splits it into vendored and owned', () => {
     expect(SOURCE).toEqual(treeFiles(['src'], /\.(?:ts|tsx|js|jsx|mjs|css)$/));
     // 357 rows after #336 retired the icon and hook barrels and the 78 files
-    // only they reached (moved to available.json).
-    expect(ROWS.length).toBeGreaterThan(300);
+    // only they reached; 147 after #583 retired the nucleo barrel and the 217
+    // icons only it reached (all moved to available.json).
+    expect(ROWS.length).toBeGreaterThan(120);
     // Owned sentinels, and a vendored one that must NOT be in the owned set.
     for (const f of [
       'src/components/layout/nav-items.ts',

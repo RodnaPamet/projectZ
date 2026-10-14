@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
-import { Msgs } from '@/components/ui/icons/nucleo';
+import { Msgs } from '@/components/ui/icons/nucleo/msgs';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import type { ApiClientError } from '@/lib/data/errors';
 import { V1, type InboxSide } from '@/lib/data/keys';

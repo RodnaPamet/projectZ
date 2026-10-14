@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FormField } from '@/components/ui/form-field';
-import { CloudUpload } from '@/components/ui/icons/nucleo';
+import { CloudUpload } from '@/components/ui/icons/nucleo/cloud-upload';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
