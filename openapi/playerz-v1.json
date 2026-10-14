@@ -2909,7 +2909,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 7`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 8`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -18513,7 +18513,7 @@
       "NotificationSettings": {
         "type": "object",
         "title": "NotificationSettings",
-        "required": ["email"],
+        "required": ["email", "push", "pushDevices"],
         "properties": {
           "email": {
             "type": "object",
@@ -18548,6 +18548,46 @@
                 "description": "«Уроци, които водя» (#550): a coach's emails about the lessons they TEACH (one booked, one cancelled, the reminder). Every account has the setting; show the switch to coach accounts only."
               }
             }
+          },
+          "push": {
+            "type": "object",
+            "required": [
+              "confirmation",
+              "reminder",
+              "clubChanges",
+              "messages",
+              "openPlay",
+              "lessonsTaught"
+            ],
+            "properties": {
+              "confirmation": {
+                "type": "boolean"
+              },
+              "reminder": {
+                "type": "boolean"
+              },
+              "clubChanges": {
+                "type": "boolean"
+              },
+              "messages": {
+                "type": "boolean",
+                "description": "«Съобщения» (#375): an email about a message still unread after about ten minutes, at most one an hour per conversation."
+              },
+              "openPlay": {
+                "type": "boolean",
+                "description": "«Игри» (#376): a request to join one's game, and the answer to one's own request."
+              },
+              "lessonsTaught": {
+                "type": "boolean",
+                "description": "«Уроци, които водя» (#550): a coach's emails about the lessons they TEACH (one booked, one cancelled, the reminder). Every account has the setting; show the switch to coach accounts only."
+              }
+            },
+            "description": "The same kinds on the phone (#529, P77): whether an event also pushes to the person's registered devices. On by default; `account` answers always ring and have no switch."
+          },
+          "pushDevices": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many devices this account has registered for push (`POST /devices`). At 0 the push switches decide nothing yet, and a screen may leave them out."
           }
         }
       },
@@ -18565,7 +18605,7 @@
         "type": "object",
         "title": "UpdateNotificationSettingsRequest",
         "additionalProperties": false,
-        "required": ["email"],
+        "required": [],
         "properties": {
           "email": {
             "type": "object",
@@ -18592,8 +18632,36 @@
                 "description": "«Уроци, които водя» (#550): a coach's emails about the lessons they TEACH (one booked, one cancelled, the reminder). Every account has the setting; show the switch to coach accounts only."
               }
             }
+          },
+          "push": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "confirmation": {
+                "type": "boolean"
+              },
+              "reminder": {
+                "type": "boolean"
+              },
+              "clubChanges": {
+                "type": "boolean"
+              },
+              "messages": {
+                "type": "boolean"
+              },
+              "openPlay": {
+                "type": "boolean"
+              },
+              "lessonsTaught": {
+                "type": "boolean",
+                "description": "«Уроци, които водя» (#550): a coach's emails about the lessons they TEACH (one booked, one cancelled, the reminder). Every account has the setting; show the switch to coach accounts only."
+              }
+            }
           }
-        }
+        },
+        "minProperties": 1,
+        "description": "Email switches, push switches (#529), or both. Each object given names at least one kind."
       },
       "VenuePhoto": {
         "type": "object",
@@ -19533,7 +19601,7 @@
           },
           "notificationSettings": {
             "type": "object",
-            "required": ["email"],
+            "required": ["email", "push"],
             "properties": {
               "email": {
                 "type": "object",
@@ -19561,6 +19629,34 @@
                     "type": "boolean"
                   }
                 }
+              },
+              "push": {
+                "type": "object",
+                "required": [
+                  "bookingConfirmations",
+                  "bookingReminders",
+                  "clubChanges",
+                  "messages",
+                  "openPlay"
+                ],
+                "properties": {
+                  "bookingConfirmations": {
+                    "type": "boolean"
+                  },
+                  "bookingReminders": {
+                    "type": "boolean"
+                  },
+                  "clubChanges": {
+                    "type": "boolean"
+                  },
+                  "messages": {
+                    "type": "boolean"
+                  },
+                  "openPlay": {
+                    "type": "boolean"
+                  }
+                },
+                "description": "The same kinds on the phone (#529)."
               }
             }
           },

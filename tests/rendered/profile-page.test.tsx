@@ -94,6 +94,15 @@ function renderProfile(
                 openPlay: true,
                 lessonsTaught: true,
               },
+              push: {
+                confirmation: true,
+                reminder: true,
+                clubChanges: true,
+                messages: true,
+                openPlay: true,
+                lessonsTaught: true,
+              },
+              pushDevices: 0,
             }}
             deletion={opts.deletion ?? { kind: 'allowed', credit: [] }}
             legal={opts.legal ?? { privacy: null, terms: null, cookies: null }}

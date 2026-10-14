@@ -22,6 +22,15 @@ const ALL_ON = {
     openPlay: true,
     lessonsTaught: true,
   },
+  push: {
+    confirmation: true,
+    reminder: true,
+    clubChanges: true,
+    messages: true,
+    openPlay: true,
+    lessonsTaught: true,
+  },
+  pushDevices: 0,
 };
 
 function mount(coach = false) {
@@ -51,7 +60,7 @@ it('says how many emails are on, and turning the reminder off PATCHes just that'
   const calls = installFakeFetch((c) => {
     if (c.method === 'PATCH') {
       const body = c.body as { email: Partial<typeof ALL_ON.email> };
-      stored = { email: { ...stored.email, ...body.email } };
+      stored = { ...stored, email: { ...stored.email, ...body.email } };
     }
     return ok(stored);
   });
@@ -104,7 +113,7 @@ describe('«Уроци, които водя»: the sixth switch (#550, decision 
     const calls = installFakeFetch((c) => {
       if (c.method === 'PATCH') {
         const body = c.body as { email: Partial<typeof ALL_ON.email> };
-        stored = { email: { ...stored.email, ...body.email } };
+        stored = { ...stored, email: { ...stored.email, ...body.email } };
       }
       return ok(stored);
     });

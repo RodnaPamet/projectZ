@@ -166,6 +166,16 @@ model User {
   /// above. On by default.
   emailLessonsTaught        Boolean @default(true)
 
+  /// The same kinds, on the phone (#529, P77): whether an event that writes a
+  /// bell row also pushes to the person's devices. On by default; a phone
+  /// rings only once the app is installed and allowed to notify.
+  pushBookingConfirmations Boolean @default(true)
+  pushBookingReminders     Boolean @default(true)
+  pushClubChanges          Boolean @default(true)
+  pushMessages             Boolean @default(true)
+  pushOpenPlay             Boolean @default(true)
+  pushLessonsTaught        Boolean @default(true)
+
   /// "Показвай ме в търсенето" (#375): whether other players find this person
   /// by name when starting a conversation. On by default. Off, they can still
   /// be written to by the people they have played with or already talk to.

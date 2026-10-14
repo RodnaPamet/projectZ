@@ -52,6 +52,6 @@ export async function unsubscribeByToken(
     const limit = await checkRateLimit(`email-unsubscribe:u:${t.userId}`, UNSUBSCRIBE_LIMIT);
     if (!limit.allowed) throw new RateLimitedError('Too many requests. Try again in a minute.');
   }
-  await updateMyNotificationSettings(t.userId, { [t.category]: false });
+  await updateMyNotificationSettings(t.userId, { email: { [t.category]: false } });
   return { category: t.category };
 }

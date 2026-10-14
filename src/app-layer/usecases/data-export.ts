@@ -126,7 +126,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 7;
+  version: 8;
   exportedAt: string;
   profile: {
     id: string;
@@ -288,6 +288,15 @@ export interface PersonalDataExport {
       messages: boolean;
       openPlay: boolean;
       /** A coach's emails about the lessons they teach (#550). */
+      lessonsTaught: boolean;
+    };
+    /** The same kinds on the phone (#529, version 8). */
+    push: {
+      bookingConfirmations: boolean;
+      bookingReminders: boolean;
+      clubChanges: boolean;
+      messages: boolean;
+      openPlay: boolean;
       lessonsTaught: boolean;
     };
   };
@@ -527,6 +536,12 @@ export async function readPersonalData(
       emailMessages: true,
       emailOpenPlay: true,
       emailLessonsTaught: true,
+      pushBookingConfirmations: true,
+      pushBookingReminders: true,
+      pushClubChanges: true,
+      pushMessages: true,
+      pushOpenPlay: true,
+      pushLessonsTaught: true,
       searchable: true,
       deletedAt: true,
       sportLevels: { select: { sport: true, level: true }, orderBy: { sport: 'asc' } },
@@ -777,7 +792,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 7,
+    version: 8,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -929,6 +944,14 @@ export async function readPersonalData(
         messages: user.emailMessages,
         openPlay: user.emailOpenPlay,
         lessonsTaught: user.emailLessonsTaught,
+      },
+      push: {
+        bookingConfirmations: user.pushBookingConfirmations,
+        bookingReminders: user.pushBookingReminders,
+        clubChanges: user.pushClubChanges,
+        messages: user.pushMessages,
+        openPlay: user.pushOpenPlay,
+        lessonsTaught: user.pushLessonsTaught,
       },
     },
     inviteLinks: links.map((l) => ({

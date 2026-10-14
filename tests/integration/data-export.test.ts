@@ -374,7 +374,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'openPlay',
       'coach',
     ]);
-    expect(json.version).toBe(7);
+    expect(json.version).toBe(8);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
@@ -404,6 +404,15 @@ describe('GET /api/v1/me/export (#370)', () => {
       email: {
         bookingConfirmations: true,
         bookingReminders: false,
+        clubChanges: true,
+        messages: true,
+        openPlay: true,
+        lessonsTaught: true,
+      },
+      // The phone's switches (#529, version 8): all on by default.
+      push: {
+        bookingConfirmations: true,
+        bookingReminders: true,
         clubChanges: true,
         messages: true,
         openPlay: true,

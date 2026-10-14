@@ -16,19 +16,25 @@ export const markReadBodySchema = z.union([
   z.object({ all: z.literal(true) }).strict(),
 ]);
 
-/** `PATCH /api/v1/me/notification-settings`: any of the three, at least one. */
-export const notificationSettingsPatchSchema = z
+const kindSwitches = z
   .object({
-    email: z
-      .object({
-        confirmation: z.boolean().optional(),
-        reminder: z.boolean().optional(),
-        clubChanges: z.boolean().optional(),
-        messages: z.boolean().optional(),
-        openPlay: z.boolean().optional(),
-        lessonsTaught: z.boolean().optional(),
-      })
-      .strict()
-      .refine((e) => Object.keys(e).length > 0, { message: 'Set at least one category' }),
+    confirmation: z.boolean().optional(),
+    reminder: z.boolean().optional(),
+    clubChanges: z.boolean().optional(),
+    messages: z.boolean().optional(),
+    openPlay: z.boolean().optional(),
+    lessonsTaught: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .refine((e) => Object.keys(e).length > 0, { message: 'Set at least one category' });
+
+/**
+ * `PATCH /api/v1/me/notification-settings`: email switches, push switches
+ * (#529), or both; each given object names at least one kind.
+ */
+export const notificationSettingsPatchSchema = z
+  .object({ email: kindSwitches.optional(), push: kindSwitches.optional() })
+  .strict()
+  .refine((b) => b.email !== undefined || b.push !== undefined, {
+    message: 'Set email or push',
+  });

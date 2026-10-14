@@ -846,26 +846,25 @@ describe('notifications (#367)', () => {
         NO_PARAMS,
       ).then(read);
 
+    const ALL_ON = {
+      confirmation: true,
+      reminder: true,
+      clubChanges: true,
+      messages: true,
+      openPlay: true,
+      lessonsTaught: true,
+    };
+
     it('all on by default; one switch at a time; strict', async () => {
       expect((await get(booker)).body.data).toEqual({
-        email: {
-          confirmation: true,
-          reminder: true,
-          clubChanges: true,
-          messages: true,
-          openPlay: true,
-          lessonsTaught: true,
-        },
+        email: ALL_ON,
+        push: ALL_ON,
+        pushDevices: 0,
       });
       expect((await patch(booker, { email: { reminder: false } })).body.data).toEqual({
-        email: {
-          confirmation: true,
-          reminder: false,
-          clubChanges: true,
-          messages: true,
-          openPlay: true,
-          lessonsTaught: true,
-        },
+        email: { ...ALL_ON, reminder: false },
+        push: ALL_ON,
+        pushDevices: 0,
       });
       expect((await patch(booker, { email: { openPlay: false } })).body.data).toMatchObject({
         email: { reminder: false, openPlay: false },
@@ -878,6 +877,33 @@ describe('notifications (#367)', () => {
       expect((await patch(booker, { email: {} })).status).toBe(400);
       expect((await patch(booker, { email: { bell: false } })).status).toBe(400);
       expect((await patch(booker, { email: { reminder: 'no' } })).status).toBe(400);
+    });
+
+    it("the phone's switches (#529) are their own, and the devices are counted", async () => {
+      expect((await patch(friend, { push: { messages: false } })).body.data).toMatchObject({
+        email: { messages: true },
+        push: { messages: false, confirmation: true },
+      });
+      expect(
+        (await patch(friend, { email: { confirmation: false }, push: { confirmation: false } }))
+          .body.data,
+      ).toMatchObject({
+        email: { confirmation: false },
+        push: { confirmation: false, messages: false },
+      });
+      await asAppSuperuser(db, (tx) =>
+        tx.deviceToken.create({
+          data: {
+            userId: friend.userId,
+            deviceToken: 'a'.repeat(64),
+            bundleId: 'bg.playerz.app',
+            environment: 'SANDBOX',
+          },
+        }),
+      );
+      expect((await get(friend)).body.data).toMatchObject({ pushDevices: 1 });
+      expect((await patch(friend, { push: {} })).status).toBe(400);
+      expect((await patch(friend, {})).status).toBe(400);
     });
   });
 

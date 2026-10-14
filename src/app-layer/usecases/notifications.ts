@@ -95,7 +95,7 @@ export async function notify(
  * uninstalled, permission revoked — and retrying it forever backs the queue up
  * behind endpoints that will never accept anything again.
  */
-async function pushToAllDevices(
+export async function pushToAllDevices(
   db: PrismaClient,
   input: { userId: string; payload: { title: string; body: string; url?: string; tag?: string } },
 ): Promise<number> {
