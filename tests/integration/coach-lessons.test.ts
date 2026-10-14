@@ -1081,12 +1081,46 @@ describe('where a booked lesson is seen', () => {
       endLabel: '11:00',
       status: 'CONFIRMED',
       lessonCoach: 'Иван Петров',
+      // Still ahead: the desk can cancel it from the diary (#549).
+      lessonCancellable: true,
     });
     // 24 for the court and 40 for the coach.
     expect(block.priceLabel).toMatch(/^64,00\s€$/);
     // The other club's diary has nothing of it.
     const elsewhere = await loadDiaryDay(other.tenantId, DAY, { locale: 'bg', labels: LABELS });
     expect(elsewhere.bookings).toEqual([]);
+  });
+
+  it('the club’s desk cancels a lesson: the court and the coach are free, and the player is told the club cancelled', async () => {
+    const id = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(id, A());
+    const p = await player();
+    const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const owner = await signInAs(db, {
+      userId: club.userId,
+      memberships: [{ tenantId: club.tenantId, tenantSlug: club.tenantSlug, role: 'OWNER' }],
+    });
+    await asAppSuperuser(db, (tx) => tx.notification.deleteMany({ where: { userId: p.userId } }));
+
+    const res = await call(
+      cancelRoute,
+      `/api/v1/t/${club.tenantSlug}/bookings/${booked.booking.id}/cancel`,
+      { method: 'POST', bearer: owner.bearer, json: {} },
+      { slug: club.tenantSlug, id: booked.booking.id },
+    );
+    expect(res.status).toBe(200);
+    const { bookings, lessons } = await rows();
+    expect(bookings[0]).toMatchObject({ status: 'CANCELLED' });
+    expect(lessons[0]).toMatchObject({ active: false });
+    const bell = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({ where: { userId: p.userId }, take: 5 }),
+    );
+    expect(bell.map((n) => n.title)).toEqual(['Клубът отмени резервацията ви']);
+    // It is gone from the diary, and the time can be booked again.
+    const day = await loadDiaryDay(club.tenantId, DAY, { locale: 'bg', labels: LABELS });
+    expect(day.bookings).toEqual([]);
+    const { data } = await times('ivan-petrov', { linkId, date: DAY, minutes: 60 });
+    expect(starts(data)).toContain(utc('10:00'));
   });
 
   describe('in the coach’s own «Уроци»', () => {

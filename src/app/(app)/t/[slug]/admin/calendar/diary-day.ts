@@ -307,6 +307,12 @@ export async function loadDiaryDay(
       lessonCoach: b.lesson
         ? (playerNames.get(b.lesson.coachUserId) ?? labels.unknownPlayer)
         : null,
+      // The desk can cancel a lesson while it is still ahead (#549); once it
+      // has started, what is left to record is whether the player came.
+      lessonCancellable:
+        b.lesson !== null &&
+        (b.status === 'PENDING' || b.status === 'CONFIRMED') &&
+        b.startTs.getTime() > now.getTime(),
       expiresLabel: b.expiresAt ? hhmm(b.expiresAt) : null,
       // Mirrors markNoShow's own rules, minus the review check, which needs a
       // read per booking and is answered by the refusal message instead.

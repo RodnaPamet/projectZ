@@ -1218,7 +1218,16 @@
         "markLabel": "{name} didn't come",
         "markBooking": "Nobody came",
         "confirmTitle": "Mark {name} as not having come?",
-        "confirmBody": "The game from {start} to {end}. The absence counts against the player, as the booker's no-show does."
+        "confirmBody": "The game from {start} to {end}. The absence counts against the player, as the booker's no-show does.",
+        "lesson": "A lesson with {coach}",
+        "cancelLesson": {
+          "button": "Cancel the lesson",
+          "title": "Cancel the lesson?",
+          "description": "The court will be released, and everyone on it will get a notification and an email saying the club cancelled.",
+          "yes": "Yes, cancel the lesson",
+          "no": "Back",
+          "failed": "The lesson was not cancelled. Try again."
+        }
       },
       "series": {
         "metaTitle": "Weekly series — playerz.bg",

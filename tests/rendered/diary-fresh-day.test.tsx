@@ -46,6 +46,7 @@ const booking = (id: string, who: string): DayBooking => ({
   bookerPhone: null,
   seriesId: null,
   lessonCoach: null,
+  lessonCancellable: false,
   players: [],
 });
 
