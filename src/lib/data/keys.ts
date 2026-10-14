@@ -223,6 +223,9 @@ export const KEYS = {
   coachReviews: (coachSlug: string) => paged(`${BASE}/coaches/${seg(coachSlug)}/reviews`),
   /** Open play on one of the caller's bookings: the booker's requests, or their own. */
   meBookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
+  /** A club's leaderboard in one sport (#578); no sport, its first. Signed-in only. */
+  clubLeaderboard: (slug: string, sport: string | null) =>
+    `${BASE}/clubs/${seg(slug)}/leaderboard${query({ sport: sport ?? undefined })}`,
   /** The caller's own ratings, points and all (#576). */
   myRatings: () => `${BASE}/me/ratings`,
   /** A booking's result for the caller (#575): it, and whether they may report or answer it. */

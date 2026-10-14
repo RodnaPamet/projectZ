@@ -15559,6 +15559,81 @@
           }
         }
       }
+    },
+    "/clubs/{slug}/leaderboard": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getClubLeaderboard",
+        "summary": "A club's leaderboard in one sport",
+        "tags": ["Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          }
+        ],
+        "description": "The club's players by level in one sport (#578, decision 35): every player with a counted result at the club, settled levels only (5 confirmed matches, one in the last six months), nobody who hides their level (36), nobody in a block with the caller. Signed-in callers only: full names (decision 49).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubLeaderboardEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: an unknown sport.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a public club.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -24254,6 +24329,73 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "ClubLeaderboard": {
+        "type": "object",
+        "title": "ClubLeaderboard",
+        "required": ["sports", "sport", "rows"],
+        "properties": {
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "The sports with a counted result at the club, in the enum's order."
+          },
+          "sport": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SportType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The sport shown: the one asked for, else the first; null when the club has no result yet."
+          },
+          "rows": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "required": ["rank", "userId", "name", "avatarUrl", "level", "matchesPlayed"],
+              "properties": {
+                "rank": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "userId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": ["string", "null"]
+                },
+                "avatarUrl": {
+                  "type": ["string", "null"]
+                },
+                "level": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 7,
+                  "description": "One decimal, on the 1–7 scale everyone sees."
+                },
+                "matchesPlayed": {
+                  "type": "integer",
+                  "minimum": 5
+                }
+              }
+            }
+          }
+        }
+      },
+      "ClubLeaderboardEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ClubLeaderboard"
           }
         }
       }

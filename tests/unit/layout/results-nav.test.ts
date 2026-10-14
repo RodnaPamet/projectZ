@@ -10,8 +10,8 @@ import {
 /**
  * Where the ranking module shows up in the chrome (#575): the club's
  * «Резултати», for the desk, and nothing while its switch is off. A player's
- * result lives on the booking, so a player's navigation does not change yet;
- * the leaderboards (#578) are its entry.
+ * result lives on the booking, a player's ranking on their own page, and a
+ * club's leaderboard on the club's page: a player's navigation does not change.
  */
 const ON: ChromeModules = { ...MODULES_OFF, ranking: true };
 const clubHrefs = (modules: ChromeModules) =>
@@ -41,7 +41,8 @@ describe('the ranking module in the navigation', () => {
       );
       const on = playerShellNav(kind, { modules: ON }).flatMap((s) => s.items.map((i) => i.href));
       expect(on).toEqual(off);
-      expect(on).not.toContain(MODULE_HREFS.ranking);
+      // Ranking's entry is the profile a player already has (#576).
+      expect(on).toContain(MODULE_HREFS.ranking);
     }
   });
 

@@ -391,6 +391,17 @@
     },
     "seat": {
       "metaTitle": "{name} — seats and booking | playerz.bg"
+    },
+    "leaderboard": {
+      "title": "Leaderboard",
+      "signIn": "Signed-in players see the club’s leaderboard.",
+      "signInButton": "Sign in",
+      "noResults": "No confirmed results at the club yet.",
+      "empty": "Nobody is ranked yet: anyone with 5 confirmed matches is.",
+      "sport": "Sport",
+      "unnamed": "Player",
+      "matches": "{count, plural, one {# match} other {# matches}}",
+      "hint": "A level moves with every confirmed result. A player who hides theirs is not listed."
     }
   },
   "cities": {

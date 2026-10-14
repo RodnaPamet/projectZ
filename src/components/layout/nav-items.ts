@@ -510,8 +510,10 @@ export const MODULE_HREFS = {
   openPlay: '/games',
   messaging: '/messages',
   coaches: COACHES_HREF,
-  // The leaderboards (#578); until then a result lives on its booking.
-  ranking: '/rankings',
+  // No page of its own: a result lives on its booking (#575), a player's
+  // ranking on their own page (#576), and a club's leaderboard on the club's
+  // page (#578). The profile is where a player finds theirs.
+  ranking: '/me/profile',
 } as const satisfies Record<keyof ChromeModules, string>;
 
 /** A link in the player chrome. `labelKey` is under `common.nav`, as for the admin. */
