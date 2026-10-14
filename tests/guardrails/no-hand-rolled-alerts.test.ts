@@ -41,6 +41,9 @@ const PRIMITIVES = [
   // A field's own error hint, under the input it describes.
   'src/components/ui/input.tsx',
   'src/components/ui/textarea.tsx',
+  // The drop zone's rejection line ("{name}: this kind of file is not
+  // accepted"), under the area it refers to: a field's error hint (#428).
+  'src/components/ui/FileDropzone.tsx',
 ];
 
 const SOURCE = globSync('src/**/*.{ts,tsx}')

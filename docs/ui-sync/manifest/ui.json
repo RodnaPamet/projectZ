@@ -2,6 +2,14 @@
   "about": "Written by scripts/ui-sync (copy.mjs, paths.mjs), never by hand: a vendored file changes upstream first and comes back through copy.mjs. See docs/ui-sync/README.md.",
   "rows": [
     {
+      "path": "src/components/ui/FileDropzone.tsx",
+      "inflectPath": "src/components/ui/FileDropzone.tsx",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "status": "vendored",
+      "sha256": "002dce76b60409e68ad4e22426a9a0049cb29ccc9077d047a3ce2f2577a25739"
+    },
+    {
       "path": "src/components/ui/animated-size-container.tsx",
       "inflectPath": "src/components/ui/animated-size-container.tsx",
       "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
@@ -120,6 +128,22 @@
       "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
       "status": "vendored",
       "sha256": "6138bf333edc701a544b47846b87d7cc90c61715a763ddb279e685cb58a3c371"
+    },
+    {
+      "path": "src/components/ui/file-icon-resolver.ts",
+      "inflectPath": "src/components/ui/file-icon-resolver.ts",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "status": "vendored",
+      "sha256": "f701b588b3dfa852ac93a56fa923fc31002aa7a4ec9e8826a240bd9e57dbf3ff"
+    },
+    {
+      "path": "src/components/ui/file-type-icon.tsx",
+      "inflectPath": "src/components/ui/file-type-icon.tsx",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "status": "vendored",
+      "sha256": "85f07c7d06d79eb7bcb9c01bd7cc4dc36c8dd4ed47a8f0db4d41da207eadcbe5"
     },
     {
       "path": "src/components/ui/form-description.tsx",

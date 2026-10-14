@@ -150,6 +150,34 @@
       "text": "playerz.bg uses only essential cookies: to keep you signed in, for security, and for the language and theme you chose. No tracking and no ads.",
       "more": "More about cookies",
       "dismiss": "Hide this message"
+    },
+    "upload": {
+      "dropzone": "Upload files",
+      "promptMany": "Drag and drop files or click to browse",
+      "promptOne": "Drag and drop a file or click to browse",
+      "typeRejected": "{name}: file type not accepted",
+      "tooLarge": "{name}: exceeds {mb} MB limit",
+      "cancel": "Cancel upload of {name}",
+      "remove": "Remove {name} from list",
+      "progress": "Upload progress for {name}",
+      "clearCompleted": "Clear completed ({count})",
+      "queued": "Queued",
+      "uploading": "Uploading…",
+      "uploaded": "Uploaded",
+      "cancelled": "Cancelled",
+      "failed": "Failed"
+    },
+    "fileKinds": {
+      "link": "Link",
+      "text": "Text",
+      "image": "Image",
+      "pdf": "PDF",
+      "csv": "CSV",
+      "spreadsheet": "Spreadsheet",
+      "document": "Document",
+      "json": "JSON",
+      "archive": "Archive",
+      "file": "File"
     }
   },
   "nav": {
@@ -1400,13 +1428,13 @@
       },
       "upload": {
         "choose": "Choose a photo",
-        "chosen": "Chosen: {name}",
         "hint": "JPEG, PNG or WebP, up to {mb} MB.",
         "alt": "Photo description",
         "altHint": "What the photo shows, for people who cannot see it.",
         "submit": "Upload",
         "uploading": "Uploading…",
-        "done": "The photo is uploaded."
+        "done": "The photo is uploaded.",
+        "noFile": "Choose a photo before uploading it."
       },
       "photo": {
         "altLabel": "Description",
