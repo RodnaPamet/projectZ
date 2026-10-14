@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { listMyLessons } from '@/app-layer/usecases/coach-lessons';
 import { myCoachLinks } from '@/app-layer/usecases/coach-links';
 import { readMyCoachProfile } from '@/app-layer/usecases/coach-profile';
 import { readMyTimeOff } from '@/app-layer/usecases/coach-time-off';
-import { toMyCoachLinks, toMyCoachProfile } from '@/app/api/v1/_lib/coach-dto';
+import { toMyCoachLinks, toMyCoachProfile, toMyLesson } from '@/app/api/v1/_lib/coach-dto';
+import { CoachLessonsSection } from '@/components/coach/CoachLessonsSection';
 import { CoachProfileEditor } from '@/components/coach/CoachProfileEditor';
 import { CoachVenuesSection } from '@/components/coach/CoachVenuesSection';
 import { coachProfileCrumbs } from '@/components/layout/crumbs';
@@ -43,12 +45,22 @@ export default async function CoachProfilePage() {
   ]);
   if (!profile) redirect(PROFILE_HREF);
   // A coach's account for certain now: where they teach, and their days off.
-  const [links, timeOff] = await Promise.all([myCoachLinks(userId), readMyTimeOff(userId)]);
+  const [links, timeOff, lessons] = await Promise.all([
+    myCoachLinks(userId),
+    readMyTimeOff(userId),
+    // «Уроци»: page one of the upcoming ones, by the endpoint's own mapper.
+    listMyLessons({ userId, when: 'upcoming' }),
+  ]);
+  const lessonSeed = { items: lessons.items.map(toMyLesson), nextCursor: lessons.nextCursor };
+  // A coach the platform has approved teaches, or may any day; anybody else
+  // has the section only while a lesson is still ahead of them.
+  const showLessons = profile.state === 'APPROVED' || lessonSeed.items.length > 0;
 
   return (
     <ViewerScope viewerId={userId}>
       <PageBreadcrumbs items={coachProfileCrumbs(tNav)} />
       <CoachProfileEditor seed={toMyCoachProfile(profile)}>
+        {showLessons ? <CoachLessonsSection seed={lessonSeed} /> : null}
         <CoachVenuesSection seed={toMyCoachLinks(links)} timeOffSeed={timeOff ?? []} />
       </CoachProfileEditor>
     </ViewerScope>

@@ -316,7 +316,11 @@ function BookingCard({
     timeZone,
   });
   const until = format.dateTime(new Date(b.endTs), { timeStyle: 'short', timeZone });
-  const price = format.number(b.totalCents / 100, { style: 'currency', currency: b.currency });
+  // A lesson costs the court and the coach: the card says the whole of it.
+  const price = format.number((b.lesson?.totalCents ?? b.totalCents) / 100, {
+    style: 'currency',
+    currency: b.currency,
+  });
 
   return (
     <Card as="li" elevation="flat" density="compact" className="bg-bg-default">
@@ -335,6 +339,13 @@ function BookingCard({
             <p className="text-content-muted text-sm">
               {b.resource.name} · {tSports(b.resource.sport as never)}
             </p>
+            {b.lesson ? (
+              <p className="text-content-default text-sm" data-testid="booking-card-lesson">
+                {b.lesson.coach.name
+                  ? t('lesson.with', { coach: b.lesson.coach.name })
+                  : t('lesson.withCoach')}
+              </p>
+            ) : null}
           </div>
           <div className="gap-tight flex shrink-0 items-center">
             <StatusBadge variant={STATUS_TONE[b.status] ?? 'neutral'}>

@@ -258,6 +258,14 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // A lesson (#548): the coach was booked for that time first, here or at
   // another club. `SLOT_TAKEN` above is the other half: no court is left.
   CoachTakenError: { status: 409, code: 'COACH_TAKEN' },
+  // The lesson would now cost more than the total the client said it showed
+  // (`expectedTotalCents`): the court that price was for has gone. Nothing
+  // was booked; `details.totalCents` is what it costs now.
+  LessonPriceChangedError: {
+    status: 409,
+    code: 'LESSON_PRICE_CHANGED',
+    details: (e) => ({ totalCents: (e as Error & { totalCents: number }).totalCents }),
+  },
   // The coach does not teach then: outside their hours, a day off, or the
   // time has started. Refetch the times.
   LessonTimeNotOfferedError: { status: 409, code: 'LESSON_TIME_NOT_OFFERED' },

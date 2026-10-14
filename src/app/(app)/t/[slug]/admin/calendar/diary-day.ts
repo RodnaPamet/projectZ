@@ -135,7 +135,12 @@ export async function loadDiaryDay(
     const userIds = [
       ...new Set(
         rows
-          .flatMap((r) => [r.bookedByUserId, ...r.participants.map((p) => p.userId)])
+          .flatMap((r) => [
+            r.bookedByUserId,
+            ...r.participants.map((p) => p.userId),
+            // The coach of a lesson (#548), named on its block.
+            r.lesson?.coachUserId,
+          ])
           .filter((v): v is string => !!v),
       ),
     ];
@@ -297,7 +302,11 @@ export async function loadDiaryDay(
           ? (phones.get(b.bookedByUserId) ?? null)
           : null,
       seriesId: b.seriesId,
-      priceLabel: money.format(b.totalCents / 100),
+      // A lesson is paid for whole at the club: the court and the coach's fee.
+      priceLabel: money.format((b.totalCents + (b.lesson?.coachFeeCents ?? 0)) / 100),
+      lessonCoach: b.lesson
+        ? (playerNames.get(b.lesson.coachUserId) ?? labels.unknownPlayer)
+        : null,
       expiresLabel: b.expiresAt ? hhmm(b.expiresAt) : null,
       // Mirrors markNoShow's own rules, minus the review check, which needs a
       // read per booking and is answered by the refusal message instead.

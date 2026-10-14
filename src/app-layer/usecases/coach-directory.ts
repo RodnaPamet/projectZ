@@ -149,6 +149,51 @@ export interface PublicCoach {
   currency: string;
 }
 
+/** Who teaches a lesson, as the player on it and the club see them. */
+export interface LessonCoach {
+  /** The name on the account. Null for an account that is gone. */
+  name: string | null;
+  /** Their page's address, while the platform has them approved; else null. */
+  slug: string | null;
+}
+
+/**
+ * The coach of each lesson, by account, for a booking that has a lesson on
+ * it (#548). The name is the account's; the page address is given only while
+ * the profile is approved, so a lesson taught by a coach who has since been
+ * removed still says who taught it and links nowhere.
+ *
+ * Takes the caller's handle. Under a club's binding the profile is not
+ * readable (it is the person's, owner-only), so the address is null there:
+ * the club's diary shows the name, which is all it needs.
+ */
+export async function lessonCoaches(
+  db: PrismaClient,
+  userIds: readonly string[],
+): Promise<Map<string, LessonCoach>> {
+  const ids = [...new Set(userIds)].slice(0, COACH_CARDS_MAX);
+  if (ids.length === 0) return new Map();
+  const [users, profiles] = await Promise.all([
+    db.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, deletedAt: true },
+      take: ids.length,
+    }),
+    db.coachProfile.findMany({
+      where: { userId: { in: ids }, status: 'APPROVED' },
+      select: { userId: true, slug: true },
+      take: ids.length,
+    }),
+  ]);
+  const slugOf = new Map(profiles.map((p) => [p.userId, p.slug]));
+  return new Map(
+    users.map((u) => [
+      u.id,
+      u.deletedAt ? { name: null, slug: null } : { name: u.name, slug: slugOf.get(u.id) ?? null },
+    ]),
+  );
+}
+
 export const PUBLIC_COACHES_PAGE = 24;
 export const PUBLIC_COACHES_MAX = 50;
 /** Coaches listed on one venue's page. */

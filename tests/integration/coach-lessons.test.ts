@@ -3,6 +3,10 @@ import { NextRequest } from 'next/server';
 import { POST as cancelRoute } from '@/app/api/v1/t/[slug]/bookings/[id]/cancel/route';
 import { GET as timesGet } from '@/app/api/v1/coaches/[slug]/lesson-times/route';
 import { POST as lessonPost } from '@/app/api/v1/coaches/[slug]/lessons/route';
+import { GET as myBookingGet } from '@/app/api/v1/me/bookings/[id]/route';
+import { GET as myBookingsGet } from '@/app/api/v1/me/bookings/route';
+import { GET as myLessonsGet } from '@/app/api/v1/me/coach-lessons/route';
+import { loadDiaryDay } from '@/app/(app)/t/[slug]/admin/calendar/diary-day';
 import { clearAllRateLimits } from '@/lib/security/rate-limit';
 
 import { signInAs, type TestIdentity } from '../helpers/auth';
@@ -624,6 +628,60 @@ describe('when the time has gone, the player is told which went', () => {
     expect((await rows()).lessons).toEqual([]);
   });
 
+  it('the price: the court the player was shown has gone and the one left costs more; nothing is booked until they agree', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A());
+    const dear = await court(A(), { name: 'Court 2', basePriceCents: 3000 });
+    const shown = (await times('ivan-petrov', { linkId, date: DAY, minutes: 60 })).data.times.find(
+      (t) => t.startTs === utc('10:00'),
+    )!;
+    expect(shown).toMatchObject({ court: { id: venue.resourceId }, totalCents: 6400 });
+
+    // Somebody books the cheaper court for that hour, to play.
+    await asAppSuperuser(db, (tx) =>
+      tx.booking.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: venue.resourceId,
+          startTs: new Date(at('10:00')),
+          endTs: new Date(at('11:00')),
+          status: 'CONFIRMED',
+          totalCents: 2400,
+          idempotencyKey: 'someone-playing',
+          guestName: 'Гост',
+          guestPhone: '+359888000000',
+        },
+      }),
+    );
+
+    const p = await player();
+    const body = { linkId, startTs: at('10:00'), minutes: 60 };
+    const refused = await book(p, 'ivan-petrov', { ...body, expectedTotalCents: shown.totalCents });
+    expect([refused.status, refused.code]).toEqual([409, 'LESSON_PRICE_CHANGED']);
+    expect(refused.json.error?.details).toEqual({ totalCents: 7000 });
+    expect((await rows()).lessons).toEqual([]);
+
+    // Shown the new price and agreeing to it, the lesson is booked on the court that is left.
+    const agreed = await book(p, 'ivan-petrov', { ...body, expectedTotalCents: 7000 });
+    expect(agreed.status).toBe(201);
+    expect(agreed.booking).toMatchObject({
+      totalCents: 3000,
+      resource: { id: dear },
+      lesson: { coachFeeCents: 4000, totalCents: 7000 },
+    });
+  });
+
+  it('a price that went DOWN is simply booked at the lower price', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A());
+    const res = await book(await player(), 'ivan-petrov', {
+      linkId,
+      startTs: at('10:00'),
+      minutes: 60,
+      expectedTotalCents: 9900,
+    });
+    expect(res.status).toBe(201);
+    expect(res.booking.lesson.totalCents).toBe(6400);
+  });
+
   it('neither: a time the coach does not teach, or one already past', async () => {
     const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A());
     const p = await player();
@@ -912,5 +970,236 @@ describe('a cancelled lesson', () => {
     const { data } = await times('ivan-petrov', { linkId, date: DAY, minutes: 60 });
     expect(starts(data)).toContain(utc('10:00'));
     expect((await book(await player(), 'ivan-petrov', body)).status).toBe(201);
+  });
+});
+
+describe('where a booked lesson is seen', () => {
+  const LABELS = { unknownPlayer: 'Играч', guest: 'Гост', deletedUser: 'Изтрит потребител' };
+
+  it('in the player’s Резервации: who teaches it, both prices, and the stricter deadline', async () => {
+    const id = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(id, A(), { groupRateCents: 6000, cancelCutoffHours: 48 });
+    const p = await player();
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: p.userId }, data: { name: 'Петя Играч' } }),
+    );
+    const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+
+    const list = await call(myBookingsGet, '/api/v1/me/bookings?when=upcoming', {
+      bearer: p.bearer,
+    });
+    const items = (list.json.data as { items: Array<Record<string, unknown>> }).items;
+    expect(items).toHaveLength(1);
+    const lesson = {
+      id: booked.booking.lesson.id,
+      coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+      coachFeeCents: 4000,
+      groupFeeCents: 6000,
+      courtPriceCents: 2400,
+      totalCents: 6400,
+    };
+    expect(items[0]).toMatchObject({
+      id: booked.booking.id,
+      // The court's part; the whole is on the lesson.
+      totalCents: 2400,
+      lesson,
+      cancellableUntil: new Date(new Date(at('10:00')).getTime() - 48 * 3_600_000)
+        .toISOString()
+        .replace('.000Z', 'Z'),
+    });
+
+    const one = await call(
+      myBookingGet,
+      `/api/v1/me/bookings/${booked.booking.id}`,
+      { bearer: p.bearer },
+      { id: booked.booking.id },
+    );
+    expect(one.status).toBe(200);
+    expect(one.json.data).toMatchObject({ id: booked.booking.id, lesson });
+
+    // A plain court booking carries `lesson: null`, not a missing field.
+    await asAppSuperuser(db, (tx) =>
+      tx.booking.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: venue.resourceId,
+          startTs: new Date(at('15:00')),
+          endTs: new Date(at('16:00')),
+          status: 'CONFIRMED',
+          totalCents: 2400,
+          idempotencyKey: 'just-a-court',
+          bookedByUserId: p.userId,
+        },
+      }),
+    );
+    const both = await call(myBookingsGet, '/api/v1/me/bookings?when=upcoming', {
+      bearer: p.bearer,
+    });
+    expect(
+      (both.json.data as { items: Array<{ lesson: unknown }> }).items.map((b) => b.lesson !== null),
+    ).toEqual([true, false]);
+  });
+
+  it('a coach the platform has since removed: the lesson still names them and links nowhere', async () => {
+    const id = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(id, A());
+    const p = await player();
+    await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    await asAppSuperuser(db, async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT set_config('app.platform_admin_id', $1, true)`, admin);
+      await tx.coachProfile.update({
+        where: { userId: id },
+        data: { status: 'DECLINED', decidedAt: new Date(), decidedByUserId: admin },
+      });
+    });
+    const list = await call(myBookingsGet, '/api/v1/me/bookings', { bearer: p.bearer });
+    expect(
+      (list.json.data as { items: Array<{ lesson: { coach: unknown } }> }).items[0]!.lesson.coach,
+    ).toEqual({ slug: null, name: 'Иван Петров' });
+  });
+
+  it('in the club’s diary: the coach’s name on the block, and the whole amount to collect', async () => {
+    const id = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(id, A());
+    const p = await player();
+    const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+
+    const day = await loadDiaryDay(club.tenantId, DAY, { locale: 'bg', labels: LABELS });
+    const block = day.bookings.find((b) => b.id === booked.booking.id)!;
+    expect(block).toMatchObject({
+      startLabel: '10:00',
+      endLabel: '11:00',
+      status: 'CONFIRMED',
+      lessonCoach: 'Иван Петров',
+    });
+    // 24 for the court and 40 for the coach.
+    expect(block.priceLabel).toMatch(/^64,00\s€$/);
+    // The other club's diary has nothing of it.
+    const elsewhere = await loadDiaryDay(other.tenantId, DAY, { locale: 'bg', labels: LABELS });
+    expect(elsewhere.bookings).toEqual([]);
+  });
+
+  describe('in the coach’s own «Уроци»', () => {
+    const mine = async (who: TestIdentity, when?: string) => {
+      const r = await call(myLessonsGet, `/api/v1/me/coach-lessons${when ? `?when=${when}` : ''}`, {
+        bearer: who.bearer,
+      });
+      return {
+        ...r,
+        items:
+          (
+            r.json.data as
+              { items: Array<Record<string, unknown>>; nextCursor: string | null } | undefined
+          )?.items ?? [],
+      };
+    };
+
+    it('their lessons at every club, soonest first, with who booked and their own fee', async () => {
+      const id = await coach('ivan-petrov', 'Иван Петров');
+      const linkA = await teaches(id, A());
+      const linkB = await teaches(id, B());
+      const ivan = await signInAs(db, { userId: id, memberships: [] });
+      const p = await player();
+      await asAppSuperuser(db, (tx) =>
+        tx.user.update({ where: { id: p.userId }, data: { name: 'Петя Играч' } }),
+      );
+      const later = await book(p, 'ivan-petrov', {
+        linkId: linkA,
+        startTs: at('11:00'),
+        minutes: 60,
+      });
+      const sooner = await book(await player(), 'ivan-petrov', {
+        linkId: linkB,
+        startTs: at('09:00'),
+        minutes: 60,
+      });
+      // Another coach's lesson is nobody else's business.
+      const mariaId = await coach('maria-ivanova', 'Мария Иванова');
+      await book(await player(), 'maria-ivanova', {
+        linkId: await teaches(mariaId, A()),
+        startTs: at('09:00'),
+        minutes: 60,
+      });
+
+      const res = await mine(ivan);
+      expect(res.status).toBe(200);
+      expect(res.items.map((l) => l.bookingId)).toEqual([sooner.booking.id, later.booking.id]);
+      expect(res.items[1]).toEqual({
+        id: later.booking.lesson.id,
+        bookingId: later.booking.id,
+        status: 'CONFIRMED',
+        startTs: utc('11:00'),
+        endTs: utc('12:00'),
+        venue: { id: venue.venueId, name: 'Алфа Кортове', timezone: 'Europe/Sofia' },
+        club: 'Клуб Алфа',
+        court: { name: 'Court 1', sport: 'PADEL' },
+        player: 'Петя Играч',
+        coachFeeCents: 4000,
+        currency: 'EUR',
+      });
+      // Nothing of the player beyond the name: no address, no phone, no id.
+      const text = JSON.stringify(res.items);
+      expect(text).not.toContain(p.userId);
+      expect(text).not.toMatch(/@playerz\.test|phone|email/i);
+      // And the court's price is the club's: not in the coach's list.
+      expect(text).not.toContain('2400');
+    });
+
+    it('a cancelled lesson moves from upcoming to past', async () => {
+      const id = await coach('ivan-petrov', 'Иван Петров');
+      const linkId = await teaches(id, A());
+      const ivan = await signInAs(db, { userId: id, memberships: [] });
+      const p = await player();
+      const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+      expect((await mine(ivan, 'upcoming')).items).toHaveLength(1);
+      expect((await mine(ivan, 'past')).items).toEqual([]);
+
+      await call(
+        cancelRoute,
+        `/api/v1/t/${club.tenantSlug}/bookings/${booked.booking.id}/cancel`,
+        { method: 'POST', bearer: p.bearer, json: {} },
+        { slug: club.tenantSlug, id: booked.booking.id },
+      );
+      expect((await mine(ivan, 'upcoming')).items).toEqual([]);
+      expect((await mine(ivan, 'past')).items).toMatchObject([
+        { bookingId: booked.booking.id, status: 'CANCELLED' },
+      ]);
+    });
+
+    it('pages by a cursor', async () => {
+      const id = await coach('ivan-petrov', 'Иван Петров');
+      const linkId = await teaches(id, A());
+      const ivan = await signInAs(db, { userId: id, memberships: [] });
+      for (const t of ['09:00', '10:00', '11:00']) {
+        await book(await player(), 'ivan-petrov', { linkId, startTs: at(t), minutes: 60 });
+      }
+      const first = await call(myLessonsGet, '/api/v1/me/coach-lessons?limit=2', {
+        bearer: ivan.bearer,
+      });
+      const page1 = first.json.data as { items: Array<{ startTs: string }>; nextCursor: string };
+      expect(page1.items.map((l) => l.startTs)).toEqual([utc('09:00'), utc('10:00')]);
+      const second = await call(
+        myLessonsGet,
+        `/api/v1/me/coach-lessons?limit=2&cursor=${page1.nextCursor}`,
+        { bearer: ivan.bearer },
+      );
+      expect(second.json.data).toMatchObject({
+        items: [{ startTs: utc('11:00') }],
+        nextCursor: null,
+      });
+    });
+
+    it('is a coach’s: a player is refused, signed out is 401, and a bad `when` is 400', async () => {
+      const p = await player();
+      const refused = await mine(p);
+      expect([refused.status, refused.json.error?.code]).toEqual([403, 'COACH_ACCOUNT_REQUIRED']);
+      expect((await call(myLessonsGet, '/api/v1/me/coach-lessons')).status).toBe(401);
+      const ivan = await signInAs(db, {
+        userId: await coach('ivan-petrov', 'Иван Петров'),
+        memberships: [],
+      });
+      expect((await mine(ivan, 'soon')).status).toBe(400);
+      expect((await mine(ivan)).items).toEqual([]);
+    });
   });
 });

@@ -19,6 +19,7 @@ export function CoachCard({
   sports,
   line,
   places,
+  at,
 }: {
   slug: string;
   name: string;
@@ -28,10 +29,15 @@ export function CoachCard({
   line: string | null;
   /** Where they teach, when the list is not already about one venue. */
   places?: string | null;
+  /**
+   * The coach's link at the venue this list is about (#548): their page then
+   * opens with the lesson picker already on that venue.
+   */
+  at?: string | null;
 }) {
   return (
     <Link
-      href={coachPath(slug)}
+      href={at ? `${coachPath(slug)}?at=${encodeURIComponent(at)}` : coachPath(slug)}
       className="border-border-subtle bg-bg-default hover:bg-bg-muted flex min-h-14 items-center gap-3 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
       data-testid="coach-card"
       data-coach={slug}

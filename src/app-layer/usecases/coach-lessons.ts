@@ -1,4 +1,4 @@
-import { type PrismaClient, type SportType } from '@prisma/client';
+import { type BookingStatus, type PrismaClient, type SportType } from '@prisma/client';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 import { minutesFromTimeColumn } from '@/app-layer/repositories/availability';
@@ -9,6 +9,7 @@ import { createBooking, SlotTakenError } from '@/app-layer/usecases/booking';
 import { clubTakesOnlinePayment } from '@/app-layer/usecases/booking-rules';
 import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import { readyLink } from '@/app-layer/usecases/coach-directory';
+import { CoachAccountRequiredError } from '@/app-layer/usecases/coach-profile';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
 import {
@@ -38,6 +39,11 @@ import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
  * club. Neither is checked first and trusted: each is an insert the database
  * refuses if somebody was faster, and a refusal of the second takes the first
  * down with it.
+ *
+ * The court is the server's choice, so the price is settled only here. A
+ * client says what total it showed the player (`expectedTotalCents`), and a
+ * lesson that would cost more than that is refused, not booked: nobody is
+ * charged a price they did not see.
  *
  * The player is told WHICH went. When the court is refused the time is looked
  * at again, fresh: if another court is free the lesson is booked on that one
@@ -104,6 +110,18 @@ export class CoachTakenError extends Error {
   constructor() {
     super('The coach has just been booked for that time.');
     this.name = 'CoachTakenError';
+  }
+}
+
+/**
+ * The lesson can no longer be had for what the player was shown: the court
+ * that price was for has gone, and the one left costs more. Nothing is booked;
+ * the player sees the new price and decides again.
+ */
+export class LessonPriceChangedError extends Error {
+  constructor(readonly totalCents: number) {
+    super('The price of that lesson has changed.');
+    this.name = 'LessonPriceChangedError';
   }
 }
 
@@ -396,6 +414,14 @@ export interface BookLessonInput {
   sport?: SportType;
   idempotencyKey: string;
   notes?: string | null;
+  /**
+   * The total the player was shown and agreed to. The court is chosen when
+   * the lesson is booked, so it may not be the one that price was for; with
+   * this set, a lesson that would now cost MORE is refused
+   * (`LessonPriceChangedError`) rather than booked. One that costs the same
+   * or less is booked.
+   */
+  expectedTotalCents?: number;
   now?: Date;
 }
 
@@ -529,6 +555,11 @@ async function bookOn(
     throw err;
   }
 
+  const fee = coachFeeCents(link.hourlyRateCents, input.minutes);
+  if (input.expectedTotalCents !== undefined && fee + courtPriceCents > input.expectedTotalCents) {
+    throw new LessonPriceChangedError(fee + courtPriceCents);
+  }
+
   const created = await createBooking(db, tenantId, {
     resourceId: resource.id,
     startTs: input.startTs,
@@ -556,7 +587,6 @@ async function bookOn(
     };
   }
 
-  const fee = coachFeeCents(link.hourlyRateCents, input.minutes);
   let lessonId: string;
   try {
     const lesson = await db.coachLesson.create({
@@ -651,4 +681,137 @@ async function lessonOnBooking(
     totalCents: lesson.coachFeeCents + lesson.booking.totalCents,
     currency: link.currency,
   };
+}
+
+// ═══ THE COACH'S OWN LESSONS ═══════════════════════════════════════════════
+
+/** One lesson as the coach who teaches it sees it. */
+export interface MyLesson {
+  lessonId: string;
+  bookingId: string;
+  status: BookingStatus;
+  startTs: Date;
+  endTs: Date;
+  venue: { id: string; name: string; timezone: string };
+  club: string;
+  court: { name: string; sport: string };
+  /**
+   * Who booked it: the name on their account. Null for an account that is
+   * gone. (The level and, while the lesson is upcoming, the confirmed phone
+   * arrive with #549; owner decision 12.)
+   */
+  player: string | null;
+  coachFeeCents: number;
+  currency: string;
+}
+
+export const MY_LESSONS_PAGE = 20;
+export const MY_LESSONS_MAX = 100;
+
+/**
+ * The lessons a coach teaches, at every club: UPCOMING (still on, not yet
+ * over) soonest first, or PAST (over, or cancelled) newest first. The two
+ * never overlap, and together they are every lesson.
+ *
+ * Read by the coach's own account and nothing else: `coachUserId` is the
+ * caller's id from a verified session. It spans clubs, so it is not bound to
+ * one; a lesson row belongs to its club under RLS, and no binding means
+ * "mine, wherever I teach".
+ */
+export async function listMyLessons(input: {
+  userId: string;
+  when: 'upcoming' | 'past';
+  limit?: number;
+  cursor?: string | null;
+  now?: Date;
+}): Promise<{ items: MyLesson[]; nextCursor: string | null }> {
+  const now = input.now ?? new Date();
+  const take =
+    !input.limit || input.limit < 1 ? MY_LESSONS_PAGE : Math.min(input.limit, MY_LESSONS_MAX);
+
+  return runAsSuperuser(async (db) => {
+    const account = await db.user.findUnique({
+      where: { id: input.userId },
+      select: { accountKind: true, deletedAt: true },
+    });
+    if (!account || account.deletedAt || account.accountKind !== 'COACH') {
+      throw new CoachAccountRequiredError();
+    }
+
+    // guardrail-allow: cross-tenant — the coach's own lessons, at every club
+    // they teach at; the filter is their session-derived id.
+    const rows = await db.coachLesson.findMany({
+      where: {
+        coachUserId: input.userId,
+        ...(input.when === 'upcoming'
+          ? { active: true, endTs: { gt: now } }
+          : { OR: [{ active: false }, { endTs: { lte: now } }] }),
+      },
+      orderBy:
+        input.when === 'upcoming'
+          ? [{ startTs: 'asc' }, { id: 'asc' }]
+          : [{ startTs: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        tenantId: true,
+        bookingId: true,
+        startTs: true,
+        endTs: true,
+        coachFeeCents: true,
+        coach: { select: { currency: true } },
+        booking: {
+          select: {
+            status: true,
+            bookedByUserId: true,
+            resource: {
+              select: {
+                name: true,
+                sport: true,
+                venue: { select: { id: true, name: true, timezone: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const hasMore = rows.length > take;
+    const page = hasMore ? rows.slice(0, take) : rows;
+    if (page.length === 0) return { items: [], nextCursor: null };
+
+    const playerIds = [...new Set(page.flatMap((r) => r.booking.bookedByUserId ?? []))];
+    const tenantIds = [...new Set(page.map((r) => r.tenantId))];
+    const [players, clubs] = await Promise.all([
+      db.user.findMany({
+        where: { id: { in: playerIds }, deletedAt: null },
+        select: { id: true, name: true },
+        take: Math.max(1, playerIds.length),
+      }),
+      db.venueOrg.findMany({
+        where: { id: { in: tenantIds } },
+        select: { id: true, name: true },
+        take: tenantIds.length,
+      }),
+    ]);
+    const nameOf = new Map(players.map((u) => [u.id, u.name]));
+    const clubOf = new Map(clubs.map((c) => [c.id, c.name]));
+
+    return {
+      items: page.map((r) => ({
+        lessonId: r.id,
+        bookingId: r.bookingId,
+        status: r.booking.status,
+        startTs: r.startTs,
+        endTs: r.endTs,
+        venue: r.booking.resource.venue,
+        club: clubOf.get(r.tenantId) ?? '',
+        court: { name: r.booking.resource.name, sport: r.booking.resource.sport },
+        player: r.booking.bookedByUserId ? (nameOf.get(r.booking.bookedByUserId) ?? null) : null,
+        coachFeeCents: r.coachFeeCents,
+        currency: r.coach.currency,
+      })),
+      nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
+    };
+  });
 }

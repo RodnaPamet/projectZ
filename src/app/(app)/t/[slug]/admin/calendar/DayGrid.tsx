@@ -120,6 +120,11 @@ export interface DayBooking {
   bookerPhone: string | null;
   /** One week of a weekly series, or null. */
   seriesId: string | null;
+  /**
+   * The coach's name when the booking is a lesson (#548), else null. The
+   * price shown is then the court's and the coach's fee together.
+   */
+  lessonCoach: string | null;
   /** The players besides the booker (#358), open-play joiners marked (#376). */
   players: DiaryPlayer[];
 }
@@ -742,6 +747,11 @@ function BookingBlock({
   const content = (
     <>
       <span className="font-medium">{b.who}</span>
+      {b.lessonCoach && (
+        <span className="ml-1" data-booking-lesson>
+          {t('lesson', { coach: b.lessonCoach })}
+        </span>
+      )}
       {b.players.length > 0 && (
         <span className="ml-1 tabular-nums" data-booking-players={b.players.length}>
           {t('players.more', { count: b.players.length })}

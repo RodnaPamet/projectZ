@@ -8,7 +8,8 @@ import { COACHES_HREF } from '@/lib/coaches/hrefs';
 
 /**
  * «Треньори» on a venue page (#547; owner decision 10): the coaches a player
- * can book here, each with the rate at THIS venue, each a link to their page.
+ * can book here, each with the rate at THIS venue, each a link to their page
+ * with the lesson picker already on this venue (#548).
  *
  * A Server Component with no script: the list is the same for everybody.
  * Renders nothing when nobody teaches here, so a venue without coaches does
@@ -51,6 +52,8 @@ export async function VenueCoaches({ venueId }: { venueId: string }) {
                 name={c.name?.trim() || t('noName')}
                 avatarUrl={c.avatarUrl}
                 sports={c.sports.map((s) => tSports(s.sport as never))}
+                // Their page opens with the lesson picker on THIS venue.
+                at={here?.venueId === venueId ? here.linkId : null}
                 line={
                   here
                     ? t('venue.rate', {

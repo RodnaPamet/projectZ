@@ -1,5 +1,3 @@
-import { formatInTimeZone } from 'date-fns-tz';
-
 /**
  * The venue page's calendar and its URL state (#355). No directive: the page
  * (a server component) calls these, and the client component reuses the URL
@@ -15,22 +13,11 @@ import { formatInTimeZone } from 'date-fns-tz';
  * local midnights itself (`?date=`), DST included.
  */
 
-/** Today plus 13: the availability endpoint's 14-day ceiling. */
-export const BOOKING_DAYS = 14;
+// Today plus 13: the availability endpoint's 14-day ceiling. The days
+// themselves are shared with the lesson picker on a coach's page.
+export { BOOKING_DAYS, bookingDays } from '@/lib/booking/days';
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** `YYYY-MM-DD` for today at the club, then the next 13 calendar days. */
-export function bookingDays(now: Date, timezone: string): string[] {
-  const today = formatInTimeZone(now, timezone, 'yyyy-MM-dd');
-  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
-  const out: string[] = [];
-  for (let i = 0; i < BOOKING_DAYS; i++) {
-    // Calendar arithmetic in UTC, where every day is 24 hours: no zone, no DST.
-    out.push(new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
-  }
-  return out;
-}
 
 /** A `publicSlug` as P41 writes them; anything else is a 404 before a query. */
 export function isPublicSlug(raw: string): boolean {

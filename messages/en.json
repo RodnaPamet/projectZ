@@ -1243,7 +1243,8 @@
             "unavailable": "outside opening hours"
           }
         }
-      }
+      },
+      "lesson": "lesson with {coach}"
     },
     "photos": {
       "metaTitle": "Photos and info",
@@ -1565,6 +1566,11 @@
         "description": "{venue}, {date} at {time}. The court will be freed for other players.",
         "yes": "Cancel booking",
         "no": "Back"
+      },
+      "lesson": {
+        "coach": "Coach",
+        "noName": "Coach",
+        "parts": "{coach} for the coach + {court} for the court"
       }
     },
     "coachNotice": "The coach profile is coming: approval by playerz.bg and by clubs, then your sessions. Until then you can book and play as a player.",
@@ -1681,6 +1687,10 @@
         "FAILED": "That didn't work. Try again."
       },
       "waiting": "{count, plural, one {# waiting} other {# waiting}}"
+    },
+    "lesson": {
+      "with": "Lesson with {coach}",
+      "withCoach": "Lesson with a coach"
     }
   },
   "platform": {
@@ -3105,6 +3115,25 @@
       "UNKNOWN": "Something went wrong. Try again."
     }
   },
+  "coachLessons": {
+    "title": "Lessons",
+    "tabsLabel": "Which lessons",
+    "tabs": {
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
+    "loading": "Loading…",
+    "error": "The lessons did not load.",
+    "retry": "Try again",
+    "noneUpcoming": "You have no upcoming lessons.",
+    "nonePast": "You have no past lessons.",
+    "when": "{day}, {start}–{end}",
+    "where": "{venue} · {court} · {sport}",
+    "player": "Player: {name}",
+    "noPlayer": "A player whose account was deleted",
+    "fee": "Your fee: {price}",
+    "more": "Show more"
+  },
   "coaches": {
     "metaTitle": "Coaches — playerz.bg",
     "metaDescription": "Approved coaches for tennis, padel and other sports. See where they teach and for how much.",
@@ -3142,6 +3171,50 @@
       "title": "Coaches",
       "all": "All coaches",
       "rate": "{price} an hour"
+    },
+    "lesson": {
+      "title": "Book a lesson",
+      "venueLabel": "Venue",
+      "at": "{venue} · {club}",
+      "sportLabel": "Sport",
+      "lengthLabel": "Length",
+      "timesLabel": "Free times for a lesson",
+      "none": "No free times for a lesson on this day.",
+      "priceNote": "The price is for one player and includes {fee} for the coach and the court's price. Paid at the club.",
+      "own": "This is your page. Players book lessons with you from here.",
+      "clubAccount": "Club accounts cannot book lessons. Sign in with a player account.",
+      "pick": "Lesson · {date}, {time}",
+      "prompt": "Choose a time for the lesson",
+      "book": "Book lesson",
+      "sheet": {
+        "title": "Confirm the lesson",
+        "coach": "Coach",
+        "venue": "Venue",
+        "court": "Court",
+        "courtOf": "{court} · {sport}",
+        "coachFee": "For the coach",
+        "courtPrice": "For the court",
+        "total": "Total",
+        "payAtClub": "Paid at the club. If the court is taken in the meantime, the lesson will be on another free court, and will not cost more.",
+        "noOnlineCancel": "The lesson can be cancelled up to {hours, plural, one {# hour} other {# hours}} before it starts. This one starts sooner, so once confirmed it can only be cancelled through the club.",
+        "error": {
+          "coachTakenTitle": "The coach is no longer free",
+          "coachTaken": "Someone has just booked a lesson with this coach at that time. The free times have been refreshed. Choose another.",
+          "noCourtTitle": "No court is free",
+          "noCourt": "The courts for that time have just been taken. The free times have been refreshed. Choose another.",
+          "notOfferedTitle": "That time is no longer offered",
+          "notOffered": "That time is no longer free for a lesson. The free times have been refreshed. Choose another.",
+          "priceChangedTitle": "The price has changed",
+          "priceChanged": "The court that price was for has been taken. The lesson at that time now costs {price}. The free times have been refreshed. Choose again.",
+          "priceChangedNoPrice": "The court that price was for has been taken. The free times have been refreshed. Choose again.",
+          "notBookableTitle": "The lesson cannot be booked",
+          "notBookable": "Lessons with this coach can no longer be booked at this venue.",
+          "ownLesson": "You cannot book a lesson with yourself.",
+          "signedOut": "Sign in again to book this lesson.",
+          "failedTitle": "The lesson was not booked",
+          "failed": "Try again. If the connection dropped, trying again will not book a second lesson."
+        }
+      }
     }
   }
 }

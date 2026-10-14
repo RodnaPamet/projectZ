@@ -13679,6 +13679,105 @@
         }
       }
     },
+    "/me/coach-lessons": {
+      "get": {
+        "operationId": "listMyCoachLessons",
+        "summary": "The lessons the caller teaches",
+        "tags": ["Me"],
+        "description": "The lessons the caller teaches, at every club (#548). `when=upcoming` (the default) is every lesson still on and not yet over, SOONEST first; `when=past` is every other one (over, or cancelled), newest first. The two never overlap.\n\nA COACH account only.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "description": "`upcoming` (default) or `past`. Any other value is 400 with `details.field: \"when\"`.",
+            "schema": {
+              "type": "string",
+              "enum": ["upcoming", "past"],
+              "default": "upcoming"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size, 1 to 100; absent, non-numeric or under 1 becomes 20, above 100 becomes 100.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` of the previous page, passed back verbatim.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of lessons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCoachLessonPageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `when` is neither `upcoming` nor `past`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`COACH_ACCOUNT_REQUIRED` — the account is not a coach's.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/coaches": {
       "get": {
         "operationId": "listCoaches",
@@ -13909,7 +14008,7 @@
         "operationId": "bookLesson",
         "summary": "Book a lesson (a court and the coach, together)",
         "tags": ["Coaches"],
-        "description": "Books a lesson (#548): a court booking with the coach on it, **taken together or not at all**. The body names the coach's link, a start and a length. The server chooses the court (the cheapest one free then; another one if that court has just gone) and sets both prices.\n\nAnswers with the booking exactly as `POST /t/{slug}/bookings` does, plus a `lesson` block. The booking's `totalCents` is the COURT's part only; `lesson.coachFeeCents` is the coach's, and `lesson.totalCents` the two together. **Both are paid at the club.**\n\n**Every rule of a court booking applies**, because the court part IS a court booking: a player account with a confirmed phone, the club's cap on upcoming online bookings, the no-show block, a start in the future. See `createBooking` for each refusal.\n\n**The `Idempotency-Key` header is REQUIRED**, as for a court booking: 201 on a genuine create, 200 on a replay, and on a replay the body is ignored.\n\n**Told apart when the time has gone:** `409 COACH_TAKEN` (the coach was booked first, here or at another club), `409 SLOT_TAKEN` (no court is left then), `409 LESSON_TIME_NOT_OFFERED` (the coach does not teach then). After any of the three, fetch the times again.",
+        "description": "Books a lesson (#548): a court booking with the coach on it, **taken together or not at all**. The body names the coach's link, a start and a length. The server chooses the court (the cheapest one free then; another one if that court has just gone) and sets both prices.\n\nAnswers with the booking exactly as `POST /t/{slug}/bookings` does, plus a `lesson` block. The booking's `totalCents` is the COURT's part only; `lesson.coachFeeCents` is the coach's, and `lesson.totalCents` the two together. **Both are paid at the club.**\n\n**Every rule of a court booking applies**, because the court part IS a court booking: a player account with a confirmed phone, the club's cap on upcoming online bookings, the no-show block, a start in the future. See `createBooking` for each refusal.\n\n**The `Idempotency-Key` header is REQUIRED**, as for a court booking: 201 on a genuine create, 200 on a replay, and on a replay the body is ignored.\n\n**Never more than the player saw.** Send `expectedTotalCents`, the `totalCents` of the time the player picked. If the only court left costs more, the answer is `409 LESSON_PRICE_CHANGED` with the new total and nothing is booked.\n\n**Told apart when the time has gone:** `409 COACH_TAKEN` (the coach was booked first, here or at another club), `409 SLOT_TAKEN` (no court is left then), `409 LESSON_TIME_NOT_OFFERED` (the coach does not teach then). After any of the three, fetch the times again.",
         "security": [
           {
             "bearerAuth": []
@@ -14008,7 +14107,7 @@
             }
           },
           "409": {
-            "description": "`COACH_TAKEN` — the coach was booked for that time first. `SLOT_TAKEN` — no court is left at that time. `LESSON_TIME_NOT_OFFERED` — the coach does not teach then. `BOOKING_LIMIT_REACHED` — the club's cap on upcoming online bookings (`details.limit`, `details.upcoming`). `IDEMPOTENCY_RACE` — two requests with the same key in flight; send it again.",
+            "description": "`COACH_TAKEN` — the coach was booked for that time first. `SLOT_TAKEN` — no court is left at that time. `LESSON_TIME_NOT_OFFERED` — the coach does not teach then. `LESSON_PRICE_CHANGED` — it would cost more than `expectedTotalCents`: the court that price was for has gone; `details.totalCents` is the price now, and nothing was booked. `BOOKING_LIMIT_REACHED` — the club's cap on upcoming online bookings (`details.limit`, `details.upcoming`). `IDEMPOTENCY_RACE` — two requests with the same key in flight; send it again.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15927,7 +16026,8 @@
           "clubSlug",
           "venueReview",
           "canReview",
-          "viewerRole"
+          "viewerRole",
+          "lesson"
         ],
         "properties": {
           "id": {
@@ -16060,6 +16160,17 @@
             "type": "string",
             "enum": ["BOOKER", "PARTICIPANT"],
             "description": "The caller's side of the booking (#358): `BOOKER` made it; `PARTICIPANT` was added by the booker or an invite link. A participant cannot cancel it (`cancellableUntil` is null for them) and leaves with `DELETE /me/bookings/{id}/participation`. A closed enum: the two sides of a booking are the model, not a status that grows."
+          },
+          "lesson": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MyBookingLesson"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The lesson on this booking, when it is one (#548); `null` for a plain court booking. For a lesson, `totalCents` above is the court's part only and `lesson.totalCents` is the whole price; `cancellableUntil` follows the stricter of the club's cutoff and the coach's."
           }
         }
       },
@@ -16330,7 +16441,8 @@
           "viewerRole",
           "capacity",
           "spotsLeft",
-          "playersOpen"
+          "playersOpen",
+          "lesson"
         ],
         "properties": {
           "id": {
@@ -16522,6 +16634,17 @@
           "playersOpen": {
             "type": "boolean",
             "description": "Whether players can be added, leave or be removed now: the booking holds its court (PENDING or CONFIRMED) and has not started."
+          },
+          "lesson": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MyBookingLesson"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The lesson on this booking, when it is one (#548); `null` for a plain court booking. For a lesson, `totalCents` above is the court's part only and `lesson.totalCents` is the whole price; `cancellableUntil` follows the stricter of the club's cutoff and the coach's."
           }
         }
       },
@@ -21283,7 +21406,7 @@
       "BookLessonRequest": {
         "type": "object",
         "title": "BookLessonRequest",
-        "description": "Which lesson to book. It carries NO price and NO court: the server chooses the court and prices both parts.",
+        "description": "Which lesson to book. It carries NO court, and the only price it carries is a ceiling: the server chooses the court and prices both parts, and never books for more than `expectedTotalCents`.",
         "required": ["linkId", "startTs", "minutes"],
         "properties": {
           "linkId": {
@@ -21308,6 +21431,11 @@
           "notes": {
             "type": ["string", "null"],
             "maxLength": 500
+          },
+          "expectedTotalCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The total the player was shown and agreed to (`totalCents` of the time picked). The court is chosen when the lesson is booked and may not be the one that price was for. With this set, a lesson that would now cost MORE is refused with 409 `LESSON_PRICE_CHANGED` instead of booked; one that costs the same or less is booked. Send it: without it the lesson is booked at whatever the cheapest free court costs."
           }
         }
       },
@@ -21395,6 +21523,169 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/LessonBooking"
+          }
+        }
+      },
+      "MyBookingLesson": {
+        "type": "object",
+        "title": "MyBookingLesson",
+        "description": "The lesson on one of the caller's bookings (#548): who teaches it and what each part costs. Both parts are paid at the club.",
+        "required": [
+          "id",
+          "coach",
+          "coachFeeCents",
+          "groupFeeCents",
+          "courtPriceCents",
+          "totalCents"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "coach": {
+            "type": "object",
+            "required": ["slug", "name"],
+            "properties": {
+              "slug": {
+                "type": ["string", "null"],
+                "description": "The coach's page address. Null once the coach is no longer listed (removed by the platform, or the account is gone): the lesson still says who taught it and links nowhere."
+              },
+              "name": {
+                "type": ["string", "null"]
+              }
+            }
+          },
+          "coachFeeCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The coach's fee, at the rate that stood when the lesson was booked."
+          },
+          "groupFeeCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "What the coach's fee becomes with two or more players. Null: no group lessons."
+          },
+          "courtPriceCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The court's part: the booking's own `totalCents`."
+          },
+          "totalCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "`coachFeeCents` + `courtPriceCents`: what the lesson costs."
+          }
+        }
+      },
+      "MyCoachLesson": {
+        "type": "object",
+        "title": "MyCoachLesson",
+        "description": "One lesson as the coach who teaches it sees it (#548).",
+        "required": [
+          "id",
+          "bookingId",
+          "status",
+          "startTs",
+          "endTs",
+          "venue",
+          "club",
+          "court",
+          "player",
+          "coachFeeCents",
+          "currency"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The lesson's id. Also the pagination cursor."
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "The court booking the lesson is on."
+          },
+          "status": {
+            "type": "string",
+            "description": "The booking's status: `CONFIRMED` (or `PENDING`) while the lesson is on; `CANCELLED`, `COMPLETED`, `NO_SHOW` or `EXPIRED` after."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "name", "timezone"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone. Render the times in it."
+              }
+            }
+          },
+          "club": {
+            "type": "string",
+            "description": "The club's name."
+          },
+          "court": {
+            "type": "object",
+            "required": ["name", "sport"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "sport": {
+                "type": "string"
+              }
+            }
+          },
+          "player": {
+            "type": ["string", "null"],
+            "description": "Who booked the lesson: the name on their account. Null for an account that is gone."
+          },
+          "coachFeeCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The coach's own fee for this lesson. The court's price is the club's and is not shown here."
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "MyCoachLessonPage": {
+        "type": "object",
+        "title": "MyCoachLessonPage",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyCoachLesson"
+            },
+            "description": "May be empty."
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "OPAQUE. Pass back verbatim as `cursor`; `null` is the last page."
+          }
+        }
+      },
+      "MyCoachLessonPageEnvelope": {
+        "type": "object",
+        "title": "MyCoachLessonPageEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MyCoachLessonPage"
           }
         }
       }

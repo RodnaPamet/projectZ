@@ -6,7 +6,12 @@ import type {
 } from '@/app-layer/usecases/coach-approval';
 import type { PublicCoach } from '@/app-layer/usecases/coach-directory';
 import type { MyCoachLink } from '@/app-layer/usecases/coach-links';
-import type { BookedLesson, LessonLink, LessonOffer } from '@/app-layer/usecases/coach-lessons';
+import type {
+  BookedLesson,
+  LessonLink,
+  LessonOffer,
+  MyLesson,
+} from '@/app-layer/usecases/coach-lessons';
 import { rfc3339 } from '@/app/api/v1/_lib/dto';
 import { bookingCutoffHours } from '@/lib/booking/cutoff';
 import { coachFeeCents } from '@/lib/coaches/lessons';
@@ -161,6 +166,8 @@ export function toLessonTimes(input: {
   };
 }
 
+export type LessonTimesDto = ReturnType<typeof toLessonTimes>;
+
 /** The lesson on a booking: who teaches it and what each part costs. */
 export function toBookedLesson(l: BookedLesson) {
   return {
@@ -174,3 +181,24 @@ export function toBookedLesson(l: BookedLesson) {
     currency: l.currency,
   };
 }
+
+export type BookedLessonDto = ReturnType<typeof toBookedLesson>;
+
+/** One lesson as its coach sees it (`GET /me/coach-lessons`). */
+export function toMyLesson(l: MyLesson) {
+  return {
+    id: l.lessonId,
+    bookingId: l.bookingId,
+    status: l.status,
+    startTs: rfc3339(l.startTs),
+    endTs: rfc3339(l.endTs),
+    venue: { id: l.venue.id, name: l.venue.name, timezone: l.venue.timezone },
+    club: l.club,
+    court: { name: l.court.name, sport: l.court.sport },
+    player: l.player,
+    coachFeeCents: l.coachFeeCents,
+    currency: l.currency,
+  };
+}
+
+export type MyLessonDto = ReturnType<typeof toMyLesson>;

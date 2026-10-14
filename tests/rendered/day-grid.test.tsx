@@ -59,6 +59,7 @@ const booking = (over: Partial<DayBooking> = {}): DayBooking => ({
   desk: false,
   bookerPhone: null,
   seriesId: null,
+  lessonCoach: null,
   players: [],
   ...over,
 });
@@ -135,6 +136,25 @@ describe('DayGrid on the primitives', () => {
         name: /Иван, 18:00–19:00/,
       }),
     ).toBeInTheDocument();
+  });
+
+  it('a lesson says who teaches it on its block; a plain booking says nothing of a coach', () => {
+    const { container } = grid(
+      nextClub(),
+      dayOf({
+        bookings: [
+          booking({ id: 'l1', lessonCoach: 'Мария Иванова', priceLabel: '64,00 €' }),
+          booking({ id: 'p1', startLabel: '19:00', endLabel: '20:00', startOffsetMinutes: 660 }),
+        ],
+      }),
+    );
+    const marks = container.querySelectorAll('[data-booking-lesson]');
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveTextContent('урок с Мария Иванова');
+    // On the lesson's own block, with the whole amount the desk collects.
+    const block = marks[0]!.closest('[data-booking-status]')!;
+    expect(block).toHaveTextContent('Иван');
+    expect(block).toHaveTextContent('64,00 €');
   });
 
   it('the legend and a pending block’s expiry are StatusBadges; the timezone badge stays', () => {

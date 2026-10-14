@@ -30,6 +30,7 @@ import { countUsage } from '@/lib/usage/record';
  *   409 COACH_TAKEN              the coach was booked for that time first
  *   409 SLOT_TAKEN               no court is left at that time
  *   409 LESSON_TIME_NOT_OFFERED  the coach does not teach then
+ *   409 LESSON_PRICE_CHANGED     it would cost more than `expectedTotalCents`
  *   400 LESSON_LENGTH_NOT_OFFERED, 404 COACH_NOT_BOOKABLE, 400 OWN_LESSON
  * and every refusal a court booking has: 403 PHONE_REQUIRED,
  * PLAYER_ACCOUNT_REQUIRED and NO_SHOW_BLOCKED, 409 for the cap on upcoming
@@ -57,6 +58,7 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ slug: s
     sport: body.sport,
     idempotencyKey,
     notes: body.notes ? body.notes : null,
+    expectedTotalCents: body.expectedTotalCents,
   });
 
   if (!booked.replay) {
