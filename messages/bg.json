@@ -52,8 +52,6 @@
       "hidePassword": "Скрий паролата",
       "showPassword": "Покажи паролата",
       "options": "Опции",
-      "secondsRemaining": "Оставащо време: {seconds} сек.",
-      "undoWindow": "{label}: оставащо време",
       "switchToDarkTheme": "Превключи към тъмна тема",
       "switchToLightTheme": "Превключи към светла тема",
       "breadcrumb": "Навигационна пътека"

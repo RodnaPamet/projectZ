@@ -496,6 +496,638 @@
     "sha256": "f7058e7f3d8730c088199225480197af84d85555666158acf8b2b783cb7af576"
   },
   {
+    "path": "src/components/ui/hooks/__tests__/use-threshold-load-more.test.tsx",
+    "inflectPath": "packages/ui/src/components/ui/hooks/__tests__/use-threshold-load-more.test.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "2c744fafb6600966ad85ff34d0294e9e021900b3f968095a8d22b895664556f0"
+  },
+  {
+    "path": "src/components/ui/hooks/__tests__/use-toast-with-undo.test.ts",
+    "inflectPath": "src/components/ui/hooks/__tests__/use-toast-with-undo.test.ts",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "cc800eeffdae12dbe3e6deadd1bd9df52d28ee1c6e629c63903340ebc0b76be4"
+  },
+  {
+    "path": "src/components/ui/hooks/index.ts",
+    "inflectPath": "src/components/ui/hooks/index.ts",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "ddbb3d7d9db6dd9867e368f43d9cc26a30627e39ca09e1337016e8d1a95df99b"
+  },
+  {
+    "path": "src/components/ui/hooks/use-column-visibility.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-column-visibility.ts",
+    "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+    "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+    "status": "vendored",
+    "sha256": "4e9a507e30f33cc8437aca019b626d16c69920dd149118876ebceb6767c756b6"
+  },
+  {
+    "path": "src/components/ui/hooks/use-cursor-pagination.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-cursor-pagination.ts",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "446885d8c5b74081b0bfac65dc5b4fecaacf1a34764c73dd4d740571f04f3103"
+  },
+  {
+    "path": "src/components/ui/hooks/use-input-focused.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-input-focused.ts",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "fcd8fe899e5426820861a6c35ed07f993daf55e81383990803175bd7fcc645c1"
+  },
+  {
+    "path": "src/components/ui/hooks/use-intersection-observer.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-intersection-observer.ts",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "9f582f3c1269286d344dd4649af69f8353dc439645e888bf5ba0325d619c736e"
+  },
+  {
+    "path": "src/components/ui/hooks/use-optimistic-update.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-optimistic-update.ts",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "b2674b604ef3cb6ce1da386864a29653092921c5d2a85eb3191cbd08f8a44f1a"
+  },
+  {
+    "path": "src/components/ui/hooks/use-responsive-presentation.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-responsive-presentation.ts",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "50c812289b190cbe57f3d2df4150cf65858e0e4b70babfd2388c45a066f3f58b"
+  },
+  {
+    "path": "src/components/ui/hooks/use-scroll.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-scroll.ts",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "ac4b2cdb28f908ad4b7849266d622bf62989c6e008e5c04d412360a28bda3fb0"
+  },
+  {
+    "path": "src/components/ui/hooks/use-threshold-load-more.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-threshold-load-more.ts",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "2211ca4844ec0f9e546d0fed76abbe1f5aabffc73abc318da71ddb86be68ef76"
+  },
+  {
+    "path": "src/components/ui/hooks/use-toast-with-undo.ts",
+    "inflectPath": "src/components/ui/hooks/use-toast-with-undo.ts",
+    "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+    "sha": "92d2ce907d9a386d20d4930c765f94259a322e1a",
+    "status": "vendored",
+    "sha256": "00faa8f47f37e4b353944d528c360e055512918e8b58b3e09143a3afd0f2e15e"
+  },
+  {
+    "path": "src/components/ui/hooks/use-toast.ts",
+    "inflectPath": "packages/ui/src/components/ui/hooks/use-toast.ts",
+    "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+    "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+    "status": "vendored",
+    "sha256": "6e0acae4288dbfd21aed30598c3cff0fa025f3a13ed3b4b92e596a9e33e12d55"
+  },
+  {
+    "path": "src/components/ui/hooks/use-view-mode.ts",
+    "inflectPath": "src/components/ui/hooks/use-view-mode.ts",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "0ed1eef8a239e1fdd253f561ed3bf66e6336c227d02f52f22ee4b538c926379b"
+  },
+  {
+    "path": "src/components/ui/icons/anthropic.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/anthropic.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "8c86a871af106bd27772b18fa104d98f428634d09a88823b9a7539ed0fa3bef2"
+  },
+  {
+    "path": "src/components/ui/icons/arrow-up-right-2.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/arrow-up-right-2.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "7f9a6f376e5bd956b512b3a195fd5428e84a64e53b0af80adb6abe1c4e6d5834"
+  },
+  {
+    "path": "src/components/ui/icons/bing.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/bing.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "cd3921e7b7d9a93f210c4a0ed45eacb88aed64ff2178d2467c5af25cac64247a"
+  },
+  {
+    "path": "src/components/ui/icons/continents/af.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/af.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "efd140d29fa8d57ac4474660405786f678a5859a32aeb99257de4a0c9cc89a85"
+  },
+  {
+    "path": "src/components/ui/icons/continents/as.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/as.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "ab0f3140dccaf3fa208b77ca0d766ce0ae673bbff6ebec892fc4d41735ca834a"
+  },
+  {
+    "path": "src/components/ui/icons/continents/eu.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/eu.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "c355a0826c7d95d5ec3f97881e7a3dce7ac089014c51ed13898323725696ddcb"
+  },
+  {
+    "path": "src/components/ui/icons/continents/index.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/index.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "c50f9589444b263d4578737cea0c769eb7e4ac987fb30cbc131d76906546f045"
+  },
+  {
+    "path": "src/components/ui/icons/continents/na.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/na.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "d4f0b0769436d5478a75e79cec685e1ba1262ed99cccc8a1dbf8aa4acba2ecec"
+  },
+  {
+    "path": "src/components/ui/icons/continents/oc.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/oc.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "e2b9c98e6488a11e15fcb6201fc5ae98b83ac8513407d99f30d34033ba524619"
+  },
+  {
+    "path": "src/components/ui/icons/continents/sa.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/continents/sa.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "714489b8b07802b977426f643674482d5b981c4cb40649222be3a1f204d8f83c"
+  },
+  {
+    "path": "src/components/ui/icons/copy.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/copy.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "351eb4cf439dd5f42957f500115788c24bcbd1aec598e1f6c96b7cc0bfe2be9b"
+  },
+  {
+    "path": "src/components/ui/icons/crown-small.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/crown-small.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "68f95d1fe29caa1b927ac30c4ed19674375b4dcada54b405115a9f4d7da50e32"
+  },
+  {
+    "path": "src/components/ui/icons/default-domains/amazon.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/default-domains/amazon.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "b26e4f0ca787da94d1248d335955380312a0c82c0af2d63991354c5f158759de"
+  },
+  {
+    "path": "src/components/ui/icons/default-domains/chatgpt.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/default-domains/chatgpt.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "dbe6bbd5b965d318eb2cb5d533be252cb73f2af2a42079f088d79656217d3f29"
+  },
+  {
+    "path": "src/components/ui/icons/default-domains/figma.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/default-domains/figma.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "e06e12ab40cee1b4914efaff1f907320c3954d2ed58f6e7ed43a054ec4501eef"
+  },
+  {
+    "path": "src/components/ui/icons/default-domains/github-enhanced.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/default-domains/github-enhanced.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "a7ee0747e710f079add551ef4b4e0449ff0a543b06229fb05366d7749c4062a3"
+  },
+  {
+    "path": "src/components/ui/icons/default-domains/google-enhanced.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/default-domains/google-enhanced.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "0dd5ec24d8a54c0bb998149736818285a0a15e8efc71764389d51d6609e02863"
+  },
+  {
+    "path": "src/components/ui/icons/default-domains/spotify.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/default-domains/spotify.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "c43c9abd17013350b5ef185e51e67ecdfdcc1d601c1d7311db2fcb83c5151662"
+  },
+  {
+    "path": "src/components/ui/icons/dub-analytics.tsx",
+    "inflectPath": "src/components/ui/icons/dub-analytics.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "2be22ae50ed3aa6404da8619579983eacc8b1c3442e989ec09709fd7456602fb"
+  },
+  {
+    "path": "src/components/ui/icons/dub-api.tsx",
+    "inflectPath": "src/components/ui/icons/dub-api.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "dec61471011bf6391175ba09b3fc94e3c51c5f540834984e51d08e58dbe81e82"
+  },
+  {
+    "path": "src/components/ui/icons/dub-crafted-shield.tsx",
+    "inflectPath": "src/components/ui/icons/dub-crafted-shield.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "e17ef9b171c09ab5f71d13aff05afed704bc5dcc0f4e3b23a581bb1dc44fe685"
+  },
+  {
+    "path": "src/components/ui/icons/dub-links.tsx",
+    "inflectPath": "src/components/ui/icons/dub-links.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "b3362dc608cf37148b739363a570fb89f6c307e32a6224065b36bf0390489a96"
+  },
+  {
+    "path": "src/components/ui/icons/dub-partners.tsx",
+    "inflectPath": "src/components/ui/icons/dub-partners.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "5d5d19a45d4b6a4f537f4a89d2bd86c9c95f8660a1c7dfc7d7d5dfa525bfe76f"
+  },
+  {
+    "path": "src/components/ui/icons/expanding-arrow.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/expanding-arrow.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "494edd6a87a980645c080cc346b8b0d9b88adf02940331c4de4a36a766dfbb28"
+  },
+  {
+    "path": "src/components/ui/icons/file-pen.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/file-pen.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "3c51a7a30386be3d0576051ab78fd586bb9edb7b4f8f90f8e8adb3e57914f70c"
+  },
+  {
+    "path": "src/components/ui/icons/file-send.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/file-send.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "199a068806b6a1fd4734ed2f1df5f1d24f4e651af3d21aa53862fc28ac002b28"
+  },
+  {
+    "path": "src/components/ui/icons/github.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/github.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "ad5e21868ba98cab943e7b84ac339d75fb1a7ac4c46df7e82c2e79426416db3e"
+  },
+  {
+    "path": "src/components/ui/icons/go.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/go.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "37255e303753b8209d2b8a3edf574853342e367b9cac8f90549de7f362b9db06"
+  },
+  {
+    "path": "src/components/ui/icons/index.tsx",
+    "inflectPath": "src/components/ui/icons/index.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "b3232fd81a3719356b7192e7db9db0b7c2365c8d6140e0a259c0d8f33313f9ac"
+  },
+  {
+    "path": "src/components/ui/icons/instagram.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/instagram.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "dda66618c71286b715a2bdfba5cebd441ae5e3168099e78a123c3476c7ecffb7"
+  },
+  {
+    "path": "src/components/ui/icons/ios-app-store.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/ios-app-store.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "098c13b80b1ad5518606f8bc332c3a2aaae2e19c9a2897610d4b6c33efa182db"
+  },
+  {
+    "path": "src/components/ui/icons/linkedin.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/linkedin.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "62aca154801f7a69e2478a870a3c65037f0d23df6d7e73688ff968b8ba9dc694"
+  },
+  {
+    "path": "src/components/ui/icons/loading-circle.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/loading-circle.tsx",
+    "baseSha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+    "sha": "595e41dc44be4b1ae7b3f360b1e2694e3b647a31",
+    "status": "vendored",
+    "sha256": "896996db7af0d420d50141ad19df74bc968e249757356149d1970aa2eeea5e05"
+  },
+  {
+    "path": "src/components/ui/icons/loading-dots.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/loading-dots.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "ca109ea167c4a0cee9ab13c03d4f120a7766ce7e802cd33edcc8a81134c766d6"
+  },
+  {
+    "path": "src/components/ui/icons/lock-small.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/lock-small.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "13c36ef2c2d71994b1bf190899aa5634922d594e13e8b5c9c4b92c1c804d3928"
+  },
+  {
+    "path": "src/components/ui/icons/magic.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/magic.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "3aa3164e8eb8585e2661c4edd8a723a8003772bcbf888cc30bc4bd1c6495de0c"
+  },
+  {
+    "path": "src/components/ui/icons/markdown-icon.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/markdown-icon.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "f9812006251344824ba5b959953043650f08e3a3fd3841327201eb2ebf9b9ab1"
+  },
+  {
+    "path": "src/components/ui/icons/matrix-lines.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/matrix-lines.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "c7279190eda558a40498d28aee936ae9b27cf45a9dc425a4d3e1ff3b30ef9358"
+  },
+  {
+    "path": "src/components/ui/icons/openai.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/openai.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "afa15ef3fb6eeb1c211559f862db52ee6d9b7555fbb70ecf9ab51d93e8697175"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/card-amex.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-amex.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "29dbdfc95e958c21a320998cbecbcaafb82be18998037bade88e662f940b67ed"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/card-discover.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-discover.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "8dce942a814778850825da78fc1f671157633bec153f8b38acc33631657d0c89"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/card-mastercard.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-mastercard.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "969d433bfad3148da4f1278425e20e8bc4cc906f8791c93f4be9e2ced257040f"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/card-visa.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/card-visa.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "254bf9c3aad23f5834f78eb5809ed9790f9f104cb67432dfc19fd0a219df5e1a"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/paypal.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/paypal.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "651d0166e8fb225b16f3fc1df8ba6bf2cb9938a9c0470c56e2f0d45ec4e36572"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/stablecoin.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stablecoin.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "7ea24b94c84e0f3ffed2ba4753c744b636beece200c01ae5cfffdf5df4cbafbe"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/stripe-icon.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stripe-icon.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "037326ccf9ea252c2c2d357edc5e50be8f681dd406bf5d7872be46cc1358adfa"
+  },
+  {
+    "path": "src/components/ui/icons/payment-platforms/stripe-link.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/payment-platforms/stripe-link.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "e1c47c2019b4a8224a4fc3edfae6f50df6a5c2e8d6a1fd7da3b3bbdce726cfde"
+  },
+  {
+    "path": "src/components/ui/icons/photo.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/photo.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "eec602534daff4c10fff6e49e0bb88caf6f79bce9abc068f39539b577bfd400b"
+  },
+  {
+    "path": "src/components/ui/icons/php.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/php.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "1c105cbd2843cc0b0821d667c298322ed11eb284b50df31eeda9dd28aa8fb27a"
+  },
+  {
+    "path": "src/components/ui/icons/plan-feature-icons.tsx",
+    "inflectPath": "src/components/ui/icons/plan-feature-icons.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "7c26c0dd2610d02f01a121a4c18d0bb8593bf795c79e4ce409836e4e961392b5"
+  },
+  {
+    "path": "src/components/ui/icons/product-hunt.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/product-hunt.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "86af208947a1de2ad48cd1f1b4222dd250f8bd945a9f049c55c79518eba88b14"
+  },
+  {
+    "path": "src/components/ui/icons/python.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/python.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "e9516282457a0a23fb9657d3a2a2973387d515d8b25299b5406e6d849822cc32"
+  },
+  {
+    "path": "src/components/ui/icons/reddit.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/reddit.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "26c3208551e26f65ca40909534509a8db4a2f369ad760e48ea853e6696915fa5"
+  },
+  {
+    "path": "src/components/ui/icons/ruby.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/ruby.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "49da574297f845553b12f8b46a8d208cfdb793dc5c8426de19f16ff69be87eee"
+  },
+  {
+    "path": "src/components/ui/icons/slack.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/slack.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "b1c489eea2e37c26125731cf6cb50586ba482a5ef425587d1cdc8e39c9659c4c"
+  },
+  {
+    "path": "src/components/ui/icons/success.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/success.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "6cc2b665cb1436cf3f3460c4d836c5e96eace0ec15b358a5bdf9e1c0f11c13f6"
+  },
+  {
+    "path": "src/components/ui/icons/tick.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/tick.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "e168c1d02f4cc2e637284658182be7954679665ea1a072b8a01334bd0414e4ca"
+  },
+  {
+    "path": "src/components/ui/icons/tiktok.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/tiktok.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "0223ee2fb3f046de26a9549b1bd1b760c129fd765dcd0d97ee9f110bd8f05883"
+  },
+  {
+    "path": "src/components/ui/icons/twitter.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/twitter.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "2098eb06efd27ce2e93a07be072d2db725afbbf6e3fee2e8a82bb330702b0a3c"
+  },
+  {
+    "path": "src/components/ui/icons/typescript.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/typescript.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "e4e32e084f66bccabb2a0b38b992e5acd9808fa0de00dbca4c9eff18623bf278"
+  },
+  {
+    "path": "src/components/ui/icons/unsplash.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/unsplash.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "1cf01d97938703a00d3a6474513601431d28f4f3172ea3b6efeb2f0a2d81d128"
+  },
+  {
+    "path": "src/components/ui/icons/user-clock.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/user-clock.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "38e19f5b6221070ef20114486ed24b4b86597555b96007c0c5f5b052d5dbf973"
+  },
+  {
+    "path": "src/components/ui/icons/veriff.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/veriff.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "163c0d978b342ffd66d8c9923130bea36611a1f2d29f7d4d98f8bec967434b68"
+  },
+  {
+    "path": "src/components/ui/icons/verified-badge.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/verified-badge.tsx",
+    "baseSha": "1520b8b87",
+    "sha": null,
+    "status": "pending",
+    "sha256": "7a2db57abf9478f9f68c8de0b499ce0d52844e77afcdcdffe1ccb9c852dffb8c"
+  },
+  {
+    "path": "src/components/ui/icons/youtube.tsx",
+    "inflectPath": "packages/ui/src/components/ui/icons/youtube.tsx",
+    "baseSha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "sha": "0be3d3620a27979621dbd20d46e21b7d32627464",
+    "status": "vendored",
+    "sha256": "994b0c04a01acd628829b2d42d9cd140e7872afbb3c906447d1106bc09d1fe3c"
+  },
+  {
     "path": "src/components/ui/table/column-visibility-utils.ts",
     "inflectPath": "src/components/ui/table/column-visibility-utils.ts",
     "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
@@ -582,6 +1214,14 @@
     "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
     "status": "vendored",
     "sha256": "6961606111839bf7227f1fcbc97e1514415bcbb66b28edeb5224e4b1bdb57ff5"
+  },
+  {
+    "path": "src/components/ui/undo-toast.tsx",
+    "inflectPath": "src/components/ui/undo-toast.tsx",
+    "baseSha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
+    "sha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
+    "status": "vendored",
+    "sha256": "7dbd67a8ac172a61a71e719319f05c6329788f59f8d71a5b2f32bb466d3e604f"
   },
   {
     "path": "src/components/ui/user-combobox.tsx",

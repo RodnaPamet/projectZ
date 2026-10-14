@@ -18,8 +18,10 @@ import { withIntl } from '../helpers/intl';
 
 // Force the mobile presentation. Without this the desktop branch runs and the
 // test passes for entirely the wrong reason.
-jest.mock('@/components/ui/hooks', () => ({
-  ...jest.requireActual('@/components/ui/hooks'),
+// The hook's own module: Popover imports it from there, not through the
+// hooks barrel (#336), so a mock of the barrel would never reach it.
+jest.mock('@/components/ui/hooks/use-media-query', () => ({
+  ...jest.requireActual('@/components/ui/hooks/use-media-query'),
   useMediaQuery: () => ({ isMobile: true, isDesktop: false }),
 }));
 

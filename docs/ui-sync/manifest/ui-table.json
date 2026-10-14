@@ -28,10 +28,10 @@
     {
       "path": "src/components/ui/table/infinite-scroll-sentinel.tsx",
       "inflectPath": "src/components/ui/table/infinite-scroll-sentinel.tsx",
-      "baseSha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
-      "sha": "e095db67bf8fde9d43eff74c8d9c4fc20099bc91",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
       "status": "vendored",
-      "sha256": "2ee250769708b289971704500a3f4ddb01270818c7d437867b653ffcd4c1d1d0"
+      "sha256": "f31d936761a93da44522764dc712491923ce3cdf5374bbfc1b5726ab3e823038"
     },
     {
       "path": "src/components/ui/table/selection-toolbar.tsx",
@@ -52,10 +52,10 @@
     {
       "path": "src/components/ui/table/table.tsx",
       "inflectPath": "src/components/ui/table/table.tsx",
-      "baseSha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
-      "sha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
       "status": "vendored",
-      "sha256": "e8dd90ce6fa2c529946bcd8b0553df960da2b120d625bbe3115c8faa0c296221"
+      "sha256": "0c878925841a5b59d451781ef97b373f755a4bbc67a8e627c78653d84a44da56"
     },
     {
       "path": "src/components/ui/table/types.ts",
@@ -76,10 +76,10 @@
     {
       "path": "src/components/ui/table/virtual-table-body.tsx",
       "inflectPath": "src/components/ui/table/virtual-table-body.tsx",
-      "baseSha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
-      "sha": "750d7d09580e7e2b41da83d415b1b41903c7a111",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
       "status": "vendored",
-      "sha256": "f0e1f023b3f241b51f9657cedfd3359423f1a021e16ec9e86f7dd4aef52238bf"
+      "sha256": "4d73516c331270bc4539a32b3efa3dbd16a2ba5c242b72e9ed2c7bcf1b998147"
     }
   ]
 }
