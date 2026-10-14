@@ -2,7 +2,7 @@ import { Prisma, type PrismaClient, type ResourceType } from '@prisma/client';
 
 import { listUpcomingBookingsForUser } from '@/app-layer/repositories/booking';
 import { tombstoneEmail } from '@/lib/account/deleted-user';
-import { playerCancellableUntil, playerMayCancel } from '@/lib/booking/cutoff';
+import { bookingCutoffHours, playerCancellableUntil, playerMayCancel } from '@/lib/booking/cutoff';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import { purgeAvatarObjects } from '@/lib/media/avatar-objects';
@@ -158,7 +158,10 @@ function describeUpcoming(
 ): UpcomingBooking[] {
   return rows.map((b) => {
     const role = b.bookedByUserId === userId ? 'BOOKER' : 'PARTICIPANT';
-    const cutoff = b.resource.venue.cancellationCutoffHours;
+    const cutoff = bookingCutoffHours(
+      b.resource.venue.cancellationCutoffHours,
+      b.lesson?.cancelCutoffHours,
+    );
     const cure =
       role === 'BOOKER'
         ? playerMayCancel(b.startTs, cutoff, now)

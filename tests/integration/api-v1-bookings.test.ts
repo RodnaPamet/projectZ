@@ -312,6 +312,50 @@ describe('POST /api/v1/t/:slug/bookings', () => {
     expect(conflicted).toHaveLength(7);
   });
 
+  it('DIFFERENT players at the same instant: one books, the others are told it was taken, never a 500', async () => {
+    // The burst above is one player, whose requests the cap's advisory lock
+    // puts in a line. Different players share no lock: their INSERTs meet at
+    // the EXCLUDE constraint itself. Usually the late ones are refused there
+    // (23P01); when two land at the same instant each waits on the other's
+    // uncommitted row and Postgres aborts one as a deadlock (40P01) after a
+    // second. That one used to see a 500. Measured before the fix: about one
+    // run in twelve of a single pair; so, several hours, four players each.
+    const hours = [6, 7, 8, 9, 10, 11];
+    const rounds = await Promise.all(
+      hours.map(async (h) => {
+        const players = await Promise.all(
+          Array.from({ length: 4 }, async (_, i) =>
+            signInAs(db, {
+              userId: await seedPlayer(db, tenant.tenantId, `racer-${h}-${i}`),
+              memberships: [
+                { tenantId: tenant.tenantId, tenantSlug: tenant.tenantSlug, role: 'PLAYER' },
+              ],
+            }),
+          ),
+        );
+        return { h, players };
+      }),
+    );
+
+    for (const { h, players } of rounds) {
+      const slot = {
+        resourceId,
+        startTs: `2036-07-16T${String(h).padStart(2, '0')}:00:00Z`,
+        endTs: `2036-07-16T${String(h + 1).padStart(2, '0')}:00:00Z`,
+      };
+      const attempts = await Promise.all(players.map((p) => create(p, slot)));
+      const seen = attempts
+        .map((a) =>
+          a.res.status === 201 ? '201' : `${a.res.status} ${(a.body as ApiError).error.code}`,
+        )
+        .sort();
+      expect([h, seen]).toEqual([h, ['201', '409 SLOT_TAKEN', '409 SLOT_TAKEN', '409 SLOT_TAKEN']]);
+    }
+    expect(
+      await asAppSuperuser(db, (tx) => tx.booking.count({ where: { status: 'CONFIRMED' } })),
+    ).toBe(hours.length);
+  }, 60_000);
+
   it.each([
     ['before opening', '2036-07-16T05:00:00Z', '2036-07-16T06:00:00Z'],
     ['past closing', '2036-07-16T13:00:00Z', '2036-07-16T15:00:00Z'],

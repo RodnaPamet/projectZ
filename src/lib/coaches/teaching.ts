@@ -282,15 +282,23 @@ export function readTimeOff(
  * What an ACTIVE link still needs before a player can book a lesson on it:
  * a rate, at least one length, and some working hours. (The platform's
  * approval of the coach is a separate thing, and is the profile's.)
+ *
+ * And `courts`, which is not the coach's to fix here: the venue has no court
+ * in use for any sport the coach teaches, so there is nothing a lesson could
+ * be on. Told to the coach rather than left as a link that looks ready and is
+ * listed nowhere.
  */
-export type TeachingMissing = 'rate' | 'lengths' | 'hours';
+export type TeachingMissing = 'courts' | 'rate' | 'lengths' | 'hours';
 
 export function missingForLessons(link: {
   hourlyRateCents: number | null;
   lessonMinutes: readonly number[];
   hours: readonly unknown[];
+  /** Courts in use at the venue for a sport the coach teaches. */
+  courts: number;
 }): TeachingMissing[] {
   return [
+    ...(link.courts === 0 ? (['courts'] as const) : []),
     ...(link.hourlyRateCents === null ? (['rate'] as const) : []),
     ...(link.lessonMinutes.length === 0 ? (['lengths'] as const) : []),
     ...(link.hours.length === 0 ? (['hours'] as const) : []),

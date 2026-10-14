@@ -13803,6 +13803,243 @@
         }
       }
     },
+    "/coaches/{slug}/lesson-times": {
+      "get": {
+        "operationId": "listCoachLessonTimes",
+        "summary": "The times a lesson can start on one day",
+        "tags": ["Coaches"],
+        "description": "**Public: no sign-in.** The times a lesson of `minutes` can start with this coach at one venue on one calendar day there (#548): the coach works then, has no other lesson (at any club), and a court of the venue is free for the whole length. Each time carries the court it would be on and its price; the coach's fee is the same at every time and is given once.\n\nA snapshot, not a hold: a time shown here can be gone when it is booked, and `POST /coaches/{slug}/lessons` says which of the two went.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The coach's page address, `slug` in the list.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "linkId",
+            "in": "query",
+            "required": true,
+            "description": "The coach at one venue: `venues[].linkId` of `GET /coaches/{slug}`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "description": "A calendar day at the venue, `YYYY-MM-DD`.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "minutes",
+            "in": "query",
+            "required": true,
+            "description": "The lesson's length: one of the link's `lessonMinutes`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 15,
+              "maximum": 240
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Keep to this sport's courts. Omitted: any sport the coach teaches that the venue has a court for.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The times, soonest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonTimesEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a missing or malformed `linkId`, `date` or `minutes`, or an unknown `sport` (`details.field`). `LESSON_LENGTH_NOT_OFFERED` — the coach does not teach lessons of that length there; `details.offered` lists the ones they do.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_NOT_BOOKABLE` — no such link under this coach, or a lesson cannot be booked on it: the coach is not approved, the link has ended, or it has no rate, lengths or hours yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coaches/{slug}/lessons": {
+      "post": {
+        "operationId": "bookLesson",
+        "summary": "Book a lesson (a court and the coach, together)",
+        "tags": ["Coaches"],
+        "description": "Books a lesson (#548): a court booking with the coach on it, **taken together or not at all**. The body names the coach's link, a start and a length. The server chooses the court (the cheapest one free then; another one if that court has just gone) and sets both prices.\n\nAnswers with the booking exactly as `POST /t/{slug}/bookings` does, plus a `lesson` block. The booking's `totalCents` is the COURT's part only; `lesson.coachFeeCents` is the coach's, and `lesson.totalCents` the two together. **Both are paid at the club.**\n\n**Every rule of a court booking applies**, because the court part IS a court booking: a player account with a confirmed phone, the club's cap on upcoming online bookings, the no-show block, a start in the future. See `createBooking` for each refusal.\n\n**The `Idempotency-Key` header is REQUIRED**, as for a court booking: 201 on a genuine create, 200 on a replay, and on a replay the body is ignored.\n\n**Told apart when the time has gone:** `409 COACH_TAKEN` (the coach was booked first, here or at another club), `409 SLOT_TAKEN` (no court is left then), `409 LESSON_TIME_NOT_OFFERED` (the coach does not teach then). After any of the three, fetch the times again.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The coach's page address, `slug` in the list.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "REQUIRED. A client-generated key (a UUID) for this booking ATTEMPT; a retry with the same key returns the lesson that was booked.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookLessonRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An idempotent replay: the lesson this key booked before.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonBookingEnvelope"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The lesson was booked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonBookingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — no `Idempotency-Key`. `VALIDATION_ERROR` — the body (`details.field`). `LESSON_LENGTH_NOT_OFFERED` — not a length the coach teaches there (`details.offered`). `OWN_LESSON` — a coach booking a lesson with themself. `SLOT_NOT_BOOKABLE` — the start is not in the future.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`PLAYER_ACCOUNT_REQUIRED` — a club account cannot book. `PHONE_REQUIRED` — confirm a phone number first. `NO_SHOW_BLOCKED` — blocked from online booking at this club. As for a court booking.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_NOT_BOOKABLE` — no such link under this coach, a lesson cannot be booked on it, or the club is not open to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_TAKEN` — the coach was booked for that time first. `SLOT_TAKEN` — no court is left at that time. `LESSON_TIME_NOT_OFFERED` — the coach does not teach then. `BOOKING_LIMIT_REACHED` — the club's cap on upcoming online bookings (`details.limit`, `details.upcoming`). `IDEMPOTENCY_RACE` — two requests with the same key in flight; send it again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/venues/{id}/coaches": {
       "get": {
         "operationId": "listVenueCoaches",
@@ -14511,7 +14748,7 @@
           "cancellableUntil": {
             "type": ["string", "null"],
             "format": "date-time",
-            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds."
+            "description": "The last instant the PLAYER may cancel this booking in the app (#354): the venue's cancellation cutoff (default 24 h, set by the club) before `startTs`, measured in elapsed hours. For a booking with a lesson on it (#377), the stricter of that cutoff and the coach's own: whichever is further from the start. `null` when the booking is not cancellable at all (CANCELLED, COMPLETED, NO_SHOW). It may already be in the past: then only the club can cancel, and `POST …/cancel` answers 403 `CANCELLATION_CUTOFF_PASSED`. Render it in `venue.timezone`. RFC 3339 UTC, no fractional seconds."
           },
           "resource": {
             "type": "object",
@@ -20584,9 +20821,9 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["rate", "lengths", "hours"]
+              "enum": ["courts", "rate", "lengths", "hours"]
             },
-            "description": "What an `ACTIVE` link still needs before a lesson can be booked on it. Empty for any other status."
+            "description": "What an `ACTIVE` link still needs before a lesson can be booked on it. Empty for any other status. `courts`: the venue has no court in use for a sport the coach teaches, which the coach cannot fix here; the others are the coach's to set."
           },
           "createdAt": {
             "type": "string",
@@ -20747,7 +20984,9 @@
           "name",
           "city",
           "publicSlug",
+          "timezone",
           "club",
+          "sports",
           "hourlyRateCents",
           "groupRateCents",
           "currency",
@@ -20771,6 +21010,10 @@
             "type": ["string", "null"],
             "description": "The venue page's address, when it has one."
           },
+          "timezone": {
+            "type": "string",
+            "description": "IANA zone. A lesson's day and times are the venue's."
+          },
           "club": {
             "type": "object",
             "required": ["name", "slug"],
@@ -20782,6 +21025,13 @@
                 "type": "string"
               }
             }
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The sports a lesson can be in here: the coach's, that this venue has a court in use for. Never empty for a venue that is listed."
           },
           "hourlyRateCents": {
             "type": "integer",
@@ -20905,6 +21155,246 @@
                 }
               }
             }
+          }
+        }
+      },
+      "LessonTime": {
+        "type": "object",
+        "title": "LessonTime",
+        "description": "One time a lesson can start: the coach works then, has no other lesson, and this court is free for the whole length.",
+        "required": ["startTs", "endTs", "sport", "court", "courtPriceCents", "totalCents"],
+        "properties": {
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sport": {
+            "type": "string",
+            "description": "The sport of the court the lesson would be on."
+          },
+          "court": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "description": "The court the lesson would be on: the cheapest one free at that start. For display; the booking chooses again, and may land on another court if this one has gone."
+          },
+          "courtPriceCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The court's own price for this span, as a court booking would be charged."
+          },
+          "totalCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "`coachFeeCents` + `courtPriceCents`, for one player."
+          }
+        }
+      },
+      "LessonTimes": {
+        "type": "object",
+        "title": "LessonTimes",
+        "required": [
+          "linkId",
+          "venue",
+          "date",
+          "minutes",
+          "currency",
+          "coachFeeCents",
+          "groupFeeCents",
+          "cancelCutoffHours",
+          "times"
+        ],
+        "properties": {
+          "linkId": {
+            "type": "string"
+          },
+          "venue": {
+            "type": "object",
+            "required": ["id", "name", "timezone"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone. `date` is a calendar day in it."
+              }
+            }
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "minutes": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "coachFeeCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The coach's fee for a lesson of this length for one player: the hourly rate for `minutes`. The same at every time."
+          },
+          "groupFeeCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "The coach's fee once there are two or more players on the lesson: the group rate for `minutes`. Null: no group lessons here."
+          },
+          "cancelCutoffHours": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 168,
+            "description": "How many hours before the start the player may still cancel the lesson themselves: the stricter of the club's cutoff and the coach's. The booking's `cancellableUntil` is computed from the same number."
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LessonTime"
+            },
+            "description": "Soonest first, one per start. Empty when nothing is free that day, the day has passed, or it is a day the coach does not teach."
+          }
+        }
+      },
+      "LessonTimesEnvelope": {
+        "type": "object",
+        "title": "LessonTimesEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LessonTimes"
+          }
+        }
+      },
+      "BookLessonRequest": {
+        "type": "object",
+        "title": "BookLessonRequest",
+        "description": "Which lesson to book. It carries NO price and NO court: the server chooses the court and prices both parts.",
+        "required": ["linkId", "startTs", "minutes"],
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "description": "The coach at one venue: `venues[].linkId` of `GET /coaches/{slug}`."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A `startTs` from `GET /coaches/{slug}/lesson-times`, RFC 3339 with an offset."
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 15,
+            "maximum": 240,
+            "description": "One of the link's `lessonMinutes`."
+          },
+          "sport": {
+            "type": "string",
+            "description": "Keep the lesson to this sport's courts. Omitted: any sport the coach teaches that the venue has a court for."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "maxLength": 500
+          }
+        }
+      },
+      "BookedLesson": {
+        "type": "object",
+        "title": "BookedLesson",
+        "description": "The lesson on a booking: who teaches it and what each part costs. Both parts are paid at the club.",
+        "required": [
+          "id",
+          "coach",
+          "minutes",
+          "coachFeeCents",
+          "groupFeeCents",
+          "courtPriceCents",
+          "totalCents",
+          "currency"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "coach": {
+            "type": "object",
+            "required": ["slug", "name"],
+            "properties": {
+              "slug": {
+                "type": "string",
+                "description": "The coach's page address."
+              },
+              "name": {
+                "type": ["string", "null"]
+              }
+            }
+          },
+          "minutes": {
+            "type": "integer"
+          },
+          "coachFeeCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The coach's fee, at the rate that stood when the lesson was booked."
+          },
+          "groupFeeCents": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "What the coach's fee becomes with two or more players. Null: no group lessons."
+          },
+          "courtPriceCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The court's part; equal to the booking's `totalCents`."
+          },
+          "totalCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "`coachFeeCents` + `courtPriceCents`."
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "LessonBooking": {
+        "title": "LessonBooking",
+        "description": "A booking with a lesson on it. Everything a `Booking` has, where `totalCents` is the COURT's part only, plus the `lesson` block.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Booking"
+          },
+          {
+            "type": "object",
+            "required": ["lesson"],
+            "properties": {
+              "lesson": {
+                "$ref": "#/components/schemas/BookedLesson"
+              }
+            }
+          }
+        ]
+      },
+      "LessonBookingEnvelope": {
+        "type": "object",
+        "title": "LessonBookingEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LessonBooking"
           }
         }
       }

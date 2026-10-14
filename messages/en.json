@@ -1358,6 +1358,7 @@
       "notApprovedHint": "Players will see them once playerz.bg has approved their profile.",
       "notSet": "Not set",
       "missing": "The coach has not yet set everything needed for lessons to be booked with them.",
+      "missingCourts": "The venue has no court in use for this coach’s sports, so lessons cannot be booked with them.",
       "field": {
         "sports": "Teaches",
         "bio": "Introduction",
@@ -3030,6 +3031,7 @@
     },
     "at": "{club} · {city}",
     "missing": "For lessons to be booked here, set a price, a lesson length and working hours.",
+    "missingCourts": "This venue has no court in use for the sports you teach, so lessons cannot be booked here.",
     "summary": "{rate} an hour · {lengths} min",
     "action": {
       "terms": "Price and hours",

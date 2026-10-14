@@ -4,7 +4,7 @@ import type { ClubPage } from '@/app-layer/usecases/club-public-page';
 import type { Me } from '@/app-layer/usecases/me';
 import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/my-notifications';
 
-import { playerCancellableUntil } from '@/lib/booking/cutoff';
+import { bookingCutoffHours, playerCancellableUntil } from '@/lib/booking/cutoff';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
 import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
 
@@ -379,6 +379,8 @@ type BookingRow = {
     resourceType: string;
     venue: { id: string; name: string; timezone: string; cancellationCutoffHours: number };
   };
+  /** The lesson on it, when it is one; a lesson has the coach's cutoff too. */
+  lesson?: { cancelCutoffHours: number } | null;
 };
 
 /**
@@ -402,7 +404,16 @@ export function toBooking(b: BookingRow): BookingDto {
     createdAt: rfc3339(b.createdAt),
     cancellableUntil:
       b.status === 'PENDING' || b.status === 'CONFIRMED'
-        ? rfc3339(playerCancellableUntil(b.startTs, b.resource.venue.cancellationCutoffHours))
+        ? rfc3339(
+            playerCancellableUntil(
+              b.startTs,
+              // A lesson: the stricter of the club's cutoff and the coach's (#377).
+              bookingCutoffHours(
+                b.resource.venue.cancellationCutoffHours,
+                b.lesson?.cancelCutoffHours,
+              ),
+            ),
+          )
         : null,
     resource: {
       id: b.resource.id,

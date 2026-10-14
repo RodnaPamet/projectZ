@@ -1,4 +1,4 @@
-import { Prisma, type CoachLinkStatus, type PrismaClient } from '@prisma/client';
+import { Prisma, type CoachLinkStatus, type PrismaClient, type SportType } from '@prisma/client';
 
 import { coachCards, type CoachCard } from '@/app-layer/usecases/coach-directory';
 import { CoachAccountRequiredError } from '@/app-layer/usecases/coach-profile';
@@ -192,12 +192,13 @@ function termsOf(row: LinkRow): Terms {
   };
 }
 
-const missingOf = (row: LinkRow): TeachingMissing[] =>
+const missingOf = (row: LinkRow, courts: number): TeachingMissing[] =>
   row.status === 'ACTIVE'
     ? missingForLessons({
         hourlyRateCents: row.hourlyRateCents,
         lessonMinutes: row.lessonMinutes,
         hours: row.availability,
+        courts,
       })
     : [];
 
@@ -206,10 +207,20 @@ const timeColumn = (minutes: number) => new Date(Date.UTC(1970, 0, 1, 0, minutes
 
 const COURT_LENGTHS = { minBookingMinutes: true, maxBookingMinutes: true } as const;
 
-/** The lengths the venue's courts in use are booked for. Bound to the club. */
-async function lengthOptionsOf(db: PrismaClient, tenantId: string, venueId: string) {
+/**
+ * The lengths a lesson with this coach can have at the venue: those of its
+ * courts in use FOR A SPORT THE COACH TEACHES. A tennis coach at a venue
+ * that also has padel courts is not offered a length only the padel courts
+ * are booked for; nobody could book that lesson. Bound to the club.
+ */
+async function lengthOptionsOf(
+  db: PrismaClient,
+  tenantId: string,
+  venueId: string,
+  sports: readonly SportType[],
+) {
   const courts = await db.resource.findMany({
-    where: { tenantId, venueId, status: 'ACTIVE' },
+    where: { tenantId, venueId, status: 'ACTIVE', sport: { in: [...sports] } },
     select: COURT_LENGTHS,
     take: 200,
   });
@@ -302,20 +313,29 @@ async function end(
 
 // ═══ THE COACH'S SIDE ══════════════════════════════════════════════════════
 
-/** A COACH account that is still there, and whether the platform approved its profile. */
-async function coachStanding(userId: string): Promise<{ approved: boolean }> {
+/**
+ * A COACH account that is still there, whether the platform approved its
+ * profile, and the sports on it: a lesson is on a court of one of them.
+ */
+async function coachStanding(userId: string): Promise<{ approved: boolean; sports: SportType[] }> {
   return runAsUserOnly(userId, async (db) => {
     const [user, profile] = await Promise.all([
       db.user.findUnique({
         where: { id: userId },
         select: { accountKind: true, deletedAt: true },
       }),
-      db.coachProfile.findUnique({ where: { userId }, select: { status: true } }),
+      db.coachProfile.findUnique({
+        where: { userId },
+        select: { status: true, sports: { select: { sport: true }, take: 64 } },
+      }),
     ]);
     if (!user || user.deletedAt || user.accountKind !== 'COACH') {
       throw new CoachAccountRequiredError();
     }
-    return { approved: profile?.status === 'APPROVED' };
+    return {
+      approved: profile?.status === 'APPROVED',
+      sports: profile?.sports.map((s) => s.sport) ?? [],
+    };
   });
 }
 
@@ -330,7 +350,7 @@ const MY_LINKS_MAX = 100;
 export async function myCoachLinks(
   userId: string,
 ): Promise<{ approved: boolean; links: MyCoachLink[] }> {
-  const { approved } = await coachStanding(userId);
+  const { approved, sports } = await coachStanding(userId);
 
   // guardrail-allow: cross-tenant — a coach teaches at several clubs; these are
   // the coach's OWN links, found by their account, with the names of the
@@ -346,7 +366,12 @@ export async function myCoachLinks(
             name: true,
             city: true,
             timezone: true,
-            resources: { where: { status: 'ACTIVE' }, select: COURT_LENGTHS, take: 200 },
+            // The courts a lesson could be on: in use, for a sport the coach teaches.
+            resources: {
+              where: { status: 'ACTIVE', sport: { in: sports } },
+              select: COURT_LENGTHS,
+              take: 200,
+            },
           },
         },
       },
@@ -375,7 +400,7 @@ export async function myCoachLinks(
             timezone: r.venue.timezone,
           },
           lengthOptions: lessonLengthOptions(r.venue.resources),
-          missing: missingOf(r),
+          missing: missingOf(r, r.venue.resources.length),
           createdAt: r.createdAt,
           decidedAt: r.decidedAt,
           endedAt: r.endedAt,
@@ -526,14 +551,14 @@ export async function saveTeachingTerms(
     cancelCutoffHours?: unknown;
   },
 ): Promise<void> {
-  await coachStanding(userId);
+  const { sports } = await coachStanding(userId);
   const tenantId = await clubOfMyLink(userId, linkId);
   await runInTenantContext(tenantId, async (db) => {
     const link = await lockLink(db, tenantId, linkId, userId);
     if (!link) throw new CoachLinkNotFoundError();
     if (link.status !== 'ACTIVE') throw new CoachLinkStateError(link.status);
 
-    const terms = readTeachingTerms(raw, await lengthOptionsOf(db, tenantId, link.venueId));
+    const terms = readTeachingTerms(raw, await lengthOptionsOf(db, tenantId, link.venueId, sports));
     const before = await db.coach.findFirst({
       where: { id: linkId, tenantId },
       select: {
@@ -636,7 +661,16 @@ export async function listClubCoaches(tenantId: string): Promise<ClubCoach[]> {
   const rows = await runInTenantContext(tenantId, (db) =>
     db.coach.findMany({
       where: { tenantId, status: { in: ['REQUESTED', 'ACTIVE'] } },
-      select: { ...LINK_SELECT, venue: { select: { id: true, name: true } } },
+      select: {
+        ...LINK_SELECT,
+        venue: {
+          select: {
+            id: true,
+            name: true,
+            resources: { where: { status: 'ACTIVE' }, select: { sport: true }, take: 200 },
+          },
+        },
+      },
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take: CLUB_COACHES_MAX,
     }),
@@ -646,14 +680,19 @@ export async function listClubCoaches(tenantId: string): Promise<ClubCoach[]> {
     const coach = cards.get(r.userId);
     // An account that is gone has no card and teaches nowhere.
     if (!coach) return [];
+    // The club's courts in use for a sport this coach teaches. A coach the
+    // platform has not approved shows no sports, and is not judged on them:
+    // the approval is what they are waiting for.
+    const taught = new Set<string>(coach.sports.map((s) => s.sport));
+    const courts = coach.approved ? r.venue.resources.filter((c) => taught.has(c.sport)).length : 1;
     return [
       {
         id: r.id,
         status: r.status,
         startedBy: r.startedBy === 'CLUB' ? 'CLUB' : 'COACH',
-        venue: r.venue,
+        venue: { id: r.venue.id, name: r.venue.name },
         coach,
-        missing: missingOf(r),
+        missing: missingOf(r, courts),
         createdAt: r.createdAt,
         decidedAt: r.decidedAt,
         ...termsOf(r),

@@ -1,10 +1,10 @@
 import type { BookingStatus, PrismaClient } from '@prisma/client';
 
 import { assertBookingSpanValid, computeExpiresAt } from '@/lib/db/booking-invariants';
-import { isExclusionViolation, isUniqueViolation } from '@/lib/db/pg-errors';
+import { isDeadlock, isExclusionViolation, isUniqueViolation } from '@/lib/db/pg-errors';
 
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
-import { playerMayCancel } from '@/lib/booking/cutoff';
+import { bookingCutoffHours, playerMayCancel } from '@/lib/booking/cutoff';
 
 import { SlotNotBookableError } from './availability';
 import {
@@ -280,7 +280,15 @@ export async function createBooking(
     };
   } catch (err) {
     // ── The slot was taken between our decision and our INSERT ────────
-    if (isExclusionViolation(err)) {
+    //
+    // Two shapes of the same lost race. Ordinarily the other booking's row is
+    // already there (or its transaction commits while this INSERT waits) and
+    // the EXCLUDE constraint refuses this one: 23P01. When the two INSERTs
+    // land at the same instant, each waits on the other's uncommitted row and
+    // Postgres breaks the tie by aborting one as a deadlock: 40P01. The other
+    // goes on to hold the slot. Without this, that player saw a 500 for what
+    // is "somebody else just took it" (found by the lesson race test, #548).
+    if (isExclusionViolation(err) || isDeadlock(err)) {
       throw new SlotTakenError();
     }
 
@@ -358,10 +366,18 @@ export async function cancelBooking(
 
   const booking = await db.booking.findFirstOrThrow({
     where: { id: input.bookingId, tenantId },
-    include: { resource: { include: { venue: true } } },
+    include: {
+      resource: { include: { venue: true } },
+      lesson: { select: { cancelCutoffHours: true } },
+    },
   });
 
-  const cutoffHours = booking.resource.venue.cancellationCutoffHours;
+  // A lesson is held to the stricter of the club's cutoff and the coach's
+  // (#377, owner decision 7); a plain court booking to the club's.
+  const cutoffHours = bookingCutoffHours(
+    booking.resource.venue.cancellationCutoffHours,
+    booking.lesson?.cancelCutoffHours,
+  );
   if (input.actor === 'PLAYER' && !playerMayCancel(booking.startTs, cutoffHours, now)) {
     throw await cancellationCutoffError(db, {
       userId: input.cancelledByUserId ?? booking.bookedByUserId ?? '',

@@ -35,6 +35,22 @@ export const PG_CHECK_VIOLATION = '23514';
  * abort as an outage.
  */
 export const PG_SERIALIZATION_FAILURE = '40001';
+/**
+ * Postgres found two transactions each waiting on the other and aborted this
+ * one (after `deadlock_timeout`, a second by default).
+ *
+ * Reached for real through an EXCLUDE constraint: two transactions that
+ * insert conflicting rows at the same instant each write their index entry,
+ * then each looks for a conflict, finds the other's uncommitted row, and
+ * waits for it. Neither can finish. One is told `23P01` in the ordinary race
+ * (it arrived second and simply waited); in this narrower one, one is told
+ * `40P01` instead. Either way it lost the same race.
+ *
+ * Measured through Prisma 7's adapter: a model call fails with Prisma's
+ * `P2034`, a raw one with `P2010`, and both carry
+ * `meta.driverAdapterError.cause.originalCode = '40P01'`.
+ */
+export const PG_DEADLOCK_DETECTED = '40P01';
 
 export function pgErrorCode(err: unknown): string | undefined {
   const seen = new Set<unknown>();
@@ -78,6 +94,10 @@ export function isCheckViolation(err: unknown): boolean {
 
 export function isSerializationFailure(err: unknown): boolean {
   return pgErrorCode(err) === PG_SERIALIZATION_FAILURE;
+}
+
+export function isDeadlock(err: unknown): boolean {
+  return pgErrorCode(err) === PG_DEADLOCK_DETECTED;
 }
 
 /**
