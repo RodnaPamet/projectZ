@@ -2,7 +2,8 @@ import { PLAY_PATH, type LandingDecision } from '@/lib/auth/landing';
 import { COACH_PROFILE_HREF, COACHES_HREF } from '@/lib/coaches/hrefs';
 import type { PlatformCapability } from '@/lib/platform/capabilities';
 import type { Permission } from '@/lib/permissions';
-import type { ResourceNouns } from '@/lib/sports/resource-kinds';
+import type { NounListValues } from '@/lib/sports/noun-list';
+import { nounsOf, type ResourceNouns } from '@/lib/sports/resource-kinds';
 
 /**
  * What the signed-in shells and the public chrome link to — data, not a component.
@@ -72,6 +73,11 @@ export interface NavItem {
    * field `labelKey`, not `label`, keeps a key from inviting text back in.
    */
   labelKey: string;
+  /**
+   * The resources a `several.` label names (#477): its `{Nouns}` is filled
+   * from them when the label is translated (`toShellSections`, the crumbs).
+   */
+  labelNouns?: ResourceNouns;
   iconKey: NavIconKey;
   /**
    * The router's prefetch for this link. Always `'auto'`, by type.
@@ -118,19 +124,16 @@ export interface NavSection<T extends NavItem = NavItem> {
 }
 
 /**
- * The courts screen's nav label by the club's resources (P51, #362, #454), in
- * the catalogue's noun layout: the court wording at the plain key, each other
- * noun's and each list's under its name (sport-exhaustiveness).
+ * The courts screen's nav label by the club's resources (P51, #362, #454,
+ * #477), in the catalogue's noun layout: the court wording at the plain key,
+ * each other noun's under its name, and a list of several under `several.`,
+ * its `{Nouns}` filled from `labelNouns` when the label is translated.
  */
-const COURTS_LABEL: Record<ResourceNouns, string> = {
-  court: 'courts',
-  pitch: 'pitch.courts',
-  track: 'track.courts',
-  courtPitch: 'courtPitch.courts',
-  courtTrack: 'courtTrack.courts',
-  pitchTrack: 'pitchTrack.courts',
-  courtPitchTrack: 'courtPitchTrack.courts',
-};
+function courtsLabel(nouns: ResourceNouns): Pick<NavItem, 'labelKey' | 'labelNouns'> {
+  const held = nounsOf(nouns);
+  if (held.length > 1) return { labelKey: 'several.courts', labelNouns: nouns };
+  return { labelKey: held[0] === 'court' ? 'courts' : `${held[0]}.courts` };
+}
 
 /**
  * The club-admin surface. Every item is permission-gated, and the gate is the
@@ -187,7 +190,7 @@ export function clubAdminNav(
       items: [
         {
           href: href('courts'),
-          labelKey: COURTS_LABEL[nouns],
+          ...courtsLabel(nouns),
           iconKey: 'courts',
           requires: 'courts.manage',
           prefetch: 'auto',
@@ -375,6 +378,22 @@ export function visibleSections<T extends NavItem>(
     .filter((s) => s.items.length > 0);
 }
 
+/** A list of nouns in every form a `several.` label can ask for (noun-list.ts). */
+export type NounWords = (list: ResourceNouns) => NounListValues;
+
+/**
+ * An item's label: its key, with a list of nouns filled in when it names
+ * several (#477). Without the words to fill it, the courts' plain label.
+ */
+export function navLabel(
+  item: Pick<NavItem, 'labelKey' | 'labelNouns'>,
+  t: (key: string, values?: Record<string, string>) => string,
+  words?: NounWords,
+): string {
+  if (!item.labelNouns) return t(item.labelKey);
+  return words ? t(item.labelKey, { ...words(item.labelNouns) }) : t('courts');
+}
+
 /**
  * Translate the visible sections into what the shell renders.
  *
@@ -384,13 +403,14 @@ export function visibleSections<T extends NavItem>(
  */
 export function toShellSections(
   sections: NavSection[],
-  t: (key: string) => string,
+  t: (key: string, values?: Record<string, string>) => string,
+  words?: NounWords,
 ): ShellNavSection[] {
   return sections.map((s) => ({
     ...(s.titleKey ? { title: t(s.titleKey) } : {}),
     items: s.items.map((i) => ({
       href: i.href,
-      label: t(i.labelKey),
+      label: navLabel(i, t, words),
       iconKey: i.iconKey,
       prefetch: i.prefetch,
     })),
@@ -733,11 +753,13 @@ export function clubShell(
     platform: readonly PlatformCapability[];
     me: { name: string | null; email: string | null };
     /** `common.nav`. */
-    t: (key: string) => string;
+    t: (key: string, values?: Record<string, string>) => string;
     /** `admin.staff.role`: the membership's role, by name. */
     tRole: (key: string) => string;
     /** What the club plays on, for the courts screen's label (`clubResourceNouns`). */
     nouns?: ResourceNouns;
+    /** The noun forms to name a list of several in that label (#477). */
+    words?: NounWords;
     /** The modules switched on (`readModules`): Съобщения waits for its own (#375). */
     modules?: ChromeModules;
   },
@@ -749,7 +771,7 @@ export function clubShell(
   const opensAdmin = admin.length > 0;
   const inbox = modules.messaging && ctx.permissions.includes('messages.club');
   return {
-    sections: toShellSections([...admin, ...platformSections(opts.platform)], opts.t),
+    sections: toShellSections([...admin, ...platformSections(opts.platform)], opts.t, opts.words),
     messages: inbox
       ? {
           href: `${clubAdminHref(ctx.tenantSlug)}/messages`,

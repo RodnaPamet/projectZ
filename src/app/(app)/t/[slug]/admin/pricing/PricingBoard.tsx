@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useId, useMemo, useOptimistic, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 
 import { computeSpanPrice } from '@/app-layer/usecases/pricing';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Heading } from '@/components/ui/typography';
+import { nounMessage } from '@/lib/sports/noun-list';
 import { combineNouns, type ResourceNoun } from '@/lib/sports/resource-kinds';
 
 import { deletePricingRuleAction } from './actions';
@@ -101,6 +102,8 @@ export function PricingBoard({
 }) {
   const t = useTranslations('admin.pricing');
   const tDay = useTranslations('common.calendar.weekdayShort');
+  const tNouns = useTranslations('nouns');
+  const locale = useLocale();
   const format = useFormatter();
   const ids = useId();
 
@@ -131,7 +134,7 @@ export function PricingBoard({
   // The picker is "Писта" at a karting club and "Корт или игрище" at one with
   // courts and pitches (P51, #454); the empty state speaks of the court picked.
   const nouns = combineNouns(courts.map((c) => c.noun));
-  const courtLabel = t(nouns === 'court' ? 'field.court' : `${nouns}.field.court`);
+  const courtLabel = nounMessage(t, tNouns, locale, nouns, 'field.court');
   const emptyNoun = court?.noun ?? 'court';
 
   /**

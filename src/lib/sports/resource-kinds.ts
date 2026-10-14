@@ -29,48 +29,79 @@ import type { ResourceType } from '@prisma/client';
  * theirs: `field.` was taken, by the forms' field labels
  * (`admin.courts.field.setting` is the label "Разположение", where a noun's
  * layout would need `admin.courts.field.setting.indoor`).
+ *
+ * ═══ A LIST OF SEVERAL NOUNS IS COMPOSED, NOT SPELLED OUT (#477) ═══
+ *
+ * With five nouns there are 26 lists of two or more, and a message worded
+ * for each would put hundreds of strings in a catalogue every page carries.
+ * So a message that can name several nouns has ONE wording for them, under
+ * `several.`, with a `{nouns}` slot; the slot is filled from each noun's
+ * forms in `nouns.*` (`nounList` in noun-list.ts), joined as the language
+ * joins a list ("кортове, маси и места").
  */
-
-/** The noun a resource takes in copy: "писта", "игрище" (a FIELD), or "корт" for every other type. */
-export type ResourceNoun = 'court' | 'pitch' | 'track';
-
-/** The order a list names its nouns in (owner, #454): "Кортове, игрища и писти". */
-export const NOUN_ORDER = ['court', 'pitch', 'track'] as const satisfies readonly ResourceNoun[];
 
 /**
- * The nouns of a LIST of resources: its one noun, or the several it holds,
- * named by them in `NOUN_ORDER` (`courtPitch` reads "Кортове и игрища"). An
- * empty list reads as courts.
+ * The noun a resource takes in copy: "писта", "игрище" (a FIELD), "маса" (a
+ * TABLE or a BOARD_TABLE: table tennis, chess), "място" (a LOBBY: esports;
+ * owner decisions on #477), or "корт" for every other type.
  */
-export type ResourceNouns =
-  ResourceNoun | 'courtPitch' | 'courtTrack' | 'pitchTrack' | 'courtPitchTrack';
+export type ResourceNoun = 'court' | 'pitch' | 'track' | 'table' | 'seat';
 
-/** Every value a list's nouns can take, for an enum that carries one (the statement's). */
-export const RESOURCE_NOUNS = [
+/** The order a list names its nouns in (owner, #454; #477): "Кортове, игрища, писти, маси и места". */
+export const NOUN_ORDER = [
   'court',
   'pitch',
   'track',
-  'courtPitch',
-  'courtTrack',
-  'pitchTrack',
-  'courtPitchTrack',
-] as const satisfies readonly ResourceNouns[];
+  'table',
+  'seat',
+] as const satisfies readonly ResourceNoun[];
+
+/** Every non-empty ordered subset of `T`, each named by its nouns in camel case. */
+type Lists<T extends readonly string[]> = T extends readonly [
+  infer H extends string,
+  ...infer R extends readonly string[],
+]
+  ? H | `${H}${Capitalize<Lists<R>>}` | Lists<R>
+  : never;
 
 /**
- * What a venue's page title offers to book (#362): "резервирай корт",
- * "писта", "игрище", or "час" (a time) when no one word is true of the
- * venue. Wider than `ResourceNoun` on purpose: a table, a lobby or a climbing
- * route reads "корт" in the rest of the copy, while a search result for one
- * offers a time.
+ * The nouns of a LIST of resources: its one noun, or the several it holds,
+ * named by them in `NOUN_ORDER` (`courtPitch` is courts and pitches,
+ * `courtTableSeat` courts, tables and seats). An empty list reads as courts.
  */
-export type BookingNoun = 'court' | 'track' | 'pitch' | 'time';
+export type ResourceNouns = Lists<typeof NOUN_ORDER>;
+
+/** Every value a list's nouns can take, for an enum that carries one (the statement's). */
+export const RESOURCE_NOUNS: readonly ResourceNouns[] = (() => {
+  const out: string[] = [];
+  const n = NOUN_ORDER.length;
+  for (let mask = 1; mask < 1 << n; mask++) {
+    const held = NOUN_ORDER.filter((_, i) => mask & (1 << i));
+    out.push(held.map((w, i) => (i === 0 ? w : w[0]!.toUpperCase() + w.slice(1))).join(''));
+  }
+  return out as ResourceNouns[];
+})();
+
+/** The nouns a list's name holds, in order: `courtTable` is court and table. */
+export function nounsOf(list: ResourceNouns): ResourceNoun[] {
+  return list.split(/(?=[A-Z])/).map((w) => w.toLowerCase() as ResourceNoun);
+}
+
+/**
+ * What a venue's page title offers to book (#362, #477): "резервирай корт",
+ * "писта", "игрище", "маса", "място", or "час" (a time) when no one word is
+ * true of the venue. Wider than `ResourceNoun` on purpose: a climbing route
+ * reads "корт" in the rest of the copy, while a search result for one offers
+ * a time.
+ */
+export type BookingNoun = 'court' | 'track' | 'pitch' | 'table' | 'seat' | 'time';
 
 interface ResourceKind {
   noun: ResourceNoun;
   /**
    * The title's word for a venue whose every resource is of this type. A type
-   * with no word of its own there (a table, a lobby, a climbing route) offers
-   * a time: "резервирай корт" would name the wrong thing in a search result.
+   * with no word of its own there (a climbing route) offers a time:
+   * "резервирай корт" would name the wrong thing in a search result.
    */
   booking: BookingNoun;
   /**
@@ -83,9 +114,9 @@ interface ResourceKind {
 export const RESOURCE_KINDS: Record<ResourceType, ResourceKind> = {
   COURT: { noun: 'court', booking: 'court', exclusive: false },
   FIELD: { noun: 'pitch', booking: 'pitch', exclusive: false },
-  TABLE: { noun: 'court', booking: 'time', exclusive: false },
-  BOARD_TABLE: { noun: 'court', booking: 'time', exclusive: false },
-  LOBBY: { noun: 'court', booking: 'time', exclusive: false },
+  TABLE: { noun: 'table', booking: 'table', exclusive: false },
+  BOARD_TABLE: { noun: 'table', booking: 'table', exclusive: false },
+  LOBBY: { noun: 'seat', booking: 'seat', exclusive: false },
   ROUTE: { noun: 'court', booking: 'time', exclusive: false },
   TRACK: { noun: 'track', booking: 'track', exclusive: true },
 };

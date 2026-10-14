@@ -228,7 +228,9 @@ async function main(): Promise<void> {
     // The sport's own type, and named after it (P51, #472): "Писта N" for
     // karting, "Игрище N" for football, "Корт N" otherwise.
     const resourceType = defaultResourceType(sport);
-    const noun = { court: 'Корт', pitch: 'Игрище', track: 'Писта' }[resourceNoun(resourceType)];
+    const noun = { court: 'Корт', pitch: 'Игрище', track: 'Писта', table: 'Маса', seat: 'Място' }[
+      resourceNoun(resourceType)
+    ];
 
     let created = 0;
     for (let i = 1; i <= courts; i++) {

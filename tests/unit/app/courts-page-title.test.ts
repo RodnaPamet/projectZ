@@ -35,12 +35,17 @@ jest.mock('@/lib/db/rls-middleware', () => ({ runInTenantContext: jest.fn() }));
 jest.mock('@/app/(app)/t/[slug]/admin/courts/CourtsBoard', () => ({ CourtsBoard: () => null }));
 
 jest.mock('next-intl/server', () => ({
-  getTranslations: async (ns: string) => (key: string) => {
-    const value = `${ns}.${key}`
-      .split('.')
-      .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], bg);
-    return typeof value === 'string' ? value : `${ns}.${key}`;
-  },
+  getTranslations:
+    async (ns: string) =>
+    (key: string, values: Record<string, string> = {}) => {
+      const value = `${ns}.${key}`
+        .split('.')
+        .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], bg);
+      return typeof value === 'string'
+        ? value.replace(/\{(\w+)\}/g, (all, name: string) => values[name] ?? all)
+        : `${ns}.${key}`;
+    },
+  getLocale: async () => 'bg',
 }));
 
 const OK = {
@@ -70,8 +75,12 @@ describe('the courts screen’s tab title', () => {
     ['court', bg.admin.courts.metaTitle],
     ['track', bg.admin.courts.track.metaTitle],
     ['pitch', bg.admin.courts.pitch.metaTitle],
-    ['courtTrack', bg.admin.courts.courtTrack.metaTitle],
-    ['courtPitch', bg.admin.courts.courtPitch.metaTitle],
+    ['table', 'Маси'],
+    ['seat', 'Места'],
+    // Several, composed from each noun's word (#477).
+    ['courtTrack', 'Кортове и писти'],
+    ['courtPitch', 'Кортове и игрища'],
+    ['courtTableSeat', 'Кортове, маси и места'],
   ] as const)('a club of %s reads "%s"', async (nouns, title) => {
     resolveTenantPageContext.mockResolvedValue(OK);
     clubResourceNouns.mockResolvedValue(nouns);
@@ -84,14 +93,14 @@ describe('the courts screen’s tab title', () => {
   it('is "Писти" at a karting club, the heading’s own word', () => {
     expect(bg.admin.courts.track.metaTitle).toBe('Писти');
     expect(bg.admin.courts.track.metaTitle).toBe(bg.admin.courts.track.title);
-    expect(bg.admin.courts.courtTrack.metaTitle).toBe(bg.admin.courts.courtTrack.title);
+    expect(bg.admin.courts.several.metaTitle).toBe(bg.admin.courts.several.title);
   });
 
   it('is "Игрища" at a football club, and "Кортове и игрища" with courts too (#454)', () => {
     expect(bg.admin.courts.pitch.metaTitle).toBe('Игрища');
     expect(bg.admin.courts.pitch.metaTitle).toBe(bg.admin.courts.pitch.title);
-    expect(bg.admin.courts.courtPitch.metaTitle).toBe('Кортове и игрища');
-    expect(bg.admin.courts.courtPitch.metaTitle).toBe(bg.admin.courts.courtPitch.title);
+    expect(bg.admin.courts.table.metaTitle).toBe('Маси');
+    expect(bg.admin.courts.seat.metaTitle).toBe('Места');
   });
 
   it('a visitor the page refuses gets the plain title, and no club is read', async () => {

@@ -164,6 +164,27 @@ export function keyUsesIn(file: string, src: string): KeyUse[] {
     }
   };
 
+  // nounMessage(t, tNouns, locale, nouns, 'key', values) (#477) reads `key`
+  // for the court, `<noun>.key` for any other noun and `several.key` for a
+  // list, all in `t`'s namespace.
+  const recordNounMessage = (node: ts.CallExpression) => {
+    const tArg = node.arguments[0] ? unwrap(node.arguments[0]) : undefined;
+    const keyArg = node.arguments[4];
+    if (!tArg || !ts.isIdentifier(tArg) || !keyArg) return;
+    const ns = lookup(tArg.text);
+    if (ns === undefined) return;
+    for (const k of keysOf(keyArg)) {
+      if (!('literal' in k)) continue;
+      uses.push({
+        kind: 'pattern',
+        file,
+        line: lineOf(node),
+        source: join(ns, `{noun}.${k.literal}`),
+        pattern: new RegExp(`^${ns ? `${escape(ns)}\\.` : ''}(?:[^.]+\\.)?${escape(k.literal)}$`),
+      });
+    }
+  };
+
   const opensScope = (n: ts.Node) => ts.isFunctionLike(n) || ts.isBlock(n) || ts.isSourceFile(n);
 
   const visit = (node: ts.Node): void => {
@@ -178,6 +199,7 @@ export function keyUsesIn(file: string, src: string): KeyUse[] {
         const ns = lookup(callee.text);
         if (ns !== undefined) record(ns, node.arguments[0], node);
         else if (callee.text === 'translateFor') record('', node.arguments[1], node);
+        else if (callee.text === 'nounMessage') recordNounMessage(node);
       } else if (
         ts.isPropertyAccessExpression(callee) &&
         ts.isIdentifier(callee.expression) &&

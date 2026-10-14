@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { ClubAdminShell } from '@/components/layout/club-admin-shell';
@@ -12,6 +12,8 @@ import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
 import { readModules } from '@/lib/modules';
 import { realtimeEnabled } from '@/lib/realtime/centrifugo';
 import { RealtimeProvider } from '@/lib/realtime/client';
+import { nounListValues } from '@/lib/sports/noun-list';
+import { nounsOf } from '@/lib/sports/resource-kinds';
 
 /**
  * The club-admin shell: sidebar on a desktop, a left drawer on a phone (T19).
@@ -82,9 +84,11 @@ export default async function ClubAdminLayout({
   }
   if (result.kind === 'not-a-member') notFound();
 
-  const [nouns, tAdmin] = await Promise.all([
+  const [nouns, tAdmin, tNouns, locale] = await Promise.all([
     clubResourceNouns(result.ctx.tenantId),
     getTranslations('admin.clubStatus'),
+    getTranslations('nouns'),
+    getLocale(),
   ]);
   const club = clubShell(result.ctx, {
     platform: grant?.capabilities ?? [],
@@ -92,6 +96,7 @@ export default async function ClubAdminLayout({
     t,
     tRole,
     nouns,
+    words: (list) => nounListValues(tNouns, locale, nounsOf(list)),
     modules: readModules(),
   });
   if (!club.opensAdmin) notFound();

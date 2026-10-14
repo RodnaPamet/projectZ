@@ -73,6 +73,38 @@ interface Finding {
   text: string;
 }
 
+/** A prop whose value is shown or read aloud: `label`, `retryLabel`, `buttonText`, `aria-label`. */
+const COPY_PROP =
+  /^(?:title|label|placeholder|description|text|aria-label|ariaLabel|alt|emptyTitle|emptyDescription|[a-z]+(?:Label|Text|Title|Description|Placeholder))$/;
+
+/**
+ * The strings an expression can evaluate to, as far as its own text says:
+ * a literal, either side of `??` / `||`, either branch of a ternary, and a
+ * template's words. Anything else (a call, a variable) is not a literal.
+ */
+function spoken(expr: ts.Expression): string[] {
+  let e = expr;
+  while (ts.isParenthesizedExpression(e) || ts.isAsExpression(e)) e = e.expression;
+  if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e)) return [e.text];
+  if (ts.isTemplateExpression(e)) {
+    return [
+      [e.head.text, ...e.templateSpans.map((s) => s.literal.text)]
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    ];
+  }
+  if (ts.isConditionalExpression(e)) return [...spoken(e.whenTrue), ...spoken(e.whenFalse)];
+  if (
+    ts.isBinaryExpression(e) &&
+    (e.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken ||
+      e.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+  ) {
+    return [...spoken(e.left), ...spoken(e.right)];
+  }
+  return [];
+}
+
 function copyLiterals(file: string, src: string): Finding[] {
   const sourceFile = ts.createSourceFile(
     file,
@@ -105,6 +137,35 @@ function copyLiterals(file: string, src: string): Finding[] {
       const init = node.initializer;
       if (COPY_ATTRS.has(name) && init && ts.isStringLiteral(init) && isCopy(init.text)) {
         found.push({ file, line: at(node), text: `${name}="${init.text}"` });
+      }
+      // #275: `title={title ?? 'No items found'}`, `aria-label={a ? 'Hide' : 'Show'}`.
+      if (COPY_ATTRS.has(name) && init && ts.isJsxExpression(init) && init.expression) {
+        for (const text of spoken(init.expression)) {
+          if (isCopy(text)) found.push({ file, line: at(node), text: `${name}={… '${text}' …}` });
+        }
+      }
+    }
+
+    // #275: `{children ?? 'Filter'}` among a JSX element's children.
+    if (
+      ts.isJsxExpression(node) &&
+      node.expression &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+    ) {
+      for (const text of spoken(node.expression)) {
+        if (isCopy(text)) found.push({ file, line: at(node), text: `{… '${text}' …}` });
+      }
+    }
+
+    // #275: a copy prop's default, `retryLabel = 'Try again'`, rendered
+    // wherever a call site leaves the prop out.
+    if (ts.isBindingElement(node) && node.initializer) {
+      const prop = node.propertyName ?? node.name;
+      const propName = ts.isIdentifier(prop) || ts.isStringLiteral(prop) ? prop.text : '';
+      if (COPY_PROP.test(propName)) {
+        for (const text of spoken(node.initializer)) {
+          if (isCopy(text)) found.push({ file, line: at(node), text: `${propName} = '${text}'` });
+        }
       }
     }
 
@@ -273,6 +334,48 @@ describe('no hardcoded user-facing copy', () => {
     // back, and it would never fail on its own.
     for (const { pattern } of EXEMPT) {
       expect(globSync('src/**/*.tsx').some((f) => pattern.test(f.toString()))).toBe(true);
+    }
+  });
+
+  it('sees English that reaches the screen through an expression or a default (#275)', () => {
+    const shapes: Array<[string, string]> = [
+      [
+        `export const A = ({ retryLabel = 'Try again' }) => <b>{retryLabel}</b>;`,
+        "retryLabel = 'Try again'",
+      ],
+      [
+        `export const B = ({ v }) => <input aria-label={v ? 'Hide password' : 'Show password'} />;`,
+        "aria-label={… 'Hide password' …}",
+      ],
+      [
+        `export const C = ({ l }) => <div aria-label={l ?? 'Line chart'} />;`,
+        "aria-label={… 'Line chart' …}",
+      ],
+      [`export const D = ({ children }) => <span>{children ?? 'Filter'}</span>;`, "{… 'Filter' …}"],
+      [
+        `export const E = ({ title }) => <p title={title || 'No items found'} />;`,
+        "title={… 'No items found' …}",
+      ],
+      [
+        `export const F = ({ label }) => <i aria-label={\`More info about \${label}\`} />;`,
+        "aria-label={… 'More info about' …}",
+      ],
+      [
+        `export const G = ({ buttonText = 'Save Changes' }) => <b>{buttonText}</b>;`,
+        "buttonText = 'Save Changes'",
+      ],
+    ];
+    for (const [src, text] of shapes) {
+      expect(copyLiterals('x.tsx', src).map((f) => f.text.trim())).toContain(text);
+    }
+    // And not on their fixes, nor on values that are not copy.
+    for (const src of [
+      `export const A = ({ retryLabel = t('retry') }) => <b>{retryLabel}</b>;`,
+      `export const C = ({ l }) => <div aria-label={l ?? t('chart')} />;`,
+      `export const H = ({ size = 'sm', variant = 'primary' }) => <b className={size}>{variant}</b>;`,
+      `export const I = ({ open }) => <b>{open ? count : null}</b>;`,
+    ]) {
+      expect(copyLiterals('x.tsx', src)).toEqual([]);
     }
   });
 

@@ -85,7 +85,10 @@ describe('the venue page’s title', () => {
     [['COURT', 'COURT'], 'Sofia Ring — резервирай корт | playerz.bg'],
     [['COURT', 'TRACK'], 'Sofia Ring — резервирай час | playerz.bg'],
     [['COURT', 'FIELD'], 'Sofia Ring — резервирай час | playerz.bg'],
-    [['TABLE'], 'Sofia Ring — резервирай час | playerz.bg'],
+    [['TABLE'], 'Sofia Ring — резервирай маса | playerz.bg'],
+    [['BOARD_TABLE'], 'Sofia Ring — резервирай маса | playerz.bg'],
+    [['LOBBY'], 'Sofia Ring — резервирай място | playerz.bg'],
+    [['ROUTE'], 'Sofia Ring — резервирай час | playerz.bg'],
     [[], 'Sofia Ring — резервирай корт | playerz.bg'],
   ])('resources %j: "%s"', async (types, expected) => {
     const { title, og } = await titleFor(types);
@@ -109,7 +112,9 @@ describe('bookingNoun, the table’s rule', () => {
     expect(bookingNoun(['FIELD', 'FIELD'])).toBe('pitch');
     expect(bookingNoun(['COURT'])).toBe('court');
     expect(bookingNoun(['COURT', 'TRACK'])).toBe('time');
-    expect(bookingNoun(['TABLE', 'BOARD_TABLE'])).toBe('time');
+    // Table tennis and chess are both played at a table (#477).
+    expect(bookingNoun(['TABLE', 'BOARD_TABLE'])).toBe('table');
+    expect(bookingNoun(['TABLE', 'LOBBY'])).toBe('time');
     expect(bookingNoun([])).toBe('court');
     expect(bookingNoun(['HOVERCRAFT_PAD'])).toBe('court');
   });

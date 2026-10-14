@@ -544,11 +544,12 @@ describe('a CLUB account on a public page: its club admin’s frame, never a pla
     clubResourceNouns.mockResolvedValue('courtTrack');
     await renderChrome();
 
-    expect(within(railNav()).getByRole('link', { name: n.courtTrack.courts })).toHaveAttribute(
+    expect(within(railNav()).getByRole('link', { name: 'Кортове и писти' })).toHaveAttribute(
       'href',
       `/t/${SLUG}/admin/courts`,
     );
-    expect(n.courtTrack.courts).toBe(bg.admin.courts.courtTrack.title);
+    // The same template as the courts screen's heading (#477).
+    expect(n.several.courts).toBe(bg.admin.courts.several.title);
   });
 
   it('what it plays on unreadable: "Кортове", and the frame stands', async () => {

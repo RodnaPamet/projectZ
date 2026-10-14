@@ -8,6 +8,8 @@ import {
   clubAdminNav,
   type ChromeModules,
   MODULE_HREFS,
+  navLabel,
+  type NounWords,
   PLATFORM_HREF,
   platformNav,
   PROFILE_HREF,
@@ -32,7 +34,7 @@ import {
 const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true, coaches: true };
 
 /** `common.nav`, as the server page holds it. */
-type NavT = (key: string) => string;
+type NavT = (key: string, values?: Record<string, string>) => string;
 
 /** A page that is the trail's leaf: its own name, from the page's data. */
 const leaf = (label: string | null | undefined): BreadcrumbItem[] => (label ? [{ label }] : []);
@@ -93,6 +95,8 @@ export function clubAdminCrumbs(
   t: NavT,
   page?: ClubAdminPage,
   nouns?: ResourceNouns,
+  /** The noun forms, for a page named after several kinds of resource (#477). */
+  words?: NounWords,
 ): BreadcrumbItem[] {
   const home: BreadcrumbItem = { label: t('admin'), href: clubAdminHref(slug) };
   if (!page) return [home];
@@ -102,7 +106,7 @@ export function clubAdminCrumbs(
     .flatMap((s) => s.items)
     .find((i) => i.href === href);
   if (!item) throw new Error(`clubAdminCrumbs: no club admin page "${page}"`);
-  return [home, { label: t(item.labelKey), href }];
+  return [home, { label: navLabel(item, t, words), href }];
 }
 
 /** The platform's pages, by their segment under `/platform`. */

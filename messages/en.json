@@ -84,18 +84,6 @@
       "pitch": {
         "courts": "Pitches"
       },
-      "courtTrack": {
-        "courts": "Courts and tracks"
-      },
-      "courtPitch": {
-        "courts": "Courts and pitches"
-      },
-      "pitchTrack": {
-        "courts": "Pitches and tracks"
-      },
-      "courtPitchTrack": {
-        "courts": "Courts, pitches and tracks"
-      },
       "pricing": "Pricing",
       "players": "Players",
       "staff": "Staff",
@@ -132,7 +120,16 @@
       "contactRequests": "Enquiries",
       "messagesUnread": "{count, plural, one {# unread conversation} other {# unread conversations}}",
       "coachProfile": "Coach profile",
-      "coaches": "Coaches"
+      "coaches": "Coaches",
+      "table": {
+        "courts": "Tables"
+      },
+      "seat": {
+        "courts": "Seats"
+      },
+      "several": {
+        "courts": "{Nouns}"
+      }
     },
     "footer": {
       "label": "Footer",
@@ -311,11 +308,23 @@
         "failedTitle": "The booking was not made",
         "failed": "Try again. If the connection dropped, trying again will not make a second booking."
       },
-      "details": "Booking details"
+      "details": "Booking details",
+      "table": {
+        "court": "Table"
+      },
+      "seat": {
+        "court": "Seat"
+      }
     },
     "gallery": {
       "title": "Photos",
       "label": "Photos of {name}"
+    },
+    "table": {
+      "metaTitle": "{name} — book a table | playerz.bg"
+    },
+    "seat": {
+      "metaTitle": "{name} — book a seat | playerz.bg"
     }
   },
   "club": {
@@ -343,6 +352,12 @@
     "noVenues": {
       "title": "This club has no venues yet",
       "description": "Once the club adds a venue, you can book here."
+    },
+    "table": {
+      "metaTitle": "{name} — tables and booking | playerz.bg"
+    },
+    "seat": {
+      "metaTitle": "{name} — seats and booking | playerz.bg"
     }
   },
   "cities": {
@@ -760,40 +775,59 @@
           "failed": "The pitch's status was not changed. Try again."
         }
       },
-      "courtTrack": {
-        "metaTitle": "Courts and tracks",
-        "title": "Courts and tracks",
-        "subtitle": "The club's courts and tracks, their pricing and capacity.",
-        "truncated": "Showing the first {limit} courts and tracks. This club has more.",
+      "table": {
+        "metaTitle": "Tables",
+        "title": "Tables",
+        "subtitle": "The club's tables, their pricing and capacity.",
+        "truncated": "Showing the first {limit} tables. This club has more.",
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CLOSED": "Closed"
+        },
+        "setting": {
+          "indoor": "Indoor",
+          "outdoor": "Outdoor"
+        },
         "action": {
-          "add": "Add a court or track"
+          "add": "Add table"
+        },
+        "archive": {
+          "confirm": "{count, plural, one {This table has # upcoming booking. Archiving does not cancel it. Continue?} other {This table has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+          "title": "Archive this table?",
+          "failed": "The table's status was not changed. Try again."
         }
       },
-      "courtPitch": {
-        "metaTitle": "Courts and pitches",
-        "title": "Courts and pitches",
-        "subtitle": "The club's courts and pitches, their pricing and capacity.",
-        "truncated": "Showing the first {limit} courts and pitches. This club has more.",
+      "seat": {
+        "metaTitle": "Seats",
+        "title": "Seats",
+        "subtitle": "The club's seats, their pricing and capacity.",
+        "truncated": "Showing the first {limit} seats. This club has more.",
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CLOSED": "Closed"
+        },
+        "setting": {
+          "indoor": "Indoor",
+          "outdoor": "Outdoor"
+        },
         "action": {
-          "add": "Add a court or pitch"
+          "add": "Add seat"
+        },
+        "archive": {
+          "confirm": "{count, plural, one {This seat has # upcoming booking. Archiving does not cancel it. Continue?} other {This seat has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+          "title": "Archive this seat?",
+          "failed": "The seat's status was not changed. Try again."
         }
       },
-      "pitchTrack": {
-        "metaTitle": "Pitches and tracks",
-        "title": "Pitches and tracks",
-        "subtitle": "The club's pitches and tracks, their pricing and capacity.",
-        "truncated": "Showing the first {limit} pitches and tracks. This club has more.",
+      "several": {
+        "metaTitle": "{Nouns}",
+        "title": "{Nouns}",
+        "subtitle": "{Nouns} at the club, their pricing and capacity.",
+        "truncated": "Showing the first {limit} ({nouns}). This club has more.",
         "action": {
-          "add": "Add a pitch or track"
-        }
-      },
-      "courtPitchTrack": {
-        "metaTitle": "Courts, pitches and tracks",
-        "title": "Courts, pitches and tracks",
-        "subtitle": "The club's courts, pitches and tracks, their pricing and capacity.",
-        "truncated": "Showing the first {limit} courts, pitches and tracks. This club has more.",
-        "action": {
-          "add": "Add a court, pitch or track"
+          "add": "Add a {anyNoun}"
         }
       }
     },
@@ -902,24 +936,25 @@
           "title": "No rules for this pitch"
         }
       },
-      "courtTrack": {
+      "table": {
         "field": {
-          "court": "Court or track"
+          "court": "Table"
+        },
+        "empty": {
+          "title": "No rules for this table"
         }
       },
-      "courtPitch": {
+      "seat": {
         "field": {
-          "court": "Court or pitch"
+          "court": "Seat"
+        },
+        "empty": {
+          "title": "No rules for this seat"
         }
       },
-      "pitchTrack": {
+      "several": {
         "field": {
-          "court": "Pitch or track"
-        }
-      },
-      "courtPitchTrack": {
-        "field": {
-          "court": "Court, pitch or track"
+          "court": "{AnyNoun}"
         }
       }
     },
@@ -1164,17 +1199,22 @@
             "BAD_REQUEST": "Check the fields: the name and phone are required.",
             "generic": "Could not save. Try again."
           },
-          "courtTrack": {
-            "court": "Court or track"
+          "table": {
+            "court": "Table",
+            "unavailable": "The table cannot be booked then: it is closed, or the time is off its schedule.",
+            "error": {
+              "SLOT_NOT_BOOKABLE": "The table cannot be booked then."
+            }
           },
-          "courtPitch": {
-            "court": "Court or pitch"
+          "seat": {
+            "court": "Seat",
+            "unavailable": "The seat cannot be booked then: it is closed, or the time is off its schedule.",
+            "error": {
+              "SLOT_NOT_BOOKABLE": "The seat cannot be booked then."
+            }
           },
-          "pitchTrack": {
-            "court": "Pitch or track"
-          },
-          "courtPitchTrack": {
-            "court": "Court, pitch or track"
+          "several": {
+            "court": "{AnyNoun}"
           }
         },
         "detail": {
@@ -1208,7 +1248,13 @@
           "cancelRestBody": "{count, plural, one {# booking from {date} on will be cancelled.} other {# bookings from {date} on will be cancelled.}} Earlier weeks stay.",
           "loadError": "The booking could not be loaded.",
           "actionError": "That did not work. Try again.",
-          "markNoShow": "Mark no-show"
+          "markNoShow": "Mark no-show",
+          "table": {
+            "court": "Table"
+          },
+          "seat": {
+            "court": "Seat"
+          }
         }
       },
       "track": {
@@ -1223,34 +1269,6 @@
         "scroll": {
           "hint": "{count} pitches: scroll sideways or pick a pitch.",
           "jumpTo": "Show pitch"
-        }
-      },
-      "courtTrack": {
-        "subtitle": "One day, every court and track. Times are on the club's clock.",
-        "scroll": {
-          "hint": "{count} courts and tracks: scroll sideways or pick one.",
-          "jumpTo": "Show court or track"
-        }
-      },
-      "courtPitch": {
-        "subtitle": "One day, every court and pitch. Times are on the club's clock.",
-        "scroll": {
-          "hint": "{count} courts and pitches: scroll sideways or pick one.",
-          "jumpTo": "Show court or pitch"
-        }
-      },
-      "pitchTrack": {
-        "subtitle": "One day, every pitch and track. Times are on the club's clock.",
-        "scroll": {
-          "hint": "{count} pitches and tracks: scroll sideways or pick one.",
-          "jumpTo": "Show pitch or track"
-        }
-      },
-      "courtPitchTrack": {
-        "subtitle": "One day, every court, pitch and track. Times are on the club's clock.",
-        "scroll": {
-          "hint": "{count} courts, pitches and tracks: scroll sideways or pick one.",
-          "jumpTo": "Show court, pitch or track"
         }
       },
       "players": {
@@ -1308,7 +1326,28 @@
           }
         }
       },
-      "lesson": "lesson with {coach}"
+      "lesson": "lesson with {coach}",
+      "table": {
+        "subtitle": "One day, every table. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} tables: scroll sideways or pick a table.",
+          "jumpTo": "Show table"
+        }
+      },
+      "seat": {
+        "subtitle": "One day, every seat. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} seats: scroll sideways or pick a seat.",
+          "jumpTo": "Show seat"
+        }
+      },
+      "several": {
+        "subtitle": "One day, all {nouns}. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} {countedNouns}: scroll sideways or pick one.",
+          "jumpTo": "Show {anyNoun}"
+        }
+      }
     },
     "photos": {
       "metaTitle": "Photos and info",
@@ -1642,6 +1681,18 @@
         "coach": "Coach",
         "noName": "Coach",
         "parts": "{coach} for the coach + {court} for the court"
+      },
+      "table": {
+        "court": "Table",
+        "confirm": {
+          "description": "{venue}, {date} at {time}. The table will be freed for other players."
+        }
+      },
+      "seat": {
+        "court": "Seat",
+        "confirm": {
+          "description": "{venue}, {date} at {time}. The seat will be freed for other players."
+        }
       }
     },
     "coachNotice": "The coach profile is coming: approval by playerz.bg and by clubs, then your sessions. Until then you can book and play as a player.",
@@ -1696,6 +1747,12 @@
         "groupNext": "With a second player this becomes a group lesson: {fee} for the coach for the whole group, {total} in all with the court.",
         "groupNow": "A group lesson: {fee} for the coach for the whole group.",
         "groupSame": "The coach charges the same for a group."
+      },
+      "table": {
+        "full": "Every place at the table is taken."
+      },
+      "seat": {
+        "full": "The seat is taken."
       }
     },
     "game": {
@@ -2434,6 +2491,12 @@
       "label": "A lesson with a coach",
       "noName": "Coach",
       "payAtClub": "Paid at the club: the court and the coach."
+    },
+    "table": {
+      "court": "Table"
+    },
+    "seat": {
+      "court": "Seat"
     }
   },
   "onboarding": {
@@ -2602,7 +2665,13 @@
       "players": "Players",
       "yourFee": "Your fee",
       "lessonsLink": "Your lessons",
-      "coachFooter": "You are getting this email because you teach lessons on playerz.bg."
+      "coachFooter": "You are getting this email because you teach lessons on playerz.bg.",
+      "table": {
+        "court": "Table"
+      },
+      "seat": {
+        "court": "Seat"
+      }
     },
     "contactRequest": {
       "subject": "Club enquiry: {club}",
@@ -2751,29 +2820,24 @@
           "court": "Pitch"
         }
       },
-      "courtTrack": {
-        "column": {
-          "court": "Court / track"
-        }
-      },
-      "courtPitch": {
-        "column": {
-          "court": "Court / pitch"
-        }
-      },
-      "pitchTrack": {
-        "column": {
-          "court": "Pitch / track"
-        }
-      },
-      "courtPitchTrack": {
-        "column": {
-          "court": "Court / pitch / track"
-        }
-      },
       "kind": {
         "CHARGE": "Played",
         "REVERSAL": "Correction"
+      },
+      "table": {
+        "column": {
+          "court": "Table"
+        }
+      },
+      "seat": {
+        "column": {
+          "court": "Seat"
+        }
+      },
+      "several": {
+        "column": {
+          "court": "{NounSlash}"
+        }
       }
     },
     "csv": {
@@ -2787,18 +2851,6 @@
       "pitch": {
         "court": "Pitch"
       },
-      "courtTrack": {
-        "court": "Court / track"
-      },
-      "courtPitch": {
-        "court": "Court / pitch"
-      },
-      "pitchTrack": {
-        "court": "Pitch / track"
-      },
-      "courtPitchTrack": {
-        "court": "Court / pitch / track"
-      },
       "kind": "Type",
       "price": "Price ({currency})",
       "rate": "Fee %",
@@ -2808,7 +2860,16 @@
       "charge": "Played",
       "reversal": "Correction",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "table": {
+        "court": "Table"
+      },
+      "seat": {
+        "court": "Seat"
+      },
+      "several": {
+        "court": "{NounSlash}"
+      }
     }
   },
   "legal": {
@@ -3416,5 +3477,32 @@
       "report": "Report"
     },
     "cardRating": "{rating} ★ ({count})"
+  },
+  "nouns": {
+    "court": {
+      "one": "court",
+      "many": "courts",
+      "counted": "courts"
+    },
+    "pitch": {
+      "one": "pitch",
+      "many": "pitches",
+      "counted": "pitches"
+    },
+    "track": {
+      "one": "track",
+      "many": "tracks",
+      "counted": "tracks"
+    },
+    "table": {
+      "one": "table",
+      "many": "tables",
+      "counted": "tables"
+    },
+    "seat": {
+      "one": "seat",
+      "many": "seats",
+      "counted": "seats"
+    }
   }
 }

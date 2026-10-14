@@ -64,6 +64,12 @@ const PROTECTED: Protected[] = [
     why: '"venues near me" stops working entirely',
   },
   {
+    name: 'app_user_name_fold_trgm_idx (trigram index on an expression, #482)',
+    drop: /DROP INDEX\s+(?:IF EXISTS\s+)?"?app_user_name_fold_trgm_idx"?/i,
+    recreate: /CREATE INDEX\s+(?:IF NOT EXISTS\s+)?"?app_user_name_fold_trgm_idx"?/i,
+    why: 'player search by name without a sequential scan, in either alphabet',
+  },
+  {
     name: 'venue_geog_idx (GiST index)',
     drop: /DROP INDEX\s+(?:IF EXISTS\s+)?"?venue_geog_idx"?/i,
     recreate: /CREATE INDEX\s+(?:IF NOT EXISTS\s+)?"?venue_geog_idx"?/i,

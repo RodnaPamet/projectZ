@@ -13,6 +13,8 @@ import {
 import { SidebarCollapseProvider } from '@/components/layout/sidebar-collapse-context';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getPermissionsForRole } from '@/lib/permissions';
+import { nounListValues } from '@/lib/sports/noun-list';
+import { nounsOf, type ResourceNouns } from '@/lib/sports/resource-kinds';
 
 import { foreignWordsIn } from '../helpers/foreign-vocabulary';
 import { enMessages, messages as bgMessages, withIntl } from '../helpers/intl';
@@ -43,21 +45,32 @@ const SLUG = 'sofia-padel';
 
 type Catalogue = typeof bgMessages;
 /** `common.nav`, as next-intl reads it: a dotted key is a nested one (`track.courts`). */
-const translator = (m: Catalogue) => (key: string) => {
-  const value = key
-    .split('.')
-    .reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], m.common.nav);
-  return typeof value === 'string' ? value : `common.nav.${key}`;
-};
+const translator =
+  (m: Catalogue) =>
+  (key: string, values: Record<string, string> = {}) => {
+    const value = key
+      .split('.')
+      .reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], m.common.nav);
+    return typeof value === 'string'
+      ? value.replace(/\{(\w+)\}/g, (all, name: string) => values[name] ?? all)
+      : `common.nav.${key}`;
+  };
 
 function renderNav(sections: NavSection[], locale: 'bg' | 'en' = 'bg') {
-  const t = translator(locale === 'en' ? enMessages : bgMessages);
+  const catalogue = locale === 'en' ? enMessages : bgMessages;
+  const t = translator(catalogue);
+  // A list of several nouns is composed from each noun's forms (#477).
+  const nounWords = (key: string) => {
+    const [noun, form] = key.split('.') as [string, string];
+    return (catalogue.nouns as Record<string, Record<string, string>>)[noun]![form]!;
+  };
+  const words = (list: ResourceNouns) => nounListValues(nounWords, locale, nounsOf(list));
   return render(
     withIntl(
       <TooltipProvider>
         <SidebarCollapseProvider collapsed={false}>
           <ShellSidebar
-            sections={toShellSections(sections, t)}
+            sections={toShellSections(sections, t, words)}
             contextName="Sofia Padel"
             account={{ identity: { name: 'Mira', context: null, role: null }, admin: null }}
           />
@@ -163,6 +176,10 @@ describe('club admin nav, by role', () => {
     ['courtPitch', 'Кортове и игрища', 'Courts and pitches'],
     ['pitchTrack', 'Игрища и писти', 'Pitches and tracks'],
     ['courtPitchTrack', 'Кортове, игрища и писти', 'Courts, pitches and tracks'],
+    // #477: a table tennis or chess club, an esports club, and a mixed one.
+    ['table', 'Маси', 'Tables'],
+    ['seat', 'Места', 'Seats'],
+    ['courtTableSeat', 'Кортове, маси и места', 'Courts, tables and seats'],
   ] as const)(
     'names the courts screen after what the club plays on (%s): "%s" (P51, #362)',
     (nouns, bgLabel, enLabel) => {

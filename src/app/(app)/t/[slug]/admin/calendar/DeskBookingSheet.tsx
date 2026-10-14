@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 
 import type { BookingSeriesDto, DeskBookingDto, DeskPreviewDto } from '@/app/api/v1/_lib/desk-dto';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import type { ApiClientError } from '@/lib/data/errors';
 import { KEYS, V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
+import { nounMessage } from '@/lib/sports/noun-list';
 import { combineNouns } from '@/lib/sports/resource-kinds';
 
 import type { GridCourt } from './DayGrid';
@@ -88,6 +89,8 @@ export default function DeskBookingSheet({
 }) {
   const t = useTranslations('admin.calendar.desk.create');
   const tc = useTranslations('common');
+  const tNouns = useTranslations('nouns');
+  const locale = useLocale();
   const format = useFormatter();
   const ids = useId();
   const bookable = courts.filter((c) => c.bookable);
@@ -98,7 +101,7 @@ export default function DeskBookingSheet({
   // one with courts and pitches; what is said about the chosen one follows its
   // own noun.
   const pickerNouns = combineNouns(bookable.map((c) => c.noun));
-  const courtLabel = t(pickerNouns === 'court' ? 'court' : `${pickerNouns}.court`);
+  const courtLabel = nounMessage(t, tNouns, locale, pickerNouns, 'court');
   const noun = court?.noun ?? 'court';
   const durations = court?.durations ?? [60];
   const [chosenDuration, setDuration] = useState<number | null>(null);

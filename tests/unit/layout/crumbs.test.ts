@@ -6,6 +6,9 @@ import {
   profileCrumbs,
 } from '@/components/layout/crumbs';
 
+import { nounListValues } from '@/lib/sports/noun-list';
+import { nounsOf, type ResourceNouns } from '@/lib/sports/resource-kinds';
+
 import bg from '../../../messages/bg.json';
 
 /**
@@ -16,13 +19,18 @@ import bg from '../../../messages/bg.json';
  */
 
 const n = bg.common.nav;
-const t = (key: string) => {
+const t = (key: string, values: Record<string, string> = {}) => {
   const value = key
     .split('.')
     .reduce<unknown>((m, k) => (m as Record<string, unknown> | undefined)?.[k], n);
   if (typeof value !== 'string') throw new Error(`no common.nav.${key}`);
-  return value;
+  return value.replace(/\{(\w+)\}/g, (all, name: string) => values[name] ?? all);
 };
+const tNouns = (key: string) => {
+  const [noun, form] = key.split('.') as [keyof typeof bg.nouns, 'one' | 'many' | 'counted'];
+  return bg.nouns[noun][form];
+};
+const words = (list: ResourceNouns) => nounListValues(tNouns, 'bg', nounsOf(list));
 
 describe('the trails', () => {
   it('Играй, and a venue or a club under it', () => {
@@ -49,7 +57,12 @@ describe('the trails', () => {
     ]);
     // The courts screen is named after what the club plays on, as in the sidebar.
     expect(clubAdminCrumbs('sofia', t, 'courts', 'track')[1]?.label).toBe(n.track.courts);
-    expect(clubAdminCrumbs('sofia', t, 'courts', 'courtTrack')[1]?.label).toBe(n.courtTrack.courts);
+    expect(clubAdminCrumbs('sofia', t, 'courts', 'courtTrack', words)[1]?.label).toBe(
+      'Кортове и писти',
+    );
+    expect(clubAdminCrumbs('sofia', t, 'courts', 'table')[1]?.label).toBe('Маси');
+    // Without the words to fill a list, the courts' plain label rather than a slot.
+    expect(clubAdminCrumbs('sofia', t, 'courts', 'courtTrack')[1]?.label).toBe(n.courts);
     expect(clubAdminCrumbs('sofia', t, 'courts', 'pitch')[1]?.label).toBe(n.pitch.courts);
   });
 
