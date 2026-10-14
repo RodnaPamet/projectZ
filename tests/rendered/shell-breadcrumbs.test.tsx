@@ -89,7 +89,7 @@ function playerShell(page: ReactNode) {
       user={USER}
       account={PLAYER_ACCOUNT}
       kind="player"
-      modules={{ openPlay: false, messaging: false, coaches: false }}
+      modules={{ openPlay: false, messaging: false, coaches: false, ranking: false }}
     >
       {page}
     </PlayerShell>,
@@ -241,7 +241,7 @@ describe('the player shell', () => {
                 user={USER}
                 account={PLAYER_ACCOUNT}
                 kind="player"
-                modules={{ openPlay: false, messaging: false, coaches: false }}
+                modules={{ openPlay: false, messaging: false, coaches: false, ranking: false }}
               >
                 <PageBreadcrumbs items={playCrumbs(t, 'Plovdiv Tennis Center')} />
               </PlayerShell>

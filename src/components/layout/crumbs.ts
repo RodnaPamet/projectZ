@@ -31,7 +31,12 @@ import {
  * the current page, never as a link, whatever its href.
  */
 
-const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true, coaches: true };
+const EVERY_MODULE: ChromeModules = {
+  openPlay: true,
+  messaging: true,
+  coaches: true,
+  ranking: true,
+};
 
 /** `common.nav`, as the server page holds it. */
 type NavT = (key: string, values?: Record<string, string>) => string;
@@ -84,6 +89,7 @@ export type ClubAdminPage =
   | 'players'
   | 'staff'
   | 'coaches'
+  | 'results'
   | 'reports';
 
 /**

@@ -1,0 +1,53 @@
+import { clubAdminCrumbs } from '@/components/layout/crumbs';
+import {
+  clubAdminNav,
+  MODULE_HREFS,
+  MODULES_OFF,
+  playerShellNav,
+  type ChromeModules,
+} from '@/components/layout/nav-items';
+
+/**
+ * Where the ranking module shows up in the chrome (#575): the club's
+ * «Резултати», for the desk, and nothing while its switch is off. A player's
+ * result lives on the booking, so a player's navigation does not change yet;
+ * the leaderboards (#578) are its entry.
+ */
+const ON: ChromeModules = { ...MODULES_OFF, ranking: true };
+const clubHrefs = (modules: ChromeModules) =>
+  clubAdminNav('alfa', 'court', modules).flatMap((s) => s.items.map((i) => i.href));
+const t = (key: string) => key;
+
+describe('the ranking module in the navigation', () => {
+  it('off: the club has no «Резултати»', () => {
+    expect(clubHrefs(MODULES_OFF)).not.toContain('/t/alfa/admin/results');
+  });
+
+  it('on: the club’s desk gets «Резултати», by the diary’s permission', () => {
+    const item = clubAdminNav('alfa', 'court', ON)
+      .flatMap((s) => s.items)
+      .find((i) => i.href === '/t/alfa/admin/results');
+    expect(item).toMatchObject({
+      labelKey: 'results',
+      iconKey: 'results',
+      requires: 'bookings.view_all',
+    });
+  });
+
+  it('on: a player’s and a coach’s navigation are as they were', () => {
+    for (const kind of ['player', 'coach'] as const) {
+      const off = playerShellNav(kind, { modules: MODULES_OFF }).flatMap((s) =>
+        s.items.map((i) => i.href),
+      );
+      const on = playerShellNav(kind, { modules: ON }).flatMap((s) => s.items.map((i) => i.href));
+      expect(on).toEqual(off);
+      expect(on).not.toContain(MODULE_HREFS.ranking);
+    }
+  });
+
+  it('the crumbs name the page as the sidebar does', () => {
+    expect(clubAdminCrumbs('alfa', t as never, 'results').at(-1)).toMatchObject({
+      label: 'results',
+    });
+  });
+});

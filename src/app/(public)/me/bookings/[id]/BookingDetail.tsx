@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import type { MyBookingDetailDto } from '@/app/api/v1/_lib/dto';
 import type { BookingGameDto } from '@/app/api/v1/_lib/open-play-dto';
+import type { BookingResultDto } from '@/components/results/types';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import { resourceNoun } from '@/lib/sports/resource-kinds';
 
 import { BOOKING_LIST_KEYS, STATUS_TONE } from '../MyBookingsList';
 import { BookingGame } from './BookingGame';
+import { BookingResult } from './BookingResult';
 import { BookingPlayers } from './BookingPlayers';
 import { directionsUrl } from './directions';
 
@@ -118,6 +120,7 @@ export function BookingDetail({
   serverNow,
   messaging = false,
   game = null,
+  result = null,
 }: {
   seed: Detail;
   serverNow: number;
@@ -125,6 +128,8 @@ export function BookingDetail({
   messaging?: boolean;
   /** Open play on this booking (#376), while the module is on; null otherwise. */
   game?: BookingGameDto | null;
+  /** The booking's result (#575), while the ranking module is on; null otherwise. */
+  result?: BookingResultDto | null;
 }) {
   const t = useTranslations('myBookings');
   const td = useTranslations('myBookings.detail');
@@ -299,6 +304,8 @@ export function BookingDetail({
       <BookingPlayers booking={b} date={date} time={from} messaging={messaging} />
 
       {game ? <BookingGame bookingId={b.id} seed={game} /> : null}
+
+      {result ? <BookingResult bookingId={b.id} seed={result} /> : null}
 
       {state !== 'none' || cancelError ? (
         <section className="gap-tight flex flex-col" data-testid="booking-cancel">

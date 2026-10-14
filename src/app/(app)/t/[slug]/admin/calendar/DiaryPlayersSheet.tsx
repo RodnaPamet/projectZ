@@ -10,6 +10,7 @@ import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 
 import type { DayBooking } from './DayGrid';
+import { DiaryResult } from './DiaryResult';
 import { DiaryPlayersList } from './DiaryPlayersList';
 
 /**
@@ -31,9 +32,12 @@ export default function DiaryPlayersSheet({
   onClose,
   onChanged,
   onMarkBookingNoShow,
+  ranking = false,
 }: {
   slug: string;
   booking: DayBooking;
+  /** The ranking module is on (#575): a completed booking takes its result here. */
+  ranking?: boolean;
   onClose: () => void;
   onChanged: () => void;
   onMarkBookingNoShow: () => void;
@@ -78,6 +82,7 @@ export default function DiaryPlayersSheet({
           bookerPhone={b.bookerPhone}
           onChanged={onChanged}
         />
+        {ranking && b.status === 'COMPLETED' ? <DiaryResult slug={slug} bookingId={b.id} /> : null}
         {b.canMarkNoShow ? (
           <Button
             type="button"

@@ -133,7 +133,8 @@
       },
       "several": {
         "courts": "{Nouns}"
-      }
+      },
+      "results": "Results"
     },
     "footer": {
       "label": "Footer",
@@ -688,6 +689,24 @@
       "linkEnded": {
         "title": "You no longer teach at {venue}",
         "body": "The club ended the link. Lessons already booked stay."
+      }
+    },
+    "result": {
+      "reported": {
+        "title": "{reporter} reported a result: {score}",
+        "body": "{venue}, {day}. Confirm or dispute it by {deadline}; after that it confirms itself."
+      },
+      "disputed": {
+        "title": "A disputed result: {venue}, {day}",
+        "body": "{score}. The club decides: confirm it or void it."
+      },
+      "decided": {
+        "title": "The club confirmed the result {score}",
+        "body": "{venue}, {day}. It now counts toward ratings."
+      },
+      "voided": {
+        "title": "The club voided the result",
+        "body": "{venue}, {day}. The match does not count toward ratings."
       }
     }
   },
@@ -1324,6 +1343,12 @@
           "yes": "Yes, cancel the lesson",
           "no": "Back",
           "failed": "The lesson was not cancelled. Try again."
+        },
+        "result": {
+          "heading": "Result",
+          "final": "A result the club enters is final and counts at once.",
+          "enter": "Enter the result",
+          "save": "Save the result"
         }
       },
       "series": {
@@ -1544,6 +1569,29 @@
         "BAD_EMAIL": "Enter a valid email address.",
         "ALREADY_INVITED": "An invitation has already been sent to that address. See it under Staff.",
         "MAIL_FAILED": "The invitation was created, but the email could not be sent. Withdraw it under Staff and try again."
+      }
+    },
+    "results": {
+      "metaTitle": "Results",
+      "title": "Results",
+      "subtitle": "A disputed result waits for the club: confirm it, correct it, or void it. The players are told.",
+      "waiting": "Waiting for a decision",
+      "noneWaiting": "No disputed results.",
+      "recent": "Recent results",
+      "noneRecent": "No results yet.",
+      "when": "{when} · {court} · {sport}",
+      "note": "The player’s note: “{note}”",
+      "confirm": "Confirm",
+      "correct": "Correct",
+      "void": "Void",
+      "correctTitle": "Correct the result",
+      "correctDescription": "The corrected result is final and counts at once.",
+      "correctSave": "Save and confirm",
+      "voidConfirm": {
+        "title": "Void this result?",
+        "description": "The match will not count for ratings. The players are told.",
+        "yes": "Void it",
+        "no": "Back"
       }
     }
   },
@@ -1856,6 +1904,21 @@
     "lesson": {
       "with": "Lesson with {coach}",
       "withCoach": "Lesson with a coach"
+    },
+    "result": {
+      "heading": "Result",
+      "intro": "Enter the result by {deadline}. The other side has 48 hours to confirm or dispute it.",
+      "introNoDeadline": "Enter the result. The other side has 48 hours to confirm or dispute it.",
+      "report": "Enter the result",
+      "send": "Send the result",
+      "answerUntil": "Confirm or dispute it by {deadline}. After that it confirms itself.",
+      "waitingUntil": "Waiting for the other side until {deadline}. After that it confirms itself.",
+      "withClub": "The result was disputed. The club will decide which is right.",
+      "confirm": "Confirm",
+      "reject": "Dispute",
+      "rejectNote": "What is wrong? The club will read it. (optional)",
+      "rejectSend": "Send to the club",
+      "back": "Back"
     }
   },
   "platform": {
@@ -2813,6 +2876,18 @@
       "intro": "Someone is signing in to playerz.bg with Apple and gave this address. If that was you, enter this code in the app:",
       "lasts": "The code is good for {minutes} minutes.",
       "footer": "If it was not you, do nothing: without the code your address cannot be used."
+    },
+    "result": {
+      "reported": {
+        "subject": "Confirm the result {score}",
+        "intro": "{reporter} reported a result of {score} for {venue}, {day}. Confirm it or dispute it by {deadline}; if you do not answer, it confirms itself."
+      },
+      "disputed": {
+        "subject": "A disputed result: {venue}, {day}",
+        "intro": "The result {score} for {venue}, {day} was disputed. The club decides: confirm it (or correct it) or void it."
+      },
+      "link": "Open the booking",
+      "clubLink": "Open the results"
     }
   },
   "billing": {
@@ -3541,6 +3616,45 @@
       "one": "seat",
       "many": "seats",
       "counted": "seats"
+    }
+  },
+  "results": {
+    "unnamed": "Player",
+    "winner": "winner",
+    "summaryCaption": "The score by set, by side",
+    "status": {
+      "REPORTED": "Waiting for confirmation",
+      "CONFIRMED": "Confirmed",
+      "REJECTED": "Disputed: with the club",
+      "DECIDED": "Decided by the club",
+      "VOIDED": "Voided"
+    },
+    "error": {
+      "RESULT_NOT_REPORTABLE": "This result can no longer be entered: the booking has not finished, or the 7 days have passed.",
+      "RESULT_ALREADY_REPORTED": "Someone has already entered this result. Reload to see it.",
+      "RESULT_NOT_AWAITING": "This result is no longer waiting for that: it was confirmed, disputed, or is with the club.",
+      "RESULT_NOT_YOURS_TO_ANSWER": "The other side confirms this result.",
+      "RESULT_NOT_FOUND": "Result not found.",
+      "INVALID_SIDES": "The sides are not right: each player is on one side, you are on one of them, and no side is too large.",
+      "INVALID_SCORE": "The score is not right: every set has a winner, and one side wins more sets.",
+      "RATE_LIMITED": "Too many attempts. Try again in a moment.",
+      "FAILED": "Something went wrong. Try again."
+    },
+    "editor": {
+      "sides": "Who played on which side",
+      "side": "Side {n}",
+      "out": "Did not play",
+      "sideOf": "{name}’s side",
+      "scoreSets": "Score by set",
+      "scoreTotal": "Score",
+      "set": "Set {n}",
+      "total": "Total",
+      "cell": "{row}, side {side}",
+      "addSet": "Add a set",
+      "removeSet": "Remove the last set",
+      "problemSides": "Each side needs at least one player.",
+      "problemScore": "Fill in every box with a number.",
+      "cancel": "Cancel"
     }
   }
 }

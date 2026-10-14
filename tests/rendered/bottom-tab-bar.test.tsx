@@ -65,8 +65,18 @@ function setSaveData(saveData: boolean | undefined) {
 }
 
 const n = bg.common.nav;
-const OPEN_PLAY: ChromeModules = { openPlay: true, messaging: false, coaches: false };
-const EVERY_MODULE: ChromeModules = { openPlay: true, messaging: true, coaches: false };
+const OPEN_PLAY: ChromeModules = {
+  openPlay: true,
+  messaging: false,
+  coaches: false,
+  ranking: false,
+};
+const EVERY_MODULE: ChromeModules = {
+  openPlay: true,
+  messaging: true,
+  coaches: false,
+  ranking: false,
+};
 
 const renderBar = (
   kind: Exclude<PlayerChromeKind, 'club'>,

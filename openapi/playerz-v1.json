@@ -84,6 +84,10 @@
     {
       "name": "Coaches",
       "description": "Finding a coach: the public list, a coach's page, and the coaches at a venue (#547)."
+    },
+    {
+      "name": "Results",
+      "description": "A booking's result and the ratings it moves (#378, #575)."
     }
   ],
   "paths": {
@@ -14880,6 +14884,639 @@
           }
         }
       }
+    },
+    "/me/bookings/{id}/result": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getBookingResult",
+        "summary": "A booking's result, and whether the caller may report or answer it",
+        "tags": ["Results"],
+        "description": "Where the booking's result stands for the caller (#575): the result, whether they may report it (completed, within 7 days, no result yet, a sport with a score) or answer it, how the sport's score is entered, and the players to pick sides from.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResultEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not the caller's booking.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "reportBookingResult",
+        "summary": "Report a booking's result",
+        "tags": ["Results"],
+        "description": "A player on a completed booking reports its result within 7 days of its end (decisions 29, 45): two sides from the booking's players (30) and the score (46). The other side is told and has 48 hours to confirm or reject; after that it confirms itself (Q23).",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResultEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_SIDES, INVALID_SCORE, BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not the caller's booking.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, window-passed, no-score, not-a-player), RESULT_ALREADY_REPORTED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportResultRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/me/results/{id}/confirm": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "confirmResult",
+        "summary": "Confirm a reported result",
+        "tags": ["Results"],
+        "description": "A player on the other side confirms it; it counts toward ratings (#575).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultStatusEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "RESULT_NOT_YOURS_TO_ANSWER: the caller's own side reported it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RESULT_NOT_FOUND: not a result the caller played.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RESULT_NOT_AWAITING: answered, confirmed by the 48 hours, or with the club.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/me/results/{id}/reject": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "rejectResult",
+        "summary": "Reject a reported result",
+        "tags": ["Results"],
+        "description": "A player on the other side rejects it, with an optional note; the club decides (decision 34) and its desk is told (#575).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultStatusEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "RESULT_NOT_YOURS_TO_ANSWER.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RESULT_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RESULT_NOT_AWAITING.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectResultRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/t/{slug}/admin/results": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listClubResults",
+        "summary": "The club's results",
+        "tags": ["Results"],
+        "description": "The club's results, newest first, for its desk (#575). `?status=REJECTED` lists the ones that wait for the club (decision 34). Needs `bookings.view_all`.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubResultsEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: an unknown status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["REPORTED", "CONFIRMED", "REJECTED", "DECIDED", "VOIDED"]
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/t/{slug}/admin/results/{id}/decide": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "decideClubResult",
+        "summary": "Decide a result",
+        "tags": ["Results"],
+        "description": "The club confirms a result as reported, confirms a corrected version (`sides`, `score`), or voids it (#575, decision 34). The players are told. Needs `bookings.view_all`.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultStatusEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_SIDES, INVALID_SCORE, BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RESULT_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RESULT_NOT_AWAITING: already counted or voided.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideResultRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/t/{slug}/admin/bookings/{id}/result": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "enterClubResult",
+        "summary": "Enter a booking's result as the club",
+        "tags": ["Results"],
+        "description": "The club enters a booking's result itself: final, counted at once (#575; the default taken in round 4 of #378). The players are told. Needs `bookings.view_all`.",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubResultCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_SIDES, INVALID_SCORE, BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RESULT_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RESULT_NOT_REPORTABLE, RESULT_ALREADY_REPORTED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportResultRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "getClubBookingResult",
+        "summary": "One booking's result, for the club",
+        "tags": ["Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "One booking's result for the desk (#575), whether the club may enter it, how its score is entered, and the players to pick sides from. Needs `bookings.view_all`.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubBookingResultEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the club's desk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this club's booking.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -18387,7 +19024,10 @@
               "COACH_LINK_REQUESTED",
               "COACH_LINK_ACCEPTED",
               "COACH_LINK_DECLINED",
-              "COACH_LINK_ENDED"
+              "COACH_LINK_ENDED",
+              "RESULT_REPORTED",
+              "RESULT_DISPUTED",
+              "RESULT_DECIDED"
             ],
             "description": "Treat an unknown value as a generic notification: kinds are added over time."
           },
@@ -23032,6 +23672,404 @@
           "code": {
             "type": "string",
             "description": "The six digits from the email; spaces are ignored."
+          }
+        }
+      },
+      "ResultPlayer": {
+        "type": "object",
+        "required": ["userId", "name"],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Null for a deleted account."
+          }
+        }
+      },
+      "ResultView": {
+        "type": "object",
+        "title": "ResultView",
+        "required": [
+          "id",
+          "status",
+          "sides",
+          "score",
+          "winnerSide",
+          "reportedByMe",
+          "reportedAt",
+          "autoConfirmAt",
+          "canAnswer"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["REPORTED", "CONFIRMED", "REJECTED", "DECIDED", "VOIDED"],
+            "description": "REPORTED waits for the other side (48 h); CONFIRMED and DECIDED count toward ratings; REJECTED waits for the club; VOIDED counts for nothing."
+          },
+          "sides": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ResultPlayer"
+              }
+            },
+            "description": "Two sides, as the reporter (or the club) picked them."
+          },
+          "score": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "description": "Side 0 first: [[6,4],[3,6],[7,5]]."
+          },
+          "winnerSide": {
+            "type": ["integer", "null"],
+            "description": "0 or 1; null for a draw."
+          },
+          "reportedByMe": {
+            "type": "boolean"
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "autoConfirmAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When a REPORTED result confirms itself."
+          },
+          "canAnswer": {
+            "type": "boolean",
+            "description": "The caller is on the other side and it waits for them: show confirm and reject."
+          }
+        }
+      },
+      "BookingResultState": {
+        "type": "object",
+        "title": "BookingResultState",
+        "required": ["result", "canReport", "reportableUntil", "format", "players"],
+        "properties": {
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResultView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canReport": {
+            "type": "boolean",
+            "description": "Completed, within 7 days of its end, no result yet, a sport with a score, and the caller played it."
+          },
+          "reportableUntil": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "format": {
+            "type": "string",
+            "enum": ["PERIODS", "TOTAL", "ORDER", "NONE"],
+            "description": "PERIODS: one to five sets or games, none level, the side that won more wins. TOTAL: one pair (goals, points, a game); a draw where the sport has them. ORDER and NONE cannot be reported by a player."
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResultPlayer"
+            },
+            "description": "The booking's players, to pick the two sides from."
+          }
+        }
+      },
+      "BookingResultEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingResultState"
+          }
+        }
+      },
+      "ReportResultRequest": {
+        "type": "object",
+        "title": "ReportResultRequest",
+        "additionalProperties": false,
+        "required": ["sides", "score"],
+        "properties": {
+          "sides": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Two sides of the booking's players' user ids; the reporter on one; nobody on both; at most the sport's players a side."
+          },
+          "score": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      },
+      "RejectResultRequest": {
+        "type": "object",
+        "title": "RejectResultRequest",
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Why, for the club."
+          }
+        }
+      },
+      "ResultStatusEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["REPORTED", "CONFIRMED", "REJECTED", "DECIDED", "VOIDED"]
+              }
+            }
+          }
+        }
+      },
+      "ClubResultRow": {
+        "type": "object",
+        "title": "ClubResultRow",
+        "required": [
+          "id",
+          "bookingId",
+          "status",
+          "sport",
+          "format",
+          "startTs",
+          "courtName",
+          "sides",
+          "score",
+          "winnerSide",
+          "rejectNote",
+          "reportedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["REPORTED", "CONFIRMED", "REJECTED", "DECIDED", "VOIDED"]
+          },
+          "sport": {
+            "$ref": "#/components/schemas/SportType"
+          },
+          "format": {
+            "type": "string",
+            "enum": ["PERIODS", "TOTAL", "ORDER", "NONE"],
+            "description": "PERIODS: one to five sets or games, none level, the side that won more wins. TOTAL: one pair (goals, points, a game); a draw where the sport has them. ORDER and NONE cannot be reported by a player."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "courtName": {
+            "type": "string"
+          },
+          "sides": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ResultPlayer"
+              }
+            }
+          },
+          "score": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "winnerSide": {
+            "type": ["integer", "null"]
+          },
+          "rejectNote": {
+            "type": ["string", "null"]
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ClubResultsEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ClubResultRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "DecideResultRequest": {
+        "title": "DecideResultRequest",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "confirm"
+              },
+              "sides": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "description": "Two sides of the booking's players' user ids; the reporter on one; nobody on both; at most the sport's players a side."
+              },
+              "score": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 5,
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "void"
+              }
+            }
+          }
+        ]
+      },
+      "ClubResultCreated": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["reportId", "status"],
+            "properties": {
+              "reportId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "const": "DECIDED"
+              }
+            }
+          }
+        }
+      },
+      "ClubBookingResultState": {
+        "type": "object",
+        "title": "ClubBookingResultState",
+        "required": ["result", "canEnter", "format", "players"],
+        "properties": {
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ClubResultRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canEnter": {
+            "type": "boolean",
+            "description": "Completed, no result yet, and a sport with a score: the club may enter it."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["PERIODS", "TOTAL", "ORDER", "NONE"],
+            "description": "PERIODS: one to five sets or games, none level, the side that won more wins. TOTAL: one pair (goals, points, a game); a draw where the sport has them. ORDER and NONE cannot be reported by a player."
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResultPlayer"
+            }
+          }
+        }
+      },
+      "ClubBookingResultEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ClubBookingResultState"
           }
         }
       }

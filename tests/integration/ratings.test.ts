@@ -1,7 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 
 import { currentRating, playerStats, recordMatch } from '@/app-layer/usecases/ratings';
-import { totalXpFor } from '@/app-layer/usecases/gamification';
 import { pgErrorCode } from '@/lib/db/pg-errors';
 import { closeRedis, redis } from '@/lib/redis';
 
@@ -280,25 +279,6 @@ describe('ratings move in the right direction', () => {
 
     expect(latest.matchesPlayed).toBe(3);
   });
-
-  it('playing a match awards XP — once', async () => {
-    const [a, b] = await seedUsers(2);
-
-    await recordMatch(db, {
-      tenantId: tenant.tenantId,
-      sport: 'PADEL',
-      teams: [[a!], [b!]],
-      dedupeKey: 'session:xp',
-    });
-    await recordMatch(db, {
-      tenantId: tenant.tenantId,
-      sport: 'PADEL',
-      teams: [[a!], [b!]],
-      dedupeKey: 'session:xp',
-    });
-
-    expect(await totalXpFor(db, a!)).toBe(30); // MATCH_PLAYED, not 60
-  });
 });
 
 // ══ The dashboard ════════════════════════════════════════════════════
@@ -419,6 +399,17 @@ describe('the performance dashboard', () => {
 });
 
 describe('a first rating starts at the declared level (#378, Q24)', () => {
+  it('a counted match awards no XP: playerz has no points (#575)', async () => {
+    const [a, b] = await seedUsers(2);
+    await recordMatch(db, {
+      tenantId: tenant.tenantId,
+      sport: 'PADEL',
+      teams: [[a!], [b!]],
+      dedupeKey: 'session:no-xp',
+    });
+    expect(await db.xpEvent.count({ where: { userId: { in: [a!, b!] } } })).toBe(0);
+  });
+
   it('a player who said 6 at padel starts there, one who said nothing in the middle', async () => {
     const [declared, silent] = await seedUsers(2);
     await asAppSuperuser(db, (tx) =>

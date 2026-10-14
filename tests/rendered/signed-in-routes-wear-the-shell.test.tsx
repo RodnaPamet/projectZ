@@ -183,7 +183,7 @@ jest.mock('@/lib/auth/platform-admin', () => ({
   resolvePlatformAuthority: (...a: unknown[]) => resolvePlatformAuthority(...a),
 }));
 jest.mock('@/lib/modules', () => ({
-  readModules: () => ({ openPlay: false, messaging: false, coaches: false }),
+  readModules: () => ({ openPlay: false, messaging: false, coaches: false, ranking: false }),
 }));
 // What the club plays on (P51): courts, unless a test says tracks.
 const clubResourceNouns = jest.fn<Promise<ResourceNouns>, [string]>();

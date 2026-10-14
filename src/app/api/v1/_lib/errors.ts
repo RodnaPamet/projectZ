@@ -108,6 +108,10 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   PhoneCodeWrongError: { status: 400, code: 'PHONE_CODE_WRONG' },
   PhoneCodeExpiredError: { status: 400, code: 'PHONE_CODE_EXPIRED' },
 
+  // A booking's result (#575): the sides or the score cannot be right.
+  ResultSidesError: { status: 400, code: 'INVALID_SIDES' },
+  InvalidScoreError: { status: 400, code: 'INVALID_SCORE' },
+
   // Sign in with Apple's hidden-address step (#442): the Apple sign-in it
   // continues has expired (sign in again); the address typed is not one, or is
   // Apple's relay itself; the code is wrong, or expired (ask for a new one).
@@ -124,6 +128,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   InsufficientCreditError: { status: 402, code: 'INSUFFICIENT_CREDIT' },
 
   // ── 403: you may not, and retrying will not help ──────────────────
+  // A result (#575) is answered by the side that did not report it.
+  ResultNotYoursToAnswerError: { status: 403, code: 'RESULT_NOT_YOURS_TO_ANSWER' },
   AccountLockedError: { status: 403, code: 'ACCOUNT_LOCKED' },
   StravaTosViolationError: { status: 403, code: 'STRAVA_TOS_VIOLATION' },
   // You cannot review a venue you never visited. A precondition on the actor,
@@ -250,6 +256,7 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   MfaEnrolmentNotStartedError: { status: 409, code: 'MFA_ENROLMENT_NOT_STARTED' },
 
   // ── 404: it is not there, or not there for you ────────────────────
+  ResultNotFoundError: { status: 404, code: 'RESULT_NOT_FOUND' },
   UnknownPlayerRatingError: { status: 404, code: 'UNKNOWN_PLAYER_RATING' },
   // Only reachable from the platform moderation route, whose caller holds
   // REVIEW_MODERATE — so saying "no such case" discloses nothing to a stranger.
@@ -260,6 +267,15 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   DeskPlayerNotFoundError: { status: 404, code: 'PLAYER_NOT_FOUND' },
 
   // ── 409: the world moved; the request was fine ────────────────────
+  // A booking's result (#575): not reportable now (`details.reason`), already
+  // reported, or no longer waiting for that step.
+  ResultNotReportableError: {
+    status: 409,
+    code: 'RESULT_NOT_REPORTABLE',
+    details: (e) => ({ reason: (e as Error & { reason: string }).reason }),
+  },
+  ResultAlreadyReportedError: { status: 409, code: 'RESULT_ALREADY_REPORTED' },
+  ResultNotAwaitingError: { status: 409, code: 'RESULT_NOT_AWAITING' },
   //
   // These are the ones a mobile client MUST distinguish, because every one of
   // them is "try again with fresh data", not "you did something wrong".

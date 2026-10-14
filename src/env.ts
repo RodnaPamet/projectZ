@@ -409,11 +409,13 @@ export const env = createEnv({
     //   MODULE_OPEN_PLAY  the Игри tab and top link (module 2, #376)
     //   MODULE_MESSAGING  the messages icon in the header (module 1, #375)
     //   MODULE_COACHES    a coach's «Профил на треньор» (module 3, #377)
+    //   MODULE_RANKING    a booking's result and the club's «Резултати» (module 4, #378)
     // Off by default: neither route exists yet, and nav-hrefs-resolve fails
     // a default of '1' for a module whose page is missing.
     MODULE_OPEN_PLAY: z.enum(['0', '1']).default('0'),
     MODULE_MESSAGING: z.enum(['0', '1']).default('0'),
     MODULE_COACHES: z.enum(['0', '1']).default('0'),
+    MODULE_RANKING: z.enum(['0', '1']).default('0'),
 
     // ═══ CHAT PUSH: CENTRIFUGO (#481) ═══
     //
@@ -567,6 +569,7 @@ export const env = createEnv({
     MODULE_OPEN_PLAY: process.env.MODULE_OPEN_PLAY,
     MODULE_MESSAGING: process.env.MODULE_MESSAGING,
     MODULE_COACHES: process.env.MODULE_COACHES,
+    MODULE_RANKING: process.env.MODULE_RANKING,
     CENTRIFUGO_API_URL: process.env.CENTRIFUGO_API_URL,
     CENTRIFUGO_API_KEY: process.env.CENTRIFUGO_API_KEY,
     CENTRIFUGO_TOKEN_SECRET: process.env.CENTRIFUGO_TOKEN_SECRET,

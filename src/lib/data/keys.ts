@@ -223,6 +223,14 @@ export const KEYS = {
   coachReviews: (coachSlug: string) => paged(`${BASE}/coaches/${seg(coachSlug)}/reviews`),
   /** Open play on one of the caller's bookings: the booker's requests, or their own. */
   meBookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
+  /** A booking's result for the caller (#575): it, and whether they may report or answer it. */
+  meBookingResult: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/result`,
+  /** The club's results (#575); `REJECTED` is the ones that wait for it. */
+  clubResults: (slug: string, status?: 'REJECTED') =>
+    `${BASE}/t/${seg(slug)}/admin/results${query({ status })}`,
+  /** One booking's result for the desk (#575), and whether the club may enter it. */
+  clubBookingResult: (slug: string, bookingId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/bookings/${seg(bookingId)}/result`,
   /** One player's public card. */
   player: (id: string) => `${BASE}/players/${seg(id)}`,
 } as const;
@@ -299,6 +307,17 @@ export const V1 = {
   /** `POST`: the booker accepts or declines one request (#376). */
   answerGameRequest: (bookingId: string, requestId: string, verb: 'accept' | 'decline') =>
     `${BASE}/me/bookings/${seg(bookingId)}/game/requests/${seg(requestId)}/${verb}`,
+  /** `POST { sides, score }`: a player reports their booking's result (#575). */
+  reportBookingResult: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/result`,
+  /** `POST`: the other side confirms, or rejects with `{ note? }` (#575). */
+  answerResult: (reportId: string, verb: 'confirm' | 'reject') =>
+    `${BASE}/me/results/${seg(reportId)}/${verb}`,
+  /** `POST { action, sides?, score? }`: the club decides a result (#575). */
+  decideResult: (slug: string, reportId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/results/${seg(reportId)}/decide`,
+  /** `POST { sides, score }`: the club enters a booking's result itself (#575). */
+  enterClubResult: (slug: string, bookingId: string) =>
+    `${BASE}/t/${seg(slug)}/admin/bookings/${seg(bookingId)}/result`,
   /** `POST { userId }`: the booker adds a co-player (#358). */
   addBookingPlayer: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/participants`,
   /** `DELETE`: the booker removes a player (#358). */
