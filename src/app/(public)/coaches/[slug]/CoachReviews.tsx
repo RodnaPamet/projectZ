@@ -5,7 +5,6 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import type { CoachReviewsPageDto } from '@/app/api/v1/_lib/coach-dto';
-import { ReportDialog } from '@/components/messages/ReportDialog';
 import { Button } from '@/components/ui/button';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Caption, Heading } from '@/components/ui/typography';
@@ -16,6 +15,10 @@ import type { ReportReason } from '@/lib/messaging/report';
 
 const ConfirmDialog = dynamic(() =>
   import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+);
+// The report form, its radios and its text box arrive when somebody reports.
+const ReportDialog = dynamic(() =>
+  import('@/components/messages/ReportDialog').then((m) => m.ReportDialog),
 );
 
 type Page = CoachReviewsPageDto;
