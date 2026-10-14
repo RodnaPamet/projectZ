@@ -49,6 +49,10 @@ const ALLOWED: Record<string, string> = {
 
   // ── Sign-in, which must read a User before any tenant exists ────────
   'src/auth.ts': 'the jwt/session callbacks: no tenant is bound during sign-in',
+  'src/app-layer/usecases/club-tournaments.ts':
+    'a club’s tournament (#579): the public list across clubs (decision 53), one tournament by id before its club is known, the names on the club’s own entries, and the person’s own entries at every club',
+  'src/app-layer/usecases/tournament-notifications.ts':
+    'a tournament’s notices (#579): one entry by id with its tournament, club and the two names on it, and the club’s desk to tell',
   'src/app-layer/usecases/leaderboards.ts':
     'a club’s leaderboard (#578): one public club by slug, and the ratings of the players with results there, each player’s own rows; signed-in callers only',
   'src/app-layer/usecases/match-results.ts':

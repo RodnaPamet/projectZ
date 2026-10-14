@@ -1,8 +1,33 @@
 enum TournamentFormatKind {
+  /// Knockout (decision 37).
   SINGLE_ELIMINATION
   DOUBLE_ELIMINATION
+  /// One group, everyone plays everyone.
   ROUND_ROBIN
   SWISS
+  /// Round-robin groups feeding a knockout (decision 37, P80).
+  GROUPS_KNOCKOUT
+  /// Padel's social formats: rotating partners, a points table, no ratings (43).
+  AMERICANO
+  MEXICANO
+  /// A fixed round robin over weeks, in divisions, each round by a deadline (44).
+  LEAGUE
+}
+
+/// How a tournament's entry fee is paid (decision 39, P80).
+enum TournamentFeePayment {
+  AT_CLUB
+  /// Through Stripe Connect (#581); refused until the club has connected.
+  ONLINE
+}
+
+/// An entry's way through the club's confirmation (decisions 38, 51; P80).
+enum TournamentEntryStatus {
+  /// Waiting for the club; past the draw size, the waiting list, in sign-up order.
+  PENDING
+  CONFIRMED
+  DECLINED
+  WITHDRAWN
 }
 
 enum TournamentStatus {
@@ -23,8 +48,20 @@ model Tournament {
   status TournamentStatus     @default(DRAFT)
 
   startsAt      DateTime
+  /// The draw size: entries the club confirms, whether one player or a pair each.
   maxPlayers    Int
   entryFeeCents Int      @default(0)
+
+  /// Where it is played (P80): its courts take its matches, its city lists it.
+  venueId         String?
+  description     String?
+  endsAt          DateTime?
+  /// Sign-up closes then; null = when the club starts the draw.
+  entriesCloseAt  DateTime?
+  /// 1 singles, 2 doubles: an entry is a player, or a player and a partner (50).
+  teamSize        Int                  @default(1)
+  feePayment      TournamentFeePayment @default(AT_CLUB)
+  createdByUserId String?
 
   currentRound Int @default(0)
   totalRounds  Int @default(0)
@@ -43,7 +80,10 @@ model Tournament {
 
   entries TournamentEntry[]
   matches TournamentMatch[]
+  venue   Venue?            @relation(fields: [venueId], references: [id], onDelete: SetNull)
 
+  @@index([status, startsAt])
+  @@index([venueId])
   @@index([tenantId, status, startsAt])
   @@index([tenantId])
   @@map("tournament")
@@ -54,10 +94,18 @@ model TournamentEntry {
   tenantId     String
   tournamentId String
 
-  playerUserId String
+  /// Who signed up: the entrant, or the first of a pair.
+  playerUserId      String
+  /// Their partner in a doubles tournament, named by the entrant (decision 50).
+  partnerUserId     String?
+  status            TournamentEntryStatus @default(PENDING)
+  decidedAt         DateTime?
+  decidedByUserId   String?
+  /// Who withdrew it: the entrant, the partner, or the club.
+  withdrawnByUserId String?
   /// Seed weight at the moment of entry. Frozen: a player's live rating moving
   /// mid-event must not re-seed a bracket that is already being played.
-  seedRating   Int?
+  seedRating        Int?
 
   withdrawnAt DateTime?
   createdAt   DateTime  @default(now())
@@ -67,8 +115,12 @@ model TournamentEntry {
   /// One entry per player. Without it, a double-tapped "Enter" puts somebody in
   /// the draw twice — and the bracket pairs them against themselves.
   @@unique([tournamentId, playerUserId])
+  /// A partner is in one pair of a tournament at most.
+  @@unique([tournamentId, partnerUserId])
   @@index([tenantId])
   @@index([playerUserId])
+  @@index([partnerUserId])
+  @@index([tournamentId, status, createdAt])
   @@map("tournament_entry")
 }
 

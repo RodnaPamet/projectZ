@@ -6,12 +6,15 @@ import {
   openGamesFacets,
   type OpenGamesFilter,
 } from '@/app-layer/usecases/open-play';
+import { listOpenTournaments, myTournamentEntries } from '@/app-layer/usecases/club-tournaments';
 import { toMyGameRequestDto, toOpenGameDto } from '@/app/api/v1/_lib/open-play-dto';
+import { toTournamentDto, toTournamentViewDto } from '@/app/api/v1/_lib/tournament-dto';
 import { gamesCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { Caption, Heading } from '@/components/ui/typography';
 import { ViewerScope } from '@/lib/data/provider';
+import { readModules } from '@/lib/modules';
 
 import { gameFiltersFromParams, gamesTabFrom } from './filters';
 import { GamesView } from './GamesView';
@@ -43,7 +46,8 @@ export default async function GamesPage({
     getTranslations('common.nav'),
     chromeIdentity(),
   ]);
-  const tab = gamesTabFrom(sp.tab);
+  const ranking = readModules().ranking;
+  const tab = gamesTabFrom(sp.tab, ranking);
   const filters = gameFiltersFromParams({
     get: (k) => {
       const v = sp[k];
@@ -64,6 +68,15 @@ export default async function GamesPage({
     openGamesFacets(),
     viewerId && tab === 'mine' ? listMyGameRequests({ userId: viewerId }) : Promise.resolve(null),
   ]);
+  // «Турнири» (#579), while the ranking module is on: read when it is the tab.
+  const tournaments = ranking
+    ? tab === 'tournaments'
+      ? {
+          seed: (await listOpenTournaments({})).map(toTournamentDto),
+          mine: viewerId ? (await myTournamentEntries(viewerId)).map(toTournamentViewDto) : null,
+        }
+      : { seed: [], mine: null }
+    : null;
 
   const view = (
     <GamesView
@@ -74,6 +87,7 @@ export default async function GamesPage({
       facets={facets}
       signedIn={viewerId !== null}
       timeZone={PILOT_ZONE}
+      tournaments={tournaments}
     />
   );
 

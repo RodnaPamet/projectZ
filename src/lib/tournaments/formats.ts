@@ -209,5 +209,11 @@ export function formatFor(kind: TournamentFormatKind): TournamentFormat {
         'Double elimination is not implemented. It needs a losers bracket, and a ' +
           'half-built one that silently drops a player is worse than not offering it.',
       );
+    case 'GROUPS_KNOCKOUT':
+    case 'AMERICANO':
+    case 'MEXICANO':
+    case 'LEAGUE':
+      // A club can create these (#579); drawing them is #580.
+      throw new Error(`The ${kind} draw is not built yet (#580).`);
   }
 }

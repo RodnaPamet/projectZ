@@ -7,12 +7,20 @@ import { isSportKey } from '@/lib/sports/registry';
  * agree.
  */
 
-export type GamesTab = 'open' | 'mine';
+export type GamesTab = 'open' | 'mine' | 'tournaments';
 
-export const GAMES_TABS: readonly GamesTab[] = ['open', 'mine'];
+/** «Турнири» (#579, decision 53) while the ranking module is on. */
+export function gamesTabs(tournaments: boolean): readonly GamesTab[] {
+  return tournaments ? ['open', 'mine', 'tournaments'] : ['open', 'mine'];
+}
 
-export function gamesTabFrom(raw: string | string[] | null | undefined): GamesTab {
-  return raw === 'mine' ? 'mine' : 'open';
+export function gamesTabFrom(
+  raw: string | string[] | null | undefined,
+  tournaments = false,
+): GamesTab {
+  if (raw === 'mine') return 'mine';
+  if (raw === 'tournaments' && tournaments) return 'tournaments';
+  return 'open';
 }
 
 export type GameFilters = Partial<Record<'sport' | 'date' | 'city', string>>;

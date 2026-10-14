@@ -134,7 +134,8 @@
       "several": {
         "courts": "{Nouns}"
       },
-      "results": "Results"
+      "results": "Results",
+      "tournaments": "Tournaments"
     },
     "footer": {
       "label": "Footer",
@@ -402,6 +403,9 @@
       "unnamed": "Player",
       "matches": "{count, plural, one {# match} other {# matches}}",
       "hint": "A level moves with every confirmed result. A player who hides theirs is not listed."
+    },
+    "tournaments": {
+      "title": "Tournaments"
     }
   },
   "cities": {
@@ -722,6 +726,36 @@
       "placed": {
         "title": "Place {place} of {drivers}: {venue}",
         "body": "{day}. The track’s finishing order now counts toward ratings."
+      }
+    },
+    "tournament": {
+      "received": {
+        "title": "A new entry: {tournament}",
+        "body": "{players} · {day}, {venue}. Confirm it under Tournaments."
+      },
+      "partner": {
+        "title": "{entrant} entered you for {tournament}",
+        "body": "{day}, {venue}. Can’t play? Withdraw on the tournament’s page."
+      },
+      "confirmed": {
+        "title": "You’re in: {tournament}",
+        "body": "{day}, {venue}. The club confirmed your entry."
+      },
+      "declined": {
+        "title": "Entry not confirmed: {tournament}",
+        "body": "{day}, {venue}. The club did not confirm your entry."
+      },
+      "withdrawn": {
+        "title": "{who} withdrew from {tournament}",
+        "body": "{day}, {venue}. Your entry is withdrawn."
+      },
+      "withdrawnDesk": {
+        "title": "An entry withdrew: {tournament}",
+        "body": "{players} · {day}, {venue}. A place in the draw is free."
+      },
+      "cancelled": {
+        "title": "Tournament cancelled: {tournament}",
+        "body": "{day}, {venue}. The club cancelled the tournament."
       }
     }
   },
@@ -1609,6 +1643,66 @@
         "description": "The match will not count for ratings. The players are told.",
         "yes": "Void it",
         "no": "Back"
+      }
+    },
+    "tournaments": {
+      "metaTitle": "Tournaments",
+      "title": "Tournaments",
+      "subtitle": "Create a tournament, open sign-up, and confirm entries up to the draw size.",
+      "noVenues": "Add a venue with courts first: the tournament is played there.",
+      "new": "New tournament",
+      "none": "No tournaments yet.",
+      "noneHint": "A new tournament starts as a draft; players see it once you open sign-up.",
+      "newTitle": "New tournament",
+      "newDescription": "Saved as a draft. Players see it once you open sign-up.",
+      "create": "Create",
+      "confirm": "Confirm",
+      "decline": "Decline",
+      "open": "Open sign-up",
+      "edit": "Edit",
+      "cancelTournament": "Cancel the tournament",
+      "draftHint": "A draft: players don’t see it yet.",
+      "entries": "Entries: {confirmed} of {size}",
+      "noEntriesDraft": "Sign-up is not open yet.",
+      "noEntries": "No entries yet.",
+      "editTitle": "Edit the tournament",
+      "save": "Save",
+      "cancelConfirm": {
+        "title": "Cancel the tournament?",
+        "description": "Everyone entered is told. This cannot be undone.",
+        "yes": "Cancel it",
+        "no": "Back"
+      },
+      "form": {
+        "name": "Name",
+        "venue": "Venue",
+        "sport": "Sport",
+        "format": "Format",
+        "teamSize": "Singles or doubles",
+        "startsAt": "Starts",
+        "endsAt": "Ends (optional)",
+        "entriesCloseAt": "Sign-up until (optional)",
+        "drawSize": "Draw size (players)",
+        "drawSizePairs": "Draw size (pairs)",
+        "fee": "Fee (€)",
+        "feeHint": "Paid at the club. Paying online is coming.",
+        "description": "Description (optional)",
+        "cancel": "Cancel",
+        "problem": {
+          "name": "The tournament needs a name.",
+          "venue": "Choose a venue and a sport.",
+          "startsAt": "When does it start?",
+          "drawSize": "The draw is 2 to 256.",
+          "fee": "The fee is an amount, 0 or more."
+        },
+        "formatHint": {
+          "SINGLE_ELIMINATION": "The loser goes out; winners play on to the final.",
+          "ROUND_ROBIN": "Everyone plays everyone; a points table.",
+          "GROUPS_KNOCKOUT": "Round-robin groups, then a knockout for the top places.",
+          "AMERICANO": "Partners rotate every round: players sign up alone; a points table, no ratings.",
+          "MEXICANO": "Pairs are drawn from the standings after each round; players sign up alone; no ratings.",
+          "LEAGUE": "Divisions playing everyone over the weeks, each round by a deadline."
+        }
       }
     }
   },
@@ -2531,7 +2625,8 @@
         "leave": "You can leave the game until it starts.",
         "wait": "It can no longer be cancelled in the app. You can delete your account after {end}.",
         "more": "{count, plural, one {And # more booking.} other {And # more bookings.}}",
-        "lessons": "{count, plural, one {As a coach you have # upcoming lesson.} other {As a coach you have # upcoming lessons.}} Cancel them, or wait until they are over, before deleting the account."
+        "lessons": "{count, plural, one {As a coach you have # upcoming lesson.} other {As a coach you have # upcoming lessons.}} Cancel them, or wait until they are over, before deleting the account.",
+        "tournaments": "{count, plural, one {You are entered in # tournament that is not over yet. Withdraw from it first.} other {You are entered in # tournaments that are not over yet. Withdraw from them first.}}"
       },
       "club": {
         "title": "Club accounts are deleted on request",
@@ -2920,6 +3015,25 @@
       },
       "link": "Open the booking",
       "clubLink": "Open the results"
+    },
+    "tournament": {
+      "partner": {
+        "subject": "{entrant} entered you for {tournament}",
+        "intro": "{entrant} entered you as their partner for {tournament}, {day}, {venue}. The entry waits for the club to confirm it. If you can’t play, withdraw on the tournament’s page."
+      },
+      "confirmed": {
+        "subject": "You’re in {tournament}",
+        "intro": "The club confirmed your entry for {tournament}, {day}, {venue}."
+      },
+      "declined": {
+        "subject": "Your entry for {tournament} was not confirmed",
+        "intro": "The club did not confirm your entry for {tournament}, {day}, {venue}."
+      },
+      "cancelled": {
+        "subject": "{tournament} is cancelled",
+        "intro": "The club cancelled {tournament}, {day}, {venue}."
+      },
+      "link": "The tournament"
     }
   },
   "billing": {
@@ -3212,7 +3326,8 @@
     "tabs": {
       "label": "Games or my requests",
       "open": "Looking for players",
-      "mine": "My requests"
+      "mine": "My requests",
+      "tournaments": "Tournaments"
     },
     "filters": {
       "label": "Game filters",
@@ -3699,6 +3814,95 @@
       "raced": "{name} raced",
       "problem": "At least two drivers are needed.",
       "cancel": "Cancel"
+    }
+  },
+  "tournaments": {
+    "format": {
+      "SINGLE_ELIMINATION": "Knockout",
+      "DOUBLE_ELIMINATION": "Double elimination",
+      "ROUND_ROBIN": "Round robin",
+      "SWISS": "Swiss",
+      "GROUPS_KNOCKOUT": "Groups and knockout",
+      "AMERICANO": "Americano",
+      "MEXICANO": "Mexicano",
+      "LEAGUE": "League"
+    },
+    "singles": "Singles",
+    "doubles": "Doubles",
+    "dates": "{from} – {to}",
+    "free": "No fee",
+    "feeAtClub": "{fee}, paid at the club",
+    "feeOnline": "{fee}, online",
+    "places": "{confirmed} of {size} places",
+    "placesPairs": "{confirmed} of {size} pairs",
+    "status": {
+      "DRAFT": "Draft",
+      "REGISTRATION": "Sign-up open",
+      "IN_PROGRESS": "Under way",
+      "COMPLETE": "Finished",
+      "CANCELLED": "Cancelled",
+      "CLOSED": "Sign-up closed"
+    },
+    "entry": {
+      "PENDING": "Waiting for the club",
+      "CONFIRMED": "You’re in",
+      "DECLINED": "Not confirmed",
+      "WITHDRAWN": "Withdrawn"
+    },
+    "mine": "Your tournaments",
+    "open": "Open for sign-up",
+    "none": "No tournaments open for sign-up",
+    "noneHint": "When a club opens sign-up, the tournament shows here.",
+    "partner": {
+      "label": "Partner",
+      "placeholder": "A player’s name",
+      "none": "No such player.",
+      "hint": "Type at least two letters of the name. Your partner is told and may withdraw.",
+      "choose": "Choose",
+      "change": "Another partner"
+    },
+    "metaTitle": "{name}: tournament",
+    "waitingCount": "{count} waiting",
+    "when": "When",
+    "entriesClose": "Sign-up until",
+    "where": "Where",
+    "club": "Club",
+    "fee": "Fee",
+    "entryHeading": "Your entry",
+    "waitingPosition": "On the waiting list, number {place}.",
+    "withPartner": "With {name}",
+    "namedBy": "{name} entered you as their partner.",
+    "unnamed": "Player",
+    "withdraw": "Withdraw",
+    "closed": "Sign-up is not open.",
+    "signIn": "Sign in to enter.",
+    "signInButton": "Sign in",
+    "feeNote": "The club confirms each entry. The fee is paid at the club.",
+    "enterNote": "The club confirms each entry.",
+    "enter": "Enter",
+    "enterPair": "Enter us",
+    "withdrawConfirm": {
+      "title": "Withdraw?",
+      "description": "Your place goes. Your partner and the club are told.",
+      "yes": "Withdraw",
+      "no": "Back"
+    },
+    "error": {
+      "TOURNAMENT_NOT_FOUND": "Tournament not found.",
+      "TOURNAMENT_NOT_OPEN": "Sign-up for this tournament is closed.",
+      "TOURNAMENT_INVALID": "Something in the form is not right. Check it and try again.",
+      "TOURNAMENT_ONLINE_FEE_UNAVAILABLE": "Paying online is not available yet: the fee is paid at the club.",
+      "TOURNAMENT_ALREADY_ENTERED": "You are already in this tournament.",
+      "TOURNAMENT_PARTNER_REQUIRED": "Choose a partner.",
+      "TOURNAMENT_PARTNER_UNAVAILABLE": "That player can’t be your partner: they are already in, or not available.",
+      "TOURNAMENT_DRAW_FULL": "The draw is full.",
+      "TOURNAMENT_ENTRY_NOT_FOUND": "Entry not found.",
+      "TOURNAMENT_ENTRY_NOT_ACTIVE": "This entry is no longer live.",
+      "TOURNAMENT_STATE": "The tournament no longer allows that.",
+      "PLAYER_ACCOUNT_REQUIRED": "Entering needs a player account.",
+      "PHONE_REQUIRED": "Confirm your phone number.",
+      "RATE_LIMITED": "Too many attempts. Try again in a moment.",
+      "FAILED": "Something went wrong. Try again."
     }
   }
 }

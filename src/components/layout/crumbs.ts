@@ -90,6 +90,7 @@ export type ClubAdminPage =
   | 'staff'
   | 'coaches'
   | 'results'
+  | 'tournaments'
   | 'reports';
 
 /**

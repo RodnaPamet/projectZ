@@ -51,7 +51,10 @@
     "/t/[slug]/admin/reports": 365.7,
     "/t/[slug]/admin/results": 278.9,
     "/t/[slug]/admin/staff": 360.1,
+    "/t/[slug]/admin/tournaments": 279.2,
+    "/t/[slug]/admin/tournaments/[id]": 284.4,
     "/terms": 273.3,
+    "/tournaments/[id]": 289.3,
     "/venues": 343.3,
     "/venues/[slug]": 296.6
   }

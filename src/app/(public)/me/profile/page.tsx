@@ -32,6 +32,7 @@ function standingView(s: DeletionStanding): DeletionStandingView {
     credit,
     total: s.total,
     lessons: s.lessons,
+    tournaments: s.tournaments,
     bookings: s.bookings.map((b) => ({
       bookingId: b.bookingId,
       venueName: b.venueName,

@@ -53,6 +53,7 @@ export type NavIconKey =
   | 'contactRequests'
   | 'coaches'
   | 'results'
+  | 'tournaments'
   // The player shell and the bottom tab bar (#362).
   | 'discover'
   | 'games'
@@ -184,14 +185,22 @@ export function clubAdminNav(
               },
             ]
           : []),
-        // A disputed result waits here for the desk to decide it (#575),
-        // once the ranking module is on. The diary's permission.
+        // A disputed result waits here for the desk to decide it (#575), and
+        // the club's tournaments are run from here (#579; the desk too,
+        // decision 52), once the ranking module is on. The diary's permission.
         ...(modules.ranking
           ? [
               {
                 href: href('results'),
                 labelKey: 'results',
                 iconKey: 'results' as const,
+                requires: 'bookings.view_all' as const,
+                prefetch: 'auto' as const,
+              },
+              {
+                href: href('tournaments'),
+                labelKey: 'tournaments',
+                iconKey: 'tournaments' as const,
                 requires: 'bookings.view_all' as const,
                 prefetch: 'auto' as const,
               },

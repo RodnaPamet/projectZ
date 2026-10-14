@@ -19,8 +19,20 @@ const clubHrefs = (modules: ChromeModules) =>
 const t = (key: string) => key;
 
 describe('the ranking module in the navigation', () => {
-  it('off: the club has no «Резултати»', () => {
+  it('off: the club has no «Резултати» and no «Турнири»', () => {
     expect(clubHrefs(MODULES_OFF)).not.toContain('/t/alfa/admin/results');
+    expect(clubHrefs(MODULES_OFF)).not.toContain('/t/alfa/admin/tournaments');
+  });
+
+  it('on: the desk runs the club’s «Турнири» too (#579, decision 52)', () => {
+    const item = clubAdminNav('alfa', 'court', ON)
+      .flatMap((s) => s.items)
+      .find((i) => i.href === '/t/alfa/admin/tournaments');
+    expect(item).toMatchObject({
+      labelKey: 'tournaments',
+      iconKey: 'tournaments',
+      requires: 'bookings.view_all',
+    });
   });
 
   it('on: the club’s desk gets «Резултати», by the diary’s permission', () => {

@@ -239,7 +239,10 @@ describe('what must be cancelled or left before an account can go (#465)', () =>
       // The coaches module (#377): a lesson still to be TAUGHT blocks the
       // coach's deletion. It was `CoachBooking…:when-shipped` until P71.
       'CoachLesson.coachUserId:checked',
-      'TournamentEntry.playerUserId:when-shipped',
+      // A club's tournaments (#579): a live entry, as entrant or partner,
+      // blocks the deletion until it is withdrawn. `when-shipped` until P80.
+      'TournamentEntry.partnerUserId:checked',
+      'TournamentEntry.playerUserId:checked',
     ]);
   });
 

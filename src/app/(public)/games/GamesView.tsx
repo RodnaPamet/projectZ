@@ -5,7 +5,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import type { MyGameRequestDto, OpenGameDto } from '@/app/api/v1/_lib/open-play-dto';
+import type { TournamentDto, TournamentViewDto } from '@/app/api/v1/_lib/tournament-dto';
 import { GameCard } from '@/components/games/GameCard';
+import { TournamentsTab } from '@/components/tournaments/TournamentsTab';
 import { CardGridSkeleton } from '@/components/loading/shapes';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -19,7 +21,7 @@ import { canonicalCity, cityLabel } from '@/lib/geo/cities';
 
 import {
   GAME_FILTER_NAMES,
-  GAMES_TABS,
+  gamesTabs,
   gameFiltersFromParams,
   gamesTabFrom,
   nextDays,
@@ -57,8 +59,11 @@ export function GamesView({
   facets,
   signedIn,
   timeZone,
+  tournaments = null,
 }: {
   initialTab: GamesTab;
+  /** «Турнири» (#579): its seed while the ranking module is on; null otherwise. */
+  tournaments?: { seed: TournamentDto[]; mine: TournamentViewDto[] | null } | null;
   seed: V1Page<OpenGameDto>;
   initialFilters: GameFilters;
   /** «Моите заявки», seeded when that tab was rendered; null signed out. */
@@ -72,7 +77,7 @@ export function GamesView({
   const [tab, setTab] = useState<GamesTab>(initialTab);
 
   function pick(next: string) {
-    const value = gamesTabFrom(next);
+    const value = gamesTabFrom(next, tournaments !== null);
     setTab(value);
     writeParam('tab', value === 'open' ? null : value, 'replace');
   }
@@ -81,7 +86,10 @@ export function GamesView({
     <div className="gap-section mt-6 grid">
       <ToggleGroup
         ariaLabel={t('tabs.label')}
-        options={GAMES_TABS.map((value) => ({ value, label: t(`tabs.${value}`) }))}
+        options={gamesTabs(tournaments !== null).map((value) => ({
+          value,
+          label: t(`tabs.${value}`),
+        }))}
         selected={tab}
         selectAction={pick}
         className="self-start justify-self-start"
@@ -95,6 +103,8 @@ export function GamesView({
           signedIn={signedIn}
           timeZone={timeZone}
         />
+      ) : tab === 'tournaments' && tournaments ? (
+        <TournamentsTab seed={tournaments.seed} mine={tournaments.mine} facets={facets} />
       ) : (
         <MyRequests seed={mine} signedIn={signedIn} />
       )}

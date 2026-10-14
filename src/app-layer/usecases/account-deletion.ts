@@ -107,6 +107,11 @@ export type DeletionStanding =
        * player are among `bookings`, as any court booking is.
        */
       lessons: number;
+      /**
+       * Tournaments the account is entered in, as entrant or partner, and not
+       * yet over (#579): withdraw from them first.
+       */
+      tournaments: number;
       credit: ClubCredit[];
     };
 
@@ -127,9 +132,11 @@ export class UpcomingBookingsError extends Error {
     readonly total: number,
     /** Upcoming lessons the account teaches (#377). */
     readonly lessons = 0,
+    /** Tournaments the account is entered in, not yet over (#579). */
+    readonly tournaments = 0,
   ) {
     super(
-      `The account still has ${total} upcoming booking(s) and ${lessons} lesson(s) to teach. Cancel them, or leave the ones you were added to, and try again.`,
+      `The account still has ${total} upcoming booking(s), ${lessons} lesson(s) to teach and ${tournaments} tournament entr(y/ies). Cancel them, leave the ones you were added to, withdraw from the tournaments, and try again.`,
     );
     this.name = 'UpcomingBookingsError';
   }
@@ -237,10 +244,21 @@ async function upcoming(db: PrismaClient, userId: string, now: Date) {
   const lessons = await db.coachLesson.count({
     where: { coachUserId: userId, active: true, endTs: { gt: now } },
   });
+  // The tournaments it is entered in (#579), as entrant or partner, live and
+  // not yet over: the entrant or the partner withdraws until it starts.
+  // guardrail-allow: cross-tenant — the person's own entries, at every club.
+  const tournaments = await db.tournamentEntry.count({
+    where: {
+      OR: [{ playerUserId: userId }, { partnerUserId: userId }],
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      tournament: { status: { in: ['DRAFT', 'REGISTRATION', 'IN_PROGRESS'] } },
+    },
+  });
   return {
     bookings: describeUpcoming(rows.slice(0, UPCOMING_LISTED), userId, now),
     total,
     lessons,
+    tournaments,
   };
 }
 
@@ -291,10 +309,10 @@ export async function deletionStanding(
   });
   if (!user || user.deletedAt) throw new AccountNotFoundForDeletionError();
   if (await runsAClub(db, userId, user.accountKind, by)) return { kind: 'club' };
-  const { bookings, total, lessons } = await upcoming(db, userId, now);
+  const { bookings, total, lessons, tournaments } = await upcoming(db, userId, now);
   const credit = await creditAtClubs(db, userId);
-  return total > 0 || lessons > 0
-    ? { kind: 'blocked', bookings, total, lessons, credit }
+  return total > 0 || lessons > 0 || tournaments > 0
+    ? { kind: 'blocked', bookings, total, lessons, tournaments, credit }
     : { kind: 'allowed', credit };
 }
 
@@ -346,8 +364,13 @@ export async function deleteAccount(
   }
 
   const pending = await upcoming(db, userId, now);
-  if (pending.total > 0 || pending.lessons > 0) {
-    throw new UpcomingBookingsError(pending.bookings, pending.total, pending.lessons);
+  if (pending.total > 0 || pending.lessons > 0 || pending.tournaments > 0) {
+    throw new UpcomingBookingsError(
+      pending.bookings,
+      pending.total,
+      pending.lessons,
+      pending.tournaments,
+    );
   }
 
   // ═══ 2. PLATFORM AUTHORITY ENDS WITH THE ACCOUNT ═══

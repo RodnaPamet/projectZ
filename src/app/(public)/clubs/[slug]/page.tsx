@@ -11,9 +11,11 @@ import {
   type ClubPage,
   type ClubPageVenue,
 } from '@/app-layer/usecases/club-public-page';
+import { listClubPublicTournaments } from '@/app-layer/usecases/club-tournaments';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { slugSchema } from '@/app-layer/schemas/common';
 import { toAvailability, type AvailabilityDto } from '@/app/api/v1/_lib/dto';
+import { toTournamentDto } from '@/app/api/v1/_lib/tournament-dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
 import { playCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
@@ -21,6 +23,7 @@ import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { WriteToClub } from '@/components/messages/WriteToClub';
 import { ClubLeaderboard } from '@/components/ranking/ClubLeaderboard';
+import { ClubTournaments } from '@/components/tournaments/ClubTournaments';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -180,6 +183,11 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
     // Request-cached: the layout's chrome asked already.
     chromeIdentity(),
   ]);
+
+  // «Турнири» (#579): open for sign-up or under way, while ranking is on.
+  const tournaments = readModules().ranking
+    ? (await listClubPublicTournaments(club.slug)).map(toTournamentDto)
+    : null;
 
   const main = club.venues[0];
   const sports = [...new Set(club.venues.flatMap((v) => v.sports))];
@@ -376,6 +384,9 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
             </ul>
           )}
         </section>
+
+        {/* «Турнири» (#579), while the ranking module is on. */}
+        {tournaments ? <ClubTournaments items={tournaments} /> : null}
 
         {/* «Класиране» (#578), while the ranking module is on. */}
         {readModules().ranking ? (
