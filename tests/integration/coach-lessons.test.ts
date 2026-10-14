@@ -4,7 +4,12 @@ import { POST as cancelRoute } from '@/app/api/v1/t/[slug]/bookings/[id]/cancel/
 import { GET as timesGet } from '@/app/api/v1/coaches/[slug]/lesson-times/route';
 import { POST as lessonPost } from '@/app/api/v1/coaches/[slug]/lessons/route';
 import { GET as gameGet, PUT as gamePut } from '@/app/api/v1/me/bookings/[id]/game/route';
+import { POST as inviteAcceptPost } from '@/app/api/v1/booking-invites/accept/route';
+import { POST as invitePreviewPost } from '@/app/api/v1/booking-invites/preview/route';
 import { POST as inviteLinkPost } from '@/app/api/v1/me/bookings/[id]/invite-links/route';
+import { DELETE as removePlayer } from '@/app/api/v1/me/bookings/[id]/participants/[participantId]/route';
+import { POST as addPartner } from '@/app/api/v1/me/bookings/[id]/participants/route';
+import { DELETE as leaveBooking } from '@/app/api/v1/me/bookings/[id]/participation/route';
 import { GET as myBookingGet } from '@/app/api/v1/me/bookings/[id]/route';
 import { GET as myBookingsGet } from '@/app/api/v1/me/bookings/route';
 import { GET as myLessonsGet } from '@/app/api/v1/me/coach-lessons/route';
@@ -74,7 +79,8 @@ async function call(
     body: init.json === undefined ? undefined : JSON.stringify(init.json),
   });
   const res = await (route as Route)(req, { params: Promise.resolve(params ?? {}) } as never);
-  return { status: res.status, json: (await res.json()) as Json };
+  // A delete that worked answers 204 with no body.
+  return { status: res.status, json: res.status === 204 ? {} : ((await res.json()) as Json) };
 }
 
 interface TimesDto {
@@ -1042,52 +1048,6 @@ describe('where a booked lesson is seen', () => {
     ).toEqual([true, false]);
   });
 
-  it('a lesson takes no more players and does not look for any, until its fee follows them (#549)', async () => {
-    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
-      groupRateCents: 6000,
-    });
-    const p = await player();
-    const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
-    const id = booked.booking.id;
-    const params = { id };
-
-    // The booking page is told so: nothing to add players with.
-    const one = await call(myBookingGet, `/api/v1/me/bookings/${id}`, { bearer: p.bearer }, params);
-    expect(one.json.data).toMatchObject({ playersOpen: false, players: [{ isBooker: true }] });
-
-    // And the writes refuse: no invite link, no open game.
-    const link = await call(
-      inviteLinkPost,
-      `/api/v1/me/bookings/${id}/invite-links`,
-      { method: 'POST', bearer: p.bearer, json: {} },
-      params,
-    );
-    expect([link.status, link.json.error?.code]).toEqual([409, 'BOOKING_PLAYERS_CLOSED']);
-    const view = await call(
-      gameGet,
-      `/api/v1/me/bookings/${id}/game`,
-      { bearer: p.bearer },
-      params,
-    );
-    expect(view.json.data).toMatchObject({ canOpen: false, game: null });
-    const open = await call(
-      gamePut,
-      `/api/v1/me/bookings/${id}/game`,
-      { method: 'PUT', bearer: p.bearer, json: { spots: 1 } },
-      params,
-    );
-    expect([open.status, open.json.error?.code]).toEqual([409, 'GAME_NOT_OPENABLE']);
-    expect(
-      await asAppSuperuser(db, async (tx) => [
-        await tx.bookingInviteLink.count(),
-        await tx.openGame.count(),
-        await tx.bookingParticipant.count(),
-      ]),
-    ).toEqual([0, 0, 0]);
-    // The coach's fee is still the one-player fee it was booked at.
-    expect((await rows()).lessons[0]).toMatchObject({ coachFeeCents: 4000 });
-  });
-
   it('a coach the platform has since removed: the lesson still names them and links nowhere', async () => {
     const id = await coach('ivan-petrov', 'Иван Петров');
     const linkId = await teaches(id, A());
@@ -1249,5 +1209,274 @@ describe('where a booked lesson is seen', () => {
       expect((await mine(ivan, 'soon')).status).toBe(400);
       expect((await mine(ivan)).items).toEqual([]);
     });
+  });
+});
+
+describe('more than one player on a lesson: the coach’s fee follows them (#549; decisions 9, 18, 19, 20)', () => {
+  const fees = async () => (await rows()).lessons.map((l) => l.coachFeeCents);
+  const feeAudits = () =>
+    asAppSuperuser(db, (tx) =>
+      tx.auditEntry.findMany({
+        where: { action: 'COACH_LESSON_FEE_CHANGED' },
+        orderBy: { createdAt: 'asc' },
+        select: { detailsJson: true, actorUserId: true },
+        take: 20,
+      }),
+    );
+  /** The booker makes a link; `who` opens it and joins. */
+  async function joinByLink(booker: TestIdentity, bookingId: string, who: TestIdentity) {
+    const link = await call(
+      inviteLinkPost,
+      `/api/v1/me/bookings/${bookingId}/invite-links`,
+      { method: 'POST', bearer: booker.bearer, json: {} },
+      { id: bookingId },
+    );
+    expect(link.status).toBe(201);
+    const token = (link.json.data as { token: string }).token;
+    const joined = await call(invitePreviewPost, '/api/v1/booking-invites/preview', {
+      method: 'POST',
+      json: { token },
+    });
+    const accepted = await call(inviteAcceptPost, '/api/v1/booking-invites/accept', {
+      method: 'POST',
+      bearer: who.bearer,
+      json: { token },
+    });
+    expect(accepted.status).toBe(200);
+    return { token, preview: joined.json.data as Record<string, unknown> };
+  }
+  const detail = async (who: TestIdentity, bookingId: string) =>
+    (
+      await call(
+        myBookingGet,
+        `/api/v1/me/bookings/${bookingId}`,
+        { bearer: who.bearer },
+        { id: bookingId },
+      )
+    ).json.data as {
+      playersOpen: boolean;
+      players: Array<{ participantId: string | null; isBooker: boolean }>;
+      lesson: { coachFeeCents: number; groupFeeCents: number | null; totalCents: number };
+    };
+
+  it('the second player makes it a group lesson at the group fee, for the whole group; a third changes nothing; back to one, back to the one-player fee', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
+      groupRateCents: 6000,
+    });
+    // A court for four, so there is room for a group.
+    await asAppSuperuser(db, (tx) =>
+      tx.resource.update({ where: { id: venue.resourceId }, data: { capacity: 4 } }),
+    );
+    const booker = await player();
+    const booked = await book(booker, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const id = booked.booking.id;
+
+    // Before anybody is added the page is told what a group would cost.
+    expect(await detail(booker, id)).toMatchObject({
+      playersOpen: true,
+      lesson: { coachFeeCents: 4000, groupFeeCents: 6000, totalCents: 6400 },
+    });
+
+    const second = await player();
+    const { preview } = await joinByLink(booker, id, second);
+    // The invited person is told it is a lesson, and with whom, before joining.
+    expect(preview).toMatchObject({ lesson: { coach: 'Иван Петров' } });
+    expect(await fees()).toEqual([6000]);
+    expect(await detail(booker, id)).toMatchObject({
+      lesson: { coachFeeCents: 6000, totalCents: 8400 },
+    });
+    // The added player sees the same lesson and the same price.
+    expect(await detail(second, id)).toMatchObject({ lesson: { coachFeeCents: 6000 } });
+
+    // One fee for the whole group: a third player does not raise it.
+    const third = await player();
+    await joinByLink(booker, id, third);
+    expect(await fees()).toEqual([6000]);
+
+    // The third leaves: still a group of two.
+    expect(
+      (
+        await call(
+          leaveBooking,
+          `/api/v1/me/bookings/${id}/participation`,
+          { method: 'DELETE', bearer: third.bearer },
+          { id },
+        )
+      ).status,
+    ).toBe(204);
+    expect(await fees()).toEqual([6000]);
+
+    // The booker removes the second: one player, the one-player fee again.
+    const added = (await detail(booker, id)).players.find((p) => !p.isBooker)!;
+    expect(
+      (
+        await call(
+          removePlayer,
+          `/api/v1/me/bookings/${id}/participants/${added.participantId}`,
+          { method: 'DELETE', bearer: booker.bearer },
+          { id, participantId: added.participantId! },
+        )
+      ).status,
+    ).toBe(204);
+    expect(await fees()).toEqual([4000]);
+
+    // Each change of the fee is on the club's record, and only the changes.
+    const audits = await feeAudits();
+    expect(
+      audits.map((a) => {
+        const d = a.detailsJson as {
+          players: number;
+          before: { coachFeeCents: number };
+          after: { coachFeeCents: number };
+        };
+        return [d.players, d.before.coachFeeCents, d.after.coachFeeCents, a.actorUserId];
+      }),
+    ).toEqual([
+      [2, 4000, 6000, second.userId],
+      [1, 6000, 4000, booker.userId],
+    ]);
+  });
+
+  it('the one added player leaves: the lesson is one player’s again, at the one-player fee', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
+      groupRateCents: 6000,
+    });
+    const booker = await player();
+    const booked = await book(booker, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const id = booked.booking.id;
+    const second = await player();
+    await joinByLink(booker, id, second);
+    expect(await fees()).toEqual([6000]);
+    expect(
+      (
+        await call(
+          leaveBooking,
+          `/api/v1/me/bookings/${id}/participation`,
+          { method: 'DELETE', bearer: second.bearer },
+          { id },
+        )
+      ).status,
+    ).toBe(204);
+    expect(await fees()).toEqual([4000]);
+    expect((await feeAudits()).map((a) => a.actorUserId)).toEqual([second.userId, second.userId]);
+  });
+
+  it('a past partner added by the booker counts the same as one who came by link', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
+      groupRateCents: 6000,
+    });
+    const booker = await player();
+    const partner = await player();
+    // They have played together before: that is what makes the partner addable.
+    await asAppSuperuser(db, async (tx) => {
+      const past = await tx.booking.create({
+        data: {
+          tenantId: club.tenantId,
+          resourceId: venue.resourceId,
+          startTs: new Date('2026-07-01T07:00:00Z'),
+          endTs: new Date('2026-07-01T08:00:00Z'),
+          status: 'COMPLETED',
+          totalCents: 2400,
+          idempotencyKey: 'played-together',
+          bookedByUserId: booker.userId,
+        },
+      });
+      await tx.tenantMembership.createMany({
+        data: [booker.userId, partner.userId].map((userId) => ({
+          tenantId: club.tenantId,
+          userId,
+          role: 'PLAYER' as const,
+          status: 'ACTIVE' as const,
+        })),
+        skipDuplicates: true,
+      });
+      await tx.bookingParticipant.create({
+        data: { tenantId: club.tenantId, bookingId: past.id, userId: partner.userId, position: 2 },
+      });
+    });
+    const booked = await book(booker, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const id = booked.booking.id;
+    const added = await call(
+      addPartner,
+      `/api/v1/me/bookings/${id}/participants`,
+      { method: 'POST', bearer: booker.bearer, json: { userId: partner.userId } },
+      { id },
+    );
+    expect(added.status).toBe(201);
+    expect(await fees()).toEqual([6000]);
+  });
+
+  it('the group rate is per hour too: a two-hour group lesson is two hours of it', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
+      groupRateCents: 6000,
+    });
+    const booker = await player();
+    const booked = await book(booker, 'ivan-petrov', {
+      linkId,
+      startTs: at('09:00'),
+      minutes: 120,
+    });
+    expect(await fees()).toEqual([8000]);
+    await joinByLink(booker, booked.booking.id, await player());
+    expect(await fees()).toEqual([12000]);
+  });
+
+  it('a coach with no group rate: players can be added, and the fee stays the one-player fee', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A());
+    const booker = await player();
+    const booked = await book(booker, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const id = booked.booking.id;
+    expect(await detail(booker, id)).toMatchObject({
+      playersOpen: true,
+      lesson: { coachFeeCents: 4000, groupFeeCents: null },
+    });
+    await joinByLink(booker, id, await player());
+    expect(await fees()).toEqual([4000]);
+    expect((await detail(booker, id)).players).toHaveLength(2);
+    expect(await feeAudits()).toEqual([]);
+  });
+
+  it('the group fee is what the club’s diary collects and what the coach’s list shows', async () => {
+    const coachId = await coach('ivan-petrov', 'Иван Петров');
+    const linkId = await teaches(coachId, A(), { groupRateCents: 6000 });
+    const booker = await player();
+    const booked = await book(booker, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    await joinByLink(booker, booked.booking.id, await player());
+
+    const day = await loadDiaryDay(club.tenantId, DAY, {
+      locale: 'bg',
+      labels: { unknownPlayer: 'Играч', guest: 'Гост', deletedUser: 'Изтрит потребител' },
+    });
+    // 24 for the court and 60 for the group.
+    expect(day.bookings[0]!.priceLabel).toMatch(/^84,00\s€$/);
+    const ivan = await signInAs(db, { userId: coachId, memberships: [] });
+    const mine = await call(myLessonsGet, '/api/v1/me/coach-lessons', { bearer: ivan.bearer });
+    expect((mine.json.data as { items: Array<{ coachFeeCents: number }> }).items).toMatchObject([
+      { coachFeeCents: 6000 },
+    ]);
+  });
+
+  it('a lesson is for the people its booker invites: it is never opened in «Игри»', async () => {
+    const linkId = await teaches(await coach('ivan-petrov', 'Иван Петров'), A(), {
+      groupRateCents: 6000,
+    });
+    const p = await player();
+    const booked = await book(p, 'ivan-petrov', { linkId, startTs: at('10:00'), minutes: 60 });
+    const id = booked.booking.id;
+    const view = await call(
+      gameGet,
+      `/api/v1/me/bookings/${id}/game`,
+      { bearer: p.bearer },
+      { id },
+    );
+    expect(view.json.data).toMatchObject({ canOpen: false, game: null });
+    const open = await call(
+      gamePut,
+      `/api/v1/me/bookings/${id}/game`,
+      { method: 'PUT', bearer: p.bearer, json: { spots: 1 } },
+      { id },
+    );
+    expect([open.status, open.json.error?.code]).toEqual([409, 'GAME_NOT_OPENABLE']);
+    expect(await asAppSuperuser(db, (tx) => tx.openGame.count())).toBe(0);
   });
 });

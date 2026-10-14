@@ -615,7 +615,8 @@ export async function getBookingGame(input: {
     bookingId: input.bookingId,
     sport: read.resource.sport,
     cutoffAt: playerCancellableUntil(read.startTs, cutoffHours),
-    // A lesson does not look for players (`isOpenForPlayers`, #549).
+    // A lesson takes the players its booker invites and is never listed in
+    // «Игри» (owner decision 20): `openGame` refuses it too.
     canOpen:
       at.role === 'BOOKER' &&
       read.status === 'CONFIRMED' &&
@@ -733,6 +734,7 @@ export async function openGame(input: {
       );
     }
     if (!playerMayCancel(b.startTs, b.cutoffHours, now)) throw cutoffPassed();
+    // Owner decision 20: a lesson is for the people its booker invites.
     if (b.lesson) {
       throw new OpenPlayError('GAME_NOT_OPENABLE', 409, 'A lesson does not look for players.');
     }

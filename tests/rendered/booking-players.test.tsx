@@ -168,27 +168,64 @@ describe('the players list', () => {
     expect(screen.getByTestId('booking-spots-left')).toHaveTextContent('2 свободни места');
   });
 
-  it('a lesson shows who is on it and offers no way to add anybody (#549)', () => {
-    installFakeFetch(() => ok({}));
-    const lesson = {
+  describe('a lesson (#549): what the coach’s fee is with a group, said before anybody is added', () => {
+    const lesson = (over: Record<string, unknown> = {}) => ({
       id: 'ls1',
       coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
       coachFeeCents: 4000,
-      groupFeeCents: 6000,
+      groupFeeCents: 6000 as number | null,
       courtPriceCents: 2400,
       totalCents: 6400,
-    };
-    wrap(
-      <BookingPlayers
-        booking={booking({ lesson, playersOpen: false })}
-        date="20 окт."
-        time="19:00"
-      />,
-    );
-    expect(screen.getByTestId('booking-players')).toBeInTheDocument();
-    // Free places it cannot be filled into are not advertised.
-    expect(screen.queryByTestId('booking-spots-left')).toBeNull();
-    expect(screen.queryByTestId('booking-invite-open')).toBeNull();
+      ...over,
+    });
+    const alone = [player({})];
+    const open = (b: Parameters<typeof booking>[0]) =>
+      wrap(<BookingPlayers booking={booking(b)} date="20 окт." time="19:00" />);
+
+    it('alone, with a group rate: the group fee and the new total, above the invite button', () => {
+      installFakeFetch(() => ok({}));
+      open({ lesson: lesson(), players: alone });
+      expect(screen.getByTestId('booking-lesson-group')).toHaveTextContent(
+        /^С втори играч урокът става групов: за треньора 60,00\s€ за цялата група, общо 84,00\s€ с корта\.$/,
+      );
+      expect(screen.getByTestId('booking-invite-open')).toBeInTheDocument();
+      expect(screen.getByTestId('booking-spots-left')).toBeInTheDocument();
+    });
+
+    it('with a second player: it says it is a group lesson and what the coach is paid', () => {
+      installFakeFetch(() => ok({}));
+      open({ lesson: lesson({ coachFeeCents: 6000, totalCents: 8400 }) });
+      expect(screen.getByTestId('booking-lesson-group')).toHaveTextContent(
+        /^Групов урок: за треньора 60,00\s€ за цялата група\.$/,
+      );
+    });
+
+    it('a coach with no group rate: nothing to say, the fee does not change', () => {
+      installFakeFetch(() => ok({}));
+      open({ lesson: lesson({ groupFeeCents: null }), players: alone });
+      expect(screen.queryByTestId('booking-lesson-group')).toBeNull();
+      expect(screen.getByTestId('booking-invite-open')).toBeInTheDocument();
+    });
+
+    it('a group rate equal to the one-player rate is said as "the same"', () => {
+      installFakeFetch(() => ok({}));
+      open({ lesson: lesson({ groupFeeCents: 4000 }), players: alone });
+      expect(screen.getByTestId('booking-lesson-group')).toHaveTextContent(
+        messages.myBookings.players.lesson.groupSame,
+      );
+    });
+
+    it('an added player is not told what adding somebody would cost', () => {
+      installFakeFetch(() => ok({}));
+      open({ lesson: lesson(), players: alone, viewerRole: 'PARTICIPANT' });
+      expect(screen.queryByTestId('booking-lesson-group')).toBeNull();
+    });
+
+    it('a plain court booking has no such line', () => {
+      installFakeFetch(() => ok({}));
+      open({ players: alone });
+      expect(screen.queryByTestId('booking-lesson-group')).toBeNull();
+    });
   });
 
   it('an added player gets Напусни, and no invite or remove', () => {

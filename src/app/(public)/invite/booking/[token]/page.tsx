@@ -118,13 +118,22 @@ export default async function BookingInvitePage({
               {preview.courtName} · {tSports(preview.sport as never)}
             </p>
           </div>
+          {/* A lesson, not a game (#549): said before anybody joins. */}
+          {preview.lesson ? (
+            <div data-testid="booking-invite-lesson">
+              <Caption>{t('lesson.label')}</Caption>
+              <p className="text-content-default text-sm">
+                {preview.lesson.coachName ?? t('lesson.noName')}
+              </p>
+            </div>
+          ) : null}
         </Card>
 
         <div className="gap-tight flex flex-col">
           <Caption data-testid="booking-invite-spots">
             {t('spotsLeft', { count: preview.spotsLeft })}
           </Caption>
-          <Caption>{t('payAtClub')}</Caption>
+          <Caption>{preview.lesson ? t('lesson.payAtClub') : t('payAtClub')}</Caption>
         </div>
 
         {!userId ? (

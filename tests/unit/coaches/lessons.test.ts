@@ -1,6 +1,7 @@
 import {
   coachFeeCents,
   coachWorks,
+  lessonFeeCents,
   lessonPrice,
   lessonTimes,
   type CoachOnTheDay,
@@ -73,6 +74,34 @@ describe('the coach’s fee', () => {
     });
     // No group rate: there are no group lessons, and nobody is charged a made-up one.
     expect(lessonPrice({ ...base, groupRateCents: null, group: true }).coachFeeCents).toBe(4000);
+  });
+});
+
+describe('the coach’s fee follows the number of players (decisions 9, 18, 19)', () => {
+  const base = { hourlyRateCents: 4000, minutes: 60 };
+  it.each([
+    // One player: the hourly rate.
+    [1, 6000, 4000],
+    // Two or more: the group rate, once, for the whole group.
+    [2, 6000, 6000],
+    [3, 6000, 6000],
+    [4, 6000, 6000],
+    // No group rate: the hourly rate however many come.
+    [1, null, 4000],
+    [2, null, 4000],
+    [4, null, 4000],
+    // A group rate below the hourly one is the coach's to set.
+    [2, 3000, 3000],
+    // Free for a group is a rate, not "no rate".
+    [2, 0, 0],
+  ])('%d player(s), group rate %s: %d', (players, groupRateCents, fee) => {
+    expect(lessonFeeCents({ ...base, groupRateCents, players })).toBe(fee);
+  });
+
+  it('is for the lesson’s length, at either rate', () => {
+    const ninety = { hourlyRateCents: 4000, groupRateCents: 6000, minutes: 90 };
+    expect(lessonFeeCents({ ...ninety, players: 1 })).toBe(6000);
+    expect(lessonFeeCents({ ...ninety, players: 2 })).toBe(9000);
   });
 });
 
