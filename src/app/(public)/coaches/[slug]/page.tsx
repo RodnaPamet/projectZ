@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
 
 import { publicCoachBySlug } from '@/app-layer/usecases/coach-directory';
+import { approvedCoachId, listCoachReviews } from '@/app-layer/usecases/coach-reviews';
+import { toCoachReviewsPage } from '@/app/api/v1/_lib/coach-dto';
 import { coachesCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
@@ -18,6 +20,7 @@ import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
 import { CoachLessons, CoachLessonsSkeleton } from './CoachLessons';
+import { CoachReviews } from './CoachReviews';
 
 /**
  * /coaches/{slug} — one coach's public page (#547; owner decision 10): who
@@ -32,7 +35,7 @@ import { CoachLessons, CoachLessonsSkeleton } from './CoachLessons';
  *
  * A lesson is booked from here (#548): «Запишете урок» is the page's second
  * stage, behind its own Suspense boundary (`CoachLessons`), so the coach's
- * text never waits for the times.
+ * text never waits for the times. «Отзиви» (#551) is the third, the same way.
  */
 const readCoach = cache((slug: string) => publicCoachBySlug(slug));
 
@@ -229,7 +232,19 @@ export default async function CoachPage({
             <CoachLessons coach={coach} name={name} searchParams={searchParams} />
           </Suspense>
         ) : null}
+
+        <Suspense fallback={null}>
+          <CoachReviewsStage slug={coach.slug} viewerId={me?.userId ?? null} />
+        </Suspense>
       </div>
     </div>
   );
+}
+
+/** «Отзиви» (#551): page one of the coach's published reviews, from the server. */
+async function CoachReviewsStage({ slug, viewerId }: { slug: string; viewerId: string | null }) {
+  const coachUserId = await approvedCoachId(slug);
+  if (!coachUserId) return null;
+  const page = await listCoachReviews({ coachUserId, viewerId });
+  return <CoachReviews slug={slug} seed={toCoachReviewsPage(page)} signedIn={viewerId !== null} />;
 }

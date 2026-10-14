@@ -47,7 +47,9 @@ describe('messaging moderation (#375)', () => {
     await reportMessage(b, rude, { reason: 'abuse', details: 'пак' });
 
     const { items } = await queue();
-    const cases = items.flatMap((i) => (i.subject === 'REVIEW' ? [] : [i]));
+    const cases = items.flatMap((i) =>
+      i.subject === 'REVIEW' || i.subject === 'COACH_REVIEW' ? [] : [i],
+    );
     expect(cases).toHaveLength(1);
     const item = cases[0]!;
     expect(item).toMatchObject({ subject: 'CHAT_MESSAGE', reason: 'user_report' });

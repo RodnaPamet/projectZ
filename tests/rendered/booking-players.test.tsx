@@ -176,6 +176,8 @@ describe('the players list', () => {
       groupFeeCents: 6000 as number | null,
       courtPriceCents: 2400,
       totalCents: 6400,
+      myReview: null,
+      canReview: false,
       ...over,
     });
     const alone = [player({})];

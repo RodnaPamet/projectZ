@@ -459,6 +459,13 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   LessonLinkNotFoundError: { status: 404, code: 'COACH_NOT_BOOKABLE' },
   // One of the coach's OWN lessons (#549): not theirs, or nobody's.
   LessonNotFoundError: { status: 404, code: 'LESSON_NOT_FOUND' },
+  // Coach reviews (#551). Not a completed lesson the caller was on, or
+  // somebody else's booking: the two look the same.
+  NoLessonToReviewError: { status: 403, code: 'NO_LESSON_TO_REVIEW' },
+  // One review per coach per player (decision 24).
+  CoachAlreadyReviewedError: { status: 409, code: 'COACH_ALREADY_REVIEWED' },
+  CoachReviewNotFoundError: { status: 404, code: 'COACH_REVIEW_NOT_FOUND' },
+  OwnCoachReviewReportError: { status: 400, code: 'REPORT_OWN_REVIEW' },
   CoachLinkExistsError: {
     status: 409,
     code: 'COACH_LINK_EXISTS',

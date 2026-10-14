@@ -2889,7 +2889,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 4`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 5`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -14379,6 +14379,347 @@
           }
         }
       }
+    },
+    "/coaches/{slug}/reviews": {
+      "get": {
+        "operationId": "listCoachReviews",
+        "summary": "A coach's reviews and rating",
+        "tags": ["Coaches"],
+        "description": "**Public: no sign-in.** The coach's published reviews (#551), newest first, ten to a page, and their rating. With a bearer token, `mine` marks the caller's own.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The coach's page address.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "`nextCursor` of the page before.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachReviewPageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — a malformed `cursor`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no approved coach at that address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/bookings/{id}/coach-review": {
+      "post": {
+        "operationId": "reviewMyLessonCoach",
+        "summary": "Review the coach of a lesson",
+        "tags": ["Me"],
+        "description": "Review the coach of a lesson the caller was on (#551): the booker or any player on it with an account (decision 25), once the lesson is COMPLETED. The coach is the lesson's and cannot be named. One review per coach per player, at any club (decision 24). The text is checked before it is stored, as a venue review's is; stars alone are published at once.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The booking's id, from `GET /me/bookings`; offer this only where `lesson.canReview` is true.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCoachReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Written; `status` says whether it is shown yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCoachReviewEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR` — `rating` not a whole number, `body` too long, or a field it does not know. `INVALID_RATING` — outside 1–5.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`NO_LESSON_TO_REVIEW` — not a completed lesson the caller was on (a no-show is not completed), or not the caller's booking at all: the two look the same.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`COACH_ALREADY_REVIEWED` — the caller has a review of this coach already.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-reviews/{id}": {
+      "delete": {
+        "operationId": "deleteMyCoachReview",
+        "summary": "Delete one's own review of a coach",
+        "tags": ["Me"],
+        "description": "Delete the caller's own review of a coach (#551), whatever its status. The coach's rating follows at once, and a new review of the same coach can be written (it is checked again).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "`myReview.id` on a lesson, or an `items[].id` with `mine`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_REVIEW_NOT_FOUND` — not the caller's review.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coach-reviews/{id}/report": {
+      "post": {
+        "operationId": "reportCoachReview",
+        "summary": "Report a review of a coach",
+        "tags": ["Coaches"],
+        "description": "Into the platform moderation queue (#551), as a message is reported. One case per review however many report it; nobody is told who. Anybody signed in may report a published review, the coach included; the coach cannot remove one.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_ERROR`, or `REPORT_OWN_REVIEW` — one's own review is deleted, not reported.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`COACH_REVIEW_NOT_FOUND` — no published review with that id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -15838,10 +16179,13 @@
       },
       "PlatformModerationCase": {
         "title": "PlatformModerationCase",
-        "description": "One open case: a review, or (#375) a reported message or conversation. `subject` says which.",
+        "description": "One open case: a review of a venue or (#551) of a coach, or (#375) a reported message or conversation. `subject` says which.",
         "oneOf": [
           {
             "$ref": "#/components/schemas/PlatformModerationReviewCase"
+          },
+          {
+            "$ref": "#/components/schemas/PlatformModerationCoachReviewCase"
           },
           {
             "$ref": "#/components/schemas/PlatformModerationChatCase"
@@ -15918,7 +16262,7 @@
           },
           "venue": {
             "type": ["object", "null"],
-            "description": "The venue's rating after the decision. Null with `review`.",
+            "description": "The venue's rating after the decision. Null with `review`, and for a review of a coach (#551), whose rating is read from its published reviews.",
             "required": ["id", "avgRating", "reviewCount"],
             "properties": {
               "id": {
@@ -21439,7 +21783,8 @@
           "sports",
           "fromRateCents",
           "currency",
-          "venues"
+          "venues",
+          "rating"
         ],
         "properties": {
           "slug": {
@@ -21479,6 +21824,9 @@
               "$ref": "#/components/schemas/PublicCoachVenue"
             },
             "description": "Where a lesson can be booked with them, cheapest first. On `GET /venues/{id}/coaches`, that venue first."
+          },
+          "rating": {
+            "$ref": "#/components/schemas/CoachRating"
           }
         }
       },
@@ -21786,7 +22134,9 @@
           "coachFeeCents",
           "groupFeeCents",
           "courtPriceCents",
-          "totalCents"
+          "totalCents",
+          "myReview",
+          "canReview"
         ],
         "properties": {
           "id": {
@@ -21824,6 +22174,27 @@
             "type": "integer",
             "minimum": 0,
             "description": "`coachFeeCents` + `courtPriceCents`: what the lesson costs."
+          },
+          "myReview": {
+            "type": ["object", "null"],
+            "description": "The caller's own review of this coach (#551), written after this lesson or another: one per coach (decision 24). Null when they have none.",
+            "required": ["id", "rating", "status"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "rating": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string",
+                "description": "`PUBLISHED`, `PENDING_REVIEW` or `REJECTED`. An open string."
+              }
+            }
+          },
+          "canReview": {
+            "type": "boolean",
+            "description": "`POST /me/bookings/{id}/coach-review` would take one now: the lesson is COMPLETED, the coach's account is there, and `myReview` is null. The server's rule; do not restate it."
           }
         }
       },
@@ -21980,6 +22351,234 @@
               "bookingId": {
                 "type": "string",
                 "description": "The booking the lesson is on."
+              }
+            }
+          }
+        }
+      },
+      "CoachRating": {
+        "type": "object",
+        "title": "CoachRating",
+        "description": "A coach's rating from their published reviews at every club (#551; decision 27): the weighted average venues use (it starts near 4.0 and moves as reviews come in, so one 5★ reads 4.1), rounded to one place, and the count. `avgRating` is 0 when there are none.",
+        "required": ["avgRating", "reviewCount"],
+        "properties": {
+          "avgRating": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "reviewCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CoachReview": {
+        "type": "object",
+        "title": "CoachReview",
+        "description": "One published review of a coach (#551).",
+        "required": ["id", "rating", "body", "author", "createdAt", "mine"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "body": {
+            "type": ["string", "null"],
+            "description": "Plain text, as published; line breaks are kept. Null for stars alone."
+          },
+          "author": {
+            "type": ["string", "null"],
+            "description": "First name and initial, «Петя И.» (decision 26). Null when the account has no name: show «Играч»."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mine": {
+            "type": "boolean",
+            "description": "The signed-in caller wrote it: offer «Изтрий» (`DELETE /me/coach-reviews/{id}`), not «Подай сигнал»."
+          }
+        }
+      },
+      "CoachReviewPage": {
+        "type": "object",
+        "title": "CoachReviewPage",
+        "required": ["rating", "items", "nextCursor"],
+        "properties": {
+          "rating": {
+            "$ref": "#/components/schemas/CoachRating"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoachReview"
+            },
+            "description": "Newest first, ten to a page."
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "Pass as `cursor` for the next page; null on the last."
+          }
+        }
+      },
+      "CoachReviewPageEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CoachReviewPage"
+          }
+        }
+      },
+      "CreateCoachReviewRequest": {
+        "type": "object",
+        "title": "CreateCoachReviewRequest",
+        "additionalProperties": false,
+        "required": ["rating"],
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "body": {
+            "type": ["string", "null"],
+            "maxLength": 1000,
+            "description": "Optional. Longer is refused (400), not cut."
+          }
+        }
+      },
+      "CreatedCoachReview": {
+        "type": "object",
+        "title": "CreatedCoachReview",
+        "required": ["id", "bookingId", "rating", "body", "status", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer"
+          },
+          "body": {
+            "type": ["string", "null"]
+          },
+          "status": {
+            "type": "string",
+            "description": "`PUBLISHED` (stars alone, or a text the classifier passed), `PENDING_REVIEW` (a moderator looks first) or `REJECTED` (the classifier refused it; a moderator still sees it). An open string."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreatedCoachReviewEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedCoachReview"
+          }
+        }
+      },
+      "PlatformModerationCoachReviewCase": {
+        "type": "object",
+        "title": "PlatformModerationCoachReviewCase",
+        "description": "One open case about a review of a coach (#551). As a venue review's: no author. `coach.slug` is null once the coach is no longer listed.",
+        "required": [
+          "subject",
+          "caseId",
+          "reason",
+          "openedAt",
+          "scores",
+          "review",
+          "coach",
+          "club"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "const": "COACH_REVIEW"
+          },
+          "caseId": {
+            "type": "string",
+            "description": "Pass to `/resolve`. Also the cursor value."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why it is queued: a classifier category, `classifier_unavailable`, or `user_report`. An open string."
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "description": "Classifier score per category, 0–1. Empty when no classifier ran."
+          },
+          "review": {
+            "type": "object",
+            "required": ["id", "rating", "body", "status", "createdAt"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "body": {
+                "type": ["string", "null"],
+                "description": "As stored, after sanitising."
+              },
+              "status": {
+                "type": "string",
+                "description": "`PENDING_REVIEW` for a held review, `PUBLISHED` for a reported live one, `REJECTED` for an automatic rejection awaiting a human. An open string."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "club": {
+            "type": "object",
+            "required": ["id", "slug", "name"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "coach": {
+            "type": "object",
+            "required": ["name", "slug"],
+            "properties": {
+              "name": {
+                "type": ["string", "null"]
+              },
+              "slug": {
+                "type": ["string", "null"]
               }
             }
           }

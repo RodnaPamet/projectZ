@@ -91,6 +91,12 @@ interface ReviewCaseItem {
   club: { id: string; slug: string; name: string };
 }
 
+/** A player's review of a coach (#551): judged as a venue's, the coach in the venue's place. */
+interface CoachReviewCaseItem extends Omit<ReviewCaseItem, 'subject' | 'venue'> {
+  subject: 'COACH_REVIEW';
+  coach: { name: string | null; slug: string | null };
+}
+
 /** A reported message or conversation (#375). */
 interface ChatCaseItem {
   subject: 'CHAT_MESSAGE' | 'CONVERSATION' | 'OPEN_GAME_NOTE';
@@ -115,9 +121,10 @@ interface ChatCaseItem {
   reports: Array<{ reason: string; at: string }>;
 }
 
-type CaseItem = ReviewCaseItem | ChatCaseItem;
+type CaseItem = ReviewCaseItem | CoachReviewCaseItem | ChatCaseItem;
 
-const isChatCase = (item: CaseItem): item is ChatCaseItem => item.subject !== 'REVIEW';
+const isChatCase = (item: CaseItem): item is ChatCaseItem =>
+  item.subject !== 'REVIEW' && item.subject !== 'COACH_REVIEW';
 
 type Decision = 'APPROVE' | 'REJECT';
 
@@ -182,10 +189,12 @@ export function ModerationQueue() {
     unknown,
     V1Page<CaseItem>[]
   >({
-    // A review's decision moves a venue's rating; a message's does not, and has
-    // its own route so the audit row names it (#375).
+    // A review's decision moves a venue's (or a coach's) rating; a message's
+    // does not, and has its own route so the audit row names it (#375).
     url: ({ caseId, subject }) =>
-      subject === 'REVIEW' ? V1.resolveCase(caseId) : V1.resolveMessageCase(caseId),
+      subject === 'REVIEW' || subject === 'COACH_REVIEW'
+        ? V1.resolveCase(caseId)
+        : V1.resolveMessageCase(caseId),
     body: ({ decision, note }) => ({ decision, note }),
     target: getKey ? { infinite: mutate, getKey } : undefined,
     update: (pages, { caseId }) =>
@@ -350,7 +359,7 @@ function CaseCard({
   error,
   onDecide,
 }: {
-  item: ReviewCaseItem;
+  item: ReviewCaseItem | CoachReviewCaseItem;
   note: string;
   onNote: (note: string) => void;
   error: string | null;
@@ -369,7 +378,11 @@ function CaseCard({
     <li className="border-border-subtle bg-bg-default rounded-lg border p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-content-emphasis font-medium">{item.venue.name}</p>
+          <p className="text-content-emphasis font-medium">
+            {item.subject === 'COACH_REVIEW'
+              ? t('coachReview', { name: item.coach.name ?? t('coachGone') })
+              : item.venue.name}
+          </p>
           <p className="text-content-muted text-sm">
             {item.club.name} ·{' '}
             {t('opened', {

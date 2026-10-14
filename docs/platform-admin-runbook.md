@@ -185,6 +185,13 @@ before it is shown. When `ANTHROPIC_API_KEY` is unset, or the API is down, the
 review is held for a human rather than published unchecked — so without a key,
 every text review lands here. Star-only reviews are never queued.
 
+**Reviews of coaches (#551)** sit in the same queue, headed «Отзив за треньор:
+<name>» with the club the lesson was at. They are decided the same way, with the
+same capability: approving publishes it on the coach's page and in their rating,
+rejecting hides it. A coach cannot remove a review of themselves; they can
+report it, and the report lands here. A review its author deletes leaves the
+queue on its own (its case is closed as deleted).
+
 ### Approving coaches (#545)
 
 A coach fills in a profile and uploads a certificate; the platform owner

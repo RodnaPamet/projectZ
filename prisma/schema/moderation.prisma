@@ -23,6 +23,9 @@ enum ModerationSubject {
   /// The public note on an open game (#526, P67); the subject id is the
   /// open_game's id. Rolling back past P67 runs deploy/rollback/p67-park.sql.
   OPEN_GAME_NOTE
+  /// A player's review of a coach (#551, P74); the subject id is the
+  /// coach_review's id. Rolling back past P74 runs deploy/rollback/p74-park.sql.
+  COACH_REVIEW
 }
 
 /// The human review queue — the backstop the classifier is not.

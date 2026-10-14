@@ -3,8 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { SWRConfig, type SWRConfiguration } from 'swr';
 
 import {
+  coachReviewErrorKey,
   MyBookingsList,
   reviewErrorKey,
+  withPendingCoachReview,
   withPendingReview,
 } from '@/app/(public)/me/bookings/MyBookingsList';
 import type { BookingTab } from '@/app/(public)/me/bookings/tabs';
@@ -186,6 +188,8 @@ describe('the server seed', () => {
       groupFeeCents: null,
       courtPriceCents: 2400,
       totalCents: 6400,
+      myReview: null,
+      canReview: false,
     };
     serve({ list: () => ok(page([booking({ lesson })])) });
     mount(page([booking({ lesson }), booking({ id: 'bk2' })]));
@@ -210,6 +214,8 @@ describe('the server seed', () => {
       groupFeeCents: null,
       courtPriceCents: 2400,
       totalCents: 6400,
+      myReview: null,
+      canReview: false,
     };
     serve({ list: () => ok(page([booking({ lesson })])) });
     mount(page([booking({ lesson })]));
@@ -423,6 +429,126 @@ describe('withPendingReview', () => {
       pages,
       { slug: 'alpha', bookingId: 'bk1', venueId: 'v1', rating: 5, body: '' },
       'tmp',
+    );
+    expect(JSON.stringify(pages)).toBe(before);
+  });
+});
+
+describe('reviewing a lesson’s coach (#551)', () => {
+  const lesson = (over: Partial<NonNullable<MyBookingDto['lesson']>> = {}) => ({
+    id: 'ls1',
+    coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+    coachFeeCents: 4000,
+    groupFeeCents: null,
+    courtPriceCents: 2400,
+    totalCents: 6400,
+    myReview: null,
+    canReview: true,
+    ...over,
+  });
+  // The venue's review is done, so the only form on the row is the coach's.
+  const done = {
+    canReview: false,
+    venueReview: { id: 'rv0', bookingId: 'bk1', rating: 4, status: 'PUBLISHED' },
+  };
+  const yoursCoach = (n: number) => mb.review.coach.yours.replace('{rating}', String(n));
+
+  it('a past lesson offers «Оцени треньора»; stars go to the coach review route, and the row says so at once', async () => {
+    const held = deferred<FakeAnswer>();
+    const calls = serve({ post: () => held.promise, list: () => new Promise(() => {}) });
+    mount(page([booking({ ...done, lesson: lesson() })]));
+
+    await userEvent.click(screen.getByRole('button', { name: mb.review.coach.rate }));
+    expect(screen.getByText(mb.review.coach.ratingLabel)).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('radio')[4]!);
+    await userEvent.click(screen.getByRole('button', { name: mb.review.submit }));
+
+    const post = posts(calls)[0]!;
+    expect(post.url).toBe('/api/v1/me/bookings/bk1/coach-review');
+    expect(post.body).toEqual({ rating: 5, body: null });
+    const row = screen.getByRole('listitem');
+    expect(within(row).getByTestId('booking-card-coach-review')).toHaveTextContent(yoursCoach(5));
+    expect(row).toHaveTextContent(mb.review.status.PENDING_REVIEW);
+    expect(within(row).queryByRole('button', { name: mb.review.coach.rate })).toBeNull();
+  });
+
+  it('every lesson with that coach changes together (one review per coach); another coach’s does not', async () => {
+    serve({ post: () => new Promise(() => {}), list: () => new Promise(() => {}) });
+    mount(
+      page([
+        booking({ ...done, lesson: lesson() }),
+        booking({ ...done, id: 'bk2', lesson: lesson({ id: 'ls2' }) }),
+        booking({
+          ...done,
+          id: 'bk3',
+          lesson: lesson({ id: 'ls3', coach: { slug: 'maria', name: 'Мария' } }),
+        }),
+      ]),
+    );
+    const [first] = screen.getAllByRole('button', { name: mb.review.coach.rate });
+    await userEvent.click(first!);
+    await userEvent.click(screen.getAllByRole('radio')[2]!);
+    await userEvent.click(screen.getByRole('button', { name: mb.review.submit }));
+    const [a, b, c] = screen.getAllByRole('listitem');
+    expect(a).toHaveTextContent(yoursCoach(3));
+    expect(b).toHaveTextContent(yoursCoach(3));
+    expect(within(c!).getByRole('button', { name: mb.review.coach.rate })).toBeInTheDocument();
+  });
+
+  it('a refusal rolls back and says why', async () => {
+    const row = page([booking({ ...done, lesson: lesson() })]);
+    serve({ post: () => fail(409, 'COACH_ALREADY_REVIEWED'), list: () => ok(row) });
+    mount(row);
+    await userEvent.click(screen.getByRole('button', { name: mb.review.coach.rate }));
+    await userEvent.click(screen.getAllByRole('radio')[0]!);
+    await userEvent.click(screen.getByRole('button', { name: mb.review.submit }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      mb.review.error.COACH_ALREADY_REVIEWED,
+    );
+  });
+
+  it('one already written shows its stars and status; none offered where the server says no', () => {
+    serve({ list: () => new Promise(() => {}) });
+    mount(
+      page([
+        booking({
+          ...done,
+          lesson: lesson({
+            canReview: false,
+            myReview: { id: 'cr1', rating: 4, status: 'PUBLISHED' },
+          }),
+        }),
+        booking({ ...done, id: 'bk2', lesson: lesson({ canReview: false }) }),
+      ]),
+    );
+    const [a, b] = screen.getAllByRole('listitem');
+    expect(a).toHaveTextContent(yoursCoach(4));
+    expect(a).toHaveTextContent(mb.review.status.PUBLISHED);
+    expect(within(b!).queryByRole('button', { name: mb.review.coach.rate })).toBeNull();
+    expect(within(b!).queryByTestId('booking-card-coach-review')).toBeNull();
+  });
+
+  it('coachReviewErrorKey has words for every key it returns', () => {
+    const e = (status: number, code: string) => new ApiClientError({ status, code, message: code });
+    for (const [err, key] of [
+      [e(403, 'NO_LESSON_TO_REVIEW'), 'NO_LESSON_TO_REVIEW'],
+      [e(409, 'COACH_ALREADY_REVIEWED'), 'COACH_ALREADY_REVIEWED'],
+      [e(400, 'INVALID_RATING'), 'RATING_REQUIRED'],
+      [e(500, 'INTERNAL'), 'FAILED'],
+      [new Error('offline'), 'FAILED'],
+    ] as const) {
+      expect(coachReviewErrorKey(err)).toBe(key);
+      expect(mb.review.error[key]).toBeTruthy();
+    }
+  });
+
+  it('withPendingCoachReview is pure', () => {
+    const pages = [page([booking({ lesson: lesson() })])];
+    const before = JSON.stringify(pages);
+    withPendingCoachReview(
+      pages,
+      { bookingId: 'bk1', coachSlug: 'ivan-petrov', rating: 5, body: '' },
+      't1',
     );
     expect(JSON.stringify(pages)).toBe(before);
   });

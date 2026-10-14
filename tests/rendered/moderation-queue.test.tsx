@@ -523,3 +523,38 @@ describe('a reported message (#375)', () => {
     );
   });
 });
+
+describe('a review of a coach (#551)', () => {
+  it('names the coach where a venue review names the venue, and is decided through the review route', async () => {
+    const coachCase = {
+      subject: 'COACH_REVIEW' as const,
+      caseId: 'cc1',
+      reason: 'user_report',
+      openedAt: '2026-10-14T10:00:00Z',
+      scores: {},
+      review: {
+        id: 'cr1',
+        rating: 1,
+        body: 'the coach was late',
+        status: 'PUBLISHED',
+        createdAt: '2026-10-14T09:00:00Z',
+      },
+      coach: { name: 'Иван Петров', slug: 'ivan-petrov' },
+      club: { id: 't1', slug: 'alpha', name: 'Club Alpha' },
+    };
+    const calls = installFakeFetch((c) => {
+      if (c.method === 'POST') return ok({ caseId: 'cc1', status: 'APPROVED' });
+      return ok({ items: [item('c1', 'the owner is a thief'), coachCase], nextCursor: null });
+    });
+    mount();
+    await openQueue();
+    const card = screen.getByText('the coach was late').closest('li')!;
+    expect(card).toHaveTextContent('Отзив за треньор: Иван Петров');
+    expect(card).toHaveTextContent('Club Alpha');
+    await decide('the coach was late', 'a fair complaint, stays up', moderation.approve);
+    await waitFor(() => expect(screen.queryByText('the coach was late')).not.toBeInTheDocument());
+    expect(calls.find((c) => c.method === 'POST')!.url).toBe(
+      '/api/v1/platform/moderation/cases/cc1/resolve',
+    );
+  });
+});

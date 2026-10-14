@@ -107,6 +107,8 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // The times a lesson can start (#548): looked at before signing in, as a
   // venue's free slots are. Booking one is not public.
   /^\/api\/v1\/coaches\/[^/]+\/lesson-times$/,
+  // A coach's published reviews (#551): read as their page is, signed in or not.
+  /^\/api\/v1\/coaches\/[^/]+\/reviews$/,
   /^\/design-system(\/|$)/,
   // Sign-in must be public, and EXPLICITLY so.
   //

@@ -24,6 +24,9 @@ export type ReviewErrorKey =
   | 'NO_PROOF_OF_VISIT'
   | 'ALREADY_REVIEWED'
   | 'NOT_ALLOWED'
+  // A lesson's coach (#551).
+  | 'NO_LESSON_TO_REVIEW'
+  | 'COACH_ALREADY_REVIEWED'
   | 'FAILED';
 
 /**
@@ -41,6 +44,7 @@ export type ReviewErrorKey =
  */
 export function ReviewForm({
   bookingId,
+  kind = 'venue',
   maxLength,
   draft,
   onDraft,
@@ -48,6 +52,8 @@ export function ReviewForm({
   onSubmit,
 }: {
   bookingId: string;
+  /** The venue the booking was at, or the coach of a lesson (#551). */
+  kind?: 'venue' | 'coach';
   maxLength: number;
   draft: ReviewDraft;
   onDraft: (draft: ReviewDraft) => void;
@@ -60,14 +66,14 @@ export function ReviewForm({
     return (
       <div className="mt-compact">
         <Button type="button" variant="secondary" onClick={() => onDraft({ ...draft, open: true })}>
-          {t('rate')}
+          {kind === 'coach' ? t('coach.rate') : t('rate')}
         </Button>
       </div>
     );
   }
 
-  const ratingId = `rating-${bookingId}`;
-  const bodyId = `review-${bookingId}`;
+  const ratingId = `rating-${kind}-${bookingId}`;
+  const bodyId = `review-${kind}-${bookingId}`;
 
   return (
     <form
@@ -80,7 +86,7 @@ export function ReviewForm({
     >
       <fieldset className="grid gap-1.5">
         <legend id={ratingId} className="text-content-default text-sm font-medium">
-          {t('ratingLabel')}
+          {kind === 'coach' ? t('coach.ratingLabel') : t('ratingLabel')}
         </legend>
         <RadioGroup
           name="rating"

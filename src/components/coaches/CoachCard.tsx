@@ -18,6 +18,7 @@ export function CoachCard({
   avatarUrl,
   sports,
   line,
+  rating,
   places,
   at,
 }: {
@@ -27,6 +28,11 @@ export function CoachCard({
   /** Sport names, already in the page's language. */
   sports: string[];
   line: string | null;
+  /**
+   * «4,3 ★ (12)», already in the page's language (#551); null before the
+   * first published review.
+   */
+  rating?: string | null;
   /** Where they teach, when the list is not already about one venue. */
   places?: string | null;
   /**
@@ -49,6 +55,11 @@ export function CoachCard({
           <Caption className="block truncate">{sports.join(' · ')}</Caption>
         ) : null}
         {places ? <Caption className="block truncate">{places}</Caption> : null}
+        {rating ? (
+          <Caption className="block" data-testid="coach-card-rating">
+            {rating}
+          </Caption>
+        ) : null}
       </span>
       {line ? (
         <span className="text-content-default shrink-0 text-sm" data-testid="coach-card-price">

@@ -1,4 +1,4 @@
-import type { ReviewStatus } from '@prisma/client';
+import type { PrismaClient, ReviewStatus } from '@prisma/client';
 
 import {
   getBookingForUserAcrossClubs,
@@ -45,6 +45,51 @@ export interface MyVenueReview {
   status: ReviewStatus;
 }
 
+/**
+ * The caller's own review of a lesson's coach (#551): at most one per coach
+ * (decision 24), whichever lesson it was written after.
+ */
+export interface MyCoachReview {
+  id: string;
+  rating: number;
+  status: ReviewStatus;
+}
+
+/** The caller's own reviews of these coaches, by coach, with the page's handle. */
+async function readMyCoachReviews(
+  db: PrismaClient,
+  userId: string,
+  coachUserIds: readonly string[],
+): Promise<Map<string, MyCoachReview>> {
+  const ids = [...new Set(coachUserIds)];
+  if (ids.length === 0) return new Map();
+  // guardrail-allow: cross-tenant — the caller's OWN reviews of the coaches
+  // of lessons already on this page, by the session-derived authorUserId.
+  const rows = await db.coachReview.findMany({
+    where: { authorUserId: userId, coachUserId: { in: ids } },
+    select: { id: true, coachUserId: true, rating: true, status: true },
+    take: ids.length,
+  });
+  return new Map(
+    rows.map((r) => [r.coachUserId, { id: r.id, rating: r.rating, status: r.status }]),
+  );
+}
+
+/**
+ * Whether the coach of this lesson can be reviewed from it (#551): the
+ * lesson is over and COMPLETED, the coach's account is still there, and the
+ * caller has not reviewed that coach yet (one per coach, decision 24). Every
+ * player on it may (decision 25).
+ */
+export function canReviewCoach(b: {
+  status: string;
+  lesson: { coachUserId: string } | null;
+  coachThere: boolean;
+  coachReview: MyCoachReview | null;
+}): boolean {
+  return b.status === 'COMPLETED' && b.lesson !== null && b.coachThere && b.coachReview === null;
+}
+
 export async function listMyBookings(input: {
   userId: string;
   cursor?: string | null;
@@ -71,7 +116,7 @@ export async function listMyBookings(input: {
     // Two lookups for the whole page, not one per booking. Both are bounded
     // by the page itself, and both stay inside what the caller may see: the
     // clubs of their own bookings, and reviews THEY wrote.
-    const [clubs, reviews] = await Promise.all([
+    const [clubs, reviews, coachReviews] = await Promise.all([
       // The slug, because a review is submitted to the club it belongs to and
       // the club is addressed by slug everywhere else.
       db.venueOrg.findMany({
@@ -86,6 +131,11 @@ export async function listMyBookings(input: {
         select: { id: true, venueId: true, bookingId: true, rating: true, status: true },
         take: venueIds.length,
       }),
+      readMyCoachReviews(
+        db,
+        input.userId,
+        bookings.flatMap((b) => (b.lesson ? [b.lesson.coachUserId] : [])),
+      ),
     ]);
 
     const slugByTenant = new Map(clubs.map((c) => [c.id, c.slug]));
@@ -100,9 +150,17 @@ export async function listMyBookings(input: {
       items: bookings.map((b) => {
         const venueReview = reviewByVenue.get(b.resource.venue.id) ?? null;
         const viewerRole = roleOf(b, input.userId);
+        const coachReview = b.lesson ? (coachReviews.get(b.lesson.coachUserId) ?? null) : null;
         return {
           ...b,
           lessonCoach: b.lesson ? (coaches.get(b.lesson.coachUserId) ?? NOBODY) : null,
+          coachReview,
+          canReviewCoach: canReviewCoach({
+            status: b.status,
+            lesson: b.lesson,
+            coachThere: b.lesson ? coaches.has(b.lesson.coachUserId) : false,
+            coachReview,
+          }),
           clubSlug: slugByTenant.get(b.tenantId) ?? null,
           venueReview,
           viewerRole,
@@ -152,7 +210,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
     const venueId = b.resource.venue.id;
     const viewerRole = roleOf(b, input.userId);
 
-    const [club, review, players, coaches] = await Promise.all([
+    const [club, review, players, coaches, coachReviews] = await Promise.all([
       db.venueOrg.findUnique({
         where: { id: b.tenantId },
         select: { slug: true, onlinePaymentEnabled: true },
@@ -167,7 +225,9 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
       // the only thing about another person a booking shows (#358).
       readBookingPlayers(db, b, input.userId),
       lessonCoaches(db, b.lesson ? [b.lesson.coachUserId] : []),
+      readMyCoachReviews(db, input.userId, b.lesson ? [b.lesson.coachUserId] : []),
     ]);
+    const coachReview = b.lesson ? (coachReviews.get(b.lesson.coachUserId) ?? null) : null;
 
     const venueReview: MyVenueReview | null = review
       ? { id: review.id, bookingId: review.bookingId, rating: review.rating, status: review.status }
@@ -179,6 +239,13 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
     return {
       ...b,
       lessonCoach: b.lesson ? (coaches.get(b.lesson.coachUserId) ?? NOBODY) : null,
+      coachReview,
+      canReviewCoach: canReviewCoach({
+        status: b.status,
+        lesson: b.lesson,
+        coachThere: b.lesson ? coaches.has(b.lesson.coachUserId) : false,
+        coachReview,
+      }),
       clubSlug: club?.slug ?? null,
       // A club that takes no money online is paid at the club, which is every
       // pilot club (#354). A club gone from under its booking is treated the

@@ -27,8 +27,11 @@ export function ReportDialog({
 }: {
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
-  /** What is reported: one message, the whole conversation, or a game's public note (#526). */
-  subject: 'message' | 'conversation' | 'note';
+  /**
+   * What is reported: one message, the whole conversation, a game's public
+   * note (#526), or a review on a coach's page (#551).
+   */
+  subject: 'message' | 'conversation' | 'note' | 'review';
   /** Sends the report; rejects on a refusal. */
   onSubmit: (report: { reason: ReportReason; details: string }) => Promise<unknown>;
 }) {
@@ -38,7 +41,9 @@ export function ReportDialog({
       ? t('titleMessage')
       : subject === 'note'
         ? t('titleNote')
-        : t('titleConversation');
+        : subject === 'review'
+          ? t('titleReview')
+          : t('titleConversation');
   const ids = useId();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState('');

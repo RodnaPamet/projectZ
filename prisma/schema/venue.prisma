@@ -283,10 +283,10 @@ model Review {
   venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   @@unique([venueId, authorUserId])
+  @@unique([bookingId, authorUserId])
   @@index([tenantId])
   @@index([venueId, status, createdAt])
   @@index([venueId, createdAt])
   @@index([authorUserId])
-  @@unique([bookingId, authorUserId])
   @@map("review")
 }

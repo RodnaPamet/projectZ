@@ -232,6 +232,14 @@ const ALLOWED: Record<string, string> = {
     'approved, the text, qualifications and sports). A coach\u2019s profile belongs to a person ' +
     'and is owner-only under RLS, so a club or a player looking at a coach cannot read it ' +
     'bound as themselves. Never a draft, never the certificate or that one exists.',
+  'src/app-layer/usecases/coach-reviews.ts':
+    'coaches (#551): reviews of a coach. A coach teaches at several clubs and their page ' +
+    'shows the published reviews from all of them, with the rating over all of them; the ' +
+    'rule of one review per coach per player is about the person, at any club. So the ' +
+    'public reads (published only, the author as first name and initial), the check that ' +
+    'the caller has not reviewed this coach yet, finding the club of the caller OWN review ' +
+    'to delete it, and filing a report about a published one, cross clubs. Writes of the ' +
+    'review itself run bound to the lesson club.',
   'src/app-layer/usecases/coach-lessons.ts':
     'coaches (#548): whether a lesson can start at a time. That depends on the lessons a ' +
     'coach has at EVERY club (a coach is in one place at a time) and on their days off, ' +

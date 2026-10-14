@@ -403,6 +403,17 @@ export interface MyBookingLessonDto {
   groupFeeCents: number | null;
   courtPriceCents: number;
   totalCents: number;
+  /**
+   * The caller's own review of this coach (#551), written after this lesson
+   * or another: one per coach (decision 24). Null when they have none.
+   */
+  myReview: { id: string; rating: number; status: string } | null;
+  /**
+   * Whether `POST /me/bookings/{id}/coach-review` would take one now: the
+   * lesson is COMPLETED, the coach's account is there, and `myReview` is null.
+   * The server's rule (`canReviewCoach`), so no client restates it.
+   */
+  canReview: boolean;
 }
 
 function toMyBookingLesson(b: {
@@ -411,6 +422,8 @@ function toMyBookingLesson(b: {
   totalCents: number;
   lesson?: BookingRow['lesson'];
   lessonCoach?: { slug: string | null; name: string | null } | null;
+  coachReview?: { id: string; rating: number; status: string } | null;
+  canReviewCoach?: boolean;
 }): MyBookingLessonDto | null {
   if (!b.lesson) return null;
   const minutes = Math.round((b.endTs.getTime() - b.startTs.getTime()) / 60_000);
@@ -422,6 +435,10 @@ function toMyBookingLesson(b: {
       b.lesson.groupRateCents === null ? null : coachFeeCents(b.lesson.groupRateCents, minutes),
     courtPriceCents: b.totalCents,
     totalCents: b.totalCents + b.lesson.coachFeeCents,
+    myReview: b.coachReview
+      ? { id: b.coachReview.id, rating: b.coachReview.rating, status: b.coachReview.status }
+      : null,
+    canReview: b.canReviewCoach ?? false,
   };
 }
 
@@ -526,6 +543,8 @@ export interface MyBookingDto extends BookingDto {
 export function toMyBookingDto(
   b: BookingRow & {
     lessonCoach?: { slug: string | null; name: string | null } | null;
+    coachReview?: { id: string; rating: number; status: string } | null;
+    canReviewCoach?: boolean;
     clubSlug: string | null;
     venueReview: { id: string; bookingId: string | null; rating: number; status: string } | null;
     canReview: boolean;
@@ -800,7 +819,7 @@ export function toReview(r: {
   };
 }
 
-export type ModerationCaseItemDto = ReviewCaseItemDto | ChatCaseItemDto;
+export type ModerationCaseItemDto = ReviewCaseItemDto | CoachReviewCaseItemDto | ChatCaseItemDto;
 
 export interface ReviewCaseItemDto {
   subject: 'REVIEW';
@@ -810,6 +829,18 @@ export interface ReviewCaseItemDto {
   scores: Record<string, number>;
   review: { id: string; rating: number; body: string | null; status: string; createdAt: string };
   venue: { id: string; name: string };
+  club: { id: string; slug: string; name: string };
+}
+
+/** A player's review of a coach (#551): the coach where a venue review has the venue. */
+export interface CoachReviewCaseItemDto {
+  subject: 'COACH_REVIEW';
+  caseId: string;
+  reason: string;
+  openedAt: string;
+  scores: Record<string, number>;
+  review: { id: string; rating: number; body: string | null; status: string; createdAt: string };
+  coach: { name: string | null; slug: string | null };
   club: { id: string; slug: string; name: string };
 }
 
@@ -846,6 +877,24 @@ export interface ChatCaseItemDto {
  * does not depend on who wrote it.
  */
 export function toModerationCaseItem(c: QueueItem): ModerationCaseItemDto {
+  if (c.subject === 'COACH_REVIEW') {
+    return {
+      subject: 'COACH_REVIEW',
+      caseId: c.caseId,
+      reason: c.reason,
+      openedAt: rfc3339(c.openedAt),
+      scores: c.scores,
+      review: {
+        id: c.review.id,
+        rating: c.review.rating,
+        body: c.review.body,
+        status: c.review.status,
+        createdAt: rfc3339(c.review.createdAt),
+      },
+      coach: c.coach,
+      club: c.club,
+    };
+  }
   if (c.subject !== 'REVIEW') {
     return {
       subject: c.subject,
