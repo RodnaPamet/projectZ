@@ -1,6 +1,6 @@
 import { globSync, readFileSync } from 'node:fs';
 
-import { googleAppClientIds, signInMethods } from '@/lib/auth/sign-in-methods';
+import { appleClientIds, googleAppClientIds, signInMethods } from '@/lib/auth/sign-in-methods';
 
 /**
  * "THAT BUTTON IS NOT OFFERED" MUST BE VISIBLE, NOT JUST TRUE.
@@ -21,6 +21,7 @@ const OAUTH = [
   'FACEBOOK_CLIENT_ID',
   'FACEBOOK_CLIENT_SECRET',
   'GOOGLE_IOS_CLIENT_ID',
+  'APPLE_CLIENT_IDS',
   'TEST_PASSWORD_SIGN_IN',
   'DEPLOY_ENV',
 ] as const;
@@ -49,6 +50,7 @@ describe('signInMethods', () => {
       google: 'disabled',
       facebook: 'disabled',
       googleApp: 'disabled',
+      apple: 'disabled',
       credentials: 'disabled',
     });
   });
@@ -74,6 +76,7 @@ describe('signInMethods', () => {
       google: 'disabled',
       facebook: 'configured',
       googleApp: 'disabled',
+      apple: 'disabled',
       credentials: 'disabled',
     });
   });
@@ -90,6 +93,13 @@ describe('signInMethods', () => {
 
     process.env.GOOGLE_IOS_CLIENT_ID = '';
     expect(signInMethods().googleApp).toBe('disabled');
+  });
+
+  it('reports Sign in with Apple by its client ids, which are identifiers alone (#442)', () => {
+    expect(signInMethods().apple).toBe('disabled');
+    process.env.APPLE_CLIENT_IDS = 'bg.playerz.app, bg.playerz.web';
+    expect(signInMethods().apple).toBe('configured');
+    expect(appleClientIds()).toEqual(['bg.playerz.app', 'bg.playerz.web']);
   });
 
   it('treats an empty string as absent', () => {
@@ -130,6 +140,7 @@ describe('signInMethods', () => {
         FACEBOOK_CLIENT_ID: 'f',
         FACEBOOK_CLIENT_SECRET: 'fs', // pragma: allowlist secret
         GOOGLE_IOS_CLIENT_ID: 'gi',
+        APPLE_CLIENT_IDS: 'bg.playerz.app',
         TEST_PASSWORD_SIGN_IN: '1',
         DEPLOY_ENV: 'test',
       }),
@@ -137,6 +148,7 @@ describe('signInMethods', () => {
       google: 'configured',
       facebook: 'configured',
       googleApp: 'configured',
+      apple: 'configured',
       credentials: 'configured',
     });
   });

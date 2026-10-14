@@ -3,11 +3,13 @@
  */
 import { NextRequest } from 'next/server';
 
+import { appleSignIn } from '@/app-layer/usecases/apple-sign-in';
 import { resolveProviderAccount } from '@/app-layer/usecases/provider-account';
 import { POST as token } from '@/app/api/v1/auth/token/route';
 import { readFacebookEmailPermission } from '@/lib/auth/facebook-permissions';
 import {
   NativeGrantError,
+  verifyAppleIdToken,
   verifyFacebookAccessToken,
   verifyFacebookIdToken,
   verifyGoogleIdToken,
@@ -43,15 +45,22 @@ jest.mock('@/lib/security/rate-limit', () => ({
 jest.mock('@/lib/auth/native-grants', () => ({
   ...jest.requireActual('@/lib/auth/native-grants'),
   verifyGoogleIdToken: jest.fn(),
+  verifyAppleIdToken: jest.fn(),
   verifyFacebookIdToken: jest.fn(),
   verifyFacebookAccessToken: jest.fn(),
 }));
 jest.mock('@/lib/auth/facebook-permissions', () => ({ readFacebookEmailPermission: jest.fn() }));
+jest.mock('@/app-layer/usecases/apple-sign-in', () => ({
+  ...jest.requireActual('@/app-layer/usecases/apple-sign-in'),
+  appleSignIn: jest.fn(),
+}));
 jest.mock('@/app-layer/usecases/provider-account', () => ({
   resolveProviderAccount: jest.fn(async () => ({ userId: 'user-1' })),
 }));
 
 const mockGoogle = verifyGoogleIdToken as jest.Mock;
+const mockApple = verifyAppleIdToken as jest.Mock;
+const mockAppleSignIn = appleSignIn as jest.Mock;
 const mockFbId = verifyFacebookIdToken as jest.Mock;
 const mockFbAccess = verifyFacebookAccessToken as jest.Mock;
 const mockPermission = readFacebookEmailPermission as jest.Mock;
@@ -215,9 +224,54 @@ describe('the facebook grant', () => {
   });
 });
 
+describe('the apple grant (#442)', () => {
+  const appleId = person({ provider: 'apple', subject: 'sub-1', privateEmail: false });
+
+  it('signs in an Apple ID the use case knows, with the name the app sent', async () => {
+    mockApple.mockResolvedValue(appleId);
+    mockAppleSignIn.mockResolvedValue({ userId: 'user-apple' });
+
+    const res = await send({
+      grant: 'apple',
+      idToken: 'a-id',
+      nonce: 'n',
+      givenName: ' Петя ',
+      familyName: 'Иванова',
+      locale: 'bg',
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockApple).toHaveBeenCalledWith('a-id', { nonce: 'n' });
+    expect(mockAppleSignIn).toHaveBeenCalledWith(appleId, 'Петя Иванова', 'bg');
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-apple' }));
+    expect(mockThrottle).toHaveBeenCalledTimes(1);
+  });
+
+  it('a hidden address stops with a ticket, and no session', async () => {
+    mockApple.mockResolvedValue({ ...appleId, privateEmail: true });
+    mockAppleSignIn.mockResolvedValue({ ticket: 'the-ticket' });
+
+    const res = await send({ grant: 'apple', idToken: 'a-id' });
+
+    expect(res.status).toBe(403);
+    expect(await errorOf(res)).toMatchObject({
+      code: 'REAL_EMAIL_REQUIRED',
+      details: { ticket: 'the-ticket' },
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('a refused Apple token is the same 401 as any provider’s', async () => {
+    mockApple.mockRejectedValue(new NativeGrantError('INVALID_PROVIDER_TOKEN', 'no'));
+    const res = await send({ grant: 'apple', idToken: 'a-id' });
+    expect(res.status).toBe(401);
+    expect(mockAppleSignIn).not.toHaveBeenCalled();
+  });
+});
+
 describe('the grants together', () => {
   it('names an unknown grant without drawing the throttle', async () => {
-    const res = await send({ grant: 'apple', idToken: 't' });
+    const res = await send({ grant: 'microsoft', idToken: 't' });
     expect(res.status).toBe(400);
     expect(await errorOf(res)).toMatchObject({ code: 'UNSUPPORTED_GRANT' });
     expect(mockThrottle).not.toHaveBeenCalled();

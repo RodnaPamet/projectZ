@@ -123,6 +123,35 @@ The consent screen is the project's, so it is the one already published above.
 
 ---
 
+## Apple (#442)
+
+Sign in with Apple on the iPhone needs nothing secret on the server: Apple's
+identity tokens are signed with Apple's published keys, and the server checks
+that each is addressed to the app.
+
+1. <https://developer.apple.com/account/resources/identifiers/list> → the App
+   ID `bg.playerz.app` (team `9423GKWL67`) → enable **Sign In with Apple**.
+2. On both servers:
+
+   ```
+   APPLE_CLIENT_IDS=bg.playerz.app
+   ```
+
+A person who hides their address behind Apple's relay is asked for a real one
+and confirms it with an emailed code before an account is found or made
+(owner decision 2026-10-14), so production needs its email provider (Resend)
+for that step.
+
+**On the web** (the same decision) Apple needs a **Services ID** (for example
+`bg.playerz.web`, with the return URLs
+`https://playerz.bg/api/auth/callback/apple` and the staging one), a **Sign in
+with Apple key** (`.p8`) and its **Key ID**. The Services ID joins
+`APPLE_CLIENT_IDS`; the key and its id are what the web provider signs its
+client secret with, and they are handed over like the other secrets, never in
+a chat.
+
+---
+
 ## Facebook
 
 ### 1. Create the app

@@ -108,6 +108,15 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   PhoneCodeWrongError: { status: 400, code: 'PHONE_CODE_WRONG' },
   PhoneCodeExpiredError: { status: 400, code: 'PHONE_CODE_EXPIRED' },
 
+  // Sign in with Apple's hidden-address step (#442): the Apple sign-in it
+  // continues has expired (sign in again); the address typed is not one, or is
+  // Apple's relay itself; the code is wrong, or expired (ask for a new one).
+  AppleTicketInvalidError: { status: 400, code: 'APPLE_SIGN_IN_EXPIRED' },
+  EmailInvalidError: { status: 400, code: 'EMAIL_INVALID' },
+  EmailIsRelayError: { status: 400, code: 'EMAIL_IS_RELAY' },
+  EmailCodeWrongError: { status: 400, code: 'EMAIL_CODE_WRONG' },
+  EmailCodeExpiredError: { status: 400, code: 'EMAIL_CODE_EXPIRED' },
+
   // ── 402: the rule is about money, and the client can fix it ───────
   //
   // Not 403. A wallet that is short is not a permissions problem, and a client
@@ -501,6 +510,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // The SMS provider is not configured, or did not answer (#500). Nothing
   // was confirmed; the person may try again.
   PhoneVerifyUnavailableError: { status: 503, code: 'PHONE_VERIFY_UNAVAILABLE' },
+  // The code email could not be sent (#442): retry later.
+  EmailUnavailableError: { status: 503, code: 'EMAIL_UNAVAILABLE' },
 
   // ── Deliberately ABSENT ───────────────────────────────────────────
   //

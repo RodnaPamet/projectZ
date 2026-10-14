@@ -18,7 +18,7 @@ import { logger } from '@/lib/observability/logger';
  * read of `app_user` would see nothing.
  */
 export interface ProviderSignIn {
-  provider: 'google' | 'facebook';
+  provider: 'google' | 'facebook' | 'apple';
   /** Trimmed and lower-cased by the caller. */
   email: string;
   name: string | null;

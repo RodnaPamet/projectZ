@@ -1,25 +1,22 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { appleName, appleSignIn } from '@/app-layer/usecases/apple-sign-in';
 import { resolveProviderAccount } from '@/app-layer/usecases/provider-account';
 import { ok } from '@/app/api/v1/_lib/envelope';
 import { readCappedBody } from '@/app/api/v1/_lib/capped-body';
-import {
-  mintAccessToken,
-  NATIVE_SESSION_TTL_SECONDS,
-  rfc3339,
-  type NativeTokens,
-} from '@/app/api/v1/_lib/native-token';
+import { issueTokens } from '@/app/api/v1/_lib/native-session';
+import type { NativeTokens } from '@/app/api/v1/_lib/native-token';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { readFacebookEmailPermission } from '@/lib/auth/facebook-permissions';
 import {
   NativeGrantError,
+  verifyAppleIdToken,
   verifyFacebookAccessToken,
   verifyFacebookIdToken,
   verifyGoogleIdToken,
   type ProviderIdentity,
 } from '@/lib/auth/native-grants';
 import { passwordSignInEnabled } from '@/lib/auth/password-sign-in';
-import { createUserSession, newSessionSecret, setRefreshToken } from '@/lib/auth/sessions';
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { isLocale } from '@/lib/i18n/locales';
 import { logger } from '@/lib/observability/logger';
@@ -29,8 +26,10 @@ import { getClientIp } from '@/lib/security/rate-limit-middleware';
 /**
  * POST /api/v1/auth/token — sign in from a native client.
  *
- * ═══ THREE GRANTS, CHOSEN BY `grant` ═══
+ * ═══ FOUR GRANTS, CHOSEN BY `grant` ═══
  *
+ * - `apple`: `{ grant, idToken, nonce?, givenName?, familyName? }`, Sign in
+ *   with Apple (#442); a hidden address continues at `/auth/apple/*`.
  * - `google`: `{ grant, idToken }`, the ID token Google's iOS SDK returns.
  * - `facebook`: `{ grant, accessToken }` from classic Facebook Login, or
  *   `{ grant, idToken, nonce? }` from Limited Login (what the SDK returns when
@@ -103,8 +102,8 @@ async function handler(req: NextRequest) {
       'Password sign-in is not available. Sign in with Google or Facebook.',
     );
   }
-  if (grant !== 'password' && grant !== 'google' && grant !== 'facebook') {
-    return fail(400, 'UNSUPPORTED_GRANT', 'grant must be google, facebook or password.');
+  if (grant !== 'password' && grant !== 'google' && grant !== 'facebook' && grant !== 'apple') {
+    return fail(400, 'UNSUPPORTED_GRANT', 'grant must be google, facebook, apple or password.');
   }
 
   const ip = getClientIp(req);
@@ -128,6 +127,10 @@ async function handler(req: NextRequest) {
       return fail(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
     }
     userId = user.id;
+  } else if (grant === 'apple') {
+    const resolved = await appleGrant(body ?? {});
+    if (resolved instanceof NextResponse) return resolved;
+    userId = resolved;
   } else {
     const resolved = await providerSignIn(grant, body ?? {});
     if (resolved instanceof NextResponse) return resolved;
@@ -135,6 +138,57 @@ async function handler(req: NextRequest) {
   }
 
   return ok<NativeTokens>(await issueTokens(req, userId, ip));
+}
+
+/**
+ * Sign in with Apple (#442). Apple's identity token, and the name the app was
+ * given at the first authorisation (Apple puts no name in the token).
+ *
+ * An account that remembers this Apple ID, or a real address Apple vouches
+ * for, signs in at once. A hidden (relay) address stops here with 403
+ * `REAL_EMAIL_REQUIRED` and a ticket: the app asks for a real address, and
+ * `POST /auth/apple/email` and `/auth/apple/confirm` finish with a code
+ * (owner decision 2026-10-14).
+ */
+async function appleGrant(body: Record<string, unknown>): Promise<string | NextResponse> {
+  const idToken = str(body.idToken, 8192);
+  if (!idToken) return fail(400, 'BAD_REQUEST', 'idToken is required.');
+  let who: ProviderIdentity;
+  try {
+    who = await verifyAppleIdToken(idToken, {
+      ...(typeof body.nonce === 'string' ? { nonce: body.nonce } : {}),
+    });
+  } catch (error) {
+    if (!(error instanceof NativeGrantError)) throw error;
+    logger.warn('native sign-in refused', {
+      component: 'auth',
+      provider: 'apple',
+      code: error.code,
+    });
+    const status =
+      error.code === 'INVALID_PROVIDER_TOKEN'
+        ? 401
+        : error.code === 'SIGN_IN_METHOD_DISABLED'
+          ? 403
+          : 503;
+    return fail(status, error.code, error.message);
+  }
+  const outcome = await appleSignIn(
+    who,
+    appleName(body.givenName, body.familyName),
+    isLocale(body.locale) ? body.locale : null,
+  );
+  if ('userId' in outcome) return outcome.userId;
+  return NextResponse.json(
+    {
+      error: {
+        code: 'REAL_EMAIL_REQUIRED',
+        message: 'Apple hid the email address. Confirm a real one to continue.',
+        details: { ticket: outcome.ticket },
+      },
+    },
+    { status: 403 },
+  );
 }
 
 /** The account a provider grant signs into, or the response refusing it. */
@@ -227,51 +281,6 @@ async function providerSignIn(
     locale: isLocale(body.locale) ? body.locale : null,
   });
   return userId;
-}
-
-/** A session row, its refresh token, and an access token for it. */
-async function issueTokens(req: NextRequest, userId: string, ip: string): Promise<NativeTokens> {
-  const now = Date.now();
-  const sessionSecret = newSessionSecret();
-  const refreshToken = newSessionSecret();
-
-  const {
-    userSessionId,
-    sessionVersion,
-    expiresAt: sessionExpiresAt,
-  } = await createUserSession({
-    userId,
-    tenantId: null,
-    sessionSecret,
-    // The ROW lives as long as the refresh window, not the access token. A row
-    // that died with the access token would revoke a refresh token the client
-    // still legitimately holds.
-    expiresAt: new Date(now + NATIVE_SESSION_TTL_SECONDS * 1000),
-    ipAddress: ip,
-    // So a session list can name the device. The web path leaves both null.
-    userAgent: req.headers.get('user-agent'),
-  });
-
-  await setRefreshToken(userSessionId, refreshToken);
-
-  const { accessToken, expiresAt } = await mintAccessToken({
-    sub: userId,
-    userSessionId,
-    sessionVersion,
-  });
-
-  return {
-    tokenType: 'Bearer',
-    accessToken,
-    expiresAt: rfc3339(expiresAt),
-    expiresIn: Math.floor((expiresAt.getTime() - now) / 1000),
-    refreshToken,
-    // The ROW's expiry, as stored — not a window measured from this response.
-    // `rotateRefreshToken` rejects against that column and nothing ever writes
-    // it again, so this is the only value that stays true as the session is
-    // refreshed. /auth/refresh returns the same column for the same reason.
-    refreshExpiresAt: rfc3339(sessionExpiresAt),
-  };
 }
 
 export const POST = defineV1Route(handler);

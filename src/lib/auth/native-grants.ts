@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 import { createRemoteJWKSet, errors as joseErrors, jwtVerify, type JWTVerifyGetKey } from 'jose';
 
@@ -7,7 +7,7 @@ import {
   FACEBOOK_USERINFO_FIELDS,
   facebookPictureFrom,
 } from '@/lib/auth/facebook';
-import { googleAppClientIds } from '@/lib/auth/sign-in-methods';
+import { appleClientIds, googleAppClientIds } from '@/lib/auth/sign-in-methods';
 
 /**
  * A NATIVE CLIENT'S PROVIDER TOKEN, CHECKED HERE (#444).
@@ -34,7 +34,7 @@ import { googleAppClientIds } from '@/lib/auth/sign-in-methods';
  * made by the same rules as the web's `signIn` callback.
  */
 
-export type NativeProvider = 'google' | 'facebook';
+export type NativeProvider = 'google' | 'facebook' | 'apple';
 
 export interface ProviderIdentity {
   provider: NativeProvider;
@@ -48,6 +48,13 @@ export interface ProviderIdentity {
   emailVerified: boolean;
   name: string | null;
   picture: string | null;
+  /**
+   * Apple only: the token's `sub`, the Apple ID as this team sees it, and
+   * whether the address is Apple's relay ("Hide My Email"), which is not an
+   * address to find an account by (#442).
+   */
+  subject?: string;
+  privateEmail?: boolean;
 }
 
 export type NativeGrantErrorCode =
@@ -76,6 +83,12 @@ const CLOCK_TOLERANCE_S = 30;
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 const GOOGLE_KEYS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+
+/** From https://appleid.apple.com/.well-known/openid-configuration */
+const APPLE_ISSUER = 'https://appleid.apple.com';
+const APPLE_KEYS_URL = 'https://appleid.apple.com/auth/keys';
+/** The domain of Apple's "Hide My Email" relay addresses. */
+export const APPLE_RELAY_DOMAIN = 'privaterelay.appleid.com';
 
 /** From https://limited.facebook.com/.well-known/openid-configuration/ */
 const FACEBOOK_ISSUER = 'https://www.facebook.com';
@@ -152,6 +165,53 @@ export async function verifyGoogleIdToken(
     emailVerified: claims.email_verified === true,
     name: text(claims.name),
     picture: text(claims.picture),
+  };
+}
+
+/** Apple sends its booleans as `true` or as the string "true". */
+const appleTrue = (v: unknown): boolean => v === true || v === 'true';
+
+/**
+ * Sign in with Apple's identity token (#442). `aud` is our app (the bundle id,
+ * `bg.playerz.app`; the web's Services ID when that comes). The app may send
+ * the raw `nonce` it gave Apple: Apple puts its SHA-256 in the token.
+ *
+ * Apple sends the person's name only to the app, once, at the first
+ * authorisation, never in the token; the caller passes it along.
+ */
+export async function verifyAppleIdToken(
+  idToken: string,
+  opts: { audiences?: string[]; nonce?: string; keys?: JWTVerifyGetKey } = {},
+): Promise<ProviderIdentity> {
+  const audiences = opts.audiences ?? appleClientIds();
+  if (audiences.length === 0) {
+    throw new NativeGrantError('SIGN_IN_METHOD_DISABLED', 'Sign in with Apple is not set up.');
+  }
+  const claims = await verifyIdToken(idToken, {
+    keys: opts.keys ?? remoteKeys(APPLE_KEYS_URL),
+    issuer: APPLE_ISSUER,
+    audience: audiences,
+  });
+  const subject = text(claims.sub);
+  if (!subject) {
+    throw new NativeGrantError('INVALID_PROVIDER_TOKEN', 'The sign-in token is not valid.');
+  }
+  if (
+    opts.nonce !== undefined &&
+    claims.nonce !== createHash('sha256').update(opts.nonce).digest('hex')
+  ) {
+    throw new NativeGrantError('INVALID_PROVIDER_TOKEN', 'The sign-in token is not valid.');
+  }
+  const email = address(claims.email);
+  return {
+    provider: 'apple',
+    email,
+    emailVerified: email !== null && appleTrue(claims.email_verified),
+    name: null,
+    picture: null,
+    subject,
+    privateEmail:
+      appleTrue(claims.is_private_email) || (email?.endsWith(`@${APPLE_RELAY_DOMAIN}`) ?? false),
   };
 }
 
