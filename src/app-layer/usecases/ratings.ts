@@ -8,6 +8,7 @@ import {
   newRatingFor,
   rateMatch,
 } from '@/lib/ratings/engine';
+import { seedRating } from '@/lib/ratings/levels';
 
 /**
  * Recording results and moving ratings.
@@ -39,6 +40,12 @@ export class UnknownPlayerRatingError extends Error {
  *
  * A player with no history gets a NEW rating rather than an error. Everyone is
  * unrated before their first match, and that is not an exceptional condition.
+ * The new rating starts at the level they declared for the sport (#378, Q24),
+ * with the engine's full uncertainty (`@/lib/ratings/levels`).
+ *
+ * The declared level is the player's own row (`player_sport_level`, owner-only
+ * under RLS): rating a match re-rates every player in it, so the caller binds
+ * a handle that can read each of theirs, or every newcomer starts at level 4.
  */
 export async function currentRating(
   db: PrismaClient,
@@ -50,7 +57,13 @@ export async function currentRating(
     orderBy: { computedAt: 'desc' },
   });
 
-  if (!latest) return newRatingFor(sport);
+  if (!latest) {
+    const declared = await db.playerSportLevel.findUnique({
+      where: { userId_sport: { userId, sport } },
+      select: { level: true },
+    });
+    return seedRating(sport, declared?.level);
+  }
 
   // Trust the row's OWN engine, not the registry's current answer. If a sport's
   // engine were ever changed, old rows still have to be read in the system that

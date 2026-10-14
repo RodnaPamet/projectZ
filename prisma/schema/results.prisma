@@ -1,0 +1,68 @@
+/// What a result is, and where it stands (#378, Module 4).
+enum ResultStatus {
+  /// A player reported it; the other side has 48 h to answer (Q23).
+  REPORTED
+  /// The other side confirmed it, or 48 h passed: it counts.
+  CONFIRMED
+  /// The other side rejected it: the club decides (decision 34).
+  REJECTED
+  /// The club confirmed a version of it, or entered it itself: it counts.
+  DECIDED
+  /// The club voided it: nothing counts.
+  VOIDED
+}
+
+enum ResultKind {
+  /// Sides and a score: sets and games, points or goals (decision 46).
+  SCORE
+  /// A finishing order, entered by the track: karting (decision 33).
+  ORDER
+}
+
+/// The result of a playerz booking (#378, decisions 29–48). One per booking:
+/// only a completed booking can have one (29), reported within 7 days of its
+/// end (45). A CLUB's row, as the booking is: tenant-scoped under RLS.
+///
+/// When it counts (CONFIRMED or DECIDED), it is written once to
+/// `match_result` and moves the players' ratings (`ratings.ts`, idempotent by
+/// the booking); `matchResultId` names that row.
+model MatchReport {
+  id        String       @id @default(cuid())
+  tenantId  String
+  bookingId String       @unique
+  sport     SportType
+  kind      ResultKind
+  status    ResultStatus @default(REPORTED)
+
+  /// The sides, each a list of user ids, as the reporter picked them from the
+  /// booking's players (30): [["u1","u2"],["u3","u4"]]. For an ORDER result,
+  /// one driver per side, in finishing order.
+  sidesJson  Json
+  /// SCORE: one pair per set, period or game, side 0 first: [[6,4],[3,6]].
+  /// ORDER: null.
+  scoreJson  Json?
+  /// SCORE: the index of the side that won; null for a draw. ORDER: null.
+  winnerSide Int?
+
+  reportedByUserId String
+  reportedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  /// When a REPORTED result confirms itself (Q23: 48 h).
+  autoConfirmAt    DateTime? @db.Timestamptz(3)
+  /// Who on the other side confirmed or rejected it, and when.
+  answeredByUserId String?
+  answeredAt       DateTime? @db.Timestamptz(3)
+  /// What the rejecting player said, for the club.
+  rejectNote       String?
+  /// The club's staff member who decided or voided it, or entered it.
+  decidedByUserId  String?
+  decidedAt        DateTime? @db.Timestamptz(3)
+
+  /// The counted result, once it counts.
+  matchResultId String? @unique
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([status, autoConfirmAt])
+  @@map("match_report")
+}

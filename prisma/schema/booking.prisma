@@ -74,6 +74,8 @@ model Booking {
   openGame      OpenGame?
   /// A lesson (#377): the coach this booking also takes, or null.
   lesson        CoachLesson?
+  /// Its result (#378), once a player or the club reports one.
+  result        MatchReport?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, resourceId, startTs])

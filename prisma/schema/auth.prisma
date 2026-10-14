@@ -181,6 +181,11 @@ model User {
   /// be written to by the people they have played with or already talk to.
   searchable Boolean @default(true)
 
+  /// Whether other people see this person's rating (#378, decision 36): on
+  /// profiles, in open play, on leaderboards. Off, results still move it and
+  /// it is used privately (open-play level hints); nobody is shown it.
+  ratingPublic Boolean @default(true)
+
   /// Bumped to invalidate every issued session (password change, forced
   /// logout). A JWT carrying a stale version is rejected.
   sessionVersion Int @default(0)

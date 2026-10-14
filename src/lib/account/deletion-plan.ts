@@ -794,6 +794,25 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason: 'Who reported a result others were rated on; the id names a tombstone.',
   },
   {
+    model: 'MatchReport',
+    field: 'reportedByUserId',
+    action: 'keep',
+    reason:
+      'Who reported the result of a booking others played (#378); the id names a tombstone, shown as «Изтрит потребител».',
+  },
+  {
+    model: 'MatchReport',
+    field: 'answeredByUserId',
+    action: 'keep',
+    reason: 'Who on the other side confirmed or rejected that result; the id names a tombstone.',
+  },
+  {
+    model: 'MatchReport',
+    field: 'decidedByUserId',
+    action: 'keep',
+    reason: "The club's staff member who decided or entered a result; the id names a tombstone.",
+  },
+  {
     model: 'Conversation',
     field: 'createdById',
     action: 'keep',
@@ -1058,6 +1077,11 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'TournamentMatch.awayUserId': UNWRITTEN,
   'MatchParticipant.userId': UNWRITTEN,
   'MatchResultRecord.reportedByUserId': UNWRITTEN,
+  // #574 lays the table; the reporting workflow (#575) is what writes it, and
+  // must turn the two player columns into TRIGGER with account_not_deleted.
+  'MatchReport.reportedByUserId': UNWRITTEN,
+  'MatchReport.answeredByUserId': UNWRITTEN,
+  'MatchReport.decidedByUserId': UNWRITTEN,
   'SkillRatingHistory.userId': UNWRITTEN,
   'XpEvent.userId': UNWRITTEN,
   'UserAchievement.userId': UNWRITTEN,
