@@ -13,6 +13,14 @@ export const TOURNAMENT_ERRORS = [
   'TOURNAMENT_ENTRY_NOT_FOUND',
   'TOURNAMENT_ENTRY_NOT_ACTIVE',
   'TOURNAMENT_STATE',
+  // A league match's players placing it (#591, 63).
+  'TOURNAMENT_MATCH_NOT_READY',
+  'TOURNAMENT_MATCH_PLACED',
+  'TOURNAMENT_NO_PROPOSAL',
+  'SLOT_TAKEN',
+  'SLOT_NOT_BOOKABLE',
+  'NO_SHOW_BLOCKED',
+  'BOOKING_LIMIT_REACHED',
   'PLAYER_ACCOUNT_REQUIRED',
   // A confirmed phone number first (#500): shown as PhoneRequiredNotice.
   'PHONE_REQUIRED',

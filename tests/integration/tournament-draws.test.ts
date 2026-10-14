@@ -7,6 +7,13 @@ import { POST as reportRoute } from '@/app/api/v1/me/bookings/[id]/result/route'
 import { POST as confirmEntryRoute } from '@/app/api/v1/t/[slug]/admin/tournament-entries/[id]/confirm/route';
 import { POST as scheduleRoute } from '@/app/api/v1/t/[slug]/admin/tournament-matches/[id]/schedule/route';
 import { POST as walkoverRoute } from '@/app/api/v1/t/[slug]/admin/tournament-matches/[id]/walkover/route';
+import {
+  DELETE as letGoRoute,
+  POST as proposeRoute,
+} from '@/app/api/v1/me/tournament-matches/[id]/proposal/route';
+import { POST as acceptRoute } from '@/app/api/v1/me/tournament-matches/[id]/proposal/accept/route';
+import { releaseExpiredBookings } from '@/app-layer/usecases/release-expired-bookings';
+import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { POST as drawRoute } from '@/app/api/v1/t/[slug]/admin/tournaments/[id]/draw/route';
 import { POST as openRoute } from '@/app/api/v1/t/[slug]/admin/tournaments/[id]/open/route';
 import { POST as createRoute } from '@/app/api/v1/t/[slug]/admin/tournaments/route';
@@ -602,6 +609,155 @@ describe('a tournament draw', () => {
       expect(ok.status).toBe(201);
       const tables = ok.body.data.groups.map((g: any) => g.table.map((r: any) => r.entryId).sort());
       expect(tables).toEqual([ids.slice(0, 2).sort(), ids.slice(2).sort()]);
+    });
+  });
+
+  describe('a league match placed by its players (#591; decisions 62, 63)', () => {
+    beforeEach(async () => {
+      // The court is open every day, 06:00 to 23:00.
+      await asAppSuperuser(db, (tx) =>
+        tx.resourceAvailability.createMany({
+          data: Array.from({ length: 7 }, (_, dayOfWeek) => ({
+            tenantId: club.tenantId,
+            resourceId,
+            dayOfWeek,
+            openTime: new Date('1970-01-01T06:00:00Z'),
+            closeTime: new Date('1970-01-01T23:00:00Z'),
+          })),
+        }),
+      );
+    });
+
+    /** 10:00 at the club, `days` from today. */
+    const tenAm = (days: number) =>
+      fromZonedTime(
+        `${formatInTimeZone(new Date(Date.now() + days * DAY), 'Europe/Sofia', 'yyyy-MM-dd')}T10:00:00`,
+        'Europe/Sofia',
+      );
+    const propose = (who: TestIdentity, matchId: string, startTs: Date) =>
+      call(
+        proposeRoute as never,
+        'POST',
+        `/api/v1/me/tournament-matches/${matchId}/proposal`,
+        who,
+        { id: matchId },
+        {
+          resourceId,
+          startTs: startTs.toISOString(),
+          durationMinutes: 60,
+        },
+      );
+    const accept = (who: TestIdentity, matchId: string) =>
+      call(
+        acceptRoute as never,
+        'POST',
+        `/api/v1/me/tournament-matches/${matchId}/proposal/accept`,
+        who,
+        {
+          id: matchId,
+        },
+      );
+    const letGo = (who: TestIdentity, matchId: string) =>
+      call(
+        letGoRoute as never,
+        'DELETE',
+        `/api/v1/me/tournament-matches/${matchId}/proposal`,
+        who,
+        { id: matchId },
+      );
+
+    async function leagueMatch() {
+      const id = await withEntries(2, { format: 'LEAGUE' });
+      const drawn = await draw(id, { firstDeadline: new Date(Date.now() + 7 * DAY).toISOString() });
+      const m = drawn.body.data.groups[0].matches[0] as Record<string, any>;
+      const a = players.find((p) => p.userId === m.sideA.players[0].userId)!;
+      const b = players.find((p) => p.userId === m.sideB.players[0].userId)!;
+      return { id, m, a, b };
+    }
+    const bookingOf = (bookingId: string) =>
+      asAppSuperuser(db, (tx) =>
+        tx.booking.findUniqueOrThrow({
+          where: { id: bookingId },
+          select: { status: true, bookedByUserId: true, totalCents: true, expiresAt: true },
+        }),
+      );
+
+    it('one side proposes and the court is held at its price; the other side accepts', async () => {
+      const { m, a, b } = await leagueMatch();
+      // Nobody else's match to place, and not in the next two hours.
+      expect((await propose(players[5]!, m.id, tenAm(3))).status).toBe(404);
+      const soon = await propose(a, m.id, new Date(Date.now() + HOUR));
+      expect(soon.body.error.details).toMatchObject({ field: 'startTs' });
+
+      const proposed = await propose(a, m.id, tenAm(3));
+      expect(proposed.status).toBe(201);
+      const shown = proposed.body.data.groups[0].matches[0];
+      expect(shown).toMatchObject({ scheduled: null, mySide: 0 });
+      expect(shown.proposal).toMatchObject({ side: 0, priceCents: 2400 });
+      // In the proposer's name, at the court's price, held for a day (62, 63).
+      const held = await bookingOf(shown.proposal.bookingId);
+      expect(held).toMatchObject({ status: 'PENDING', bookedByUserId: a.userId, totalCents: 2400 });
+      expect(Math.abs(held.expiresAt!.getTime() - (Date.now() + DAY))).toBeLessThan(5 * 60_000);
+
+      // One proposal at a time; the proposer does not answer their own.
+      expect((await propose(b, m.id, tenAm(4))).body.error.code).toBe('TOURNAMENT_MATCH_PLACED');
+      expect((await accept(a, m.id)).body.error.code).toBe('TOURNAMENT_NO_PROPOSAL');
+      // The other side is told, after the draw's own notice.
+      expect(
+        await asAppSuperuser(db, (tx) =>
+          tx.notification.count({ where: { userId: b.userId, kind: 'TOURNAMENT_ROUND' } }),
+        ),
+      ).toBe(2);
+
+      const accepted = await accept(b, m.id);
+      expect(accepted.status).toBe(200);
+      const placed = accepted.body.data.groups[0].matches[0];
+      expect(placed.proposal).toBeNull();
+      expect(placed.scheduled).toMatchObject({ bookingId: shown.proposal.bookingId });
+      expect(await bookingOf(shown.proposal.bookingId)).toMatchObject({
+        status: 'CONFIRMED',
+        expiresAt: null,
+      });
+    });
+
+    it('declined, the court is free again and the same time can be proposed anew', async () => {
+      const { m, a, b } = await leagueMatch();
+      const first = await propose(a, m.id, tenAm(3));
+      const firstId = first.body.data.groups[0].matches[0].proposal.bookingId as string;
+      const declined = await letGo(b, m.id);
+      expect(declined.status).toBe(200);
+      expect(declined.body.data.groups[0].matches[0].proposal).toBeNull();
+      expect((await bookingOf(firstId)).status).toBe('CANCELLED');
+      // The proposer is told, after the draw's own notice.
+      expect(
+        await asAppSuperuser(db, (tx) =>
+          tx.notification.count({ where: { userId: a.userId, kind: 'TOURNAMENT_ROUND' } }),
+        ),
+      ).toBe(2);
+      // A new booking, not the released one replayed.
+      const again = await propose(a, m.id, tenAm(3));
+      expect(again.status).toBe(201);
+      expect(again.body.data.groups[0].matches[0].proposal.bookingId).not.toBe(firstId);
+    });
+
+    it('a hold nobody answers lapses, and the match can be placed again', async () => {
+      const { id, m, a, b } = await leagueMatch();
+      await propose(a, m.id, tenAm(3));
+      const swept = await releaseExpiredBookings(db, { now: new Date(Date.now() + 2 * DAY) });
+      expect(swept.released).toBeGreaterThanOrEqual(1);
+      expect((await accept(b, m.id)).body.error.code).toBe('TOURNAMENT_NO_PROPOSAL');
+      const view = await call(
+        playerDrawRoute as never,
+        'GET',
+        `/api/v1/tournaments/${id}/draw`,
+        b,
+        { id },
+      );
+      expect(view.body.data.groups[0].matches[0]).toMatchObject({
+        proposal: null,
+        scheduled: null,
+      });
+      expect((await propose(b, m.id, tenAm(4))).status).toBe(201);
     });
   });
 });

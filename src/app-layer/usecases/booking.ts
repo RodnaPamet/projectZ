@@ -141,6 +141,12 @@ export interface CreateBookingInput {
    */
   onlinePayment?: boolean;
   /**
+   * A PENDING hold until then, with nothing to pay online: a league match's
+   * time proposed by one side, waiting for the other to accept it (#591,
+   * decision 63). The expiry sweep releases it if nobody answers.
+   */
+  holdUntil?: Date | null;
+  /**
    * Who is booking. `ONLINE` (the default) is a player in the app or on the
    * web, and is held to the pilot's rules (#354): the slot must not have
    * started, and three recent no-shows at the club refuse it. `DESK` is the
@@ -178,8 +184,8 @@ export async function createBooking(
   }
 
   const createdAt = input.now ?? new Date();
-  const status: BookingStatus = input.onlinePayment ? 'PENDING' : 'CONFIRMED';
-  const expiresAt = status === 'PENDING' ? computeExpiresAt(createdAt) : null;
+  const status: BookingStatus = input.onlinePayment || input.holdUntil ? 'PENDING' : 'CONFIRMED';
+  const expiresAt = status === 'PENDING' ? (input.holdUntil ?? computeExpiresAt(createdAt)) : null;
 
   // ── Idempotency pre-check ─────────────────────────────────────────
   //

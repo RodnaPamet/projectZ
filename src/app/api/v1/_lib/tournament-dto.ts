@@ -47,6 +47,14 @@ function toDrawMatchDto(m: DrawMatchView) {
   return {
     ...m,
     deadline: iso(m.deadline),
+    proposal: m.proposal
+      ? {
+          ...m.proposal,
+          startTs: m.proposal.startTs.toISOString(),
+          endTs: m.proposal.endTs.toISOString(),
+          until: m.proposal.until.toISOString(),
+        }
+      : null,
     scheduled: m.scheduled
       ? {
           ...m.scheduled,

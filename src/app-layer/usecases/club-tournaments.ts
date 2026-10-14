@@ -130,7 +130,13 @@ export interface TournamentSummary {
   feePayment: TournamentFeePayment;
   description: string | null;
   club: { slug: string; name: string };
-  venue: { id: string; name: string; city: string; publicSlug: string | null } | null;
+  venue: {
+    id: string;
+    name: string;
+    city: string;
+    publicSlug: string | null;
+    timezone: string;
+  } | null;
 }
 
 export interface MyTournamentEntry {
@@ -183,7 +189,7 @@ const SUMMARY_SELECT = {
   entryFeeCents: true,
   feePayment: true,
   description: true,
-  venue: { select: { id: true, name: true, city: true, publicSlug: true } },
+  venue: { select: { id: true, name: true, city: true, publicSlug: true, timezone: true } },
 } as const satisfies Prisma.TournamentSelect;
 
 type SummaryRow = Prisma.TournamentGetPayload<{ select: typeof SUMMARY_SELECT }>;

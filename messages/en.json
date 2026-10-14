@@ -764,6 +764,18 @@
       "scheduled": {
         "title": "Your match: {when}, {court}",
         "body": "{tournament}. Enter the result after the match."
+      },
+      "proposed": {
+        "title": "{who} proposes a time for your match: {when}",
+        "body": "{tournament}, {court}. Accept or decline — the court is held until then."
+      },
+      "timeDeclined": {
+        "title": "{who} declined {when}",
+        "body": "{tournament}. The court is released — propose another time."
+      },
+      "timeWithdrawn": {
+        "title": "{who} took back {when}",
+        "body": "{tournament}. The match has no time yet."
       }
     }
   },
@@ -1835,7 +1847,7 @@
       "description": "Check your connection and try again."
     },
     "status": {
-      "PENDING": "Awaiting payment",
+      "PENDING": "Awaiting confirmation",
       "CONFIRMED": "Confirmed",
       "CANCELLED": "Cancelled",
       "COMPLETED": "Completed",
@@ -3090,6 +3102,14 @@
       "scheduled": {
         "subject": "Your {tournament} match: {when}",
         "intro": "Your {tournament} match is on {court}, {when}. After it, enter the result from the booking."
+      },
+      "proposed": {
+        "subject": "{who} proposes a time for your {tournament} match",
+        "intro": "{who} proposes playing your {tournament} match on {court}, {when}. The court is held while you decide: accept or decline it on the tournament’s page."
+      },
+      "timeDeclined": {
+        "subject": "Your {tournament} match time was declined",
+        "intro": "{who} declined {when} for your {tournament} match. The court is released; propose another time on the tournament’s page."
       }
     }
   },
@@ -3959,7 +3979,14 @@
       "PLAYER_ACCOUNT_REQUIRED": "Entering needs a player account.",
       "PHONE_REQUIRED": "Confirm your phone number.",
       "RATE_LIMITED": "Too many attempts. Try again in a moment.",
-      "FAILED": "Something went wrong. Try again."
+      "FAILED": "Something went wrong. Try again.",
+      "TOURNAMENT_MATCH_NOT_READY": "This match is not waiting for a time.",
+      "TOURNAMENT_MATCH_PLACED": "The match already has a time, or one is waiting for an answer.",
+      "TOURNAMENT_NO_PROPOSAL": "There is no proposed time for you to answer.",
+      "SLOT_TAKEN": "That time was just taken. Choose another.",
+      "SLOT_NOT_BOOKABLE": "That time cannot be booked. Choose another.",
+      "NO_SHOW_BLOCKED": "The club is not taking your bookings after missed bookings. Contact the club.",
+      "BOOKING_LIMIT_REACHED": "You have the most upcoming bookings the club allows."
     },
     "draw": {
       "heading": "Draw",
@@ -3997,7 +4024,25 @@
       "division": "Division {n}",
       "lostByBoth": "Lost by both",
       "overdue": "Overdue",
-      "deadline": "Play by {day}"
+      "deadline": "Play by {day}",
+      "proposed": "Proposed: {when}, {court} — awaiting an answer"
+    },
+    "propose": {
+      "open": "Propose a time",
+      "title": "Propose a time for the match",
+      "description": "Against {opponents}. The court is held in your name and paid at the club; it is confirmed when the other side accepts.",
+      "day": "Day",
+      "court": "Court",
+      "times": "Free times on {court}",
+      "none": "No free times that day.",
+      "hint": "Two hours from now at the earliest. If nobody answers within a day, the court is released.",
+      "send": "Propose",
+      "cancel": "Cancel",
+      "theirs": "They propose {when}, {court}. The court is held until {until}.",
+      "ours": "You proposed {when}, {court} — awaiting an answer until {until}.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "withdraw": "Take back"
     }
   }
 }

@@ -37,7 +37,13 @@ const tournament = (over: Partial<TournamentViewDto> = {}): TournamentViewDto =>
   feePayment: 'AT_CLUB',
   description: 'Две групи, после елиминации.',
   club: { slug: 'alfa', name: 'Клуб Алфа' },
-  venue: { id: 'v1', name: 'Алфа Кортове', city: 'Sofia', publicSlug: 'alfa-courts' },
+  venue: {
+    id: 'v1',
+    name: 'Алфа Кортове',
+    city: 'Sofia',
+    publicSlug: 'alfa-courts',
+    timezone: 'Europe/Sofia',
+  },
   myEntry: null,
   ...over,
 });

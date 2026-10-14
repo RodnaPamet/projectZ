@@ -76,7 +76,11 @@ export type TournamentDrawCode =
   | 'TOURNAMENT_STATE'
   | 'TOURNAMENT_INVALID'
   | 'TOURNAMENT_MATCH_NOT_FOUND'
-  | 'TOURNAMENT_MATCH_NOT_READY';
+  | 'TOURNAMENT_MATCH_NOT_READY'
+  /** A league match already on a court, or with a time waiting for an answer (#591). */
+  | 'TOURNAMENT_MATCH_PLACED'
+  /** No proposed time for this player to answer (#591, 63). */
+  | 'TOURNAMENT_NO_PROPOSAL';
 
 export class TournamentDrawError extends AppError {
   constructor(
@@ -90,7 +94,7 @@ export class TournamentDrawError extends AppError {
   }
 }
 
-const notFound = () =>
+export const notFound = () =>
   new TournamentDrawError('TOURNAMENT_MATCH_NOT_FOUND', 404, 'Match not found.');
 
 /** A cuid-shaped id, as `@default(cuid())` makes: the draw links matches before writing them. */
@@ -126,7 +130,10 @@ async function lock(db: PrismaClient, tenantId: string, id: string): Promise<Loc
   return t;
 }
 
-const playersOf = (e: { playerUserId: string; partnerUserId: string | null }) =>
+/** The tournament's row, locked for the rest of the transaction. */
+export const lockTournament = lock;
+
+export const playersOf = (e: { playerUserId: string; partnerUserId: string | null }) =>
   e.partnerUserId ? [e.playerUserId, e.partnerUserId] : [e.playerUserId];
 
 // ─── Making the draw ────────────────────────────────────────────────────
@@ -1061,12 +1068,22 @@ export async function scheduleMatch(
     });
     const players = sideIds.flatMap((id) => playersOf(entries.find((e) => e.id === id)!));
 
+    const endTs = new Date(input.startTs.getTime() + input.durationMinutes * 60_000);
     // A match moving: its old booking is cancelled first, so the court is free.
     if (m.bookingId) {
       const old = await db.booking.findFirst({
         where: { id: m.bookingId, tenantId: actor.tenantId },
-        select: { status: true },
+        select: { status: true, resourceId: true, startTs: true, endTs: true },
       });
+      // The same court and time again, as a retried request is: nothing to do.
+      if (
+        old?.status === 'CONFIRMED' &&
+        old.resourceId === input.resourceId &&
+        old.startTs.getTime() === input.startTs.getTime() &&
+        old.endTs.getTime() === endTs.getTime()
+      ) {
+        return { bookingId: m.bookingId, tournamentId: m.tournamentId, players };
+      }
       if (old && (old.status === 'CONFIRMED' || old.status === 'PENDING')) {
         await cancelBooking(db, actor.tenantId, {
           bookingId: m.bookingId,
@@ -1078,13 +1095,14 @@ export async function scheduleMatch(
       }
     }
 
-    const endTs = new Date(input.startTs.getTime() + input.durationMinutes * 60_000);
     const created = await createBooking(db, actor.tenantId, {
       resourceId: input.resourceId,
       startTs: input.startTs,
       endTs,
       totalCents: 0,
-      idempotencyKey: `tmatch:${m.id}:${input.startTs.getTime()}:${input.resourceId}`,
+      // With the booking it replaces: back to a slot it had before is a new booking,
+      // never the cancelled one replayed.
+      idempotencyKey: `tmatch:${m.id}:${m.bookingId ?? '-'}:${input.startTs.getTime()}:${input.resourceId}`,
       bookedByUserId: null,
       guestContact: { name: t.name },
       notes: t.name,
@@ -1136,6 +1154,21 @@ export interface DrawMatchView {
   score: number[][] | null;
   /** On a court, while its booking stands. */
   scheduled: { bookingId: string; courtName: string; startTs: Date; endTs: Date } | null;
+  /**
+   * A league match's time one side proposed (#591, 63): the court is held
+   * until `until`, waiting for the other side to accept.
+   */
+  proposal: {
+    bookingId: string;
+    courtName: string;
+    startTs: Date;
+    endTs: Date;
+    until: Date;
+    side: 0 | 1 | null;
+    priceCents: number;
+  } | null;
+  /** The viewer's side of the match, if they play it. */
+  mySide: 0 | 1 | null;
   /** A league's round (#591, 44): played by then. */
   deadline: Date | null;
   /** Past its deadline and not played: the club decides it (58). */
@@ -1217,6 +1250,9 @@ export async function readDraw(
               status: true,
               startTs: true,
               endTs: true,
+              expiresAt: true,
+              bookedByUserId: true,
+              totalCents: true,
               resource: { select: { name: true } },
             },
           },
@@ -1252,7 +1288,23 @@ export async function readDraw(
       const b = of(m.entryBId);
       const a2 = of(m.entryA2Id);
       const b2 = of(m.entryB2Id);
-      const live = m.booking && m.booking.status !== 'CANCELLED' ? m.booking : null;
+      // On the diary: a PENDING booking is a time one side proposed (#591, 63).
+      const live =
+        m.booking && m.booking.status !== 'CANCELLED' && m.booking.status !== 'PENDING'
+          ? m.booking
+          : null;
+      const held =
+        m.booking?.status === 'PENDING' && m.booking.expiresAt && m.booking.expiresAt > now
+          ? m.booking
+          : null;
+      const onSide = (userId: string | null) =>
+        !userId
+          ? null
+          : [a, a2].some((s) => s?.players.some((p) => p.userId === userId))
+            ? 0
+            : [b, b2].some((s) => s?.players.some((p) => p.userId === userId))
+              ? 1
+              : null;
       return {
         id: m.id,
         stage: m.stage,
@@ -1274,6 +1326,19 @@ export async function readDraw(
               endTs: live.endTs,
             }
           : null,
+        proposal:
+          held && m.status === 'READY'
+            ? {
+                bookingId: held.id,
+                courtName: held.resource.name,
+                startTs: held.startTs,
+                endTs: held.endTs,
+                until: held.expiresAt!,
+                side: onSide(held.bookedByUserId),
+                priceCents: held.totalCents,
+              }
+            : null,
+        mySide: onSide(viewerId),
         deadline: m.deadline,
         overdue: !!m.deadline && m.deadline < now && m.status === 'READY',
         mine:

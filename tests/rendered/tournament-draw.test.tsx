@@ -28,6 +28,8 @@ const match = (over: Partial<DrawMatchDto>): DrawMatchDto => ({
   sideA2: null,
   sideB2: null,
   status: 'PENDING',
+  proposal: null,
+  mySide: null,
   deadline: null,
   overdue: false,
   winnerSide: null,

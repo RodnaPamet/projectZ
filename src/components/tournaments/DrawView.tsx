@@ -217,7 +217,21 @@ function MatchCard({
           <Caption data-testid="draw-match-scheduled">
             {t('scheduled', { when: when!, court: m.scheduled.courtName })}
           </Caption>
-        ) : m.status === 'READY' ? (
+        ) : m.status === 'READY' && m.proposal && !m.mine ? (
+          // A league match's time one side proposed (#591, 63); its players see it with their answer.
+          <Caption data-testid="draw-match-proposed">
+            {t('proposed', {
+              when: format.dateTime(new Date(m.proposal.startTs), {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              court: m.proposal.courtName,
+            })}
+          </Caption>
+        ) : m.status === 'READY' && !m.proposal ? (
           <Caption>{t('notScheduled')}</Caption>
         ) : null}
         {linkMine && m.mine && m.scheduled && m.status === 'READY' ? (

@@ -31,7 +31,13 @@ export type TournamentNotice =
   /** The draw is made (#580). */
   | { kind: 'drawn' }
   /** A match of theirs is on a court (#580, decision 40). */
-  | { kind: 'scheduled'; when: string; court: string };
+  | { kind: 'scheduled'; when: string; court: string }
+  /** The other side proposed a league match's time, to accept or decline (#591, 63). */
+  | { kind: 'proposed'; who: string; when: string; court: string }
+  /** The other side declined the time this player proposed (63). */
+  | { kind: 'timeDeclined'; who: string; when: string }
+  /** The proposer took back the time they proposed (63). */
+  | { kind: 'timeWithdrawn'; who: string; when: string };
 
 /** Which notices also go by email, and under which subject key. */
 const EMAILED: ReadonlySet<TournamentNotice['kind']> = new Set([
@@ -41,6 +47,8 @@ const EMAILED: ReadonlySet<TournamentNotice['kind']> = new Set([
   'cancelled',
   'drawn',
   'scheduled',
+  'proposed',
+  'timeDeclined',
 ]);
 
 export async function tournamentCopy(

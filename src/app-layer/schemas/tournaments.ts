@@ -81,3 +81,12 @@ export const walkoverBodySchema = z
   // null: a league match lost by both (#591, 58).
   .object({ winnerSide: z.union([z.literal(0), z.literal(1), z.null()]) })
   .strict();
+
+/** `POST /me/tournament-matches/{id}/proposal` (#591; decisions 62, 63). */
+export const proposeMatchBodySchema = z
+  .object({
+    resourceId: z.string().min(1).max(64),
+    startTs: at,
+    durationMinutes: z.number().int().min(15).max(480),
+  })
+  .strict();

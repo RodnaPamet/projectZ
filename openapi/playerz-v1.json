@@ -17063,6 +17063,239 @@
           }
         }
       }
+    },
+    "/me/tournament-matches/{id}/proposal": {
+      "post": {
+        "tags": ["Tournaments"],
+        "operationId": "proposeMatchTime",
+        "summary": "Propose a time for one's league match",
+        "description": "A player on a ready league match proposes a court and a time (#591; decisions 62, 63). The court is held in their name at its own price, paid at the club, until the other side accepts or declines; the hold lapses after a day, and an hour before the start at the latest. The other side is told.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeMatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "TOURNAMENT_INVALID, SLOT_NOT_BOOKABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "NO_SHOW_BLOCKED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_MATCH_NOT_FOUND: not the caller's match.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_MATCH_NOT_READY, TOURNAMENT_MATCH_PLACED, SLOT_TAKEN, BOOKING_LIMIT_REACHED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Tournaments"],
+        "operationId": "letGoMatchTime",
+        "summary": "Decline, or take back, a proposed time",
+        "description": "The other side declines the proposed time, or the proposer takes it back (#591, 63). The held court is released and the other side is told.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_MATCH_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_NO_PROPOSAL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/tournament-matches/{id}/proposal/accept": {
+      "post": {
+        "tags": ["Tournaments"],
+        "operationId": "acceptMatchTime",
+        "summary": "Accept the proposed time",
+        "description": "Someone on the other side accepts the proposed time (#591, 63): the booking is confirmed and everyone on the match is told.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TOURNAMENT_MATCH_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TOURNAMENT_NO_PROPOSAL: none, or the caller's own side proposed it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -26023,7 +26256,7 @@
           },
           "venue": {
             "type": ["object", "null"],
-            "required": ["id", "name", "city", "publicSlug"],
+            "required": ["id", "name", "city", "publicSlug", "timezone"],
             "properties": {
               "id": {
                 "type": "string"
@@ -26036,6 +26269,10 @@
               },
               "publicSlug": {
                 "type": ["string", "null"]
+              },
+              "timezone": {
+                "type": "string",
+                "description": "IANA zone, for the venue's free times when a league's players place a match (#591)."
               }
             }
           }
@@ -26362,7 +26599,9 @@
           "sideA2",
           "sideB2",
           "deadline",
-          "overdue"
+          "overdue",
+          "proposal",
+          "mySide"
         ],
         "properties": {
           "id": {
@@ -26474,6 +26713,53 @@
           "overdue": {
             "type": "boolean",
             "description": "Past its deadline and not played: the club decides it (58)."
+          },
+          "proposal": {
+            "type": ["object", "null"],
+            "description": "A league match's time one side proposed (#591, 63): the court is held until `until`, waiting for the other side.",
+            "required": [
+              "bookingId",
+              "courtName",
+              "startTs",
+              "endTs",
+              "until",
+              "side",
+              "priceCents"
+            ],
+            "properties": {
+              "bookingId": {
+                "type": "string"
+              },
+              "courtName": {
+                "type": "string"
+              },
+              "startTs": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endTs": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "side": {
+                "type": ["integer", "null"],
+                "enum": [0, 1, null],
+                "description": "The side that proposed it."
+              },
+              "priceCents": {
+                "type": "integer",
+                "description": "The court's price, paid at the club by the proposer (62)."
+              }
+            }
+          },
+          "mySide": {
+            "type": ["integer", "null"],
+            "enum": [0, 1, null],
+            "description": "The viewer's side of the match, if they play it."
           }
         }
       },
@@ -26684,6 +26970,27 @@
             "type": ["integer", "null"],
             "enum": [0, 1, null],
             "description": "The side given the match; null in a league for a loss for both (#591, 58)."
+          }
+        }
+      },
+      "ProposeMatchRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceId", "startTs", "durationMinutes"],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "A court at the tournament's venue."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Two hours from now at the earliest."
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 15,
+            "maximum": 480
           }
         }
       }
