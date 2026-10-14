@@ -67,6 +67,19 @@ export async function resultDisputedCopy(
   };
 }
 
+/** A race's finishing order, to one driver (#577): «Място 2 от 6». */
+export async function resultPlacedCopy(
+  rawLocale: unknown,
+  facts: Omit<ResultFacts, 'score'> & { place: number; drivers: number },
+): Promise<{ title: string; body: string }> {
+  const locale = resolveLocale(rawLocale);
+  const [title, body] = await Promise.all([
+    translateFor(locale, 'notifications.result.placed.title', { ...facts }),
+    translateFor(locale, 'notifications.result.placed.body', { ...facts }),
+  ]);
+  return { title, body };
+}
+
 export async function resultDecidedCopy(
   rawLocale: unknown,
   facts: ResultFacts,

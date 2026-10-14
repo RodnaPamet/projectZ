@@ -9,6 +9,7 @@ export const RESULT_ERRORS = [
   'RESULT_NOT_FOUND',
   'INVALID_SIDES',
   'INVALID_SCORE',
+  'INVALID_ORDER',
   'RATE_LIMITED',
 ] as const;
 

@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { resultErrorKey, type ResultErrorKey } from '@/components/results/result-errors';
 import { RESULT_TONE } from '@/components/results/result-tone';
+import { RaceOrderEditor } from '@/components/results/RaceOrderEditor';
 import { ResultEditor } from '@/components/results/ResultEditor';
 import { ResultSummary } from '@/components/results/ResultSummary';
 import type { ClubBookingResultDto, ResultDraft } from '@/components/results/types';
@@ -28,12 +29,12 @@ export function DiaryResult({ slug, bookingId }: { slug: string; bookingId: stri
   const [error, setError] = useState<ResultErrorKey | null>(null);
 
   const { data, mutate } = useV1SWR<ClubBookingResultDto>(KEYS.clubBookingResult(slug, bookingId));
-  const enter = useV1Mutation<ResultDraft, unknown>({
+  const enter = useV1Mutation<ResultDraft | { order: string[] }, unknown>({
     url: () => V1.enterClubResult(slug, bookingId),
     body: (draft) => draft,
   });
 
-  async function send(draft: ResultDraft) {
+  async function send(draft: ResultDraft | { order: string[] }) {
     setError(null);
     try {
       await enter.trigger(draft);
@@ -57,7 +58,12 @@ export function DiaryResult({ slug, bookingId }: { slug: string; bookingId: stri
           <StatusBadge variant={RESULT_TONE[r.status]} className="justify-self-start">
             {tResults(`status.${r.status}`)}
           </StatusBadge>
-          <ResultSummary sides={r.sides} score={r.score} winnerSide={r.winnerSide} />
+          <ResultSummary
+            sides={r.sides}
+            score={r.score}
+            winnerSide={r.winnerSide}
+            format={r.format}
+          />
         </>
       ) : editing && (data.format === 'PERIODS' || data.format === 'TOTAL') ? (
         <ResultEditor
@@ -68,9 +74,18 @@ export function DiaryResult({ slug, bookingId }: { slug: string; bookingId: stri
           onSubmit={(draft) => void send(draft)}
           onCancel={() => setEditing(false)}
         />
+      ) : editing && data.format === 'ORDER' ? (
+        // A karting session (#577): the track's finishing order.
+        <RaceOrderEditor
+          drivers={data.players}
+          busy={enter.isMutating}
+          submitLabel={t('save')}
+          onSubmit={(order) => void send({ order })}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <>
-          <Caption>{t('final')}</Caption>
+          <Caption>{data.format === 'ORDER' ? t('finalRace') : t('final')}</Caption>
           <Button
             type="button"
             variant="secondary"
@@ -78,7 +93,7 @@ export function DiaryResult({ slug, bookingId }: { slug: string; bookingId: stri
             onClick={() => setEditing(true)}
             data-diary-result-enter
           >
-            {t('enter')}
+            {data.format === 'ORDER' ? t('enterRace') : t('enter')}
           </Button>
         </>
       )}

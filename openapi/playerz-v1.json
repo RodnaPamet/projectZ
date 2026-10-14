@@ -14986,7 +14986,7 @@
             }
           },
           "409": {
-            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, window-passed, no-score, not-a-player), RESULT_ALREADY_REPORTED.",
+            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, window-passed, no-score (karting too: its order is the track's), not-a-player), RESULT_ALREADY_REPORTED.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15385,7 +15385,7 @@
         "operationId": "enterClubResult",
         "summary": "Enter a booking's result as the club",
         "tags": ["Results"],
-        "description": "The club enters a booking's result itself: final, counted at once (#575; the default taken in round 4 of #378). The players are told. Needs `bookings.view_all`.",
+        "description": "The club enters a booking's result itself: final, counted at once (#575; the default taken in round 4 of #378). The players are told. Needs `bookings.view_all`. A karting track sends the session's finishing order instead (`RaceOrderRequest`, #577): no player confirms it, and it counts at once as a race.",
         "responses": {
           "201": {
             "description": "OK",
@@ -15398,7 +15398,7 @@
             }
           },
           "400": {
-            "description": "INVALID_SIDES, INVALID_SCORE, BAD_REQUEST.",
+            "description": "INVALID_SIDES, INVALID_SCORE, INVALID_ORDER, BAD_REQUEST.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15438,7 +15438,7 @@
             }
           },
           "409": {
-            "description": "RESULT_NOT_REPORTABLE, RESULT_ALREADY_REPORTED.",
+            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, no-score, not-a-race), RESULT_ALREADY_REPORTED.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15453,7 +15453,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReportResultRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportResultRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RaceOrderRequest"
+                  }
+                ]
               }
             }
           }
@@ -24230,6 +24237,23 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MyRatings"
+          }
+        }
+      },
+      "RaceOrderRequest": {
+        "type": "object",
+        "title": "RaceOrderRequest",
+        "additionalProperties": false,
+        "required": ["order"],
+        "description": "A karting session's finishing order (#577, decision 33): the drivers' user ids, first to last, from the booking's players. A driver left out did not race.",
+        "properties": {
+          "order": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 60,
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

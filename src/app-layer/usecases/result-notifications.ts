@@ -7,6 +7,7 @@ import {
   formatScore,
   resultDecidedCopy,
   resultDisputedCopy,
+  resultPlacedCopy,
   resultReportedCopy,
   type ResultFacts,
 } from '@/lib/notifications/result-copy';
@@ -84,6 +85,7 @@ async function reportFacts(tenantId: string, reportId: string) {
       select: {
         bookingId: true,
         status: true,
+        kind: true,
         sidesJson: true,
         scoreJson: true,
         reportedByUserId: true,
@@ -232,7 +234,16 @@ export async function notifyResultDecided(input: {
           day: day(reader.locale, f.startTs),
           score: f.score,
         };
-        const copy = await resultDecidedCopy(reader.locale, facts, f.status === 'VOIDED');
+        // A race (#577): each driver hears their own place.
+        const copy =
+          f.kind === 'ORDER' && f.status === 'DECIDED'
+            ? await resultPlacedCopy(reader.locale, {
+                venue: f.venue,
+                day: facts.day,
+                place: f.sides.findIndex((s) => s.includes(userId)) + 1,
+                drivers: f.sides.length,
+              })
+            : await resultDecidedCopy(reader.locale, facts, f.status === 'VOIDED');
         await deliver({
           userId,
           tenantId: input.tenantId,

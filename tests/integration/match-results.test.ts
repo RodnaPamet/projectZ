@@ -439,4 +439,152 @@ describe('a booking result', () => {
     await expect(reportResult(a.userId, id, doubles())).rejects.toThrow(/account_deleted/);
     expect(await stored(id)).toBeNull();
   });
+
+  describe('karting: the track enters the finishing order (#577)', () => {
+    /** A completed session on a track, booked by `a` with b, c and d driving too. */
+    async function session(): Promise<string> {
+      const end = Date.now() - 2 * HOUR;
+      return asAppSuperuser(db, async (tx) => {
+        const venue = await tx.resource.findUniqueOrThrow({
+          where: { id: resourceId },
+          select: { venueId: true },
+        });
+        const track = await tx.resource.create({
+          data: {
+            tenantId: club.tenantId,
+            venueId: venue.venueId,
+            name: 'Писта',
+            sport: 'KARTING',
+            resourceType: 'TRACK',
+            surface: 'CONCRETE',
+            capacity: 8,
+            basePriceCents: 6000,
+          },
+          select: { id: true },
+        });
+        const row = await tx.booking.create({
+          data: {
+            tenantId: club.tenantId,
+            resourceId: track.id,
+            startTs: new Date(end - HOUR),
+            endTs: new Date(end),
+            status: 'COMPLETED',
+            totalCents: 6000,
+            bookedByUserId: a.userId,
+            idempotencyKey: `race-${Math.random()}`,
+          },
+          select: { id: true },
+        });
+        await tx.bookingParticipant.createMany({
+          data: [b, c, d].map((p, i) => ({
+            tenantId: club.tenantId,
+            bookingId: row.id,
+            userId: p.userId,
+            position: i + 1,
+          })),
+        });
+        return row.id;
+      });
+    }
+
+    const enter = (id: string, body: unknown, who: TestIdentity = owner) =>
+      call(
+        enterRoute as never,
+        `/api/v1/t/${club.tenantSlug}/admin/bookings/${id}/result`,
+        who,
+        { slug: club.tenantSlug, id },
+        body,
+      );
+
+    it('the order counts at once, as a race: first to last, each driver told their place', async () => {
+      const id = await session();
+      const view = await call(
+        clubBookingRoute as never,
+        `/api/v1/t/${club.tenantSlug}/admin/bookings/${id}/result`,
+        owner,
+        {
+          slug: club.tenantSlug,
+          id,
+        },
+      );
+      expect(view.body.data).toMatchObject({ canEnter: true, format: 'ORDER' });
+
+      // c won, then a, then d; b did not race.
+      const res = await enter(id, { order: [c.userId, a.userId, d.userId] });
+      expect(res.status).toBe(201);
+      const row = await stored(id);
+      expect(row).toMatchObject({
+        kind: 'ORDER',
+        status: 'DECIDED',
+        scoreJson: null,
+        winnerSide: null,
+      });
+      expect(row!.sidesJson).toEqual([[c.userId], [a.userId], [d.userId]]);
+      expect(await ratedMatches(id)).toBe(1);
+
+      const ranks = await asAppSuperuser(db, (tx) =>
+        tx.matchParticipant.findMany({
+          where: { match: { dedupeKey: `booking:${id}` } },
+          select: { userId: true, rank: true, outcome: true },
+          orderBy: { rank: 'asc' },
+        }),
+      );
+      expect(ranks.map((r) => [r.userId, r.rank])).toEqual([
+        [c.userId, 1],
+        [a.userId, 2],
+        [d.userId, 3],
+      ]);
+      const mu = (userId: string) =>
+        asAppSuperuser(db, (tx) =>
+          tx.skillRatingHistory.findFirstOrThrow({
+            where: { userId, sport: 'KARTING' },
+            orderBy: { computedAt: 'desc' },
+          }),
+        ).then((r) => Number(r.mu));
+      expect(await mu(c.userId)).toBeGreaterThan(await mu(d.userId));
+      // Who did not race is not rated.
+      expect(
+        await asAppSuperuser(db, (tx) =>
+          tx.skillRatingHistory.count({ where: { userId: b.userId } }),
+        ),
+      ).toBe(0);
+
+      // Each driver hears their own place; nobody confirms anything.
+      const bell = (userId: string) =>
+        asAppSuperuser(db, (tx) =>
+          tx.notification.findFirst({ where: { userId, kind: 'RESULT_DECIDED' } }),
+        );
+      expect((await bell(a.userId))?.title).toMatch(/^Място 2 от 3/);
+      expect(await bell(b.userId)).toBeNull();
+    });
+
+    it('a driver cannot report a race, and the track’s order must be right', async () => {
+      const id = await session();
+      expect((await report(id, a)).body.error).toMatchObject({
+        code: 'RESULT_NOT_REPORTABLE',
+        details: { reason: 'no-score' },
+      });
+      expect((await enter(id, { order: [a.userId] })).status).toBe(400);
+      expect((await enter(id, { order: [a.userId, a.userId] })).body.error.code).toBe(
+        'INVALID_ORDER',
+      );
+      expect((await enter(id, { order: [a.userId, stranger.userId] })).body.error.code).toBe(
+        'INVALID_ORDER',
+      );
+      // A player is not the track's desk.
+      expect((await enter(id, { order: [a.userId, b.userId] }, a)).status).toBe(403);
+      expect(await stored(id)).toBeNull();
+    });
+
+    it('a match is not a race, and a race has no score', async () => {
+      const padel = await booking();
+      expect((await enter(padel, { order: [a.userId, b.userId] })).body.error).toMatchObject({
+        details: { reason: 'not-a-race' },
+      });
+      const race = await session();
+      expect((await enter(race, doubles())).body.error).toMatchObject({
+        details: { reason: 'no-score' },
+      });
+    });
+  });
 });

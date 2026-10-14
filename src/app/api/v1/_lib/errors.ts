@@ -111,6 +111,7 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // A booking's result (#575): the sides or the score cannot be right.
   ResultSidesError: { status: 400, code: 'INVALID_SIDES' },
   InvalidScoreError: { status: 400, code: 'INVALID_SCORE' },
+  ResultOrderError: { status: 400, code: 'INVALID_ORDER' },
 
   // Sign in with Apple's hidden-address step (#442): the Apple sign-in it
   // continues has expired (sign in again); the address typed is not one, or is
