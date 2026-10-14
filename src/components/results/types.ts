@@ -36,6 +36,8 @@ export interface BookingResultDto {
   players: ResultPlayerDto[];
   /** A tournament match's sides, set by the draw (#580). */
   fixedSides?: ResultPlayerDto[][] | null;
+  /** An Americano or Mexicano match (#590): the points it is played to. */
+  pointsTotal?: number | null;
 }
 
 export interface ClubResultDto {

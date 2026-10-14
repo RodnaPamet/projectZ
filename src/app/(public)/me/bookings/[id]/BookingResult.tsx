@@ -178,15 +178,22 @@ export function BookingResult({ bookingId, seed }: { bookingId: string; seed: Bo
             ) : null}
           </>
         ) : editing && scored ? (
-          <ResultEditor
-            players={view.players}
-            format={view.format as 'PERIODS' | 'TOTAL'}
-            fixedSides={view.fixedSides ?? null}
-            busy={report.isMutating}
-            submitLabel={t('send')}
-            onSubmit={(draft) => void send(draft)}
-            onCancel={() => setEditing(false)}
-          />
+          <>
+            {view.pointsTotal ? (
+              <Caption data-testid="booking-result-points">
+                {t('pointsTotal', { total: view.pointsTotal })}
+              </Caption>
+            ) : null}
+            <ResultEditor
+              players={view.players}
+              format={view.format as 'PERIODS' | 'TOTAL'}
+              fixedSides={view.fixedSides ?? null}
+              busy={report.isMutating}
+              submitLabel={t('send')}
+              onSubmit={(draft) => void send(draft)}
+              onCancel={() => setEditing(false)}
+            />
+          </>
         ) : (
           <>
             <p className="text-content-default text-sm">

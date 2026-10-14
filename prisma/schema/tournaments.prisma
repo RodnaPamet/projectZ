@@ -70,6 +70,10 @@ model Tournament {
   thirdPlace         Boolean   @default(false)
   /// When the club made the draw (#580): from then on it is IN_PROGRESS.
   drawnAt            DateTime?
+  /// Americano and Mexicano (#590; decisions 56, 60): the rounds the club
+  /// sets, and the points a match is played to.
+  rounds             Int?
+  pointsPerMatch     Int?
 
   currentRound Int @default(0)
   totalRounds  Int @default(0)
@@ -172,8 +176,12 @@ model TournamentMatch {
   groupNo Int             @default(0)
 
   /// Null until an earlier match decides it; side B null in round 1 is a bye.
-  entryAId String?
-  entryBId String?
+  entryAId  String?
+  entryBId  String?
+  /// Americano and Mexicano (#590): each side is two players who signed up
+  /// alone, partnered for this round only. The second of each side.
+  entryA2Id String?
+  entryB2Id String?
 
   status     TournamentMatchStatus @default(PENDING)
   /// 0 = side A won, 1 = side B, null = not decided or a group draw.
@@ -203,5 +211,7 @@ model TournamentMatch {
   @@index([tenantId])
   @@index([entryAId])
   @@index([entryBId])
+  @@index([entryA2Id])
+  @@index([entryB2Id])
   @@map("tournament_match")
 }

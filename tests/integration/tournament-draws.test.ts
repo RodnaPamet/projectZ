@@ -402,4 +402,113 @@ describe('a tournament draw', () => {
       ).status,
     ).toBe(403);
   });
+
+  describe('Americano and Mexicano (#590; decisions 43, 56, 60)', () => {
+    it('Americano: two against two, played to the points, a draw allowed, no ratings', async () => {
+      const id = await withEntries(4, { format: 'AMERICANO' });
+      const drawn = await draw(id, { rounds: 3, pointsPerMatch: 24 });
+      expect(drawn.status).toBe(201);
+      const matches = drawn.body.data.groups[0].matches as Array<Record<string, any>>;
+      // Four players: one match a round, three rounds, every partner once.
+      expect(matches).toHaveLength(3);
+      const partners = matches.flatMap((m) => [
+        [m.sideA.id, m.sideA2.id].sort().join('|'),
+        [m.sideB.id, m.sideB2.id].sort().join('|'),
+      ]);
+      expect(new Set(partners).size).toBe(6);
+
+      // Round 1 on a court yesterday; its four players report it as a booking.
+      const first = matches[0]!;
+      const on = await schedule(first.id, new Date(Date.now() - DAY));
+      const bookingId = on.body.data.groups[0].matches[0].scheduled.bookingId as string;
+      await asAppSuperuser(db, (tx) =>
+        tx.booking.update({ where: { id: bookingId }, data: { status: 'COMPLETED' } }),
+      );
+      const sideA = [first.sideA, first.sideA2].map((e: any) => e.players[0].userId);
+      const sideB = [first.sideB, first.sideB2].map((e: any) => e.players[0].userId);
+      const reporter = players.find((p) => p.userId === sideA[0])!;
+      const answerer = players.find((p) => p.userId === sideB[0])!;
+      const report = (score: number[][]) =>
+        call(
+          reportRoute as never,
+          'POST',
+          `/api/v1/me/bookings/${bookingId}/result`,
+          reporter,
+          { id: bookingId },
+          {
+            sides: [sideA, sideB],
+            score,
+          },
+        );
+      expect((await report([[13, 10]])).body.error.code).toBe('INVALID_SCORE');
+      expect(
+        (
+          await report([
+            [6, 4],
+            [6, 3],
+          ])
+        ).body.error.code,
+      ).toBe('INVALID_SCORE');
+      // A level match is a result here (56).
+      const reported = await report([[12, 12]]);
+      expect(reported.status).toBe(201);
+      expect(reported.body.data.pointsTotal).toBe(24);
+      const reportId = reported.body.data.result.id as string;
+      await call(
+        answerConfirmRoute as never,
+        'POST',
+        `/api/v1/me/results/${reportId}/confirm`,
+        answerer,
+        { id: reportId },
+        {},
+      );
+
+      const after = await call(
+        playerDrawRoute as never,
+        'GET',
+        `/api/v1/tournaments/${id}/draw`,
+        reporter,
+        { id },
+      );
+      expect(after.body.data.groups[0].matches[0]).toMatchObject({
+        status: 'PLAYED',
+        winnerSide: null,
+        score: [[12, 12]],
+      });
+      // Each player keeps their pair's points: twelve each.
+      const table = after.body.data.groups[0].table as Array<{ points: number; drawn: number }>;
+      expect(table.map((r) => r.points).sort()).toEqual([12, 12, 12, 12]);
+      // No ratings (43).
+      expect(
+        await asAppSuperuser(db, (tx) =>
+          tx.skillRatingHistory.count({ where: { userId: { in: [...sideA, ...sideB] } } }),
+        ),
+      ).toBe(0);
+    });
+
+    it('Mexicano: one round at a time from the table; the round off goes round', async () => {
+      const id = await withEntries(5, { format: 'MEXICANO' });
+      const drawn = await draw(id, { rounds: 2, pointsPerMatch: 24 });
+      const round1 = drawn.body.data.groups[0].matches as Array<Record<string, any>>;
+      // Five players: one match, one sits out; no second round yet.
+      expect(round1).toHaveLength(1);
+      const on1 = new Set(
+        [round1[0]!.sideA, round1[0]!.sideA2, round1[0]!.sideB, round1[0]!.sideB2].map(
+          (e: any) => e.id,
+        ),
+      );
+      const after1 = await walkover(round1[0]!.id, 0);
+      const both = after1.body.data.groups[0].matches as Array<Record<string, any>>;
+      expect(both).toHaveLength(2);
+      const round2 = both.find((m) => m.round === 2)!;
+      const on2 = [round2.sideA, round2.sideA2, round2.sideB, round2.sideB2].map((e: any) => e.id);
+      // Whoever sat out round 1 plays round 2.
+      const sat = (drawn.body.data.groups[0].table as Array<{ entryId: string }>)
+        .map((r) => r.entryId)
+        .find((e) => !on1.has(e))!;
+      expect(on2).toContain(sat);
+      await walkover(round2.id, 1);
+      expect(await tournamentStatus(id)).toBe('COMPLETE');
+    });
+  });
 });

@@ -5,6 +5,7 @@ import { recordMatch } from '@/app-layer/usecases/ratings';
 import { matchPlayedFromBooking, tournamentMatchRules } from '@/app-layer/usecases/tournament-draw';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 import { InvalidScoreError, scoreFormatFor, winnerOf, type ScoreFormat } from '@/lib/ranking/score';
+import { pointsWinner, PointsScoreError } from '@/lib/tournaments/rotating';
 import { SPORTS } from '@/lib/sports/registry';
 
 /**
@@ -145,6 +146,8 @@ export interface BookingResultState {
    * tournament match: the result keeps them, and the form does not ask.
    */
   fixedSides: ResultPlayer[][] | null;
+  /** An Americano or Mexicano match (#590, 56): the points it is played to. */
+  pointsTotal: number | null;
 }
 
 // ─── Reading a booking for a result ─────────────────────────────────────
@@ -287,9 +290,11 @@ export async function readBookingResult(
     result,
     canReport,
     reportableUntil: canReport ? until.toISOString() : null,
-    format,
+    // An Americano or Mexicano match is one pair of points (#590, 56).
+    format: rules?.points ? 'TOTAL' : format,
     players: b.players.map(player),
     fixedSides: rules ? rules.sides.map((s) => s.map(player)) : null,
+    pointsTotal: rules?.points ?? null,
   };
 }
 
@@ -347,7 +352,7 @@ export async function reportResult(
   if (!b.players.includes(userId)) throw new ResultNotReportableError('not-a-player');
 
   const sides = checkSides(b.sport, input.sides, b.players, userId);
-  const winnerSide = winnerOf(b.sport, input.score);
+  const winnerSide = await winnerFor(at.tenantId, bookingId, b.sport, input.score);
   await checkTournamentMatch(at.tenantId, bookingId, sides, winnerSide);
 
   try {
@@ -603,7 +608,7 @@ export async function decideResult(
       sidesJson = checkSides(b.sport, sides, b.players, sides.flat()[0] ?? report.reportedByUserId);
       if (decision.score) {
         scoreJson = decision.score;
-        winnerSide = winnerOf(b.sport, decision.score);
+        winnerSide = await winnerFor(actor.tenantId, report.bookingId, b.sport, decision.score);
       }
       await checkTournamentMatch(
         actor.tenantId,
@@ -653,7 +658,7 @@ export async function enterClubResult(
     b.players,
     typeof reporter === 'string' ? reporter : '',
   );
-  const winnerSide = winnerOf(b.sport, input.score);
+  const winnerSide = await winnerFor(actor.tenantId, bookingId, b.sport, input.score);
   await checkTournamentMatch(actor.tenantId, bookingId, sides, winnerSide);
   try {
     const row = await runInTenantContext(actor.tenantId, (db) =>
@@ -779,23 +784,27 @@ async function countResult(tenantId: string, reportId: string): Promise<void> {
         : [sides[0]!, sides[1]!];
     const ranks = race ? sides.map((_, i) => i + 1) : r.winnerSide === null ? [1, 1] : [1, 2];
     const dedupeKey = `booking:${r.bookingId}`;
-    await recordMatch(db, {
-      tenantId,
-      sport: r.sport,
-      teams,
-      ranks,
-      reportedByUserId: r.reportedByUserId,
-      dedupeKey,
-    });
-    const counted = await db.matchResultRecord.findUnique({
-      where: { dedupeKey },
-      select: { id: true },
-    });
-    if (counted) {
-      await db.matchReport.updateMany({
-        where: { id: reportId, matchResultId: null },
-        data: { matchResultId: counted.id },
+    // Americano and Mexicano move no ratings (#590, decision 43).
+    const rules = race ? null : await tournamentMatchRules(db, tenantId, r.bookingId);
+    if (!rules || rules.rated) {
+      await recordMatch(db, {
+        tenantId,
+        sport: r.sport,
+        teams,
+        ranks,
+        reportedByUserId: r.reportedByUserId,
+        dedupeKey,
       });
+      const counted = await db.matchResultRecord.findUnique({
+        where: { dedupeKey },
+        select: { id: true },
+      });
+      if (counted) {
+        await db.matchReport.updateMany({
+          where: { id: reportId, matchResultId: null },
+          data: { matchResultId: counted.id },
+        });
+      }
     }
     // A tournament match's booking (#580): the match is played, and the draw
     // moves on. Nothing for any other booking.
@@ -811,6 +820,29 @@ async function countResult(tenantId: string, reportId: string): Promise<void> {
       );
     }
   });
+}
+
+/**
+ * Who won a score: by the sport's scoring, or for an Americano or Mexicano
+ * match by its points (#590, 56): one pair adding up to the match's points,
+ * a draw allowed.
+ */
+async function winnerFor(
+  tenantId: string,
+  bookingId: string,
+  sport: SportType,
+  score: unknown,
+): Promise<0 | 1 | null> {
+  const rules = await runInTenantContext(tenantId, (db) =>
+    tournamentMatchRules(db, tenantId, bookingId),
+  );
+  if (!rules?.points) return winnerOf(sport, score);
+  try {
+    return pointsWinner(score, rules.points);
+  } catch (err) {
+    if (err instanceof PointsScoreError) throw new InvalidScoreError(err.reason);
+    throw err;
+  }
 }
 
 /**

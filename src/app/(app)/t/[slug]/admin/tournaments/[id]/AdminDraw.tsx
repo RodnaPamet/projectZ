@@ -51,7 +51,13 @@ export function AdminDraw({
   const [error, setError] = useState<TournamentErrorKey | null>(null);
 
   const make = useV1Mutation<
-    { groupCount?: number; qualifiersPerGroup?: number; thirdPlace: boolean },
+    {
+      groupCount?: number;
+      qualifiersPerGroup?: number;
+      thirdPlace: boolean;
+      rounds?: number;
+      pointsPerMatch?: number;
+    },
     DrawDto
   >({
     url: () => V1.drawTournament(slug, x.id),
@@ -216,11 +222,21 @@ function MakeDrawSheet({
   confirmed: number;
   busy: boolean;
   onClose: () => void;
-  onSubmit: (b: { groupCount?: number; qualifiersPerGroup?: number; thirdPlace: boolean }) => void;
+  onSubmit: (b: {
+    groupCount?: number;
+    qualifiersPerGroup?: number;
+    thirdPlace: boolean;
+    rounds?: number;
+    pointsPerMatch?: number;
+  }) => void;
 }) {
   const t = useTranslations('admin.tournaments.draw');
   const id = useId();
   const groups = format === 'GROUPS_KNOCKOUT';
+  // Americano and Mexicano (#590): the rounds (60) and the points a match is played to (56).
+  const rotating = format === 'AMERICANO' || format === 'MEXICANO';
+  const [rounds, setRounds] = useState(String(Math.max(1, confirmed - 1)));
+  const [points, setPoints] = useState('24');
   const [groupCount, setGroupCount] = useState(
     String(Math.max(1, Math.min(4, Math.floor(confirmed / 4) || 1))),
   );
@@ -260,7 +276,29 @@ function MakeDrawSheet({
             </div>
           </div>
         ) : null}
-        {format !== 'ROUND_ROBIN' ? (
+        {rotating ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="gap-tight flex flex-col">
+              <Label htmlFor={`${id}-rounds`}>{t('rounds')}</Label>
+              <Input
+                id={`${id}-rounds`}
+                inputMode="numeric"
+                value={rounds}
+                onChange={(e) => setRounds(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+            <div className="gap-tight flex flex-col">
+              <Label htmlFor={`${id}-points`}>{t('pointsPerMatch')}</Label>
+              <Input
+                id={`${id}-points`}
+                inputMode="numeric"
+                value={points}
+                onChange={(e) => setPoints(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+          </div>
+        ) : null}
+        {format !== 'ROUND_ROBIN' && !rotating ? (
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor={`${id}-third`}>{t('thirdPlace')}</Label>
             <Switch id={`${id}-third`} checked={thirdPlace} onCheckedChange={setThirdPlace} />
@@ -277,6 +315,7 @@ function MakeDrawSheet({
                 ...(groups
                   ? { groupCount: Number(groupCount), qualifiersPerGroup: Number(qualifiers) }
                   : {}),
+                ...(rotating ? { rounds: Number(rounds), pointsPerMatch: Number(points) } : {}),
                 thirdPlace,
               })
             }

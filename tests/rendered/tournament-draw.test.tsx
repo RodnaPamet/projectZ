@@ -25,6 +25,8 @@ const match = (over: Partial<DrawMatchDto>): DrawMatchDto => ({
   groupNo: 0,
   sideA: null,
   sideB: null,
+  sideA2: null,
+  sideB2: null,
   status: 'PENDING',
   winnerSide: null,
   score: null,

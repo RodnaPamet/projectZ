@@ -156,6 +156,8 @@ function MatchCard({
   const bye = m.status === 'WALKOVER' && (!m.sideA || !m.sideB);
   const side = (i: 0 | 1) => {
     const e = i === 0 ? m.sideA : m.sideB;
+    // Americano and Mexicano (#590): two who signed up alone, partnered this round.
+    const e2 = i === 0 ? m.sideA2 : m.sideB2;
     const won = m.winnerSide === i;
     return (
       <div
@@ -164,7 +166,9 @@ function MatchCard({
           won ? 'text-content-emphasis font-semibold' : 'text-content-default',
         )}
       >
-        <span className="min-w-0 truncate">{e ? name(e) : bye ? t('bye') : t('tbd')}</span>
+        <span className="min-w-0 truncate">
+          {e ? (e2 ? `${name(e)} / ${name(e2)}` : name(e)) : bye ? t('bye') : t('tbd')}
+        </span>
         {m.score ? (
           <span className="shrink-0 tabular-nums">{m.score.map((pair) => pair[i]).join(' ')}</span>
         ) : null}
