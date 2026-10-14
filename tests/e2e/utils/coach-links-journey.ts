@@ -23,15 +23,19 @@ const shot = async (page: Page, dir: string | undefined, name: string) => {
   if (dir) await page.screenshot({ path: `${dir}/${name}.png`, fullPage: true });
 };
 
-/** Give the coach a profile the platform approved, as the platform does it (P72). */
-export async function approveCoach(coachId: string, adminId: string) {
+/**
+ * Give the coach a profile the platform approved, as the platform does it
+ * (P72). Returns the page address it was given.
+ */
+export async function approveCoach(coachId: string, adminId: string): Promise<string> {
+  const slug = `e2e-coach-${randomUUID().slice(0, 8)}`;
   await prisma().$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
     await tx.$executeRawUnsafe(`SELECT set_config('app.platform_admin_id', $1, true)`, adminId);
     await tx.coachProfile.create({
       data: {
         userId: coachId,
-        slug: `e2e-coach-${randomUUID().slice(0, 8)}`,
+        slug,
         bio: 'Треньор по падел и тенис от 2010 г. Работя с начинаещи и с напреднали.',
         qualifications: 'Лиценз ББФТ, ниво 2',
         status: 'APPROVED',
@@ -41,6 +45,41 @@ export async function approveCoach(coachId: string, adminId: string) {
         sports: { create: [{ sport: 'PADEL', levelMin: 1, levelMax: 5 }] },
       },
     });
+  });
+  return slug;
+}
+
+/** A link a lesson can be booked on: accepted, with a rate, a length and Monday mornings. */
+export async function seedTeaching(
+  coachId: string,
+  at: { tenantId: string; venueId: string },
+  hourlyRateCents = 4000,
+): Promise<string> {
+  return prisma().$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL ROLE app_superuser`);
+    const link = await tx.coach.create({
+      data: {
+        tenantId: at.tenantId,
+        venueId: at.venueId,
+        userId: coachId,
+        status: 'ACTIVE',
+        startedBy: 'COACH',
+        hourlyRateCents,
+        groupRateCents: 6000,
+        lessonMinutes: [60, 120],
+      },
+      select: { id: true },
+    });
+    await tx.coachAvailability.create({
+      data: {
+        tenantId: at.tenantId,
+        coachId: link.id,
+        dayOfWeek: 1,
+        openTime: new Date('1970-01-01T09:00:00Z'),
+        closeTime: new Date('1970-01-01T12:00:00Z'),
+      },
+    });
+    return link.id;
   });
 }
 

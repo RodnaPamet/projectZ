@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 
+import { COACHES_HREF, coachPath } from '@/lib/coaches/hrefs';
+
 import { absoluteUrl } from './site-url';
 
 /**
@@ -40,10 +42,19 @@ export function clubPath(slug: string): string {
   return `/clubs/${encodeURIComponent(slug)}`;
 }
 
+/** A coach a player can book: their page's address and when the profile last changed. */
+export interface SitemapCoach {
+  slug: string;
+  updatedAt: Date;
+}
+
+export const SITEMAP_MAX_COACHES = 5_000;
+
 export function buildSitemap(
   origin: URL,
   venues: readonly SitemapVenue[],
   clubs: readonly SitemapClub[] = [],
+  coaches: readonly SitemapCoach[] = [],
 ): MetadataRoute.Sitemap {
   // /venues changes whenever a venue on it does; `/` has no data-backed date,
   // and a made-up one (the request time) teaches crawlers to ignore the field.
@@ -76,5 +87,22 @@ export function buildSitemap(
       changeFrequency: 'daily' as const,
       priority: 0.8,
     })),
+    // Треньори (#547), once there is anybody to list: the list, then each
+    // coach's page. A coach's page changes when they edit it or their venues.
+    ...(coaches.length > 0
+      ? [
+          {
+            url: absoluteUrl(COACHES_HREF, origin),
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+          },
+          ...coaches.map((c) => ({
+            url: absoluteUrl(coachPath(c.slug), origin),
+            lastModified: c.updatedAt,
+            changeFrequency: 'weekly' as const,
+            priority: 0.6,
+          })),
+        ]
+      : []),
   ];
 }

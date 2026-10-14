@@ -6,6 +6,8 @@
   "routes": {
     "/": 315.3,
     "/clubs/[slug]": 316.5,
+    "/coaches": 316.9,
+    "/coaches/[slug]": 315.8,
     "/cookies": 312.6,
     "/delete-account": 313.2,
     "/design-system": 335.2,

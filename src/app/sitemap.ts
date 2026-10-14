@@ -2,8 +2,10 @@ import type { MetadataRoute } from 'next';
 
 import { env } from '@/env';
 import { listSitemapClubs, listSitemapVenues } from '@/app-layer/repositories/venue';
+import { listSitemapCoaches } from '@/app-layer/usecases/coach-directory';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
-import { buildSitemap, SITEMAP_MAX_VENUES } from '@/lib/seo/sitemap';
+import { readModules } from '@/lib/modules';
+import { buildSitemap, SITEMAP_MAX_COACHES, SITEMAP_MAX_VENUES } from '@/lib/seo/sitemap';
 import { siteUrl } from '@/lib/seo/site-url';
 
 /**
@@ -30,5 +32,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const venues = await listSitemapVenues(db, SITEMAP_MAX_VENUES);
     return { venues, clubs: await listSitemapClubs(db, venues) };
   });
-  return buildSitemap(siteUrl(), venues, clubs);
+  // The coaches' pages, while the module is on (#547): the pages answer
+  // either way, and are not offered to search engines before the module is.
+  const coaches = readModules().coaches ? await listSitemapCoaches(SITEMAP_MAX_COACHES) : [];
+  return buildSitemap(siteUrl(), venues, clubs, coaches);
 }

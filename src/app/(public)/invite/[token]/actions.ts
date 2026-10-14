@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 
 import { acceptInvite, InviteNeedsAnotherAccountError } from '@/app-layer/usecases/invites';
-import { MODULE_HREFS } from '@/components/layout/nav-items';
+import { COACH_PROFILE_HREF } from '@/lib/coaches/hrefs';
 import type { AccountKindRefusal } from '@/lib/auth/account-kind';
 import { requireSignedIn } from '@/lib/auth/page-context';
 import { accountKindViolation } from '@/lib/db/pg-errors';
@@ -72,5 +72,5 @@ export async function acceptInviteAction(token: string): Promise<{ error: Accept
 
   // A coach is not the club's staff: their place is their own coach page,
   // where the club they just joined is listed with its terms to fill in (#546).
-  redirect(asCoach ? MODULE_HREFS.coaches : `/t/${slug}`);
+  redirect(asCoach ? COACH_PROFILE_HREF : `/t/${slug}`);
 }

@@ -9,7 +9,7 @@ import {
 import { getMe } from '@/app-layer/usecases/me';
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
 import { profileCrumbs } from '@/components/layout/crumbs';
-import { MODULE_HREFS } from '@/components/layout/nav-items';
+import { COACH_PROFILE_HREF } from '@/lib/coaches/hrefs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { playerChrome } from '@/components/layout/player-chrome';
 import { requireSignedIn } from '@/lib/auth/page-context';
@@ -109,7 +109,7 @@ export default async function ProfilePage() {
         email={me.email}
         platformHref={platformHref}
         coachHref={
-          mine.accountKind === 'COACH' && readModules().coaches ? MODULE_HREFS.coaches : null
+          mine.accountKind === 'COACH' && readModules().coaches ? COACH_PROFILE_HREF : null
         }
         account={mine}
         showSports={mine.accountKind !== 'CLUB'}

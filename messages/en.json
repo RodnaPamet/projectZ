@@ -3102,5 +3102,44 @@
       "NETWORK": "No connection. Try again.",
       "UNKNOWN": "Something went wrong. Try again."
     }
+  },
+  "coaches": {
+    "metaTitle": "Coaches — playerz.bg",
+    "metaDescription": "Approved coaches for tennis, padel and other sports. See where they teach and for how much.",
+    "title": "Coaches",
+    "intro": "Coaches approved by playerz.bg, with whom a lesson can be booked.",
+    "filterLabel": "Sport",
+    "allSports": "All",
+    "empty": {
+      "title": "No coaches yet",
+      "description": "Coaches you can book a lesson with will be here soon.",
+      "sport": "No coaches for this sport."
+    },
+    "noName": "Coach",
+    "from": "from {price} an hour",
+    "next": "Next",
+    "first": "Back to the start",
+    "page": {
+      "metaTitle": "{name}, coach | playerz.bg",
+      "metaDescription": "{name} teaches {sports}. See where and for how much.",
+      "teaches": "Teaches",
+      "sportOne": "{sport}: level {level}",
+      "sportRange": "{sport}: levels {min}–{max}",
+      "about": "About the coach",
+      "qualifications": "Qualifications",
+      "venues": "Where they teach",
+      "nowhere": "There is no venue right now where a lesson can be booked with this coach.",
+      "at": "{club} · {city}",
+      "rate": "{price} an hour",
+      "groupRate": "for a group {price} an hour",
+      "lengths": "lessons of {lengths} min",
+      "courtNote": "The court’s price is added to the coach’s. Paid at the club.",
+      "jobTitle": "Coach"
+    },
+    "venue": {
+      "title": "Coaches",
+      "all": "All coaches",
+      "rate": "{price} an hour"
+    }
   }
 }

@@ -1,5 +1,6 @@
 import type { BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { PLAY_PATH } from '@/lib/auth/landing';
+import { COACH_PROFILE_HREF } from '@/lib/coaches/hrefs';
 import type { ResourceNouns } from '@/lib/sports/resource-kinds';
 
 import {
@@ -63,7 +64,12 @@ export function profileCrumbs(t: NavT): BreadcrumbItem[] {
 
 /** Профил, then «Профил на треньор» (#545): a coach's own profile hangs off the account's. */
 export function coachProfileCrumbs(t: NavT): BreadcrumbItem[] {
-  return [...profileCrumbs(t), { label: t('coachProfile'), href: MODULE_HREFS.coaches }];
+  return [...profileCrumbs(t), { label: t('coachProfile'), href: COACH_PROFILE_HREF }];
+}
+
+/** Треньори, and one coach (their name, the page's heading) (#547). */
+export function coachesCrumbs(t: NavT, coach?: string | null): BreadcrumbItem[] {
+  return [{ label: t('coaches'), href: MODULE_HREFS.coaches }, ...leaf(coach)];
 }
 
 /** The club admin's pages, by their segment under `/t/{slug}/admin`. */
