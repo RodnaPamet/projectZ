@@ -1091,7 +1091,10 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'MatchReport.reportedByUserId': TRIGGER,
   'MatchReport.answeredByUserId': TRIGGER,
   'MatchReport.decidedByUserId': actor('the club staff member who decided or entered a result'),
-  'SkillRatingHistory.userId': RATED_ON_A_RESULT,
+  'SkillRatingHistory.userId': {
+    held: 'reason',
+    why: 'Written for the living only: rating a result reads a deleted player as an opponent and writes no row for them (`recordMatch`, #582), so the history deleted with the account stays deleted.',
+  },
   'XpEvent.userId': UNWRITTEN,
   'UserAchievement.userId': UNWRITTEN,
   'WearableConnection.userId': UNWRITTEN,

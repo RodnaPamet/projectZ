@@ -21,10 +21,10 @@ const r = messages.myBookings.result;
 const results = messages.results;
 
 const PLAYERS = [
-  { userId: 'u_ana', name: 'Ана' },
-  { userId: 'u_boris', name: 'Борис' },
-  { userId: 'u_cveta', name: 'Цвета' },
-  { userId: 'u_dimo', name: 'Димо' },
+  { userId: 'u_ana', name: 'Ана', deleted: false },
+  { userId: 'u_boris', name: 'Борис', deleted: false },
+  { userId: 'u_cveta', name: 'Цвета', deleted: false },
+  { userId: 'u_dimo', name: 'Димо', deleted: false },
 ];
 
 const state = (over: Partial<BookingResultDto> = {}): BookingResultDto => ({

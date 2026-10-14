@@ -34,3 +34,9 @@ export const decideResultBodySchema = z.discriminatedUnion('action', [
     .strict(),
   z.object({ action: z.literal('void') }).strict(),
 ]);
+
+/** A race's finishing order (#577): the drivers' user ids, first to last. */
+export const raceOrderBodySchema = z.object({ order: z.array(userId).min(2).max(60) }).strict();
+
+/** `POST /t/{slug}/admin/bookings/{id}/result`: a score, or a race's order. */
+export const clubResultBodySchema = z.union([reportResultBodySchema, raceOrderBodySchema]);

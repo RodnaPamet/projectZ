@@ -14986,7 +14986,7 @@
             }
           },
           "409": {
-            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, window-passed, no-score, not-a-player), RESULT_ALREADY_REPORTED.",
+            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, window-passed, no-score (karting too: its order is the track's), not-a-player), RESULT_ALREADY_REPORTED.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15385,7 +15385,7 @@
         "operationId": "enterClubResult",
         "summary": "Enter a booking's result as the club",
         "tags": ["Results"],
-        "description": "The club enters a booking's result itself: final, counted at once (#575; the default taken in round 4 of #378). The players are told. Needs `bookings.view_all`.",
+        "description": "The club enters a booking's result itself: final, counted at once (#575; the default taken in round 4 of #378). The players are told. Needs `bookings.view_all`. A karting track sends the session's finishing order instead (`RaceOrderRequest`, #577): no player confirms it, and it counts at once as a race.",
         "responses": {
           "201": {
             "description": "OK",
@@ -15398,7 +15398,7 @@
             }
           },
           "400": {
-            "description": "INVALID_SIDES, INVALID_SCORE, BAD_REQUEST.",
+            "description": "INVALID_SIDES, INVALID_SCORE, INVALID_ORDER, BAD_REQUEST.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15438,7 +15438,7 @@
             }
           },
           "409": {
-            "description": "RESULT_NOT_REPORTABLE, RESULT_ALREADY_REPORTED.",
+            "description": "RESULT_NOT_REPORTABLE (`details.reason`: not-completed, no-score, not-a-race), RESULT_ALREADY_REPORTED.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15453,7 +15453,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReportResultRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportResultRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RaceOrderRequest"
+                  }
+                ]
               }
             }
           }
@@ -15542,6 +15549,81 @@
           },
           "401": {
             "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clubs/{slug}/leaderboard": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getClubLeaderboard",
+        "summary": "A club's leaderboard in one sport",
+        "tags": ["Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          }
+        ],
+        "description": "The club's players by level in one sport (#578, decision 35): every player with a counted result at the club, settled levels only (5 confirmed matches, one in the last six months), nobody who hides their level (36), nobody in a block with the caller. Signed-in callers only: full names (decision 49).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubLeaderboardEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: an unknown sport.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a public club.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20010,7 +20092,8 @@
           "notificationSettings",
           "inviteLinks",
           "messages",
-          "openPlay"
+          "openPlay",
+          "ranking"
         ],
         "properties": {
           "format": {
@@ -20019,7 +20102,7 @@
           },
           "version": {
             "type": "integer",
-            "const": 3
+            "const": 9
           },
           "exportedAt": {
             "type": "string",
@@ -20474,6 +20557,34 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "ranking": {
+            "type": "object",
+            "description": "Results and ratings (#582; version 9): the level shown, each sport's rating with the points only the person saw, every rating change, and the results they played, reported, answered or entered. Of the other players on a result, only how many on each side.",
+            "required": ["levelShown", "ratings", "history", "results"],
+            "properties": {
+              "levelShown": {
+                "type": "boolean"
+              },
+              "ratings": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "history": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object"
                 }
               }
             }
@@ -24230,6 +24341,90 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MyRatings"
+          }
+        }
+      },
+      "RaceOrderRequest": {
+        "type": "object",
+        "title": "RaceOrderRequest",
+        "additionalProperties": false,
+        "required": ["order"],
+        "description": "A karting session's finishing order (#577, decision 33): the drivers' user ids, first to last, from the booking's players. A driver left out did not race.",
+        "properties": {
+          "order": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 60,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ClubLeaderboard": {
+        "type": "object",
+        "title": "ClubLeaderboard",
+        "required": ["sports", "sport", "rows"],
+        "properties": {
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "The sports with a counted result at the club, in the enum's order."
+          },
+          "sport": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SportType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The sport shown: the one asked for, else the first; null when the club has no result yet."
+          },
+          "rows": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "required": ["rank", "userId", "name", "avatarUrl", "level", "matchesPlayed"],
+              "properties": {
+                "rank": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "userId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": ["string", "null"]
+                },
+                "avatarUrl": {
+                  "type": ["string", "null"]
+                },
+                "level": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 7,
+                  "description": "One decimal, on the 1–7 scale everyone sees."
+                },
+                "matchesPlayed": {
+                  "type": "integer",
+                  "minimum": 5
+                }
+              }
+            }
+          }
+        }
+      },
+      "ClubLeaderboardEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ClubLeaderboard"
           }
         }
       }

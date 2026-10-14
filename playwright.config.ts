@@ -118,6 +118,11 @@ export default defineConfig({
       // and every other spec then runs against the navigation people see.
       MODULE_OPEN_PLAY: '1',
       MODULE_MESSAGING: '1',
+      // Ranking (#378) for the result journeys (results.spec.ts, #582). Off in
+      // production until the owner switches it on (docs/ranking.md); it adds
+      // «Резултат» to a completed booking, «Резултати» to the club admin, and
+      // the rated level beside a declared one.
+      MODULE_RANKING: '1',
       FACEBOOK_CLIENT_ID: E2E_FACEBOOK_APP_ID,
       FACEBOOK_CLIENT_SECRET: E2E_FACEBOOK_APP_SECRET,
     },

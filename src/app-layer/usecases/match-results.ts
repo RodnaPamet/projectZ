@@ -42,7 +42,9 @@ export const REJECT_NOTE_MAX = 500;
 
 /** No result can be reported for this booking now; `reason` says which rule. */
 export class ResultNotReportableError extends Error {
-  constructor(readonly reason: 'not-completed' | 'window-passed' | 'no-score' | 'not-a-player') {
+  constructor(
+    readonly reason: 'not-completed' | 'window-passed' | 'no-score' | 'not-a-player' | 'not-a-race',
+  ) {
     super(
       reason === 'not-completed'
         ? 'Only a completed booking has a result.'
@@ -50,7 +52,9 @@ export class ResultNotReportableError extends Error {
           ? `A result is reported within ${RESULT_REPORT_WINDOW_DAYS} days of the booking.`
           : reason === 'no-score'
             ? 'This sport has no score to report.'
-            : 'Only a player on the booking reports its result.',
+            : reason === 'not-a-race'
+              ? 'A finishing order is for a race: karting.'
+              : 'Only a player on the booking reports its result.',
     );
     this.name = 'ResultNotReportableError';
   }
@@ -67,6 +71,14 @@ export class ResultSidesError extends Error {
   constructor(readonly reason: string) {
     super(`Those sides cannot be right: ${reason}.`);
     this.name = 'ResultSidesError';
+  }
+}
+
+/** A finishing order that cannot be right (#577). */
+export class ResultOrderError extends Error {
+  constructor(readonly reason: string) {
+    super(`That finishing order cannot be right: ${reason}.`);
+    this.name = 'ResultOrderError';
   }
 }
 
@@ -97,7 +109,10 @@ export class ResultNotAwaitingError extends Error {
 
 export interface ResultPlayer {
   userId: string;
+  /** Null for a deleted account, or one with no name. */
   name: string | null;
+  /** The account was deleted (#582): shown as «Изтрит потребител». */
+  deleted: boolean;
 }
 
 export interface ResultView {
@@ -166,20 +181,30 @@ async function bookingForResult(
   });
 }
 
-/** The display names of people on one booking, who already see each other there. */
-async function namesOf(ids: readonly string[]): Promise<Map<string, string | null>> {
-  if (ids.length === 0) return new Map();
-  // guardrail-allow: cross-tenant — the names of the people on one booking,
-  // whom every player on it already sees in its list of players.
-  const rows = await runAsSuperuser((db) =>
-    db.user.findMany({
-      where: { id: { in: [...ids] } },
-      select: { id: true, name: true, deletedAt: true },
-      // A booking's players and the ids on a result's sides: a handful.
-      take: 100,
-    }),
-  );
-  return new Map(rows.map((u) => [u.id, u.deletedAt ? null : u.name]));
+/**
+ * The people on bookings' results, by id: their names, which every player on
+ * a booking already sees in its list of players, and whether the account is
+ * gone. An id with no account reads as deleted.
+ */
+async function peopleOf(ids: readonly string[]): Promise<(id: string) => ResultPlayer> {
+  const unique = [...new Set(ids)];
+  // guardrail-allow: cross-tenant — the names of the people on bookings'
+  // results, whom every player on each booking already sees.
+  const rows = unique.length
+    ? await runAsSuperuser((db) =>
+        db.user.findMany({
+          where: { id: { in: unique } },
+          select: { id: true, name: true, deletedAt: true },
+          take: unique.length,
+        }),
+      )
+    : [];
+  const byId = new Map(rows.map((u) => [u.id, u]));
+  return (id) => {
+    const u = byId.get(id);
+    const gone = !u || !!u.deletedAt;
+    return { userId: id, name: gone ? null : (u?.name ?? null), deleted: gone };
+  };
 }
 
 function sidesOf(json: unknown): string[][] {
@@ -220,8 +245,7 @@ export async function readBookingResult(
   );
   const ids = new Set(b.players);
   for (const side of sidesOf(report?.sidesJson)) for (const id of side) ids.add(id);
-  const names = await namesOf([...ids]);
-  const player = (id: string): ResultPlayer => ({ userId: id, name: names.get(id) ?? null });
+  const player = await peopleOf([...ids]);
 
   const format = scoreFormatFor(b.sport);
   const until = reportableUntil(b);
@@ -463,7 +487,7 @@ export async function listClubResults(
       booking: { select: { startTs: true, resource: { select: { name: true } } } },
     },
   });
-  const names = await namesOf([...new Set(rows.flatMap((r) => sidesOf(r.sidesJson).flat()))]);
+  const person = await peopleOf(rows.flatMap((r) => sidesOf(r.sidesJson).flat()));
   return rows.map((r) => ({
     id: r.id,
     bookingId: r.bookingId,
@@ -472,9 +496,7 @@ export async function listClubResults(
     format: scoreFormatFor(r.sport),
     startTs: r.booking.startTs.toISOString(),
     courtName: r.booking.resource.name,
-    sides: sidesOf(r.sidesJson).map((s) =>
-      s.map((id) => ({ userId: id, name: names.get(id) ?? null })),
-    ),
+    sides: sidesOf(r.sidesJson).map((s) => s.map(person)),
     score: Array.isArray(r.scoreJson) ? (r.scoreJson as number[][]) : null,
     winnerSide: r.winnerSide,
     rejectNote: r.rejectNote,
@@ -508,13 +530,16 @@ export async function readClubBookingResult(
         await runInTenantContext(tenantId, (db) => listClubResults(db, tenantId, { bookingId }))
       )[0] ?? null)
     : null;
-  const names = await namesOf(b.players);
+  const person = await peopleOf(b.players);
   const format = scoreFormatFor(b.sport);
   return {
     result,
-    canEnter: !report && b.status === 'COMPLETED' && (format === 'PERIODS' || format === 'TOTAL'),
+    canEnter:
+      !report &&
+      b.status === 'COMPLETED' &&
+      (format === 'PERIODS' || format === 'TOTAL' || (format === 'ORDER' && b.players.length >= 2)),
     format,
-    players: b.players.map((id) => ({ userId: id, name: names.get(id) ?? null })),
+    players: b.players.map(person),
   };
 }
 
@@ -634,6 +659,63 @@ export async function enterClubResult(
   }
 }
 
+/**
+ * A track's staff enter a session's finishing order from their timing system
+ * (#577, decision 33): the drivers on the booking, first to last. No player
+ * confirms it; it counts at once, as a race. A driver left out did not race.
+ */
+export async function enterClubOrder(
+  actor: { userId: string; tenantId: string },
+  bookingId: string,
+  order: string[],
+  now = new Date(),
+): Promise<{ reportId: string }> {
+  const b = await bookingForResult(actor.tenantId, bookingId);
+  if (!b) throw new ResultNotFoundError();
+  if (b.status !== 'COMPLETED') throw new ResultNotReportableError('not-completed');
+  if (scoreFormatFor(b.sport) !== 'ORDER') throw new ResultNotReportableError('not-a-race');
+  const drivers = checkOrder(order, b.players);
+  try {
+    const row = await runInTenantContext(actor.tenantId, (db) =>
+      db.matchReport.create({
+        data: {
+          tenantId: actor.tenantId,
+          bookingId,
+          sport: b.sport,
+          kind: 'ORDER',
+          // One "side" a driver, in finishing order: the shape a race rates in.
+          sidesJson: drivers.map((id) => [id]),
+          status: 'DECIDED',
+          reportedByUserId: actor.userId,
+          reportedAt: now,
+          decidedByUserId: actor.userId,
+          decidedAt: now,
+        },
+        select: { id: true },
+      }),
+    );
+    await countResult(actor.tenantId, row.id);
+    return { reportId: row.id };
+  } catch (err) {
+    if ((err as { code?: string }).code === 'P2002') throw new ResultAlreadyReportedError();
+    throw err;
+  }
+}
+
+/** Two drivers at least, each on the booking, each once. */
+function checkOrder(order: unknown, players: readonly string[]): string[] {
+  if (!Array.isArray(order) || order.length < 2)
+    throw new ResultOrderError('a race has two drivers');
+  const ids = order.map((id) => {
+    if (typeof id !== 'string' || !players.includes(id)) {
+      throw new ResultOrderError('every driver was on the booking');
+    }
+    return id;
+  });
+  if (new Set(ids).size !== ids.length) throw new ResultOrderError('each driver finishes once');
+  return ids;
+}
+
 // ─── Counting ───────────────────────────────────────────────────────────
 
 /**
@@ -651,6 +733,7 @@ async function countResult(tenantId: string, reportId: string): Promise<void> {
       select: {
         bookingId: true,
         sport: true,
+        kind: true,
         sidesJson: true,
         winnerSide: true,
         reportedByUserId: true,
@@ -660,9 +743,15 @@ async function countResult(tenantId: string, reportId: string): Promise<void> {
     if (!r || (r.status !== 'CONFIRMED' && r.status !== 'DECIDED')) return;
     const sides = sidesOf(r.sidesJson);
     if (sides.length < 2) return;
-    // Best-first, as recordMatch wants; a draw is equal ranks.
-    const teams = r.winnerSide === 1 ? [sides[1]!, sides[0]!] : [sides[0]!, sides[1]!];
-    const ranks = r.winnerSide === null ? [1, 1] : [1, 2];
+    // Best-first, as recordMatch wants. A race is already in finishing order,
+    // one driver a place (#577); a match is two sides, a draw equal ranks.
+    const race = r.kind === 'ORDER';
+    const teams = race
+      ? sides
+      : r.winnerSide === 1
+        ? [sides[1]!, sides[0]!]
+        : [sides[0]!, sides[1]!];
+    const ranks = race ? sides.map((_, i) => i + 1) : r.winnerSide === null ? [1, 1] : [1, 2];
     const dedupeKey = `booking:${r.bookingId}`;
     await recordMatch(db, {
       tenantId,

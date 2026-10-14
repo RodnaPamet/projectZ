@@ -20,6 +20,7 @@ import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
 import { WriteToClub } from '@/components/messages/WriteToClub';
+import { ClubLeaderboard } from '@/components/ranking/ClubLeaderboard';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -29,6 +30,7 @@ import { Caption, Heading, TextLink } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { cityLabel } from '@/lib/geo/cities';
+import { readModules } from '@/lib/modules';
 import { bookingNoun } from '@/lib/sports/resource-kinds';
 import { buildClubJsonLd } from '@/lib/seo/club-jsonld';
 import { clubPath, venuePath } from '@/lib/seo/sitemap';
@@ -374,6 +376,15 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
             </ul>
           )}
         </section>
+
+        {/* «Класиране» (#578), while the ranking module is on. */}
+        {readModules().ranking ? (
+          <ClubLeaderboard
+            slug={club.slug}
+            signedIn={me !== null}
+            loginHref={`/login?next=${encodeURIComponent(clubPath(club.slug))}`}
+          />
+        ) : null}
       </div>
     </div>
   );

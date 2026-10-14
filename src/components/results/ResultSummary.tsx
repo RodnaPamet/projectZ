@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/cn';
 
-import type { ResultPlayerDto } from './types';
+import type { ResultFormatDto, ResultPlayerDto } from './types';
 
 /**
  * A result as two lines, one a side: its players, then its score in each set
@@ -15,16 +15,40 @@ export function ResultSummary({
   sides,
   score,
   winnerSide,
+  format: scoreFormat,
   className,
 }: {
   sides: ResultPlayerDto[][];
   score: number[][] | null;
   winnerSide: number | null;
+  /** ORDER: a race, one driver a place, first to last (#577). */
+  format?: ResultFormatDto;
   className?: string;
 }) {
   const t = useTranslations('results');
+  const tCommon = useTranslations('common');
   const format = useFormatter();
-  const name = (p: ResultPlayerDto) => p.name ?? t('unnamed');
+  const name = (p: ResultPlayerDto) =>
+    p.deleted ? tCommon('deletedUser') : (p.name ?? t('unnamed'));
+
+  if (scoreFormat === 'ORDER') {
+    return (
+      <ol className={cn('flex flex-col gap-1 text-sm', className)} data-testid="result-order">
+        {sides.map((side, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="text-content-emphasis w-6 shrink-0 text-right font-semibold tabular-nums">
+              {t('place', { place: i + 1 })}
+            </span>
+            <span
+              className={i === 0 ? 'text-content-emphasis font-semibold' : 'text-content-default'}
+            >
+              {side.map(name).join(', ')}
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
 
   // A raw table, not <DataTable>: two rows, a name column and up to five
   // narrow score cells, read as a scoreboard. Long names could still push it

@@ -1,7 +1,11 @@
 import { type NextRequest } from 'next/server';
 
-import { reportResultBodySchema } from '@/app-layer/schemas/results';
-import { enterClubResult, readClubBookingResult } from '@/app-layer/usecases/match-results';
+import { clubResultBodySchema } from '@/app-layer/schemas/results';
+import {
+  enterClubOrder,
+  enterClubResult,
+  readClubBookingResult,
+} from '@/app-layer/usecases/match-results';
 import { notifyResultDecided } from '@/app-layer/usecases/result-notifications';
 import { parseJsonBody } from '@/app/api/v1/_lib/body';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -34,8 +38,11 @@ async function getHandler(
  * booking's result itself. It is final and counts at once (the default taken
  * in round 4 of #378); the players are told. Needs `bookings.view_all`.
  *
- * 400 INVALID_SIDES, INVALID_SCORE; 404 for another club's booking; 409
- * RESULT_NOT_REPORTABLE, RESULT_ALREADY_REPORTED.
+ * A karting track sends the session's finishing order instead, `{ order:
+ * [ids] }`, first to last (#577, decision 33): it counts at once, as a race.
+ *
+ * 400 INVALID_SIDES, INVALID_SCORE, INVALID_ORDER; 404 for another club's
+ * booking; 409 RESULT_NOT_REPORTABLE, RESULT_ALREADY_REPORTED.
  */
 async function handler(
   req: NextRequest,
@@ -44,12 +51,13 @@ async function handler(
   const { slug, id } = await params;
   const ctx = await contextFromRequest(req, { slug, requestId: getRequestId() });
   requireDesk(ctx);
-  const body = await parseJsonBody(req, reportResultBodySchema, 'result');
-  const { reportId } = await enterClubResult(
-    { userId: ctx.userId, tenantId: ctx.tenantId },
-    id,
-    body,
-  );
+  const body = await parseJsonBody(req, clubResultBodySchema, 'result');
+  const actor = { userId: ctx.userId, tenantId: ctx.tenantId };
+  // A race's finishing order (#577), or a match's sides and score.
+  const { reportId } =
+    'order' in body
+      ? await enterClubOrder(actor, id, body.order)
+      : await enterClubResult(actor, id, body);
   await notifyResultDecided({ tenantId: ctx.tenantId, reportId });
   return ok({ reportId, status: 'DECIDED' }, { status: 201 });
 }

@@ -209,7 +209,7 @@ function ResultCard({
         </Caption>
         <StatusBadge variant={RESULT_TONE[r.status]}>{tResults(`status.${r.status}`)}</StatusBadge>
       </div>
-      <ResultSummary sides={r.sides} score={r.score} winnerSide={r.winnerSide} />
+      <ResultSummary sides={r.sides} score={r.score} winnerSide={r.winnerSide} format={r.format} />
       {r.rejectNote ? (
         <p
           className="text-content-default text-sm break-words whitespace-pre-wrap"

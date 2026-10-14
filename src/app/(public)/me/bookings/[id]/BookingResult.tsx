@@ -105,7 +105,12 @@ export function BookingResult({ bookingId, seed }: { bookingId: string; seed: Bo
                 {tResults(`status.${r.status}`)}
               </StatusBadge>
             </div>
-            <ResultSummary sides={r.sides} score={r.score} winnerSide={r.winnerSide} />
+            <ResultSummary
+              sides={r.sides}
+              score={r.score}
+              winnerSide={r.winnerSide}
+              format={view.format}
+            />
             {r.status === 'REPORTED' && r.autoConfirmAt ? (
               <Caption>
                 {r.canAnswer

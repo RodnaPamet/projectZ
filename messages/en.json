@@ -391,6 +391,17 @@
     },
     "seat": {
       "metaTitle": "{name} — seats and booking | playerz.bg"
+    },
+    "leaderboard": {
+      "title": "Leaderboard",
+      "signIn": "Signed-in players see the club’s leaderboard.",
+      "signInButton": "Sign in",
+      "noResults": "No confirmed results at the club yet.",
+      "empty": "Nobody is ranked yet: anyone with 5 confirmed matches is.",
+      "sport": "Sport",
+      "unnamed": "Player",
+      "matches": "{count, plural, one {# match} other {# matches}}",
+      "hint": "A level moves with every confirmed result. A player who hides theirs is not listed."
     }
   },
   "cities": {
@@ -707,6 +718,10 @@
       "voided": {
         "title": "The club voided the result",
         "body": "{venue}, {day}. The match does not count toward ratings."
+      },
+      "placed": {
+        "title": "Place {place} of {drivers}: {venue}",
+        "body": "{day}. The track’s finishing order now counts toward ratings."
       }
     }
   },
@@ -1348,7 +1363,9 @@
           "heading": "Result",
           "final": "A result the club enters is final and counts at once.",
           "enter": "Enter the result",
-          "save": "Save the result"
+          "save": "Save the result",
+          "finalRace": "The track’s finishing order is final and counts at once.",
+          "enterRace": "Enter the finishing order"
         }
       },
       "series": {
@@ -3655,7 +3672,8 @@
       "INVALID_SIDES": "The sides are not right: each player is on one side, you are on one of them, and no side is too large.",
       "INVALID_SCORE": "The score is not right: every set has a winner, and one side wins more sets.",
       "RATE_LIMITED": "Too many attempts. Try again in a moment.",
-      "FAILED": "Something went wrong. Try again."
+      "FAILED": "Something went wrong. Try again.",
+      "INVALID_ORDER": "The finishing order is not right: at least two drivers, each from the booking, each once."
     },
     "editor": {
       "sides": "Who played on which side",
@@ -3671,6 +3689,15 @@
       "removeSet": "Remove the last set",
       "problemSides": "Each side needs at least one player.",
       "problemScore": "Fill in every box with a number.",
+      "cancel": "Cancel"
+    },
+    "place": "{place}.",
+    "race": {
+      "hint": "Put the drivers in the order your timing shows: first at the top. Switch off a driver who did not race.",
+      "up": "{name}: up one place",
+      "down": "{name}: down one place",
+      "raced": "{name} raced",
+      "problem": "At least two drivers are needed.",
       "cancel": "Cancel"
     }
   }

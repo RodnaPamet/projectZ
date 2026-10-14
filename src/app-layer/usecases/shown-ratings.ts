@@ -35,7 +35,7 @@ const key = (userId: string, sport: SportType) => `${userId}|${sport}`;
 /** The most sports one person can have: every sport there is. */
 const SPORTS_MAX = 40;
 
-interface LatestRow {
+export interface LatestRow {
   userId: string;
   sport: SportType;
   engine: 'OPENSKILL' | 'GLICKO2';
@@ -46,7 +46,10 @@ interface LatestRow {
 }
 
 /** Each (player, sport)'s latest rating row: one grouped read, then those rows. */
-async function latestRows(db: PrismaClient, userIds: readonly string[]): Promise<LatestRow[]> {
+export async function latestRows(
+  db: PrismaClient,
+  userIds: readonly string[],
+): Promise<LatestRow[]> {
   if (userIds.length === 0) return [];
   const latest = await db.skillRatingHistory.groupBy({
     by: ['userId', 'sport'],
