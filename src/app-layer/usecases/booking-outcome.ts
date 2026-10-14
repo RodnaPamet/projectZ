@@ -228,7 +228,13 @@ interface LockedBooking {
 export async function markNoShow(
   db: PrismaClient,
   tenantId: string,
-  input: { bookingId: string; actorUserId: string; now?: Date },
+  input: {
+    bookingId: string;
+    actorUserId: string;
+    /** `COACH`: the coach of the lesson on it (#549, owner decision 11). */
+    by?: 'STAFF' | 'COACH';
+    now?: Date;
+  },
 ): Promise<{ bookingId: string; previousStatus: BookingStatus }> {
   const now = input.now ?? new Date();
 
@@ -286,7 +292,11 @@ export async function markNoShow(
     details: 'Marked as a no-show',
     detailsJson: {
       category: 'booking',
-      summary: 'Staff recorded that the player did not turn up',
+      summary:
+        input.by === 'COACH'
+          ? 'The coach recorded that the player did not turn up'
+          : 'Staff recorded that the player did not turn up',
+      by: input.by ?? 'STAFF',
       before: { status: row.status },
       after: { status: 'NO_SHOW' },
     },

@@ -255,6 +255,18 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // These are the ones a mobile client MUST distinguish, because every one of
   // them is "try again with fresh data", not "you did something wrong".
   SlotTakenError: { status: 409, code: 'SLOT_TAKEN' },
+  // A no-show the club's own rules refuse (`markNoShow`), asked for by the
+  // lesson's coach (#549): `details.reason` is NOT_STARTED, ALREADY_NO_SHOW,
+  // NOT_ATTENDABLE, REVIEWED or ACCOUNT_DELETED. (The desk marks no-shows
+  // through a server action, which reads the same reason.)
+  NoShowRefusedError: {
+    status: 409,
+    code: 'NO_SHOW_REFUSED',
+    details: (e) => ({ reason: (e as Error & { reason: string }).reason }),
+  },
+  // A coach cancels a lesson until it starts (#549, decision 8); after that it
+  // has happened, and what is left to say about it is whether the player came.
+  LessonStartedError: { status: 409, code: 'LESSON_STARTED' },
   // A lesson (#548): the coach was booked for that time first, here or at
   // another club. `SLOT_TAKEN` above is the other half: no court is left.
   CoachTakenError: { status: 409, code: 'COACH_TAKEN' },
@@ -445,6 +457,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // Booking a lesson (#548). No such coach at a venue, or a lesson cannot be
   // booked with them there: not approved, the link ended, no terms or hours.
   LessonLinkNotFoundError: { status: 404, code: 'COACH_NOT_BOOKABLE' },
+  // One of the coach's OWN lessons (#549): not theirs, or nobody's.
+  LessonNotFoundError: { status: 404, code: 'LESSON_NOT_FOUND' },
   CoachLinkExistsError: {
     status: 409,
     code: 'COACH_LINK_EXISTS',

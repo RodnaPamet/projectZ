@@ -61,7 +61,11 @@ export default async function CoachProfilePage() {
       <PageBreadcrumbs items={coachProfileCrumbs(tNav)} />
       <CoachProfileEditor
         seed={toMyCoachProfile(profile)}
-        lead={showLessons ? <CoachLessonsSection seed={lessonSeed} /> : null}
+        lead={
+          showLessons ? (
+            <CoachLessonsSection seed={lessonSeed} renderedAt={new Date().toISOString()} />
+          ) : null
+        }
       >
         <CoachVenuesSection seed={toMyCoachLinks(links)} timeOffSeed={timeOff ?? []} />
       </CoachProfileEditor>

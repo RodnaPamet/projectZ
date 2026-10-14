@@ -107,6 +107,14 @@ export class BookingNotCancellableError extends Error {
   }
 }
 
+/** A coach cancels a lesson until it starts; after that it has happened. */
+export class LessonStartedError extends Error {
+  constructor() {
+    super('The lesson has already started.');
+    this.name = 'LessonStartedError';
+  }
+}
+
 export interface CreateBookingInput {
   resourceId: string;
   startTs: Date;
@@ -356,7 +364,13 @@ export async function cancelBooking(
   tenantId: string,
   input: {
     bookingId: string;
-    actor: 'PLAYER' | 'STAFF';
+    /**
+     * `COACH` (#549, owner decision 8): the coach of the lesson on this
+     * booking. Not held to the player's cutoff, and held to one rule of their
+     * own: until the lesson starts. The caller has already established that
+     * the booking is that coach's lesson.
+     */
+    actor: 'PLAYER' | 'STAFF' | 'COACH';
     cancelledByUserId?: string | null;
     reason?: string;
     now?: Date;
@@ -385,6 +399,10 @@ export async function cancelBooking(
       cutoffHours,
       now,
     });
+  }
+
+  if (input.actor === 'COACH' && now.getTime() >= booking.startTs.getTime()) {
+    throw new LessonStartedError();
   }
 
   const policy = parsePolicy(booking.resource.venue.cancellationPolicyJson);
@@ -513,13 +531,20 @@ export async function cancelBooking(
           entity: 'Booking',
           entityId: booking.id,
           action: AUDIT_ACTIONS.BOOKING_CANCELLED,
-          details: input.actor === 'STAFF' ? 'Cancelled by the club' : 'Cancelled by the player',
+          details:
+            input.actor === 'STAFF'
+              ? 'Cancelled by the club'
+              : input.actor === 'COACH'
+                ? 'Cancelled by the coach'
+                : 'Cancelled by the player',
           detailsJson: {
             category: 'booking',
             summary:
               input.actor === 'STAFF'
                 ? 'Staff cancelled the booking'
-                : 'The player cancelled their booking',
+                : input.actor === 'COACH'
+                  ? 'The coach cancelled the lesson'
+                  : 'The player cancelled their booking',
             before: { status: booking.status },
             after: { status: 'CANCELLED' },
             actor: input.actor,

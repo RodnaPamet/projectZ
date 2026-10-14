@@ -498,6 +498,14 @@
         "title": "The game was cancelled",
         "body": "{venue}, {court} · {when}"
       },
+      "cancelledByCoach": {
+        "title": "The coach cancelled your lesson",
+        "body": "{venue}, {court} · {when}. The court has been released."
+      },
+      "cancelledCoachRemoved": {
+        "title": "Your lesson was cancelled",
+        "body": "{venue}, {court} · {when}. The coach no longer teaches on playerz.bg; the court has been released."
+      },
       "seriesCreated": {
         "title": "The club booked a weekly slot for you",
         "body": "{venue}, {court} · first game {when}"
@@ -2446,6 +2454,14 @@
         "subject": "The club cancelled your booking: {venue}, {date}",
         "intro": "The club cancelled your booking. If you have questions, please contact the club."
       },
+      "cancelledByCoach": {
+        "subject": "The coach cancelled your lesson: {venue}, {date}",
+        "intro": "The coach cancelled your lesson on {date} at {time}. The court has been released and you owe nothing. You can book another time with them, or book the court yourself."
+      },
+      "cancelledCoachRemoved": {
+        "subject": "Your lesson was cancelled: {venue}, {date}",
+        "intro": "Your lesson on {date} at {time} was cancelled because the coach no longer teaches on playerz.bg. The court has been released and you owe nothing."
+      },
       "seriesCreated": {
         "subject": "A weekly slot for you: {venue}",
         "intro": "The club booked a weekly slot for you. The first game is:"
@@ -3133,7 +3149,6 @@
       "past": "Past"
     },
     "loading": "Loading…",
-    "error": "The lessons did not load.",
     "retry": "Try again",
     "noneUpcoming": "You have no upcoming lessons.",
     "nonePast": "You have no past lessons.",
@@ -3142,7 +3157,33 @@
     "player": "Player: {name}",
     "noPlayer": "A player whose account was deleted",
     "fee": "Your fee: {price}",
-    "more": "Show more"
+    "more": "Show more",
+    "unnamed": "Player",
+    "playerLevel": "Player: {name} · level {level}",
+    "group": "{count, plural, one {# player} other {# players}}",
+    "keep": "No",
+    "cancel": {
+      "button": "Cancel lesson",
+      "title": "Cancel the lesson?",
+      "description": "{day} at {time}, {venue}. The court will be released, and the player will get a notification and an email.",
+      "yes": "Cancel lesson"
+    },
+    "noShow": {
+      "button": "Did not come",
+      "title": "The player did not come?",
+      "description": "{name} will be marked as a no-show at {club}. It counts as any no-show there: after three the club stops their online bookings.",
+      "yes": "Mark as no-show"
+    },
+    "error": {
+      "list": "The lessons did not load.",
+      "started": "The lesson has already started and cannot be cancelled.",
+      "notStarted": "A no-show is marked once the lesson has started.",
+      "alreadyNoShow": "The no-show is already marked.",
+      "reviewed": "The player has already reviewed this lesson, so a no-show cannot be marked.",
+      "notAttendable": "The lesson is already cancelled.",
+      "gone": "That lesson was not found.",
+      "failed": "That did not work. Try again."
+    }
   },
   "coaches": {
     "metaTitle": "Coaches — playerz.bg",

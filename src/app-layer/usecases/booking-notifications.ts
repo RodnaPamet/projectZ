@@ -324,19 +324,32 @@ export async function notifySeriesMoved(input: {
 /**
  * A booking was cancelled. By the CLUB (staff): everyone on it hears, by
  * email too. By the BOOKER: the players they had added hear, in the bell.
+ *
+ * A LESSON (#549) has two more: by its COACH (owner decision 8), and because
+ * the platform REMOVED the coach (decision 21). Both are somebody else's act
+ * on the player's plans, so, as when the club cancels, everyone on it hears,
+ * by email too, and is told the court was released with it.
  */
 export async function notifyBookingCancelled(input: {
   tenantId: string;
   bookingId: string;
-  by: 'CLUB' | 'BOOKER';
+  by: 'CLUB' | 'BOOKER' | 'COACH' | 'COACH_REMOVED';
   actorUserId: string | null;
   now?: Date;
 }): Promise<void> {
+  const event =
+    input.by === 'CLUB'
+      ? 'cancelledByClub'
+      : input.by === 'COACH'
+        ? 'cancelledByCoach'
+        : input.by === 'COACH_REMOVED'
+          ? 'cancelledCoachRemoved'
+          : null;
   await guarded('cancelled', input.bookingId, async () => {
     const [b] = await readBookings(input.tenantId, [input.bookingId]);
     if (!b || b.status !== 'CANCELLED') return;
     const ids = playersOf(b).filter(
-      (id) => id !== input.actorUserId && (input.by === 'CLUB' || id !== b.bookedByUserId),
+      (id) => id !== input.actorUserId && (event !== null || id !== b.bookedByUserId),
     );
     const people = await readRecipients(ids);
     const facts = factsOf(b);
@@ -348,15 +361,14 @@ export async function notifyBookingCancelled(input: {
         tenantId: b.tenantId,
         kind: 'BOOKING_CANCELLED',
         key: dedupeKey('booking', b.id, 'cancelled'),
-        bell: input.by === 'CLUB' ? 'cancelledByClub' : 'cancelledByBooker',
+        bell: event ?? 'cancelledByBooker',
         facts,
-        email:
-          input.by === 'CLUB'
-            ? {
-                category: 'clubChanges',
-                render: () => bookingEmail(r.locale, 'cancelledByClub', facts, input.now),
-              }
-            : undefined,
+        email: event
+          ? {
+              category: 'clubChanges',
+              render: () => bookingEmail(r.locale, event, facts, input.now),
+            }
+          : undefined,
       });
     }
   });

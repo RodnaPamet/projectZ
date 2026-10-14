@@ -13778,6 +13778,195 @@
         }
       }
     },
+    "/me/coach-lessons/{id}/cancel": {
+      "post": {
+        "operationId": "cancelMyCoachLesson",
+        "summary": "The coach cancels one of their lessons",
+        "tags": ["Me"],
+        "description": "The coach cancels one of their OWN lessons (#549): **until it starts**, with no cutoff. The booking is cancelled with it, so the court is released, and the player and anybody they added are told by bell and email.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lesson's id, from `GET /me/coach-lessons`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Optional. Kept on the cancellation's record."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachLessonActed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`LESSON_NOT_FOUND` — not one of the caller's lessons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`LESSON_STARTED` — it has started; a coach cancels until the start. `BOOKING_NOT_CANCELLABLE` — it was already cancelled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/coach-lessons/{id}/no-show": {
+      "post": {
+        "operationId": "markMyCoachLessonNoShow",
+        "summary": "The coach records that the player did not come",
+        "tags": ["Me"],
+        "description": "The coach marks one of their OWN lessons as a no-show (#549). It is the club's no-show: it counts at that club exactly as one the desk marks, the block on online booking after three included. Only once the lesson has started.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lesson's id, from `GET /me/coach-lessons`.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachLessonActed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`LESSON_NOT_FOUND` — not one of the caller's lessons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`NO_SHOW_REFUSED` — `details.reason` says why: `NOT_STARTED`, `ALREADY_NO_SHOW`, `NOT_ATTENDABLE` (cancelled), `REVIEWED` (the player has reviewed it), `ACCOUNT_DELETED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/coaches": {
       "get": {
         "operationId": "listCoaches",
@@ -21610,6 +21799,7 @@
           "club",
           "court",
           "player",
+          "players",
           "coachFeeCents",
           "currency"
         ],
@@ -21667,16 +21857,44 @@
             }
           },
           "player": {
-            "type": ["string", "null"],
-            "description": "Who booked the lesson: the name on their account. Null for an account that is gone."
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["name", "level", "phone"],
+                "properties": {
+                  "name": {
+                    "type": ["string", "null"]
+                  },
+                  "level": {
+                    "type": ["integer", "null"],
+                    "minimum": 1,
+                    "maximum": 7,
+                    "description": "The level the player declared for this lesson's sport; null when they have not said."
+                  },
+                  "phone": {
+                    "type": ["string", "null"],
+                    "description": "The player's confirmed phone number, E.164. Given ONLY for a lesson that is still to come (`when=upcoming`), so the coach can call about it; null for every past or cancelled lesson, and when the player has confirmed no number."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who booked the lesson, as far as a coach is shown a player: the name, their level in this sport, and for an upcoming lesson the confirmed phone. Null for an account that is gone."
           },
           "coachFeeCents": {
             "type": "integer",
             "minimum": 0,
-            "description": "The coach's own fee for this lesson. The court's price is the club's and is not shown here."
+            "description": "The coach's own fee for this lesson as it stands: the hourly rate for one player, the group rate once there are two or more. The court's price is the club's and is not shown here."
           },
           "currency": {
             "type": "string"
+          },
+          "players": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Everybody on the lesson: the player who booked it and those they added. Two or more is a group lesson, at the group fee."
           }
         }
       },
@@ -21705,6 +21923,23 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MyCoachLessonPage"
+          }
+        }
+      },
+      "CoachLessonActed": {
+        "type": "object",
+        "title": "CoachLessonActed",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["bookingId"],
+            "properties": {
+              "bookingId": {
+                "type": "string",
+                "description": "The booking the lesson is on."
+              }
+            }
           }
         }
       }

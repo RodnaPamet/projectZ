@@ -195,7 +195,8 @@ export function toMyLesson(l: MyLesson) {
     venue: { id: l.venue.id, name: l.venue.name, timezone: l.venue.timezone },
     club: l.club,
     court: { name: l.court.name, sport: l.court.sport },
-    player: l.player,
+    player: l.player ? { name: l.player.name, level: l.player.level, phone: l.player.phone } : null,
+    players: l.players,
     coachFeeCents: l.coachFeeCents,
     currency: l.currency,
   };

@@ -228,6 +228,10 @@ export const KEYS = {
 /** Writes: the URLs `useV1Mutation` posts to. */
 export const V1 = {
   createBooking: (slug: string) => `${BASE}/t/${seg(slug)}/bookings`,
+  /** `POST { reason? }`: the coach cancels one of their own lessons (#549). */
+  cancelMyLesson: (lessonId: string) => `${BASE}/me/coach-lessons/${seg(lessonId)}/cancel`,
+  /** `POST`: the coach records that the player did not come (#549). */
+  lessonNoShow: (lessonId: string) => `${BASE}/me/coach-lessons/${seg(lessonId)}/no-show`,
   /** `POST { linkId, startTs, minutes, sport?, expectedTotalCents }`: book a lesson (#548). */
   bookLesson: (coachSlug: string) => `${BASE}/coaches/${seg(coachSlug)}/lessons`,
   cancelBooking: (slug: string, bookingId: string) =>

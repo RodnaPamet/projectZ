@@ -5,7 +5,9 @@ import { minutesFromTimeColumn } from '@/app-layer/repositories/availability';
 import { getOwnBooking, getResourceForBooking } from '@/app-layer/repositories/booking';
 import { publicVenueFilter } from '@/app-layer/repositories/public-venue';
 import { quoteBooking, SlotNotBookableError } from '@/app-layer/usecases/availability';
-import { createBooking, SlotTakenError } from '@/app-layer/usecases/booking';
+import { cancelBooking, createBooking, SlotTakenError } from '@/app-layer/usecases/booking';
+import { notifyBookingCancelled } from '@/app-layer/usecases/booking-notifications';
+import { markNoShow } from '@/app-layer/usecases/booking-outcome';
 import { clubTakesOnlinePayment } from '@/app-layer/usecases/booking-rules';
 import { resolvePlayerTenant } from '@/app-layer/usecases/club-membership';
 import { readyLink } from '@/app-layer/usecases/coach-directory';
@@ -21,6 +23,7 @@ import {
   type LessonTime,
 } from '@/lib/coaches/lessons';
 import { isDeadlock, isExclusionViolation } from '@/lib/db/pg-errors';
+import { decryptField } from '@/lib/security/encryption';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 
 /**
@@ -696,11 +699,20 @@ export interface MyLesson {
   club: string;
   court: { name: string; sport: string };
   /**
-   * Who booked it: the name on their account. Null for an account that is
-   * gone. (The level and, while the lesson is upcoming, the confirmed phone
-   * arrive with #549; owner decision 12.)
+   * Who booked it, as far as a coach is shown a player (owner decision 12):
+   * the name, the level they declared for this lesson's sport, and their
+   * confirmed phone number while the lesson is still to come, so the coach
+   * can call about it. Null for an account that is gone.
    */
-  player: string | null;
+  player: {
+    name: string | null;
+    /** 1 to 7 on the sport's scale; null when they have not said. */
+    level: number | null;
+    /** E.164. Upcoming lessons only, and only a number they confirmed. */
+    phone: string | null;
+  } | null;
+  /** Everybody on the lesson: the player who booked it and those they added. */
+  players: number;
   coachFeeCents: number;
   currency: string;
 }
@@ -765,6 +777,7 @@ export async function listMyLessons(input: {
           select: {
             status: true,
             bookedByUserId: true,
+            _count: { select: { participants: true } },
             resource: {
               select: {
                 name: true,
@@ -782,11 +795,22 @@ export async function listMyLessons(input: {
 
     const playerIds = [...new Set(page.flatMap((r) => r.booking.bookedByUserId ?? []))];
     const tenantIds = [...new Set(page.map((r) => r.tenantId))];
-    const [players, clubs] = await Promise.all([
+    const [players, levels, clubs] = await Promise.all([
       db.user.findMany({
         where: { id: { in: playerIds }, deletedAt: null },
-        select: { id: true, name: true },
+        // The number is read for every booker on the page and given out
+        // below only for a lesson that is still to come.
+        select: { id: true, name: true, phone: true, phoneVerifiedAt: true },
         take: Math.max(1, playerIds.length),
+      }),
+      // What each said of their own level, in the sports these lessons are in.
+      db.playerSportLevel.findMany({
+        where: {
+          userId: { in: playerIds },
+          sport: { in: [...new Set(page.map((r) => r.booking.resource.sport))] },
+        },
+        select: { userId: true, sport: true, level: true },
+        take: Math.max(1, playerIds.length) * 16,
       }),
       db.venueOrg.findMany({
         where: { id: { in: tenantIds } },
@@ -794,8 +818,36 @@ export async function listMyLessons(input: {
         take: tenantIds.length,
       }),
     ]);
-    const nameOf = new Map(players.map((u) => [u.id, u.name]));
+    const playerOf = new Map(players.map((u) => [u.id, u]));
+    const levelOf = new Map(levels.map((l) => [`${l.userId}|${l.sport}`, l.level]));
     const clubOf = new Map(clubs.map((c) => [c.id, c.name]));
+    // ═══ THE PHONE, FOR A LESSON STILL TO COME AND NO OTHER (decision 12) ═══
+    //
+    // The rule a club's diary has (#500): the confirmed number of the player
+    // on an UPCOMING booking, so that whoever is expecting them can call. A
+    // lesson that is over, or was cancelled, shows none; a number this key
+    // cannot read is left out rather than shown as ciphertext.
+    const phoneFor = (r: (typeof page)[number], u: (typeof players)[number]) => {
+      const upcoming =
+        input.when === 'upcoming' &&
+        (r.booking.status === 'PENDING' || r.booking.status === 'CONFIRMED') &&
+        r.endTs.getTime() > now.getTime();
+      if (!upcoming || !u.phone || !u.phoneVerifiedAt) return null;
+      try {
+        return decryptField(u.phone);
+      } catch {
+        return null;
+      }
+    };
+    const playerFor = (r: (typeof page)[number]): MyLesson['player'] => {
+      const u = r.booking.bookedByUserId ? playerOf.get(r.booking.bookedByUserId) : undefined;
+      if (!u) return null;
+      return {
+        name: u.name,
+        level: levelOf.get(`${u.id}|${r.booking.resource.sport}`) ?? null,
+        phone: phoneFor(r, u),
+      };
+    };
 
     return {
       items: page.map((r) => ({
@@ -807,11 +859,102 @@ export async function listMyLessons(input: {
         venue: r.booking.resource.venue,
         club: clubOf.get(r.tenantId) ?? '',
         court: { name: r.booking.resource.name, sport: r.booking.resource.sport },
-        player: r.booking.bookedByUserId ? (nameOf.get(r.booking.bookedByUserId) ?? null) : null,
+        player: playerFor(r),
+        players: 1 + r.booking._count.participants,
         coachFeeCents: r.coachFeeCents,
         currency: r.coach.currency,
       })),
       nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
     };
   });
+}
+
+// ═══ THE COACH'S OWN ACTS ON A LESSON (#549) ═══════════════════════════════
+
+/** No such lesson of the caller's: not theirs, or nobody's. One answer for both. */
+export class LessonNotFoundError extends Error {
+  constructor() {
+    super('No such lesson.');
+    this.name = 'LessonNotFoundError';
+  }
+}
+
+/** Which club and booking one of the coach's OWN lessons is at. */
+async function locateMyLesson(
+  userId: string,
+  lessonId: string,
+): Promise<{ tenantId: string; bookingId: string }> {
+  // guardrail-allow: cross-tenant — by the lesson's id AND the caller's own
+  // account: a coach's lessons are at several clubs, and this finds which.
+  const at = await runAsSuperuser((db) =>
+    db.coachLesson.findFirst({
+      where: { id: lessonId, coachUserId: userId },
+      select: { tenantId: true, bookingId: true },
+    }),
+  );
+  if (!at) throw new LessonNotFoundError();
+  return at;
+}
+
+/**
+ * The coach cancels one of their lessons (owner decision 8): until it starts,
+ * with no cutoff of their own. The booking is cancelled with it, so the court
+ * is released; the player, and anybody they added, is told by bell and email.
+ *
+ * `cancelBooking` does the work, as for every cancellation: the same record,
+ * the same refund of anything paid online, the open-play clean-up. Its
+ * `COACH` actor is the only thing a coach's cancel has of its own.
+ */
+export async function cancelMyLesson(input: {
+  userId: string;
+  lessonId: string;
+  reason?: string;
+  now?: Date;
+}): Promise<{ bookingId: string }> {
+  const at = await locateMyLesson(input.userId, input.lessonId);
+  await runInTenantContext(
+    at.tenantId,
+    (db) =>
+      cancelBooking(db, at.tenantId, {
+        bookingId: at.bookingId,
+        actor: 'COACH',
+        cancelledByUserId: input.userId,
+        reason: input.reason,
+        now: input.now,
+      }),
+    undefined,
+    { isolationLevel: 'Serializable' },
+  );
+  await notifyBookingCancelled({
+    tenantId: at.tenantId,
+    bookingId: at.bookingId,
+    by: 'COACH',
+    actorUserId: input.userId,
+    now: input.now,
+  });
+  return { bookingId: at.bookingId };
+}
+
+/**
+ * The coach records that the player did not come (owner decision 11). It is
+ * the club's own no-show, made by `markNoShow` and held to its rules: only
+ * once the lesson has started, never after the player reviewed it; and it
+ * counts at that club exactly as one the desk marks, the block on online
+ * booking included.
+ */
+export async function markMyLessonNoShow(input: {
+  userId: string;
+  lessonId: string;
+  now?: Date;
+}): Promise<{ bookingId: string }> {
+  const at = await locateMyLesson(input.userId, input.lessonId);
+  await runInTenantContext(at.tenantId, (db) =>
+    markNoShow(db, at.tenantId, {
+      bookingId: at.bookingId,
+      actorUserId: input.userId,
+      by: 'COACH',
+      now: input.now,
+    }),
+  );
+  return { bookingId: at.bookingId };
 }
