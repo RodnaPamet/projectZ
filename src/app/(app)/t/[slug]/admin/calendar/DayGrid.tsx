@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
+import { bg as bgDates } from 'date-fns/locale/bg';
+import { enGB as enDates } from 'date-fns/locale/en-GB';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { parseYMD, toYMD } from '@/components/ui/date-picker/date-utils';
+import { Trigger as DayTrigger } from '@/components/ui/date-picker/trigger';
 import { InlineNotice } from '@/components/ui/inline-notice';
-import { Input } from '@/components/ui/input';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
@@ -26,6 +29,16 @@ import type { DeskCancelRequest } from './DeskBookingDetails';
 import type { DeskDraft } from './DeskBookingSheet';
 import type { DiaryDay } from './diary-day';
 import { useFreshDiaryDay } from './use-fresh-diary-day';
+
+/**
+ * The day picker (#382), in a chunk of its own: react-day-picker and its
+ * locale are about 22 KB gzip, and the diary is read far more often than its
+ * day is changed. While the chunk loads, the vendored trigger it renders
+ * stands in, showing the same day, so nothing moves when it arrives.
+ */
+const DatePicker = lazy(() =>
+  import('@/components/ui/date-picker/date-picker').then((m) => ({ default: m.DatePicker })),
+);
 
 // The desk's two sheets (#364) load when first opened: the diary's first load
 // is the grid, and most visits only look.
@@ -215,9 +228,15 @@ export function DayGrid({
   const td = useTranslations('admin.calendar.desk');
   const tNouns = useTranslations('nouns');
   const locale = useLocale();
+  const format = useFormatter();
+  // The picker's trigger text, and its stand-in's while the picker loads.
+  const formatDayValue = (day: Date) =>
+    format.dateTime(day, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const { day: fresh, refresh } = useFreshDiaryDay(slug, requestedDay, day);
   const { isoDay, prevDay, nextDay, isToday, dayLabel, courts, bookings, firstHour, lastHour } =
     fresh;
+  const shownDay = parseYMD(isoDay);
+  const dayValueLabel = shownDay ? formatDayValue(shownDay) : null;
   // "4 писти" at a karting club, "4 корта и писти" at one with both (P51).
   const nouns = combineNouns(courts.map((c) => c.noun));
   const [noShowTarget, setNoShowTarget] = useState<DayBooking | null>(null);
@@ -368,17 +387,31 @@ export function DayGrid({
             {t('nav.today')}
           </Link>
         )}
-        <div className="w-40">
-          <Input
-            id={`${ids}-day`}
-            type="date"
-            aria-label={t('nav.pickDay')}
-            data-diary-day="date"
-            // Keyed by the day, so a navigation resets it to the day shown.
-            key={isoDay}
-            defaultValue={isoDay}
-            onChange={(e) => goToDay(e.target.value)}
-          />
+        {/* The vendored picker (#382): a calendar to choose any day from, in
+            the club's language, its trigger showing the day as this page
+            writes dates. A whole day is the only thing it can give, so the
+            old "a year still being typed" guard has nothing to guard. */}
+        <div className="w-44">
+          <Suspense
+            fallback={
+              <DayTrigger aria-label={t('nav.pickDay')} data-value={isoDay} disabled>
+                {dayValueLabel}
+              </DayTrigger>
+            }
+          >
+            <DatePicker
+              id={`${ids}-day`}
+              aria-label={t('nav.pickDay')}
+              value={parseYMD(isoDay)}
+              onChange={(day) => {
+                const value = toYMD(day);
+                if (value) goToDay(value);
+              }}
+              locale={locale === 'en' ? enDates : bgDates}
+              formatValue={formatDayValue}
+              showYearNavigation
+            />
+          </Suspense>
         </div>
         {bookableCourts.length > 0 && (
           <Button
