@@ -219,13 +219,23 @@ test.describe('club admin diary — phone', () => {
     await expectNoDrift(page);
   });
 
-  test('a date field jumps to any day (audit C08)', async ({ authedPage: page, club }) => {
+  test('the date picker jumps to any day (audit C08, #382)', async ({ authedPage: page, club }) => {
     const calendar = `/t/${club.slug}/admin/calendar`;
-    const target = shiftDay(todayAtClub(), 9);
+    const today = todayAtClub();
+    const target = shiftDay(today, 9);
     await page.goto(calendar);
-    await page.getByRole('textbox', { name: c.nav.pickDay }).fill(target);
+    const picker = page.getByRole('button', { name: c.nav.pickDay });
+    await picker.click();
+    // The calendar opens at the current month; nine days on may be the next.
+    if (target.slice(0, 7) !== today.slice(0, 7)) {
+      await page.getByRole('button', { name: bg.common.calendar.nextMonth }).click();
+    }
+    await page.locator(`[data-day="${target}"] button`).click();
     await expect(page).toHaveURL(`${calendar}?day=${target}`);
-    await expect(page.getByRole('textbox', { name: c.nav.pickDay })).toHaveValue(target);
+    await expect(page.getByRole('button', { name: c.nav.pickDay })).toHaveAttribute(
+      'data-value',
+      target,
+    );
     await expect(page.getByRole('link', { name: c.nav.today })).toBeVisible();
     await expectNoDrift(page);
   });

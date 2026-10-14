@@ -65,7 +65,13 @@
         "4": "Thu",
         "5": "Fri",
         "6": "Sat"
-      }
+      },
+      "prevYear": "Go to previous year",
+      "prevMonth": "Go to previous month",
+      "nextMonth": "Go to next month",
+      "nextYear": "Go to next year",
+      "selectDate": "Select date",
+      "clear": "Clear"
     },
     "scrollToTop": "Back to top",
     "skeleton": {

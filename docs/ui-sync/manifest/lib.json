@@ -26,6 +26,14 @@
       "sha256": "f8ae539a7733e0f303c9e9256f9b828a4bb008169561b6129f23a978d3fe26c4"
     },
     {
+      "path": "src/lib/format-date.ts",
+      "inflectPath": "packages/ui/src/lib/format-date.ts",
+      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "status": "vendored",
+      "sha256": "49b0727b2463b0c9bffa8ef42884d767daddab7e65335dd31e482f9fd9c262f6"
+    },
+    {
       "path": "src/lib/hooks/keyboard-shortcut-internals.ts",
       "inflectPath": "src/lib/hooks/keyboard-shortcut-internals.ts",
       "baseSha": "92d2ce907d9a386d20d4930c765f94259a322e1a",

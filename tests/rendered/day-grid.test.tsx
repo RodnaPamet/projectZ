@@ -336,20 +336,27 @@ describe('DayGrid on the primitives', () => {
 });
 
 describe('getting around the diary (audit C07, C08)', () => {
-  it('a date field jumps to any day, through ?day=', () => {
+  it('the date picker jumps to any day, through ?day= (#382)', async () => {
     const slug = nextClub();
     grid(slug, dayOf());
 
-    const field = screen.getByLabelText(c.nav.pickDay);
-    expect(field).toHaveAttribute('type', 'date');
-    expect(field).toHaveValue('2026-09-29');
+    // The vendored picker's trigger: named by the field, showing the day.
+    const trigger = screen.getByRole('button', { name: c.nav.pickDay });
+    expect(trigger).toHaveAttribute('data-value', '2026-09-29');
 
-    // A year still being typed is not a day to go to.
-    fireEvent.change(field, { target: { value: '0002-10-15' } });
-    expect(push).not.toHaveBeenCalled();
+    // The calendar opens at the current month (upstream picks it, whatever
+    // is selected), so the day chosen is the 15th of this month.
+    const now = new Date();
+    const target = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`;
+    fireEvent.click(trigger);
+    const day = await waitFor(() => {
+      const cell = document.querySelector(`[data-day="${target}"] button`);
+      if (!cell) throw new Error('the 15th is not shown yet');
+      return cell as HTMLElement;
+    });
+    fireEvent.click(day);
 
-    fireEvent.change(field, { target: { value: '2026-10-15' } });
-    expect(push).toHaveBeenCalledWith(`/t/${slug}/admin/calendar?day=2026-10-15`);
+    expect(push).toHaveBeenCalledWith(`/t/${slug}/admin/calendar?day=${target}`);
   });
 
   it('says nothing about scrolling while every court fits', () => {
