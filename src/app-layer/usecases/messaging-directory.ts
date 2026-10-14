@@ -3,6 +3,7 @@ import { playsAsPlayer } from '@/lib/auth/account-kind';
 
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
+import { foldName } from '@/lib/text/name-fold';
 
 import { reportContent } from './reviews';
 
@@ -111,7 +112,9 @@ export async function blockedEitherWay(db: PrismaClient, viewerId: string): Prom
 export async function searchPlayers(viewerId: string, query: string): Promise<PlayerCard[]> {
   const q = query.trim().replace(/\s+/g, ' ');
   if (q.length < PLAYER_SEARCH_MIN) return [];
-  const pattern = `%${likeEscape(q.slice(0, 80))}%`;
+  // Folded as the index is (#482, P75): "Ivan" finds «Иван», «иван» finds "Ivan".
+  const folded = foldName(q.slice(0, 80));
+  const pattern = `%${likeEscape(folded)}%`;
 
   // guardrail-allow: cross-tenant — app_user is global; the result is the
   // public card only, and the filters below are the opt-out and the blocks.
@@ -122,13 +125,14 @@ export async function searchPlayers(viewerId: string, query: string): Promise<Pl
     >`
       SELECT u."id", u."name", u."avatarUrl"
         FROM "app_user" u
-       WHERE u."name" ILIKE ${pattern}
+       WHERE playerz_name_fold(u."name") LIKE ${pattern}
          AND u."searchable" = true
          AND u."deletedAt" IS NULL
          AND u."accountKind" IN ('PLAYER', 'COACH')
          AND u."id" <> ${viewerId}
          ${blocked.length > 0 ? Prisma.sql`AND u."id" NOT IN (${Prisma.join(blocked)})` : Prisma.empty}
-       ORDER BY (lower(u."name") LIKE lower(${`${likeEscape(q)}%`})) DESC, u."name" ASC, u."id" ASC
+       ORDER BY (playerz_name_fold(u."name") LIKE ${`${likeEscape(folded)}%`}) DESC,
+                u."name" ASC, u."id" ASC
        LIMIT ${PLAYER_SEARCH_LIMIT}`;
     const sports = await sportsOf(
       db,

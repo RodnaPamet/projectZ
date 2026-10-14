@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useOptimistic, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 
 import { FieldSkeleton } from '@/components/loading/shapes';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Heading } from '@/components/ui/typography';
+import { nounMessage } from '@/lib/sports/noun-list';
 import { resourceNoun, resourceNouns } from '@/lib/sports/resource-kinds';
 
 import { archiveCourtAction } from './actions';
@@ -81,6 +82,8 @@ export function CourtsBoard({
   venues: ReadonlyArray<{ id: string; name: string }>;
 }) {
   const t = useTranslations('admin.courts');
+  const tNouns = useTranslations('nouns');
+  const locale = useLocale();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   // "Добавяне на писта" at a karting club, "…на корт или игрище" at one with
@@ -98,7 +101,7 @@ export function CourtsBoard({
           // A club with no venue has nowhere to put a court, and a form whose
           // only select is empty is a worse explanation than not offering it.
           <Button type="button" onClick={() => setAdding(true)} disabled={venues.length === 0}>
-            {t(nouns === 'court' ? 'action.add' : `${nouns}.action.add`)}
+            {nounMessage(t, tNouns, locale, nouns, 'action.add')}
           </Button>
         )}
         {venues.length === 0 && <p className="text-content-muted mt-2 text-sm">{t('needVenue')}</p>}

@@ -10,6 +10,8 @@ import { legalHrefs } from '@/lib/legal/texts';
 import { readModules } from '@/lib/modules';
 import { realtimeEnabled } from '@/lib/realtime/centrifugo';
 import { RealtimeProvider } from '@/lib/realtime/client';
+import { nounListValues } from '@/lib/sports/noun-list';
+import { nounsOf } from '@/lib/sports/resource-kinds';
 
 import { BottomTabBar } from './BottomTabBar';
 import { ClubAdminShell } from './club-admin-shell';
@@ -187,5 +189,11 @@ async function clubFrame(
     chromeReadFailed('resource-nouns', err);
     return 'court' as const;
   });
-  return clubShell(result.ctx, { ...opts, nouns, modules: readModules() });
+  const [tNouns, locale] = await Promise.all([getTranslations('nouns'), getLocale()]);
+  return clubShell(result.ctx, {
+    ...opts,
+    nouns,
+    words: (list) => nounListValues(tNouns, locale, nounsOf(list)),
+    modules: readModules(),
+  });
 }

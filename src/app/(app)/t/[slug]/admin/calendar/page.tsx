@@ -8,6 +8,7 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
+import { nounMessage } from '@/lib/sports/noun-list';
 import { combineNouns } from '@/lib/sports/resource-kinds';
 
 import { DayGrid } from './DayGrid';
@@ -59,7 +60,10 @@ export default async function CalendarPage({
   // "всички писти" at a karting club (P51).
   const nouns = combineNouns(day.courts.map((c) => c.noun));
 
-  const tNav = await getTranslations('common.nav');
+  const [tNav, tNouns] = await Promise.all([
+    getTranslations('common.nav'),
+    getTranslations('nouns'),
+  ]);
 
   return (
     <section>
@@ -68,7 +72,7 @@ export default async function CalendarPage({
         <div>
           <Heading level={1}>{t('title')}</Heading>
           <p className="text-content-muted mt-1 text-sm">
-            {t(nouns === 'court' ? 'subtitle' : `${nouns}.subtitle`)}
+            {nounMessage(t, tNouns, locale, nouns, 'subtitle')}
           </p>
         </div>
         {/* The weekly series, and moving one (#415). */}

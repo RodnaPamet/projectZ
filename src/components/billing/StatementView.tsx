@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { createColumns, DataTable } from '@/components/ui/table/data-table';
 import { Heading } from '@/components/ui/typography';
 import type { ClubStatementDto, StatementLineDto } from '@/lib/billing/statement-dto';
+import { nounMessage } from '@/lib/sports/noun-list';
 
 /**
  * One club's fee statement for one month (#372): the totals, the club's terms,
@@ -36,6 +37,8 @@ export function StatementView({
   children?: ReactNode;
 }) {
   const t = useTranslations('billing.statement');
+  const tNouns = useTranslations('nouns');
+  const locale = useLocale();
   const format = useFormatter();
   const { totals, currency } = statement;
 
@@ -63,10 +66,8 @@ export function StatementView({
     {
       id: 'court',
       // "Писта" at a karting club, "Корт / игрище" at one with courts and
-      // pitches (P51, #454).
-      header: t(
-        statement.courtNouns === 'court' ? 'column.court' : `${statement.courtNouns}.column.court`,
-      ),
+      // pitches (P51, #454, #477).
+      header: nounMessage(t, tNouns, locale, statement.courtNouns, 'column.court'),
       cell: ({ row }) => (
         <span className="grid">
           <span className="text-content-emphasis">{row.original.courtName}</span>

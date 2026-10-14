@@ -37,6 +37,11 @@ const FAMILIES: Family[] = [
     why: 'one label per Sport enum value, looked up as t(sport)',
   },
   {
+    prefix: 'nouns.',
+    via: 'src/lib/sports/noun-list.ts',
+    why: "each resource noun's forms (#477), read as tNouns(`${noun}.${form}`) to fill a several-noun message",
+  },
+  {
     prefix: 'cities.',
     via: 'src/lib/geo/cities.ts',
     why: 'one name per known city (#357), looked up as t(key) from the city a venue row stores',

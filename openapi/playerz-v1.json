@@ -18661,13 +18661,37 @@
             "enum": [
               "court",
               "pitch",
-              "track",
               "courtPitch",
+              "track",
               "courtTrack",
               "pitchTrack",
-              "courtPitchTrack"
+              "courtPitchTrack",
+              "table",
+              "courtTable",
+              "pitchTable",
+              "courtPitchTable",
+              "trackTable",
+              "courtTrackTable",
+              "pitchTrackTable",
+              "courtPitchTrackTable",
+              "seat",
+              "courtSeat",
+              "pitchSeat",
+              "courtPitchSeat",
+              "trackSeat",
+              "courtTrackSeat",
+              "pitchTrackSeat",
+              "courtPitchTrackSeat",
+              "tableSeat",
+              "courtTableSeat",
+              "pitchTableSeat",
+              "courtPitchTableSeat",
+              "trackTableSeat",
+              "courtTrackTableSeat",
+              "pitchTrackTableSeat",
+              "courtPitchTrackTableSeat"
             ],
-            "description": "What the court column is called (P51, #454): `track` at a club whose resources are all karting tracks (\"Писта\"), `pitch` at one whose resources are all fields (\"Игрище\"), a list of the nouns a club holds in the order court, pitch, track at one with several (`courtPitch`: \"Корт / игрище\"), else `court` (\"Корт\"). Treat an unknown value as `court`."
+            "description": "What the court column is called (P51, #454, #477): the club's one noun when all its resources are of one kind (`court` \"Корт\", `pitch` \"Игрище\", `track` \"Писта\", `table` \"Маса\": table tennis and chess, `seat` \"Място\": esports), or the nouns it holds named in the order court, pitch, track, table, seat (`courtTable`: \"Корт / маса\"). Treat an unknown value as `court`."
           }
         }
       },

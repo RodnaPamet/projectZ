@@ -83,7 +83,9 @@ describe('the club page’s title', () => {
     [[['COURT']], 'Спортна София — кортове и резервации | playerz.bg'],
     // A court at one venue and a pitch at another: no one word is true.
     [[['COURT'], ['FIELD']], 'Спортна София — свободни часове и резервации | playerz.bg'],
-    [[['TABLE']], 'Спортна София — свободни часове и резервации | playerz.bg'],
+    [[['TABLE']], 'Спортна София — маси и резервации | playerz.bg'],
+    [[['LOBBY']], 'Спортна София — места и резервации | playerz.bg'],
+    [[['TABLE'], ['LOBBY']], 'Спортна София — свободни часове и резервации | playerz.bg'],
     [[], 'Спортна София — кортове и резервации | playerz.bg'],
   ])('venues %j: "%s"', async (perVenue, expected) => {
     const { title, og } = await titleFor(perVenue);

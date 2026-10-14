@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ import { Caption, Heading } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
 import { V1 } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
+import { nounMessage } from '@/lib/sports/noun-list';
 import { combineNouns, type ResourceNoun } from '@/lib/sports/resource-kinds';
 
 import { markNoShowAction } from './actions';
@@ -212,6 +213,8 @@ export function DayGrid({
 }) {
   const t = useTranslations('admin.calendar');
   const td = useTranslations('admin.calendar.desk');
+  const tNouns = useTranslations('nouns');
+  const locale = useLocale();
   const { day: fresh, refresh } = useFreshDiaryDay(slug, requestedDay, day);
   const { isoDay, prevDay, nextDay, isToday, dayLabel, courts, bookings, firstHour, lastHour } =
     fresh;
@@ -436,13 +439,11 @@ export function DayGrid({
           {edges.overflow && (
             <div className="gap-tight flex flex-wrap items-center" data-diary-courts-hint>
               <Caption>
-                {t(nouns === 'court' ? 'scroll.hint' : `${nouns}.scroll.hint`, {
-                  count: courts.length,
-                })}
+                {nounMessage(t, tNouns, locale, nouns, 'scroll.hint', { count: courts.length })}
               </Caption>
               <div
                 role="group"
-                aria-label={t(nouns === 'court' ? 'scroll.jumpTo' : `${nouns}.scroll.jumpTo`)}
+                aria-label={nounMessage(t, tNouns, locale, nouns, 'scroll.jumpTo')}
                 className="gap-tight flex flex-wrap"
               >
                 {courts.map((court) => (

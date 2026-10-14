@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { COURT_LIST_LIMIT, courtsWereTruncated } from '@/app-layer/repositories/court';
 import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
@@ -10,7 +10,8 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
-import { resourceNouns } from '@/lib/sports/resource-kinds';
+import { nounListValues, nounMessage } from '@/lib/sports/noun-list';
+import { nounsOf, resourceNouns } from '@/lib/sports/resource-kinds';
 
 import { CourtsBoard, type CourtRow } from './CourtsBoard';
 
@@ -22,13 +23,15 @@ import { CourtsBoard, type CourtRow } from './CourtsBoard';
  * them with its 404.
  */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
-  const [t, result] = await Promise.all([
+  const [t, tNouns, locale, result] = await Promise.all([
     getTranslations('admin.courts'),
+    getTranslations('nouns'),
+    getLocale(),
     params.then(({ slug }) => resolveTenantPageContext(slug)),
   ]);
   const nouns = result.kind === 'ok' ? await clubResourceNouns(result.ctx.tenantId) : 'court';
   return {
-    title: t(nouns === 'court' ? 'metaTitle' : `${nouns}.metaTitle`),
+    title: nounMessage(t, tNouns, locale, nouns, 'metaTitle'),
   };
 }
 
@@ -110,15 +113,23 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
   // nav name the screen (#362).
   const nouns = resourceNouns(rows.map((r) => r.resourceType));
 
-  const tNav = await getTranslations('common.nav');
+  const [tNav, tNouns, locale] = await Promise.all([
+    getTranslations('common.nav'),
+    getTranslations('nouns'),
+    getLocale(),
+  ]);
 
   return (
     <section>
-      <PageBreadcrumbs items={clubAdminCrumbs(slug, tNav, 'courts', nouns)} />
+      <PageBreadcrumbs
+        items={clubAdminCrumbs(slug, tNav, 'courts', nouns, (list) =>
+          nounListValues(tNouns, locale, nounsOf(list)),
+        )}
+      />
       <header className="mb-section">
-        <Heading level={1}>{t(nouns === 'court' ? 'title' : `${nouns}.title`)}</Heading>
+        <Heading level={1}>{nounMessage(t, tNouns, locale, nouns, 'title')}</Heading>
         <p className="text-content-muted mt-1 text-sm">
-          {t(nouns === 'court' ? 'subtitle' : `${nouns}.subtitle`)}
+          {nounMessage(t, tNouns, locale, nouns, 'subtitle')}
         </p>
       </header>
 
@@ -127,9 +138,7 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
         // route was redesigned to avoid. Saying so is cheaper than paging a
         // screen no real club needs paged.
         <InlineNotice variant="info" className="mb-default">
-          {t(nouns === 'court' ? 'truncated' : `${nouns}.truncated`, {
-            limit: COURT_LIST_LIMIT,
-          })}
+          {nounMessage(t, tNouns, locale, nouns, 'truncated', { limit: COURT_LIST_LIMIT })}
         </InlineNotice>
       )}
 

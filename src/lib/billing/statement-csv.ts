@@ -3,6 +3,8 @@ import { formatInTimeZone } from 'date-fns-tz';
 import type { ClubStatement } from '@/app-layer/usecases/club-fees';
 import { bpsToPercent, FEE_TIME_ZONE } from '@/lib/billing/club-fee';
 import { translateFor } from '@/lib/i18n/server-messages';
+import { nounListValues, type NounForm } from '@/lib/sports/noun-list';
+import { nounsOf } from '@/lib/sports/resource-kinds';
 
 /**
  * A club's monthly statement as a CSV file (#372), for the owner to invoice
@@ -72,6 +74,26 @@ export function statementFilename(clubSlug: string, month: string): string {
 }
 
 /** The CSV text of a statement, BOM first. */
+/**
+ * The court column's header (P51, #454, #477): the club's one noun's own word,
+ * or several composed ("Корт / маса"). Bulgarian, as the rest of the file.
+ */
+async function courtHeader(list: ClubStatement['courtNouns']): Promise<string> {
+  const held = nounsOf(list);
+  if (held.length === 1) {
+    return translateFor('bg', `billing.csv.${held[0] === 'court' ? 'court' : `${held[0]}.court`}`);
+  }
+  const FORMS: NounForm[] = ['one', 'many', 'counted'];
+  const words = new Map<string, string>();
+  await Promise.all(
+    held.flatMap((n) =>
+      FORMS.map(async (f) => words.set(`${n}.${f}`, await translateFor('bg', `nouns.${n}.${f}`))),
+    ),
+  );
+  const word = (key: string) => words.get(key) ?? key;
+  return translateFor('bg', 'billing.csv.several.court', nounListValues(word, 'bg', held) as never);
+}
+
 export async function statementCsv(statement: ClubStatement): Promise<string> {
   const t = (key: string, values: Record<string, string> = {}) =>
     translateFor('bg', `billing.csv.${key}`, values);
@@ -96,7 +118,7 @@ export async function statementCsv(statement: ClubStatement): Promise<string> {
     t('date'),
     t('time'),
     t('venue'),
-    t(statement.courtNouns === 'court' ? 'court' : `${statement.courtNouns}.court`),
+    courtHeader(statement.courtNouns),
     t('kind'),
     t('price', { currency }),
     t('rate'),

@@ -420,7 +420,7 @@ describe('getting around the diary (audit C07, C08)', () => {
       mixed.courts[3] = { ...mixed.courts[3]!, noun: 'track' };
       grid(nextClub(), mixed);
       expect(
-        screen.getByText(c.courtTrack.scroll.hint.replace('{count}', '4')),
+        screen.getByText('4 корта и писти: превъртете настрани или изберете от тях.'),
       ).toBeInTheDocument();
     });
   });
