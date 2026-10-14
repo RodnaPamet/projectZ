@@ -46,6 +46,7 @@ const booking = (over: Partial<MyBookingDto> = {}): MyBookingDto => ({
   endTs: '2026-09-29T17:30:00.000Z',
   totalCents: 2400,
   currency: 'EUR',
+  lesson: null,
   expiresAt: null,
   cancelledAt: null,
   createdAt: '2026-09-20T10:00:00.000Z',
@@ -175,6 +176,44 @@ describe('the server seed', () => {
     expect(sofia).toHaveTextContent(/20:30/);
     expect(london).toHaveTextContent(/17:00/);
     expect(london).toHaveTextContent(/18:30/);
+  });
+
+  it('a lesson says who teaches it, and its price is the court and the coach together', () => {
+    const lesson = {
+      id: 'ls1',
+      coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+      coachFeeCents: 4000,
+      groupFeeCents: null,
+      courtPriceCents: 2400,
+      totalCents: 6400,
+    };
+    serve({ list: () => ok(page([booking({ lesson })])) });
+    mount(page([booking({ lesson }), booking({ id: 'bk2' })]));
+
+    const cards = screen.getAllByRole('listitem');
+    expect(within(cards[0]!).getByTestId('booking-card-lesson')).toHaveTextContent(
+      'Урок с Иван Петров',
+    );
+    // The whole of it, not the court's 24 alone.
+    expect(cards[0]!).toHaveTextContent(/64,00\s€/);
+    expect(cards[0]!).not.toHaveTextContent(/24,00\s€/);
+    // A plain court booking says nothing of a lesson.
+    expect(within(cards[1]!).queryByTestId('booking-card-lesson')).toBeNull();
+    expect(cards[1]!).toHaveTextContent(/24,00\s€/);
+  });
+
+  it('a lesson whose coach’s account is gone still says it was a lesson', () => {
+    const lesson = {
+      id: 'ls1',
+      coach: { slug: null, name: null },
+      coachFeeCents: 4000,
+      groupFeeCents: null,
+      courtPriceCents: 2400,
+      totalCents: 6400,
+    };
+    serve({ list: () => ok(page([booking({ lesson })])) });
+    mount(page([booking({ lesson })]));
+    expect(screen.getByTestId('booking-card-lesson')).toHaveTextContent(mb.lesson.withCoach);
   });
 
   it('says the status in words, on a badge', () => {

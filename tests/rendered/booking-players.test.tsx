@@ -44,6 +44,7 @@ const booking = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => 
   endTs: '2026-10-20T17:30:00Z',
   totalCents: 2400,
   currency: 'EUR',
+  lesson: null,
   expiresAt: null,
   cancelledAt: null,
   createdAt: '2026-10-01T10:00:00Z',

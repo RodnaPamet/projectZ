@@ -38,7 +38,7 @@ describe('toMyBookingDto', () => {
     resourceId: 'r1',
   };
 
-  it('is BookingDto plus clubSlug, venueReview, canReview and viewerRole — and nothing else', () => {
+  it('is BookingDto plus clubSlug, venueReview, canReview, viewerRole and the lesson — and nothing else', () => {
     expect(toMyBookingDto(row)).toEqual({
       id: 'b1',
       status: 'COMPLETED',
@@ -59,6 +59,65 @@ describe('toMyBookingDto', () => {
       venueReview: null,
       canReview: true,
       viewerRole: 'BOOKER',
+      // A plain court booking: said as null, never left out.
+      lesson: null,
+    });
+  });
+
+  describe('a booking with a lesson on it (#548)', () => {
+    const lessonRow = {
+      ...row,
+      status: 'CONFIRMED',
+      lesson: {
+        id: 'ls1',
+        coachUserId: 'u_coach',
+        coachFeeCents: 4000,
+        groupRateCents: 6000,
+        cancelCutoffHours: 48,
+      },
+      lessonCoach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+    };
+
+    it('says who teaches it and the price in its parts; the booking’s own total stays the court’s', () => {
+      const dto = toMyBookingDto(lessonRow);
+      expect(dto.totalCents).toBe(2400);
+      expect(dto.lesson).toEqual({
+        id: 'ls1',
+        coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+        coachFeeCents: 4000,
+        // The group RATE is per hour; the lesson is one hour.
+        groupFeeCents: 6000,
+        courtPriceCents: 2400,
+        totalCents: 6400,
+      });
+      // The coach's account id and the cutoff are for the server, not the wire.
+      expect(JSON.stringify(dto)).not.toMatch(/u_coach|cancelCutoffHours|coachUserId/);
+    });
+
+    it('the deadline is the stricter of the club’s cutoff and the coach’s', () => {
+      // The club's 24 hours and the coach's 48: two days before the start.
+      expect(toMyBookingDto(lessonRow).cancellableUntil).toBe('2026-07-13T06:00:00Z');
+      // A coach who asks for less does not loosen the club's rule.
+      expect(
+        toMyBookingDto({ ...lessonRow, lesson: { ...lessonRow.lesson, cancelCutoffHours: 2 } })
+          .cancellableUntil,
+      ).toBe('2026-07-14T06:00:00Z');
+    });
+
+    it('a group fee is for the lesson’s length; none when the coach gives no group lessons', () => {
+      const ninety = { ...lessonRow, endTs: new Date('2026-07-15T07:30:00Z') };
+      expect(toMyBookingDto(ninety).lesson!.groupFeeCents).toBe(9000);
+      expect(
+        toMyBookingDto({ ...lessonRow, lesson: { ...lessonRow.lesson, groupRateCents: null } })
+          .lesson!.groupFeeCents,
+      ).toBeNull();
+    });
+
+    it('a coach who cannot be found is a lesson with nobody named', () => {
+      expect(toMyBookingDto({ ...lessonRow, lessonCoach: null }).lesson!.coach).toEqual({
+        slug: null,
+        name: null,
+      });
     });
   });
 

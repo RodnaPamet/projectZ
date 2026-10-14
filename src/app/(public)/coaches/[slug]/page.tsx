@@ -1,4 +1,4 @@
-import { cache } from 'react';
+import { cache, Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -17,6 +17,8 @@ import { venuePath } from '@/lib/seo/sitemap';
 import { absoluteUrl, siteUrl } from '@/lib/seo/site-url';
 import { serializeJsonLd } from '@/lib/seo/venue-jsonld';
 
+import { CoachLessons, CoachLessonsSkeleton } from './CoachLessons';
+
 /**
  * /coaches/{slug} — one coach's public page (#547; owner decision 10): who
  * they are, what they teach, and where a lesson can be booked with them and
@@ -28,8 +30,9 @@ import { serializeJsonLd } from '@/lib/seo/venue-jsonld';
  * approved for publication (`coach-directory.ts`): no address, no phone,
  * nothing of the certificate.
  *
- * Booking a lesson from here arrives with #548; today the page says where and
- * for how much, and links to each venue.
+ * A lesson is booked from here (#548): «Запишете урок» is the page's second
+ * stage, behind its own Suspense boundary (`CoachLessons`), so the coach's
+ * text never waits for the times.
  */
 const readCoach = cache((slug: string) => publicCoachBySlug(slug));
 
@@ -75,7 +78,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function CoachPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CoachPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { slug } = await params;
   const coach = await readCoach(slug);
   if (!coach) notFound();
@@ -214,6 +223,12 @@ export default async function CoachPage({ params }: { params: Promise<{ slug: st
             </>
           )}
         </section>
+
+        {coach.venues.length > 0 ? (
+          <Suspense fallback={<CoachLessonsSkeleton />}>
+            <CoachLessons coach={coach} name={name} searchParams={searchParams} />
+          </Suspense>
+        ) : null}
       </div>
     </div>
   );

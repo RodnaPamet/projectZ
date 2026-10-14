@@ -38,6 +38,7 @@ const detail = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => (
   endTs: iso(START + 1.5 * HOUR),
   totalCents: 2400,
   currency: 'EUR',
+  lesson: null,
   expiresAt: null,
   cancelledAt: null,
   createdAt: '2026-10-01T10:00:00Z',
@@ -159,6 +160,51 @@ describe('the detail page', () => {
     expect(screen.getByText('ул. Тестова 1')).toBeInTheDocument();
     expect(screen.getByTestId('booking-status')).toHaveTextContent(mb.status.CONFIRMED);
     expect(document.querySelector('[data-perf-ready]')).not.toBeNull();
+  });
+
+  it('a lesson: the coach, linked to their page, and the price whole and in its two parts', () => {
+    const lesson = {
+      id: 'ls1',
+      coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+      coachFeeCents: 4000,
+      groupFeeCents: 6000,
+      courtPriceCents: 2400,
+      totalCents: 6400,
+    };
+    installFakeFetch(() => ok(detail({ lesson })));
+    mount(detail({ lesson }), START - 48 * HOUR);
+
+    const coach = screen.getByTestId('booking-lesson-coach');
+    expect(coach).toHaveTextContent('Иван Петров');
+    expect(coach).toHaveAttribute('href', '/coaches/ivan-petrov');
+    expect(screen.getByTestId('booking-lesson-total')).toHaveTextContent(/^64,00\s€$/);
+    expect(screen.getByTestId('booking-lesson-parts')).toHaveTextContent(
+      /^40,00\s€ за треньора \+ 24,00\s€ за корта$/,
+    );
+    expect(screen.getByText(d.payAtClub)).toBeInTheDocument();
+  });
+
+  it('a lesson whose coach is no longer listed names them and links nowhere', () => {
+    const lesson = {
+      id: 'ls1',
+      coach: { slug: null, name: 'Иван Петров' },
+      coachFeeCents: 4000,
+      groupFeeCents: null,
+      courtPriceCents: 2400,
+      totalCents: 6400,
+    };
+    installFakeFetch(() => ok(detail({ lesson })));
+    mount(detail({ lesson }), START - 48 * HOUR);
+    const coach = screen.getByTestId('booking-lesson-coach');
+    expect(coach).toHaveTextContent('Иван Петров');
+    expect(coach).not.toHaveAttribute('href');
+  });
+
+  it('a plain court booking says nothing of a coach', () => {
+    installFakeFetch(() => ok(detail()));
+    mount(detail(), START - 48 * HOUR);
+    expect(screen.queryByTestId('booking-lesson-coach')).toBeNull();
+    expect(screen.queryByTestId('booking-lesson-parts')).toBeNull();
   });
 
   it('links directions to maps from the address, in a new tab, and back to the venue page', () => {

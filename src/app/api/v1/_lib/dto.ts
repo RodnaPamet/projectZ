@@ -5,6 +5,7 @@ import type { Me } from '@/app-layer/usecases/me';
 import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/my-notifications';
 
 import { bookingCutoffHours, playerCancellableUntil } from '@/lib/booking/cutoff';
+import { coachFeeCents } from '@/lib/coaches/lessons';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
 import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
 
@@ -380,8 +381,49 @@ type BookingRow = {
     venue: { id: string; name: string; timezone: string; cancellationCutoffHours: number };
   };
   /** The lesson on it, when it is one; a lesson has the coach's cutoff too. */
-  lesson?: { cancelCutoffHours: number } | null;
+  lesson?: {
+    id: string;
+    coachFeeCents: number;
+    groupRateCents: number | null;
+    cancelCutoffHours: number;
+  } | null;
 };
+
+/**
+ * The lesson on one of the caller's bookings (#548): who teaches it and what
+ * each part costs. The booking's own `totalCents` is the court's part; this
+ * adds the coach's fee and the two together. Both are paid at the club.
+ */
+export interface MyBookingLessonDto {
+  id: string;
+  /** `slug` is the coach's page, null once they are no longer listed. */
+  coach: { slug: string | null; name: string | null };
+  coachFeeCents: number;
+  /** What the coach's fee becomes with two or more players; null: no group lessons. */
+  groupFeeCents: number | null;
+  courtPriceCents: number;
+  totalCents: number;
+}
+
+function toMyBookingLesson(b: {
+  startTs: Date;
+  endTs: Date;
+  totalCents: number;
+  lesson?: BookingRow['lesson'];
+  lessonCoach?: { slug: string | null; name: string | null } | null;
+}): MyBookingLessonDto | null {
+  if (!b.lesson) return null;
+  const minutes = Math.round((b.endTs.getTime() - b.startTs.getTime()) / 60_000);
+  return {
+    id: b.lesson.id,
+    coach: { slug: b.lessonCoach?.slug ?? null, name: b.lessonCoach?.name ?? null },
+    coachFeeCents: b.lesson.coachFeeCents,
+    groupFeeCents:
+      b.lesson.groupRateCents === null ? null : coachFeeCents(b.lesson.groupRateCents, minutes),
+    courtPriceCents: b.totalCents,
+    totalCents: b.totalCents + b.lesson.coachFeeCents,
+  };
+}
 
 /**
  * The venue is lifted OUT of the resource rather than left nested.
@@ -477,10 +519,13 @@ export interface MyBookingDto extends BookingDto {
    * `cancellableUntil` is null) and may leave it instead.
    */
   viewerRole: 'BOOKER' | 'PARTICIPANT';
+  /** The lesson on it, when it is one (#548); null for a plain court booking. */
+  lesson: MyBookingLessonDto | null;
 }
 
 export function toMyBookingDto(
   b: BookingRow & {
+    lessonCoach?: { slug: string | null; name: string | null } | null;
     clubSlug: string | null;
     venueReview: { id: string; bookingId: string | null; rating: number; status: string } | null;
     canReview: boolean;
@@ -493,6 +538,7 @@ export function toMyBookingDto(
     // Cancelling is the booker's (`POST /t/{slug}/bookings/{id}/cancel` finds
     // only their own); an added player is told there is nothing to cancel.
     cancellableUntil: b.viewerRole === 'BOOKER' ? base.cancellableUntil : null,
+    lesson: toMyBookingLesson(b),
     viewerRole: b.viewerRole,
     clubSlug: b.clubSlug,
     // Rebuilt field by field rather than passed through, for the reason at the

@@ -7,6 +7,7 @@ import {
   type BookingPlayer,
   type BookingWhen,
 } from '@/app-layer/repositories/booking';
+import { lessonCoaches } from '@/app-layer/usecases/coach-directory';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
 /**
@@ -57,6 +58,12 @@ export async function listMyBookings(input: {
 
     if (bookings.length === 0) return { items: [], nextCursor: page.nextCursor };
 
+    // Who teaches the lessons among them (#548): one read for the page.
+    const coaches = await lessonCoaches(
+      db,
+      bookings.flatMap((b) => (b.lesson ? [b.lesson.coachUserId] : [])),
+    );
+
     const tenantIds = [...new Set(bookings.map((b) => b.tenantId))];
     const venueIds = [...new Set(bookings.map((b) => b.resource.venue.id))];
 
@@ -94,6 +101,7 @@ export async function listMyBookings(input: {
         const viewerRole = roleOf(b, input.userId);
         return {
           ...b,
+          lessonCoach: b.lesson ? (coaches.get(b.lesson.coachUserId) ?? NOBODY) : null,
           clubSlug: slugByTenant.get(b.tenantId) ?? null,
           venueReview,
           viewerRole,
@@ -109,6 +117,9 @@ export async function listMyBookings(input: {
 }
 
 export type { BookingPlayer };
+
+/** The coach of a lesson whose account cannot be found: shown as "a coach". */
+const NOBODY = { name: null, slug: null } as const;
 
 /**
  * The caller's side of a booking (#358): they booked it, or were added to it.
@@ -140,7 +151,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
     const venueId = b.resource.venue.id;
     const viewerRole = roleOf(b, input.userId);
 
-    const [club, review, players] = await Promise.all([
+    const [club, review, players, coaches] = await Promise.all([
       db.venueOrg.findUnique({
         where: { id: b.tenantId },
         select: { slug: true, onlinePaymentEnabled: true },
@@ -154,6 +165,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
       // Names and avatars, never emails or ids: `User` is global, and this is
       // the only thing about another person a booking shows (#358).
       readBookingPlayers(db, b, input.userId),
+      lessonCoaches(db, b.lesson ? [b.lesson.coachUserId] : []),
     ]);
 
     const venueReview: MyVenueReview | null = review
@@ -165,6 +177,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
 
     return {
       ...b,
+      lessonCoach: b.lesson ? (coaches.get(b.lesson.coachUserId) ?? NOBODY) : null,
       clubSlug: club?.slug ?? null,
       // A club that takes no money online is paid at the club, which is every
       // pilot club (#354). A club gone from under its booking is treated the

@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 
 import type { AvailabilityDto, BookingDto, ResourceSlotsDto } from '@/app/api/v1/_lib/dto';
 import { CardListSkeleton } from '@/components/loading/shapes';
+import type { BookingViewer } from '@/components/booking/booking-viewer';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -52,7 +53,7 @@ import { BookingSheet, type Selection } from './BookingSheet';
  * send them to /login and back (`venuePagePath`).
  */
 
-export type Viewer = 'signed-out' | 'undecided' | 'no-phone' | 'player' | 'club';
+export type Viewer = BookingViewer;
 
 interface VenueProps {
   id: string;

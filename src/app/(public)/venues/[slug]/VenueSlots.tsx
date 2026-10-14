@@ -1,19 +1,16 @@
 import { CardListSkeleton } from '@/components/loading/shapes';
 import { RouteSkeleton } from '@/components/loading/route-skeleton';
 import { Skeleton, SkeletonPill } from '@/components/ui/skeleton';
-import { phoneStanding } from '@/app-layer/usecases/phone-verification';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { toAvailability } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
-import { playerChrome } from '@/components/layout/player-chrome';
-import { KIND_CHOOSER_PATH } from '@/lib/auth/landing';
+import { bookingViewer } from '@/components/booking/booking-viewer';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
-import { phoneRequired } from '@/lib/sms/phone-verifier';
 import { countPageUsage } from '@/lib/usage/record';
 
 import { bookingDays, parseInitialPick } from './booking-days';
-import { VenueBooking, type Viewer } from './VenueBooking';
+import { VenueBooking } from './VenueBooking';
 
 /**
  * The venue page's second stage (#403): the day picker and the first day's
@@ -60,25 +57,14 @@ export async function VenueSlots({
   const publicVenue = { id: venue.id, name: venue.name, timezone: venue.timezone };
 
   // BYPASSRLS for the same reason as the page's venue read (page.tsx).
-  const [resources, { me, kind, landing }] = await Promise.all([
+  // Who is looking decides where «Резервирай» leads: to sign-in, to the
+  // question an account still owes, to the phone step, or to the sheet
+  // (`bookingViewer`, shared with the lesson booking on a coach's page).
+  const [resources, { me, viewer }] = await Promise.all([
     runAsSuperuser((db) => loadVenueAvailability(db, { venue: publicVenue, from, to })),
-    playerChrome(),
+    bookingViewer(),
   ]);
   const seed = toAvailability({ venue: publicVenue, from, to, resources });
-  // A coach books as a player would, until the coach module says otherwise
-  // (#377): the API answers for the account's kind either way.
-  //
-  // An account that has not answered "Играч или треньор?" yet (#360) cannot
-  // book: the API refuses it. So «Резервирай» takes it to that question and
-  // back to this slot, rather than into a sheet that can only refuse (#416).
-  const who: Viewer =
-    landing?.href === KIND_CHOOSER_PATH ? 'undecided' : kind === 'coach' ? 'player' : kind;
-  // And a player with no confirmed phone number, once the rule is on (#500),
-  // confirms one first and comes back to the slot: one read, only then.
-  const viewer: Viewer =
-    who === 'player' && me && phoneRequired() && !(await phoneStanding(me.userId))?.verified
-      ? 'no-phone'
-      : who;
 
   // A player back from sign-in with `?confirm=1` lands on the confirm sheet
   // already open (VenueBooking), so the funnel's "sheet opened" (#371) is

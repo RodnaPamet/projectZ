@@ -208,6 +208,17 @@ export const KEYS = {
   game: (id: string) => `${BASE}/games/${seg(id)}`,
   /** «Моите заявки»: the caller's requests to join games. */
   myGameRequests: () => `${BASE}/me/game-requests`,
+  /** The lessons the caller teaches, at every club (#548): a coach's «Уроци». */
+  myCoachLessons: (params: { when: 'upcoming' | 'past'; limit?: number }) =>
+    paged(`${BASE}/me/coach-lessons`, params),
+  /**
+   * The times a lesson can start with a coach at one venue on one calendar
+   * day there (#548): the time picker on the coach's page.
+   */
+  lessonTimes: (
+    coachSlug: string,
+    params: { linkId: string; date: string; minutes: number; sport?: string },
+  ) => `${BASE}/coaches/${seg(coachSlug)}/lesson-times${query(params)}`,
   /** Open play on one of the caller's bookings: the booker's requests, or their own. */
   meBookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
   /** One player's public card. */
@@ -217,6 +228,8 @@ export const KEYS = {
 /** Writes: the URLs `useV1Mutation` posts to. */
 export const V1 = {
   createBooking: (slug: string) => `${BASE}/t/${seg(slug)}/bookings`,
+  /** `POST { linkId, startTs, minutes, sport?, expectedTotalCents }`: book a lesson (#548). */
+  bookLesson: (coachSlug: string) => `${BASE}/coaches/${seg(coachSlug)}/lessons`,
   cancelBooking: (slug: string, bookingId: string) =>
     `${BASE}/t/${seg(slug)}/bookings/${seg(bookingId)}/cancel`,
   review: (slug: string, bookingId: string) =>

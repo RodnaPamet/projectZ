@@ -47,6 +47,14 @@ jest.mock('@/components/layout/PageBreadcrumbs', () => ({
     <nav data-testid="crumbs">{items.map((i) => i.label).join(' / ')}</nav>
   ),
 }));
+// The lesson picker is the page's second stage and has its own tests
+// (lesson-booking.test.tsx); here it is a marker that says what it was given.
+jest.mock('@/app/(public)/coaches/[slug]/CoachLessons', () => ({
+  CoachLessons: ({ coach, name }: { coach: { slug: string }; name: string }) => (
+    <div data-testid="coach-lessons" data-coach={coach.slug} data-name={name} />
+  ),
+  CoachLessonsSkeleton: () => null,
+}));
 const notFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND');
 });
@@ -104,7 +112,10 @@ async function openList(search: Record<string, string> = {}) {
   return render(withIntl(await resolveServerTree(tree)));
 }
 async function openCoach(slug = 'ivan-petrov') {
-  const tree = await CoachPage({ params: Promise.resolve({ slug }) });
+  const tree = await CoachPage({
+    params: Promise.resolve({ slug }),
+    searchParams: Promise.resolve({}),
+  });
   return render(withIntl(await resolveServerTree(tree)));
 }
 
@@ -252,11 +263,21 @@ describe('a coach’s page', () => {
     expect(JSON.stringify(ld)).not.toMatch(/email|telephone|linkId|l1|l2/);
   });
 
+  it('a coach with a venue has the lesson picker under their text, by their own name', async () => {
+    publicCoachBySlug.mockResolvedValue(coach());
+    await openCoach();
+    const lessons = screen.getByTestId('coach-lessons');
+    expect(lessons).toHaveAttribute('data-coach', 'ivan-petrov');
+    expect(lessons).toHaveAttribute('data-name', 'Иван Петров');
+  });
+
   it('an approved coach who teaches nowhere yet: the page says so, and is kept out of search', async () => {
     publicCoachBySlug.mockResolvedValue(coach({ venues: [], fromRateCents: null }));
     await openCoach();
     expect(screen.getByTestId('coach-page-nowhere')).toHaveTextContent(t.page.nowhere);
     expect(screen.queryByTestId('coach-page-venues')).toBeNull();
+    // And nothing to book a lesson with.
+    expect(screen.queryByTestId('coach-lessons')).toBeNull();
     expect(screen.queryByText(t.page.courtNote)).toBeNull();
     const meta = await coachMetadata({ params: Promise.resolve({ slug: 'ivan-petrov' }) });
     expect(meta.robots).toEqual({ index: false, follow: true });
@@ -320,7 +341,8 @@ describe('the coaches on a venue page', () => {
     const box = screen.getByTestId('venue-coaches');
     expect(within(box).getByRole('heading', { level: 2, name: t.venue.title })).toBeVisible();
     const card = within(box).getByTestId('coach-card');
-    expect(card).toHaveAttribute('href', '/coaches/ivan-petrov');
+    // Their page, with the lesson picker already on this venue (#548).
+    expect(card).toHaveAttribute('href', '/coaches/ivan-petrov?at=l1');
     // 40 here, though 30 somewhere else: this page is about this venue.
     expect(within(card).getByTestId('coach-card-price')).toHaveTextContent('40,00 € на час');
     expect(within(box).getByRole('link', { name: t.venue.all })).toHaveAttribute(

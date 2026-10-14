@@ -19,5 +19,7 @@ export const bookLessonBodySchema = z.object({
   minutes: z.number().int().min(15).max(240),
   sport: sportSchema.optional(),
   notes: z.string().trim().max(500).nullish(),
+  /** The total the player was shown: never booked for more than this. */
+  expectedTotalCents: z.number().int().min(0).max(10_000_000).optional(),
 });
 export type BookLessonBody = z.infer<typeof bookLessonBodySchema>;

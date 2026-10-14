@@ -15,6 +15,7 @@ import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading } from '@/components/ui/typography';
+import { coachPath } from '@/lib/coaches/hrefs';
 import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type InfiniteKey } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
@@ -156,7 +157,9 @@ export function BookingDetail({
   const date = format.dateTime(new Date(b.startTs), { dateStyle: 'full', timeZone });
   const from = format.dateTime(new Date(b.startTs), { timeStyle: 'short', timeZone });
   const to = format.dateTime(new Date(b.endTs), { timeStyle: 'short', timeZone });
-  const price = format.number(b.totalCents / 100, { style: 'currency', currency: b.currency });
+  const money = (cents: number) =>
+    format.number(cents / 100, { style: 'currency', currency: b.currency });
+  const price = money(b.totalCents);
   const deadline = b.cancellableUntil
     ? format.dateTime(new Date(b.cancellableUntil), {
         dateStyle: 'medium',
@@ -223,12 +226,47 @@ export function BookingDetail({
         <Row label={td(noun === 'court' ? 'court' : `${noun}.court`)}>
           {b.resource.name} · {tSports(b.resource.sport as never)}
         </Row>
-        <Row label={td('price')}>
-          <span className="block">{price}</span>
-          {b.payAtClub ? (
-            <span className="text-content-muted block text-xs">{td('payAtClub')}</span>
-          ) : null}
-        </Row>
+        {b.lesson ? (
+          <>
+            {/* A lesson (#548): who teaches it, and the price in its two parts. */}
+            <Row label={td('lesson.coach')}>
+              {b.lesson.coach.slug ? (
+                <Link
+                  href={coachPath(b.lesson.coach.slug)}
+                  className="underline-offset-4 hover:underline"
+                  data-testid="booking-lesson-coach"
+                >
+                  {b.lesson.coach.name ?? td('lesson.noName')}
+                </Link>
+              ) : (
+                <span data-testid="booking-lesson-coach">
+                  {b.lesson.coach.name ?? td('lesson.noName')}
+                </span>
+              )}
+            </Row>
+            <Row label={td('price')}>
+              <span className="block" data-testid="booking-lesson-total">
+                {money(b.lesson.totalCents)}
+              </span>
+              <span className="text-content-muted block text-xs" data-testid="booking-lesson-parts">
+                {td('lesson.parts', {
+                  coach: money(b.lesson.coachFeeCents),
+                  court: money(b.lesson.courtPriceCents),
+                })}
+              </span>
+              {b.payAtClub ? (
+                <span className="text-content-muted block text-xs">{td('payAtClub')}</span>
+              ) : null}
+            </Row>
+          </>
+        ) : (
+          <Row label={td('price')}>
+            <span className="block">{price}</span>
+            {b.payAtClub ? (
+              <span className="text-content-muted block text-xs">{td('payAtClub')}</span>
+            ) : null}
+          </Row>
+        )}
         <Row label={td('address')}>
           <span className="block">{b.venue.addressLine}</span>
           <span className="text-content-muted block">{b.venue.city}</span>

@@ -49,6 +49,8 @@ export interface DiaryEntry {
   channel: 'ONLINE' | 'DESK';
   /** The weekly series this is one week of, or null (#364). */
   seriesId: string | null;
+  /** The lesson on it (#548): who teaches it and their fee, or null. */
+  lesson: { coachUserId: string; coachFeeCents: number } | null;
   /**
    * The players besides the booker (#358), by position: added by link or by
    * the booker, or accepted through open play (#376).
@@ -118,6 +120,9 @@ export async function listDayBookings(
         // A court's capacity, at most.
         take: 32,
       },
+      // A lesson (#548): the desk sees who teaches it, and collects the
+      // coach's fee with the court's price.
+      lesson: { select: { coachUserId: true, coachFeeCents: true } },
     },
   });
 }
