@@ -57,9 +57,11 @@ export const ROUTE_PERMISSIONS: readonly RoutePermission[] = [
     permission: 'bookings.view_all',
   },
   // A booking's result (#575): the club decides a disputed one, or enters one
-  // itself. The desk's permission, as the diary's.
+  // itself. A club's tournaments and their entries (#579): the desk runs them
+  // too (decision 52). The desk's permission, as the diary's.
   {
-    pattern: /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:results|bookings\/[^/]+\/result)(?:\/|$)/,
+    pattern:
+      /^\/api\/(?:v\d+\/)?t\/[^/]+\/admin\/(?:results|bookings\/[^/]+\/result|tournaments|tournament-entries)(?:\/|$)/,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
     permission: 'bookings.view_all',
   },

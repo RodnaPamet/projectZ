@@ -22,7 +22,15 @@
  */
 
 export type TournamentFormatKind =
-  'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION' | 'ROUND_ROBIN' | 'SWISS';
+  | 'SINGLE_ELIMINATION'
+  | 'DOUBLE_ELIMINATION'
+  | 'ROUND_ROBIN'
+  | 'SWISS'
+  // A club's formats (decision 37, P80); their draws are #580's.
+  | 'GROUPS_KNOCKOUT'
+  | 'AMERICANO'
+  | 'MEXICANO'
+  | 'LEAGUE';
 
 export interface TournamentPlayer {
   id: string;

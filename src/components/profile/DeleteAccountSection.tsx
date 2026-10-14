@@ -46,6 +46,8 @@ export type DeletionStandingView =
       kind: 'blocked';
       total: number;
       lessons: number;
+      /** Tournaments it is entered in, not yet over (#579). */
+      tournaments: number;
       bookings: UpcomingBookingView[];
       credit: ClubCreditView[];
     };
@@ -146,6 +148,12 @@ export function DeleteAccountSection({ standing }: { standing: DeletionStandingV
           {standing.lessons > 0 ? (
             <Caption className="px-4" data-testid="profile-delete-lessons">
               {t('blocked.lessons', { count: standing.lessons })}
+            </Caption>
+          ) : null}
+          {/* Tournaments it is entered in (#579): withdrawn from first. */}
+          {standing.tournaments > 0 ? (
+            <Caption className="px-4" data-testid="profile-delete-tournaments">
+              {t('blocked.tournaments', { count: standing.tournaments })}
             </Caption>
           ) : null}
           {standing.credit.length > 0 ? (

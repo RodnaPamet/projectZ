@@ -54,6 +54,7 @@ filter:
     - Payouts
     - Realtime
     - Tenant
+    - Tournaments
     - Venues
 ```
 

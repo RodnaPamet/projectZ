@@ -99,6 +99,12 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // join is not, and its path (`/api/v1/games/{id}/requests`) is not listed.
   /^\/games(\/|$)/,
   /^\/api\/v1\/games(\/[^/]+)?$/,
+  // A club's tournaments (#579, decision 53): the list open for sign-up, one
+  // tournament, and a club's own, public to read. Entering is not, and its
+  // path (`/api/v1/tournaments/{id}/entries`) is not listed.
+  /^\/tournaments(\/|$)/,
+  /^\/api\/v1\/tournaments(\/[^/]+)?$/,
+  /^\/api\/v1\/clubs\/[^/]+\/tournaments$/,
   // Треньори (#547): the list of coaches a player can book and a coach's
   // page are public to read, signed in or not. What a coach does with their
   // own profile is under `/api/v1/me/…` and is not.

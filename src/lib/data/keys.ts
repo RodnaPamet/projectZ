@@ -226,6 +226,18 @@ export const KEYS = {
   /** A club's leaderboard in one sport (#578); no sport, its first. Signed-in only. */
   clubLeaderboard: (slug: string, sport: string | null) =>
     `${BASE}/clubs/${seg(slug)}/leaderboard${query({ sport: sport ?? undefined })}`,
+  /** Tournaments open for sign-up at every club (#579, decision 53). */
+  openTournaments: (filter: { sport?: string | null; city?: string | null }) =>
+    `${BASE}/tournaments${query({ sport: filter.sport ?? undefined, city: filter.city ?? undefined })}`,
+  /** One tournament, with the caller's own entry (#579). */
+  tournament: (id: string) => `${BASE}/tournaments/${seg(id)}`,
+  /** The tournaments the caller is entered in (#579). */
+  myTournamentEntries: () => `${BASE}/me/tournament-entries`,
+  /** The club's tournaments, for its admin (#579). */
+  clubTournaments: (slug: string) => `${BASE}/t/${seg(slug)}/admin/tournaments`,
+  /** One of the club's tournaments with every entry (#579). */
+  clubTournament: (slug: string, id: string) =>
+    `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}`,
   /** The caller's own ratings, points and all (#576). */
   myRatings: () => `${BASE}/me/ratings`,
   /** A booking's result for the caller (#575): it, and whether they may report or answer it. */
@@ -312,6 +324,20 @@ export const V1 = {
   /** `POST`: the booker accepts or declines one request (#376). */
   answerGameRequest: (bookingId: string, requestId: string, verb: 'accept' | 'decline') =>
     `${BASE}/me/bookings/${seg(bookingId)}/game/requests/${seg(requestId)}/${verb}`,
+  /** `POST { partnerUserId? }`: enter a tournament (#579). */
+  enterTournament: (id: string) => `${BASE}/tournaments/${seg(id)}/entries`,
+  /** `DELETE`: the entrant or the partner withdraws (#579). */
+  withdrawTournamentEntry: (entryId: string) => `${BASE}/me/tournament-entries/${seg(entryId)}`,
+  /** `POST` a new tournament, `PUT` one (#579). */
+  createTournament: (slug: string) => `${BASE}/t/${seg(slug)}/admin/tournaments`,
+  updateTournament: (slug: string, id: string) =>
+    `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}`,
+  /** `POST`: open sign-up, or cancel (#579). */
+  tournamentAction: (slug: string, id: string, action: 'open' | 'cancel') =>
+    `${BASE}/t/${seg(slug)}/admin/tournaments/${seg(id)}/${action}`,
+  /** `POST`: the club confirms or declines an entry (#579). */
+  decideTournamentEntry: (slug: string, entryId: string, verb: 'confirm' | 'decline') =>
+    `${BASE}/t/${seg(slug)}/admin/tournament-entries/${seg(entryId)}/${verb}`,
   /** `POST { sides, score }`: a player reports their booking's result (#575). */
   reportBookingResult: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/result`,
   /** `POST`: the other side confirms, or rejects with `{ note? }` (#575). */

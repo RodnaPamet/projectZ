@@ -60,6 +60,14 @@ enum NotificationKind {
   RESULT_DISPUTED
   /// #575, to the players: the club confirmed a version of the result, or voided it.
   RESULT_DECIDED
+  /// A club's tournament (#579, P80): a new entry, to the club's desk.
+  TOURNAMENT_ENTRY_RECEIVED
+  /// …the partner an entrant named (decision 50), who may withdraw.
+  TOURNAMENT_PARTNER_NAMED
+  /// …the club confirmed or declined an entry, to both of a pair.
+  TOURNAMENT_ENTRY_DECIDED
+  /// …an entry was withdrawn: to the other of the pair, and the desk.
+  TOURNAMENT_ENTRY_WITHDRAWN
 }
 
 /// Where an email stands in the outbox (#367).

@@ -127,7 +127,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 9;
+  version: 10;
   exportedAt: string;
   profile: {
     id: string;
@@ -348,6 +348,27 @@ export interface PersonalDataExport {
       note: string | null;
       askedAt: string;
       decidedAt: string | null;
+    }>;
+  };
+  /**
+   * Tournament entries (#579, #582; version 10): the person's own, as entrant
+   * or as a partner someone named. The other of a pair is someone else's:
+   * only that there was one.
+   */
+  tournaments: {
+    entries: Array<{
+      tournament: string;
+      club: string;
+      sport: string;
+      startsAt: string;
+      tournamentStatus: string;
+      status: string;
+      role: 'entrant' | 'partner';
+      withPartner: boolean;
+      enteredAt: string;
+      decidedAt: string | null;
+      withdrawnAt: string | null;
+      withdrewItYourself: boolean;
     }>;
   };
   /**
@@ -676,6 +697,7 @@ export async function readPersonalData(
   const openPlay = await readOpenPlay(db, userId);
   const coach = await readCoach(db, userId);
   const ranking = await readRanking(db, userId, user.ratingPublic, now);
+  const tournaments = await readTournaments(db, userId);
 
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own sessions, by their id.
@@ -833,7 +855,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 9,
+    version: 10,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -1004,7 +1026,57 @@ export async function readPersonalData(
     messages: { shownInPlayerSearch: user.searchable, ...messaging },
     openPlay,
     ranking,
+    tournaments,
     coach,
+  };
+}
+
+/** The person's tournament entries (#579): of a partner, only that there was one. */
+async function readTournaments(
+  db: PrismaClient,
+  userId: string,
+): Promise<PersonalDataExport['tournaments']> {
+  // guardrail-allow: cross-tenant — the person's own entries, at every club.
+  const rows = await db.tournamentEntry.findMany({
+    where: { OR: [{ playerUserId: userId }, { partnerUserId: userId }] },
+    select: {
+      tenantId: true,
+      playerUserId: true,
+      partnerUserId: true,
+      status: true,
+      createdAt: true,
+      decidedAt: true,
+      withdrawnAt: true,
+      withdrawnByUserId: true,
+      tournament: { select: { name: true, sport: true, startsAt: true, status: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: EXPORT_ROW_CAP,
+  });
+  const tenantIds = [...new Set(rows.map((r) => r.tenantId))];
+  const clubs = tenantIds.length
+    ? await db.venueOrg.findMany({
+        where: { id: { in: tenantIds } },
+        select: { id: true, name: true },
+        take: tenantIds.length,
+      })
+    : [];
+  const clubName = new Map(clubs.map((c) => [c.id, c.name]));
+  return {
+    entries: rows.map((r) => ({
+      tournament: r.tournament.name,
+      club: clubName.get(r.tenantId) ?? '',
+      sport: r.tournament.sport,
+      startsAt: r.tournament.startsAt.toISOString(),
+      tournamentStatus: r.tournament.status,
+      status: r.status,
+      role: r.playerUserId === userId ? ('entrant' as const) : ('partner' as const),
+      withPartner: r.partnerUserId !== null,
+      enteredAt: r.createdAt.toISOString(),
+      decidedAt: iso(r.decidedAt),
+      withdrawnAt: iso(r.withdrawnAt),
+      withdrewItYourself: r.withdrawnByUserId === userId,
+    })),
   };
 }
 

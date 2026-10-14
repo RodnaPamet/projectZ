@@ -862,8 +862,35 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'TournamentEntry',
     field: 'playerUserId',
     action: 'keep',
-    upcoming: 'when-shipped',
-    reason: 'A bracket other people played; the id names a tombstone.',
+    upcoming: 'checked',
+    reason:
+      'An entry in a club’s tournament (#579), and a bracket other people played; the id names a tombstone. Deletion is refused while an entry is live in a tournament not yet over: withdraw first.',
+  },
+  {
+    model: 'TournamentEntry',
+    field: 'partnerUserId',
+    action: 'keep',
+    upcoming: 'checked',
+    reason:
+      'The partner named on an entry (#579, decision 50): as playerUserId. The partner may withdraw it, and deletion waits until they have.',
+  },
+  {
+    model: 'TournamentEntry',
+    field: 'decidedByUserId',
+    action: 'keep',
+    reason: 'The club staff member who confirmed or declined an entry; the id names a tombstone.',
+  },
+  {
+    model: 'TournamentEntry',
+    field: 'withdrawnByUserId',
+    action: 'keep',
+    reason: 'Who of the pair withdrew an entry; the id names a tombstone.',
+  },
+  {
+    model: 'Tournament',
+    field: 'createdByUserId',
+    action: 'keep',
+    reason: 'The club staff member who created a tournament; the id names a tombstone.',
   },
   {
     model: 'TournamentMatch',
@@ -1081,7 +1108,16 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'CheckIn.userId': UNWRITTEN,
   'Membership.playerUserId': UNWRITTEN,
   'SeasonPass.playerUserId': UNWRITTEN,
-  'TournamentEntry.playerUserId': UNWRITTEN,
+  'TournamentEntry.playerUserId': TRIGGER,
+  'TournamentEntry.partnerUserId': TRIGGER,
+  'TournamentEntry.decidedByUserId': actor(
+    'the club staff member who confirmed or declined an entry',
+  ),
+  'TournamentEntry.withdrawnByUserId': {
+    held: 'reason',
+    why: 'Written by the person withdrawing, signed in and on the entry: an account being deleted has none left to withdraw, deletion waits until they have (`upcoming`), and the row is their own.',
+  },
+  'Tournament.createdByUserId': actor('the club staff member who created a tournament'),
   'TournamentMatch.homeUserId': UNWRITTEN,
   'TournamentMatch.awayUserId': UNWRITTEN,
   'MatchParticipant.userId': RATED_ON_A_RESULT,

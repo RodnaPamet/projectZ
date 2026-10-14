@@ -231,6 +231,36 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p80
+
+`20261014130000_p80_tournaments` (#579) adds four values to `NotificationKind`:
+
+- `TOURNAMENT_ENTRY_RECEIVED`: to a club's desk, a new entry;
+- `TOURNAMENT_PARTNER_NAMED`: to the partner an entrant named;
+- `TOURNAMENT_ENTRY_DECIDED`: to both of a pair, the club's answer;
+- `TOURNAMENT_ENTRY_WITHDRAWN`: to the other of the pair and the desk.
+
+The bell reads a person's notifications on every page, so one such row would
+break the previous image's bell. Park those rows before starting the previous
+image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p80-park.sql
+```
+
+and give them back after rolling forward again, with the p80 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p80-unpark.sql
+```
+
+Queued and already-sent emails of those kinds are parked and returned with the
+bell rows. The rest of p80 stays where it is: the previous image never queries
+a tournament. That covers the four `TournamentFormatKind` values, the new
+columns and types, and the triggers on `tournament_entry`.
+
 ### Rolling back past p79
 
 `20261014120000_p79_result_notifications` (#575) adds three values to
