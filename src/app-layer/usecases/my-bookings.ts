@@ -193,8 +193,8 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
       spotsLeft: Math.max(0, capacity - 1 - b.participants.length),
       // Players may be added, leave or be removed until the game starts, while
       // the booking holds its court (`booking-players`'s own rule).
-      // Not a lesson, until its fee follows the players (#549): see
-      // `isOpenForPlayers`, which is the rule the writes apply.
+      // The rule the writes apply (`isOpenForPlayers`), so the page offers
+      // exactly what they will accept.
       playersOpen: isOpenForPlayers(b, now),
     };
   });

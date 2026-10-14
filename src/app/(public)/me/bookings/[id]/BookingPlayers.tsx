@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { BookingPlayerDto, MyBookingDetailDto } from '@/app/api/v1/_lib/dto';
@@ -83,6 +83,9 @@ export function BookingPlayers({
   const t = useTranslations('myBookings.players');
   const td = useTranslations('myBookings.detail');
   const tCommon = useTranslations('common');
+  const format = useFormatter();
+  const money = (cents: number) =>
+    format.number(cents / 100, { style: 'currency', currency: b.currency });
   const router = useRouter();
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<BookingPlayerDto | null>(null);
@@ -135,13 +138,7 @@ export function BookingPlayers({
         <Heading level={2} tone="muted" className="text-sm" id="booking-players">
           {td('players')}
         </Heading>
-        {/* A lesson takes no more players yet (#549): free places it cannot
-            be filled into are not advertised. */}
-        {b.lesson ? null : (
-          <Caption data-testid="booking-spots-left">
-            {t('spotsLeft', { count: b.spotsLeft })}
-          </Caption>
-        )}
+        <Caption data-testid="booking-spots-left">{t('spotsLeft', { count: b.spotsLeft })}</Caption>
       </div>
 
       <Card elevation="flat" density="none">
@@ -194,6 +191,24 @@ export function BookingPlayers({
         <InlineNotice variant="error" data-testid="booking-players-error">
           {t(`error.${error}`)}
         </InlineNotice>
+      ) : null}
+
+      {/* A lesson (#549): what the coach's fee is with a group, said before
+          anybody is added, and what it is once somebody has been. Only where
+          the coach charges a group differently. */}
+      {b.lesson &&
+      b.lesson.groupFeeCents !== null &&
+      (b.players.length > 1 || (b.playersOpen && isBooker)) ? (
+        <Caption data-testid="booking-lesson-group">
+          {b.players.length > 1
+            ? t('lesson.groupNow', { fee: money(b.lesson.coachFeeCents) })
+            : b.lesson.groupFeeCents === b.lesson.coachFeeCents
+              ? t('lesson.groupSame')
+              : t('lesson.groupNext', {
+                  fee: money(b.lesson.groupFeeCents),
+                  total: money(b.lesson.courtPriceCents + b.lesson.groupFeeCents),
+                })}
+        </Caption>
       ) : null}
 
       {b.playersOpen && isBooker ? (

@@ -718,6 +718,8 @@ export interface BookingInvitePreviewDto {
   bookerFirstName: string | null;
   capacity: number;
   spotsLeft: number;
+  /** A lesson with a coach (#549), with the coach's name; null for a game. */
+  lesson: { coach: string | null } | null;
 }
 
 export function toBookingInvitePreviewDto(p: {
@@ -732,6 +734,7 @@ export function toBookingInvitePreviewDto(p: {
   bookerFirstName: string | null;
   capacity: number;
   spotsLeft: number;
+  lesson?: { coachName: string | null } | null;
 }): BookingInvitePreviewDto {
   return {
     venue: { name: p.venueName, city: p.venueCity, timezone: p.timezone },
@@ -741,6 +744,7 @@ export function toBookingInvitePreviewDto(p: {
     bookerFirstName: p.bookerFirstName,
     capacity: p.capacity,
     spotsLeft: p.spotsLeft,
+    lesson: p.lesson ? { coach: p.lesson.coachName } : null,
   };
 }
 

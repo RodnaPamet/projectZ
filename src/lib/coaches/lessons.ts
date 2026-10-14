@@ -25,6 +25,30 @@ export function coachFeeCents(hourlyRateCents: number, minutes: number): number 
   return Math.round((hourlyRateCents * minutes) / 60);
 }
 
+/**
+ * The coach's fee for a lesson with this many players (owner decisions 9, 18
+ * and 19).
+ *
+ *   one player      the hourly rate, for the lesson's length
+ *   two or more     the GROUP rate, for the lesson's length: one fee for the
+ *                   whole group, not one per player
+ *   no group rate   the hourly rate however many come: a coach who wants
+ *                   more for a group says so by entering a group rate
+ */
+export function lessonFeeCents(input: {
+  hourlyRateCents: number;
+  groupRateCents: number | null;
+  minutes: number;
+  /** Everybody on the lesson: the player who booked it and those they added. */
+  players: number;
+}): number {
+  const rate =
+    input.players >= 2 && input.groupRateCents !== null
+      ? input.groupRateCents
+      : input.hourlyRateCents;
+  return coachFeeCents(rate, input.minutes);
+}
+
 /** One free start on one court, with the lengths it can be booked for and their prices. */
 export interface CourtSlot {
   startTs: Date;

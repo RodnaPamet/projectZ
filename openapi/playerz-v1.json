@@ -17522,7 +17522,8 @@
           "endTs",
           "bookerFirstName",
           "capacity",
-          "spotsLeft"
+          "spotsLeft",
+          "lesson"
         ],
         "properties": {
           "venue": {
@@ -17574,6 +17575,24 @@
           },
           "spotsLeft": {
             "type": "integer"
+          },
+          "lesson": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["coach"],
+                "properties": {
+                  "coach": {
+                    "type": ["string", "null"],
+                    "description": "The coach's name, as on their public page. Null when the account has none."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the booking is a lesson with a coach (#549): say so before the person joins. `null` for a game. The lesson's price is not given here; it is paid at the club."
           }
         }
       },

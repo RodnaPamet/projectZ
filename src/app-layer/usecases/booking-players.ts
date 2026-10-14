@@ -9,6 +9,7 @@ import { syncGameChatOfBooking } from '@/app-layer/usecases/open-play-chat';
 import { releaseOpenPlayPlace } from '@/app-layer/usecases/open-play-roster';
 import { assertPhoneConfirmed } from '@/app-layer/usecases/phone-verification';
 import { appendAuditEntry, AUDIT_ACTIONS } from '@/lib/audit';
+import { lessonFeeCents } from '@/lib/coaches/lessons';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
@@ -322,27 +323,80 @@ export async function lockBooking(
   };
 }
 
-/**
- * PENDING or CONFIRMED, and not started: the only time its players may change.
- *
- * ═══ NOT A LESSON, UNTIL ITS FEE FOLLOWS THE PLAYERS (#549) ═══
- *
- * A lesson's coach is paid the hourly rate for one player and the group rate
- * from the second (owner decision 9). Nothing changes the fee when a player
- * is added yet; that arrives with #549, with the page saying what the fee
- * becomes before anybody is added. Until then a lesson takes no more players
- * and cannot look for any: a second player at the one-player fee would be a
- * coach paid the wrong amount, quietly.
- */
-export function isOpenForPlayers(
-  b: { status: string; startTs: Date; lesson?: boolean | { id: string } | null },
-  now: Date,
-): boolean {
+/** PENDING or CONFIRMED, and not started: the only time its players may change. */
+export function isOpenForPlayers(b: { status: string; startTs: Date }, now: Date): boolean {
   return (
-    (b.status === 'PENDING' || b.status === 'CONFIRMED') &&
-    b.startTs.getTime() > now.getTime() &&
-    !b.lesson
+    (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTs.getTime() > now.getTime()
   );
+}
+
+/**
+ * ═══ A LESSON'S FEE FOLLOWS ITS PLAYERS (#549; owner decisions 9, 18, 19) ═══
+ *
+ * A coach is paid the hourly rate for one player and the group rate for two
+ * or more: one fee for the whole group. So every write that changes who is on
+ * a lesson calls this before it commits, inside the same transaction and
+ * under the booking's lock: the fee on the lesson is never the fee for a
+ * different number of players than the booking has.
+ *
+ * It follows them both ways. The second player raises it to the group rate;
+ * when they leave, or are removed, it is the one-player fee again. With no
+ * group rate set the fee does not move (`lessonFeeCents`).
+ *
+ * The change is on the club's record, with the fee before and after: it is
+ * money the desk collects, and "why is it 60 now" has to have an answer.
+ */
+async function syncLessonFee(
+  tx: PrismaClient,
+  b: LockedBooking,
+  actorUserId: string,
+): Promise<void> {
+  if (!b.lesson) return;
+  const lesson = await tx.coachLesson.findFirst({
+    where: { tenantId: b.tenantId, bookingId: b.id },
+    select: {
+      id: true,
+      startTs: true,
+      endTs: true,
+      hourlyRateCents: true,
+      groupRateCents: true,
+      coachFeeCents: true,
+    },
+  });
+  if (!lesson) return;
+  // Counted, not carried: `b.participants` is the list from before this write.
+  const others = await tx.bookingParticipant.count({
+    where: { tenantId: b.tenantId, bookingId: b.id },
+  });
+  const players = 1 + others;
+  const fee = lessonFeeCents({
+    hourlyRateCents: lesson.hourlyRateCents,
+    groupRateCents: lesson.groupRateCents,
+    minutes: Math.round((lesson.endTs.getTime() - lesson.startTs.getTime()) / 60_000),
+    players,
+  });
+  if (fee === lesson.coachFeeCents) return;
+
+  await tx.coachLesson.updateMany({
+    where: { id: lesson.id, tenantId: b.tenantId },
+    data: { coachFeeCents: fee },
+  });
+  await appendAuditEntry(tx, {
+    tenantId: b.tenantId,
+    actorUserId,
+    entity: 'CoachLesson',
+    entityId: lesson.id,
+    action: AUDIT_ACTIONS.COACH_LESSON_FEE_CHANGED,
+    details: 'The coach’s fee changed with the number of players on the lesson',
+    detailsJson: {
+      category: 'booking',
+      summary: 'Lesson fee changed',
+      bookingId: b.id,
+      players,
+      before: { coachFeeCents: lesson.coachFeeCents },
+      after: { coachFeeCents: fee },
+    },
+  });
 }
 
 /** The lowest free position from 2 up, or null when the court is full. */
@@ -601,6 +655,11 @@ export interface BookingInvitePreview {
   bookerFirstName: string | null;
   capacity: number;
   spotsLeft: number;
+  /**
+   * A lesson with a coach (#549): said before the invited person joins, with
+   * the coach's name (public, as on the coach's page). Null for a game.
+   */
+  lesson: { coachName: string | null } | null;
 }
 
 interface LiveLink {
@@ -650,6 +709,7 @@ export async function previewBookingInvite(
         endTs: true,
         bookedByUserId: true,
         _count: { select: { participants: true } },
+        lesson: { select: { coachUserId: true } },
         resource: {
           select: {
             name: true,
@@ -663,9 +723,17 @@ export async function previewBookingInvite(
     });
     if (!b || !isOpenForPlayers(b, now)) return null;
 
-    const booker = b.bookedByUserId
-      ? await db.user.findUnique({ where: { id: b.bookedByUserId }, select: { name: true } })
-      : null;
+    const [booker, coach] = await Promise.all([
+      b.bookedByUserId
+        ? db.user.findUnique({ where: { id: b.bookedByUserId }, select: { name: true } })
+        : null,
+      b.lesson
+        ? db.user.findFirst({
+            where: { id: b.lesson.coachUserId, deletedAt: null },
+            select: { name: true },
+          })
+        : null,
+    ]);
 
     return {
       venueName: b.resource.venue.name,
@@ -679,6 +747,7 @@ export async function previewBookingInvite(
       bookerFirstName: firstName(booker?.name),
       capacity: b.resource.capacity,
       spotsLeft: Math.max(0, b.resource.capacity - 1 - b._count.participants),
+      lesson: b.lesson ? { coachName: coach?.name ?? null } : null,
     };
   });
 }
@@ -726,6 +795,7 @@ export async function acceptBookingInvite(input: {
     await assertPhoneConfirmed(input.userId, tx);
 
     const added = await insertParticipant(tx, b, input.userId);
+    if (added.joined) await syncLessonFee(tx, b, input.userId);
 
     if (added.joined && added.participantId) {
       await appendAuditEntry(tx, {
@@ -786,6 +856,7 @@ export async function leaveBooking(input: {
     });
 
     await tx.bookingParticipant.deleteMany({ where: { id: mine.id, tenantId: at.tenantId } });
+    await syncLessonFee(tx, b, input.userId);
     await appendAuditEntry(tx, {
       tenantId: at.tenantId,
       actorUserId: input.userId,
@@ -841,6 +912,7 @@ export async function removeBookingPlayer(input: {
     });
 
     await tx.bookingParticipant.deleteMany({ where: { id: row.id, tenantId } });
+    await syncLessonFee(tx, b, input.userId);
     await appendAuditEntry(tx, {
       tenantId,
       actorUserId: input.userId,
@@ -978,6 +1050,7 @@ export async function addCoPlayer(input: {
     await requirePlayerAccount(tx, input.playerUserId);
 
     const added = await insertParticipant(tx, b, input.playerUserId);
+    if (added.joined) await syncLessonFee(tx, b, input.userId);
     if (added.joined && added.participantId) {
       await appendAuditEntry(tx, {
         tenantId,

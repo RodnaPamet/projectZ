@@ -1620,6 +1620,11 @@
         "TOO_MANY": "There are too many live links. Stop the old ones and try again.",
         "CUTOFF": "The club's deadline has passed: a player who joined through Games is in the game.",
         "FAILED": "That did not work. Try again."
+      },
+      "lesson": {
+        "groupNext": "With a second player this becomes a group lesson: {fee} for the coach for the whole group, {total} in all with the court.",
+        "groupNow": "A group lesson: {fee} for the coach for the whole group.",
+        "groupSame": "The coach charges the same for a group."
       }
     },
     "game": {
@@ -2343,7 +2348,12 @@
       "RATE_LIMITED": "Too many attempts. Wait a minute and try again.",
       "FAILED": "We could not add you. Try again."
     },
-    "spotsLeft": "{count, plural, =0 {No places left} one {# place left} other {# places left}}"
+    "spotsLeft": "{count, plural, =0 {No places left} one {# place left} other {# places left}}",
+    "lesson": {
+      "label": "A lesson with a coach",
+      "noName": "Coach",
+      "payAtClub": "Paid at the club: the court and the coach."
+    }
   },
   "onboarding": {
     "kind": {
