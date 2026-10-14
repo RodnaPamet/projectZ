@@ -12,7 +12,7 @@ import type {
 
 import { cancelBooking, createBooking } from '@/app-layer/usecases/booking';
 import { currentRating } from '@/app-layer/usecases/ratings';
-import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
+import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { AppError } from '@/lib/errors/types';
 import {
   groupMatches,
