@@ -1,5 +1,5 @@
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getLocale, getMessages } from 'next-intl/server';
 
 /**
  * WHICH TRANSLATIONS THE BROWSER GETS (#599).
@@ -161,6 +161,16 @@ export async function ClientMessages({
   section: ClientSection;
   children: React.ReactNode;
 }) {
-  const messages = pickMessages(await getMessages(), CLIENT_NAMESPACES[section]);
-  return <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>;
+  // The locale explicitly, as the root layout always passed it: next-intl's
+  // server provider would infer it, but the client build (jsdom, the rendered
+  // tests) cannot.
+  const [locale, all] = await Promise.all([getLocale(), getMessages()]);
+  return (
+    <NextIntlClientProvider
+      locale={locale}
+      messages={pickMessages(all, CLIENT_NAMESPACES[section])}
+    >
+      {children}
+    </NextIntlClientProvider>
+  );
 }
