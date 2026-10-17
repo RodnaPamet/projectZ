@@ -13,7 +13,7 @@ navigation has no LCP, no FCP and no navigation entry. This harness times naviga
 in the page, from the click.
 
 ```sh
-npm run perf:nav          # one run: reset and seed, build, serve, measure (about 12 min)
+npm run perf:nav          # one run: reset and seed, build, serve, measure (about 26 min)
 npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a change"
 npm run perf:budget -- .perf/after.json                     # the latency budget (docs/perf/budget.json)
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
@@ -86,7 +86,52 @@ code, and nothing that builds an image sets it (`tests/unit/perf/chunks.test.ts`
 The budget (`docs/perf/bundle-budget.json`) stays where it is: these are the bytes the app has, and
 the gate is what keeps the next 80 KB from arriving unnoticed.
 
-## The current baseline: `8997b77` (#362, every signed-in account in the AppShell), 7 October 2026
+## The current baseline: `2a90d68` (#402, a quiet machine; #599, the browser's translations), 17 October 2026
+
+`docs/perf/baseline-2a90d68.json` holds three runs of #600's branch at `2a90d68`, merged, taken
+after three runs of main (`79528c2`) in the same session: main 13:37–14:55 and the branch
+15:47–17:05, Sofia time. It is the first baseline taken with no other agent, build or test suite on
+the machine (#402). Each side ran on one build of its own, and each run held the heavy lock.
+`docs/perf/budget.json` is reset from it (116 rows, owner 2026-10-17). The First Load JS budget is
+unchanged: #599 moves no JavaScript.
+
+**Quiet, mostly.** Load average (1 min) per sample, min / median / max: main 0.72 / 1.66 / 3.39,
+0.53 / 1.39 / 2.71 and 0.95 / 1.75 / 2.95; the branch 0.45 / 1.50 / 2.96, 1.03 / 1.76 / 3.03 and
+1.35 / 2.06 / 7.05. Most of it is the run itself (Chromium, the server and Postgres): idle, the
+machine sits under 1. The branch's third run had one burst at 16:53 (6.73, settled within two
+minutes, 73 of its 1,240 samples). Merged with and without that run, no row moves beyond noise, so
+it is kept.
+
+**#599: each section sends the browser only its own translations.** Main put the whole catalogue
+(241 KB) into every page's payload. Full page loads, phone, cold, medians, decoded / over the
+network:
+
+| Page                      | main           | #599           |
+| ------------------------- | -------------- | -------------- |
+| `/`, signed out           | 340 KB / 85 KB | 135 KB / 41 KB |
+| `/t/{slug}` → the diary   | 423 KB / 80 KB | 291 KB / 52 KB |
+| `/venues`, signed in      | 308 KB / 70 KB | 182 KB / 44 KB |
+| `/start` → `/me/bookings` | 296 KB / 68 KB | 170 KB / 42 KB |
+
+On the phone the payload finishes 25–40 ms sooner. `perf:compare` finds **1 row faster, 0 slower**
+beyond noise: phone warm `landing-player · /start → /me/bookings`, 552 → 487 ms. Elsewhere the
+first paint waits on something else, so a smaller payload does not move it.
+
+**Slower than 8 October, and not #599 (#601):**
+
+- **phone warm `landing-staff · /start → club calendar`, 555 → 628 ms.** The first paint moved
+  396 → 496 ms, with the payload back to its 8 October size (282 → 291 KB decoded). The calendar's
+  First Load JS is smaller (307 → 271 KB gzip) but in more files (20 → 23), and 38 requests start
+  before it is ready, against 31. Cold, the step is unchanged.
+- **desktop cold `staff-write · load /t/sofia-padel-club`, 168 → 240 ms.** An ordering effect: the
+  journey starts about a second after the staff journey's last diary step, and its redirect takes
+  about 120 ms against 22. Run alone, the redirect is 25–40 ms and the load 139–258 ms.
+
+**The harness (#600).** The venue journey clicks the page's own back link by its label. Signed in,
+the AppShell's breadcrumbs put a second `/venues` link in `main`, and every run had lost
+`player-venue` to a strict-mode error. A full run now takes about 26 minutes.
+
+## #362's baseline: `8997b77` (every signed-in account in the AppShell), 7 October 2026
 
 `docs/perf/baseline-8997b77.json` holds two runs of #362's branch at `8997b77`, merged,
 interleaved with two runs of main (`a0b0d4b`) in one session, 21:48–23:10 Sofia time.
