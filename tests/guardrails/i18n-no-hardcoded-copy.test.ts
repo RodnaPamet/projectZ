@@ -448,13 +448,14 @@ describe('the i18n provider is mounted, and the locale is resolved not assumed',
   const LAYOUT = 'src/app/layout.tsx';
   const REQUEST = 'src/lib/i18n/request.ts';
 
-  it('the root layout wraps the tree in NextIntlClientProvider', () => {
+  it('the root layout wraps the tree in the intl provider', () => {
     // Every primitive that calls useTranslations() throws without it. A layout
     // refactor that drops the provider takes the whole app down, so it is
-    // worth one assertion rather than a stack trace in production.
+    // worth one assertion rather than a stack trace in production. Which
+    // messages it carries is i18n-client-messages' business (#599).
     const src = readFileSync(LAYOUT, 'utf8');
 
-    expect(src).toMatch(/NextIntlClientProvider/);
+    expect(src).toMatch(/<ClientMessages section="root">/);
     expect(src).toMatch(/lang=\{locale\}/);
   });
 

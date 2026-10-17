@@ -14,6 +14,7 @@ import {
   type ShellAccount,
 } from '@/components/layout/nav-items';
 import { playerChrome } from '@/components/layout/player-chrome-data';
+import { ClientMessages } from '@/lib/i18n/client-messages';
 
 /**
  * The platform shell: the same frame as the club admin, for holders of a platform grant (T19).
@@ -64,7 +65,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   // every platform page back to /platform/moderation after sign-in.
   // tests/guardrails/platform-pages-redirect-signed-out.test.ts keeps every
   // page's own redirect in place.
-  if (!me) return <>{children}</>;
+  if (!me) return <ClientMessages section="platform">{children}</ClientMessages>;
 
   const sections = visibleSections(platformNav(), (item) =>
     platformItemAllowed(item, capabilities),
@@ -89,14 +90,16 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   };
 
   return (
-    <ClubAdminShell
-      sections={toShellSections(sections, tNav)}
-      homeHref={PLATFORM_HREF}
-      contextName={tPlatform('name')}
-      user={{ userId: me.userId, name: me.name, email: me.email }}
-      account={account}
-    >
-      {children}
-    </ClubAdminShell>
+    <ClientMessages section="platform">
+      <ClubAdminShell
+        sections={toShellSections(sections, tNav)}
+        homeHref={PLATFORM_HREF}
+        contextName={tPlatform('name')}
+        user={{ userId: me.userId, name: me.name, email: me.email }}
+        account={account}
+      >
+        {children}
+      </ClubAdminShell>
+    </ClientMessages>
   );
 }
