@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { chromeIdentity, PlayerChrome } from '@/components/layout/player-chrome';
 import { SIGNED_IN_HOME } from '@/components/layout/nav-items';
+import { ClientMessages } from '@/lib/i18n/client-messages';
 
 /**
  * The home page's layout: signed in, `/` is Играй (#362).
@@ -28,5 +29,9 @@ import { SIGNED_IN_HOME } from '@/components/layout/nav-items';
  */
 export default async function HomeLayout({ children }: { children: React.ReactNode }) {
   if (await chromeIdentity()) redirect(SIGNED_IN_HOME);
-  return <PlayerChrome footer>{children}</PlayerChrome>;
+  return (
+    <ClientMessages section="home">
+      <PlayerChrome footer>{children}</PlayerChrome>
+    </ClientMessages>
+  );
 }

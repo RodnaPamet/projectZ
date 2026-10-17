@@ -1,4 +1,5 @@
 import { PlayerChrome } from '@/components/layout/player-chrome';
+import { ClientMessages } from '@/lib/i18n/client-messages';
 
 /**
  * The site's pages and their chrome (T20, #362): /venues, a venue, a club,
@@ -17,5 +18,9 @@ import { PlayerChrome } from '@/components/layout/player-chrome';
  * asking, to draw their frame.
  */
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <PlayerChrome footer>{children}</PlayerChrome>;
+  return (
+    <ClientMessages section="public">
+      <PlayerChrome footer>{children}</PlayerChrome>
+    </ClientMessages>
+  );
 }

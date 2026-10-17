@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages, getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { ClientMessages } from '@/lib/i18n/client-messages';
 // From the SERVER-SAFE module, never from ThemeProvider ('use client'): a
 // server import of a client module's constant is a client-reference proxy, not
 // the string — which is how `cookies().get(THEME_COOKIE)` silently always missed
@@ -161,11 +161,11 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // The ported primitives call useTranslations(), so the provider has to
+  // The ported primitives call useTranslations(), so a provider has to
   // wrap the whole tree — without it every one of them throws during
-  // prerender.
+  // prerender. It sends the browser only the namespaces its code binds;
+  // each section's layout sends its own (#599, src/lib/i18n/client-messages.tsx).
   const locale = await getLocale();
-  const messages = await getMessages();
 
   // Flash-proof theme: the cookie ThemeProvider writes is read here, so a
   // returning visitor's FIRST byte is already their theme. With no cookie
@@ -189,12 +189,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
-        {/* NextIntlClientProvider OUTSIDE Providers: the Toaster and the
+        {/* The intl provider OUTSIDE Providers: the Toaster and the
             primitives the providers render call useTranslations(), and would
             throw during SSR with no intl context above them. */}
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <ClientMessages section="root">
           <Providers>{children}</Providers>
-        </NextIntlClientProvider>
+        </ClientMessages>
       </body>
     </html>
   );

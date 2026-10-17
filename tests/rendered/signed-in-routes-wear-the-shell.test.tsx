@@ -191,6 +191,14 @@ jest.mock('@/app-layer/usecases/club-nouns', () => ({
   clubResourceNouns: (tenantId: string) => clubResourceNouns(tenantId),
 }));
 
+// In the app a server component's useTranslations reads the request's whole
+// catalogue, and only client components read the section's provider (#599).
+// In jsdom both read the provider, so here the section's provider steps aside
+// for the test's own, which carries the whole catalogue (withIntl).
+jest.mock('@/lib/i18n/client-messages', () => ({
+  ClientMessages: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 jest.mock('next-intl/server', () => ({
   // The signed-out chrome reads the language for its legal links (#370).
   getLocale: async () => 'bg',

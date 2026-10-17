@@ -26,6 +26,14 @@ import en from '../../messages/en.json';
  * has its own tests; here it is a marked wrapper.
  */
 
+// In the app a server component's useTranslations reads the request's whole
+// catalogue, and only client components read the section's provider (#599).
+// In jsdom both read the provider, so here the section's provider steps aside
+// for the test's own, which carries the whole catalogue (withIntl).
+jest.mock('@/lib/i18n/client-messages', () => ({
+  ClientMessages: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 let locale: 'bg' | 'en' = 'bg';
 jest.mock('next-intl/server', () => {
   const { createTranslator } = jest.requireActual('next-intl');

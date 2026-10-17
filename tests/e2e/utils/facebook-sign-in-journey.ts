@@ -108,6 +108,10 @@ export async function refusedForNoEmail(page: Page, next: string, nextAuthUrl: s
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
   await page.getByRole('button', { name: bg.login.withFacebook }).click();
   await expect.poll(() => meta.dialog.length).toBe(1);
+  // The stub dialog must have loaded before the next goto, as clickFacebook
+  // waits for it: the request is recorded before its answer commits, and a
+  // goto issued in between is interrupted by it (CI, mobile, PR #600).
+  await page.waitForURL((u) => u.toString().startsWith(DIALOG));
 
   await page.goto(FACEBOOK_EMAIL_REQUIRED_REDIRECT);
   await expect(page).toHaveURL(/\/login\?/);

@@ -9,6 +9,7 @@ import { InlineNotice } from '@/components/ui/inline-notice';
 import { clubShell } from '@/components/layout/nav-items';
 import { resolveTenantPageContext, signedInIdentity } from '@/lib/auth/page-context';
 import { resolvePlatformAuthority } from '@/lib/auth/platform-admin';
+import { ClientMessages } from '@/lib/i18n/client-messages';
 import { readModules } from '@/lib/modules';
 import { realtimeEnabled } from '@/lib/realtime/centrifugo';
 import { RealtimeProvider } from '@/lib/realtime/client';
@@ -102,25 +103,27 @@ export default async function ClubAdminLayout({
   if (!club.opensAdmin) notFound();
 
   return (
-    <RealtimeProvider userId={me.userId} enabled={readModules().messaging && realtimeEnabled()}>
-      <ClubAdminShell
-        sections={club.sections}
-        homeHref={club.homeHref}
-        contextName={club.contextName}
-        user={{ userId: me.userId, name: me.name, email: me.email }}
-        account={club.account}
-        bottomTabs
-        fullBleedSegment="calendar"
-        messages={club.messages}
-      >
-        {result.ctx.clubStatus !== 'ACTIVE' && (
-          // Suspended or closed by the platform (#254): read-only, and why.
-          <InlineNotice variant="warning" className="mb-default" data-testid="club-not-active">
-            {tAdmin(result.ctx.clubStatus === 'CLOSED' ? 'closed' : 'suspended')}
-          </InlineNotice>
-        )}
-        {children}
-      </ClubAdminShell>
-    </RealtimeProvider>
+    <ClientMessages section="clubAdmin">
+      <RealtimeProvider userId={me.userId} enabled={readModules().messaging && realtimeEnabled()}>
+        <ClubAdminShell
+          sections={club.sections}
+          homeHref={club.homeHref}
+          contextName={club.contextName}
+          user={{ userId: me.userId, name: me.name, email: me.email }}
+          account={club.account}
+          bottomTabs
+          fullBleedSegment="calendar"
+          messages={club.messages}
+        >
+          {result.ctx.clubStatus !== 'ACTIVE' && (
+            // Suspended or closed by the platform (#254): read-only, and why.
+            <InlineNotice variant="warning" className="mb-default" data-testid="club-not-active">
+              {tAdmin(result.ctx.clubStatus === 'CLOSED' ? 'closed' : 'suspended')}
+            </InlineNotice>
+          )}
+          {children}
+        </ClubAdminShell>
+      </RealtimeProvider>
+    </ClientMessages>
   );
 }
