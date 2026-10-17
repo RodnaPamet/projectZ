@@ -279,7 +279,13 @@ function venueSteps(): Step[] {
       // The picker's second option is tomorrow (VenueBooking's dayOptions).
       click: `${DAY_PICKER} [role="radio"]:nth-child(2)`,
     },
-    { id: 'venue → venues', to: '/venues', click: 'main a[href="/venues"]' },
+    {
+      id: 'venue → venues',
+      to: '/venues',
+      // The page's own back link (VenueBackLink), by its label: signed in, the
+      // AppShell's breadcrumbs put a second /venues link («Играй») in main.
+      click: `main a[href="/venues"][aria-label="${bg.venue.back}"]`,
+    },
   ];
 }
 
