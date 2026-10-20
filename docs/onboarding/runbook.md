@@ -351,3 +351,44 @@ name, an address that:
 
 An existing account that holds nothing yet becomes a club account. When the
 owner is refused, nothing is written, not even the club.
+
+## 6. The courts on the venue's plan, from OpenStreetMap
+
+Owner, 2026-10-20: a venue's plan starts from OpenStreetMap, then the club
+adjusts it in its admin (#626). Most outdoor venues are already mapped as
+`leisure=pitch`; indoor courts are not, and the club draws those itself.
+
+OSM does not number courts, and its tags can be wrong (it marks all of
+Levski's courts as lit; the owner says 3–9 are not). So the command only
+**proposes** a match: for each sport, the venue's courts by name against the
+pitches read north to south, west to east. Check it against the sketch it
+prints and against what you know of the venue. Fix it with `--map` if it is
+wrong.
+
+```bash
+# What is mapped near a point, without a database (anywhere, any time):
+npx tsx scripts/import-osm-plan.ts --at 42.6835,23.3368 --radius 250
+
+# The proposed match for a venue: a dry run, writes nothing.
+sudo docker run --rm --network playerz_internal --env-file /opt/playerz/.env.staging -w /app \
+  playerz-migrator:staging npx tsx scripts/import-osm-plan.ts --venue <venueId>
+
+# Write it as proposed, or with your own match:
+… npx tsx scripts/import-osm-plan.ts --venue <venueId> --apply
+… npx tsx scripts/import-osm-plan.ts --venue <venueId> --map <courtId>=<wayId>,<courtId>=<wayId> --apply
+```
+
+Then open `GET /api/v1/venues/<venueId>/plan`. Every matched court is there
+with its outline, and `attribution` is `OpenStreetMap`. Staging first, as
+everything else.
+
+- An outline is stored in metres from the venue's point (x east, y north).
+  If the venue's pin is off, every court is off with it, so check the pin
+  (§3) first.
+- A court the club has drawn itself (`CLUB`) is never replaced, and indoor
+  courts are left for the club.
+- OSM's data is ODbL: the plan credits «© OpenStreetMap contributors» while
+  an imported outline is shown. Nothing else is owed, since we do not publish
+  the data as a database.
+- Overpass is a shared, free service: it sometimes answers 502 or 504, or
+  takes most of a minute. Try again, or point `OVERPASS_URL` at a mirror.
