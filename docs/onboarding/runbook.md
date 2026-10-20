@@ -97,10 +97,10 @@ pilot clubs' courts, with the owner's values (name and price are the club's):
   "surface": "WOOD",                     // sprung hardwood
   "indoor": true,
   "capacity": 2,
-  "pricePerHourCents": 2400,             // a multiple of 4: whole cents per 45 minutes
-  "slotStepMinutes": 15,
-  "minBookingMinutes": 45,
-  "maxBookingMinutes": 90
+  "pricePerHourCents": 2000,             // EUR 20/h (#441: a sample until the club confirms)
+  "slotStepMinutes": 60,                 // whole hours, on the hour (owner, 2026-10-20)
+  "minBookingMinutes": 60,
+  "maxBookingMinutes": 120
 }
 ```
 
@@ -113,16 +113,17 @@ pilot clubs' courts, with the owner's values (name and price are the club's):
   "surface": "CONCRETE",                 // coated concrete
   "indoor": true,
   "capacity": 10,                        // drivers on the track at once
-  "pricePerHourCents": 24000,            // the WHOLE track, per hour; a multiple of 4
+  "pricePerHourCents": 30000,            // the WHOLE track: EUR 75 per 15 min (owner, 2026-10-20)
   "slotStepMinutes": 15,
   "minBookingMinutes": 15,
   "maxBookingMinutes": 60
 }
 ```
 
-The squash court sells 45 or 90 minutes, not 60 or 75: lengths are whole
-multiples of the minimum. Offering 45, 60, 75 and 90 needs a 15-minute minimum,
-which also sells 15 and 30. The track sells 15, 30, 45 or 60 minutes.
+Lengths are whole multiples of the minimum. The squash court sells whole hours,
+60 or 120 minutes, starting on the hour (owner, 2026-10-20, #441). The track
+sells 15, 30, 45 or 60 minutes, for up to 10 drivers, and the last 15 minutes of
+its day end at 23:45 (a playerz day cannot cross midnight).
 
 Not part of onboarding, because the club does these itself in its admin at
 `/t/{slug}/admin`: peak and off-peak pricing rules, holiday closures, staff,
