@@ -6140,7 +6140,7 @@
       "post": {
         "operationId": "acceptLegal",
         "summary": "Accept the terms and the privacy policy in force. Once per version.",
-        "description": "Records that the signed-in account accepts every text in force, at its current version, in the language of the request (the `NEXT_LOCALE` cookie; Bulgarian without one). No body: the server decides what is in force. Idempotent: a version already accepted keeps its first record. Answers the standing, with `due` empty. The 429 budget is the default for mutations.",
+        "description": "Records that the signed-in account accepts every text in force, at its current version, in the language the texts were read in: the request's (the `NEXT_LOCALE` cookie), else the account's own `locale` (a native client sends no cookie, and keeps the account's language in step with the phone's, #629). No body: the server decides what is in force. Idempotent: a version already accepted keeps its first record. Answers the standing, with `due` empty. The 429 budget is the default for mutations.",
         "tags": ["Me"],
         "security": [
           {
