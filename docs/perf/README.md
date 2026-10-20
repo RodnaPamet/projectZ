@@ -116,10 +116,25 @@ cold, full loads, and both #615:
 | landing-player · /start → /me/bookings |    209 ms |    140 ms | 239 → 170 |
 
 Two other ceilings moved by more than 15 ms. Desktop cold `public-venue · load /venues`, 348 → 150,
-moved without a verdict: its loads are ready at either about 120 ms or about 318 ms, 17 of 30 slow
-on 17 October and 3 of 30 now (#616). A run where most of them land slow will read as over budget
-without a regression; see #616 before acting on that row. Phone warm `landing-player`, 536 → 564,
-is within noise (487 → 512 ms).
+moved without a verdict: its loads are ready at either about 120 ms or about 312 ms, 17 of 30 slow
+on 17 October and 3 of 30 now (below). Phone warm `landing-player`, 536 → 564, is within noise
+(487 → 512 ms).
+
+**Why `/venues` has two speeds (#616, verified; #619).** `/venues` has a `loading.tsx`, so the HTML
+is the shell with a skeleton, and the page follows in a later chunk (10–15 ms later on this
+machine). The harness's browser has a light OS theme, so `ThemeProvider` switches from the server's
+`dark` on mount. That context change makes React render the page on the client as it hydrates, at
+about 105 ms, and the load is ready at about 120 (#619). When the page's chunk arrives only after
+hydration, React's client holds the reveal until 300 ms after navigation start
+(`globalMostRecentFallbackTime + 300 - now()` in `react-dom-client`, where that time starts at 0),
+and the load is ready at about 312. A delay put on every `venue` query in `playerz_perf` made every
+load slow: 50 ms of delay showed the list at 314 ms, though it had arrived by about 200. From 100 ms
+on it showed about 45 ms after it arrived. The phone row is not split, because there the list always
+arrives after 300 ms. **Reading the row:** over budget means most loads streamed the list after
+hydration. The page's data got slower, and React turned perhaps 40 ms into about 200. Look for what
+slowed the venue reads. Before #615's warm pool, 17 of 30 were slow; after it, 3 of 30. These rows
+measure the light theme only. A dark-theme visitor waits for React's hold on every such load, about
+330 ms here (#619).
 
 The runs started four hours earlier in the club's day than `2a90d68`'s, so the diary offers
 fewer no-show controls; no diary row moved.
