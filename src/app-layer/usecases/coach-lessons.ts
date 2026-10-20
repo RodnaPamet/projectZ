@@ -490,6 +490,8 @@ export async function bookLesson(input: BookLessonInput): Promise<BookLessonResu
 async function coachTakenAt(link: LessonLink, startTs: Date, minutes: number): Promise<boolean> {
   const endTs = new Date(startTs.getTime() + minutes * 60_000);
   return runAsSuperuser(async (db) => {
+    // guardrail-allow: cross-tenant — a coach is taken by a lesson at ANY club,
+    // the same read the offer's busy times make (`loadDay`).
     const clash = await db.coachLesson.findFirst({
       where: {
         coachUserId: link.coach.userId,
