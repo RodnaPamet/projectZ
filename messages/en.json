@@ -967,6 +967,39 @@
         "action": {
           "add": "Add a {anyNoun}"
         }
+      },
+      "plan": {
+        "open": "Plan of {venue}",
+        "links": "Venue plans",
+        "metaTitle": "Plan of {venue}",
+        "title": "Plan of {venue}",
+        "subtitle": "Lay the courts out as they are on site. Players pick a time and a court from this plan.",
+        "hint": "Drag a court to move it. The dots on its sides resize it, and the dot above it turns it.",
+        "canvas": "Plan to edit",
+        "empty": "No court is on the plan yet. Pick a court below and press «Draw».",
+        "onPlan": "On the plan",
+        "notOnPlan": "Not on the plan",
+        "fromOsm": "From OpenStreetMap",
+        "draw": "Draw",
+        "remove": "Take off the plan",
+        "length": "Length, m",
+        "width": "Width, m",
+        "angle": "Turn, °",
+        "moveLabel": "Move by 1 m",
+        "west": "Left",
+        "east": "Right",
+        "north": "Up",
+        "south": "Down",
+        "undo": "Undo",
+        "save": "Save the plan",
+        "saving": "Saving…",
+        "saved": "The plan is saved. Players see it now.",
+        "failed": "The plan was not saved. Try again.",
+        "unsaved": "{count, plural, one {# unsaved change} other {# unsaved changes}}",
+        "zoomIn": "Zoom in on the plan",
+        "zoomOut": "Zoom out of the plan",
+        "fit": "Whole plan",
+        "credit": "© OpenStreetMap contributors"
       }
     },
     "onlineShare": {

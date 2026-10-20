@@ -2,10 +2,20 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { z } from 'zod';
+
 import { courtCreateSchema, courtUpdateSchema } from '@/app-layer/schemas/court';
-import { archiveCourt, createCourt, updateCourt } from '@/app-layer/usecases/courts';
+import {
+  archiveCourt,
+  CourtNotFoundError,
+  createCourt,
+  updateCourt,
+  VenueNotFoundError,
+} from '@/app-layer/usecases/courts';
+import { InvalidOutlineError, saveVenuePlan } from '@/app-layer/usecases/venue-plan-editor';
 import { requireTenantAction } from '@/lib/auth/page-context';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { OUTLINE_MAX_POINTS } from '@/lib/venues/plan';
 
 /**
  * The first Server Actions in this repo.
@@ -125,5 +135,54 @@ export async function archiveCourtAction(
   );
 
   revalidatePath(`/t/${slug}/admin/courts`);
+  return { ok: true };
+}
+
+/**
+ * Save the club's changes to a venue's plan (#626): each changed court's new
+ * outline, or null to take it off the plan. The editor sends only what
+ * changed; the use case refuses the whole save if any court is not this
+ * venue's or any outline is not a polygon the plan can draw.
+ */
+const planChangesSchema = z
+  .array(
+    z.object({
+      resourceId: z.string().min(1).max(64),
+      outline: z
+        .array(z.tuple([z.number().finite(), z.number().finite()]))
+        .max(OUTLINE_MAX_POINTS)
+        .nullable(),
+    }),
+  )
+  .min(1)
+  .max(100);
+
+export async function saveVenuePlanAction(
+  slug: string,
+  venueId: string,
+  changes: unknown,
+): Promise<ActionResult> {
+  const ctx = await requireTenantAction(slug, 'courts.manage');
+
+  const parsed = planChangesSchema.safeParse(changes);
+  if (!parsed.success) return { ok: false, error: 'invalid' };
+
+  try {
+    await runInTenantContext(ctx.tenantId, (db) =>
+      saveVenuePlan(db, ctx.tenantId, ctx.userId, venueId, parsed.data),
+    );
+  } catch (err) {
+    if (
+      err instanceof InvalidOutlineError ||
+      err instanceof CourtNotFoundError ||
+      err instanceof VenueNotFoundError
+    ) {
+      return { ok: false, error: 'invalid' };
+    }
+    throw err;
+  }
+
+  revalidatePath(`/t/${slug}/admin/courts`);
+  revalidatePath(`/t/${slug}/admin/courts/plan/${venueId}`);
   return { ok: true };
 }

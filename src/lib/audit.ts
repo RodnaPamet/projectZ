@@ -77,6 +77,9 @@ export const AUDIT_ACTIONS = {
   /// bookings, payments and ledger entries still point at it.
   COURT_ARCHIVED: 'COURT_ARCHIVED',
   COURT_REOPENED: 'COURT_REOPENED',
+  /// A court moved, turned, resized, drawn or taken off its venue's plan by
+  /// the club (#626). The outline before and after are in the details.
+  COURT_PLAN_CHANGED: 'COURT_PLAN_CHANGED',
   PRICING_RULE_CREATED: 'PRICING_RULE_CREATED',
   PRICING_RULE_UPDATED: 'PRICING_RULE_UPDATED',
   /// Pricing rules CAN be deleted — unlike a court, nothing references one.

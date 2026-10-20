@@ -14,20 +14,22 @@ import { resourceNoun } from '@/lib/sports/resource-kinds';
 import type { PlanPoint, VenuePlan as Plan } from '@/lib/venues/plan';
 import {
   clampView,
-  courtFrame,
   fitPlan,
-  markingsFor,
-  placeMarkings,
   planBounds,
   pointInPolygon,
   toPlan,
-  toScreen,
   zoomAt,
-  type CourtFrame,
   type Fit,
-  type Mark,
   type View,
 } from '@/lib/venues/plan-geometry';
+import {
+  paintedCourt,
+  paintPlan,
+  readPlanColors,
+  type CourtLook,
+  type PaintedCourt,
+  type PlanColors,
+} from '@/lib/venues/plan-paint';
 import { courtAt, laterOffers, planLengths, planTimes } from '@/lib/venues/plan-slots';
 
 import type { Selection } from './BookingSheet';
@@ -72,53 +74,12 @@ export interface VenuePlanProps {
   pickAction: (selection: Selection) => void;
 }
 
-type CourtState = 'free' | 'taken' | 'picked' | 'unknown';
+type CourtState = Exclude<CourtLook, 'plain'>;
 
 interface Geometry {
   bounds: [number, number, number, number];
-  courts: { id: string; name: string; outline: PlanPoint[]; frame: CourtFrame; marks: Mark[] }[];
+  courts: PaintedCourt[];
   features: Plan['features'];
-}
-
-/** The theme's colours, as the canvas needs them. */
-interface Colors {
-  grounds: string;
-  building: string;
-  entrance: string;
-  edge: string;
-  free: string;
-  taken: string;
-  hatch: string;
-  picked: string;
-  pickedEdge: string;
-  lit: string;
-  markOn: string;
-  markOff: string;
-  labelBg: string;
-  label: string;
-  font: string;
-}
-
-function readColors(el: Element): Colors {
-  const css = getComputedStyle(el);
-  const v = (name: string) => css.getPropertyValue(name).trim();
-  return {
-    grounds: v('--bg-muted'),
-    building: v('--border-default'),
-    entrance: v('--accent-default'),
-    edge: v('--border-strong'),
-    free: v('--bg-success-emphasis'),
-    taken: v('--bg-muted'),
-    hatch: v('--border-strong'),
-    picked: v('--brand-default'),
-    pickedEdge: v('--brand-emphasis'),
-    lit: v('--content-emphasis'),
-    markOn: v('--content-inverted'),
-    markOff: v('--border-strong'),
-    labelBg: v('--bg-default'),
-    label: v('--content-default'),
-    font: css.fontFamily || 'sans-serif',
-  };
 }
 
 const PAD = 16;
@@ -137,24 +98,14 @@ export default function VenuePlan({
   const format = useFormatter();
   const listId = useId();
 
-  const geometry = useMemo<Geometry>(() => {
-    const courts = plan.courts.map((c) => {
-      const frame = courtFrame(c.outline);
-      const markings = markingsFor(c.sport);
-      return {
-        id: c.resourceId,
-        name: c.name,
-        outline: c.outline,
-        frame,
-        marks: markings ? placeMarkings(markings, frame) : [],
-      };
-    });
-    return {
+  const geometry = useMemo<Geometry>(
+    () => ({
       bounds: planBounds([...plan.courts, ...plan.features].map((s) => s.outline)),
-      courts,
+      courts: plan.courts.map(paintedCourt),
       features: plan.features,
-    };
-  }, [plan]);
+    }),
+    [plan],
+  );
 
   // ── The picked start and length ──────────────────────────────────────────
   const rows = useMemo(() => new Map((resources ?? []).map((r) => [r.resourceId, r])), [resources]);
@@ -251,7 +202,7 @@ export default function VenuePlan({
   const viewRef = useRef<View>({ k: 1, tx: 0, ty: 0 });
   const sizeRef = useRef({ width: 0, height: 0 });
   const fitRef = useRef<Fit | null>(null);
-  const colorsRef = useRef<Colors | null>(null);
+  const colorsRef = useRef<PlanColors | null>(null);
   const hoverRef = useRef<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   // What the listeners and the painter read: refreshed after every render, so
@@ -269,83 +220,18 @@ export default function VenuePlan({
     if (!canvas || !fit || width === 0 || height === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const c = (colorsRef.current ??= readColors(canvas));
-    const view = viewRef.current;
     const { geometry: g, states: s, lit: on } = latest.current;
-    const dpr = window.devicePixelRatio || 1;
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    const path = (points: PlanPoint[], close = true) => {
-      const p = new Path2D();
-      points.forEach((pt, i) => {
-        const [x, y] = toScreen(pt, fit, view);
-        if (i === 0) p.moveTo(x, y);
-        else p.lineTo(x, y);
-      });
-      if (close) p.closePath();
-      return p;
-    };
-    // A metre on the screen, for line weights that grow with the zoom.
-    const metre = fit.scale * view.k;
-
-    for (const f of g.features) {
-      const p = path(f.outline);
-      ctx.fillStyle =
-        f.kind === 'GROUNDS' ? c.grounds : f.kind === 'BUILDING' ? c.building : c.entrance;
-      ctx.fill(p);
-      if (f.kind !== 'ENTRANCE') {
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = c.edge;
-        ctx.stroke(p);
-      }
-    }
-
-    for (const court of g.courts) {
-      const state = s.get(court.id) ?? 'unknown';
-      const p = path(court.outline);
-      ctx.fillStyle = state === 'free' ? c.free : state === 'picked' ? c.picked : c.taken;
-      ctx.fill(p);
-      if (state === 'taken')
-        hatch(
-          ctx,
-          p,
-          court.outline.map((pt) => toScreen(pt, fit, view)),
-          c.hatch,
-        );
-
-      ctx.strokeStyle = state === 'free' || state === 'picked' ? c.markOn : c.markOff;
-      ctx.globalAlpha = 0.85;
-      for (const mark of court.marks) {
-        ctx.lineWidth = Math.max(
-          1,
-          Math.min(mark.style === 'line' ? 2 : 4, metre * (mark.style === 'line' ? 0.08 : 0.2)),
-        );
-        ctx.stroke(path(mark.points, false));
-      }
-      ctx.globalAlpha = 1;
-
-      const lit = court.id === on;
-      ctx.lineWidth = lit || state === 'picked' ? 3 : 1.5;
-      ctx.strokeStyle = lit ? c.lit : state === 'picked' ? c.pickedEdge : c.edge;
-      ctx.stroke(p);
-    }
-
-    // The names last, on a pill of the page's colour, so they read on any fill.
-    ctx.font = `600 12px ${c.font}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const court of g.courts) {
-      const [x, y] = toScreen([court.frame.cx, court.frame.cy], fit, view);
-      const w = ctx.measureText(court.name).width + 12;
-      if (w > court.frame.length * metre && court.id !== on) continue;
-      ctx.fillStyle = c.labelBg;
-      ctx.beginPath();
-      ctx.roundRect(x - w / 2, y - 10, w, 20, 10);
-      ctx.fill();
-      ctx.fillStyle = c.label;
-      ctx.fillText(court.name, x, y + 0.5);
-    }
+    paintPlan(ctx, window.devicePixelRatio || 1, {
+      width,
+      height,
+      fit,
+      view: viewRef.current,
+      colors: (colorsRef.current ??= readPlanColors(canvas)),
+      features: g.features,
+      courts: g.courts,
+      look: (id) => s.get(id) ?? 'unknown',
+      lit: on,
+    });
 
     // The perf harness times the plan's first paint by this (#625).
     wrapRef.current?.setAttribute('data-plan-ready', '');
@@ -693,29 +579,4 @@ export default function VenuePlan({
       )}
     </div>
   );
-}
-
-/** Diagonal lines across a taken court: taken is not told by colour alone. */
-function hatch(ctx: CanvasRenderingContext2D, p: Path2D, screen: PlanPoint[], color: string) {
-  const xs = screen.map((s) => s[0]);
-  const ys = screen.map((s) => s[1]);
-  const [left, right, top, bottom] = [
-    Math.min(...xs),
-    Math.max(...xs),
-    Math.min(...ys),
-    Math.max(...ys),
-  ];
-  const h = bottom - top;
-  ctx.save();
-  ctx.clip(p);
-  ctx.strokeStyle = color;
-  ctx.globalAlpha = 0.45;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = left - h; x < right; x += 7) {
-    ctx.moveTo(x, bottom);
-    ctx.lineTo(x + h, top);
-  }
-  ctx.stroke();
-  ctx.restore();
 }

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
@@ -6,6 +7,7 @@ import { clubResourceNouns } from '@/app-layer/usecases/club-nouns';
 import { loadCourtsScreen } from '@/app-layer/usecases/courts';
 import { clubAdminCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
@@ -132,6 +134,21 @@ export default async function CourtsPage({ params }: { params: Promise<{ slug: s
           {nounMessage(t, tNouns, locale, nouns, 'subtitle')}
         </p>
       </header>
+
+      {/* Each venue's plan (#626): where its courts lie, for the venue page's plan. */}
+      {venues.length > 0 && (
+        <nav aria-label={t('plan.links')} className="mb-default flex flex-wrap gap-2">
+          {venues.map((v) => (
+            <Link
+              key={v.id}
+              href={`/t/${slug}/admin/courts/plan/${v.id}`}
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+            >
+              {t('plan.open', { venue: v.name })}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {courtsWereTruncated(rows) && (
         // A capped list that looks complete is the failure the platform audit
