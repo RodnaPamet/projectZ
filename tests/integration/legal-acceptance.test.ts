@@ -151,6 +151,24 @@ describe('accepting the terms and the privacy policy (#462)', () => {
     await acceptCurrentLegal(me.userId, '<script>');
     expect((await rowsOf(me.userId)).map((r) => r.locale)).toEqual(['bg', 'bg']);
   });
+
+  it('with no language chosen, the account’s own is recorded: the app sends no cookie (#629)', async () => {
+    const me = await account();
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: me.userId }, data: { locale: 'en' } }),
+    );
+    await acceptCurrentLegal(me.userId, undefined);
+    expect((await rowsOf(me.userId)).map((r) => r.locale)).toEqual(['en', 'en']);
+  });
+
+  it('a language the request chose wins over the account’s', async () => {
+    const me = await account();
+    await asAppSuperuser(db, (tx) =>
+      tx.user.update({ where: { id: me.userId }, data: { locale: 'en' } }),
+    );
+    await acceptCurrentLegal(me.userId, 'bg');
+    expect((await rowsOf(me.userId)).map((r) => r.locale)).toEqual(['bg', 'bg']);
+  });
 });
 
 describe('legal_acceptance in the database (P64)', () => {

@@ -1,4 +1,4 @@
-import { resolveLocale } from '@/lib/i18n/locales';
+import { isLocale, resolveLocale } from '@/lib/i18n/locales';
 import { runAsUserOnly } from '@/lib/db/rls-middleware';
 import {
   ACCEPTED_DOCUMENTS,
@@ -88,14 +88,21 @@ export async function acceptCurrentLegal(
   rawLocale: unknown,
   current: LegalVersions = currentLegalVersions(),
 ): Promise<LegalVersions> {
-  const locale = resolveLocale(rawLocale);
-  const rows = ACCEPTED_DOCUMENTS.flatMap((document) =>
-    current[document] ? [{ userId, document, version: current[document], locale }] : [],
-  );
-  if (rows.length === 0) return {};
+  if (!ACCEPTED_DOCUMENTS.some((document) => current[document])) return {};
 
-  await runAsUserOnly(userId, (db) =>
-    db.legalAcceptance.createMany({ data: rows, skipDuplicates: true }),
-  );
+  await runAsUserOnly(userId, async (db) => {
+    // The language the texts were read in: the one the request chose (the
+    // web's switch), else the account's own. A native client sends no cookie
+    // and keeps the account's language in step with the phone's (#629), so
+    // "Bulgarian, whatever was read" is the last resort, not the rule.
+    const account = isLocale(rawLocale)
+      ? undefined
+      : await db.user.findUnique({ where: { id: userId }, select: { locale: true } });
+    const locale = isLocale(rawLocale) ? rawLocale : resolveLocale(account?.locale);
+    const rows = ACCEPTED_DOCUMENTS.flatMap((document) =>
+      current[document] ? [{ userId, document, version: current[document], locale }] : [],
+    );
+    await db.legalAcceptance.createMany({ data: rows, skipDuplicates: true });
+  });
   return acceptedCurrentVersions(userId, current);
 }
