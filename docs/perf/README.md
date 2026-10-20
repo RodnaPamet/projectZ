@@ -18,7 +18,14 @@ npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a 
 npm run perf:budget -- .perf/after.json                     # the latency budget (docs/perf/budget.json)
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
 PERF_SOURCEMAPS=1 npm run build && npm run perf:chunks -- / # what a route's First Load JS is made of
+PERF_TRACE=landing-staff npm run perf:nav -- --grep "landing-staff · run" --project=perf-phone
+npm run perf:trace -- .perf/traces/landing-staff-phone-warm-run1.json  # where a full load's time went
 ```
+
+`PERF_TRACE=<journey>` records a Chrome performance trace of each of that journey's full loads in
+`.perf/traces/` (#601). `perf:trace` prints, for one or more of them, the time to first contentful
+paint, the main thread's work before it by kind, and every request sent before it. Tracing costs
+time of its own, so a traced run says where the time goes and is never a measurement for the budget.
 
 ## What a route's First Load JS is made of (#340), 14 October 2026
 
@@ -126,6 +133,11 @@ first paint waits on something else, so a smaller payload does not move it.
 - **desktop cold `staff-write · load /t/sofia-padel-club`, 168 → 240 ms.** An ordering effect: the
   journey starts about a second after the staff journey's last diary step, and its redirect takes
   about 120 ms against 22. Run alone, the redirect is 25–40 ms and the load 139–258 ms.
+  **Found and fixed (#601).** node-postgres closed an idle connection after 10 s, so the pool
+  shrank during the staff journey's quieter steps, and the next page's session check and
+  membership read each waited to open a new one. The pool now keeps four open
+  (`src/lib/db/prisma.ts`). Measured in one browser (Chromium 156), 10 runs each: 244 → 181 ms,
+  redirect 113 → 22 ms; the 8 October code measures 158 ms there.
 
 **The harness (#600).** The venue journey clicks the page's own back link by its label. Signed in,
 the AppShell's breadcrumbs put a second `/venues` link in `main`, and every run had lost

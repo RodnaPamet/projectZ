@@ -29,6 +29,7 @@
     "perf:budget": "tsx tests/perf/budget.ts",
     "perf:bundle": "tsx tests/perf/bundle-budget.ts",
     "perf:chunks": "tsx tests/perf/chunks.ts",
+    "perf:trace": "tsx tests/perf/trace-summary.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
