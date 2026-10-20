@@ -125,6 +125,8 @@ export default class PerfReporter implements Reporter {
               cpuThrottlingRate: p.cpuThrottlingRate,
               network: p.network,
               input: p.input,
+              colorScheme: p.colorScheme,
+              loadsOnly: p.loadsOnly,
             },
           ]),
         ),

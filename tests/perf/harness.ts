@@ -439,9 +439,11 @@ export class PerfSession {
     const { browser, profile, persona } = opts;
     // A FRESH context: empty HTTP cache, no router cache, no JS in memory.
     // Signed in (if a persona) from the state global-setup saved. Bulgarian
-    // and in Sofia, like the people it is for.
+    // and in Sofia, like the people it is for. The OS theme is the profile's
+    // (config.ts `desktop-dark`, #619).
     const context = await browser.newContext({
       ...profile.device,
+      colorScheme: profile.colorScheme,
       baseURL: PERF_BASE_URL,
       storageState: persona ? authStatePath(persona) : undefined,
       locale: 'bg-BG',

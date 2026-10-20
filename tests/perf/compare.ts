@@ -127,6 +127,7 @@ function merge(paths: string[], out: string) {
       desktop: summarise(by('desktop')),
       desktopCold: summarise(by('desktop', 'cold')),
       desktopWarm: summarise(by('desktop', 'warm')),
+      desktopDark: summarise(by('desktop-dark')),
     },
   };
   writeFileSync(out, stringify(doc));

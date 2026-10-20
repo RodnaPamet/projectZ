@@ -157,8 +157,12 @@ export interface NetworkProfile {
 }
 
 export interface PerfProfile {
-  id: 'phone' | 'desktop';
+  id: 'phone' | 'desktop' | 'desktop-dark';
   device: (typeof devices)[string];
+  /** The OS theme the page sees (`prefers-color-scheme`). See `desktop-dark`. */
+  colorScheme: 'light' | 'dark';
+  /** Only each journey's full page load and the landings, none of the steps after them. */
+  loadsOnly: boolean;
   /** CDP `Emulation.setCPUThrottlingRate`; 1 means none. */
   cpuThrottlingRate: number;
   /** CDP `Network.emulateNetworkConditions`; null means none. */
@@ -199,6 +203,8 @@ export const PROFILES: Record<PerfProfile['id'], PerfProfile> = {
           connectionType: 'cellular4g',
         },
     input: 'tap',
+    colorScheme: 'light',
+    loadsOnly: false,
   },
   /** Unthrottled: the floor. What a front desk on the club's own network sees. */
   desktop: {
@@ -207,6 +213,31 @@ export const PROFILES: Record<PerfProfile['id'], PerfProfile> = {
     cpuThrottlingRate: 1,
     network: null,
     input: 'click',
+    colorScheme: 'light',
+    loadsOnly: false,
+  },
+  /**
+   * The desktop, with a dark OS theme: what the app's default theme gets on a full load (#619).
+   *
+   * `ThemeProvider` renders `dark` on the server and switches to the OS theme
+   * on mount. Under the other profiles' light theme that switch is a context
+   * change during hydration: it makes React render a page that streamed in
+   * after a `loading.tsx` shell on the client, about 105 ms in, and discard
+   * the server's HTML. With nothing to switch, React waits for its own
+   * streaming runtime, which holds the reveal until 300 ms after the shell's
+   * first frame. Same page, about 120 ms against about 330 (#616, #619).
+   *
+   * Full loads only: the theme switches when the page first mounts, so a
+   * soft navigation after it is the same in either theme.
+   */
+  'desktop-dark': {
+    id: 'desktop-dark',
+    device: devices['Desktop Chrome'],
+    cpuThrottlingRate: 1,
+    network: null,
+    input: 'click',
+    colorScheme: 'dark',
+    loadsOnly: true,
   },
 };
 

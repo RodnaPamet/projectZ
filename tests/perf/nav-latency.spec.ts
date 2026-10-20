@@ -469,8 +469,10 @@ for (let run = 1; run <= PERF_RUNS; run++) {
           mode: 'cold',
           pass: 0,
         });
+        // `desktop-dark` times the full load only (config.ts, #619).
+        const steps = profile.loadsOnly ? [] : j.steps;
         for (let pass = 0; pass <= PERF_WARM_PASSES; pass++) {
-          for (const st of j.steps) {
+          for (const st of steps) {
             if ('write' in st) {
               await s.write({
                 step: st.id,
