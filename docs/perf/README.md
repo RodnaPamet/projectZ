@@ -13,7 +13,7 @@ navigation has no LCP, no FCP and no navigation entry. This harness times naviga
 in the page, from the click.
 
 ```sh
-npm run perf:nav          # one run: reset and seed, build, serve, measure (about 26 min)
+npm run perf:nav          # one run: reset and seed, build, serve, measure (about 30 min)
 npm run perf:compare -- .perf/before.json .perf/after.json   # see "Comparing a change"
 npm run perf:budget -- .perf/after.json                     # the latency budget (docs/perf/budget.json)
 npm run build && npm run perf:bundle -- --enforce           # First Load JS (docs/perf/bundle-budget.json)
@@ -868,10 +868,11 @@ next dead link would bring the hang back.
 
 ### Profiles
 
-| Profile | Device                                                    | CPU                                     | Network                                                                                              | Input                                                 |
-| ------- | --------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| phone   | Playwright's `Pixel 5` (393×727, DPR 2.75, touch, mobile) | `Emulation.setCPUThrottlingRate` **×4** | `Network.emulateNetworkConditions`: **150 ms** latency, **9 Mbps** down, **1.5 Mbps** up, cellular4g | a tap: touchstart, touchend, then the browser's click |
-| desktop | `Desktop Chrome` (1280×720)                               | unthrottled                             | none                                                                                                 | a click                                               |
+| Profile      | Device                                                    | CPU                                     | Network                                                                                              | Input                                                 |
+| ------------ | --------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| phone        | Playwright's `Pixel 5` (393×727, DPR 2.75, touch, mobile) | `Emulation.setCPUThrottlingRate` **×4** | `Network.emulateNetworkConditions`: **150 ms** latency, **9 Mbps** down, **1.5 Mbps** up, cellular4g | a tap: touchstart, touchend, then the browser's click |
+| desktop      | `Desktop Chrome` (1280×720)                               | unthrottled                             | none                                                                                                 | a click                                               |
+| desktop-dark | as desktop, with a **dark** OS theme; full loads only     | unthrottled                             | none                                                                                                 | a click                                               |
 
 The phone uses DevTools' "Fast 4G" throughput with "Slow 4G" latency. **Localhost has
 no network latency.** Without emulation a round trip costs 0 ms, and a waterfall of
@@ -881,6 +882,16 @@ the response headers. It does not model TCP, DNS or TLS handshakes.
 
 CPU ×4 on this Apple M2 Pro approximates an upper-mid-range Android. Lighthouse
 calibrates ×4 against far slower desktops, so a budget phone is slower than this.
+
+**Why `desktop-dark` (#619).** Phone and desktop browse with a light OS theme. `ThemeProvider`
+renders `dark` on the server and switches to the OS theme on mount. Under a light theme that switch
+changes context during hydration, and React renders a page that streamed in after a `loading.tsx`
+shell on the client (about 105 ms on desktop), discarding the server's HTML. A dark-theme visitor
+gets no switch, so React waits for its streaming runtime, which holds the reveal until 300 ms after
+the shell's first frame (about 330 ms). Dark is the app's default. `desktop-dark` times only each
+journey's full load and the landings: the switch happens when the page first mounts, so a soft
+navigation after it is the same in either theme. Read its rows against `desktop`'s same rows. The
+gap between them is React's hold.
 
 The phone's taps are aimed at the link's measured centre and hit-tested first. On a
 393 px screen the club nav is 934 px wide (#255). The layout viewport widens to match,
@@ -1132,30 +1143,30 @@ Two more cautions:
 
 ## Files
 
-| File                              | What it is                                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| `playwright.perf.config.ts`       | its own config: two projects (`perf-phone`, `perf-desktop`), one worker, no retries  |
-| `tests/perf/nav-latency.spec.ts`  | the journeys and the ready conditions                                                |
-| `tests/perf/agent.ts`             | the in-page clock                                                                    |
-| `tests/perf/harness.ts`           | contexts, throttling, the CDP network recorder, taps, settling                       |
-| `tests/perf/config.ts`            | ports, database, accounts, profiles: everything the others agree on                  |
-| `tests/perf/serve.ts`             | the webServer: reset, seed, build, serve                                             |
-| `tests/perf/prepare-db.ts`        | the database reset, its guard, and the runtime role                                  |
-| `tests/perf/seed-perf.ts`         | the data                                                                             |
-| `tests/perf/global-setup.ts`      | sign-in once per account; warm-up of every page                                      |
-| `tests/perf/reporter.ts`          | collects samples, writes the run, prints the tables                                  |
-| `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                   |
-| `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables                |
-| `tests/perf/chunks.ts`            | `perf:chunks`: what a route's First Load JS is made of, from the build's source maps |
-| `tests/perf/trace-summary.ts`     | `perf:trace`: where a traced full load's time went before its first paint            |
-| `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                       |
-| `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                 |
-| `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                           |
-| `docs/perf/baseline-7738122.json` | #397's, the venue page's first measurement                                           |
-| `docs/perf/baseline-c72cb8a.json` | #403's                                                                               |
-| `docs/perf/baseline-8997b77.json` | #362's, every signed-in account in the AppShell                                      |
-| `docs/perf/baseline-2a90d68.json` | #402's quiet machine and #599's translations                                         |
-| `docs/perf/baseline-699a92f.json` | #615's, the current baseline; the budget is set from it                              |
-| `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)     |
-| `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)   |
-| `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                        |
+| File                              | What it is                                                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `playwright.perf.config.ts`       | its own config: three projects (`perf-phone`, `perf-desktop`, `perf-desktop-dark`), one worker, no retries |
+| `tests/perf/nav-latency.spec.ts`  | the journeys and the ready conditions                                                                      |
+| `tests/perf/agent.ts`             | the in-page clock                                                                                          |
+| `tests/perf/harness.ts`           | contexts, throttling, the CDP network recorder, taps, settling                                             |
+| `tests/perf/config.ts`            | ports, database, accounts, profiles: everything the others agree on                                        |
+| `tests/perf/serve.ts`             | the webServer: reset, seed, build, serve                                                                   |
+| `tests/perf/prepare-db.ts`        | the database reset, its guard, and the runtime role                                                        |
+| `tests/perf/seed-perf.ts`         | the data                                                                                                   |
+| `tests/perf/global-setup.ts`      | sign-in once per account; warm-up of every page                                                            |
+| `tests/perf/reporter.ts`          | collects samples, writes the run, prints the tables                                                        |
+| `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                                         |
+| `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables                                      |
+| `tests/perf/chunks.ts`            | `perf:chunks`: what a route's First Load JS is made of, from the build's source maps                       |
+| `tests/perf/trace-summary.ts`     | `perf:trace`: where a traced full load's time went before its first paint                                  |
+| `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                                             |
+| `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                                       |
+| `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                                                 |
+| `docs/perf/baseline-7738122.json` | #397's, the venue page's first measurement                                                                 |
+| `docs/perf/baseline-c72cb8a.json` | #403's                                                                                                     |
+| `docs/perf/baseline-8997b77.json` | #362's, every signed-in account in the AppShell                                                            |
+| `docs/perf/baseline-2a90d68.json` | #402's quiet machine and #599's translations                                                               |
+| `docs/perf/baseline-699a92f.json` | #615's, the current baseline; the budget is set from it                                                    |
+| `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)                           |
+| `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)                         |
+| `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                                              |

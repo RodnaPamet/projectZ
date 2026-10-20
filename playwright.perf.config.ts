@@ -16,7 +16,7 @@ import { PERF_BASE_URL } from './tests/perf/config';
  * silently picked up a project nobody meant it to.
  *
  * So the harness has its own server (a production build on 3301, against
- * playerz_perf), its own seed, and its own two projects. Neither
+ * playerz_perf), its own seed, and its own three projects. Neither
  * `npm run test:e2e` nor CI's e2e job (`--project=chromium --project=mobile`,
  * default config) can reach them.
  *
@@ -63,6 +63,8 @@ export default defineConfig({
   projects: [
     { name: 'perf-phone', metadata: { profile: 'phone' } },
     { name: 'perf-desktop', metadata: { profile: 'desktop' } },
+    // Full loads only, with a dark OS theme: the app's default (#619).
+    { name: 'perf-desktop-dark', metadata: { profile: 'desktop-dark' } },
   ],
 
   globalSetup: './tests/perf/global-setup.ts',
