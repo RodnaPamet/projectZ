@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 
 import type { Browser, BrowserContext, CDPSession, Page } from '@playwright/test';
@@ -14,6 +15,7 @@ import {
 import {
   authStatePath,
   PERF_BASE_URL,
+  PERF_DIR,
   QUIET_MS,
   SETTLE_TIMEOUT_MS,
   STEP_TIMEOUT_MS,
@@ -384,6 +386,24 @@ type NavTiming = {
   loadEventEnd: number;
 };
 
+/**
+ * PERF_TRACE=<journey> records a Chrome performance trace of each of that
+ * journey's full loads, to `.perf/traces/<journey>-<profile>-<mode>-run<n>.json`
+ * (#601). Read one with `npm run perf:trace -- <file>`, or open it in Chrome's
+ * Performance panel. Tracing costs time of its own, so a traced run says WHERE
+ * a load's time goes. It is never a measurement for the budget.
+ */
+const TRACE_JOURNEY = process.env.PERF_TRACE ?? '';
+const TRACE_CATEGORIES = [
+  'devtools.timeline',
+  'disabled-by-default-devtools.timeline',
+  'v8.execute',
+  'blink.user_timing',
+  'loading',
+  'toplevel',
+  'navigation',
+].join(',');
+
 /** PERF_DEBUG=1 prints where each step's wall time goes, for working on the harness itself. */
 const debug = (msg: string) => {
   if (process.env.PERF_DEBUG === '1') process.stdout.write(`[perf:debug] ${msg}\n`);
@@ -460,6 +480,27 @@ export class PerfSession {
 
   async close() {
     await this.context.close();
+  }
+
+  /** Ends the trace `enter` started and writes it out (PERF_TRACE, #601). */
+  private async saveTrace(name: string) {
+    const complete = new Promise<{ stream?: string }>((resolve) =>
+      this.cdp.once('Tracing.tracingComplete', resolve),
+    );
+    await this.cdp.send('Tracing.end');
+    const { stream } = await complete;
+    if (!stream) return;
+    const parts: string[] = [];
+    for (;;) {
+      const chunk = await this.cdp.send('IO.read', { handle: stream });
+      parts.push(
+        chunk.base64Encoded ? Buffer.from(chunk.data, 'base64').toString('utf8') : chunk.data,
+      );
+      if (chunk.eof) break;
+    }
+    await this.cdp.send('IO.close', { handle: stream });
+    mkdirSync(`${PERF_DIR}/traces`, { recursive: true });
+    writeFileSync(`${PERF_DIR}/traces/${name}.json`, parts.join(''));
   }
 
   /**
@@ -603,6 +644,13 @@ export class PerfSession {
    * redirects.
    */
   async enter(opts: { path: string; key: string; step: string; mode: Mode; pass: number }) {
+    const tracing = this.journey === TRACE_JOURNEY;
+    if (tracing) {
+      await this.cdp.send('Tracing.start', {
+        categories: TRACE_CATEGORIES,
+        transferMode: 'ReturnAsStream',
+      });
+    }
     const started = Date.now();
     await this.page.goto(opts.path, { waitUntil: 'commit', timeout: STEP_TIMEOUT_MS });
     await this.page.waitForFunction(
@@ -632,6 +680,8 @@ export class PerfSession {
       `enter ${opts.path}: ready at ${Math.round(got.entry.readyAt!)}ms (wall ${Date.now() - started}ms)`,
     );
     await this.settle('after load');
+    if (tracing)
+      await this.saveTrace(`${this.journey}-${this.profile.id}-${opts.mode}-run${this.run}`);
     // Read again once settled: the paint observers report in their own tasks,
     // which can land after the agent's ready callback.
     const late = await this.page.evaluate(() => {
