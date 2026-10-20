@@ -14481,6 +14481,58 @@
         }
       }
     },
+    "/venues/{id}/plan": {
+      "get": {
+        "operationId": "getVenuePlan",
+        "summary": "Where the venue's courts lie",
+        "description": "The venue's plan (#623): each court on it with its outline, and the plan's other shapes (the grounds, buildings, the entrance), drawn by the client with no map under them (owner, 2026-10-20). Every shape is a polygon in METRES in the venue's own frame: origin at the venue's point (`lat`/`lng` of `GET /venues/{id}`), x east, y north. Public, like the venue. A court with no outline, or one that is not a sane polygon, is not on the plan; `courts` empty means the venue has no plan, and a client keeps its list. `attribution` is `OpenStreetMap` while any shape shown came from OSM: its licence (ODbL) asks for «© OpenStreetMap contributors» wherever the plan is shown.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The venue id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenuePlanEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — no such public venue, as `GET /venues/{id}`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/coaches/{slug}/reviews": {
       "get": {
         "operationId": "listCoachReviews",
@@ -27542,6 +27594,115 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/DeletionStanding"
+          }
+        }
+      },
+      "PlanPoint": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "number"
+        },
+        "description": "[x, y] in metres from the venue's point: x east, y north. Centimetre precision."
+      },
+      "VenuePlanCourt": {
+        "type": "object",
+        "title": "VenuePlanCourt",
+        "required": ["resourceId", "name", "sport", "resourceType", "outline", "source"],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "The court: what `GET /venues/{id}/availability` lists and a booking takes."
+          },
+          "name": {
+            "type": "string"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/SportType"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "outline": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/PlanPoint"
+            },
+            "description": "A polygon, its points in order; the last joins the first. Within a kilometre of the venue's point."
+          },
+          "source": {
+            "type": "string",
+            "enum": ["OSM", "CLUB"],
+            "x-open-enum": true,
+            "description": "Where the shape came from: OpenStreetMap (credit it, see `attribution`), or the club's own drawing. An open set."
+          }
+        }
+      },
+      "VenuePlanShape": {
+        "type": "object",
+        "title": "VenuePlanShape",
+        "required": ["kind", "outline", "source"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["GROUNDS", "BUILDING", "ENTRANCE"],
+            "x-open-enum": true,
+            "description": "The grounds' outline, a building, or the entrance. An open set: draw one you do not know as a plain shape."
+          },
+          "outline": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/PlanPoint"
+            },
+            "description": "A polygon, its points in order; the last joins the first. Within a kilometre of the venue's point."
+          },
+          "source": {
+            "type": "string",
+            "enum": ["OSM", "CLUB"],
+            "x-open-enum": true,
+            "description": "Where the shape came from: OpenStreetMap (credit it, see `attribution`), or the club's own drawing. An open set."
+          }
+        }
+      },
+      "VenuePlan": {
+        "type": "object",
+        "title": "VenuePlan",
+        "required": ["venueId", "courts", "features", "attribution"],
+        "properties": {
+          "venueId": {
+            "type": "string"
+          },
+          "courts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenuePlanCourt"
+            },
+            "description": "The active courts on the plan, by name. Empty: no plan."
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenuePlanShape"
+            },
+            "description": "Drawn under the courts. Empty when `courts` is."
+          },
+          "attribution": {
+            "type": ["string", "null"],
+            "description": "`OpenStreetMap` while any shape came from OSM: show «© OpenStreetMap contributors» with the plan. Null otherwise."
+          }
+        }
+      },
+      "VenuePlanEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/VenuePlan"
           }
         }
       }

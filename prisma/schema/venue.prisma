@@ -57,13 +57,15 @@ model Venue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  resources   Resource[]
-  tournaments Tournament[]
+  resources    Resource[]
+  tournaments  Tournament[]
   /// Coaches accepted (or asked, or invited) to teach here (#377).
-  coaches     Coach[]
-  amenities   VenueAmenity[]
-  photos      VenuePhoto[]
-  reviews     Review[]
+  coaches      Coach[]
+  amenities    VenueAmenity[]
+  photos       VenuePhoto[]
+  reviews      Review[]
+  /// What its plan shows besides the courts (#623).
+  planFeatures VenuePlanFeature[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, slug])
@@ -109,6 +111,16 @@ model Resource {
 
   basePriceCents Int
   currency       String @default("EUR")
+
+  /// Its outline on the venue's plan (#623): a polygon of [x, y] pairs in
+  /// METRES from the venue's point, x east, y north. Read through
+  /// `parseOutline` (src/lib/venues/plan.ts). Null: not on the plan.
+  planOutline  Json?
+  /// Where the outline came from: OpenStreetMap (ODbL, so the plan credits
+  /// it), or the club's own drawing.
+  planSource   PlanSource?
+  /// The OSM way the outline was imported from, while the source is OSM.
+  planOsmWayId BigInt?
 
   minBookingMinutes Int @default(60)
   maxBookingMinutes Int @default(180)
@@ -290,4 +302,38 @@ model Review {
   @@index([venueId, createdAt])
   @@index([authorUserId])
   @@map("review")
+}
+
+/// Where a shape on a venue's plan came from (#623).
+enum PlanSource {
+  OSM
+  CLUB
+}
+
+/// What else a venue's plan shows besides its courts (#623).
+enum PlanFeatureKind {
+  GROUNDS
+  BUILDING
+  ENTRANCE
+}
+
+/// A shape on a venue's plan that is not a court (#623): the grounds, a
+/// building, the entrance. Same frame and form as `Resource.planOutline`.
+model VenuePlanFeature {
+  id       String          @id @default(cuid())
+  tenantId String
+  venueId  String
+  kind     PlanFeatureKind
+  outline  Json
+  source   PlanSource
+  osmWayId BigInt?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([tenantId])
+  @@map("venue_plan_feature")
 }
