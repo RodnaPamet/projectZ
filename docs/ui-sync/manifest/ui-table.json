@@ -52,10 +52,10 @@
     {
       "path": "src/components/ui/table/table.tsx",
       "inflectPath": "src/components/ui/table/table.tsx",
-      "baseSha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
-      "sha": "1d6cf97a388b7e9e27aa2914157b5417cab71fc6",
+      "baseSha": "3a40452dfb1dfea341da3685c0e3affa3d5a6aab",
+      "sha": "3a40452dfb1dfea341da3685c0e3affa3d5a6aab",
       "status": "vendored",
-      "sha256": "0c878925841a5b59d451781ef97b373f755a4bbc67a8e627c78653d84a44da56"
+      "sha256": "d8a0bdf22bd54e42dfd08afd8b7ae296edff95f55a1129bd88f369625732043e"
     },
     {
       "path": "src/components/ui/table/types.ts",

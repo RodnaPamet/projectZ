@@ -44,10 +44,10 @@
     {
       "path": "src/components/layout/nav-bar.tsx",
       "inflectPath": "src/components/layout/nav-bar.tsx",
-      "baseSha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
-      "sha": "8aa31cc1e1a9229a0b5c59f4248f71d1364901b2",
+      "baseSha": "3a40452dfb1dfea341da3685c0e3affa3d5a6aab",
+      "sha": "3a40452dfb1dfea341da3685c0e3affa3d5a6aab",
       "status": "vendored",
-      "sha256": "63219eb96284c1a93be0aba78298ff8a71870f8620dccef615ae176882ab585a"
+      "sha256": "418b914e14747887ae6552dd30e94a7a8033ec5fb86e5648d4a556dc61cb7d2a"
     },
     {
       "path": "src/components/layout/nav-item.tsx",
