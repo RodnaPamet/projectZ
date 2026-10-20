@@ -44,6 +44,7 @@ filter:
     - Billing
     - Bookings
     - Coaches
+    - Config
     - Desk
     - Devices
     - Games

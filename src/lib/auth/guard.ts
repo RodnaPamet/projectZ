@@ -155,6 +155,10 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // the person holding the link usually has no session yet. One literal path.
   // Accepting it is NOT here: that needs a session, and the route says so.
   /^\/api\/v1\/booking-invites\/preview$/,
+  // Which modules are switched on (#621): the native app reads it before it
+  // knows who is signed in, and a signed-out visitor sees module content too.
+  // One literal path; it answers four booleans and nothing about anyone.
+  /^\/api\/v1\/config$/,
   // The orchestrator's probes. These are the paths that EXIST — `/api/livez`
   // and `/api/readyz` were listed here for a while and are not routes, which
   // meant readiness was public only by accident, via the `allow` default.
