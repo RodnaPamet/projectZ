@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
 import { GET as getAvailability } from '@/app/api/v1/venues/[id]/availability/route';
+import { GET as getVenue } from '@/app/api/v1/venues/[id]/route';
 import { POST as postUsageEvent } from '@/app/api/v1/venues/[id]/usage-events/route';
 import { countUsage, recordUsage, settleUsageWrites } from '@/lib/usage/record';
 
@@ -138,6 +139,30 @@ describe('usage counts', () => {
 
     expect((await rows()).map((r) => [r.event, r.venueId, r.count])).toEqual([
       ['SLOTS_VIEW', venueId, 1],
+    ]);
+  });
+
+  it("a venue read through the API counts a view: the app's, since the web never reads it (playerz-ios#17)", async () => {
+    const { tenantId } = await seedTenant({});
+    const { venueId } = await seedVenue(tenantId);
+    await asAppSuperuser(db, (tx) =>
+      tx.venue.update({
+        where: { id: venueId },
+        data: { publicSlug: `view-${venueId.slice(-6)}` },
+      }),
+    );
+
+    const res = await getVenue(
+      new NextRequest(`http://t/api/v1/venues/${venueId}`, {
+        headers: { 'user-agent': 'Playerz/1 CFNetwork/3826 Darwin/25.0.0' },
+      }),
+      { params: Promise.resolve({ id: venueId }) },
+    );
+    expect(res.status).toBe(200);
+    await settleUsageWrites();
+
+    expect((await rows()).map((r) => [r.event, r.venueId, r.count])).toEqual([
+      ['VENUE_VIEW', venueId, 1],
     ]);
   });
 
