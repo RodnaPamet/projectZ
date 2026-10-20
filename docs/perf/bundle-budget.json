@@ -43,6 +43,7 @@
     "/t/[slug]/admin/calendar/series": 341.7,
     "/t/[slug]/admin/coaches": 279,
     "/t/[slug]/admin/courts": 278.3,
+    "/t/[slug]/admin/courts/plan/[venueId]": 283.4,
     "/t/[slug]/admin/messages": 282.4,
     "/t/[slug]/admin/messages/[id]": 291.5,
     "/t/[slug]/admin/photos": 281.8,
