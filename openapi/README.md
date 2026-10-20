@@ -92,13 +92,15 @@ two lists disagree: every tag in the spec must be either listed above or
 deliberately excluded there, by name. Adding a feature area means editing both,
 and forgetting is a red build rather than a missing method.
 
-## Three things that will bite a client author
+## Four things that will bite a client author
 
-**Dates.** Every timestamp is RFC 3339 with **no fractional seconds**, because
-Swift's default `.iso8601` strategy rejects the `.000` that `Date.toISOString()`
-emits — and it fails at the _decoder_, so the error names the whole response
-rather than the offending field. The generated client's default date strategy
-matches what this API sends; do not override it to `.iso8601WithFractionalSeconds`.
+**Dates.** Timestamps are RFC 3339 in UTC, and **not all alike**: the booking
+DTOs strip fractional seconds (`2026-09-24T09:00:00Z`), but other places carry
+milliseconds as `Date.toISOString()` writes them (`2026-10-22T16:00:00.000Z`,
+for example the bookings in a refusal's `details`). Swift's default `.iso8601`
+strategy rejects the fraction, and it fails at the _decoder_, so the error
+names the whole response rather than the offending field. Decode both forms
+(the iPhone app's `ServerDateTranscoder` does).
 
 **The envelope.** Success is `{"data": T}`, never a bare `T`. Paged reads are
 `{"data": {"items": [...], "nextCursor": ...}}`. This is modelled explicitly in
@@ -110,6 +112,14 @@ and the server will reject the request without one. Generate a UUID per
 user-initiated booking attempt and **reuse it across retries** of that same
 attempt — that is the whole point. A fresh key on retry creates a second
 booking and a second charge.
+
+**Open sets of values.** Some enums grow on the server: `SportType`,
+`ResourceType`, `ProfileSport`, `Notification.kind` and
+`ClubStatement.courtNouns` carry `x-open-enum: true`. The listed values are the
+ones a REQUEST may send; a RESPONSE may carry a value added later. A generated
+client must decode them as strings, or the first new sport fails a whole venue
+list: the iPhone app's `scripts/spec_for_swift.py` turns every
+`x-open-enum` schema into a plain string before generating (#633).
 
 ## Keeping it honest
 
