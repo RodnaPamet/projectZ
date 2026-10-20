@@ -93,7 +93,42 @@ code, and nothing that builds an image sets it (`tests/unit/perf/chunks.test.ts`
 The budget (`docs/perf/bundle-budget.json`) stays where it is: these are the bytes the app has, and
 the gate is what keeps the next 80 KB from arriving unnoticed.
 
-## The current baseline: `699a92f` (#615, a warm connection pool), 20 October 2026
+## The current baseline: `7db2a19` (#619, the dark theme's full loads), 20 October 2026
+
+`docs/perf/baseline-7db2a19.json` adds `desktop-dark` (below, Profiles) to `699a92f`'s baseline. It
+pools that baseline's three runs (phone and desktop, unchanged: every one of their 124 rows is
+identical) with three runs of `perf-desktop-dark` only, 14:22–14:28 Sofia time, at `7db2a19` (the
+harness commit, rebased onto #618 as `fce3058` with the harness unchanged). All six measured the
+same app code and the same build (app `efea5bce435f`). `docs/perf/budget.json` is reset from it: the
+116 light rows keep their ceilings, and 10 dark rows are added (126 rows). Load average (1 min) per
+sample, min / median / max: 1.23 / 1.86 / 2.67, 2.05 / 2.96 / 3.45 and 2.08 / 3.15 / 4.02, higher
+than the light runs.
+
+**The dark theme waits about 210–280 ms longer on all but one full load**, with the same first
+paint:
+
+| Full load, desktop, cold unless marked       | light (`desktop`) | dark (`desktop-dark`) |  Gap |
+| -------------------------------------------- | ----------------: | --------------------: | ---: |
+| public · load /                              |             94 ms |                343 ms | +249 |
+| player · load /                              |            151 ms |                375 ms | +224 |
+| public-venue · load /venues                  |            120 ms |                365 ms | +245 |
+| player-venue · load /venues                  |            142 ms |                361 ms | +218 |
+| staff · load /t/sofia-padel-club             |            179 ms |                390 ms | +211 |
+| staff-write · load /t/sofia-padel-club       |            180 ms |                387 ms | +207 |
+| landing-player · /start → /me/bookings       |            140 ms |                367 ms | +228 |
+| landing-player · /start → /me/bookings, warm |             95 ms |                373 ms | +278 |
+| landing-staff · /start → club calendar       |            172 ms |                253 ms |  +82 |
+| landing-staff · /start → club calendar, warm |            127 ms |                405 ms | +278 |
+
+That is React's streaming hold (#619). Under the light theme, `ThemeProvider`'s switch makes React
+render the page on the client. Under dark nothing does, so the content waits until 300 ms after the
+shell's first frame. A few dark loads are fast (`public · load /` from 80 ms), most likely because
+their page arrived before that first frame. **`landing-staff · /start → club calendar`, cold, is
+split** between those two: its three runs' medians were 124, 388 and 250 ms, so its 284 ms ceiling
+will read over budget whenever most loads land slow. Read it as #616's `/venues` row: most likely
+the same mechanism (not traced), not a regression.
+
+## `699a92f`'s baseline (#615, a warm connection pool), 20 October 2026
 
 `docs/perf/baseline-699a92f.json` holds three runs of main at `699a92f`, merged, 12:02–13:20 Sofia
 time, on one build, each run holding the heavy lock, with no other build or test suite. Same browser
@@ -1166,7 +1201,8 @@ Two more cautions:
 | `docs/perf/baseline-c72cb8a.json` | #403's                                                                                                     |
 | `docs/perf/baseline-8997b77.json` | #362's, every signed-in account in the AppShell                                                            |
 | `docs/perf/baseline-2a90d68.json` | #402's quiet machine and #599's translations                                                               |
-| `docs/perf/baseline-699a92f.json` | #615's, the current baseline; the budget is set from it                                                    |
+| `docs/perf/baseline-699a92f.json` | #615's                                                                                                     |
+| `docs/perf/baseline-7db2a19.json` | #619's: `699a92f`'s plus `desktop-dark`, the current baseline; the budget is set from it                   |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)                           |
 | `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)                         |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                                              |
