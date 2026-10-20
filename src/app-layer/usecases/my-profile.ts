@@ -47,7 +47,8 @@ export async function updateMyProfile(userId: string, body: UpdateMeBody): Promi
     if (
       body.name !== undefined ||
       body.searchable !== undefined ||
-      body.ratingPublic !== undefined
+      body.ratingPublic !== undefined ||
+      body.locale !== undefined
     ) {
       await db.user.update({
         where: { id: userId },
@@ -55,6 +56,8 @@ export async function updateMyProfile(userId: string, body: UpdateMeBody): Promi
           ...(body.name !== undefined ? { name: body.name } : {}),
           ...(body.searchable !== undefined ? { searchable: body.searchable } : {}),
           ...(body.ratingPublic !== undefined ? { ratingPublic: body.ratingPublic } : {}),
+          // The same column the web's switch writes (`setMyLocale`).
+          ...(body.locale !== undefined ? { locale: body.locale } : {}),
         },
       });
     }

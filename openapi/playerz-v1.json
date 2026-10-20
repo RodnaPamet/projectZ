@@ -19971,6 +19971,11 @@
           "ratingPublic": {
             "type": "boolean",
             "description": "«Показвай нивото ми» (#576)."
+          },
+          "locale": {
+            "type": "string",
+            "enum": ["bg", "en"],
+            "description": "The account's language: what its emails and notifications are written in. A native client follows its phone's language and writes it here (playerz-ios#13); the web's switch writes the same field."
           }
         }
       },

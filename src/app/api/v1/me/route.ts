@@ -50,9 +50,13 @@ async function handler(req: NextRequest) {
  * self-declared level 1–7 for each (#359). Answers the whole account, as
  * GET does, so a client replaces its copy rather than merging.
  *
- * The body is `updateMeBodySchema`: `.strict()`, so `email`, `accountKind`,
- * `locale` or anything else is a 400 naming the field, never silently
- * ignored and never written. The user id is the session's; there is no id in
+ * And the account's language, `bg` or `en` (playerz-ios#13): a native
+ * client follows its phone's language and writes it here, so emails and
+ * notifications match.
+ *
+ * The body is `updateMeBodySchema`: `.strict()`, so `email`, `accountKind`
+ * or anything else is a 400 naming the field, never silently ignored and
+ * never written. The user id is the session's; there is no id in
  * the path or the body to point it at another account.
  *
  * A CLUB account may set its name and is refused sports (403
