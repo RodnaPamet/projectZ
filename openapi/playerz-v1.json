@@ -92,6 +92,10 @@
     {
       "name": "Tournaments",
       "description": "A club's tournaments: creating, entering, confirming (#579)."
+    },
+    {
+      "name": "Config",
+      "description": "What a native client needs to know about this deployment (#621)."
     }
   ],
   "paths": {
@@ -17378,6 +17382,51 @@
           }
         }
       }
+    },
+    "/config": {
+      "get": {
+        "operationId": "getAppConfig",
+        "summary": "Which modules are switched on",
+        "tags": ["Config"],
+        "description": "**Public: no sign-in.** The product modules switched on in this deployment (#621). A module's routes answer whether it is on or not; the web hides one that is off, and a native client should too. Read it at launch and when the app returns to the foreground: a switch changes only on a restart, and the answer is not cached.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The switches.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppConfigEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -27233,6 +27282,49 @@
           "recordedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "AppModules": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["openPlay", "messaging", "coaches", "ranking"],
+        "description": "Which product modules are switched on (`MODULE_*`; the web chrome hides each one that is off, and so should the app). `ranking` covers results, ratings, leaderboards and tournaments.",
+        "properties": {
+          "openPlay": {
+            "type": "boolean",
+            "description": "Игри: open games looking for players (module 2, #376)."
+          },
+          "messaging": {
+            "type": "boolean",
+            "description": "Messages between players and with clubs (module 1, #375)."
+          },
+          "coaches": {
+            "type": "boolean",
+            "description": "Coaches and lessons (module 3, #377)."
+          },
+          "ranking": {
+            "type": "boolean",
+            "description": "Results, ratings, leaderboards and tournaments (module 4, #378)."
+          }
+        }
+      },
+      "AppConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["modules"],
+        "properties": {
+          "modules": {
+            "$ref": "#/components/schemas/AppModules"
+          }
+        }
+      },
+      "AppConfigEnvelope": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AppConfig"
           }
         }
       }
