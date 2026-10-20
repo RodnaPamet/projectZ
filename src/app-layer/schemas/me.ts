@@ -69,6 +69,13 @@ export const updateMeBodySchema = z
     searchable: z.boolean().optional(),
     /** "Показвай нивото ми" (#576, decision 36). */
     ratingPublic: z.boolean().optional(),
+    /**
+     * The account's language (playerz-ios#13): what its emails and
+     * notifications are written in. The web's switch writes it through
+     * `setMyLocale`; a native client, which follows its phone's language,
+     * writes it here.
+     */
+    locale: z.enum(['bg', 'en']).optional(),
   })
   .strict()
   .refine(
@@ -76,10 +83,11 @@ export const updateMeBodySchema = z
       b.name !== undefined ||
       b.sports !== undefined ||
       b.searchable !== undefined ||
-      b.ratingPublic !== undefined,
+      b.ratingPublic !== undefined ||
+      b.locale !== undefined,
     {
       message:
-        'Nothing to change: send `name`, `sports`, `searchable`, `ratingPublic`, or any of them',
+        'Nothing to change: send `name`, `sports`, `searchable`, `ratingPublic`, `locale`, or any of them',
     },
   );
 

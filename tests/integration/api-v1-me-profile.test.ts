@@ -27,6 +27,7 @@ interface Me {
   email: string;
   avatarUrl: string | null;
   accountKind: string | null;
+  locale: string;
   sports: Array<{ sport: string; level: number }>;
 }
 
@@ -201,11 +202,30 @@ describe('PATCH /api/v1/me (#359)', () => {
     });
   });
 
+  describe('the language (playerz-ios#13)', () => {
+    it("sets it, as the web's switch does, and GET answers it", async () => {
+      const { res, body } = await patch(bearer, { locale: 'en' });
+      expect(res.status).toBe(200);
+      expect(body.data.locale).toBe('en');
+      expect((await userRow(playerId)).locale).toBe('en');
+
+      await patch(bearer, { locale: 'bg' });
+      expect((await read(bearer)).locale).toBe('bg');
+    });
+
+    it('refuses a language the site does not speak, naming it, and changes nothing', async () => {
+      const before = await userRow(playerId);
+      const { res, body } = await patch(bearer, { locale: 'de' });
+      expect(res.status).toBe(400);
+      expect(body.error.details?.field).toBe('locale');
+      expect((await userRow(playerId)).locale).toBe(before.locale);
+    });
+  });
+
   describe('mass assignment', () => {
     it.each([
       ['email', { email: 'evil@playerz.test' }],
       ['accountKind', { accountKind: 'CLUB' }],
-      ['locale', { locale: 'en' }],
       ['avatarUrl', { avatarUrl: 'https://evil.example/x.png' }],
       ['id', { id: 'someone-else' }],
       ['sessionVersion', { sessionVersion: 0 }],
