@@ -130,6 +130,9 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // `allow` default, like /login; named so tightening it cannot hide them.
   /^\/robots\.txt$/,
   /^\/sitemap\.xml$/,
+  // Which links open the iPhone app (playerz-ios#24). Apple's CDN fetches it
+  // signed out, and it must answer 200 with no redirect. One literal path.
+  /^\/\.well-known\/apple-app-site-association$/,
   /^\/api\/venues(\/|$)/,
   // ═══ THE VERSIONED TWIN, WHICH WAS PUBLIC ONLY BY ACCIDENT ═══
   //

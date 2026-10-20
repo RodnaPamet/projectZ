@@ -44,6 +44,16 @@ const nextConfig = {
     // tree-shakes motion/react). lucide-react is on Next's default list.
     staleTimes: { dynamic: 30, static: 180 },
   },
+  // Which links open the iPhone app (playerz-ios#24). Apple fetches the file at
+  // this exact path and refuses a redirect; a rewrite serves it in place.
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/apple-app-site-association',
+        destination: '/api/apple-app-site-association',
+      },
+    ];
+  },
 };
 
 // Points next-intl at our request config (default lookup path is
