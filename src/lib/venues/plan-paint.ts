@@ -176,7 +176,9 @@ export function paintPlan(ctx: CanvasRenderingContext2D, dpr: number, pic: PlanP
   for (const court of pic.courts) {
     const [x, y] = toScreen([court.frame.cx, court.frame.cy], fit, view);
     const w = ctx.measureText(court.name).width + 12;
-    if (w > court.frame.length * metre && court.id !== pic.lit) continue;
+    // Across the court's short side, or it would run into its neighbours; the
+    // text alternative and a zoom still give every name.
+    if (w > court.frame.width * metre && court.id !== pic.lit) continue;
     ctx.fillStyle = c.labelBg;
     ctx.beginPath();
     ctx.roundRect(x - w / 2, y - 10, w, 20, 10);
