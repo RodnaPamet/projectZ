@@ -8,6 +8,7 @@ import { ok } from '@/app/api/v1/_lib/envelope';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { NotFoundError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
+import { countUsage } from '@/lib/usage/record';
 
 /**
  * Public venue detail. Cross-tenant, unauthenticated.
@@ -58,6 +59,16 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   // 404 rather than a null payload. A client that has to branch on
   // `data === null` will forget to, and render an empty venue page.
   if (!found) throw new NotFoundError('Venue not found');
+
+  // A venue looked at (#371), for the club's usage counts. The web's venue
+  // page counts its own view and never reads this route (its SWR keys are the
+  // list, the availability and the beacon), so this is the native app's view
+  // and nobody's twice (playerz-ios#17). After the answer, never on its path.
+  countUsage(
+    'VENUE_VIEW',
+    { venueId: found.venue.id },
+    { userAgent: req.headers.get('user-agent') },
+  );
 
   return ok(toVenueDetail(found.venue, found.clubSlug));
 }
