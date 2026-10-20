@@ -471,9 +471,38 @@ export async function bookLesson(input: BookLessonInput): Promise<BookLessonResu
       // The court went between the look and the insert. Look again: another
       // court may be free, or it is the coach who is gone.
       if (err instanceof SlotTakenError && offer && attempt < COURT_ATTEMPTS) continue;
+      // Out of courts, or none was on offer. When players race for one time,
+      // the court each lost may have gone to the lesson that took the coach,
+      // and the look they made was from before it: say what is true now
+      // (#635), in a fresh read, since the failed transaction is gone.
+      if (
+        err instanceof SlotTakenError &&
+        (await coachTakenAt(link, input.startTs, input.minutes))
+      ) {
+        throw new CoachTakenError();
+      }
       throw err;
     }
   }
+}
+
+/** Whether the coach has a live lesson overlapping this time, anywhere (#635). */
+async function coachTakenAt(link: LessonLink, startTs: Date, minutes: number): Promise<boolean> {
+  const endTs = new Date(startTs.getTime() + minutes * 60_000);
+  return runAsSuperuser(async (db) => {
+    // guardrail-allow: cross-tenant — a coach is taken by a lesson at ANY club,
+    // the same read the offer's busy times make (`loadDay`).
+    const clash = await db.coachLesson.findFirst({
+      where: {
+        coachUserId: link.coach.userId,
+        active: true,
+        startTs: { lt: endTs },
+        endTs: { gt: startTs },
+      },
+      select: { id: true },
+    });
+    return clash !== null;
+  });
 }
 
 async function bookOn(
