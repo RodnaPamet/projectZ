@@ -53,6 +53,10 @@ const NO_LOADING: Record<string, string> = {
   // The legal pages (#370): a missing text must answer a REAL 404. A
   // loading.tsx streams a 200 before the page runs, and notFound() after that
   // is a soft 404 (Next's docs, file-conventions/loading.md, "Status Codes").
+  // #619 prototype: without a loading boundary a full load of /venues sends
+  // the list with the shell, so React's 300 ms reveal hold cannot apply.
+  '(public)/venues':
+    'a full load sends the list with the shell, so React does not hold its reveal (#619); the links into it from home and the player bar are fully prefetched',
   '(public)/privacy':
     'a missing text answers HTTP 404 (#370), which a loading boundary would turn into a streamed 200; the page reads one file from disk, nothing to wait on',
   '(public)/terms':
