@@ -93,7 +93,38 @@ code, and nothing that builds an image sets it (`tests/unit/perf/chunks.test.ts`
 The budget (`docs/perf/bundle-budget.json`) stays where it is: these are the bytes the app has, and
 the gate is what keeps the next 80 KB from arriving unnoticed.
 
-## The current baseline: `2a90d68` (#402, a quiet machine; #599, the browser's translations), 17 October 2026
+## The current baseline: `699a92f` (#615, a warm connection pool), 20 October 2026
+
+`docs/perf/baseline-699a92f.json` holds three runs of main at `699a92f`, merged, 12:02–13:20 Sofia
+time, on one build, each run holding the heavy lock, with no other build or test suite. Same browser
+as `2a90d68` (Chromium 156); Next 16.4.2 and Playwright 1.64.1 since #613. `docs/perf/budget.json`
+is reset from it (116 rows, owner 2026-10-20), so the budget keeps #615's gain. The First Load JS
+budget is unchanged.
+
+**Quiet, mostly.** Load average (1 min) per sample, min / median / max: 0.73 / 1.39 / 6.44,
+0.91 / 1.53 / 2.47 and 1.06 / 2.61 / 6.07. The first run had one burst at 12:13 (6.44, settled
+within two minutes); the third ran higher throughout and had a burst at 12:56. What caused them is not
+known. The first two runs merged, against all three, move no row beyond noise, so the third is
+kept.
+
+`perf:compare` against `2a90d68` finds **2 rows faster, 0 slower** beyond noise, both desktop,
+cold, full loads, and both #615:
+
+| Row                                    | `2a90d68` | `699a92f` | Ceiling   |
+| -------------------------------------- | --------: | --------: | --------- |
+| staff-write · load /t/sofia-padel-club |    240 ms |    180 ms | 271 → 211 |
+| landing-player · /start → /me/bookings |    209 ms |    140 ms | 239 → 170 |
+
+Two other ceilings moved by more than 15 ms. Desktop cold `public-venue · load /venues`, 348 → 150,
+moved without a verdict: its loads are ready at either about 120 ms or about 318 ms, 17 of 30 slow
+on 17 October and 3 of 30 now (#616). A run where most of them land slow will read as over budget
+without a regression; see #616 before acting on that row. Phone warm `landing-player`, 536 → 564,
+is within noise (487 → 512 ms).
+
+The runs started four hours earlier in the club's day than `2a90d68`'s, so the diary offers
+fewer no-show controls; no diary row moved.
+
+## `2a90d68`'s baseline (#402, a quiet machine; #599, the browser's translations), 17 October 2026
 
 `docs/perf/baseline-2a90d68.json` holds three runs of #600's branch at `2a90d68`, merged, taken
 after three runs of main (`79528c2`) in the same session: main 13:37–14:55 and the branch
@@ -1101,11 +1132,15 @@ Two more cautions:
 | `tests/perf/report.ts`            | statistics, First Load JS, tables, the JSON format                                   |
 | `tests/perf/compare.ts`           | `perf:compare`: merge runs into a baseline, compare two, print tables                |
 | `tests/perf/chunks.ts`            | `perf:chunks`: what a route's First Load JS is made of, from the build's source maps |
+| `tests/perf/trace-summary.ts`     | `perf:trace`: where a traced full load's time went before its first paint            |
 | `docs/perf/baseline-a56ea4f.json` | the first baseline: two runs, pooled, with run-to-run variance                       |
 | `docs/perf/baseline-7d7d27d.json` | T30's merged "after"                                                                 |
 | `docs/perf/baseline-da4342f.json` | T29's, the end of the port                                                           |
 | `docs/perf/baseline-7738122.json` | #397's, the venue page's first measurement                                           |
-| `docs/perf/baseline-c72cb8a.json` | #403's, the current baseline; the budget is set from it                              |
+| `docs/perf/baseline-c72cb8a.json` | #403's                                                                               |
+| `docs/perf/baseline-8997b77.json` | #362's, every signed-in account in the AppShell                                      |
+| `docs/perf/baseline-2a90d68.json` | #402's quiet machine and #599's translations                                         |
+| `docs/perf/baseline-699a92f.json` | #615's, the current baseline; the budget is set from it                              |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)     |
 | `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)   |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                        |
