@@ -146,10 +146,13 @@ const READY: ReadyTable = {
   // Tomorrow must also show a bookable time, a slot button inside a court's
   // time group: the seed leaves it about half free. Today is not asked for
   // one, because late in the evening every one of today's slots has started.
+  // `[data-plan-ready]` is the venue plan's first paint (#625): the seed
+  // draws the four courts on it, and its code is a chunk of its own.
   [venueDay(today)]: [
     { selector: 'main h1', text: VENUE_NAME },
     { selector: `${DAY_PICKER} [role="radio"][aria-checked="true"]`, text: bg.venue.day.today },
     { selector: 'main [data-perf-ready]', text: 'Court 1' },
+    { selector: 'main [data-plan-ready]' },
   ],
   [venueDay(tomorrow)]: [
     { selector: 'main h1', text: VENUE_NAME },
@@ -159,6 +162,7 @@ const READY: ReadyTable = {
     },
     { selector: 'main [data-perf-ready]', text: 'Court 1' },
     { selector: 'main [data-perf-ready] [role="group"] button' },
+    { selector: 'main [data-plan-ready]' },
   ],
   [club('calendar')]: [
     { selector: 'main h1', text: bg.admin.calendar.title },

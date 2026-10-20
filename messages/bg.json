@@ -296,6 +296,24 @@
       "errorTitle": "Свободните часове не се заредиха",
       "errorDescription": "Проверете връзката и опитайте отново."
     },
+    "plan": {
+      "label": "План на обекта",
+      "timeLabel": "Начален час",
+      "lengthLabel": "Продължителност",
+      "legendFree": "Свободни",
+      "legendTaken": "Заети",
+      "legendPicked": "Вашият избор",
+      "stateFree": "{court}: свободен час в {time}",
+      "stateTaken": "{court}: няма свободен час в {time}",
+      "statePicked": "{court}: вашият избор, {time}",
+      "takenAt": "{court} няма свободен час в {time}.",
+      "later": "Свободни часове по-късно:",
+      "noneLater": "{court} няма свободни часове по-късно този ден.",
+      "zoomIn": "Приближи плана",
+      "zoomOut": "Отдалечи плана",
+      "fit": "Целият план",
+      "credit": "© сътрудниците на OpenStreetMap"
+    },
     "selection": {
       "prompt": "Изберете час",
       "summary": "{court} · {date}, {time}",

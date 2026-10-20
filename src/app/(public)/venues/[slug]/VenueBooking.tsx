@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
@@ -12,19 +13,27 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Caption, Heading } from '@/components/ui/typography';
 import { KIND_CHOOSER_PATH, PHONE_STEP_PATH } from '@/lib/auth/landing';
+import { cn } from '@/lib/cn';
 import { KEYS, V1 } from '@/lib/data/keys';
 import { sendUsageBeacon } from '@/lib/data/usage-beacon';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { useV1SWR } from '@/lib/data/use-v1-swr';
 import { resourceNoun } from '@/lib/sports/resource-kinds';
+import type { VenuePlan as Plan } from '@/lib/venues/plan';
 
 import { allowedMinutes, offersFor, type Offer } from '@/lib/booking/offers';
 
 import { venuePagePath, type InitialPick } from './booking-days';
 import { BookingSheet, type Selection } from './BookingSheet';
+
+// The plan's code loads only on a venue that has one (#625).
+const VenuePlan = dynamic(() => import('./VenuePlan'), {
+  loading: () => <Skeleton className="min-h-[200px] w-full rounded-lg" />,
+});
 
 /**
  * The day picker, every court's free times, and "Резервирай" (#355).
@@ -47,6 +56,13 @@ import { BookingSheet, type Selection } from './BookingSheet';
  * A slot shown free can still be taken by the time it is confirmed: the
  * database's EXCLUDE constraint decides, and the sheet turns 409 SLOT_TAKEN
  * into "choose another" and refreshes the day.
+ *
+ * ═══ THE PLAN, WHERE THE VENUE HAS ONE ═══
+ *
+ * Above the list, a drawing of the courts (#625, `VenuePlan`): pick a time,
+ * tap a free court. A pick there is the same pick as in the list, and a court
+ * lit on either is lit on both. The list stays, and stays complete: it is the
+ * keyboard's and the screen reader's way to everything the plan does.
  *
  * ═══ THE URL CARRIES THE PICK ═══
  *
@@ -94,6 +110,7 @@ export function VenueBooking({
   initialPick,
   renderedAt,
   viewer,
+  plan = null,
 }: {
   venue: VenueProps;
   /** Today at the club and the next 13 days, `YYYY-MM-DD`. */
@@ -103,6 +120,8 @@ export function VenueBooking({
   /** The server's clock at render, so the first paint agrees with the HTML. */
   renderedAt: string;
   viewer: Viewer;
+  /** The venue's plan, when its courts have outlines (#625). */
+  plan?: Plan | null;
 }) {
   const t = useTranslations('venue');
   const format = useFormatter();
@@ -116,6 +135,8 @@ export function VenueBooking({
   const [lengths, setLengths] = useState<Record<string, number>>(() =>
     picked ? { [picked.resourceId]: picked.minutes } : {},
   );
+  // The court lit on the plan and in the list at once (#625).
+  const [lit, setLit] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(
     () => initialPick.confirm && viewer === 'player' && picked !== null,
   );
@@ -214,6 +235,13 @@ export function VenueBooking({
       timeZone: venue.timezone,
     });
 
+  /** A pick on the plan: the list's card for that court shows it, at its length. */
+  function pickOnPlan(next: Selection) {
+    setLengths((prev) => ({ ...prev, [next.resourceId]: next.minutes }));
+    setSelection(next);
+    sendUsageBeacon(venue.id, 'SLOT_PICKED');
+  }
+
   function pickDay(next: string) {
     if (next === day) return;
     setDay(next);
@@ -271,6 +299,21 @@ export function VenueBooking({
         />
       </div>
 
+      {plan && (
+        <div className="in-shell:px-0 px-6 md:px-0">
+          <VenuePlan
+            plan={plan}
+            resources={resources}
+            now={now}
+            timezone={venue.timezone}
+            selection={selection}
+            lit={lit}
+            lightAction={setLit}
+            pickAction={pickOnPlan}
+          />
+        </div>
+      )}
+
       <div className="in-shell:px-0 flex flex-col gap-3 px-6 md:px-0">
         {resources === undefined ? (
           error ? (
@@ -299,7 +342,18 @@ export function VenueBooking({
                   key={r.resourceId}
                   as="article"
                   density="compact"
-                  className="flex flex-col gap-3"
+                  className={cn(
+                    'flex flex-col gap-3',
+                    plan && lit === r.resourceId && 'ring-brand-default ring-2',
+                  )}
+                  {...(plan
+                    ? {
+                        onMouseEnter: () => setLit(r.resourceId),
+                        onMouseLeave: () => setLit(null),
+                        onFocus: () => setLit(r.resourceId),
+                        onBlur: () => setLit(null),
+                      }
+                    : {})}
                 >
                   <Heading level={3}>{r.name}</Heading>
 

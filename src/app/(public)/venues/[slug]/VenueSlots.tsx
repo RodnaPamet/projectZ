@@ -1,6 +1,7 @@
 import { CardListSkeleton } from '@/components/loading/shapes';
 import { RouteSkeleton } from '@/components/loading/route-skeleton';
 import { Skeleton, SkeletonPill } from '@/components/ui/skeleton';
+import { getVenuePlan } from '@/app-layer/repositories/venue';
 import { loadVenueAvailability } from '@/app-layer/usecases/venue-availability';
 import { toAvailability } from '@/app/api/v1/_lib/dto';
 import { resolveAvailabilityRange } from '@/app/api/v1/_lib/range';
@@ -8,6 +9,7 @@ import { bookingViewer } from '@/components/booking/booking-viewer';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { ViewerScope } from '@/lib/data/provider';
 import { countPageUsage } from '@/lib/usage/record';
+import { toVenuePlan } from '@/lib/venues/plan';
 
 import { bookingDays, parseInitialPick } from './booking-days';
 import { VenueBooking } from './VenueBooking';
@@ -60,11 +62,15 @@ export async function VenueSlots({
   // Who is looking decides where «Резервирай» leads: to sign-in, to the
   // question an account still owes, to the phone step, or to the sheet
   // (`bookingViewer`, shared with the lesson booking on a coach's page).
-  const [resources, { me, viewer }] = await Promise.all([
+  const [resources, stored, { me, viewer }] = await Promise.all([
     runAsSuperuser((db) => loadVenueAvailability(db, { venue: publicVenue, from, to })),
+    // The plan (#625), the same answer as `GET /venues/{id}/plan`; with the
+    // slots, because the plan is drawn for the picked time.
+    runAsSuperuser((db) => getVenuePlan(db, venue.id)),
     bookingViewer(),
   ]);
   const seed = toAvailability({ venue: publicVenue, from, to, resources });
+  const plan = stored ? toVenuePlan(stored) : null;
 
   // A player back from sign-in with `?confirm=1` lands on the confirm sheet
   // already open (VenueBooking), so the funnel's "sheet opened" (#371) is
@@ -81,6 +87,7 @@ export async function VenueSlots({
       initialPick={pick}
       renderedAt={now.toISOString()}
       viewer={viewer}
+      plan={plan && plan.courts.length > 0 ? plan : null}
     />
   );
 
