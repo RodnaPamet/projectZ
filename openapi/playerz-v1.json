@@ -2885,7 +2885,7 @@
             }
           },
           "409": {
-            "description": "`UPCOMING_BOOKINGS` — the caller still has a booking to play. `details` is `{ total, lessons, bookings: [{ bookingId, role, cure, startTs, endTs, cancellableUntil, deletableFrom }] }` (the first 25): `role` is `BOOKER` or `PARTICIPANT`; `cure` is `cancel` (the booker may still cancel it, until `cancellableUntil`), `leave` (an added player may leave until the start) or `wait` (too late for either: deletion becomes possible at `deletableFrom`, its end). Open strings. `VIEWER_CHANGED` — web only. `lessons` (#377) is how many upcoming lessons the caller TEACHES as a coach: those are cancelled or waited out too, and are not in `bookings`.",
+            "description": "`UPCOMING_BOOKINGS` — the caller still has a booking to play. `details` is `{ total, lessons, tournaments, bookings: [{ bookingId, role, cure, startTs, endTs, cancellableUntil, deletableFrom }] }` (the first 25): `role` is `BOOKER` or `PARTICIPANT`; `cure` is `cancel` (the booker may still cancel it, until `cancellableUntil`), `leave` (an added player may leave until the start) or `wait` (too late for either: deletion becomes possible at `deletableFrom`, its end). Open strings. `VIEWER_CHANGED` — web only. `lessons` (#377) is how many upcoming lessons the caller TEACHES as a coach: those are cancelled or waited out too, and are not in `bookings`. `tournaments` (#579) is how many tournaments the caller is entered in, as entrant or partner, and not yet over: withdrawn from first. `GET /me/deletion` reads the same facts before asking.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2975,6 +2975,75 @@
           },
           "429": {
             "description": "`RATE_LIMITED` — more than 10 in an hour. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/deletion": {
+      "get": {
+        "operationId": "getMyDeletionStanding",
+        "summary": "Can my account be deleted now, and what would it lose?",
+        "description": "What `DELETE /me` would answer, before anyone asks it (#628): the same standing the web's «Изтриване на профила» is drawn from. `kind` is `allowed` (it may go), `blocked` (upcoming bookings, lessons the caller teaches, or tournaments it is entered in stand in the way first; `blocked` says which and what frees each booking) or `club` (a club account, which the platform deletes on request). `credit` lists the unused credit the account loses, club by club, in either of the first two: deletion does not wait for it (the owner's rule: warn, then allow). A read: nothing is written, and the standing can change the moment after.",
+        "tags": ["Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The standing.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionStandingEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, a revoked or superseded session, or an account deleted meanwhile. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. A native client never sends the header and never sees this; see openapi/NOTES.md.",
             "content": {
               "application/json": {
                 "schema": {
@@ -27335,6 +27404,144 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/AppConfig"
+          }
+        }
+      },
+      "DeletionBlockingBooking": {
+        "type": "object",
+        "title": "DeletionBlockingBooking",
+        "description": "One upcoming booking that stands in the way of deleting the account, and what frees it.",
+        "required": [
+          "bookingId",
+          "venueName",
+          "courtName",
+          "resourceType",
+          "timezone",
+          "startTs",
+          "endTs",
+          "role",
+          "cure",
+          "cancellableUntil",
+          "deletableFrom"
+        ],
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "description": "Open it with `GET /me/bookings/{id}`."
+          },
+          "venueName": {
+            "type": "string"
+          },
+          "courtName": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "`ResourceType`: what to call the court («корт», «игрище», «писта»…). An open string."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "The venue's IANA zone: show the times on its clock."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "role": {
+            "type": "string",
+            "description": "`BOOKER` (the caller booked it) or `PARTICIPANT` (added to it). An open string."
+          },
+          "cure": {
+            "type": "string",
+            "description": "What frees the account now: `cancel` (the booker, until `cancellableUntil`), `leave` (an added player, before the start), or `wait` (too late for either: deletion becomes possible at `deletableFrom`, its end). An open string."
+          },
+          "cancellableUntil": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The last moment the booker may cancel it in the app."
+          },
+          "deletableFrom": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When deletion becomes possible if nothing is done: the moment the booking is over."
+          }
+        }
+      },
+      "DeletionStanding": {
+        "type": "object",
+        "title": "DeletionStanding",
+        "required": ["kind", "credit", "blocked"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["allowed", "blocked", "club"],
+            "x-open-enum": true,
+            "description": "`allowed`: it may be deleted now. `blocked`: something must be done first (`blocked`). `club`: a club account, deleted by the platform on request; nothing to show but that."
+          },
+          "credit": {
+            "type": "array",
+            "description": "Unused credit the account loses when deleted, one row a club with a positive balance. Empty for a club account.",
+            "items": {
+              "type": "object",
+              "required": ["club", "amountCents", "currency"],
+              "properties": {
+                "club": {
+                  "type": "string",
+                  "description": "The club's name."
+                },
+                "amountCents": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "The balance, in integer cents of `currency`."
+                },
+                "currency": {
+                  "type": "string",
+                  "description": "ISO 4217; `EUR`, the clubs' currency."
+                }
+              }
+            }
+          },
+          "blocked": {
+            "type": ["object", "null"],
+            "description": "Set when `kind` is `blocked`, else null. The same facts `DELETE /me` sends with `409 UPCOMING_BOOKINGS`.",
+            "required": ["total", "lessons", "tournaments", "bookings"],
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Upcoming bookings in all; `bookings` lists the first 25."
+              },
+              "lessons": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Upcoming lessons the caller TEACHES as a coach (#377): cancelled or waited out first. Not in `bookings`."
+              },
+              "tournaments": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Tournaments the caller is entered in, as entrant or partner, and not yet over (#579): withdrawn from first."
+              },
+              "bookings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DeletionBlockingBooking"
+                }
+              }
+            }
+          }
+        }
+      },
+      "DeletionStandingEnvelope": {
+        "type": "object",
+        "title": "DeletionStandingEnvelope",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeletionStanding"
           }
         }
       }
