@@ -58,6 +58,8 @@ jest.mock('@/app-layer/repositories/venue', () => ({
         }
       : null,
   ),
+  // No courts drawn: the page without a plan (#625).
+  getVenuePlan: jest.fn(async () => null),
 }));
 
 jest.mock('@/app-layer/usecases/venue-availability', () => ({

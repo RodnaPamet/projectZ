@@ -48,3 +48,76 @@ export function area(points: PlanPoint[]): number {
   }
   return Math.abs(twice) / 2;
 }
+
+/** A court on the plan, as `GET /venues/{id}/plan` answers it. */
+export interface VenuePlanCourt {
+  resourceId: string;
+  name: string;
+  sport: string;
+  resourceType: string;
+  outline: PlanPoint[];
+  source: 'OSM' | 'CLUB';
+}
+
+/** One of the plan's other shapes: the grounds, a building, an entrance. */
+export interface VenuePlanShape {
+  kind: 'GROUNDS' | 'BUILDING' | 'ENTRANCE';
+  outline: PlanPoint[];
+  source: 'OSM' | 'CLUB';
+}
+
+export interface VenuePlan {
+  venueId: string;
+  courts: VenuePlanCourt[];
+  features: VenuePlanShape[];
+  /** `OpenStreetMap` while any shape shown came from OSM (ODbL). */
+  attribution: 'OpenStreetMap' | null;
+}
+
+/** The rows `getVenuePlan` reads, as stored. */
+interface StoredPlan {
+  id: string;
+  resources: {
+    id: string;
+    name: string;
+    sport: string;
+    resourceType: string;
+    planOutline: unknown;
+    planSource: 'OSM' | 'CLUB' | null;
+  }[];
+  planFeatures: { kind: VenuePlanShape['kind']; outline: unknown; source: 'OSM' | 'CLUB' }[];
+}
+
+/**
+ * The plan as clients get it, from the API and on the venue page alike. A
+ * court with no outline, or one that is not a sane polygon, is not on it; no
+ * courts on it means no plan, and then no other shape either.
+ */
+export function toVenuePlan(venue: StoredPlan): VenuePlan {
+  const courts = venue.resources.flatMap((r) => {
+    const outline = parseOutline(r.planOutline);
+    return outline && r.planSource
+      ? [
+          {
+            resourceId: r.id,
+            name: r.name,
+            sport: r.sport,
+            resourceType: r.resourceType,
+            outline,
+            source: r.planSource,
+          },
+        ]
+      : [];
+  });
+  const features = venue.planFeatures.flatMap((f) => {
+    const outline = parseOutline(f.outline);
+    return outline ? [{ kind: f.kind, outline, source: f.source }] : [];
+  });
+  const fromOsm = [...courts, ...features].some((shape) => shape.source === 'OSM');
+  return {
+    venueId: venue.id,
+    courts,
+    features: courts.length > 0 ? features : [],
+    attribution: fromOsm && courts.length > 0 ? 'OpenStreetMap' : null,
+  };
+}

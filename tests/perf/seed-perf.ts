@@ -593,6 +593,28 @@ export async function seedPerfFixture(db: PrismaClient, now: Date): Promise<Perf
             `publicSlug is ${JSON.stringify(sofiaVenue.publicSlug)}`,
         );
       }
+      // The venue plan (#625): the venue journeys time its first paint, so
+      // the four courts lie on it, two by two, as a club would draw them.
+      const onThePlan = await tx.resource.findMany({
+        where: { venueId: sofiaVenue.id },
+        orderBy: { name: 'asc' },
+        select: { id: true },
+      });
+      for (const [i, c] of onThePlan.entries()) {
+        const [x, y] = [(i % 2) * 22 - 21, Math.floor(i / 2) * 12 - 11];
+        await tx.resource.update({
+          where: { id: c.id },
+          data: {
+            planOutline: [
+              [x, y],
+              [x + 20, y],
+              [x + 20, y + 10],
+              [x, y + 10],
+            ],
+            planSource: 'CLUB',
+          },
+        });
+      }
       const plovdivVenue = await venueOf(plovdiv.id, 'plovdiv-tennis-center');
       const reviewed = await tx.booking.findFirstOrThrow({
         where: { bookedByUserId: persona.id, tenantId: sofia.id, status: 'COMPLETED' },

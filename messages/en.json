@@ -296,6 +296,24 @@
       "errorTitle": "Free times did not load",
       "errorDescription": "Check your connection and try again."
     },
+    "plan": {
+      "label": "Venue plan",
+      "timeLabel": "Start time",
+      "lengthLabel": "Duration",
+      "legendFree": "Free",
+      "legendTaken": "Taken",
+      "legendPicked": "Your pick",
+      "stateFree": "{court}: free at {time}",
+      "stateTaken": "{court}: taken at {time}",
+      "statePicked": "{court}: your pick, {time}",
+      "takenAt": "{court} is taken at {time}.",
+      "later": "Free later:",
+      "noneLater": "{court} has no free times later this day.",
+      "zoomIn": "Zoom in on the plan",
+      "zoomOut": "Zoom out of the plan",
+      "fit": "Whole plan",
+      "credit": "© OpenStreetMap contributors"
+    },
     "selection": {
       "prompt": "Choose a time",
       "summary": "{court} · {date}, {time}",
