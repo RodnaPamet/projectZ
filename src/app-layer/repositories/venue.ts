@@ -190,6 +190,43 @@ export async function getVenueById(db: PrismaClient, venueId: string) {
 }
 
 /**
+ * A venue's plan (#623), public like its detail: each active court with its
+ * outline, and the other shapes (grounds, buildings, the entrance). Cross-
+ * tenant through the same public predicate, so a suspended club's plan is a
+ * 404 like its venue. The outlines are raw JSON here: the route reads them
+ * through `parseOutline`.
+ */
+export async function getVenuePlan(db: PrismaClient, venueId: string) {
+  const publicVenue = await publicVenueFilter(db);
+  // guardrail-allow: cross-tenant — the public venue plan, opened from the
+  // public venue page. Same rationale as getVenueById, and the same predicate.
+  return db.venue.findFirst({
+    where: { AND: [{ id: venueId }, publicVenue.where] },
+    select: {
+      id: true,
+      resources: {
+        where: { status: 'ACTIVE' },
+        orderBy: { name: 'asc' },
+        take: 50,
+        select: {
+          id: true,
+          name: true,
+          sport: true,
+          resourceType: true,
+          planOutline: true,
+          planSource: true,
+        },
+      },
+      planFeatures: {
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+        select: { kind: true, outline: true, source: true },
+      },
+    },
+  });
+}
+
+/**
  * Public venue detail by its PUBLIC slug (#355), cross-tenant like
  * `getVenueById`. `publicSlug` is unique across every club (P41), so — unlike
  * `slug` — it names exactly one venue, and `/venues/{publicSlug}` can be a
