@@ -93,7 +93,28 @@ code, and nothing that builds an image sets it (`tests/unit/perf/chunks.test.ts`
 The budget (`docs/perf/bundle-budget.json`) stays where it is: these are the bytes the app has, and
 the gate is what keeps the next 80 KB from arriving unnoticed.
 
-## The current baseline: `6ef030b` (#636, no skeleton on the entry routes), 21 October 2026
+## The current baseline: `27fa27a` (#647, the venue plan with the page), 21 October 2026
+
+`docs/perf/baseline-27fa27a.json` holds three runs of main at `27fa27a` (#649), merged, 04:23–05:46
+Sofia time, set up as `6ef030b`'s runs were: one build, the heavy lock held, nothing else running.
+Load average (1 min) per sample, min / median / max: 1.00 / 1.77 / 2.96, 1.02 / 1.78 / 3.44 and
+1.03 / 1.90 / 3.02.
+
+`perf:compare` against `6ef030b` finds **2 rows faster, 0 slower** beyond noise. They are the two
+that `6ef030b` found slow, back to where they were before the plan:
+
+| Phone, cold                   | `7db2a19` | `6ef030b` | `27fa27a` |
+| ----------------------------- | --------: | --------: | --------: |
+| public-venue · venues → venue |    365 ms |    678 ms |    386 ms |
+| player-venue · venues → venue |    369 ms |    678 ms |    390 ms |
+
+The plan's code now rides the venue page's chunk, which the venue cards' prefetch already loads
+(#403), so it paints with the court list. That costs about 20 ms of the step's time and 6 KB gzip
+of the venue page's First Load JS (292.1 → 298.1 KB; its budget is 313.1). `docs/perf/budget.json`
+is reset from this baseline (126 rows), so the two venue ceilings are 425 and 430 ms again, not
+`6ef030b`'s 746.
+
+## `6ef030b`'s baseline (#636, no skeleton on the entry routes), 21 October 2026
 
 `docs/perf/baseline-6ef030b.json` holds three runs of main at `6ef030b`, merged, 02:09–03:33 Sofia
 time. The first run built (build `k4selPBUYLREwJCzC1gvQ`); the other two measured that build. Each
@@ -1259,7 +1280,8 @@ Two more cautions:
 | `docs/perf/baseline-2a90d68.json` | #402's quiet machine and #599's translations                                                               |
 | `docs/perf/baseline-699a92f.json` | #615's                                                                                                     |
 | `docs/perf/baseline-7db2a19.json` | #619's: `699a92f`'s plus `desktop-dark`                                                                    |
-| `docs/perf/baseline-6ef030b.json` | #636's, the current baseline; the budget is set from it (its two venue rows loose until #647)              |
+| `docs/perf/baseline-6ef030b.json` | #636's; its venue rows were slow (#647)                                                                    |
+| `docs/perf/baseline-27fa27a.json` | #647's, the current baseline; the budget is set from it                                                    |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)                           |
 | `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)                         |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                                              |
