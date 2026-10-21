@@ -79,7 +79,9 @@ describe('the plan editor', () => {
     expect(Math.min(...xs)).toBeCloseTo(22);
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(23.77);
     expect(Math.min(...ys)).toBeCloseTo(0);
-    expect(saveButton()).toBeDisabled();
+    // «Запазено» can show while the save's transition is still settling, and
+    // the button reads «Запазване…» until it does (flaky on CI, #649).
+    expect(await screen.findByRole('button', { name: p.save })).toBeDisabled();
   });
 
   it('edits by numbers and by the metre, and undoes one step at a time', async () => {
@@ -126,6 +128,6 @@ describe('the plan editor', () => {
     fireEvent.click(within(row('Корт 2')).getByRole('button', { name: p.draw }));
     fireEvent.click(saveButton());
     await screen.findByText(p.failed);
-    expect(saveButton()).toBeEnabled();
+    expect(await screen.findByRole('button', { name: p.save })).toBeEnabled();
   });
 });
