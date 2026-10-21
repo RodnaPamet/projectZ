@@ -13,6 +13,7 @@ import { Heading } from '@/components/ui/typography';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
 import { readModules } from '@/lib/modules';
+import { stripeConfigured } from '@/lib/stripe';
 
 import { AdminTournaments } from './AdminTournaments';
 
@@ -55,6 +56,7 @@ export default async function TournamentsPage({ params }: { params: Promise<{ sl
           seed={items.map(toTournamentDto)}
           venues={venues}
           onlineFees={onlineFees}
+          paymentsOpen={stripeConfigured()}
         />
       </ViewerScope>
     </section>

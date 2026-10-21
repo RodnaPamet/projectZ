@@ -54,6 +54,7 @@ const iso = (v: string) => (v ? new Date(v).toISOString() : null);
 export function TournamentForm({
   venues,
   onlineFees,
+  paymentsOpen = true,
   initial,
   busy,
   submitLabel,
@@ -68,6 +69,11 @@ export function TournamentForm({
   }>;
   /** The club can take entry fees online (#581): its Stripe account is connected. */
   onlineFees: boolean;
+  /**
+   * This server can take payments at all: it has a Stripe key (#651). Without
+   * one there is no Stripe account to connect, so the caption says not yet.
+   */
+  paymentsOpen?: boolean;
   initial?: TournamentDto | null;
   busy: boolean;
   submitLabel: string;
@@ -276,7 +282,13 @@ export function TournamentForm({
             className="justify-self-start"
             data-testid="tournament-form-fee-payment"
           />
-          <Caption>{onlineFees ? t('feePaymentHint') : t('feePaymentUnavailable')}</Caption>
+          <Caption>
+            {onlineFees
+              ? t('feePaymentHint')
+              : paymentsOpen
+                ? t('feePaymentUnavailable')
+                : t('feePaymentNotYet')}
+          </Caption>
         </div>
       ) : null}
 

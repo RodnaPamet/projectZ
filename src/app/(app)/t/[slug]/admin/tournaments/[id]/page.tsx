@@ -12,6 +12,7 @@ import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { resolveTenantPageContext } from '@/lib/auth/page-context';
 import { ViewerScope } from '@/lib/data/provider';
 import { readModules } from '@/lib/modules';
+import { stripeConfigured } from '@/lib/stripe';
 
 import { AdminTournamentDetail } from './AdminTournamentDetail';
 
@@ -55,6 +56,7 @@ export default async function TournamentAdminPage({
           seed={toClubTournamentDto(x)}
           venues={venues}
           onlineFees={onlineFees}
+          paymentsOpen={stripeConfigured()}
         />
       </ViewerScope>
     </section>
