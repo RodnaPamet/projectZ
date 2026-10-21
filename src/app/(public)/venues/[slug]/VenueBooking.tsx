@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
@@ -13,7 +12,6 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Caption, Heading } from '@/components/ui/typography';
 import { KIND_CHOOSER_PATH, PHONE_STEP_PATH } from '@/lib/auth/landing';
@@ -29,11 +27,9 @@ import { allowedMinutes, offersFor, type Offer } from '@/lib/booking/offers';
 
 import { venuePagePath, type InitialPick } from './booking-days';
 import { BookingSheet, type Selection } from './BookingSheet';
-
-// The plan's code loads only on a venue that has one (#625).
-const VenuePlan = dynamic(() => import('./VenuePlan'), {
-  loading: () => <Skeleton className="min-h-[200px] w-full rounded-lg" />,
-});
+// With the page, not a chunk of its own (#647): on a phone a separate chunk
+// painted the plan a round trip after the list.
+import VenuePlan from './VenuePlan';
 
 /**
  * The day picker, every court's free times, and "Резервирай" (#355).
