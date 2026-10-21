@@ -13,6 +13,7 @@ import { isMonth, monthsBack, statementMonthOf } from '@/lib/billing/club-fee';
 import { toClubStatementDto } from '@/lib/billing/statement-dto';
 import { V1 } from '@/lib/data/keys';
 import { runInTenantContext } from '@/lib/db/rls-middleware';
+import { stripeConfigured } from '@/lib/stripe';
 
 import { ReportsMonthNav } from './ReportsMonthNav';
 import { UsageCardSlot } from './UsageCardSlot';
@@ -84,8 +85,12 @@ export default async function ReportsPage({
       <div className="gap-section grid">
         <ReportsMonthNav slug={ctx.tenantSlug} months={months} month={month} />
 
-        {/* Online payments (#581): where the club connects its Stripe account. */}
-        <PayoutsCard slug={ctx.tenantSlug} status={payouts} back={back} />
+        {/* Online payments (#581): where the club connects its Stripe account.
+            Only once this server has a Stripe key: without one the button can
+            only fail (#651). */}
+        {stripeConfigured() ? (
+          <PayoutsCard slug={ctx.tenantSlug} status={payouts} back={back} />
+        ) : null}
 
         <StatementView
           statement={toClubStatementDto(statement)}

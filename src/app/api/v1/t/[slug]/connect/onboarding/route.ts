@@ -6,8 +6,9 @@ import { inTenant } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { ok } from '@/app/api/v1/_lib/envelope';
-import { ForbiddenError, UnauthorizedError } from '@/lib/errors/types';
+import { configurationError, ForbiddenError, UnauthorizedError } from '@/lib/errors/types';
 import { getRequestId } from '@/lib/observability/context';
+import { stripeConfigured } from '@/lib/stripe';
 
 /**
  * Start (or resume) Stripe Connect onboarding for a club.
@@ -43,6 +44,10 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ slug: s
   if (!hasPermission(ctx, 'admin.billing_manage')) {
     throw new ForbiddenError('Managing payouts requires billing permission');
   }
+
+  // Without a key every Stripe call fails; refuse as the spec documents
+  // (500, CONFIGURATION_ERROR) rather than reach Stripe with an empty one (#651).
+  if (!stripeConfigured()) throw configurationError('Stripe is not configured');
 
   const base = process.env.NEXTAUTH_URL ?? '';
 
