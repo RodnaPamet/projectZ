@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { SWRConfig } from 'swr';
 
 import { AdminTournamentDetail } from '@/app/(app)/t/[slug]/admin/tournaments/[id]/AdminTournamentDetail';
+import { TournamentForm } from '@/app/(app)/t/[slug]/admin/tournaments/TournamentForm';
 import { TournamentDetail } from '@/app/(public)/tournaments/[id]/TournamentDetail';
 import type { ClubTournamentDto, TournamentViewDto } from '@/app/api/v1/_lib/tournament-dto';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -209,5 +210,39 @@ describe('a tournament, for the club', () => {
         name: a.entries.replace('{confirmed}', '2').replace('{size}', '2'),
       }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('the fee: paid at the club, or online (#581, #651)', () => {
+  const form = (props: { onlineFees: boolean; paymentsOpen?: boolean }) =>
+    wrap(
+      <TournamentForm
+        venues={[{ id: 'v1', name: 'Алфа Кортове', sports: ['PADEL'] }]}
+        initial={tournament({ entryFeeCents: 2000 })}
+        busy={false}
+        submitLabel="Запази"
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        {...props}
+      />,
+    );
+
+  it('a club with its Stripe account connected can choose online', () => {
+    form({ onlineFees: true });
+    expect(screen.getByRole('radio', { name: a.form.feePaymentOnline })).toBeEnabled();
+    expect(screen.getByText(a.form.feePaymentHint)).toBeInTheDocument();
+  });
+
+  it('a club without one is told to connect it', () => {
+    form({ onlineFees: false });
+    expect(screen.getByRole('radio', { name: a.form.feePaymentOnline })).toBeDisabled();
+    expect(screen.getByText(a.form.feePaymentUnavailable)).toBeInTheDocument();
+  });
+
+  it('on a server without a Stripe key, nobody is told to connect what they cannot', () => {
+    form({ onlineFees: false, paymentsOpen: false });
+    expect(screen.getByRole('radio', { name: a.form.feePaymentOnline })).toBeDisabled();
+    expect(screen.getByText(a.form.feePaymentNotYet)).toBeInTheDocument();
+    expect(screen.queryByText(a.form.feePaymentUnavailable)).not.toBeInTheDocument();
   });
 });

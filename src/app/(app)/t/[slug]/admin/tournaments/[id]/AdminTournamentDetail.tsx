@@ -46,6 +46,7 @@ export function AdminTournamentDetail({
   seed,
   venues,
   onlineFees,
+  paymentsOpen,
 }: {
   slug: string;
   seed: ClubTournamentDto;
@@ -57,6 +58,8 @@ export function AdminTournamentDetail({
   }>;
   /** Whether the club can take entry fees online (#581). */
   onlineFees: boolean;
+  /** Whether this server can take payments at all: it has a Stripe key (#651). */
+  paymentsOpen?: boolean;
 }) {
   const t = useTranslations('admin.tournaments');
   const tT = useTranslations('tournaments');
@@ -285,6 +288,7 @@ export function AdminTournamentDetail({
             <TournamentForm
               venues={venues}
               onlineFees={onlineFees}
+              paymentsOpen={paymentsOpen}
               initial={x}
               busy={update.isMutating}
               submitLabel={t('save')}

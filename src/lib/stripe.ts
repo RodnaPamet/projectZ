@@ -9,6 +9,16 @@ import Stripe from 'stripe';
  */
 let client: Stripe | undefined;
 
+/**
+ * Whether this server can call Stripe at all: its secret key is set (#651).
+ * Production and staging run without one until the owner adds the keys
+ * (#581). A call made without one can only fail at Stripe, so the club's
+ * «Онлайн плащания» card is not shown and onboarding refuses up front.
+ */
+export function stripeConfigured(): boolean {
+  return Boolean(process.env.STRIPE_SECRET_KEY);
+}
+
 export function stripe(): Stripe {
   if (!client) {
     client = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {

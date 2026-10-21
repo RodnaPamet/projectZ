@@ -1778,7 +1778,8 @@
         "feePaymentAtClub": "At the club",
         "feePaymentOnline": "Online",
         "feePaymentHint": "Online: the player pays on sign-up and the money goes to the club’s account. If you decline an entry or cancel the tournament, the fee is returned automatically.",
-        "feePaymentUnavailable": "Online payment is possible once the club connects its Stripe account."
+        "feePaymentUnavailable": "Online payment is possible once the club connects its Stripe account.",
+        "feePaymentNotYet": "Paying the fee online is not available on playerz yet."
       },
       "withdrawEntry": "Withdraw",
       "draw": {

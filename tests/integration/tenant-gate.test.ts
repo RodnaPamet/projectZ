@@ -687,3 +687,41 @@ describe('a mutation that needs a permission the caller lacks', () => {
     expect(venues).toMatchObject({ status: 501, by: 'route' });
   });
 });
+
+describe('the payouts route on a server with no Stripe key (#651)', () => {
+  it('refuses an owner as CONFIGURATION_ERROR, and creates no Stripe account', async () => {
+    // Production and staging run without STRIPE_SECRET_KEY until the owner adds
+    // it (#581). The call would fail at Stripe; the route says why first.
+    const owner = await newUser('owner', PASSWORD, 'CLUB');
+    await join(owner.id, clubB.tenantId, 'OWNER');
+    const native = await nativeSignIn(owner.email);
+
+    const key = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+    let payouts: Answer;
+    try {
+      payouts = await send(
+        connectOnboarding as Handler,
+        { slug: clubB.tenantSlug },
+        'POST',
+        `/api/v1/t/${clubB.tenantSlug}/connect/onboarding`,
+        native,
+      );
+    } finally {
+      if (key === undefined) delete process.env.STRIPE_SECRET_KEY;
+      else process.env.STRIPE_SECRET_KEY = key;
+    }
+
+    expect(payouts).toMatchObject({ status: 500, by: 'route' });
+    expect(withoutRequestId(payouts.body)).toEqual({
+      error: { code: 'CONFIGURATION_ERROR', message: 'An error occurred' },
+    });
+    const club = await asAppSuperuser(db, (tx) =>
+      tx.venueOrg.findUniqueOrThrow({
+        where: { id: clubB.tenantId },
+        select: { stripeAccountId: true },
+      }),
+    );
+    expect(club.stripeAccountId).toBeNull();
+  });
+});
