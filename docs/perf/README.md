@@ -93,7 +93,63 @@ code, and nothing that builds an image sets it (`tests/unit/perf/chunks.test.ts`
 The budget (`docs/perf/bundle-budget.json`) stays where it is: these are the bytes the app has, and
 the gate is what keeps the next 80 KB from arriving unnoticed.
 
-## The current baseline: `7db2a19` (#619, the dark theme's full loads), 20 October 2026
+## The current baseline: `6ef030b` (#636, no skeleton on the entry routes), 21 October 2026
+
+`docs/perf/baseline-6ef030b.json` holds three runs of main at `6ef030b`, merged, 02:09–03:33 Sofia
+time. The first run built (build `k4selPBUYLREwJCzC1gvQ`); the other two measured that build. Each
+run held the heavy lock, with no other build, test suite or simulator running. Same browser and
+versions as `699a92f` (Chromium 156, Next 16.4.2, Playwright 1.64.1). Load average (1 min) per
+sample, min / median / max: 0.44 / 1.74 / 3.12, 0.92 / 1.74 / 4.71 and 1.11 / 1.95 / 3.37. That is
+as quiet as `699a92f`'s, with a few short bursts. The runs started at 02:09 in the club's day,
+about 12 hours from `7db2a19`'s, so the diary offers a different share of no-show controls; no
+diary row moved.
+
+`perf:compare` against `7db2a19` finds **24 rows faster and 3 slower** beyond noise.
+
+**Faster: the skeletons are gone (#622, #630).** With no `loading.tsx` on `/`, `/venues`,
+`/me/bookings` and the club calendar, a full load sends the page with the shell, and React's
+streaming hold (#619) has nothing to hold:
+
+| Profile · mode            | Rows | `7db2a19` → `6ef030b`, median ms |
+| ------------------------- | ---: | -------------------------------- |
+| desktop-dark, full loads  |    9 | 343–405 → 64–136                 |
+| desktop, cold full loads  |    8 | 94–180 → 64–120                  |
+| phone, warm landings      |    2 | 512 → 427, 619 → 487             |
+| desktop, into the diary   |    3 | 335–351 → 58–68                  |
+| phone, pricing → calendar |    2 | 402–406 → 267–272                |
+
+The dark theme's gap to the light one (the table under `7db2a19` below) is gone. The one dark row
+that was split, `landing-staff · /start → club calendar` cold, is now 106 ms (253 before; within
+noise by the comparison's rule, since its old runs disagreed).
+
+**Slower on the phone: the venue plan (#647), and the first tap on «Цени».**
+
+| Phone, cold                   | `7db2a19` | `6ef030b` |   Δ |
+| ----------------------------- | --------: | --------: | --: |
+| public-venue · venues → venue |    365 ms |    678 ms | 313 |
+| player-venue · venues → venue |    369 ms |    678 ms | 309 |
+| staff · courts → pricing      |    435 ms |    492 ms |  57 |
+
+On the venue page, the court list is ready when it was before (372 ms). The venue plan's first
+paint (`[data-plan-ready]`, part of the step's ready since #625) comes 305 ms later. The plan's code
+was a `next/dynamic` chunk, fetched only once the page rendered, so on the phone it came one
+emulated round trip after the list. Desktop's same steps did not move. #647 loads the plan with
+the page.
+
+Courts → pricing is JS that moved, not JS that was added. The staff journey's first page, the
+calendar's full load, now fetches 367 KB of JS (471 KB at `699a92f`). The pricing page's chunks
+(64 KB gzip, mostly a 45 KB chunk the players, staff and reports boards share) are no longer among
+them, so the first tap on «Цени» fetches them (66 KB, 9.8 KB before). Turning off the courts
+page's new editor-link prefetches (#645) did not change the row. The calendar, the club's landing
+page, is the better place to save the bytes.
+
+`docs/perf/budget.json` is reset from this baseline, all 126 rows, as the guardrail requires
+(`tests/guardrails/perf-budget.test.ts`: every ceiling from the newest baseline's median). The two
+venue rows' ceilings are therefore loose (746 ms) until the re-baseline after #647's fix, which
+measured 385 and 393 ms. Courts → pricing takes its new ceiling (541 ms). The First Load JS budget is
+unchanged here.
+
+## `7db2a19`'s baseline (#619, the dark theme's full loads), 20 October 2026
 
 `docs/perf/baseline-7db2a19.json` adds `desktop-dark` (below, Profiles) to `699a92f`'s baseline. It
 pools that baseline's three runs (phone and desktop, unchanged: every one of their 124 rows is
@@ -1202,7 +1258,8 @@ Two more cautions:
 | `docs/perf/baseline-8997b77.json` | #362's, every signed-in account in the AppShell                                                            |
 | `docs/perf/baseline-2a90d68.json` | #402's quiet machine and #599's translations                                                               |
 | `docs/perf/baseline-699a92f.json` | #615's                                                                                                     |
-| `docs/perf/baseline-7db2a19.json` | #619's: `699a92f`'s plus `desktop-dark`, the current baseline; the budget is set from it                   |
+| `docs/perf/baseline-7db2a19.json` | #619's: `699a92f`'s plus `desktop-dark`                                                                    |
+| `docs/perf/baseline-6ef030b.json` | #636's, the current baseline; the budget is set from it (its two venue rows loose until #647)              |
 | `docs/perf/budget.json`           | a time-to-ready ceiling per row (`tests/perf/budget.ts` checks a run against it)                           |
 | `docs/perf/bundle-budget.json`    | First Load JS per route, + 5% (`tests/perf/bundle-budget.ts --enforce`, a CI gate)                         |
 | `docs/perf/navigation-policy.md`  | the router-cache and prefetch policy, and why                                                              |
