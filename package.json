@@ -81,7 +81,7 @@
     "next": "16.4.2",
     "next-auth": "4.24.15",
     "next-intl": "^4.14.8",
-    "nodemailer": "^10.1.0",
+    "nodemailer": "^10.1.4",
     "openskill": "^5.0.1",
     "p-retry": "^8.0.1",
     "pino": "^10.3.1",
