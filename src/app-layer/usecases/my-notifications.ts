@@ -1,6 +1,12 @@
 import type { NotificationKind } from '@prisma/client';
 
 import { runAsUserOnly } from '@/lib/db/rls-middleware';
+import {
+  CATEGORY_OF,
+  kindsInCategory,
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategory,
+} from '@/lib/notifications/category';
 
 /**
  * The caller's own bell (#367): `GET /api/v1/me/notifications`,
@@ -59,7 +65,15 @@ export async function listMyNotifications(input: {
   userId: string;
   cursor?: string | null;
   limit?: number;
-}): Promise<{ items: MyNotification[]; nextCursor: string | null; unreadCount: number }> {
+  /** One group only (#668); the cursor pages within it. */
+  category?: NotificationCategory;
+}): Promise<{
+  items: MyNotification[];
+  nextCursor: string | null;
+  unreadCount: number;
+  /** Unread per group (#668), every group present; they add up to `unreadCount`. */
+  unreadByCategory: Record<NotificationCategory, number>;
+}> {
   const take = clampNotificationLimit(input.limit);
   return runAsUserOnly(input.userId, async (db) => {
     let after: { createdAt: Date; id: string } | null = null;
@@ -77,6 +91,7 @@ export async function listMyNotifications(input: {
       db.notification.findMany({
         where: {
           userId: input.userId,
+          ...(input.category ? { kind: { in: kindsInCategory(input.category) } } : {}),
           ...(after
             ? {
                 OR: [
@@ -104,12 +119,23 @@ export async function listMyNotifications(input: {
       // club: owner-only RLS on app.user_id is the boundary, and userId is the session's.
       db.notification.count({ where: { userId: input.userId, readAt: null } }),
     ]);
+    // guardrail-allow: cross-tenant — as above: the session's own unread rows, by kind.
+    const unreadKinds = await db.notification.groupBy({
+      by: ['kind'],
+      where: { userId: input.userId, readAt: null },
+      _count: { _all: true },
+    });
+    const unreadByCategory = Object.fromEntries(
+      NOTIFICATION_CATEGORIES.map((c) => [c, 0]),
+    ) as Record<NotificationCategory, number>;
+    for (const k of unreadKinds) unreadByCategory[CATEGORY_OF[k.kind]] += k._count._all;
 
     const items = rows.slice(0, take);
     return {
       items,
       nextCursor: rows.length > take ? (items.at(-1)?.id ?? null) : null,
       unreadCount,
+      unreadByCategory,
     };
   });
 }
@@ -276,4 +302,13 @@ export async function updateMyNotificationSettings(
     if (!u) return null;
     return toSettings(u, await db.deviceToken.count({ where: { userId } }));
   });
+}
+
+/** The caller's unread count alone (#668), for `GET /me/summary`. */
+export async function countMyUnread(userId: string): Promise<number> {
+  return runAsUserOnly(userId, (db) =>
+    // guardrail-allow: cross-tenant — a notification belongs to a PERSON, not a
+    // club: owner-only RLS on app.user_id is the boundary, and userId is the session's.
+    db.notification.count({ where: { userId, readAt: null } }),
+  );
 }

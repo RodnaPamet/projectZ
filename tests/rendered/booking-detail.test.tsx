@@ -56,6 +56,7 @@ const detail = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => (
     phone: '+359 2 123 4567',
   },
   clubSlug: 'alpha',
+  clubLogoUrl: null,
   venueReview: null,
   canReview: false,
   payAtClub: true,
@@ -362,7 +363,7 @@ describe('the Предстоящи / Минали tabs', () => {
     const { players: _p, payAtClub: _a, venue, ...rest } = detail();
     return {
       ...rest,
-      venue: { id: venue.id, name: venue.name, timezone: venue.timezone },
+      venue: { id: venue.id, name: venue.name, city: venue.city, timezone: venue.timezone },
       ...over,
     };
   };

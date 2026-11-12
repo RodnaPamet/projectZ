@@ -1,6 +1,7 @@
 import type { PrismaClient, ReviewStatus } from '@prisma/client';
 
 import {
+  countUpcomingForUser,
   getBookingForUserAcrossClubs,
   listBookingsForUserAcrossClubs,
   readBookingPlayers,
@@ -9,6 +10,7 @@ import {
 } from '@/app-layer/repositories/booking';
 import { isOpenForPlayers } from '@/app-layer/usecases/booking-players';
 import { lessonCoaches } from '@/app-layer/usecases/coach-directory';
+import { playerMayCancel } from '@/lib/booking/cutoff';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 
 /**
@@ -121,7 +123,7 @@ export async function listMyBookings(input: {
       // the club is addressed by slug everywhere else.
       db.venueOrg.findMany({
         where: { id: { in: tenantIds } },
-        select: { id: true, slug: true },
+        select: { id: true, slug: true, logoUrl: true },
         take: tenantIds.length,
       }),
       // guardrail-allow: cross-tenant — the caller's OWN reviews, by the
@@ -139,6 +141,7 @@ export async function listMyBookings(input: {
     ]);
 
     const slugByTenant = new Map(clubs.map((c) => [c.id, c.slug]));
+    const logoByTenant = new Map(clubs.map((c) => [c.id, c.logoUrl]));
     const reviewByVenue = new Map(
       reviews.map((r) => [
         r.venueId,
@@ -162,6 +165,7 @@ export async function listMyBookings(input: {
             coachReview,
           }),
           clubSlug: slugByTenant.get(b.tenantId) ?? null,
+          clubLogoUrl: logoByTenant.get(b.tenantId) ?? null,
           venueReview,
           viewerRole,
           // Decided HERE, by the rule below, so `GET /api/v1/me/bookings` and
@@ -213,7 +217,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
     const [club, review, players, coaches, coachReviews] = await Promise.all([
       db.venueOrg.findUnique({
         where: { id: b.tenantId },
-        select: { slug: true, onlinePaymentEnabled: true },
+        select: { slug: true, logoUrl: true, onlinePaymentEnabled: true },
       }),
       // guardrail-allow: cross-tenant — the caller's OWN review of this
       // booking's venue, by the session-derived authorUserId.
@@ -247,6 +251,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
         coachReview,
       }),
       clubSlug: club?.slug ?? null,
+      clubLogoUrl: club?.logoUrl ?? null,
       // A club that takes no money online is paid at the club, which is every
       // pilot club (#354). A club gone from under its booking is treated the
       // same: there is nothing online to point at.
@@ -286,3 +291,58 @@ export function canReview(b: {
 }): boolean {
   return b.status === 'COMPLETED' && b.venueReview === null;
 }
+
+/** The phone's «Профил» tiles and «Начало»'s next game in one read (#668). */
+export interface MySummary {
+  upcomingBookings: number;
+  /** Of those, the ones with an open game on them. */
+  upcomingGames: number;
+  /** The caller's requests to join games that still await an answer. */
+  pendingGameRequests: number;
+}
+
+export async function mySummaryCounts(input: { userId: string; now?: Date }): Promise<MySummary> {
+  const now = input.now ?? new Date();
+  return runAsSuperuser(async (db) => {
+    const [upcoming, requests] = await Promise.all([
+      countUpcomingForUser(db, { userId: input.userId, now }),
+      // guardrail-allow: cross-tenant — the caller's OWN requests, by the
+      // session-derived userId; a request past its game's cutoff has lapsed.
+      db.openGameRequest.findMany({
+        where: {
+          userId: input.userId,
+          status: 'PENDING',
+          game: { booking: { startTs: { gt: now } } },
+        },
+        select: {
+          game: {
+            select: {
+              booking: {
+                select: {
+                  startTs: true,
+                  resource: { select: { venue: { select: { cancellationCutoffHours: true } } } },
+                },
+              },
+            },
+          },
+        },
+        take: SUMMARY_REQUESTS_MAX,
+      }),
+    ]);
+    const pending = requests.filter((r) =>
+      playerMayCancel(
+        r.game.booking.startTs,
+        r.game.booking.resource.venue.cancellationCutoffHours,
+        now,
+      ),
+    ).length;
+    return {
+      upcomingBookings: upcoming.bookings,
+      upcomingGames: upcoming.games,
+      pendingGameRequests: pending,
+    };
+  });
+}
+
+/** A count past this is shown as this; nobody waits on a hundred games at once. */
+const SUMMARY_REQUESTS_MAX = 100;

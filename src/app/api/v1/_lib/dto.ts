@@ -8,6 +8,7 @@ import { bookingCutoffHours, playerCancellableUntil } from '@/lib/booking/cutoff
 import { coachFeeCents } from '@/lib/coaches/lessons';
 import type { CityKey } from '@/lib/geo/cities';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
+import { CATEGORY_OF, type NotificationCategory } from '@/lib/notifications/category';
 import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
 
 import { cityNames, type CityNames } from './city-names';
@@ -390,6 +391,8 @@ export interface BookingDto {
   venue: {
     id: string;
     name: string;
+    /** As the club typed it (#668), for a card that says where. */
+    city: string;
     timezone: string;
   };
 }
@@ -409,7 +412,13 @@ type BookingRow = {
     name: string;
     sport: string;
     resourceType: string;
-    venue: { id: string; name: string; timezone: string; cancellationCutoffHours: number };
+    venue: {
+      id: string;
+      name: string;
+      city: string;
+      timezone: string;
+      cancellationCutoffHours: number;
+    };
   };
   /** The lesson on it, when it is one; a lesson has the coach's cutoff too. */
   lesson?: {
@@ -517,6 +526,7 @@ export function toBooking(b: BookingRow): BookingDto {
     venue: {
       id: b.resource.venue.id,
       name: b.resource.venue.name,
+      city: b.resource.venue.city,
       timezone: b.resource.venue.timezone,
     },
   };
@@ -543,6 +553,8 @@ export interface MyBookingDto extends BookingDto {
    * foreign key); such a booking can be shown and not acted on.
    */
   clubSlug: string | null;
+  /** The club's logo (#668), for the booking card; null when it has none or is gone. */
+  clubLogoUrl: string | null;
   /**
    * The caller's review of this booking's VENUE, if they wrote one — at most
    * one per venue, so it may have been left against a different booking
@@ -577,6 +589,7 @@ export function toMyBookingDto(
     coachReview?: { id: string; rating: number; status: string } | null;
     canReviewCoach?: boolean;
     clubSlug: string | null;
+    clubLogoUrl?: string | null;
     venueReview: { id: string; bookingId: string | null; rating: number; status: string } | null;
     canReview: boolean;
     viewerRole: 'BOOKER' | 'PARTICIPANT';
@@ -591,6 +604,7 @@ export function toMyBookingDto(
     lesson: toMyBookingLesson(b),
     viewerRole: b.viewerRole,
     clubSlug: b.clubSlug,
+    clubLogoUrl: b.clubLogoUrl ?? null,
     // Rebuilt field by field rather than passed through, for the reason at the
     // top of this file: a spread publishes whatever the use case adds next.
     venueReview: b.venueReview
@@ -985,6 +999,8 @@ export type MeDto = Me;
 export interface NotificationDto {
   id: string;
   kind: string;
+  /** The bell's group (#668): what `?category=` filters by. */
+  category: NotificationCategory;
   title: string;
   body: string;
   /** A path in the web app (`/me/bookings/{id}`); the iOS app maps `refType`/`refId`. */
@@ -1000,6 +1016,7 @@ export function toNotificationDto(n: MyNotification): NotificationDto {
   return {
     id: n.id,
     kind: n.kind,
+    category: CATEGORY_OF[n.kind],
     title: n.title,
     body: n.body,
     href: n.href,

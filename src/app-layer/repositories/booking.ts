@@ -89,7 +89,9 @@ const BOOKING_FIELDS = {
       resourceType: true,
       // The cutoff rides along so every booking a player is shown can say
       // until when they may cancel it (`cancellableUntil`, #354).
-      venue: { select: { id: true, name: true, timezone: true, cancellationCutoffHours: true } },
+      venue: {
+        select: { id: true, name: true, city: true, timezone: true, cancellationCutoffHours: true },
+      },
     },
   },
   // The lesson on it, if it is one (#548): the coach's fee and the coach's own
@@ -486,4 +488,25 @@ export async function readBookingPlayers(
     }
   }
   return players;
+}
+
+/**
+ * How many bookings this person still has to play, and how many of those are
+ * open games (#668): the counts on the phone's «Профил» tiles. The same `mine`
+ * and `upcomingWhere` as Резервации → Предстоящи, so a tile never disagrees
+ * with the list it opens.
+ */
+export async function countUpcomingForUser(
+  db: PrismaClient,
+  input: { userId: string; now: Date },
+): Promise<{ bookings: number; games: number }> {
+  const where = { ...mine(input.userId), ...upcomingWhere(input.now) };
+  const [bookings, games] = await Promise.all([
+    // guardrail-allow: cross-tenant — a person's own bookings span every club,
+    // and the filter is their session-derived id, not a request parameter.
+    db.booking.count({ where }),
+    // guardrail-allow: cross-tenant — as above, those with an open game on them.
+    db.booking.count({ where: { ...where, openGame: { isNot: null } } }),
+  ]);
+  return { bookings, games };
 }
