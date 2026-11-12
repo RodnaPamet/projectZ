@@ -19856,7 +19856,8 @@
           "venueReview",
           "canReview",
           "viewerRole",
-          "lesson"
+          "lesson",
+          "tournamentMatch"
         ],
         "properties": {
           "id": {
@@ -20015,6 +20016,17 @@
               }
             ],
             "description": "The lesson on this booking, when it is one (#548); `null` for a plain court booking. For a lesson, `totalCents` above is the court's part only and `lesson.totalCents` is the whole price; `cancellableUntil` follows the stricter of the club's cutoff and the coach's."
+          },
+          "tournamentMatch": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MyBookingTournamentMatch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The tournament match it is (#680); null otherwise."
           }
         }
       },
@@ -20286,7 +20298,8 @@
           "capacity",
           "spotsLeft",
           "playersOpen",
-          "lesson"
+          "lesson",
+          "tournamentMatch"
         ],
         "properties": {
           "id": {
@@ -20498,6 +20511,17 @@
               }
             ],
             "description": "The lesson on this booking, when it is one (#548); `null` for a plain court booking. For a lesson, `totalCents` above is the court's part only and `lesson.totalCents` is the whole price; `cancellableUntil` follows the stricter of the club's cutoff and the coach's."
+          },
+          "tournamentMatch": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MyBookingTournamentMatch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The tournament match it is (#680); null otherwise."
           }
         }
       },
@@ -28441,6 +28465,22 @@
         "properties": {
           "favourite": {
             "type": "boolean"
+          }
+        }
+      },
+      "MyBookingTournamentMatch": {
+        "type": "object",
+        "description": "The tournament match a booking puts on a court (#680): a league proposal still held (the booking PENDING) or a placed match. Its answers and the draw are on the tournament's screens.",
+        "required": ["matchId", "tournamentId", "tournamentName"],
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "tournamentId": {
+            "type": "string"
+          },
+          "tournamentName": {
+            "type": "string"
           }
         }
       }

@@ -105,6 +105,11 @@ const BOOKING_FIELDS = {
       cancelCutoffHours: true,
     },
   },
+  // The tournament match it puts on a court (#680): a league proposal or a
+  // placed match, which a player's list names and links to its draw.
+  tournamentMatch: {
+    select: { id: true, tournamentId: true, tournament: { select: { name: true } } },
+  },
 } as const;
 
 /**

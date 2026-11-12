@@ -63,6 +63,7 @@ const booking = (over: Partial<MyBookingDto> = {}): MyBookingDto => ({
     timezone: 'Europe/Sofia',
   },
   clubSlug: 'alpha',
+  tournamentMatch: null,
   clubLogoUrl: null,
   venueReview: null,
   canReview: true,

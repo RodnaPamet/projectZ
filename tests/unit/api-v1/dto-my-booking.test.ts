@@ -39,7 +39,7 @@ describe('toMyBookingDto', () => {
     resourceId: 'r1',
   };
 
-  it('is BookingDto plus clubSlug, clubLogoUrl, venueReview, canReview, viewerRole and the lesson — and nothing else', () => {
+  it('is BookingDto plus clubSlug, clubLogoUrl, venueReview, canReview, viewerRole, the lesson and the tournament match — and nothing else', () => {
     expect(toMyBookingDto(row)).toEqual({
       id: 'b1',
       status: 'COMPLETED',
@@ -70,6 +70,8 @@ describe('toMyBookingDto', () => {
       viewerRole: 'BOOKER',
       // A plain court booking: said as null, never left out.
       lesson: null,
+      // Nor a tournament match (#680).
+      tournamentMatch: null,
     });
   });
 
