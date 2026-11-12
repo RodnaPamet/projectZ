@@ -812,6 +812,8 @@ export interface BookingInvitePreviewDto {
   spotsLeft: number;
   /** A lesson with a coach (#549), with the coach's name; null for a game. */
   lesson: { coach: string | null } | null;
+  /** The signed-in viewer's part in it (#681); null signed out. */
+  viewer: { isBooker: boolean; isPlaying: boolean } | null;
 }
 
 export function toBookingInvitePreviewDto(p: {
@@ -827,6 +829,7 @@ export function toBookingInvitePreviewDto(p: {
   capacity: number;
   spotsLeft: number;
   lesson?: { coachName: string | null } | null;
+  viewer?: { isBooker: boolean; isPlaying: boolean } | null;
 }): BookingInvitePreviewDto {
   return {
     venue: { name: p.venueName, city: p.venueCity, timezone: p.timezone },
@@ -837,6 +840,7 @@ export function toBookingInvitePreviewDto(p: {
     capacity: p.capacity,
     spotsLeft: p.spotsLeft,
     lesson: p.lesson ? { coach: p.lesson.coachName } : null,
+    viewer: p.viewer ?? null,
   };
 }
 

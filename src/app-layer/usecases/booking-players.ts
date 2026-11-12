@@ -660,6 +660,11 @@ export interface BookingInvitePreview {
    * the coach's name (public, as on the coach's page). Null for a game.
    */
   lesson: { coachName: string | null } | null;
+  /**
+   * The signed-in viewer's part in it (#681), null signed out: the booker
+   * opening their own link, or a player already on it, is not offered to join.
+   */
+  viewer: { isBooker: boolean; isPlaying: boolean } | null;
 }
 
 interface LiveLink {
@@ -696,6 +701,7 @@ export function firstName(name: string | null | undefined): string | null {
 export async function previewBookingInvite(
   token: string,
   now: Date = new Date(),
+  viewerId: string | null = null,
 ): Promise<BookingInvitePreview | null> {
   return runAsSuperuser(async (db) => {
     const link = await findLiveLink(db, token, now);
@@ -709,6 +715,8 @@ export async function previewBookingInvite(
         endTs: true,
         bookedByUserId: true,
         _count: { select: { participants: true } },
+        // Only the viewer's own row, if any: whether they are on it already.
+        participants: viewerId ? { where: { userId: viewerId }, select: { id: true }, take: 1 } : false,
         lesson: { select: { coachUserId: true } },
         resource: {
           select: {
@@ -748,6 +756,12 @@ export async function previewBookingInvite(
       capacity: b.resource.capacity,
       spotsLeft: Math.max(0, b.resource.capacity - 1 - b._count.participants),
       lesson: b.lesson ? { coachName: coach?.name ?? null } : null,
+      viewer: viewerId
+        ? {
+            isBooker: b.bookedByUserId === viewerId,
+            isPlaying: b.bookedByUserId === viewerId || (b.participants?.length ?? 0) > 0,
+          }
+        : null,
     };
   });
 }

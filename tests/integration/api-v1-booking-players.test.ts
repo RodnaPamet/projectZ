@@ -146,8 +146,8 @@ describe('players on a booking (#358)', () => {
       method: 'POST',
       body: { token },
     });
-  const preview = (token: string, ip?: string) =>
-    call<Record<string, unknown>>(r(previewRoute), null, '/booking-invites/preview', {
+  const preview = (token: string, ip?: string, who: TestIdentity | null = null) =>
+    call<Record<string, unknown>>(r(previewRoute), who, '/booking-invites/preview', {
       method: 'POST',
       body: { token },
       ...(ip ? { ip } : {}),
@@ -234,6 +234,26 @@ describe('players on a booking (#358)', () => {
       expect(wire).not.toContain(id);
       // The price, as a value: an id can hold the digits "2400".
       expect(wire).not.toMatch(/:2400\b/);
+    });
+
+    it("says the signed-in viewer's part in it, and nothing signed out (#681)", async () => {
+      const id = await book(booker, 48);
+      const { token } = (await createLink(booker, id)).body.data;
+
+      expect((await preview(token)).body.data.viewer).toBeNull();
+      expect((await preview(token, undefined, booker)).body.data.viewer).toEqual({
+        isBooker: true,
+        isPlaying: true,
+      });
+      expect((await preview(token, undefined, friend)).body.data.viewer).toEqual({
+        isBooker: false,
+        isPlaying: false,
+      });
+      expect((await accept(friend, token)).res.status).toBe(200);
+      expect((await preview(token, undefined, friend)).body.data.viewer).toEqual({
+        isBooker: false,
+        isPlaying: true,
+      });
     });
 
     it('answers every unusable token the same 404', async () => {

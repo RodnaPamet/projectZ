@@ -6,9 +6,11 @@ import {
   previewBookingInvite,
 } from '@/app-layer/usecases/booking-players';
 import { parseJsonBody } from '@/app/api/v1/_lib/body';
+import { contextFromRequest } from '@/app/api/v1/_lib/context';
 import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { toBookingInvitePreviewDto } from '@/app/api/v1/_lib/dto';
 import { ok } from '@/app/api/v1/_lib/envelope';
+import { getRequestId } from '@/lib/observability/context';
 import { INVITE_REDEEM_LIMIT } from '@/lib/security/rate-limit';
 
 /**
@@ -36,7 +38,9 @@ import { INVITE_REDEEM_LIMIT } from '@/lib/security/rate-limit';
  */
 async function handler(req: NextRequest) {
   const { token } = await parseJsonBody(req, bookingInviteTokenBodySchema, 'invite');
-  const preview = await previewBookingInvite(token);
+  // Public; a signed-in caller is also told their own part in it (#681).
+  const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
+  const preview = await previewBookingInvite(token, new Date(), ctx.userId ?? null);
   if (!preview) throw new BookingInviteNotUsableError();
   return ok(toBookingInvitePreviewDto(preview), { headers: { 'Cache-Control': 'no-store' } });
 }
