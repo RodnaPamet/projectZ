@@ -58,6 +58,7 @@ const detail = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => (
     phone: '+359 2 123 4567',
   },
   clubSlug: 'alpha',
+  tournamentMatch: null,
   clubLogoUrl: null,
   venueReview: null,
   canReview: false,

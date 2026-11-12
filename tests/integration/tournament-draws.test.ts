@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { NextRequest } from 'next/server';
 
 import { DELETE as leaveRoute } from '@/app/api/v1/me/bookings/[id]/participation/route';
+import { GET as myBookingsRoute } from '@/app/api/v1/me/bookings/route';
 import { POST as answerConfirmRoute } from '@/app/api/v1/me/results/[id]/confirm/route';
 import { POST as reportRoute } from '@/app/api/v1/me/bookings/[id]/result/route';
 import { POST as confirmEntryRoute } from '@/app/api/v1/t/[slug]/admin/tournament-entries/[id]/confirm/route';
@@ -709,6 +710,15 @@ describe('a tournament draw', () => {
       const held = await bookingOf(shown.proposal.bookingId);
       expect(held).toMatchObject({ status: 'PENDING', bookedByUserId: a.userId, totalCents: 2400 });
       expect(Math.abs(held.expiresAt!.getTime() - (Date.now() + DAY))).toBeLessThan(5 * 60_000);
+      // The proposer's «Резервации» says which tournament's match it is (#680).
+      const mine = await call(myBookingsRoute as never, 'GET', '/api/v1/me/bookings', a, {});
+      const row = (mine.body.data.items as Array<Record<string, any>>).find(
+        (x) => x.id === shown.proposal.bookingId,
+      );
+      expect(row?.tournamentMatch).toMatchObject({
+        matchId: m.id,
+        tournamentName: expect.any(String),
+      });
 
       // One proposal at a time; the proposer does not answer their own.
       expect((await propose(b, m.id, tenAm(4))).body.error.code).toBe('TOURNAMENT_MATCH_PLACED');
