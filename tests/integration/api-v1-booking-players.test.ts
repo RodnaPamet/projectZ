@@ -223,7 +223,11 @@ describe('players on a booking (#358)', () => {
       const { res, body } = await preview(token);
       expect(res.status).toBe(200);
       expect(body.data).toMatchObject({
-        venue: { name: 'Алфа Кортове' },
+        // The city as on a venue card (#686).
+        venue: {
+          name: 'Алфа Кортове',
+          cityNames: { bg: expect.any(String), en: expect.any(String) },
+        },
         bookerFirstName: 'Иван',
         capacity: 4,
         spotsLeft: 3,
