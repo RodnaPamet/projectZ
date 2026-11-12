@@ -21386,7 +21386,8 @@
           "bookerFirstName",
           "capacity",
           "spotsLeft",
-          "lesson"
+          "lesson",
+          "viewer"
         ],
         "properties": {
           "venue": {
@@ -21456,6 +21457,19 @@
               }
             ],
             "description": "Set when the booking is a lesson with a coach (#549): say so before the person joins. `null` for a game. The lesson's price is not given here; it is paid at the club."
+          },
+          "viewer": {
+            "type": ["object", "null"],
+            "description": "The signed-in viewer's part in it (#681); null signed out. The booker, or a player already on it, is not offered to join.",
+            "required": ["isBooker", "isPlaying"],
+            "properties": {
+              "isBooker": {
+                "type": "boolean"
+              },
+              "isPlaying": {
+                "type": "boolean"
+              }
+            }
           }
         }
       },
