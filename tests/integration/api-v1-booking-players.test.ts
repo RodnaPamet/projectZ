@@ -371,11 +371,11 @@ describe('players on a booking (#358)', () => {
       expect(cancelled.res.status).toBe(200);
 
       expect((await accept(second, token)).res.status).toBe(404);
-      // The added player sees it cancelled, under Минали.
+      // The added player sees it cancelled, under Отменени (#670).
       const past = await call<{ items: Array<{ id: string; status: string }> }>(
         r(listRoute),
         friend,
-        '/me/bookings?when=past',
+        '/me/bookings?when=cancelled',
       );
       expect(past.body.data.items).toEqual([expect.objectContaining({ id, status: 'CANCELLED' })]);
       // ...and cannot cancel it themselves: only the booker's booking is found.

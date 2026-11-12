@@ -9,7 +9,7 @@ import type { PlayedClub } from './seed-my-bookings';
 /**
  * The booking detail journey (#359), shared by the 1280 px spec and its
  * 393 px twin: Предстоящи → a card → the detail → Отмени → Отменена, and
- * the list showing it under Минали afterwards.
+ * the list showing it under Отменени afterwards.
  */
 
 const mb = bg.myBookings;
@@ -63,7 +63,7 @@ export async function expectAxeClean(page: Page) {
 
 /**
  * From the list to a cancelled booking. Returns once the list shows it under
- * Минали, labelled Отменена.
+ * Отменени (#670), labelled Отменена.
  */
 export async function openAndCancel(page: Page, club: PlayedClub, laterId: string) {
   await page.goto('/me/bookings');
@@ -97,13 +97,13 @@ export async function openAndCancel(page: Page, club: PlayedClub, laterId: strin
   expect((await posted).status()).toBe(200);
   await expect(cancel).toHaveCount(0);
 
-  // Back to the list: gone from Предстоящи, under Минали as Отменена.
+  // Back to the list: gone from Предстоящи, under Отменени as Отменена (#670).
   // `exact`: the header's "Моите резервации" and the tab bar's "Резервации"
   // link to the same list; this is the page's own back link.
   await page.getByRole('main').getByRole('link', { name: mb.detail.back, exact: true }).click();
   await expect(page).toHaveURL(/\/me\/bookings$/);
   await expect(cards).toHaveCount(1);
-  await page.getByRole('radio', { name: mb.tabs.past }).click();
+  await page.getByRole('radio', { name: mb.tabs.cancelled }).click();
   const cancelledCard = cards.filter({ hasText: mb.status.CANCELLED });
   await expect(cancelledCard).toHaveCount(1);
 }

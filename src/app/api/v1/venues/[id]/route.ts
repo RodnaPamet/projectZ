@@ -48,12 +48,12 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
     if (!venue) return null;
     const club = await db.venueOrg.findUnique({
       where: { id: venue.tenantId },
-      select: { slug: true },
+      select: { slug: true, logoUrl: true },
     });
     // `venue.tenantId` is not a foreign key, so a venue can outlive its club
     // row. It cannot be booked without the club's slug: 404, like the list,
     // which leaves it out.
-    return club ? { venue, clubSlug: club.slug } : null;
+    return club ? { venue, clubSlug: club.slug, clubLogoUrl: club.logoUrl } : null;
   });
 
   // 404 rather than a null payload. A client that has to branch on
@@ -70,7 +70,7 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
     { userAgent: req.headers.get('user-agent') },
   );
 
-  return ok(toVenueDetail(found.venue, found.clubSlug));
+  return ok(toVenueDetail(found.venue, found.clubSlug, found.clubLogoUrl));
 }
 
 export const GET = defineV1Route(handler);

@@ -174,25 +174,34 @@ export async function listOwnBookings(
   };
 }
 
-/** Which of a person's bookings a list shows (#359): still to be played, or not. */
-export type BookingWhen = 'upcoming' | 'past';
+/** Which of a person's bookings a list shows (#359, #670): still to be played, played, or cancelled. */
+export type BookingWhen = 'upcoming' | 'past' | 'cancelled';
 
 /**
  * UPCOMING is a booking that still holds its court: PENDING or CONFIRMED, and
  * not over yet. A game in progress stays upcoming until its end, so a player
- * checking the court number mid-match still finds it on top. PAST is
- * everything else (ended, cancelled, completed, no-show), so a booking
- * cancelled for next week moves to Минали at once, labelled Отменена, and the
- * upcoming list only shows games that will happen.
+ * checking the court number mid-match still finds it on top. CANCELLED is its
+ * own tab (owner, #670): a booking cancelled for next week used to sit on top
+ * of Минали, which read as a game already played. PAST is everything else
+ * (ended, completed, no-show).
  *
- * One definition for both tabs: `past` is `NOT upcoming`, so no booking can be
- * in both lists, or in neither.
+ * `past` is `NOT upcoming AND NOT cancelled`, so the three tabs never overlap
+ * and no booking is in none of them.
  */
 function upcomingWhere(now: Date) {
   return {
     status: { in: ['PENDING' as const, 'CONFIRMED' as const] },
     endTs: { gt: now },
   };
+}
+
+const CANCELLED = { status: 'CANCELLED' as const };
+
+function whenWhere(when: BookingWhen | undefined, now: Date) {
+  if (when === 'upcoming') return upcomingWhere(now);
+  if (when === 'cancelled') return CANCELLED;
+  if (when === 'past') return { AND: [{ NOT: upcomingWhere(now) }, { NOT: CANCELLED }] };
+  return {};
 }
 
 /**
@@ -261,8 +270,7 @@ export async function listBookingsForUserAcrossClubs(
   const rows = await db.booking.findMany({
     where: {
       ...mine(input.userId),
-      ...(input.when === 'upcoming' ? upcomingWhere(now) : {}),
-      ...(input.when === 'past' ? { NOT: upcomingWhere(now) } : {}),
+      ...whenWhere(input.when, now),
     },
     select: { ...BOOKING_FIELDS, tenantId: true, bookedByUserId: true },
     // Upcoming reads soonest first, so the next game is on top (audit P05).

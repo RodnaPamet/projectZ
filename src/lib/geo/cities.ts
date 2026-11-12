@@ -60,8 +60,13 @@ const BY_SPELLING = new Map<string, CityKey>(
   ),
 );
 
-/** The catalogue key for a stored or typed city, or null for one not in the table. */
+/**
+ * The catalogue key for a stored or typed city, or null for one not in the
+ * table. The key itself is accepted too (`staraZagora`), as the v1 API's
+ * `?city=` carries it since #667.
+ */
 export function cityKey(raw: string): CityKey | null {
+  if (Object.hasOwn(CITY_SPELLINGS, raw)) return raw as CityKey;
   return BY_SPELLING.get(norm(raw)) ?? null;
 }
 
