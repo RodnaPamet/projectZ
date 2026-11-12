@@ -147,6 +147,82 @@ describe('GET /api/v1/venues/[id]', () => {
 });
 
 describe('GET /api/v1/venues/near', () => {
+  const db = prismaTestClient();
+
+  // Two venues 1 and 3 km from the point, one with an indoor court (#667).
+  async function seedTwo() {
+    const tenant = await seedTenant({}, db);
+    return asAppSuperuser(db, async (tx) => {
+      await tx.venueOrg.update({
+        where: { id: tenant.tenantId },
+        data: { logoUrl: 'https://cdn.test/logo.webp' },
+      });
+      const make = async (name: string, lat: number, isIndoor: boolean, price: number) => {
+        const venue = await tx.venue.create({
+          data: {
+            tenantId: tenant.tenantId,
+            slug: `${name.toLowerCase()}-${Date.now()}`,
+            name,
+            addressLine: '1 Court St',
+            city: 'София',
+            email: 'internal@club.test',
+            lat,
+            lng: 23.32,
+          },
+        });
+        await tx.resource.create({
+          data: {
+            tenantId: tenant.tenantId,
+            venueId: venue.id,
+            name: 'Court 1',
+            sport: 'PADEL',
+            surface: 'HARD',
+            isIndoor,
+            basePriceCents: price,
+          },
+        });
+        return venue.id;
+      };
+      // ~1.1 km and ~3.3 km north of 42.70, 23.32.
+      const near = await make('Near', 42.71, true, 3000);
+      const far = await make('Far', 42.73, false, 2000);
+      return { near, far, clubSlug: tenant.tenantSlug };
+    });
+  }
+
+  const nearCall = async (q: string) => {
+    const res = await getNear(
+      new NextRequest(`http://t/api/v1/venues/near?lat=42.70&lng=23.32${q}`),
+      undefined,
+    );
+    expect(res.status).toBe(200);
+    return ((await res.json()) as { data: { venues: Array<Record<string, unknown>> } }).data.venues;
+  };
+
+  it('answers full venue cards plus the distance, nearest first (#667)', async () => {
+    const { near, far, clubSlug } = await seedTwo();
+    const venues = await nearCall('');
+    expect(venues.map((v) => v.id)).toEqual([near, far]);
+    expect(venues[0]).toMatchObject({
+      clubSlug,
+      sports: ['PADEL'],
+      fromPriceCents: 3000,
+      currency: 'EUR',
+      clubLogoUrl: 'https://cdn.test/logo.webp',
+      cover: null,
+    });
+    expect(venues[0]!.distanceKm).toBeCloseTo(1.1, 0);
+  });
+
+  it("applies the list's filters: city in any spelling, indoor, max price (#667)", async () => {
+    const { near, far } = await seedTwo();
+    expect((await nearCall('&city=Sofia')).map((v) => v.id)).toEqual([near, far]);
+    expect((await nearCall('&city=Plovdiv')).map((v) => v.id)).toEqual([]);
+    expect((await nearCall('&indoor=true')).map((v) => v.id)).toEqual([near]);
+    expect((await nearCall('&maxPrice=2500')).map((v) => v.id)).toEqual([far]);
+    expect((await nearCall('&limit=1')).map((v) => v.id)).toEqual([near]);
+  });
+
   it('rejects a missing coordinate with a 400, not a PostGIS error', async () => {
     const res = await getNear(new NextRequest('http://t/api/v1/venues/near?lng=23.3'), undefined);
     const body = (await res.json()) as { error: { code: string } };

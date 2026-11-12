@@ -76,11 +76,11 @@ const row = (id: string, tenantId: string): Row =>
     reviewCount: 3,
     coverPhotoUrl: null,
     resources: [
-      { sport: 'PADEL', basePriceCents: 2400, status: 'ACTIVE' },
-      { sport: 'TENNIS', basePriceCents: 1800, status: 'ACTIVE' },
+      { sport: 'PADEL', basePriceCents: 2400, currency: 'EUR', status: 'ACTIVE' },
+      { sport: 'TENNIS', basePriceCents: 1800, currency: 'EUR', status: 'ACTIVE' },
       // Inactive: neither its sport nor its price may reach the card. The
       // endpoint's mapper drops it; the page's own mapping did not.
-      { sport: 'CHESS', basePriceCents: 100, status: 'INACTIVE' },
+      { sport: 'CHESS', basePriceCents: 100, currency: 'EUR', status: 'INACTIVE' },
     ],
   }) as unknown as Row;
 
@@ -169,6 +169,8 @@ describe('public venues page database binding', () => {
           reviewCount: 3,
           sports: ['PADEL', 'TENNIS'],
           fromPriceCents: 1800,
+          currency: 'EUR',
+          clubLogoUrl: null,
           coverPhotoUrl: null,
           cover: null,
         },

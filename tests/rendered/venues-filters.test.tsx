@@ -50,6 +50,8 @@ const venue = (over: Partial<VenueSummary> = {}): VenueSummary => ({
   reviewCount: 12,
   sports: ['PADEL'],
   fromPriceCents: 2400,
+  currency: 'EUR',
+  clubLogoUrl: null,
   coverPhotoUrl: null,
   cover: null,
   ...over,

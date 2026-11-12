@@ -30,22 +30,30 @@ export async function listVenueSummaries(
   opts: { cursor?: string; limit?: number } = {},
 ): Promise<V1Page<VenueSummary>> {
   const result = await listVenues(db, filter, opts);
+  return { items: await toSummaries(db, result.items), nextCursor: result.nextCursor };
+}
 
-  const tenantIds = [...new Set(result.items.map((v) => v.tenantId))];
+/**
+ * Cards for venues already read, in their order: each with its club's slug
+ * and logo, looked up once over the distinct clubs. A venue whose club row is
+ * gone is left out (see above). Shared with the near-me cards (#667).
+ */
+export async function toSummaries(
+  db: PrismaClient,
+  venues: Array<Parameters<typeof toVenueSummary>[0] & { tenantId: string }>,
+): Promise<VenueSummary[]> {
+  const tenantIds = [...new Set(venues.map((v) => v.tenantId))];
   const clubs = tenantIds.length
     ? await db.venueOrg.findMany({
         where: { id: { in: tenantIds } },
-        select: { id: true, slug: true },
+        select: { id: true, slug: true, logoUrl: true },
         take: tenantIds.length,
       })
     : [];
-  const slugs = new Map(clubs.map((c) => [c.id, c.slug]));
+  const byId = new Map(clubs.map((c) => [c.id, c]));
 
-  return {
-    items: result.items.flatMap((v) => {
-      const clubSlug = slugs.get(v.tenantId);
-      return clubSlug ? [toVenueSummary(v, clubSlug)] : [];
-    }),
-    nextCursor: result.nextCursor,
-  };
+  return venues.flatMap((v) => {
+    const club = byId.get(v.tenantId);
+    return club ? [toVenueSummary(v, club.slug, club.logoUrl)] : [];
+  });
 }
