@@ -427,6 +427,8 @@ type BookingRow = {
     groupRateCents: number | null;
     cancelCutoffHours: number;
   } | null;
+  /** The tournament match it puts on a court (#680), when it is one. */
+  tournamentMatch?: { id: string; tournamentId: string; tournament: { name: string } } | null;
 };
 
 /**
@@ -434,6 +436,18 @@ type BookingRow = {
  * each part costs. The booking's own `totalCents` is the court's part; this
  * adds the coach's fee and the two together. Both are paid at the club.
  */
+/**
+ * The tournament match a booking puts on a court (#680): a league proposal
+ * still held (the booking PENDING) or a placed match. The answers to a
+ * proposal and the draw are on the tournament's screens; this names it and
+ * says where.
+ */
+export interface MyBookingTournamentMatchDto {
+  matchId: string;
+  tournamentId: string;
+  tournamentName: string;
+}
+
 export interface MyBookingLessonDto {
   id: string;
   /** `slug` is the coach's page, null once they are no longer listed. */
@@ -581,6 +595,8 @@ export interface MyBookingDto extends BookingDto {
   viewerRole: 'BOOKER' | 'PARTICIPANT';
   /** The lesson on it, when it is one (#548); null for a plain court booking. */
   lesson: MyBookingLessonDto | null;
+  /** The tournament match it is (#680); null otherwise. */
+  tournamentMatch: MyBookingTournamentMatchDto | null;
 }
 
 export function toMyBookingDto(
@@ -602,6 +618,13 @@ export function toMyBookingDto(
     // only their own); an added player is told there is nothing to cancel.
     cancellableUntil: b.viewerRole === 'BOOKER' ? base.cancellableUntil : null,
     lesson: toMyBookingLesson(b),
+    tournamentMatch: b.tournamentMatch
+      ? {
+          matchId: b.tournamentMatch.id,
+          tournamentId: b.tournamentMatch.tournamentId,
+          tournamentName: b.tournamentMatch.tournament.name,
+        }
+      : null,
     viewerRole: b.viewerRole,
     clubSlug: b.clubSlug,
     clubLogoUrl: b.clubLogoUrl ?? null,

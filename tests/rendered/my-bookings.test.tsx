@@ -56,6 +56,7 @@ const booking = (over: Partial<MyBookingDto> = {}): MyBookingDto => ({
   resource: { id: 'r1', name: 'Корт 1', sport: 'PADEL', resourceType: 'COURT' },
   venue: { id: 'v1', name: 'Алфа Кортове', city: 'Sofia', timezone: 'Europe/Sofia' },
   clubSlug: 'alpha',
+  tournamentMatch: null,
   clubLogoUrl: null,
   venueReview: null,
   canReview: true,

@@ -62,6 +62,7 @@ const booking = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => 
     phone: null,
   },
   clubSlug: 'alpha',
+  tournamentMatch: null,
   clubLogoUrl: null,
   venueReview: null,
   canReview: false,
