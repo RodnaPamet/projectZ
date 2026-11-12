@@ -10617,6 +10617,68 @@
             }
           },
           {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "description": "First day, `YYYY-MM-DD` at the venue, included (#668).",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "description": "Last day, `YYYY-MM-DD` at the venue, included (#668).",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fromHour",
+            "in": "query",
+            "required": false,
+            "description": "Games starting at or after this hour at the venue (#668).",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 23
+            }
+          },
+          {
+            "name": "toHour",
+            "in": "query",
+            "required": false,
+            "description": "Games starting before this hour at the venue (#668).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 24
+            }
+          },
+          {
+            "name": "indoor",
+            "in": "query",
+            "required": false,
+            "description": "Indoor (`true`) or outdoor (`false`) courts only (#668).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "description": "Games whose level wish includes this whole level, or that wish none (#668).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          },
+          {
             "name": "city",
             "in": "query",
             "required": false,
@@ -23744,7 +23806,10 @@
           "sport",
           "resourceType",
           "courtName",
+          "isIndoor",
           "venue",
+          "courtPrice",
+          "players",
           "startTs",
           "endTs",
           "timezone",
@@ -23772,9 +23837,13 @@
           "courtName": {
             "type": "string"
           },
+          "isIndoor": {
+            "type": "boolean",
+            "description": "The court is indoors (#668)."
+          },
           "venue": {
             "type": "object",
-            "required": ["id", "slug", "name", "city"],
+            "required": ["id", "slug", "name", "city", "logoUrl"],
             "properties": {
               "id": {
                 "type": "string"
@@ -23787,8 +23856,34 @@
               },
               "city": {
                 "type": "string"
+              },
+              "logoUrl": {
+                "type": ["string", "null"],
+                "description": "The club's logo (#668)."
               }
             }
+          },
+          "courtPrice": {
+            "type": "object",
+            "description": "The booking's total in integer cents (#668). The card shows the court total, not a share per player; it is paid at the club as before.",
+            "required": ["totalCents", "currency"],
+            "properties": {
+              "totalCents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "description": "ISO 4217."
+              }
+            }
+          },
+          "players": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/OpenGamePlayer"
+            },
+            "description": "Who is on the game, booker first (#668). Null unless the viewer is the booker, plays in it, or has a PENDING or ACCEPTED request: anyone else browsing sees `playersCount` and empty seats."
           },
           "startTs": {
             "type": "string",
@@ -27992,6 +28087,26 @@
               "$ref": "#/components/schemas/SportType"
             },
             "description": "Sports with a live court at a live venue."
+          }
+        }
+      },
+      "OpenGamePlayer": {
+        "type": "object",
+        "description": "One person on a game (#668). Never carries a user id.",
+        "required": ["firstName", "avatarUrl", "level", "isBooker"],
+        "properties": {
+          "firstName": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          },
+          "level": {
+            "type": ["number", "null"],
+            "description": "Their level in the game's sport (1–7, one decimal) as they let others see it; null when hidden, none, or ranking is off."
+          },
+          "isBooker": {
+            "type": "boolean"
           }
         }
       },
