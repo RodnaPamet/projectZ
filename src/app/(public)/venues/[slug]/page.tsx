@@ -229,6 +229,7 @@ export default async function VenuePage({
             Играй there, and a second one would say it twice. */}
         {me ? <PageBreadcrumbs items={playCrumbs(tNav, venue.name)} className="hidden" /> : null}
         <VenueHeader
+          venueId={venue.id}
           name={venue.name}
           addressLine={venue.addressLine}
           city={cityLabel(tCities, venue.city)}

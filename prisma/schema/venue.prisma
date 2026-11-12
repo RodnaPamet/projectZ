@@ -337,3 +337,18 @@ model VenuePlanFeature {
   @@index([tenantId])
   @@map("venue_plan_feature")
 }
+
+/// A club a player marked with the heart (#672, owner 2026-11-12): the phone's
+/// and the web's «Любими». The person's own, at every club: owner-only RLS on
+/// app.user_id (P87), like the bell. No foreign keys, as `PushSubscription`:
+/// a venue that is gone simply stops being listed (the read goes through the
+/// public venue filter), and account deletion removes the person's rows.
+model FavouriteVenue {
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+
+  @@id([userId, venueId])
+  @@index([venueId])
+  @@map("favourite_venue")
+}
