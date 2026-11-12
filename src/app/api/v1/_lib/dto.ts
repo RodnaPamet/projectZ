@@ -779,7 +779,14 @@ export interface BookingInviteLinkDto {
 
 /** `POST /booking-invites/preview` (#358): nothing private. */
 export interface BookingInvitePreviewDto {
-  venue: { name: string; city: string; timezone: string };
+  /** `cityKey` / `cityNames` (#686): the city as on a venue card. */
+  venue: {
+    name: string;
+    city: string;
+    cityKey: string | null;
+    cityNames: CityNames;
+    timezone: string;
+  };
   /** `resourceType` (P51): see `ResourceSlotsDto.resourceType`. */
   resource: { name: string; sport: string; resourceType: string };
   startTs: string;
@@ -809,7 +816,13 @@ export function toBookingInvitePreviewDto(p: {
   viewer?: { isBooker: boolean; isPlaying: boolean } | null;
 }): BookingInvitePreviewDto {
   return {
-    venue: { name: p.venueName, city: p.venueCity, timezone: p.timezone },
+    venue: {
+      name: p.venueName,
+      city: p.venueCity,
+      cityKey: cityKey(p.venueCity),
+      cityNames: cityNames(p.venueCity),
+      timezone: p.timezone,
+    },
     resource: { name: p.courtName, sport: p.sport, resourceType: p.resourceType },
     startTs: rfc3339(p.startTs),
     endTs: rfc3339(p.endTs),

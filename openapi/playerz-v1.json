@@ -21392,13 +21392,20 @@
         "properties": {
           "venue": {
             "type": "object",
-            "required": ["name", "city", "timezone"],
+            "required": ["name", "city", "cityKey", "cityNames", "timezone"],
             "properties": {
               "name": {
                 "type": "string"
               },
               "city": {
                 "type": "string"
+              },
+              "cityKey": {
+                "type": ["string", "null"],
+                "description": "The canonical city (#686)."
+              },
+              "cityNames": {
+                "$ref": "#/components/schemas/CityNames"
               },
               "timezone": {
                 "type": "string",
