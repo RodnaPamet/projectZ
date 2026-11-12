@@ -187,7 +187,7 @@ export type Counterpart =
       avatarUrl: string | null;
       deleted: boolean;
     }
-  | { kind: 'club'; clubId: string; slug: string; name: string }
+  | { kind: 'club'; clubId: string; slug: string; name: string; logoUrl: string | null }
   | ({ kind: 'game'; members: number } & GameChatFacts);
 
 export interface ConversationSummary {
@@ -414,6 +414,7 @@ function counterpartOf(
       clubId: c.tenantId ?? '',
       slug: club?.slug ?? '',
       name: club?.name ?? '',
+      logoUrl: club?.logoUrl ?? null,
     };
   }
   const id = c.otherUserId ?? '';

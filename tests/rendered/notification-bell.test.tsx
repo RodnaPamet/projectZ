@@ -22,6 +22,7 @@ const n = messages.common.nav;
 const row = (id: string, over: Partial<NotificationDto> = {}): NotificationDto => ({
   id,
   kind: 'BOOKING_CONFIRMED',
+  category: 'bookings',
   title: 'Резервацията е потвърдена',
   body: 'Sofia Padel, Корт 1 · пт, 9 окт., 19:00–20:30',
   href: `/me/bookings/b_${id}`,

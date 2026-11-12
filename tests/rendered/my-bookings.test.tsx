@@ -54,8 +54,9 @@ const booking = (over: Partial<MyBookingDto> = {}): MyBookingDto => ({
   createdAt: '2026-09-20T10:00:00.000Z',
   cancellableUntil: null,
   resource: { id: 'r1', name: 'Корт 1', sport: 'PADEL', resourceType: 'COURT' },
-  venue: { id: 'v1', name: 'Алфа Кортове', timezone: 'Europe/Sofia' },
+  venue: { id: 'v1', name: 'Алфа Кортове', city: 'Sofia', timezone: 'Europe/Sofia' },
   clubSlug: 'alpha',
+  clubLogoUrl: null,
   venueReview: null,
   canReview: true,
   viewerRole: 'BOOKER',
@@ -167,7 +168,7 @@ describe('the server seed', () => {
         booking(),
         booking({
           id: 'bk2',
-          venue: { id: 'v2', name: 'Лондон', timezone: 'Europe/London' },
+          venue: { id: 'v2', name: 'Лондон', city: 'Sofia', timezone: 'Europe/London' },
         }),
       ]),
     );
@@ -343,7 +344,7 @@ describe('reviewing a venue, optimistically', () => {
       page([
         booking(),
         booking({ id: 'bk-again', canReview: true }),
-        booking({ id: 'bk-other', venue: { id: 'v2', name: 'Друг', timezone: 'Europe/Sofia' } }),
+        booking({ id: 'bk-other', venue: { id: 'v2', name: 'Друг', city: 'Sofia', timezone: 'Europe/Sofia' } }),
       ]),
     );
 
