@@ -155,12 +155,41 @@ function checkLevels(levelMin: number | null, levelMax: number | null): void {
 
 // ─── What everyone sees of a game ───────────────────────────────────────
 
+/** One person on a game (#668): what a card draws in a seat. */
+export interface OpenGamePlayer {
+  firstName: string | null;
+  avatarUrl: string | null;
+  /** Their level in the game's sport, as they let others see it; null when hidden or none. */
+  level: number | null;
+  isBooker: boolean;
+}
+
 export interface OpenGameSummary {
   id: string;
   sport: SportType;
   resourceType: string;
   courtName: string;
-  venue: { id: string; slug: string; name: string; city: string };
+  /** The court is indoors (#668). */
+  isIndoor: boolean;
+  venue: {
+    id: string;
+    slug: string;
+    name: string;
+    city: string;
+    /** The club's logo (#668), or null. */
+    logoUrl: string | null;
+  };
+  /**
+   * The booking's total (#668, owner 2026-11-12: the card shows the court
+   * total, not a share), in `currency`. Paid at the club as before.
+   */
+  courtPrice: { totalCents: number; currency: string };
+  /**
+   * Who is on it, booker first (#668). Owner decision 2026-11-12: only for a
+   * viewer who is the booker, plays, or has asked (pending or accepted);
+   * anyone else browsing sees counts and empty seats, so this is null.
+   */
+  players: OpenGamePlayer[] | null;
   startTs: Date;
   endTs: Date;
   timezone: string;
@@ -208,16 +237,23 @@ const GAME_SELECT = {
       startTs: true,
       endTs: true,
       bookedByUserId: true,
-      participants: { select: { id: true, userId: true } },
+      totalCents: true,
+      currency: true,
+      participants: {
+        select: { id: true, userId: true, guestName: true, position: true },
+        orderBy: { position: 'asc' as const },
+      },
       resource: {
         select: {
           name: true,
           sport: true,
           resourceType: true,
           capacity: true,
+          isIndoor: true,
           venue: {
             select: {
               id: true,
+              tenantId: true,
               slug: true,
               name: true,
               city: true,
@@ -264,14 +300,22 @@ async function summarise(
   now: Date,
 ): Promise<OpenGameSummary[]> {
   if (rows.length === 0) return [];
-  const bookerIds = [
-    ...new Set(rows.flatMap((g) => (g.booking.bookedByUserId ? [g.booking.bookedByUserId] : []))),
+  // Bookers always (the card names the organiser); everyone on the booking,
+  // for the games whose players this viewer may see (#668).
+  const people = [
+    ...new Set(
+      rows.flatMap((g) => [
+        ...(g.booking.bookedByUserId ? [g.booking.bookedByUserId] : []),
+        ...g.booking.participants.flatMap((p) => (p.userId ? [p.userId] : [])),
+      ]),
+    ),
   ];
-  const [bookers, mine, myLevels] = await Promise.all([
+  const tenantIds = [...new Set(rows.map((g) => g.booking.resource.venue.tenantId))];
+  const [bookers, mine, myLevels, clubs] = await Promise.all([
     db.user.findMany({
-      where: { id: { in: bookerIds } },
+      where: { id: { in: people } },
       select: { id: true, name: true, avatarUrl: true, deletedAt: true },
-      take: bookerIds.length,
+      take: people.length,
     }),
     viewerId
       ? // guardrail-allow: cross-tenant — the viewer's own requests, on games already read.
@@ -284,7 +328,13 @@ async function summarise(
     viewerId
       ? shownRatings(db, [viewerId], viewerId)
       : Promise.resolve(new Map<string, ShownRating>()),
+    db.venueOrg.findMany({
+      where: { id: { in: tenantIds } },
+      select: { id: true, logoUrl: true },
+      take: tenantIds.length,
+    }),
   ]);
+  const logos = new Map(clubs.map((c) => [c.id, c.logoUrl]));
   const byId = new Map(bookers.map((u) => [u.id, u]));
   const fits = (g: GameRow): boolean | null => {
     if (!viewerId || (g.levelMin === null && g.levelMax === null)) return null;
@@ -297,6 +347,61 @@ async function summarise(
     );
   };
   const myRequest = new Map(mine.map((r) => [r.gameId, r]));
+
+  // Whose players this viewer sees (#668): they book it, play in it, or asked.
+  const seesPlayers = (g: GameRow): boolean => {
+    if (!viewerId) return false;
+    const b = g.booking;
+    if (b.bookedByUserId === viewerId || b.participants.some((p) => p.userId === viewerId)) {
+      return true;
+    }
+    const r = myRequest.get(g.id);
+    if (!r) return false;
+    const status = effectiveStatus(
+      r.status,
+      b.startTs,
+      b.resource.venue.cancellationCutoffHours,
+      now,
+    );
+    return status === 'PENDING' || status === 'ACCEPTED';
+  };
+  const visible = rows.filter(seesPlayers);
+  const theirIds = [
+    ...new Set(
+      visible.flatMap((g) => [
+        ...(g.booking.bookedByUserId ? [g.booking.bookedByUserId] : []),
+        ...g.booking.participants.flatMap((p) => (p.userId ? [p.userId] : [])),
+      ]),
+    ),
+  ];
+  // Their levels as each lets others see them; one read for the page.
+  const theirLevels = theirIds.length
+    ? await shownRatings(db, theirIds, viewerId, now)
+    : new Map<string, ShownRating>();
+  const person = (userId: string, sport: SportType, isBooker: boolean): OpenGamePlayer => {
+    const u = byId.get(userId);
+    const live = u && !u.deletedAt ? u : undefined;
+    const rating = live ? ratingIn(theirLevels, userId, sport) : null;
+    return {
+      firstName: firstName(live?.name),
+      avatarUrl: live ? avatarUrlOf(live.avatarUrl) : null,
+      level: rating ? rating.level : null,
+      isBooker,
+    };
+  };
+  const playersOf = (g: GameRow): OpenGamePlayer[] | null => {
+    if (!seesPlayers(g)) return null;
+    const b = g.booking;
+    const sport = b.resource.sport;
+    return [
+      ...(b.bookedByUserId ? [person(b.bookedByUserId, sport, true)] : []),
+      ...b.participants.map((p) =>
+        p.userId
+          ? person(p.userId, sport, false)
+          : { firstName: firstName(p.guestName), avatarUrl: null, level: null, isBooker: false },
+      ),
+    ];
+  };
 
   return rows.map((g): OpenGameSummary => {
     const b = g.booking;
@@ -312,7 +417,16 @@ async function summarise(
       sport: b.resource.sport,
       resourceType: b.resource.resourceType,
       courtName: b.resource.name,
-      venue: { id: v.id, slug: v.slug, name: v.name, city: v.city },
+      isIndoor: b.resource.isIndoor,
+      venue: {
+        id: v.id,
+        slug: v.slug,
+        name: v.name,
+        city: v.city,
+        logoUrl: logos.get(v.tenantId) ?? null,
+      },
+      courtPrice: { totalCents: b.totalCents, currency: b.currency },
+      players: playersOf(g),
       startTs: b.startTs,
       endTs: b.endTs,
       timezone: v.timezone,
@@ -357,6 +471,16 @@ export interface OpenGamesFilter {
   sport?: SportType;
   /** A calendar day at the venue, `YYYY-MM-DD`. */
   date?: string;
+  /** A range of days at the venue, `YYYY-MM-DD`, both ends included (#668). */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Start hour at the venue, from `fromHour` (0–23) up to before `toHour` (1–24) (#668). */
+  fromHour?: number;
+  toHour?: number;
+  /** Indoor or outdoor courts only (#668). */
+  indoor?: boolean;
+  /** Games whose level wish includes this whole level, or that wish none (#668). */
+  level?: number;
   city?: string;
   venueId?: string;
 }
@@ -419,6 +543,21 @@ export async function listOpenGames(
     }
     if (day) {
       where.push(Prisma.sql`to_char(b."startTs" AT TIME ZONE v.timezone, 'YYYY-MM-DD') = ${day}`);
+    }
+    const localDay = Prisma.sql`to_char(b."startTs" AT TIME ZONE v.timezone, 'YYYY-MM-DD')`;
+    if (filter.dateFrom && ISO_DAY.test(filter.dateFrom)) {
+      where.push(Prisma.sql`${localDay} >= ${filter.dateFrom}`);
+    }
+    if (filter.dateTo && ISO_DAY.test(filter.dateTo)) {
+      where.push(Prisma.sql`${localDay} <= ${filter.dateTo}`);
+    }
+    const localHour = Prisma.sql`extract(hour from b."startTs" AT TIME ZONE v.timezone)`;
+    if (filter.fromHour !== undefined) where.push(Prisma.sql`${localHour} >= ${filter.fromHour}`);
+    if (filter.toHour !== undefined) where.push(Prisma.sql`${localHour} < ${filter.toHour}`);
+    if (filter.indoor !== undefined) where.push(Prisma.sql`r."isIndoor" = ${filter.indoor}`);
+    if (filter.level !== undefined) {
+      where.push(Prisma.sql`(g."levelMin" IS NULL OR g."levelMin" <= ${filter.level})`);
+      where.push(Prisma.sql`(g."levelMax" IS NULL OR g."levelMax" >= ${filter.level})`);
     }
     if (blocked.length > 0) {
       where.push(Prisma.sql`b."bookedByUserId" NOT IN (${Prisma.join(blocked)})`);
