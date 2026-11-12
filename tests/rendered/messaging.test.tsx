@@ -76,7 +76,7 @@ describe('ConversationView', () => {
   it('names every sender, and a staff reply with its club', async () => {
     const seed = conversation({
       kind: 'club',
-      counterpart: { kind: 'club', clubId: 't1', slug: 'levski', name: 'Тенис клуб Левски' },
+      counterpart: { kind: 'club', clubId: 't1', slug: 'levski', name: 'Тенис клуб Левски', logoUrl: null },
       messages: [
         msg({ id: 'm1', mine: true, sender: { name: 'Аз', deleted: false, clubName: null } }),
         msg({
