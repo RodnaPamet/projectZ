@@ -38,6 +38,8 @@ const venue = (over: Partial<VenueSummary> = {}): VenueSummary => ({
   publicSlug: 'alfa',
   name: 'Алфа Кортове',
   city: 'Sofia',
+  cityKey: 'sofia',
+  cityNames: { bg: 'София', en: 'Sofia' },
   country: 'BG',
   avgRating: 4.5,
   reviewCount: 12,

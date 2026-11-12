@@ -398,7 +398,7 @@
             "name": "city",
             "in": "query",
             "required": false,
-            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`.",
+            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`. A canonical key (`sofia`, from `cityKey` or `GET /venues/facets`) or any spelling of the city (#667).",
             "schema": {
               "type": "string"
             }
@@ -614,6 +614,57 @@
           },
           "500": {
             "description": "`INTERNAL`. Reachable by an out-of-enum `sport` or a `limit` that is not a positive integer, both of which reach the database unvalidated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/facets": {
+      "get": {
+        "operationId": "listVenueFacets",
+        "summary": "What the venue filters can offer",
+        "description": "The cities with a live venue and the sports with a live court (#667), from the query the web's /venues filters use. Public.",
+        "tags": ["Venues"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The cities and sports.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueFacets"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`: the database could not be read.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17700,6 +17751,8 @@
           "publicSlug",
           "name",
           "city",
+          "cityKey",
+          "cityNames",
           "country",
           "avgRating",
           "reviewCount",
@@ -17731,7 +17784,15 @@
             "type": "string"
           },
           "city": {
-            "type": "string"
+            "type": "string",
+            "description": "As the club typed it. Prefer `cityKey` / `cityNames` (#667)."
+          },
+          "cityKey": {
+            "type": ["string", "null"],
+            "description": "The canonical city (#667), a key such as `sofia` or `staraZagora`: what `?city=` takes. Null for a city outside the canonical list."
+          },
+          "cityNames": {
+            "$ref": "#/components/schemas/CityNames"
           },
           "country": {
             "type": "string",
@@ -27703,6 +27764,55 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/VenuePlan"
+          }
+        }
+      },
+      "CityNames": {
+        "type": "object",
+        "description": "A city's name in Bulgarian and English (#667). The API has no request language, so both go out; for a city outside the canonical list both are the text as typed.",
+        "required": ["bg", "en"],
+        "properties": {
+          "bg": {
+            "type": "string"
+          },
+          "en": {
+            "type": "string"
+          }
+        }
+      },
+      "CityFacet": {
+        "type": "object",
+        "required": ["value", "key", "names"],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "What `?city=` takes: the key, or the typed text for a city outside the list."
+          },
+          "key": {
+            "type": ["string", "null"]
+          },
+          "names": {
+            "$ref": "#/components/schemas/CityNames"
+          }
+        }
+      },
+      "VenueFacets": {
+        "type": "object",
+        "required": ["cities", "sports"],
+        "properties": {
+          "cities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CityFacet"
+            },
+            "description": "Cities with a live venue, one per canonical city, at most 100."
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "Sports with a live court at a live venue."
           }
         }
       }
