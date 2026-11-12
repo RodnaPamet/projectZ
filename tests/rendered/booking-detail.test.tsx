@@ -51,6 +51,8 @@ const detail = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => (
     publicSlug: 'alfa-kortove',
     addressLine: 'ул. Тестова 1',
     city: 'София',
+    cityKey: 'sofia',
+    cityNames: { bg: 'София', en: 'Sofia' },
     lat: 42.69,
     lng: 23.32,
     phone: '+359 2 123 4567',
@@ -364,7 +366,14 @@ describe('the Предстоящи / Минали tabs', () => {
     const { players: _p, payAtClub: _a, venue, ...rest } = detail();
     return {
       ...rest,
-      venue: { id: venue.id, name: venue.name, city: venue.city, timezone: venue.timezone },
+      venue: {
+        id: venue.id,
+        name: venue.name,
+        city: venue.city,
+        cityKey: venue.cityKey,
+        cityNames: venue.cityNames,
+        timezone: venue.timezone,
+      },
       ...over,
     };
   };
