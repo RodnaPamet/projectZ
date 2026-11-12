@@ -23707,7 +23707,7 @@
           },
           "venue": {
             "type": "object",
-            "required": ["id", "slug", "name", "city", "logoUrl"],
+            "required": ["id", "slug", "name", "city", "cityKey", "cityNames", "logoUrl"],
             "properties": {
               "id": {
                 "type": "string"
@@ -23720,6 +23720,13 @@
               },
               "city": {
                 "type": "string"
+              },
+              "cityKey": {
+                "type": ["string", "null"],
+                "description": "The canonical city (#667)."
+              },
+              "cityNames": {
+                "$ref": "#/components/schemas/CityNames"
               },
               "logoUrl": {
                 "type": ["string", "null"],
@@ -27957,7 +27964,7 @@
       "OpenGamePlayer": {
         "type": "object",
         "description": "One person on a game (#668). Never carries a user id.",
-        "required": ["firstName", "avatarUrl", "level", "isBooker"],
+        "required": ["firstName", "avatarUrl", "level", "isBooker", "isYou"],
         "properties": {
           "firstName": {
             "type": ["string", "null"]
@@ -27971,6 +27978,10 @@
           },
           "isBooker": {
             "type": "boolean"
+          },
+          "isYou": {
+            "type": "boolean",
+            "description": "The viewer themselves, so their seat can say «Вие»."
           }
         }
       }
