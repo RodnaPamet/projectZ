@@ -1908,13 +1908,18 @@
       },
       "past": {
         "title": "No past bookings yet",
-        "description": "Bookings you have played or cancelled will show here."
+        "description": "Bookings you have played will show here."
+      },
+      "cancelled": {
+        "title": "No cancelled bookings",
+        "description": "Bookings you or the club cancel will show here."
       }
     },
     "tabs": {
       "label": "Which bookings",
       "upcoming": "Upcoming",
-      "past": "Past"
+      "past": "Past",
+      "cancelled": "Cancelled"
     },
     "browse": "Browse venues",
     "loadMore": "Load more",

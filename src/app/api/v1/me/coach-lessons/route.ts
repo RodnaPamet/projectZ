@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server';
 
-import { bookingWhenSchema } from '@/app-layer/schemas/booking';
+import { lessonWhenSchema } from '@/app-layer/schemas/booking';
 import { listMyLessons } from '@/app-layer/usecases/coach-lessons';
 import { toMyLesson } from '@/app/api/v1/_lib/coach-dto';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -24,7 +24,7 @@ async function handler(req: NextRequest) {
   if (!ctx.userId) throw new UnauthorizedError('Authentication required');
 
   const sp = req.nextUrl.searchParams;
-  const when = bookingWhenSchema.safeParse(sp.get('when') ?? undefined);
+  const when = lessonWhenSchema.safeParse(sp.get('when') ?? undefined);
   if (!when.success) {
     throw new ValidationError('`when` must be "upcoming" or "past"', { field: 'when' });
   }

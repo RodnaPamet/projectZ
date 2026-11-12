@@ -73,6 +73,7 @@ type Pages = V1Page<Item>[];
 export const BOOKING_LIST_KEYS: Record<BookingTab, InfiniteKey<Item>> = {
   upcoming: KEYS.meBookings({ when: 'upcoming' }),
   past: KEYS.meBookings({ when: 'past' }),
+  cancelled: KEYS.meBookings({ when: 'cancelled' }),
 };
 
 /** `StatusBadge` tone per booking status. An unknown (newer) status reads as neutral. */

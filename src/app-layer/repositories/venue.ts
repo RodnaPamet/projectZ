@@ -38,33 +38,40 @@ export function clampLimit(requested?: number): number {
   return Math.min(requested, MAX_PAGE_SIZE);
 }
 
-/**
- * Public venue search — deliberately CROSS-TENANT.
- *
- * A player looking for a padel court in Sofia does not know or care which
- * club owns it. This is the one read that must span tenants, so it runs
- * outside the RLS-bound path and filters through `publicVenueFilter`: the
- * venue ACTIVE and its club ACTIVE (#298).
- */
-export async function listVenues(
-  db: PrismaClient,
-  filter: VenueFilter,
-  opts: { cursor?: string; limit?: number } = {},
-): Promise<
-  Page<
-    Prisma.VenueGetPayload<{
-      include: { resources: true; photos: { select: typeof PHOTO_SELECT } };
-    }>
-  >
-> {
-  const take = clampLimit(opts.limit);
-  const publicVenue = await publicVenueFilter(db);
+/** What a venue card reads: its live courts and its cover. */
+export const VENUE_CARD_INCLUDE = {
+  resources: { where: { status: 'ACTIVE' as const }, take: 20 },
+  // The card's cover (#366): one row, by the partial unique index.
+  photos: { where: { kind: 'COVER' as const }, select: PHOTO_SELECT, take: 1 },
+} satisfies Prisma.VenueInclude;
 
+/**
+ * Venue cards for known ids, through the same public filter and the list's
+ * filters (#667): the near-me search finds the ids by distance, this reads
+ * the cards. Unordered; the caller orders by its own key.
+ */
+export async function listVenuesByIds(db: PrismaClient, ids: string[], filter: VenueFilter) {
+  if (ids.length === 0) return [];
+  const publicVenue = await publicVenueFilter(db);
+  // guardrail-allow: cross-tenant — the ids come from the public geo search,
+  // and `publicVenue.where` keeps a suspended club's venue out as the list does.
+  return db.venue.findMany({
+    where: { AND: [publicVenue.where, venueFilterWhere(filter), { id: { in: ids } }] },
+    include: VENUE_CARD_INCLUDE,
+    take: ids.length,
+  });
+}
+
+/**
+ * The list's filters as a `where` (#357): shared by the paged list and the
+ * near-me cards (#667), so «Близо до мен» filters exactly as the list does.
+ */
+export function venueFilterWhere(filter: VenueFilter): Prisma.VenueWhereInput {
   // A known city matches every way it is spelled (#357): `?city=Sofia` finds a
   // venue a club typed as `София`, and a search for "соф" finds `Sofia`. An
   // unknown city is matched exactly as before. See src/lib/geo/cities.ts.
   const qCities = filter.q ? citiesMatching(filter.q) : [];
-  const filters: Prisma.VenueWhereInput = {
+  return {
     ...(filter.city ? { city: { in: citySpellings(filter.city), mode: 'insensitive' } } : {}),
     ...(filter.q
       ? {
@@ -90,6 +97,31 @@ export async function listVenues(
         }
       : {}),
   };
+}
+
+/**
+ * Public venue search — deliberately CROSS-TENANT.
+ *
+ * A player looking for a padel court in Sofia does not know or care which
+ * club owns it. This is the one read that must span tenants, so it runs
+ * outside the RLS-bound path and filters through `publicVenueFilter`: the
+ * venue ACTIVE and its club ACTIVE (#298).
+ */
+export async function listVenues(
+  db: PrismaClient,
+  filter: VenueFilter,
+  opts: { cursor?: string; limit?: number } = {},
+): Promise<
+  Page<
+    Prisma.VenueGetPayload<{
+      include: { resources: true; photos: { select: typeof PHOTO_SELECT } };
+    }>
+  >
+> {
+  const take = clampLimit(opts.limit);
+  const publicVenue = await publicVenueFilter(db);
+
+  const filters = venueFilterWhere(filter);
 
   // guardrail-allow: cross-tenant — public venue search is intentionally
   // unscoped. A player hunting a padel court in Sofia does not know or care
@@ -97,11 +129,7 @@ export async function listVenues(
   // integration test asserts this did not weaken RLS for anything else.
   const rows = await db.venue.findMany({
     where: { AND: [publicVenue.where, filters] },
-    include: {
-      resources: { where: { status: 'ACTIVE' }, take: 20 },
-      // The card's cover (#366): one row, by the partial unique index.
-      photos: { where: { kind: 'COVER' }, select: PHOTO_SELECT, take: 1 },
-    },
+    include: VENUE_CARD_INCLUDE,
     orderBy: { id: 'asc' },
     // take + 1 so we can tell "there is a next page" WITHOUT a second
     // count(*) query, which on a large table is the expensive half.

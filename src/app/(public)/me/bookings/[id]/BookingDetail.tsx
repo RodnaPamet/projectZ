@@ -154,6 +154,7 @@ export function BookingDetail({
       infinite: [
         BOOKING_LIST_KEYS.upcoming as InfiniteKey<unknown>,
         BOOKING_LIST_KEYS.past as InfiniteKey<unknown>,
+        BOOKING_LIST_KEYS.cancelled as InfiniteKey<unknown>,
       ],
     },
   });

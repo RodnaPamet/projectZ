@@ -398,7 +398,7 @@
             "name": "city",
             "in": "query",
             "required": false,
-            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`.",
+            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`. A canonical key (`sofia`, from `cityKey` or `GET /venues/facets`) or any spelling of the city (#667).",
             "schema": {
               "type": "string"
             }
@@ -511,7 +511,7 @@
       "get": {
         "operationId": "findVenuesNear",
         "summary": "Venues near a point",
-        "description": "Public, unauthenticated, cross-tenant geo search, ordered by ascending distance and capped at 50 results.\n\nDeliberately NOT paginated: there is no cursor, and `data.paginated` is always false. A distance-ordered cursor cannot be stable while the caller moves, so the way to see more is a larger `radiusKm`.\n\nThe response is the plain `ok()` envelope: `{\"data\":{\"venues\":[...],\"radiusKm\":...,\"maxResults\":...,\"paginated\":false}}`. Note the items are `NearVenue`, not `VenueSummary`.",
+        "description": "Public, unauthenticated, cross-tenant geo search, ordered by ascending distance and capped at 50 results.\n\nDeliberately NOT paginated: there is no cursor, and `data.paginated` is always false. A distance-ordered cursor cannot be stable while the caller moves, so the way to see more is a larger `radiusKm`.\n\nThe response is the plain `ok()` envelope: `{\"data\":{\"venues\":[...],\"radiusKm\":...,\"maxResults\":...,\"paginated\":false}}`. Each item is a `NearVenue`: a `VenueSummary` plus `distanceKm` (#667), and the list's filters (`q`, `city`, `sport`, `indoor`, `maxPrice`) apply.",
         "tags": ["Venues"],
         "security": [],
         "parameters": [
@@ -556,6 +556,43 @@
             "description": "Keep only venues with an ACTIVE resource for this sport. A value outside the enum is a 400 `BAD_REQUEST`.",
             "schema": {
               "$ref": "#/components/schemas/SportType"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive substring match against the venue's name OR city. A query that is part of a known Bulgarian city's name in either script (e.g. `соф`) also matches venues stored under any spelling of that city. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "indoor",
+            "in": "query",
+            "required": false,
+            "description": "Keep only venues with at least one ACTIVE resource whose `isIndoor` matches. Compared against the literal string \"true\": sending `indoor=1` or `indoor=yes` therefore filters for OUTDOOR. Omit the parameter entirely to not filter. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "description": "Integer CENTS. Keep only venues with an ACTIVE resource whose `basePriceCents` is <= this. A value of 0 or a non-numeric value is silently ignored rather than rejected. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
             }
           },
           {
@@ -614,6 +651,57 @@
           },
           "500": {
             "description": "`INTERNAL`. Reachable by an out-of-enum `sport` or a `limit` that is not a positive integer, both of which reach the database unvalidated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/facets": {
+      "get": {
+        "operationId": "listVenueFacets",
+        "summary": "What the venue filters can offer",
+        "description": "The cities with a live venue and the sports with a live court (#667), from the query the web's /venues filters use. Public.",
+        "tags": ["Venues"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The cities and sports.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueFacets"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`: the database could not be read.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3102,10 +3190,10 @@
             "name": "when",
             "in": "query",
             "required": false,
-            "description": "Which bookings (#359): `upcoming` is PENDING or CONFIRMED and not yet over (`endTs` after now), SOONEST first, so the next game is on top; `past` is every other booking (ended, cancelled, completed, no-show), newest first. The two never overlap. Omit it for every booking, newest first, as before. Any other value is 400 `BAD_REQUEST` with `details.field: \"when\"`.",
+            "description": "Which bookings (#359, #670): `upcoming` is PENDING or CONFIRMED and not yet over (`endTs` after now), SOONEST first, so the next game is on top; `cancelled` is every CANCELLED booking, past or future, newest first; `past` is every other booking (ended, completed, no-show), newest first. The three never overlap. Omit it for every booking, newest first, as before. Any other value is 400 `BAD_REQUEST` with `details.field: \"when\"`.",
             "schema": {
               "type": "string",
-              "enum": ["upcoming", "past"]
+              "enum": ["upcoming", "past", "cancelled"]
             }
           }
         ],
@@ -17762,11 +17850,15 @@
           "publicSlug",
           "name",
           "city",
+          "cityKey",
+          "cityNames",
           "country",
           "avgRating",
           "reviewCount",
           "sports",
           "fromPriceCents",
+          "currency",
+          "clubLogoUrl",
           "coverPhotoUrl",
           "cover"
         ],
@@ -17793,7 +17885,15 @@
             "type": "string"
           },
           "city": {
-            "type": "string"
+            "type": "string",
+            "description": "As the club typed it. Prefer `cityKey` / `cityNames` (#667)."
+          },
+          "cityKey": {
+            "type": ["string", "null"],
+            "description": "The canonical city (#667), a key such as `sofia` or `staraZagora`: what `?city=` takes. Null for a city outside the canonical list."
+          },
+          "cityNames": {
+            "$ref": "#/components/schemas/CityNames"
           },
           "country": {
             "type": "string",
@@ -17815,7 +17915,15 @@
           },
           "fromPriceCents": {
             "type": ["integer", "null"],
-            "description": "Lowest `basePriceCents` among ACTIVE resources, in integer CENTS. Null — never 0 — when the venue has no active bookable resource. The currency is NOT carried on the summary; it only appears per-resource on the availability response."
+            "description": "Lowest `basePriceCents` among ACTIVE resources, in integer CENTS, in `currency`. Null — never 0 — when the venue has no active bookable resource."
+          },
+          "currency": {
+            "type": ["string", "null"],
+            "description": "ISO 4217 code of `fromPriceCents` (#667): the cheapest active resource's currency. Null exactly when `fromPriceCents` is."
+          },
+          "clubLogoUrl": {
+            "type": ["string", "null"],
+            "description": "The owning club's logo (#667), the same image as `ClubPublic.logoUrl`; null when the club has none."
           },
           "coverPhotoUrl": {
             "type": ["string", "null"],
@@ -17882,11 +17990,15 @@
           "publicSlug",
           "name",
           "city",
+          "cityKey",
+          "cityNames",
           "country",
           "avgRating",
           "reviewCount",
           "sports",
           "fromPriceCents",
+          "currency",
+          "clubLogoUrl",
           "coverPhotoUrl",
           "cover",
           "description",
@@ -17923,6 +18035,13 @@
           "city": {
             "type": "string"
           },
+          "cityKey": {
+            "type": ["string", "null"],
+            "description": "The canonical city (#667), a key such as `sofia` or `staraZagora`: what `?city=` takes. Null for a city outside the canonical list."
+          },
+          "cityNames": {
+            "$ref": "#/components/schemas/CityNames"
+          },
           "country": {
             "type": "string"
           },
@@ -17942,6 +18061,14 @@
           "fromPriceCents": {
             "type": ["integer", "null"],
             "description": "Lowest `basePriceCents` among ACTIVE resources, integer CENTS; null when there are none."
+          },
+          "currency": {
+            "type": ["string", "null"],
+            "description": "ISO 4217 code of `fromPriceCents` (#667): the cheapest active resource's currency. Null exactly when `fromPriceCents` is."
+          },
+          "clubLogoUrl": {
+            "type": ["string", "null"],
+            "description": "The owning club's logo (#667), the same image as `ClubPublic.logoUrl`; null when the club has none."
           },
           "coverPhotoUrl": {
             "type": ["string", "null"],
@@ -18016,45 +18143,22 @@
         }
       },
       "NearVenue": {
-        "type": "object",
-        "description": "A venue from the geo search. NOT a `VenueSummary`: it adds `distanceKm` and omits `sports`, `fromPriceCents` and `coverPhotoUrl`. A client that needs those must fetch `GET /venues/{id}`.",
-        "required": [
-          "id",
-          "slug",
-          "name",
-          "city",
-          "country",
-          "distanceKm",
-          "avgRating",
-          "reviewCount"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "description": "A venue from the geo search (#667): a `VenueSummary` plus `distanceKm`.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VenueSummary"
           },
-          "slug": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "city": {
-            "type": "string"
-          },
-          "country": {
-            "type": "string"
-          },
-          "distanceKm": {
-            "type": "number",
-            "description": "Great-circle distance from the query point, computed with PostGIS `geography` and rounded to one decimal place."
-          },
-          "avgRating": {
-            "type": "number"
-          },
-          "reviewCount": {
-            "type": "integer"
+          {
+            "type": "object",
+            "required": ["distanceKm"],
+            "properties": {
+              "distanceKm": {
+                "type": "number",
+                "description": "Great-circle distance from the query point, computed with PostGIS `geography` and rounded to one decimal place."
+              }
+            }
           }
-        }
+        ]
       },
       "NearVenueResult": {
         "type": "object",
@@ -27798,6 +27902,55 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/VenuePlan"
+          }
+        }
+      },
+      "CityNames": {
+        "type": "object",
+        "description": "A city's name in Bulgarian and English (#667). The API has no request language, so both go out; for a city outside the canonical list both are the text as typed.",
+        "required": ["bg", "en"],
+        "properties": {
+          "bg": {
+            "type": "string"
+          },
+          "en": {
+            "type": "string"
+          }
+        }
+      },
+      "CityFacet": {
+        "type": "object",
+        "required": ["value", "key", "names"],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "What `?city=` takes: the key, or the typed text for a city outside the list."
+          },
+          "key": {
+            "type": ["string", "null"]
+          },
+          "names": {
+            "$ref": "#/components/schemas/CityNames"
+          }
+        }
+      },
+      "VenueFacets": {
+        "type": "object",
+        "required": ["cities", "sports"],
+        "properties": {
+          "cities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CityFacet"
+            },
+            "description": "Cities with a live venue, one per canonical city, at most 100."
+          },
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "Sports with a live court at a live venue."
           }
         }
       },
