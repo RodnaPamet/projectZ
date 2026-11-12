@@ -111,6 +111,8 @@ const ALLOWED: Record<string, string> = {
     'and each venue’s free times today as the public availability route reads them',
   'src/app/api/v1/venues/route.ts': 'public venue list',
   'src/app/api/v1/venues/near/route.ts': 'public geo search',
+  'src/app/api/v1/venues/facets/route.ts':
+    'public venue filters (#667): distinct cities and sports, through publicVenueFilter like /venues',
   'src/app/api/v1/venues/[id]/route.ts': 'public venue detail',
   'src/app/api/v1/venues/[id]/plan/route.ts':
     'public venue plan (#623): the courts’ outlines, through publicVenueFilter',
