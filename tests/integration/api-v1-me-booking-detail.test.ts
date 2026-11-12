@@ -218,8 +218,8 @@ describe('GET /api/v1/me/bookings/{id}, ?when=, and cancel (#359)', () => {
     });
   });
 
-  describe('?when=upcoming|past', () => {
-    it('splits by "still to be played", soonest first above, newest first below', async () => {
+  describe('?when=upcoming|past|cancelled', () => {
+    it('splits into to be played (soonest first), played and cancelled (newest first)', async () => {
       const later = await book(player, 72);
       const soon = await book(player, 2);
       const inProgress = await book(player, -0.5); // started 30 min ago, ends in 30
@@ -232,8 +232,12 @@ describe('GET /api/v1/me/bookings/{id}, ?when=, and cancel (#359)', () => {
       expect(up.res.status).toBe(200);
       expect(up.body.data.items.map((i) => i.id)).toEqual([inProgress, soon, later]);
 
+      // #670: a cancellation is not a game played, even one for tomorrow.
       const past = await list(player, '?when=past');
-      expect(past.body.data.items.map((i) => i.id)).toEqual([cancelledFuture, lapsed, played]);
+      expect(past.body.data.items.map((i) => i.id)).toEqual([lapsed, played]);
+
+      const cancelled = await list(player, '?when=cancelled');
+      expect(cancelled.body.data.items.map((i) => i.id)).toEqual([cancelledFuture]);
 
       // Without `when`: every one of them, newest first, as before #359.
       const all = await list(player, '');
@@ -266,7 +270,7 @@ describe('GET /api/v1/me/bookings/{id}, ?when=, and cancel (#359)', () => {
   });
 
   describe('cancelling from the detail screen', () => {
-    it('before the cutoff: cancelled, and it moves from Предстоящи to Минали', async () => {
+    it('before the cutoff: cancelled, and it moves from Предстоящи to Отменени', async () => {
       const id = await book(player, 48);
       const before = await detail(player, id);
       expect(Date.parse(before.body.data.cancellableUntil!)).toBeGreaterThan(Date.now());
@@ -279,7 +283,8 @@ describe('GET /api/v1/me/bookings/{id}, ?when=, and cancel (#359)', () => {
       expect(after.body.data.cancellableUntil).toBeNull();
 
       expect((await list(player, '?when=upcoming')).body.data.items).toEqual([]);
-      expect((await list(player, '?when=past')).body.data.items.map((i) => i.id)).toEqual([id]);
+      expect((await list(player, '?when=past')).body.data.items).toEqual([]);
+      expect((await list(player, '?when=cancelled')).body.data.items.map((i) => i.id)).toEqual([id]);
     });
 
     it('after the cutoff: the detail says so, and the cancel route agrees with 403', async () => {
