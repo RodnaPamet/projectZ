@@ -6,7 +6,7 @@ import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/
 
 import { bookingCutoffHours, playerCancellableUntil } from '@/lib/booking/cutoff';
 import { coachFeeCents } from '@/lib/coaches/lessons';
-import type { CityKey } from '@/lib/geo/cities';
+import { cityKey, type CityKey } from '@/lib/geo/cities';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
 import { CATEGORY_OF, type NotificationCategory } from '@/lib/notifications/category';
 import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
@@ -393,6 +393,9 @@ export interface BookingDto {
     name: string;
     /** As the club typed it (#668), for a card that says where. */
     city: string;
+    /** The canonical city and its names (#682), as on a venue card. */
+    cityKey: string | null;
+    cityNames: CityNames;
     timezone: string;
   };
 }
@@ -527,6 +530,8 @@ export function toBooking(b: BookingRow): BookingDto {
       id: b.resource.venue.id,
       name: b.resource.venue.name,
       city: b.resource.venue.city,
+      cityKey: cityKey(b.resource.venue.city),
+      cityNames: cityNames(b.resource.venue.city),
       timezone: b.resource.venue.timezone,
     },
   };
@@ -1050,6 +1055,9 @@ export interface ClubPublicDto {
     name: string;
     addressLine: string;
     city: string;
+    /** The canonical city and its names (#682), as on a venue card. */
+    cityKey: string | null;
+    cityNames: CityNames;
     country: string;
     timezone: string;
     phone: string | null;
@@ -1074,6 +1082,8 @@ export function toClubPublicDto(c: ClubPage): ClubPublicDto {
       name: v.name,
       addressLine: v.addressLine,
       city: v.city,
+      cityKey: cityKey(v.city),
+      cityNames: cityNames(v.city),
       country: v.country,
       timezone: v.timezone,
       phone: v.phone,

@@ -57,6 +57,8 @@ const booking = (over: Partial<MyBookingDetailDto> = {}): MyBookingDetailDto => 
     publicSlug: 'alfa',
     addressLine: 'ул. Тестова 1',
     city: 'София',
+    cityKey: 'sofia',
+    cityNames: { bg: 'София', en: 'Sofia' },
     lat: 42.69,
     lng: 23.32,
     phone: null,

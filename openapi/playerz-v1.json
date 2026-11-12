@@ -18684,7 +18684,7 @@
           "venue": {
             "type": "object",
             "description": "The club/venue, lifted out of the resource so the wire shape survives a schema change that moves the relation.",
-            "required": ["id", "name", "timezone", "city"],
+            "required": ["id", "name", "timezone", "city", "cityKey", "cityNames"],
             "properties": {
               "id": {
                 "type": "string",
@@ -18701,6 +18701,13 @@
               "city": {
                 "type": "string",
                 "description": "As the club typed it (#668)."
+              },
+              "cityKey": {
+                "type": ["string", "null"],
+                "description": "The canonical city (#682)."
+              },
+              "cityNames": {
+                "$ref": "#/components/schemas/CityNames"
               }
             }
           }
@@ -19924,7 +19931,7 @@
           "venue": {
             "type": "object",
             "description": "The club/venue, lifted out of the resource so the wire shape survives a schema change that moves the relation.",
-            "required": ["id", "name", "timezone", "city"],
+            "required": ["id", "name", "timezone", "city", "cityKey", "cityNames"],
             "properties": {
               "id": {
                 "type": "string",
@@ -19941,6 +19948,13 @@
               "city": {
                 "type": "string",
                 "description": "As the club typed it (#668)."
+              },
+              "cityKey": {
+                "type": ["string", "null"],
+                "description": "The canonical city (#682)."
+              },
+              "cityNames": {
+                "$ref": "#/components/schemas/CityNames"
               }
             }
           },
@@ -20354,6 +20368,8 @@
               "publicSlug",
               "addressLine",
               "city",
+              "cityKey",
+              "cityNames",
               "lat",
               "lng",
               "phone"
@@ -20382,6 +20398,13 @@
               "city": {
                 "type": "string",
                 "description": "City, as the club wrote it."
+              },
+              "cityKey": {
+                "type": ["string", "null"],
+                "description": "The canonical city (#682)."
+              },
+              "cityNames": {
+                "$ref": "#/components/schemas/CityNames"
               },
               "lat": {
                 "type": "number",
@@ -24542,6 +24565,8 @@
                 "name",
                 "addressLine",
                 "city",
+                "cityKey",
+                "cityNames",
                 "country",
                 "timezone",
                 "phone",
@@ -24565,6 +24590,13 @@
                 },
                 "city": {
                   "type": "string"
+                },
+                "cityKey": {
+                  "type": ["string", "null"],
+                  "description": "The canonical city (#682)."
+                },
+                "cityNames": {
+                  "$ref": "#/components/schemas/CityNames"
                 },
                 "country": {
                   "type": "string"
