@@ -15,6 +15,10 @@ model Venue {
 
   addressLine String
   city        String
+  /// The canonical city (#667): a key of CITY_SPELLINGS (src/lib/geo/cities.ts),
+  /// filled from `city` by a trigger on every write (P86). Null: a city
+  /// outside the list, shown as typed.
+  cityKey     String?
   country     String  @default("BG")
   lat         Decimal @db.Decimal(10, 7)
   lng         Decimal @db.Decimal(10, 7)
@@ -79,6 +83,7 @@ model Venue {
   // migrations before this line existed.
   @@index([geog], map: "venue_geog_idx", type: Gist)
   @@map("venue")
+  @@index([cityKey])
 }
 
 /// Formerly `Court`.

@@ -6,8 +6,11 @@ import type { MyNotification, NotificationSettings } from '@/app-layer/usecases/
 
 import { bookingCutoffHours, playerCancellableUntil } from '@/lib/booking/cutoff';
 import { coachFeeCents } from '@/lib/coaches/lessons';
+import type { CityKey } from '@/lib/geo/cities';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
 import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
+
+import { cityNames, type CityNames } from './city-names';
 
 /**
  * Wire shapes for v1.
@@ -78,7 +81,12 @@ export interface VenueSummary {
    */
   publicSlug: string | null;
   name: string;
+  /** As the club typed it. Prefer `cityKey` and `cityNames` (#667). */
   city: string;
+  /** The canonical city (#667): what `?city=` takes; null for a city outside the list. */
+  cityKey: string | null;
+  /** The city's name in Bulgarian and English; the typed text in both when `cityKey` is null. */
+  cityNames: CityNames;
   country: string;
   avgRating: number;
   reviewCount: number;
@@ -121,6 +129,8 @@ export function toVenueSummary(
     publicSlug: v.publicSlug,
     name: v.name,
     city: v.city,
+    cityKey: v.cityKey,
+    cityNames: cityNames(v.city, v.cityKey as CityKey | null),
     country: v.country,
     avgRating: Number(v.avgRating),
     reviewCount: v.reviewCount,
