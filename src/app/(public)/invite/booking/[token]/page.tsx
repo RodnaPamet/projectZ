@@ -63,7 +63,9 @@ export default async function BookingInvitePage({
     getFormatter(),
   ]);
 
-  const preview = await previewBookingInvite(token);
+  // Who is looking, first: their own booking is not offered to them (#681).
+  const userId = await requireSignedIn();
+  const preview = await previewBookingInvite(token, new Date(), userId ?? null);
 
   if (!preview) {
     return (
@@ -79,7 +81,6 @@ export default async function BookingInvitePage({
     );
   }
 
-  const userId = await requireSignedIn();
   const kind = userId ? await readMyAccountKind(userId) : undefined;
   const here = bookingInvitePath(token);
 
@@ -148,6 +149,13 @@ export default async function BookingInvitePage({
               {t('signInToJoin')}
             </Link>
             <Caption>{t('signInNote')}</Caption>
+          </div>
+        ) : preview.viewer?.isPlaying ? (
+          <div className="gap-tight flex flex-col" data-testid="booking-invite-already-on">
+            <Caption>{preview.viewer.isBooker ? t('yours') : t('alreadyOn')}</Caption>
+            <Link href="/me/bookings" className={buttonVariants({ variant: 'secondary' })}>
+              {t('toMyBookings')}
+            </Link>
           </div>
         ) : kind === null ? (
           <div className="gap-tight flex flex-col">

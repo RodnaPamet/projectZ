@@ -2832,6 +2832,9 @@
     }
   },
   "bookingInvite": {
+    "yours": "This is your booking: the invite is for other players.",
+    "alreadyOn": "You are already in this game.",
+    "toMyBookings": "Go to my bookings",
     "metaTitle": "Invitation to play — playerz.bg",
     "title": "{name} invites you to play",
     "titleNoName": "Invitation to play",
