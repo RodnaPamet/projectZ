@@ -103,6 +103,8 @@ export const KEYS = {
   notifications: () => `${BASE}/me/notifications${query({ limit: 20 })}`,
   /** Which emails the caller gets (#367). `PATCH` of the same URL writes it. */
   notificationSettings: () => `${BASE}/me/notification-settings`,
+  /** The caller's favourite clubs (#672): ids for the hearts, cards for «Любими». */
+  myFavouriteVenues: () => `${BASE}/me/favourites/venues`,
   /** The caller's own bookings at a club, newest first, by cursor. */
   myBookings: (slug: string, params: { limit?: number } = {}) =>
     paged(`${BASE}/t/${seg(slug)}/bookings`, params),
@@ -313,6 +315,8 @@ export const V1 = {
     `${BASE}/platform/coaches/${seg(userId)}/certificate${query({ reason })}`,
   /** `POST { ids }`: the bell's rows the caller has now seen (#367). */
   markNotificationsRead: () => `${BASE}/me/notifications/read`,
+  /** `PUT` / `DELETE`: the heart on a venue (#672). */
+  favouriteVenue: (venueId: string) => `${BASE}/me/favourites/venues/${seg(venueId)}`,
   /** `PATCH { email: { … } }`: switch an email category (#367). */
   updateNotificationSettings: () => `${BASE}/me/notification-settings`,
   /** `POST` a new invite link; `DELETE` stops every live one (#358). */

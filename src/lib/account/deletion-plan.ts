@@ -594,6 +594,11 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason: 'The account’s email, sent or not, with the copy it carries.',
   },
   {
+    model: 'FavouriteVenue',
+    action: 'delete',
+    reason: 'The account’s favourite clubs (#672).',
+  },
+  {
     model: 'PushSubscription',
     action: 'delete',
     reason: 'The account’s browsers: endpoint, keys and user agent.',
@@ -1047,6 +1052,7 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'MfaRecoveryCode.userId': TRIGGER,
   'DeviceToken.userId': TRIGGER,
   'PushSubscription.userId': TRIGGER,
+  'FavouriteVenue.userId': TRIGGER,
   'PlayerSportLevel.userId': TRIGGER,
 
   // ── What a club holds about a player ────────────────────────────────────

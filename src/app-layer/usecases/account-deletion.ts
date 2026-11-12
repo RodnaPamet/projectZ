@@ -416,6 +416,11 @@ export async function deleteAccount(
   count('PlayerSportLevel', (await db.playerSportLevel.deleteMany({ where: { userId } })).count);
   count('DeviceToken', (await db.deviceToken.deleteMany({ where: { userId } })).count);
   count(
+    // guardrail-allow: cross-tenant — the person's own hearts (#672), by their id.
+    'FavouriteVenue',
+    (await db.favouriteVenue.deleteMany({ where: { userId } })).count,
+  );
+  count(
     // guardrail-allow: cross-tenant — the person's own browsers, by their id.
     'PushSubscription',
     (await db.pushSubscription.deleteMany({ where: { userId } })).count,

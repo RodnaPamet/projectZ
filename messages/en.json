@@ -244,6 +244,14 @@
       "title": "No venues match your search",
       "description": "Try a different city or sport."
     },
+    "favourite": {
+      "add": "Add to favourites",
+      "remove": "Remove from favourites",
+      "filter": "Favourites",
+      "failed": "We couldn't save that. Try again.",
+      "emptyTitle": "No favourite venues yet",
+      "emptyDescription": "Tap the heart on a venue to find it here."
+    },
     "priceFrom": "from {price} / hour",
     "filters": {
       "label": "Filters",
