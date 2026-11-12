@@ -162,6 +162,8 @@ export interface OpenGamePlayer {
   /** Their level in the game's sport, as they let others see it; null when hidden or none. */
   level: number | null;
   isBooker: boolean;
+  /** The viewer themselves, so their seat can say «Вие». */
+  isYou: boolean;
 }
 
 export interface OpenGameSummary {
@@ -176,6 +178,8 @@ export interface OpenGameSummary {
     slug: string;
     name: string;
     city: string;
+    /** The canonical city (#667), or null for one outside the list. */
+    cityKey: string | null;
     /** The club's logo (#668), or null. */
     logoUrl: string | null;
   };
@@ -254,6 +258,7 @@ const GAME_SELECT = {
             select: {
               id: true,
               tenantId: true,
+              cityKey: true,
               slug: true,
               name: true,
               city: true,
@@ -387,6 +392,7 @@ async function summarise(
       avatarUrl: live ? avatarUrlOf(live.avatarUrl) : null,
       level: rating ? rating.level : null,
       isBooker,
+      isYou: userId === viewerId,
     };
   };
   const playersOf = (g: GameRow): OpenGamePlayer[] | null => {
@@ -398,7 +404,13 @@ async function summarise(
       ...b.participants.map((p) =>
         p.userId
           ? person(p.userId, sport, false)
-          : { firstName: firstName(p.guestName), avatarUrl: null, level: null, isBooker: false },
+          : {
+              firstName: firstName(p.guestName),
+              avatarUrl: null,
+              level: null,
+              isBooker: false,
+              isYou: false,
+            },
       ),
     ];
   };
@@ -423,6 +435,7 @@ async function summarise(
         slug: v.slug,
         name: v.name,
         city: v.city,
+        cityKey: v.cityKey,
         logoUrl: logos.get(v.tenantId) ?? null,
       },
       courtPrice: { totalCents: b.totalCents, currency: b.currency },

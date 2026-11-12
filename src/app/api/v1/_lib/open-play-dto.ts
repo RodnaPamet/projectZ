@@ -7,6 +7,9 @@ import type {
   OpenGameSummary,
   RequestCard,
 } from '@/app-layer/usecases/open-play';
+import type { CityKey } from '@/lib/geo/cities';
+
+import { cityNames, type CityNames } from './city-names';
 
 /**
  * Wire shapes for open play (#376). Dates are ISO strings. What anyone sees
@@ -23,7 +26,16 @@ export interface OpenGameDto {
   resourceType: string;
   courtName: string;
   isIndoor: boolean;
-  venue: { id: string; slug: string; name: string; city: string; logoUrl: string | null };
+  venue: {
+    id: string;
+    slug: string;
+    name: string;
+    city: string;
+    /** The canonical city and its names (#667), as on a venue card. */
+    cityKey: string | null;
+    cityNames: CityNames;
+    logoUrl: string | null;
+  };
   courtPrice: { totalCents: number; currency: string };
   /** Booker first; null unless the viewer books, plays or has asked (#668). */
   players: OpenGamePlayer[] | null;
@@ -56,7 +68,7 @@ export function toOpenGameDto(g: OpenGameSummary): OpenGameDto {
     resourceType: g.resourceType,
     courtName: g.courtName,
     isIndoor: g.isIndoor,
-    venue: g.venue,
+    venue: { ...g.venue, cityNames: cityNames(g.venue.city, g.venue.cityKey as CityKey | null) },
     courtPrice: g.courtPrice,
     players: g.players,
     startTs: g.startTs.toISOString(),

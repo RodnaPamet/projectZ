@@ -226,7 +226,7 @@ describe('open play (#376)', () => {
       expect((await card(null)).players).toBeNull();
       expect((await card(other)).players).toBeNull();
       expect((await card(booker)).players).toEqual([
-        { firstName: 'Иван', avatarUrl: null, level: null, isBooker: true },
+        { firstName: 'Иван', avatarUrl: null, level: null, isBooker: true, isYou: true },
       ]);
 
       // Asking shows who is on it; still only the booker.
@@ -239,6 +239,9 @@ describe('open play (#376)', () => {
       await answer(booker, id, requests[0]!.id, 'accept');
       const seen = (await card(booker)).players!;
       expect(seen.map((p) => p.firstName)).toEqual(['Иван', 'Мария']);
+      // Each sees their own seat as theirs.
+      const mine = (await card(asker)).players as unknown as Array<{ isYou: boolean }>;
+      expect(mine.map((p) => p.isYou)).toEqual([false, true]);
       expect((await card(other)).players).toBeNull();
 
       // Declined: back to counts only.
@@ -261,7 +264,10 @@ describe('open play (#376)', () => {
       expect(await card(null)).toMatchObject({
         courtPrice: { totalCents: 2400, currency: 'EUR' },
         isIndoor: false,
-        venue: { logoUrl: 'https://cdn.test/l.webp' },
+        venue: {
+          logoUrl: 'https://cdn.test/l.webp',
+          cityNames: { bg: expect.any(String), en: expect.any(String) },
+        },
       });
     });
 
