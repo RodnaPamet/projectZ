@@ -507,6 +507,16 @@ describe('notifications (#367)', () => {
       expect((await outbox(booker.userId)).map((o) => o.category)).toEqual(['reminder']);
 
       expect((await cancel(id, staff)).status).toBe(200);
+      // Both emails are due at the REAL clock (the column's default, and the
+      // cancel route's now); this test lives on 25 October. Without moving
+      // them to the test's clock the drain below found nothing once the real
+      // date passed that day.
+      await asAppSuperuser(db, (tx) =>
+        tx.emailOutbox.updateMany({
+          where: { status: 'PENDING' },
+          data: { nextAttemptAt: new Date('2026-10-25T00:00:30Z') },
+        }),
+      );
 
       const { sent, provider } = recorder();
       const result = await drainEmailOutbox({ now: new Date('2026-10-25T00:01:00Z'), provider });
