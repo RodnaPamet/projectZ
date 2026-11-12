@@ -130,3 +130,42 @@ export async function nearVenues(
     distanceKm: Math.round((r.distancem / 1000) * 10) / 10,
   }));
 }
+
+/**
+ * How many venues within the radius the near-me cards consider before the
+ * list's filters apply (#667). A cap, so a dense city cannot make one request
+ * read the whole table; at Bulgarian scale no radius holds this many.
+ */
+export const NEAR_CANDIDATES = 500;
+
+/**
+ * The ids of public venues near a point, nearest first, for the v1 near-me
+ * cards (#667): the cards themselves are read with the list's filters by
+ * `listVenuesByIds`, so «Близо до мен» carries what a list card carries.
+ */
+export async function nearVenueIds(
+  db: PrismaClient,
+  params: { lat: number; lng: number; radiusKm?: number },
+): Promise<Array<{ id: string; distanceKm: number }>> {
+  const { lat, lng } = params;
+  assertCoords(lat, lng);
+  const radiusM = clampRadiusKm(params.radiusKm) * 1000;
+  const publicVenue = await publicVenueFilter(db);
+  // guardrail-allow: cross-tenant — as `nearVenues`: the public discovery read.
+  const rows = await db.$queryRaw<Array<{ id: string; distancem: number }>>(Prisma.sql`
+    SELECT
+      v.id,
+      ST_Distance(v.geog, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography) AS distancem
+    FROM "venue" v
+    WHERE v.geog IS NOT NULL
+      AND ${publicVenue.sql('v')}
+      AND ST_DWithin(
+            v.geog,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+            ${radiusM}
+          )
+    ORDER BY distancem ASC
+    LIMIT ${NEAR_CANDIDATES}
+  `);
+  return rows.map((r) => ({ id: r.id, distanceKm: Math.round((r.distancem / 1000) * 10) / 10 }));
+}
