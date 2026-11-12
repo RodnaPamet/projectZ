@@ -210,6 +210,88 @@ describe('open play (#376)', () => {
     );
   });
 
+  describe('what the restyled card shows (#668)', () => {
+    type Card = Game & {
+      players: Array<{ firstName: string | null; isBooker: boolean; level: number | null }> | null;
+      courtPrice: { totalCents: number; currency: string };
+      isIndoor: boolean;
+      venue: { logoUrl: string | null };
+    };
+    const card = async (who: TestIdentity | null) =>
+      (await games(who)).body.data.items[0] as unknown as Card;
+
+    it('players only for the booker, the players, and whoever asked (owner 2026-11-12)', async () => {
+      const { id, gameId } = await opened(2);
+
+      expect((await card(null)).players).toBeNull();
+      expect((await card(other)).players).toBeNull();
+      expect((await card(booker)).players).toEqual([
+        { firstName: 'Иван', avatarUrl: null, level: null, isBooker: true },
+      ]);
+
+      // Asking shows who is on it; still only the booker.
+      const asked = await ask(asker, gameId);
+      expect(asked.res.status).toBe(201);
+      expect((await card(asker)).players).toEqual([expect.objectContaining({ firstName: 'Иван' })]);
+
+      // Accepted: on the booking, and seen by both, with the level they show.
+      const requests = (await bookingGame(booker, id)).body.data.requests;
+      await answer(booker, id, requests[0]!.id, 'accept');
+      const seen = (await card(booker)).players!;
+      expect(seen.map((p) => p.firstName)).toEqual(['Иван', 'Мария']);
+      expect((await card(other)).players).toBeNull();
+
+      // Declined: back to counts only.
+      await ask(third, gameId);
+      const again = (await bookingGame(booker, id)).body.data.requests.find(
+        (q) => q.status === 'PENDING',
+      )!;
+      await answer(booker, id, again.id, 'decline');
+      expect((await card(third)).players).toBeNull();
+    });
+
+    it('the court total, indoor or out, and the club logo', async () => {
+      await asAppSuperuser(db, (tx) =>
+        tx.venueOrg.update({
+          where: { id: club.tenantId },
+          data: { logoUrl: 'https://cdn.test/l.webp' },
+        }),
+      );
+      await opened(2);
+      expect(await card(null)).toMatchObject({
+        courtPrice: { totalCents: 2400, currency: 'EUR' },
+        isIndoor: false,
+        venue: { logoUrl: 'https://cdn.test/l.webp' },
+      });
+    });
+
+    it('filters by days, start hour, indoor and level', async () => {
+      const { id } = await opened(2);
+      const start = (
+        await asAppSuperuser(db, (tx) => tx.booking.findUniqueOrThrow({ where: { id } }))
+      ).startTs;
+      const at = (o: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Sofia', ...o }).format(start);
+      const day = at({ year: 'numeric', month: '2-digit', day: '2-digit' });
+      const hour = Number(at({ hour: '2-digit', hourCycle: 'h23' }));
+      const count = async (q: string) => (await games(null, q)).body.data.items.length;
+
+      expect(await count(`?dateFrom=${day}&dateTo=${day}`)).toBe(1);
+      expect(await count('?dateTo=2000-01-01')).toBe(0);
+      expect(await count(`?fromHour=${hour}&toHour=${hour + 1}`)).toBe(1);
+      expect(await count(`?toHour=${Math.max(hour, 1)}`)).toBe(hour === 0 ? 1 : 0);
+      expect(await count('?indoor=false')).toBe(1);
+      expect(await count('?indoor=true')).toBe(0);
+      // The wish is 3–4.
+      expect(await count('?level=3')).toBe(1);
+      expect(await count('?level=6')).toBe(0);
+
+      for (const q of ['?level=9', '?fromHour=x', '?indoor=yes', '?dateFrom=nope']) {
+        expect((await games(null, q)).res.status).toBe(400);
+      }
+    });
+  });
+
   describe('opening and listing', () => {
     it('lists an opened booking for everyone, without user ids or the booking id', async () => {
       const { id, gameId } = await opened(2);
