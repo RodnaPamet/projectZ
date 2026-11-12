@@ -12,7 +12,10 @@ import { CITY_SPELLINGS } from '@/lib/geo/cities';
  */
 describe('venue_city_key_for matches CITY_SPELLINGS', () => {
   const dir = join(process.cwd(), 'prisma/migrations');
-  const latest = readdirSync(dir)
+  const latest = readdirSync(dir, { withFileTypes: true })
+    // Folders only: `migration_lock.toml` sits beside them.
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
     .sort()
     .map((m) => readFileSync(join(dir, m, 'migration.sql'), 'utf8'))
     .filter((sql) => sql.includes('FUNCTION venue_city_key_for'))
