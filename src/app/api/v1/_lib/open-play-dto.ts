@@ -3,6 +3,7 @@ import type { OpenGameRequestStatus, SportType } from '@prisma/client';
 import type {
   BookingGameView,
   MyGameRequest,
+  OpenGamePlayer,
   OpenGameSummary,
   RequestCard,
 } from '@/app-layer/usecases/open-play';
@@ -21,7 +22,11 @@ export interface OpenGameDto {
   sport: SportType;
   resourceType: string;
   courtName: string;
-  venue: { id: string; slug: string; name: string; city: string };
+  isIndoor: boolean;
+  venue: { id: string; slug: string; name: string; city: string; logoUrl: string | null };
+  courtPrice: { totalCents: number; currency: string };
+  /** Booker first; null unless the viewer books, plays or has asked (#668). */
+  players: OpenGamePlayer[] | null;
   startTs: string;
   endTs: string;
   timezone: string;
@@ -50,7 +55,10 @@ export function toOpenGameDto(g: OpenGameSummary): OpenGameDto {
     sport: g.sport,
     resourceType: g.resourceType,
     courtName: g.courtName,
+    isIndoor: g.isIndoor,
     venue: g.venue,
+    courtPrice: g.courtPrice,
+    players: g.players,
     startTs: g.startTs.toISOString(),
     endTs: g.endTs.toISOString(),
     timezone: g.timezone,

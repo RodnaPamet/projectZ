@@ -25,6 +25,7 @@ describe('toMyBookingDto', () => {
       venue: {
         id: 'v1',
         name: 'Padel Palace',
+        city: 'Sofia',
         timezone: 'Europe/Sofia',
         cancellationCutoffHours: 24,
       },
@@ -38,7 +39,7 @@ describe('toMyBookingDto', () => {
     resourceId: 'r1',
   };
 
-  it('is BookingDto plus clubSlug, venueReview, canReview, viewerRole and the lesson — and nothing else', () => {
+  it('is BookingDto plus clubSlug, clubLogoUrl, venueReview, canReview, viewerRole and the lesson — and nothing else', () => {
     expect(toMyBookingDto(row)).toEqual({
       id: 'b1',
       status: 'COMPLETED',
@@ -54,8 +55,9 @@ describe('toMyBookingDto', () => {
       cancellableUntil: null,
       // `resourceType` (P51): what the copy calls it — a TRACK is a "писта".
       resource: { id: 'r1', name: 'Court 1', sport: 'PADEL', resourceType: 'COURT' },
-      venue: { id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' },
+      venue: { id: 'v1', name: 'Padel Palace', city: 'Sofia', timezone: 'Europe/Sofia' },
       clubSlug: 'slot-club-sofia',
+      clubLogoUrl: null,
       venueReview: null,
       canReview: true,
       viewerRole: 'BOOKER',
@@ -127,7 +129,7 @@ describe('toMyBookingDto', () => {
   it('says until when the PLAYER may cancel a live booking: the cutoff before the start', () => {
     const dto = toMyBookingDto({ ...row, status: 'CONFIRMED' });
     expect(dto.cancellableUntil).toBe('2026-07-14T06:00:00Z');
-    expect(dto.venue).toEqual({ id: 'v1', name: 'Padel Palace', timezone: 'Europe/Sofia' });
+    expect(dto.venue).toEqual({ id: 'v1', name: 'Padel Palace', city: 'Sofia', timezone: 'Europe/Sofia' });
   });
 
   it('tells an added player there is nothing for them to cancel (#358)', () => {

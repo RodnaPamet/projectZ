@@ -70,6 +70,8 @@ export interface ClubName {
   tenantId: string;
   slug: string;
   name: string;
+  /** The club's logo (#668), for the inbox row; absent where only the name was read. */
+  logoUrl?: string | null;
 }
 
 /** `%`, `_` and `\` are LIKE syntax; a search for "50%" means the characters. */
@@ -275,7 +277,7 @@ export async function namesFor(input: {
         ? Promise.resolve([])
         : db.venueOrg.findMany({
             where: { id: { in: tenantIds } },
-            select: { id: true, slug: true, name: true },
+            select: { id: true, slug: true, name: true, logoUrl: true },
             take: tenantIds.length,
           }),
     ]),
@@ -292,7 +294,9 @@ export async function namesFor(input: {
         },
       ]),
     ),
-    clubs: new Map(clubs.map((c) => [c.id, { tenantId: c.id, slug: c.slug, name: c.name }])),
+    clubs: new Map(
+      clubs.map((c) => [c.id, { tenantId: c.id, slug: c.slug, name: c.name, logoUrl: c.logoUrl }]),
+    ),
   };
 }
 

@@ -10,7 +10,11 @@ import { defineV1Route } from '@/app/api/v1/_lib/define-route';
 import { toNotificationDto } from '@/app/api/v1/_lib/dto';
 import { ok } from '@/app/api/v1/_lib/envelope';
 import { UnauthorizedError, ValidationError } from '@/lib/errors/types';
+import { NOTIFICATION_CATEGORIES, type NotificationCategory } from '@/lib/notifications/category';
 import { getRequestId } from '@/lib/observability/context';
+
+const isCategory = (s: string): s is NotificationCategory =>
+  (NOTIFICATION_CATEGORIES as readonly string[]).includes(s);
 
 /**
  * GET /api/v1/me/notifications — the caller's bell (#367), newest first.
@@ -33,13 +37,22 @@ async function handler(req: NextRequest) {
     throw new ValidationError('Invalid cursor', { field: 'cursor' });
   }
 
+  const rawCategory = sp.get('category');
+  if (rawCategory !== null && !isCategory(rawCategory)) {
+    throw new ValidationError(`\`category\` is one of ${NOTIFICATION_CATEGORIES.join(', ')}`, {
+      field: 'category',
+    });
+  }
+  const category = rawCategory ?? undefined;
+
   try {
-    const { items, nextCursor, unreadCount } = await listMyNotifications({
+    const { items, nextCursor, unreadCount, unreadByCategory } = await listMyNotifications({
       userId: ctx.userId,
       cursor,
       limit: sp.has('limit') ? Number(sp.get('limit')) : undefined,
+      category,
     });
-    return ok({ items: items.map(toNotificationDto), nextCursor, unreadCount });
+    return ok({ items: items.map(toNotificationDto), nextCursor, unreadCount, unreadByCategory });
   } catch (err) {
     if (err instanceof NotificationCursorError) {
       throw new ValidationError('Unknown cursor', { field: 'cursor' });
