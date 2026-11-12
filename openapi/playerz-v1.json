@@ -3102,10 +3102,10 @@
             "name": "when",
             "in": "query",
             "required": false,
-            "description": "Which bookings (#359): `upcoming` is PENDING or CONFIRMED and not yet over (`endTs` after now), SOONEST first, so the next game is on top; `past` is every other booking (ended, cancelled, completed, no-show), newest first. The two never overlap. Omit it for every booking, newest first, as before. Any other value is 400 `BAD_REQUEST` with `details.field: \"when\"`.",
+            "description": "Which bookings (#359, #670): `upcoming` is PENDING or CONFIRMED and not yet over (`endTs` after now), SOONEST first, so the next game is on top; `cancelled` is every CANCELLED booking, past or future, newest first; `past` is every other booking (ended, completed, no-show), newest first. The three never overlap. Omit it for every booking, newest first, as before. Any other value is 400 `BAD_REQUEST` with `details.field: \"when\"`.",
             "schema": {
               "type": "string",
-              "enum": ["upcoming", "past"]
+              "enum": ["upcoming", "past", "cancelled"]
             }
           }
         ],
