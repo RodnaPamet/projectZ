@@ -92,6 +92,13 @@ export interface VenueSummary {
   reviewCount: number;
   sports: string[];
   fromPriceCents: number | null;
+  /**
+   * ISO 4217 of `fromPriceCents` (#667): the cheapest court's currency. Null
+   * exactly when `fromPriceCents` is.
+   */
+  currency: string | null;
+  /** The owning club's logo (#667), or null: the same image `GET /clubs/{slug}` returns. */
+  clubLogoUrl: string | null;
   /** The cover's default URL. Kept for clients that predate `cover`; prefer `cover`. */
   coverPhotoUrl: string | null;
   /** The venue's cover photo with every variant (#366), or null. */
@@ -103,9 +110,17 @@ export interface VenueSummary {
  * relation to `VenueOrg` in the schema — only a `tenantId` column — so the
  * caller looks the slugs up once per page (see the v1 venue routes).
  */
-export function toVenueSummary(v: VenueWithResources, clubSlug: string): VenueSummary {
+export function toVenueSummary(
+  v: VenueWithResources,
+  clubSlug: string,
+  clubLogoUrl: string | null = null,
+): VenueSummary {
   const active = v.resources.filter((r) => r.status === 'ACTIVE');
   const { cover } = splitPhotos(v.photos ?? []);
+  const cheapest = active.reduce<(typeof active)[number] | null>(
+    (min, r) => (min === null || r.basePriceCents < min.basePriceCents ? r : min),
+    null,
+  );
 
   return {
     id: v.id,
@@ -122,7 +137,9 @@ export function toVenueSummary(v: VenueWithResources, clubSlug: string): VenueSu
     sports: [...new Set(active.map((r) => r.sport))],
     // Null, not 0. A venue with no bookable court has no price, and 0 would
     // render as "free" on a card.
-    fromPriceCents: active.length ? Math.min(...active.map((r) => r.basePriceCents)) : null,
+    fromPriceCents: cheapest?.basePriceCents ?? null,
+    currency: cheapest?.currency ?? null,
+    clubLogoUrl,
     coverPhotoUrl: cover?.url ?? v.coverPhotoUrl,
     cover,
   };
@@ -154,11 +171,15 @@ type VenueFull = Prisma.VenueGetPayload<{
   include: { resources: true; photos: true; amenities: true };
 }>;
 
-export function toVenueDetail(v: VenueFull, clubSlug: string): VenueDetail {
+export function toVenueDetail(
+  v: VenueFull,
+  clubSlug: string,
+  clubLogoUrl: string | null = null,
+): VenueDetail {
   const active = v.resources.filter((r) => r.status === 'ACTIVE');
 
   return {
-    ...toVenueSummary(v, clubSlug),
+    ...toVenueSummary(v, clubSlug, clubLogoUrl),
 
     // `description` is documented in the schema as "Encrypted at rest +
     // HTML-sanitised on write". It is NEITHER today: encryptField/decryptField

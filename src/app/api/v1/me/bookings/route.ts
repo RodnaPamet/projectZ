@@ -28,9 +28,10 @@ import { getRequestId } from '@/lib/observability/context';
  * the last booking's id, and `limit` is clamped to 1..100 (default 20) rather
  * than refused.
  *
- * `when=upcoming|past` (#359) splits the list for the Предстоящи and Минали
- * tabs: upcoming is PENDING or CONFIRMED and not yet over, soonest first; past
- * is everything else, newest first. Without it the list is every booking,
+ * `when=upcoming|past|cancelled` (#359, #670) splits the list for the
+ * Предстоящи, Минали and Отменени tabs: upcoming is PENDING or CONFIRMED and
+ * not yet over, soonest first; cancelled is CANCELLED, newest first; past is
+ * everything else, newest first. Without it the list is every booking,
  * newest first, as a client built before the tabs expects.
  */
 async function handler(req: NextRequest) {
@@ -41,7 +42,7 @@ async function handler(req: NextRequest) {
 
   const when = bookingWhenSchema.safeParse(sp.get('when') ?? undefined);
   if (!when.success) {
-    throw new ValidationError('`when` must be "upcoming" or "past"', { field: 'when' });
+    throw new ValidationError('`when` must be "upcoming", "past" or "cancelled"', { field: 'when' });
   }
 
   const { items, nextCursor } = await listMyBookings({
