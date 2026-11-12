@@ -17928,11 +17928,15 @@
           "publicSlug",
           "name",
           "city",
+          "cityKey",
+          "cityNames",
           "country",
           "avgRating",
           "reviewCount",
           "sports",
           "fromPriceCents",
+          "currency",
+          "clubLogoUrl",
           "coverPhotoUrl",
           "cover",
           "description",
@@ -17969,6 +17973,13 @@
           "city": {
             "type": "string"
           },
+          "cityKey": {
+            "type": ["string", "null"],
+            "description": "The canonical city (#667), a key such as `sofia` or `staraZagora`: what `?city=` takes. Null for a city outside the canonical list."
+          },
+          "cityNames": {
+            "$ref": "#/components/schemas/CityNames"
+          },
           "country": {
             "type": "string"
           },
@@ -17988,6 +17999,14 @@
           "fromPriceCents": {
             "type": ["integer", "null"],
             "description": "Lowest `basePriceCents` among ACTIVE resources, integer CENTS; null when there are none."
+          },
+          "currency": {
+            "type": ["string", "null"],
+            "description": "ISO 4217 code of `fromPriceCents` (#667): the cheapest active resource's currency. Null exactly when `fromPriceCents` is."
+          },
+          "clubLogoUrl": {
+            "type": ["string", "null"],
+            "description": "The owning club's logo (#667), the same image as `ClubPublic.logoUrl`; null when the club has none."
           },
           "coverPhotoUrl": {
             "type": ["string", "null"],
