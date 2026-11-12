@@ -19,7 +19,9 @@ import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { KEYS, type V1Page } from '@/lib/data/keys';
-import { useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+import { useViewerId } from '@/lib/data/provider';
+import { useV1SWR, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+import { FavouriteButton, type FavouriteVenues } from '@/components/venues/FavouriteButton';
 import { canonicalCity, cityLabel } from '@/lib/geo/cities';
 
 import { FILTER_NAMES, filtersFromParams, type VenueFilters } from './filters';
@@ -126,6 +128,12 @@ export function VenueList({
 }) {
   const t = useTranslations('venues');
   const params = useSearchParams();
+  const viewerId = useViewerId();
+  // «Любими» (#672): the caller's hearted venues instead of the search.
+  const [onlyFavourites, setOnlyFavourites] = useState(false);
+  const favourites = useV1SWR<Omit<FavouriteVenues, 'items'> & { items: VenueSummary[] }>(
+    viewerId && onlyFavourites ? KEYS.myFavouriteVenues() : null,
+  );
 
   // Cleaned as the server page cleans them (filters.ts), then joined into one
   // string so the memo below changes only when a VALUE does, not on every new
@@ -174,12 +182,53 @@ export function VenueList({
     <>
       <VenueFilterBar filters={filters} facets={facets} />
 
+      {viewerId && (
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant={onlyFavourites ? 'primary' : 'secondary'}
+            aria-pressed={onlyFavourites}
+            onClick={() => setOnlyFavourites((on) => !on)}
+            data-testid="venues-favourites"
+          >
+            {t('favourite.filter')}
+          </Button>
+        </div>
+      )}
+
       {/* Pull down to refresh, jump back to the top of a long list. The pull
           re-reads the list through SWR — the same GET a focus would make —
           rather than re-rendering the server component. */}
       <MobileListAffordances onRefresh={refresh} />
 
-      {items === undefined ? (
+      {onlyFavourites ? (
+        favourites.data === undefined ? (
+          favourites.error ? (
+            <div className="mt-8">
+              <ErrorState
+                title={t('error.title')}
+                description={t('error.description')}
+                onRetry={() => void favourites.mutate()}
+              />
+            </div>
+          ) : (
+            <CardGridSkeleton className="mt-8" count={3} />
+          )
+        ) : favourites.data.items.length === 0 ? (
+          <div className="mt-8" data-perf-ready>
+            <EmptyState
+              title={t('favourite.emptyTitle')}
+              description={t('favourite.emptyDescription')}
+            />
+          </div>
+        ) : (
+          <ul data-perf-ready className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {favourites.data.items.map((v) => (
+              <VenueCard key={v.id} venue={v} />
+            ))}
+          </ul>
+        )
+      ) : items === undefined ? (
         error ? (
           <div className="mt-8">
             <ErrorState
@@ -386,6 +435,7 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
             v.name
           )}
         </h2>
+        <FavouriteButton venueId={v.id} className="ml-auto" />
         {v.reviewCount > 0 && (
           // icon={null}: the badge's default status glyph is a check or an
           // ⓘ, which says "state" on what is a fact. The ★ is the glyph here.

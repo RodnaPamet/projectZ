@@ -1,3 +1,4 @@
+import { FavouriteButton } from '@/components/venues/FavouriteButton';
 import { getTranslations } from 'next-intl/server';
 
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
@@ -26,6 +27,7 @@ import { VenueBackLink } from './VenueBackLink';
  * dials, and its description in the club's own words, line breaks kept.
  */
 export async function VenueHeader({
+  venueId,
   name,
   addressLine,
   city,
@@ -35,6 +37,8 @@ export async function VenueHeader({
   description = null,
   phone = null,
 }: {
+  /** For the heart (#672); none, none shown. */
+  venueId?: string;
   name: string;
   addressLine: string;
   city: string;
@@ -66,7 +70,10 @@ export async function VenueHeader({
       </div>
 
       <div className="in-shell:px-0 flex flex-col gap-2 px-6 md:px-0">
-        <Heading level={1}>{name}</Heading>
+        <div className="flex items-start justify-between gap-2">
+          <Heading level={1}>{name}</Heading>
+          {venueId && <FavouriteButton venueId={venueId} />}
+        </div>
         {club && (
           <Caption data-testid="venue-club">
             {t.rich('club', {
