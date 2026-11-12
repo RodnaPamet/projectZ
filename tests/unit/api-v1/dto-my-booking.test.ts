@@ -55,7 +55,14 @@ describe('toMyBookingDto', () => {
       cancellableUntil: null,
       // `resourceType` (P51): what the copy calls it — a TRACK is a "писта".
       resource: { id: 'r1', name: 'Court 1', sport: 'PADEL', resourceType: 'COURT' },
-      venue: { id: 'v1', name: 'Padel Palace', city: 'Sofia', timezone: 'Europe/Sofia' },
+      venue: {
+        id: 'v1',
+        name: 'Padel Palace',
+        city: 'Sofia',
+        cityKey: 'sofia',
+        cityNames: { bg: 'София', en: 'Sofia' },
+        timezone: 'Europe/Sofia',
+      },
       clubSlug: 'slot-club-sofia',
       clubLogoUrl: null,
       venueReview: null,
@@ -129,7 +136,14 @@ describe('toMyBookingDto', () => {
   it('says until when the PLAYER may cancel a live booking: the cutoff before the start', () => {
     const dto = toMyBookingDto({ ...row, status: 'CONFIRMED' });
     expect(dto.cancellableUntil).toBe('2026-07-14T06:00:00Z');
-    expect(dto.venue).toEqual({ id: 'v1', name: 'Padel Palace', city: 'Sofia', timezone: 'Europe/Sofia' });
+    expect(dto.venue).toEqual({
+      id: 'v1',
+      name: 'Padel Palace',
+      city: 'Sofia',
+      cityKey: 'sofia',
+      cityNames: { bg: 'София', en: 'Sofia' },
+      timezone: 'Europe/Sofia',
+    });
   });
 
   it('tells an added player there is nothing for them to cancel (#358)', () => {
