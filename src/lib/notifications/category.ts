@@ -54,6 +54,8 @@ export const CATEGORY_OF: Record<NotificationKind, NotificationCategory> = {
   TOURNAMENT_ENTRY_DECIDED: 'tournaments',
   TOURNAMENT_ENTRY_WITHDRAWN: 'tournaments',
   ACHIEVEMENT_UNLOCKED: 'other',
+  // «Факт на седмицата»: about no booking, game or lesson, so no chip of its own.
+  SPORT_FACT: 'other',
 };
 
 /** The kinds of one group, for a `kind IN (…)` filter. */

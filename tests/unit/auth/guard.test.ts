@@ -196,6 +196,7 @@ describe('the v1 public reads', () => {
     '/api/v1/venues/cvenue123',
     '/api/v1/venues/cvenue123/availability',
     '/api/v1/realtime/subscribe',
+    '/api/v1/sports/TENNIS/fact',
   ])('%s is public, not merely reachable', (path) => {
     expect(checkPublicRoute(path)).toBe(true);
     expect(checkTenantAccess(path, null).kind).toBe('public');
@@ -215,6 +216,12 @@ describe('the v1 public reads', () => {
     expect(checkPublicRoute('/api/v1/realtime/subscribe')).toBe(true);
     expect(checkPublicRoute('/api/v1/realtime/token')).toBe(false);
     expect(checkPublicRoute('/api/v1/realtime/subscribe/extra')).toBe(false);
+  });
+
+  it('the fact pattern opens the fact and nothing beside it', () => {
+    expect(checkPublicRoute('/api/v1/sports/TENNIS/fact/extra')).toBe(false);
+    expect(checkPublicRoute('/api/v1/sports/TENNIS')).toBe(false);
+    expect(checkPublicRoute('/api/v1/sports/a/b/fact')).toBe(false);
   });
 
   it('does not open the tenant tree, which shares no prefix by accident', () => {

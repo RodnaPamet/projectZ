@@ -29,6 +29,7 @@ const ALL_ON = {
     messages: true,
     openPlay: true,
     lessonsTaught: true,
+    sportFacts: true,
   },
   pushDevices: 0,
 };

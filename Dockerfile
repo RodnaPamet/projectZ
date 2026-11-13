@@ -37,6 +37,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 # The legal texts (#370), read from disk at request time by src/lib/legal/texts.ts.
 # Without them every legal page is a 404 and every link to one is hidden.
 COPY --from=builder --chown=nextjs:nodejs /app/content ./content
+# The sports' facts of the week, read from disk on first use by
+# src/lib/sports/facts.ts. Without them every fact route answers 404 and no
+# weekly fact is pushed. The directory is in git (.gitkeep) so this COPY never
+# fails before the first facts file lands.
+COPY --from=builder --chown=nextjs:nodejs /app/src/content ./src/content
 
 # ── Remove npm from the RUNTIME image ───────────────────────────────
 #

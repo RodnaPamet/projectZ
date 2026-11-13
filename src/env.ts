@@ -489,6 +489,14 @@ export const env = createEnv({
     // only reason it exists. Read at use (src/lib/legal/texts.ts), so a test
     // can set it after the module loads.
     LEGAL_CONTENT_DIR: z.string().optional(),
+
+    // ═══ THE SPORT FACTS (owner 2026-11-13) ═══
+    //
+    // Where the sports' facts of the week are read from. Unset in every
+    // deployment: they are src/content/sport-facts, which the image carries.
+    // The tests point it at tests/fixtures/sport-facts. Read at use
+    // (src/lib/sports/facts.ts), for the same reason as above.
+    SPORT_FACTS_DIR: z.string().optional(),
   },
 
   /**
@@ -584,6 +592,7 @@ export const env = createEnv({
     MEDIA_PUBLIC_BASE_URL: process.env.MEDIA_PUBLIC_BASE_URL,
     MEDIA_LOCAL_DIR: process.env.MEDIA_LOCAL_DIR,
     LEGAL_CONTENT_DIR: process.env.LEGAL_CONTENT_DIR,
+    SPORT_FACTS_DIR: process.env.SPORT_FACTS_DIR,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation.

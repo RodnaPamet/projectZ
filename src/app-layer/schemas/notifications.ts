@@ -16,24 +16,38 @@ export const markReadBodySchema = z.union([
   z.object({ all: z.literal(true) }).strict(),
 ]);
 
+const kinds = {
+  confirmation: z.boolean().optional(),
+  reminder: z.boolean().optional(),
+  clubChanges: z.boolean().optional(),
+  messages: z.boolean().optional(),
+  openPlay: z.boolean().optional(),
+  lessonsTaught: z.boolean().optional(),
+};
+
+const atLeastOne = (e: object) => Object.keys(e).length > 0;
+
 const kindSwitches = z
-  .object({
-    confirmation: z.boolean().optional(),
-    reminder: z.boolean().optional(),
-    clubChanges: z.boolean().optional(),
-    messages: z.boolean().optional(),
-    openPlay: z.boolean().optional(),
-    lessonsTaught: z.boolean().optional(),
-  })
+  .object(kinds)
   .strict()
-  .refine((e) => Object.keys(e).length > 0, { message: 'Set at least one category' });
+  .refine(atLeastOne, { message: 'Set at least one category' });
+
+/**
+ * The phone's switches: the same kinds, and «Факт на седмицата» (P88), which is
+ * push only. So `{ email: { sportFacts } }` is a 400 naming the key, not a
+ * switch that does nothing.
+ */
+const pushSwitches = z
+  .object({ ...kinds, sportFacts: z.boolean().optional() })
+  .strict()
+  .refine(atLeastOne, { message: 'Set at least one category' });
 
 /**
  * `PATCH /api/v1/me/notification-settings`: email switches, push switches
  * (#529), or both; each given object names at least one kind.
  */
 export const notificationSettingsPatchSchema = z
-  .object({ email: kindSwitches.optional(), push: kindSwitches.optional() })
+  .object({ email: kindSwitches.optional(), push: pushSwitches.optional() })
   .strict()
   .refine((b) => b.email !== undefined || b.push !== undefined, {
     message: 'Set email or push',
