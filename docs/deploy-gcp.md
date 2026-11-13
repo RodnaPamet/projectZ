@@ -231,6 +231,30 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p88
+
+`20261113120000_p88_sport_facts` adds `SPORT_FACT` to `NotificationKind`: the
+bell row of «Факт на деня», the daily fun fact pushed to every player with a
+phone. The bell reads a person's notifications on every page, so after one
+day of facts the previous image's bell would break for nearly every player.
+Park those rows before starting the previous image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p88-park.sql
+```
+
+and give them back after rolling forward again, with the p88 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p88-unpark.sql
+```
+
+The fact is never emailed, so `email_outbox` holds none. The new column
+`app_user."pushSportFacts"` stays: the previous image does not map it. Stop
+`playerz-sport-facts` while the old image runs, or its calls answer 404 all day.
+
 ### Rolling back past p80
 
 `20261014130000_p80_tournaments` (#579) adds four values to `NotificationKind`:
@@ -707,7 +731,7 @@ number. The privacy policy has to say so (#370).
 
 ## Scheduled jobs
 
-Seven routes under `/api/cron` do work nothing else triggers, and each refuses
+Eight routes under `/api/cron` do work nothing else triggers, and each refuses
 to run (503) until `CRON_SECRET` is set:
 
 | Route                           | Cadence | Without it                                                                       |
@@ -719,12 +743,13 @@ to run (503) until `CRON_SECRET` is set:
 | `drain-email-outbox` (#367)     | 60 s    | confirmation and club-cancellation emails wait in `email_outbox` for ever        |
 | `sweep-orphan-media` (#366)     | daily   | photo objects whose rows are gone stay in the bucket (`docs/media-storage.md`)   |
 | `report-dead-emails` (#425)     | daily   | an email that died after every retry is seen by nobody (it emails `ALERT_EMAIL`) |
+| `send-sport-facts`              | daily   | no «Факт на деня» push; sent from 10:00 Sofia, the loop asks every 15 minutes    |
 
 `sweep-orphan-media` also deletes a coach's certificate on a profile left
 DRAFT or DECLINED for 30 days with no change (#557, owner decision 28); its
 answer's `certificates` says how many went and how many are stored.
 
-`ops/sweep.compose.yml` runs all seven as small `alpine` loops. It is an
+`ops/sweep.compose.yml` runs all eight as small `alpine` loops. It is an
 overlay on `docker-compose.prod.yml`, so copy it beside that file and name
 both:
 

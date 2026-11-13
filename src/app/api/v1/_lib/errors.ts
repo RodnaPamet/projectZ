@@ -516,6 +516,8 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   },
   CoachTimeOffLimitError: { status: 409, code: 'COACH_TIME_OFF_LIMIT' },
   CoachTimeOffNotFoundError: { status: 404, code: 'COACH_TIME_OFF_NOT_FOUND' },
+  // A sport whose story file has not landed yet (src/content/sport-stories).
+  SportStoryNotFoundError: { status: 404, code: 'STORY_NOT_FOUND' },
 
   // The account is gone (deleted from another tab) or never was: from the
   // caller's side that is "not signed in", as GET /me answers a missing row.

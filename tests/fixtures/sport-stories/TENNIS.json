@@ -1,0 +1,275 @@
+{
+  "sport": "TENNIS",
+  "history": {
+    "bg": [
+      "Тенисът започва в манастирите на Франция, където монасите удрят топка с длан. После някой се сеща за ракета и дланите си отдъхват.",
+      "В Уимбълдън първо играят крокет. Тревата остава, крокетът си отива."
+    ],
+    "en": [
+      "Tennis began in French monasteries, where monks hit a ball with their palms. Then someone thought of a racket, and the palms got a rest.",
+      "Wimbledon was a croquet club first. The grass stayed, the croquet left."
+    ]
+  },
+  "facts": [
+    {
+      "bg": "Тенис факт номер 1.",
+      "en": "Tennis fact number 1.",
+      "source": "https://example.org/tennis/1"
+    },
+    {
+      "bg": "Тенис факт номер 2.",
+      "en": "Tennis fact number 2.",
+      "source": "https://example.org/tennis/2"
+    },
+    {
+      "bg": "Тенис факт номер 3.",
+      "en": "Tennis fact number 3.",
+      "source": "https://example.org/tennis/3"
+    },
+    {
+      "bg": "Тенис факт номер 4.",
+      "en": "Tennis fact number 4.",
+      "source": "https://example.org/tennis/4"
+    },
+    {
+      "bg": "Тенис факт номер 5.",
+      "en": "Tennis fact number 5.",
+      "source": "https://example.org/tennis/5"
+    },
+    {
+      "bg": "Тенис факт номер 6.",
+      "en": "Tennis fact number 6.",
+      "source": "https://example.org/tennis/6"
+    },
+    {
+      "bg": "Тенис факт номер 7.",
+      "en": "Tennis fact number 7.",
+      "source": "https://example.org/tennis/7"
+    },
+    {
+      "bg": "Тенис факт номер 8.",
+      "en": "Tennis fact number 8.",
+      "source": "https://example.org/tennis/8"
+    },
+    {
+      "bg": "Тенис факт номер 9.",
+      "en": "Tennis fact number 9.",
+      "source": "https://example.org/tennis/9"
+    },
+    {
+      "bg": "Тенис факт номер 10.",
+      "en": "Tennis fact number 10.",
+      "source": "https://example.org/tennis/10"
+    },
+    {
+      "bg": "Тенис факт номер 11.",
+      "en": "Tennis fact number 11.",
+      "source": "https://example.org/tennis/11"
+    },
+    {
+      "bg": "Тенис факт номер 12.",
+      "en": "Tennis fact number 12.",
+      "source": "https://example.org/tennis/12"
+    },
+    {
+      "bg": "Тенис факт номер 13.",
+      "en": "Tennis fact number 13.",
+      "source": "https://example.org/tennis/13"
+    },
+    {
+      "bg": "Тенис факт номер 14.",
+      "en": "Tennis fact number 14.",
+      "source": "https://example.org/tennis/14"
+    },
+    {
+      "bg": "Тенис факт номер 15.",
+      "en": "Tennis fact number 15.",
+      "source": "https://example.org/tennis/15"
+    },
+    {
+      "bg": "Тенис факт номер 16.",
+      "en": "Tennis fact number 16.",
+      "source": "https://example.org/tennis/16"
+    },
+    {
+      "bg": "Тенис факт номер 17.",
+      "en": "Tennis fact number 17.",
+      "source": "https://example.org/tennis/17"
+    },
+    {
+      "bg": "Тенис факт номер 18.",
+      "en": "Tennis fact number 18.",
+      "source": "https://example.org/tennis/18"
+    },
+    {
+      "bg": "Тенис факт номер 19.",
+      "en": "Tennis fact number 19.",
+      "source": "https://example.org/tennis/19"
+    },
+    {
+      "bg": "Тенис факт номер 20.",
+      "en": "Tennis fact number 20.",
+      "source": "https://example.org/tennis/20"
+    },
+    {
+      "bg": "Тенис факт номер 21.",
+      "en": "Tennis fact number 21.",
+      "source": "https://example.org/tennis/21"
+    },
+    {
+      "bg": "Тенис факт номер 22.",
+      "en": "Tennis fact number 22.",
+      "source": "https://example.org/tennis/22"
+    },
+    {
+      "bg": "Тенис факт номер 23.",
+      "en": "Tennis fact number 23.",
+      "source": "https://example.org/tennis/23"
+    },
+    {
+      "bg": "Тенис факт номер 24.",
+      "en": "Tennis fact number 24.",
+      "source": "https://example.org/tennis/24"
+    },
+    {
+      "bg": "Тенис факт номер 25.",
+      "en": "Tennis fact number 25.",
+      "source": "https://example.org/tennis/25"
+    },
+    {
+      "bg": "Тенис факт номер 26.",
+      "en": "Tennis fact number 26.",
+      "source": "https://example.org/tennis/26"
+    },
+    {
+      "bg": "Тенис факт номер 27.",
+      "en": "Tennis fact number 27.",
+      "source": "https://example.org/tennis/27"
+    },
+    {
+      "bg": "Тенис факт номер 28.",
+      "en": "Tennis fact number 28.",
+      "source": "https://example.org/tennis/28"
+    },
+    {
+      "bg": "Тенис факт номер 29.",
+      "en": "Tennis fact number 29.",
+      "source": "https://example.org/tennis/29"
+    },
+    {
+      "bg": "Тенис факт номер 30.",
+      "en": "Tennis fact number 30.",
+      "source": "https://example.org/tennis/30"
+    },
+    {
+      "bg": "Тенис факт номер 31.",
+      "en": "Tennis fact number 31.",
+      "source": "https://example.org/tennis/31"
+    },
+    {
+      "bg": "Тенис факт номер 32.",
+      "en": "Tennis fact number 32.",
+      "source": "https://example.org/tennis/32"
+    },
+    {
+      "bg": "Тенис факт номер 33.",
+      "en": "Tennis fact number 33.",
+      "source": "https://example.org/tennis/33"
+    },
+    {
+      "bg": "Тенис факт номер 34.",
+      "en": "Tennis fact number 34.",
+      "source": "https://example.org/tennis/34"
+    },
+    {
+      "bg": "Тенис факт номер 35.",
+      "en": "Tennis fact number 35.",
+      "source": "https://example.org/tennis/35"
+    },
+    {
+      "bg": "Тенис факт номер 36.",
+      "en": "Tennis fact number 36.",
+      "source": "https://example.org/tennis/36"
+    },
+    {
+      "bg": "Тенис факт номер 37.",
+      "en": "Tennis fact number 37.",
+      "source": "https://example.org/tennis/37"
+    },
+    {
+      "bg": "Тенис факт номер 38.",
+      "en": "Tennis fact number 38.",
+      "source": "https://example.org/tennis/38"
+    },
+    {
+      "bg": "Тенис факт номер 39.",
+      "en": "Tennis fact number 39.",
+      "source": "https://example.org/tennis/39"
+    },
+    {
+      "bg": "Тенис факт номер 40.",
+      "en": "Tennis fact number 40.",
+      "source": "https://example.org/tennis/40"
+    },
+    {
+      "bg": "Тенис факт номер 41.",
+      "en": "Tennis fact number 41.",
+      "source": "https://example.org/tennis/41"
+    },
+    {
+      "bg": "Тенис факт номер 42.",
+      "en": "Tennis fact number 42.",
+      "source": "https://example.org/tennis/42"
+    },
+    {
+      "bg": "Тенис факт номер 43.",
+      "en": "Tennis fact number 43.",
+      "source": "https://example.org/tennis/43"
+    },
+    {
+      "bg": "Тенис факт номер 44.",
+      "en": "Tennis fact number 44.",
+      "source": "https://example.org/tennis/44"
+    },
+    {
+      "bg": "Тенис факт номер 45.",
+      "en": "Tennis fact number 45.",
+      "source": "https://example.org/tennis/45"
+    },
+    {
+      "bg": "Тенис факт номер 46.",
+      "en": "Tennis fact number 46.",
+      "source": "https://example.org/tennis/46"
+    },
+    {
+      "bg": "Тенис факт номер 47.",
+      "en": "Tennis fact number 47.",
+      "source": "https://example.org/tennis/47"
+    },
+    {
+      "bg": "Тенис факт номер 48.",
+      "en": "Tennis fact number 48.",
+      "source": "https://example.org/tennis/48"
+    },
+    {
+      "bg": "Тенис факт номер 49.",
+      "en": "Tennis fact number 49.",
+      "source": "https://example.org/tennis/49"
+    },
+    {
+      "bg": "Тенис факт номер 50.",
+      "en": "Tennis fact number 50.",
+      "source": "https://example.org/tennis/50"
+    },
+    {
+      "bg": "Тенис факт номер 51.",
+      "en": "Tennis fact number 51.",
+      "source": "https://example.org/tennis/51"
+    },
+    {
+      "bg": "Тенис факт номер 52.",
+      "en": "Tennis fact number 52.",
+      "source": "https://example.org/tennis/52"
+    }
+  ]
+}

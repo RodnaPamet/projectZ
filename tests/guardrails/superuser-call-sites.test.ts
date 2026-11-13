@@ -224,6 +224,13 @@ const ALLOWED: Record<string, string> = {
     'UPDATE … FOR UPDATE SKIP LOCKED: machine work with no human actor, the shape of the ' +
     'completion sweep. Every write it makes goes through `deliver`, bound to the recipient ' +
     '(runAsUserOnly). NOT asPlatformAdmin: no person reaches into a club.',
+  'src/app-layer/usecases/sport-facts.ts':
+    '«Факт на деня» (owner 2026-11-13): the daily push picks, across every club, the players ' +
+    'owed today’s fact, with their main sport from their own profile sports (owner-only) or ' +
+    'the bookings they made (each club’s), and whether they have a device (owner-only). One ' +
+    'read of ids, a locale and a sport per batch, cron work with no session, as the booking ' +
+    'reminders are; every write goes through `deliver`, bound to the recipient (runAsUserOnly). ' +
+    'NOT asPlatformAdmin: no person reaches into a club.',
   'src/app-layer/usecases/contact-requests.ts':
     "the landing page's club enquiry form (#369): an ANONYMOUS visitor's row, which belongs " +
     'to no user and no club; contact_request denies app_user outright (P50). It writes one new ' +

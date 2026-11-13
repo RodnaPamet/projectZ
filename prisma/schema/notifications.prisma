@@ -68,6 +68,9 @@ enum NotificationKind {
   TOURNAMENT_ENTRY_DECIDED
   /// …an entry was withdrawn: to the other of the pair, and the desk.
   TOURNAMENT_ENTRY_WITHDRAWN
+  /// «Факт на деня» (P88): once a day, a fun fact about the player's main
+  /// sport. Bell and push, never email; its own push switch (`pushSportFacts`).
+  SPORT_FACT
 }
 
 /// Where an email stands in the outbox (#367).

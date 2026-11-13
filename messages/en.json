@@ -809,6 +809,9 @@
         "title": "{who} took back {when}",
         "body": "{tournament}. The match has no time yet."
       }
+    },
+    "sportFact": {
+      "title": "Fact of the day · {sport}"
     }
   },
   "notFound": {

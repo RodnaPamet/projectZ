@@ -809,6 +809,9 @@
         "title": "{who} оттегли часа {when}",
         "body": "{tournament}. Мачът все още няма час."
       }
+    },
+    "sportFact": {
+      "title": "Факт на деня · {sport}"
     }
   },
   "notFound": {

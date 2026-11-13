@@ -180,6 +180,10 @@ model User {
   pushMessages             Boolean @default(true)
   pushOpenPlay             Boolean @default(true)
   pushLessonsTaught        Boolean @default(true)
+  /// «Факт на деня» (P88): the daily fun fact about the player's main sport.
+  /// Push only: there is no email for it, so no email switch. On by default,
+  /// like the others; only players with a registered device are sent one.
+  pushSportFacts           Boolean @default(true)
 
   /// "Показвай ме в търсенето" (#375): whether other players find this person
   /// by name when starting a conversation. On by default. Off, they can still

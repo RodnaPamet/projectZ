@@ -102,6 +102,7 @@ function renderProfile(
                 messages: true,
                 openPlay: true,
                 lessonsTaught: true,
+                sportFacts: true,
               },
               pushDevices: 0,
             }}
