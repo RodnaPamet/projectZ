@@ -23,7 +23,11 @@ import { publicVenueFilter } from './public-venue';
  * is not a nicety here; it is the difference between an endpoint and a DoS.
  */
 
-export const MAX_RADIUS_KM = 50;
+/**
+ * 100, not 50, since 2026-11-13: the phone's «Близо до мен» slider runs 1–100 km
+ * (owner, #697). NEAR_CANDIDATES still bounds what one request reads.
+ */
+export const MAX_RADIUS_KM = 100;
 export const MAX_GEO_RESULTS = 50;
 
 export class InvalidCoordinateError extends Error {

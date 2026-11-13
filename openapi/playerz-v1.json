@@ -541,11 +541,11 @@
             "name": "radiusKm",
             "in": "query",
             "required": false,
-            "description": "Search radius in KILOMETRES — note the name is `radiusKm`, not `radius`. Silently clamped, never rejected: above 50 becomes 50; zero, negative or unparseable becomes the default 10. Always read `data.radiusKm` back to learn what was actually searched.",
+            "description": "Search radius in KILOMETRES — note the name is `radiusKm`, not `radius`. Silently clamped, never rejected: above 100 becomes 100; zero, negative or unparseable becomes the default 10. Always read `data.radiusKm` back to learn what was actually searched.",
             "schema": {
               "type": "number",
               "exclusiveMinimum": 0,
-              "maximum": 50,
+              "maximum": 100,
               "default": 10
             }
           },
@@ -633,6 +633,115 @@
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/NearVenueResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` when `lat`/`lng` is absent, blank or not a finite number, or `sport` is not a SportType value; `INVALID_COORDINATES` when a coordinate parses but falls outside -90..90 / -180..180.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. Reachable by an out-of-enum `sport` or a `limit` that is not a positive integer, both of which reach the database unvalidated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/venues/map": {
+      "get": {
+        "operationId": "listVenuesForMap",
+        "summary": "Every bookable venue, for the clubs map",
+        "description": "Public, unauthenticated, cross-tenant (#697). The same `VenueSummary` cards as `GET /venues`, each with `lat`/`lng`, and the same filters (`q`, `city`, `sport`, `indoor`, `maxPrice`). Only venues with a price (an ACTIVE court) are pins.\n\nNot paginated: a country's map is one read, capped at `data.maxResults` (1000); `data.truncated` says when the cap cut it.",
+        "tags": ["Venues"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Keep only venues with an ACTIVE resource for this sport. A value outside the enum is a 400 `BAD_REQUEST`.",
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive substring match against the venue's name OR city. A query that is part of a known Bulgarian city's name in either script (e.g. `соф`) also matches venues stored under any spelling of that city. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive EXACT match on city (not a substring match — use `q` for that). A known Bulgarian city matches every spelling a club may have stored, Latin or Cyrillic: `Sofia` also finds venues stored as `София`. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "indoor",
+            "in": "query",
+            "required": false,
+            "description": "Keep only venues with at least one ACTIVE resource whose `isIndoor` matches. Compared against the literal string \"true\": sending `indoor=1` or `indoor=yes` therefore filters for OUTDOOR. Omit the parameter entirely to not filter. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "description": "Integer CENTS. Keep only venues with an ACTIVE resource whose `basePriceCents` is <= this. A value of 0 or a non-numeric value is silently ignored rather than rejected. Applied as on `GET /venues` (#667).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every bookable venue (a price, so an ACTIVE court), with its coordinates.",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VenueMapResult"
                     }
                   }
                 }
@@ -18578,7 +18687,9 @@
           "currency",
           "clubLogoUrl",
           "coverPhotoUrl",
-          "cover"
+          "cover",
+          "lat",
+          "lng"
         ],
         "properties": {
           "id": {
@@ -18657,6 +18768,14 @@
               }
             ],
             "description": "The venue's cover photo (#366), or null when the club has not uploaded one."
+          },
+          "lat": {
+            "type": "number",
+            "description": "WGS-84 latitude, for a pin on the clubs map (#697)."
+          },
+          "lng": {
+            "type": "number",
+            "description": "WGS-84 longitude, for a pin on the clubs map (#697)."
           }
         }
       },
@@ -29671,6 +29790,26 @@
           }
         },
         "title": "SkillSurveyResult"
+      },
+      "VenueMapResult": {
+        "type": "object",
+        "required": ["venues", "truncated", "maxResults"],
+        "properties": {
+          "venues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VenueSummary"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when there were more bookable venues than `maxResults`."
+          },
+          "maxResults": {
+            "type": "integer",
+            "description": "The cap on one read: 1000."
+          }
+        }
       }
     }
   }

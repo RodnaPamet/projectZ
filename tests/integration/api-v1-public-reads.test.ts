@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
 import { GET as getVenue } from '@/app/api/v1/venues/[id]/route';
+import { GET as getMap } from '@/app/api/v1/venues/map/route';
 import { GET as getNear } from '@/app/api/v1/venues/near/route';
 import { GET as listVenuesRoute } from '@/app/api/v1/venues/route';
 
@@ -66,6 +67,27 @@ describe('GET /api/v1/venues', () => {
 
     expect(res.status).toBe(200);
     expect(body.data.items.map((v) => v.id)).toContain(venueId);
+  });
+
+  it('the clubs map (#697): every bookable venue with its coordinates, no tenant', async () => {
+    const res = await getMap(new NextRequest('http://t/api/v1/venues/map?sport=PADEL'), undefined);
+    const body = (await json(res)) as never as {
+      data: { venues: Array<{ id: string; lat: number; lng: number }>; truncated: boolean };
+    };
+
+    expect(res.status).toBe(200);
+    const pin = body.data.venues.find((v) => v.id === venueId);
+    expect(pin).toMatchObject({ lat: 42.6977123, lng: 23.3219456 });
+    expect(body.data.truncated).toBe(false);
+  });
+
+  it('the clubs map leaves out a venue with nothing to book', async () => {
+    await asAppSuperuser(db, (tx) =>
+      tx.resource.updateMany({ where: { venueId }, data: { status: 'SUSPENDED' } }),
+    );
+    const res = await getMap(new NextRequest('http://t/api/v1/venues/map'), undefined);
+    const body = (await json(res)) as never as { data: { venues: Array<{ id: string }> } };
+    expect(body.data.venues.map((v) => v.id)).not.toContain(venueId);
   });
 
   it('stamps the API version on a SUCCESS response, not only on errors', async () => {
@@ -251,7 +273,7 @@ describe('GET /api/v1/venues/near', () => {
     const body = (await res.json()) as { data: { radiusKm: number; paginated: boolean } };
 
     expect(res.status).toBe(200);
-    expect(body.data.radiusKm).toBe(50);
+    expect(body.data.radiusKm).toBe(100);
     expect(body.data.paginated).toBe(false);
   });
 });

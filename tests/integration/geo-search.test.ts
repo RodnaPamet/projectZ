@@ -62,7 +62,7 @@ describe('geo search (PostGIS)', () => {
     await venue('Plovdiv Tennis', 'Plovdiv', PLOVDIV);
 
     const wide = await nearVenues(prisma, { ...SOFIA, radiusKm: MAX_RADIUS_KM });
-    expect(wide.map((v) => v.city)).toEqual(['Sofia']); // Plovdiv is beyond 50km
+    expect(wide.map((v) => v.city)).toEqual(['Sofia']); // Plovdiv is ~130km away, beyond the 100km cap
 
     const sofia = wide[0]!;
     expect(sofia.distanceKm).toBeLessThan(1);

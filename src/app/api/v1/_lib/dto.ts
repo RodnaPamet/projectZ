@@ -104,6 +104,9 @@ export interface VenueSummary {
   coverPhotoUrl: string | null;
   /** The venue's cover photo with every variant (#366), or null. */
   cover: VenuePhotoDto | null;
+  /** WGS-84, for a pin on the clubs map (#697). */
+  lat: number;
+  lng: number;
 }
 
 /**
@@ -143,6 +146,8 @@ export function toVenueSummary(
     clubLogoUrl,
     coverPhotoUrl: cover?.url ?? v.coverPhotoUrl,
     cover,
+    lat: Number(v.lat),
+    lng: Number(v.lng),
   };
 }
 
