@@ -2,11 +2,13 @@ import { FavouriteButton } from '@/components/venues/FavouriteButton';
 import { getTranslations } from 'next-intl/server';
 
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
+import { SportBackdrop } from '@/components/sports/SportBanner';
 import { LocationPin } from '@/components/ui/icons/nucleo/location-pin';
 import { MobilePhone } from '@/components/ui/icons/nucleo/mobile-phone';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Caption, Heading, TextLink } from '@/components/ui/typography';
 import { cn } from '@/lib/cn';
+import { sportArt } from '@/lib/sports/art';
 import type { PhotoView } from '@/lib/media/photo-shape';
 
 import { VenueBackLink } from './VenueBackLink';
@@ -16,8 +18,9 @@ import { VenueBackLink } from './VenueBackLink';
  *
  * The cover is the club's uploaded photo (#366), drawn as a responsive
  * `<img>` with its blurred placeholder and the club's alt text, loaded at
- * once (it is the page's largest paint). Without one it is a token-tinted
- * band, decorative. The back link is VenueBackLink, which the skeleton
+ * once (it is the page's largest paint). Without one it is the venue's
+ * sport in its banner photo (owner 2026-11-13, as the phone), decorative;
+ * a token-tinted band for a sport without one. The back link is VenueBackLink, which the skeleton
  * renders too.
  *
  * Under the name, the club that runs the venue, as a link to its page
@@ -55,9 +58,10 @@ export async function VenueHeader({
       <div
         className={cn(
           'bg-brand-subtle in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
-          cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
+          cover || sportArt(sports[0]) ? 'h-48 md:h-64' : 'h-32 md:h-40',
         )}
       >
+        {!cover && <SportBackdrop sport={sports[0]} scrim="light" priority />}
         {cover && (
           <VenuePhotoImg
             photo={cover}

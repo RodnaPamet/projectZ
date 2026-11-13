@@ -175,11 +175,12 @@ describe('the slot picker', () => {
     expect(within(days).getByRole('radio', { name: v.day.tomorrow })).toBeInTheDocument();
 
     const times = screen.getByRole('group', { name: 'Часове, Корт 1' });
-    // 10:00 is taken, so it is not offered.
+    // 10:00 is taken, so it is not offered as a button (the grid labels it
+    // «Заето»). The cell's name is its time and price, read as one.
     expect(
       within(times)
         .getAllByRole('button')
-        .map((b) => b.textContent),
+        .map((b) => b.getAttribute('aria-label')),
     ).toEqual([expect.stringMatching(/^09:00 · 24\s€$/), expect.stringMatching(/^18:00 · 24\s€$/)]);
   });
 

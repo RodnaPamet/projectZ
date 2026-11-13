@@ -46,17 +46,17 @@
   color-scheme: dark;
 
   /* ── Surfaces ──────────────────────────────────────────────────── */
-  --bg-page: #0b0b12; /* midnight black, a breath of violet — app/page background */
-  --bg-default: #13131f; /* raised midnight — cards, panels, tables, modals, popovers */
-  --bg-muted: #1c1b2b; /* hover surfaces, pressed/active states */
+  --bg-page: #101016; /* ink — the phone restyle (owner 2026-11-13) */
+  --bg-default: #1a1a24; /* panel — cards, the phone's card */
+  --bg-muted: #22212e; /* hover, pressed */
   --bg-subtle: rgba(
     167,
     139,
     250,
     0.08
   ); /* violet-400 @ 8% — selection bg, disabled surfaces, faint tints */
-  --bg-elevated: #1f1e30; /* lifted midnight — tooltips, dropdowns above default */
-  --bg-inverted: #6d3fe8; /* = --brand-emphasis — inverted surface; --content-inverted on it 5.95:1 */
+  --bg-elevated: #22212e; /* tooltips, dropdowns */
+  --bg-inverted: #dda13f; /* = --brand-emphasis */
   /* Next to no hue: it dims the midnight page instead of tinting it. */
   --bg-overlay: rgba(6, 6, 12, 0.72); /* near-black scrim behind modals/drawers */
 
@@ -73,7 +73,7 @@
   --content-default: #e4e2ee; /* body text, table cells, default content (14.39:1 on bg-default) */
   --content-muted: #b6b3c8; /* secondary text, placeholders, captions (AA, 9.00:1 on bg-default) */
   --content-subtle: #8f8ca5; /* disabled text, hints, tertiary info (AA, 5.67:1 on bg-default) */
-  --content-inverted: #ffffff; /* white — the label on the purple fills (5.95:1 on --brand-emphasis) */
+  --content-inverted: #1a0b3d; /* deep ink — the label on the gold fills (7.97:1) */
   /*
    * BRAND-COLOURED TEXT: a purple link, the active menu item's label.
    * `text-content-brand`, never a `--brand-*` FILL token as text (#233, #246).
@@ -87,10 +87,10 @@
    * tests/guardrails/no-raw-brand-text.test.ts bans the fill tokens as text;
    * the contrast ratchet pins both numbers below.
    */
-  --content-brand: #a78bfa; /* violet-400 — 7.21:1 on --bg-page, 6.77:1 on --bg-default */
+  --content-brand: #bcaaff; /* lavender — what is chosen (phone accentText) */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
-  --border-default: #272637; /* DECORATIVE dividers and card edges only — see below */
+  --border-default: #2c2b38; /* hairline — decorative edges */
   --border-subtle: rgba(167, 139, 250, 0.12); /* violet @ 12% — soft dividers, card edges */
   /*
    * INTERACTIVE control boundaries: inputs, checkboxes, radios, selects.
@@ -111,7 +111,7 @@
    * --brand-secondary-default (button-material.test.ts). The label on every
    * stop of the primary button is white, and every stop clears AA under it.
    */
-  --brand-default: #7950f5; /* violet — the primary's top stop, accents. White label 4.91:1 */
+  --brand-default: #e6b04f; /* golden-hour gold — the primary's top stop */
   /*
    * The FOCUS RING. Its own token, deliberately.
    *
@@ -120,10 +120,18 @@
    * cannot see where they are cannot use the app at all — this is not a place to
    * compromise for the sake of a link colour. Since #362 it is the yellow accent.
    */
-  --focus-ring: #facc15; /* 12.81:1 on --bg-page, 12.02:1 on --bg-default */
-  --brand-emphasis: #6d3fe8; /* deeper violet — a FILL: primary buttons, checked controls. 3.29:1 on --bg-page; white label 5.95:1 */
-  --brand-muted: #8255f5; /* lighter violet — the hover's top stop. White label 4.60:1 */
-  --brand-subtle: rgba(139, 92, 246, 0.18); /* violet-500 @ 18% — brand tint backgrounds */
+  --focus-ring: #bcaaff; /* lavender — 9.33:1 on --bg-page, 8.49:1 on --bg-default */
+  --brand-emphasis: #dda13f; /* golden-hour gold FILL (owner 2026-11-13); ink label 7.97:1 */
+  --brand-muted: #e9bb66; /* the hover's top stop */
+  --brand-subtle: rgba(188, 170, 255, 0.14); /* lavender @ 14% — chosen tint */
+  --selected-fill: #272137; /* a chosen chip, day or hour: the phone's quiet violet box */
+  --selected-edge: #635589; /* its edge (decorative: the words carry the choice) */
+  /* A sport's banner photo (SportBackdrop): dark in BOTH themes, so these
+   * three are the same in each. The ink scrim, the words' second tone on it
+   * (8.6:1 on the ink), and the photo card's edge. */
+  --photo-ink: #101016;
+  --photo-muted: #b1aebd;
+  --photo-edge: #453a58;
 
   /* ── Brand / Secondary (the complement: yellow, hue 48°) ─────────────
    *
@@ -143,7 +151,7 @@
    * PURPLE. So it is violet @ 18%, the same as --brand-subtle; the active
    * label (--content-brand) on it measures 5.56:1 over the sidebar.
    */
-  --brand-secondary-default: #facc15; /* yellow-400 — hover edge of the primary button. 12.81:1 on --bg-page */
+  --brand-secondary-default: #aab4ff; /* periwinkle-lavender — hover edge of the primary: at least 150° round the wheel from the gold (button-material) */
   --brand-secondary-emphasis: #eab308; /* yellow-500 — active surfaces. 10.23:1 on --bg-page */
   --brand-secondary-muted: #fde047; /* yellow-300 — highlight midstop */
   --brand-secondary-subtle: rgba(
@@ -169,11 +177,11 @@
    * change. --accent-subtle and --content-accent are playerz's own: upstream's
    * StatusBadge may not take a brand tone, so the bell colours its count here.
    */
-  --accent-default: #facc15; /* yellow-400 — 12.81:1 on --bg-page, 12.02:1 on --bg-default, 10.66:1 on --bg-elevated */
+  --accent-default: #dda13f; /* gold */
   --accent-emphasis: #eab308; /* yellow-500 — the undo toast's ring. 8.51:1 on --bg-elevated */
   --accent-subtle: rgba(250, 204, 21, 0.15); /* yellow @ 15% — the count badge's tint */
-  --content-accent: #facc15; /* the count's digits: 9.58:1 over the page, 8.70:1 over a card, 7.69:1 over the header's brand wash */
-  --nav-band-active: #facc15; /* the active row's marker band (upstream paints --bg-page): 12.02:1 on the sidebar */
+  --content-accent: #dda13f; /* gold digits */
+  --nav-band-active: #bcaaff; /* lavender — the chosen row */
 
   /* ── Status: Success ───────────────────────────────────────────── */
   --bg-success: rgba(16, 185, 129, 0.15); /* emerald-500 @ 15% — badge tint */
@@ -220,12 +228,12 @@
    * same literal rather than var(--focus-ring), so the contrast ratchet can
    * measure them: it parses literals and fails on an alias.
    */
-  --ring-default: #facc15; /* same as --focus-ring */
+  --ring-default: #bcaaff; /* same as --focus-ring */
 
   /* shadcn / Radix compatibility tokens */
-  --ring: #facc15; /* same as --focus-ring */
-  --ring-offset-background: #0b0b12;
-  --primary: #7950f5;
+  --ring: #bcaaff; /* same as --focus-ring */
+  --ring-offset-background: #101016; /* = --bg-page */
+  --primary: #dda13f; /* = --brand-emphasis */
 
   /* ── Glass ─────────────────────────────────────────────────────── */
   /*
@@ -235,15 +243,15 @@
    * recipe as the light block: the glass card reads as a card, with the blur
    * behind it, instead of as a different product.
    */
-  --glass-bg: rgba(19, 19, 31, 0.85); /* --bg-default @ 85% */
-  --glass-border: rgba(39, 38, 55, 0.8); /* --border-default @ 80% — decorative card edge */
+  --glass-bg: rgba(26, 26, 36, 0.85); /* --bg-default @ 85% */
+  --glass-border: rgba(44, 43, 56, 0.8); /* --border-default @ 80% */
   --glass-blur: 12px; /* backdrop blur radius */
 
   /* ── Radius ────────────────────────────────────────────────────── */
   --radius-sm: 6px;
   --radius: 8px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-xl: 20px; /* cards — the phone's card radius (2026-11-13) */
   --radius-full: 9999px;
 
   /* ── Shadows ───────────────────────────────────────────────────── */
@@ -418,11 +426,11 @@
   color-scheme: light; /* see the dark block */
 
   /* ── Surfaces ──────────────────────────────────────────────────── */
-  --bg-page: #f4f2ed; /* warm off-white — app background */
-  --bg-default: #f8f6f3; /* warm off-white — cards, panels, modals */
-  --bg-muted: #f0ede7; /* warm light gray — hover, pressed */
+  --bg-page: #f6f4f0; /* warm paper — the phone restyle */
+  --bg-default: #ffffff; /* white cards, as the phone */
+  --bg-muted: #efecf3; /* hover, pressed */
   --bg-subtle: rgba(139, 130, 118, 0.07); /* warm taupe @ 7% — selection, faint tints */
-  --bg-elevated: #fdfcfa; /* lightest off-white — tooltips, dropdowns above default */
+  --bg-elevated: #ffffff; /* tooltips, dropdowns */
   --bg-inverted: #1a1a1a; /* near-black — primary button bg */
   --bg-overlay: rgba(26, 26, 26, 0.45); /* charcoal overlay — modals, drawers */
 
@@ -454,10 +462,10 @@
    * there, worst 4.27. Axe reports a gradient background as "incomplete" and
    * never failed it. #9a3412 is 5.50:1 there, 5.05:1 at the sheet's top.
    */
-  --content-brand: #9a3412; /* 6.53:1 on --bg-page, 6.77:1 on --bg-default, 6.25:1 on --bg-muted. Why it differs by theme: see the dark block */
+  --content-brand: #5a30d0; /* purple text — 6.91:1 on --bg-page, 7.59:1 on --bg-default */
 
   /* ── Borders / Dividers ────────────────────────────────────────── */
-  --border-default: #e5e2de; /* DECORATIVE dividers and card edges only */
+  --border-default: #e4e0e8; /* hairline */
   --border-subtle: rgba(229, 226, 222, 0.6); /* warm gray @ 60% — soft dividers */
   --border-strong: #8a8278; /* upstream's — 3.51:1 on --bg-default — control boundaries (WCAG 1.4.11) */
   --border-emphasis: #c9c5be; /* medium warm gray — focused inputs */
@@ -475,8 +483,8 @@
    * upstream's signature #d04a02 is not lost: it is the focus ring and the
    * accent (below), roles that need 3:1, which it clears.
    */
-  --brand-default: #b83d00; /* links, accents, the primary's top stop. Label 5.39:1; as an edge 5.07:1 on the page */
-  --focus-ring: #d04a02; /* DEVIATION, solid (see Interactive / Focus). 4.03:1 on --bg-page, 4.18:1 on --bg-default */
+  --brand-default: #6d3fe8; /* purple — links, the primary's top stop (the phone's light accent) */
+  --focus-ring: #6d3fe8; /* purple */
   /*
    * A FILL token: the primary button's deep stop, a checked checkbox or
    * switch, the selected day. On --bg-page it is 6.53:1 (6.77:1 on
@@ -485,9 +493,14 @@
    * An older note said "5.1:1 on white". The page is #f4f2ed, never white.
    * Brand TEXT is --content-brand.
    */
-  --brand-emphasis: #9a3412; /* FILL. 6.53:1 on --bg-page; label 6.94:1 */
-  --brand-muted: #c2410c; /* the hover's top stop. Label 4.92:1 */
-  --brand-subtle: rgba(208, 74, 2, 0.09); /* upstream's: orange @ 9% — brand tint backgrounds */
+  --brand-emphasis: #5a30d0; /* purple FILL; white label 7.21:1 */
+  --brand-muted: #7a52f0; /* the hover's top stop */
+  --brand-subtle: rgba(109, 63, 232, 0.09); /* purple @ 9% — chosen tint */
+  --selected-fill: #eee8ff; /* a chosen chip, day or hour */
+  --selected-edge: #b9a5f5; /* its edge (decorative) */
+  --photo-ink: #101016; /* the same in both themes: see the dark block */
+  --photo-muted: #b1aebd;
+  --photo-edge: #453a58;
 
   /* ── Brand / Secondary (the complement: upstream's navy, hue 224°) ──
    *
@@ -497,22 +510,22 @@
    * (--content-brand) on it measures 5.81:1 over the sidebar (--bg-default)
    * and 5.05:1 over the phone drawer's popup texture at its strongest.
    */
-  --brand-secondary-default: #1e3a8a; /* navy — hover edge of the primary button. 9.26:1 on --bg-page */
+  --brand-secondary-default: #7d6500; /* deep gold — hover edge of the purple primary, its complement (button-material) */
   --brand-secondary-emphasis: #172554; /* deeper navy — active surfaces. 13.13:1 on --bg-page */
   --brand-secondary-muted: #3b82f6; /* lighter blue — highlight midstop */
-  --brand-secondary-subtle: rgba(30, 58, 138, 0.09); /* navy @ 9% — the sidebar's active wash */
+  --brand-secondary-subtle: rgba(109, 63, 232, 0.09); /* purple @ 9% — the sidebar's active wash */
 
   /* ── Accent — #362 ─────────────────────────────────────────────────
    *
    * What upstream paints in these roles, whose fallbacks resolve to its
    * brand: the signature orange. Who reads them: see the dark block.
    */
-  --accent-default: #d04a02; /* signature orange — 4.03:1 on --bg-page, 4.18:1 on --bg-default, 4.39:1 on --bg-elevated */
-  --accent-emphasis: #b83d00; /* the undo toast's ring. 5.53:1 on --bg-elevated */
-  --accent-subtle: rgba(208, 74, 2, 0.09); /* orange @ 9% — the count badge's tint */
+  --accent-default: #6d3fe8; /* purple */
+  --accent-emphasis: #5a30d0; /* deep purple */
+  --accent-subtle: rgba(109, 63, 232, 0.09); /* purple @ 9% */
   /* DEVIATION: one step past --accent-emphasis. The count sits on the
      header's orange wash, where #b83d00 measures 4.04:1. */
-  --content-accent: #9a3412; /* the count's digits: 5.81:1 over the page, 6.01:1 over a card, 5.21:1 over the header's wash */
+  --content-accent: #5a30d0; /* purple digits */
   --nav-band-active: var(--bg-page); /* upstream's: the page-tone cut-out */
 
   /* ── Status: Success ───────────────────────────────────────────── */
@@ -560,9 +573,9 @@
    * 1.73:1 on the page, a ring nobody can see; a translucent ring here was
    * #244 once already. It is the same signature orange, solid.
    */
-  --ring-default: #d04a02; /* same as --focus-ring */
-  --ring: #d04a02; /* same as --focus-ring */
-  --ring-offset-background: #f8f6f3;
+  --ring-default: #6d3fe8; /* same as --focus-ring */
+  --ring: #6d3fe8; /* same as --focus-ring */
+  --ring-offset-background: #ffffff;
   --primary: #b83d00;
 
   /* ── Glass (warm light variant) ─────────────────────────────────── */

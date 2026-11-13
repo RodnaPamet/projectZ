@@ -21,6 +21,7 @@ import { playCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
 import { VenuePhotoImg } from '@/components/media/venue-photo-img';
+import { SportBackdrop } from '@/components/sports/SportBanner';
 import { WriteToClub } from '@/components/messages/WriteToClub';
 import { ClubLeaderboard } from '@/components/ranking/ClubLeaderboard';
 import { ClubTournaments } from '@/components/tournaments/ClubTournaments';
@@ -36,6 +37,7 @@ import { cn } from '@/lib/cn';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { cityLabel } from '@/lib/geo/cities';
 import { readModules } from '@/lib/modules';
+import { sportArt } from '@/lib/sports/art';
 import { bookingNoun } from '@/lib/sports/resource-kinds';
 import { buildClubJsonLd } from '@/lib/seo/club-jsonld';
 import { clubPath, venuePath } from '@/lib/seo/sitemap';
@@ -162,6 +164,8 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const club = await readClub(slug);
   if (!club) notFound();
+  // The sport its cover shows while no venue has a photo.
+  const clubSport = club.venues.flatMap((v) => v.sports)[0];
 
   const now = new Date();
   const live = club.venues.slice(0, LIVE_TIMES_VENUES);
@@ -231,15 +235,17 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
             Играй there, and a second one would say it twice. */}
         {me ? <PageBreadcrumbs items={playCrumbs(tNav, club.name)} className="hidden" /> : null}
         <header className="flex flex-col gap-4">
-          {/* The cover (#366): the first venue's photo that has one, else a
-              token-tinted band. The back link is the page's own way to the
-              index, not navigation chrome. */}
+          {/* The cover (#366): the first venue's photo that has one, else the
+              club's first sport in its banner photo (owner 2026-11-13, as the
+              phone), else a token-tinted band. The back link is the page's
+              own way to the index, not navigation chrome. */}
           <div
             className={cn(
               'bg-brand-subtle in-shell:rounded-lg relative overflow-hidden md:rounded-lg',
-              club.cover ? 'h-48 md:h-64' : 'h-32 md:h-40',
+              club.cover || sportArt(clubSport) ? 'h-48 md:h-64' : 'h-32 md:h-40',
             )}
           >
+            {!club.cover && <SportBackdrop sport={clubSport} scrim="light" priority />}
             {club.cover && (
               <VenuePhotoImg
                 photo={club.cover}
@@ -336,12 +342,19 @@ export default async function ClubPublicPage({ params }: { params: Promise<{ slu
                     density="compact"
                     className="bg-bg-default focus-within:ring-ring relative flex flex-col gap-2 focus-within:ring-2"
                   >
-                    {v.cover && (
+                    {v.cover ? (
                       <VenuePhotoImg
                         photo={v.cover}
                         sizes="(min-width: 640px) 340px, 100vw"
                         className="bg-bg-muted aspect-[16/9] w-full rounded-md"
                       />
+                    ) : (
+                      sportArt(v.sports[0]) && (
+                        // No photo of its own: its sport's banner (as the phone).
+                        <div className="relative aspect-[2.75/1] w-full overflow-hidden rounded-md">
+                          <SportBackdrop sport={v.sports[0]} scrim="light" />
+                        </div>
+                      )
                     )}
                     <h3 className="text-content-emphasis font-medium">
                       {/* Default (auto) prefetch, as /venues' cards
