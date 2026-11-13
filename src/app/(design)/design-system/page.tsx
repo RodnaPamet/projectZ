@@ -204,57 +204,55 @@ const PALETTE: ReadonlyArray<{ token: string; role: string; dark: string; light:
   {
     token: '--brand-default',
     role: "Primary top stop; the secondary button's hover edge",
-    dark: '#7950f5 · white label 4.91:1 · edge 4.00:1 page, 3.75:1 card',
-    light:
-      '#b83d00 (upstream #d04a02, one step darker) · label 5.39:1 (was 4.28) · edge 5.07 / 5.25:1',
+    dark: '#e6b04f golden-hour gold · ink label 9.22:1 · edge 9.65:1 page, 8.78:1 card',
+    light: '#6d3fe8 purple · label 5.66:1 · edge 5.42 / 5.95:1',
   },
   {
     token: '--brand-emphasis',
     role: 'Primary bottom stop and rest edge, checked controls',
-    dark: '#6d3fe8 · white label 5.95:1 · fill 3.29:1 page',
-    light: '#9a3412 (upstream #b83d00) · label 6.94:1 · fill 6.53:1 page',
+    dark: '#dda13f · ink label 7.97:1 · fill 8.35:1 page',
+    light: '#5a30d0 · label 7.21:1 · fill 6.91:1 page',
   },
   {
     token: '--brand-muted',
     role: 'Primary hover top stop',
-    dark: '#8255f5 · white label 4.60:1',
-    light: '#c2410c (upstream #e06520) · label 4.92:1 (was 3.30)',
+    dark: '#e9bb66 · ink label 10.15:1',
+    light: '#7a52f0 · label 4.65:1',
   },
   {
     token: '--content-brand',
-    role: 'Brand text: links, the active menu label',
-    dark: '#a78bfa · 7.21:1 page · 5.56:1 on the active wash',
-    light:
-      '#9a3412 (upstream #b83d00) · 6.53:1 page · 5.05:1 on the wash in the phone drawer (was 3.92)',
+    role: 'Brand text, and what is chosen: links, the active menu label, a chosen chip',
+    dark: '#bcaaff lavender · 9.33:1 page · 6.93:1 on the active wash',
+    light: '#5a30d0 · 6.91:1 page · 5.77:1 on the wash in the phone drawer',
   },
   {
     token: '--brand-secondary-default',
-    role: 'Primary hover edge: the complement, 153° (dark) / 155° (light) from the brand',
-    dark: '#facc15 yellow · 12.81:1 page · 12.02:1 card',
-    light: "#1e3a8a, upstream's navy · 9.26:1 page · 9.60:1 card",
+    role: 'Primary hover edge: the complement, 165° (dark) / 152° (light) from the brand',
+    dark: '#aab4ff periwinkle · 9.64:1 page · 8.78:1 card',
+    light: '#7d6500 deep gold · 5.12:1 page · 5.62:1 card',
   },
   {
     token: '--accent-default',
     role: "Focus halo and the tab bar's active bar",
-    dark: '#facc15 yellow · 12.81:1 page · 12.02:1 card · 10.66:1 dropdown',
-    light: '#d04a02, the signature orange · 4.03:1 page · 4.18:1 card · 4.39:1 dropdown',
+    dark: '#dda13f gold · 8.35:1 page · 7.59:1 card · 6.98:1 dropdown',
+    light: '#6d3fe8 purple · 5.42:1 page · 5.95:1 card · 5.95:1 dropdown',
   },
   {
     token: '--content-accent',
     role: "The bell's count, on --accent-subtle",
-    dark: "#facc15 · 7.69:1 over the header's brand wash",
-    light: "#9a3412 · 5.21:1 over the header's brand wash",
+    dark: "#dda13f · 4.58:1 over the header's brand wash",
+    light: "#5a30d0 · 5.37:1 over the header's brand wash",
   },
   {
     token: '--brand-secondary-subtle',
-    role: 'Sidebar active wash: purple in dark, on purpose',
-    dark: 'violet @ 18% · the active label on it 5.56:1',
-    light: 'navy @ 9% (upstream) · the active label on it 5.81:1',
+    role: 'Sidebar active wash: purple in both themes',
+    dark: 'violet @ 18% · the active label on it 6.93:1',
+    light: 'purple @ 9% · the active label on it 6.64:1',
   },
   {
     token: '--nav-band-active',
     role: 'Sidebar active marker band',
-    dark: '#facc15 yellow · 12.02:1 on the sidebar',
+    dark: '#bcaaff lavender, the colour of a choice',
     light: "the page tone: upstream's cut-out",
   },
   {
@@ -269,7 +267,7 @@ function PaletteSwatches() {
   return (
     <div className="w-full" data-testid="ds-palette">
       <h3 className="text-content-emphasis mb-1 text-sm font-semibold">
-        The palette (#362): purple leads, yellow accents
+        The palette (#695): gold acts, lavender chooses, as the phone
       </h3>
       <p className="text-content-muted mb-3 text-xs">
         Buttons are 28px on a fine pointer and 44px on touch. Ratios are WCAG 2.x, measured from
