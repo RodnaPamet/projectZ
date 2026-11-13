@@ -93,14 +93,26 @@ describe('/venues — the seed', () => {
   });
 
   it('translates the sport badges from the catalogue, not the enum', async () => {
-    installFakeFetch(() => ok(page([venue()])));
-    mount(page([venue()]));
+    // No rating, so both sports fit in the card's three tags (#697).
+    installFakeFetch(() => ok(page([venue({ reviewCount: 0 })])));
+    mount(page([venue({ reviewCount: 0 })]));
 
     const card = cards()[0]!;
     expect(within(card).getByText(messages.sports.PADEL)).toBeInTheDocument();
     expect(within(card).getByText(messages.sports.TABLE_TENNIS)).toBeInTheDocument();
     // What every card used to say, in English, on a Bulgarian page.
     expect(within(card).queryByText(/padel|table_tennis/)).toBeNull();
+    await act(tick);
+  });
+
+  it('three tags at most (#697): sports that do not fit are one «N спорта»', async () => {
+    const many = venue({ sports: ['PADEL', 'TENNIS', 'SQUASH'] });
+    installFakeFetch(() => ok(page([many])));
+    mount(page([many]));
+
+    const card = cards()[0]!;
+    expect(within(card).getByText('3 спорта')).toBeInTheDocument();
+    expect(within(card).queryByText(messages.sports.PADEL)).toBeNull();
     await act(tick);
   });
 
