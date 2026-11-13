@@ -18846,7 +18846,8 @@
           "phone",
           "openingHours",
           "photos",
-          "resources"
+          "resources",
+          "cancellationCutoffHours"
         ],
         "properties": {
           "id": {
@@ -18959,6 +18960,11 @@
             "items": {
               "$ref": "#/components/schemas/VenueResource"
             }
+          },
+          "cancellationCutoffHours": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Hours before a start when a player can no longer cancel, and a game on the booking stops taking requests (#697). A new game can only open on an hour later than this."
           }
         }
       },

@@ -157,6 +157,12 @@ export interface VenueDetail extends VenueSummary {
   lat: number;
   lng: number;
   timezone: string;
+  /**
+   * Hours before a start when a player can no longer cancel, and a game on
+   * the booking stops taking requests (#697): the phone's «Създай игра» offers
+   * only hours a game can still open on.
+   */
+  cancellationCutoffHours: number;
   phone: string | null;
   openingHours: unknown;
   /** The gallery (#366), in the club's order; the cover is `cover`, not here. */
@@ -202,6 +208,7 @@ export function toVenueDetail(
     lat: Number(v.lat),
     lng: Number(v.lng),
     timezone: v.timezone,
+    cancellationCutoffHours: v.cancellationCutoffHours,
     phone: v.phone,
     openingHours: v.openingHoursJson,
     photos: splitPhotos(v.photos).gallery,
