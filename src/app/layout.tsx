@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
 
@@ -39,11 +40,26 @@ const inter = Inter({
 });
 
 /**
+ * Sofia Sans Extra Condensed (OFL, ./fonts/SofiaSans-OFL.txt), self-hosted:
+ * the athletic headlines the iPhone app has (owner 2026-11-13, "Full match
+ * with the phone"). Black italic for headlines, extra-bold upright for
+ * numbers that line up. Cyrillic is in the files.
+ */
+const display = localFont({
+  src: [
+    { path: './fonts/SofiaSansExtraCondensed-BlackItalic.ttf', weight: '900', style: 'italic' },
+    { path: './fonts/SofiaSansExtraCondensed-ExtraBold.ttf', weight: '800', style: 'normal' },
+  ],
+  display: 'swap',
+  variable: '--font-display',
+});
+
+/**
  * The OS/browser chrome colour per theme — the ACTUAL `--bg-page` tokens (see
  * `viewport.themeColor` below and tests/guardrails/native-feel.test.ts).
  * Defined once so the viewport pair and the pre-paint script cannot disagree.
  */
-const THEME_CHROME = { dark: '#0b0b12', light: '#f4f2ed' } as const satisfies Record<Theme, string>;
+const THEME_CHROME = { dark: '#101016', light: '#f6f4f0' } as const satisfies Record<Theme, string>;
 
 /**
  * A constant, quoted as a JS string literal for the inline script below.
@@ -182,7 +198,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang={locale}
       data-theme={initialTheme}
-      className={inter.variable}
+      className={`${inter.variable} ${display.variable}`}
       suppressHydrationWarning
     >
       <head>

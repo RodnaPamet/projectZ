@@ -28,7 +28,7 @@ export async function pickFirstTime(page: Page): Promise<string> {
   const times = page.getByRole('group', { name: 'Часове, Корт 1' });
   const first = times.getByRole('button').first();
   await expect(first).toBeVisible();
-  const label = (await first.textContent())!;
+  const label = (await first.getAttribute('aria-label'))!;
   await first.click();
   await expect(first).toHaveAttribute('aria-pressed', 'true');
   return label;

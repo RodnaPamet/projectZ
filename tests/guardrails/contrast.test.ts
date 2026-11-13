@@ -157,14 +157,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'text',
     why: 'brand-coloured words on the page: the homepage wordmark, the link on the 404',
-    measured: { light: 6.53, dark: 7.21 },
+    measured: { light: 6.91, dark: 9.33 },
   },
   {
     fg: '--content-brand',
     bg: '--bg-default',
     kind: 'text',
     why: 'brand-coloured words in a card',
-    measured: { light: 6.77, dark: 6.77 },
+    measured: { light: 7.59, dark: 8.49 },
   },
   {
     fg: '--content-brand',
@@ -173,7 +173,7 @@ const PAIRINGS: Pairing[] = [
     kind: 'text',
     why: "the sidebar's ACTIVE label on its wash (NAV_ITEM_ACTIVE), over the sidebar",
     // The wash is purple in dark on purpose (#362), and inflect's navy in light.
-    measured: { light: 5.81, dark: 5.56 },
+    measured: { light: 6.64, dark: 6.93 },
   },
   //
   // The same row in the PHONE nav drawer: a Sheet, whose `.surface-popup-texture`
@@ -187,7 +187,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: ['--bg-default', '--brand-default@10%'],
     kind: 'text',
     why: "the ACTIVE label on its wash in the phone nav drawer, over the sheet's texture",
-    measured: { light: 5.05, dark: 5.03 },
+    measured: { light: 5.77, dark: 5.81 },
   },
 
   // ── The inverted surface: text on the primary button ──────────────
@@ -226,7 +226,7 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-muted',
     kind: 'text',
     why: 'the SECONDARY button label on hover, on its darkest stop',
-    measured: { light: 6.25, dark: 6.22 },
+    measured: { light: 6.49, dark: 7.8 },
   },
 
   // ── The Still Surface primary tile (T18) ──────────────────────────
@@ -243,14 +243,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--brand-default',
     kind: 'text',
     why: 'the PRIMARY button label on its top stop, and on the bottom stop of its hover',
-    measured: { light: 5.39, dark: 4.91 },
+    measured: { light: 5.66, dark: 9.22 },
   },
   {
     fg: '--content-inverted',
     bg: '--brand-muted',
     kind: 'text',
     why: 'the PRIMARY button label on the top stop of its hover',
-    measured: { light: 4.92, dark: 4.6 },
+    measured: { light: 4.65, dark: 10.15 },
   },
 
   // ── The Still Surface destructive tile (T18) ──────────────────────
@@ -293,7 +293,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: 'the label on a disabled or disabledTooltip button, on the page',
-    measured: { light: 4.64, dark: 5.51 },
+    measured: { light: 4.73, dark: 5.27 },
   },
   {
     fg: '--content-subtle',
@@ -301,7 +301,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-default',
     kind: 'text',
     why: 'the label on a disabled or disabledTooltip button, in a card',
-    measured: { light: 4.81, dark: 5.08 },
+    measured: { light: 5.17, dark: 4.71 },
   },
 
   // ── Status colours, which carry MEANING and must be readable ──────
@@ -340,28 +340,28 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the FOCUS RING. A keyboard user who cannot see where they are cannot use the app.',
-    measured: { light: 4.03, dark: 12.81 },
+    measured: { light: 5.42, dark: 9.33 },
   },
   {
     fg: '--focus-ring',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the focus ring on a control inside a card',
-    measured: { light: 4.18, dark: 12.02 },
+    measured: { light: 5.95, dark: 8.49 },
   },
   {
     fg: '--ring',
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the shadcn-named ring: the calendar day, the table selection toolbar',
-    measured: { light: 4.03, dark: 12.81 },
+    measured: { light: 5.42, dark: 9.33 },
   },
   {
     fg: '--ring',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the shadcn-named ring on a control inside a card',
-    measured: { light: 4.18, dark: 12.02 },
+    measured: { light: 5.95, dark: 8.49 },
   },
   //
   // The vendored Button does not use --focus-ring. Its halo is a two-stop
@@ -375,28 +375,28 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: "the BUTTON's focus halo, and the tab bar's active bar, on the page",
-    measured: { light: 4.03, dark: 12.81 },
+    measured: { light: 5.42, dark: 8.35 },
   },
   {
     fg: '--accent-default',
     bg: '--bg-default',
     kind: 'non-text',
     why: "the BUTTON's focus halo, and a table's or a card row's focus ring, in a card",
-    measured: { light: 4.18, dark: 12.02 },
+    measured: { light: 5.95, dark: 7.59 },
   },
   {
     fg: '--accent-default',
     bg: '--bg-elevated',
     kind: 'non-text',
     why: "the BUTTON's focus halo in a dropdown or popover",
-    measured: { light: 4.39, dark: 10.66 },
+    measured: { light: 5.95, dark: 6.98 },
   },
   {
     fg: '--accent-emphasis',
     bg: '--bg-elevated',
     kind: 'non-text',
     why: "the undo toast's focus ring, on its elevated surface",
-    measured: { light: 5.53, dark: 8.51 },
+    measured: { light: 7.59, dark: 8.26 },
   },
   //
   // The SECONDARY button's hover edge is --brand-default, the mirror of
@@ -408,14 +408,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: "the secondary button's hover edge, on the page",
-    measured: { light: 5.07, dark: 4.0 },
+    measured: { light: 5.42, dark: 9.65 },
   },
   {
     fg: '--brand-default',
     bg: '--bg-default',
     kind: 'non-text',
     why: "the secondary button's hover edge, in a card",
-    measured: { light: 5.25, dark: 3.75 },
+    measured: { light: 5.95, dark: 8.78 },
   },
   //
   // The PRIMARY button's hover edge is the complementary hue: yellow in dark,
@@ -426,14 +426,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: 'the PRIMARY button hover edge, the complementary hue, on the page',
-    measured: { light: 9.26, dark: 12.81 },
+    measured: { light: 5.12, dark: 9.64 },
   },
   {
     fg: '--brand-secondary-default',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the PRIMARY button hover edge in a card',
-    measured: { light: 9.6, dark: 12.02 },
+    measured: { light: 5.62, dark: 8.78 },
   },
 
   // ── The bell's count, in the accent (#362) ────────────────────────
@@ -450,7 +450,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: "the bell's unread count, over the page",
-    measured: { light: 5.81, dark: 9.58 },
+    measured: { light: 6.07, dark: 6.1 },
   },
   {
     fg: '--content-accent',
@@ -458,7 +458,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-default',
     kind: 'text',
     why: "the bell's unread count, over a card",
-    measured: { light: 6.01, dark: 8.7 },
+    measured: { light: 6.64, dark: 5.39 },
   },
   {
     fg: '--content-accent',
@@ -466,7 +466,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: ['--bg-page', '--brand-subtle'],
     kind: 'text',
     why: "the bell's unread count, over the header's brand wash",
-    measured: { light: 5.21, dark: 7.69 },
+    measured: { light: 5.37, dark: 4.58 },
   },
 
   // ── The raised Card: text on translucent glass ────────────────────
@@ -480,7 +480,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: 'body text in the default raised card',
-    measured: { light: 10.02, dark: 14.54 },
+    measured: { light: 10.04, dark: 13.7 },
   },
   {
     fg: '--content-muted',
@@ -488,7 +488,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: 'captions in the default raised card',
-    measured: { light: 7.2, dark: 9.1 },
+    measured: { light: 7.22, dark: 8.57 },
   },
 
   // ── The label on the brand fill (#245) ────────────────────────────
@@ -504,7 +504,7 @@ const PAIRINGS: Pairing[] = [
     kind: 'text',
     why: 'the label on a primary link, and the PRIMARY button label on its bottom stop',
     // Light is inflect's #b83d00 label stop moved one step to #9a3412 (#362).
-    measured: { light: 6.94, dark: 5.95 },
+    measured: { light: 7.21, dark: 7.97 },
   },
 
   // ── The brand FILL, pinned at the bar a fill needs ────────────────
@@ -526,14 +526,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: 'a primary-button fill or a checked control on the page — a FILL, not body text',
-    measured: { light: 6.53, dark: 3.29 },
+    measured: { light: 6.91, dark: 8.35 },
   },
   {
     fg: '--brand-emphasis',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the same fill on a control inside a card',
-    measured: { light: 6.77, dark: 3.09 },
+    measured: { light: 7.59, dark: 7.59 },
   },
 ];
 
