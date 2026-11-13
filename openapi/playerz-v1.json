@@ -28997,7 +28997,8 @@
               "CLUBS_WON_AT",
               "FIRST_WIN"
             ],
-            "description": "Treat as an open string: kinds will be added."
+            "description": "Treat as an open string: kinds will be added.",
+            "x-open-enum": true
           },
           "value": {
             "type": "number",
@@ -29266,14 +29267,13 @@
                     "type": "integer",
                     "minimum": 0
                   }
-                },
-                "description": "From the reported scores, the caller's side first. A sport scored in parts and points (goals, halves) counts those as sets and games. Close sets went to 7 (7–5, 7–6)."
+                }
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Null without a reported score."
+            "description": "From the reported scores, the caller's side first. A sport scored in parts and points (goals, halves) counts those as sets and games. Close sets went to 7 (7–5, 7–6). Null without a reported score."
           },
           "partners": {
             "type": "array",
@@ -29383,8 +29383,7 @@
                   },
                   "absent": {
                     "type": ["string", "null"],
-                    "enum": ["PROVISIONAL", "HIDDEN", null],
-                    "description": "Why the caller is not on the board: a provisional level, or one they hide. Null on it, or below its last row."
+                    "description": "`PROVISIONAL` or `HIDDEN` (more may come): why the caller is not on the board — a provisional level, or one they hide. Null on it, or below its last row."
                   },
                   "total": {
                     "type": "integer",
