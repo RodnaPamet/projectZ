@@ -56,6 +56,8 @@ const venue = (over: Partial<VenueSummary> = {}): VenueSummary => ({
   clubLogoUrl: null,
   coverPhotoUrl: null,
   cover: null,
+  lat: 42.69,
+  lng: 23.32,
   ...over,
 });
 

@@ -113,6 +113,7 @@ const ALLOWED: Record<string, string> = {
     'and each venue’s free times today as the public availability route reads them',
   'src/app/api/v1/venues/route.ts': 'public venue list',
   'src/app/api/v1/venues/near/route.ts': 'public geo search',
+  'src/app/api/v1/venues/map/route.ts': 'public clubs map: every bookable venue card (#697)',
   'src/app-layer/usecases/favourites.ts':
     'favourite clubs (#672): public venue cards for the ids the person chose, through publicVenueFilter',
   'src/app/api/v1/venues/facets/route.ts':

@@ -76,6 +76,8 @@ const row = (id: string, tenantId: string): Row =>
     avgRating: 4.5,
     reviewCount: 3,
     coverPhotoUrl: null,
+    lat: 42.6977,
+    lng: 23.3219,
     resources: [
       { sport: 'PADEL', basePriceCents: 2400, currency: 'EUR', status: 'ACTIVE' },
       { sport: 'TENNIS', basePriceCents: 1800, currency: 'EUR', status: 'ACTIVE' },
@@ -176,6 +178,8 @@ describe('public venues page database binding', () => {
           clubLogoUrl: null,
           coverPhotoUrl: null,
           cover: null,
+          lat: 42.6977,
+          lng: 23.3219,
         },
       ],
       nextCursor: 'c1',
