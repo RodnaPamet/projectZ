@@ -192,6 +192,7 @@ describe('the v1 public reads', () => {
   it.each([
     '/api/v1/venues',
     '/api/v1/venues/near',
+    '/api/v1/venues/map',
     '/api/v1/venues/cvenue123',
     '/api/v1/venues/cvenue123/availability',
     '/api/v1/realtime/subscribe',
