@@ -1,14 +1,14 @@
 -- ROLLING BACK PAST P88: park every row the previous image cannot read.
 --
--- P88 («Факт на деня») added one value to "NotificationKind": SPORT_FACT. An
+-- P88 («Факт на седмицата») added one value to "NotificationKind": SPORT_FACT. An
 -- image built before P88 was generated without it, and Prisma 7 REFUSES a
 -- whole query that reads one:
 --
 --     PrismaClientKnownRequestError: Value 'SPORT_FACT' not found in enum 'NotificationKind'
 --
 -- The bell reads a person's notifications on every page, and every player with
--- a phone gets one such row a day, so the previous image's bell would break for
--- nearly everyone. Run this BEFORE starting the previous image, and
+-- a phone gets one such row a week, so the previous image's bell would break
+-- for nearly everyone. Run this BEFORE starting the previous image, and
 -- `p88-unpark.sql` after rolling forward again (docs/deploy-gcp.md, "Rolling
 -- back past p88").
 --

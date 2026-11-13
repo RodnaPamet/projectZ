@@ -5,7 +5,7 @@ import { LOCALE_COOKIE, isLocale, resolveLocale, type Locale } from '@/lib/i18n/
 
 /**
  * The language a v1 read answers in, for the reads that render copy and need
- * no account (the sport stories).
+ * no account (the sport facts).
  *
  *   1. `?locale=bg|en`       what the caller asked for, by name. The native app
  *                            sends it: it carries no cookie, and the URL then

@@ -400,18 +400,19 @@ services:
         done
 
   # ═══════════════════════════════════════════════════════════════════
-  #  «Факт на деня» (owner 2026-11-13): today's fact about each player's
-  #  main sport, pushed once a day from 10:00 Europe/Sofia.
+  #  «Факт на седмицата» (owner 2026-11-13): this week's fact about each
+  #  player's main sport, pushed on Monday from 10:00 Europe/Sofia.
   #
-  #  ═══ WHY EVERY 15 MINUTES AND NOT A SLEEP UNTIL 10:00 ═══
+  #  ═══ WHY EVERY 15 MINUTES AND NOT A SLEEP UNTIL MONDAY 10:00 ═══
   #
-  #  alpine:3 has no zone data, so this shell cannot tell when it is 10:00
-  #  in Sofia, and a sleep computed in UTC would drift by an hour at every
-  #  DST change. The ROUTE knows the Sofia clock: before 10:00 it answers
-  #  `"waiting":"before-send-hour"`, the first call after 10:00 sends, and
-  #  the day's dedupe key turns every later call that day into
-  #  `"sent":0`. So the fact goes out by 10:15, a restart cannot send a day
-  #  twice, and a missed call is made up 15 minutes later.
+  #  alpine:3 has no zone data, so this shell cannot tell when it is Monday
+  #  10:00 in Sofia, and a sleep computed in UTC would drift by an hour at
+  #  every DST change. The ROUTE knows the Sofia clock: it answers
+  #  `"waiting":"not-monday"` or `"before-send-hour"` until then, the first
+  #  call after Monday 10:00 sends, and the week's dedupe key turns every
+  #  later call that week into `"sent":0`. So the fact goes out by 10:15, a
+  #  restart cannot send a week twice, and a missed call is made up 15
+  #  minutes later.
   #
   #  Same shape as booking-sweep: busybox wget, `--post-data=""`, `$$`.
   # ═══════════════════════════════════════════════════════════════════
@@ -438,7 +439,7 @@ services:
             --header="x-cron-secret: $${CRON_SECRET}" \
             "$${FACTS_URL}" 2>&1) \
             && case "$$body" in
-                 *'"sent":0'*'"truncated":false'*) : ;;   # waiting, or already sent today — stay quiet
+                 *'"sent":0'*'"truncated":false'*) : ;;   # waiting, or already sent this week — stay quiet
                  *) echo "sport-facts: $$body" ;;
                esac \
             || echo "sport-facts: request FAILED -> $$body"

@@ -811,7 +811,7 @@
       }
     },
     "sportFact": {
-      "title": "Fact of the day · {sport}"
+      "title": "Fact of the week · {sport}"
     }
   },
   "notFound": {

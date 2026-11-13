@@ -162,9 +162,9 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // knows who is signed in, and a signed-out visitor sees module content too.
   // One literal path; it answers four booleans and nothing about anyone.
   /^\/api\/v1\/config$/,
-  // A sport's story and fact of the day (owner 2026-11-13): the same for
-  // everyone and about no one. One segment for the sport, then the literal.
-  /^\/api\/v1\/sports\/[^/]+\/story$/,
+  // A sport's fact of the week (owner 2026-11-13): the same for everyone and
+  // about no one. One segment for the sport, then the literal.
+  /^\/api\/v1\/sports\/[^/]+\/fact$/,
   // The orchestrator's probes. These are the paths that EXIST — `/api/livez`
   // and `/api/readyz` were listed here for a while and are not routes, which
   // meant readiness was public only by accident, via the `allow` default.

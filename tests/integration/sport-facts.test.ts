@@ -14,11 +14,11 @@ import { prismaTestClient, seedAccount, seedTenant, seedVenue } from '../helpers
 import { asAppSuperuser } from '../helpers/rls';
 
 /**
- * «Факт на деня» (owner 2026-11-13): once a day from 10:00 Sofia, to each
- * player with a device, today's fact about their main sport, in their
+ * «Факт на седмицата» (owner 2026-11-13): on Monday from 10:00 Sofia, to each
+ * player with a device, this week's fact about their main sport, in their
  * language. The APNs sender is a stand-in that records what it was asked to
  * send; the people, their sports, bookings, devices, switches and the bell
- * rows are real. The stories are the test fixture (TENNIS only).
+ * rows are real. The facts are the test fixture (TENNIS only).
  */
 jest.mock('@/lib/push/apns', () => ({
   ...jest.requireActual('@/lib/push/apns'),
@@ -28,17 +28,17 @@ const mockApns = sendApns as jest.Mock;
 
 const db = prismaTestClient();
 
-const previous = process.env.SPORT_STORIES_DIR;
+const previous = process.env.SPORT_FACTS_DIR;
 beforeAll(() => {
-  process.env.SPORT_STORIES_DIR = path.join(process.cwd(), 'tests/fixtures/sport-stories');
+  process.env.SPORT_FACTS_DIR = path.join(process.cwd(), 'tests/fixtures/sport-facts');
 });
 afterAll(() => {
-  if (previous === undefined) delete process.env.SPORT_STORIES_DIR;
-  else process.env.SPORT_STORIES_DIR = previous;
+  if (previous === undefined) delete process.env.SPORT_FACTS_DIR;
+  else process.env.SPORT_FACTS_DIR = previous;
 });
 
-/** 11:30 in Sofia on 13 November 2026: day 316, fact 5. */
-const MORNING = new Date('2026-11-13T09:30:00Z');
+/** Monday 16 November 2026, 10:30 in Sofia: week 45, fact 46, ISO week 47. */
+const MORNING = new Date('2026-11-16T08:30:00Z');
 
 async function player(
   opts: {
@@ -80,57 +80,74 @@ const factRows = (userId: string) =>
 
 beforeEach(() => mockApns.mockClear());
 
-describe('the daily fact push', () => {
-  it('sends today’s fact for the first profile sport, once a day however often it runs', async () => {
+describe('the weekly fact push', () => {
+  it('sends the week’s fact for the first profile sport, once a week however often it runs', async () => {
     // TENNIS sorts before BADMINTON in the profile's own order, as /me shows it.
     const ana = await player({ sports: ['BADMINTON', 'TENNIS'] });
 
     expect(await sendSportFacts(MORNING)).toEqual({
-      day: '2026-11-13',
+      week: '2026-W47',
+      weekStart: '2026-11-16',
       waiting: null,
       sent: 1,
       truncated: false,
     });
     expect(await factRows(ana)).toEqual([
       {
-        title: 'Факт на деня · Тенис',
-        body: 'Тенис факт номер 5.',
+        title: 'Факт на седмицата · Тенис',
+        body: 'Тенис факт номер 46.',
         href: '/venues?sport=TENNIS',
         refType: 'sport',
         refId: 'TENNIS',
-        dedupeKey: 'sport-fact:2026-11-13',
+        dedupeKey: 'sport-fact:2026-W47',
       },
     ]);
     expect(mockApns).toHaveBeenCalledTimes(1);
     expect(mockApns.mock.calls[0][1]).toMatchObject({
-      title: 'Факт на деня · Тенис',
-      body: 'Тенис факт номер 5.',
+      title: 'Факт на седмицата · Тенис',
+      body: 'Тенис факт номер 46.',
       threadId: 'sport:TENNIS',
     });
 
-    // The loop asks again every 15 minutes: nothing more that day.
-    const later = new Date('2026-11-13T20:00:00Z');
+    // The loop asks again every 15 minutes: nothing more that Monday.
+    const later = new Date('2026-11-16T20:00:00Z');
     expect(await sendSportFacts(later)).toMatchObject({ sent: 0, waiting: null });
+    // Nor the rest of the week.
+    expect(await sendSportFacts(new Date('2026-11-18T09:00:00Z'))).toMatchObject({
+      sent: 0,
+      waiting: 'not-monday',
+    });
     expect(mockApns).toHaveBeenCalledTimes(1);
 
-    // The next Sofia day is a new fact.
-    expect(await sendSportFacts(new Date('2026-11-14T09:30:00Z'))).toMatchObject({ sent: 1 });
+    // The next Monday is a new fact.
+    expect(await sendSportFacts(new Date('2026-11-23T08:30:00Z'))).toMatchObject({ sent: 1 });
     expect((await factRows(ana)).map((r) => r.body).sort()).toEqual([
-      'Тенис факт номер 5.',
-      'Тенис факт номер 6.',
+      'Тенис факт номер 46.',
+      'Тенис факт номер 47.',
     ]);
   });
 
-  it('waits until 10:00 in Sofia', async () => {
+  it('sends only on Monday, from 10:00 in Sofia', async () => {
     await player({ sports: ['TENNIS'] });
-    // 09:59 Sofia (07:59 UTC in winter).
-    expect(await sendSportFacts(new Date('2026-11-13T07:59:00Z'))).toEqual({
-      day: '2026-11-13',
-      waiting: 'before-send-hour',
+    // Friday 13 November, 11:00 in Sofia: not a Monday.
+    expect(await sendSportFacts(new Date('2026-11-13T09:00:00Z'))).toEqual({
+      week: '2026-W46',
+      weekStart: '2026-11-09',
+      waiting: 'not-monday',
       sent: 0,
       truncated: false,
     });
-    expect(await sendSportFacts(new Date('2026-11-13T08:00:00Z'))).toMatchObject({ sent: 1 });
+    // Sunday 23:30 in Sofia is Sunday, though it is Monday in some zones.
+    expect(await sendSportFacts(new Date('2026-11-15T21:30:00Z'))).toMatchObject({
+      waiting: 'not-monday',
+    });
+    // Monday 09:59 Sofia (07:59 UTC in winter).
+    expect(await sendSportFacts(new Date('2026-11-16T07:59:00Z'))).toMatchObject({
+      week: '2026-W47',
+      waiting: 'before-send-hour',
+      sent: 0,
+    });
+    expect(await sendSportFacts(new Date('2026-11-16T08:00:00Z'))).toMatchObject({ sent: 1 });
   });
 
   it('falls back to the sport booked most, in the player’s language', async () => {
@@ -171,7 +188,10 @@ describe('the daily fact push', () => {
 
     expect(await sendSportFacts(MORNING)).toMatchObject({ sent: 1 });
     expect(await factRows(ben)).toEqual([
-      expect.objectContaining({ title: 'Fact of the day · Tennis', body: 'Tennis fact number 5.' }),
+      expect.objectContaining({
+        title: 'Fact of the week · Tennis',
+        body: 'Tennis fact number 46.',
+      }),
     ]);
   });
 
@@ -230,11 +250,13 @@ describe('the daily fact push', () => {
       process.env.CRON_SECRET = SECRET;
       const res = await post(SECRET);
       expect(res.status).toBe(200);
-      // The real clock: before 10:00 Sofia it waits, after it there is nobody to send to.
+      // The real clock: it waits unless it is Monday from 10:00 Sofia, and
+      // then there is nobody to send to.
       const body = await res.json();
       expect(body).toMatchObject({ sent: 0, truncated: false });
-      expect(body.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(['before-send-hour', null]).toContain(body.waiting);
+      expect(body.week).toMatch(/^\d{4}-W\d{2}$/);
+      expect(body.weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(['not-monday', 'before-send-hour', null]).toContain(body.waiting);
     });
   });
 });

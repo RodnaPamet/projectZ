@@ -70,7 +70,7 @@ export type EmailCategory =
 /**
  * The kinds that ring the phone (#529), each with its own switch (P77). The
  * email kinds without `contact` (the operator's, never a person's); `account`
- * has no switch, as for email. `sportFacts` («Факт на деня», P88) is the one
+ * has no switch, as for email. `sportFacts` («Факт на седмицата», P88) is the one
  * kind that is push only: it is never emailed.
  */
 export type PushKind = Exclude<EmailCategory, 'contact'> | 'sportFacts';

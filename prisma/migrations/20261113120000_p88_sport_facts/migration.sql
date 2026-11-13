@@ -1,10 +1,10 @@
--- P88: «Факт на деня», a daily fun fact about the player's main sport
+-- P88: «Факт на седмицата», a weekly fun fact about the player's main sport
 -- (owner 2026-11-13).
 --
---   1. NotificationKind 'SPORT_FACT'   the bell row the daily push is written
+--   1. NotificationKind 'SPORT_FACT'   the bell row the weekly push is written
 --                                      as. It is also what makes the push
---                                      once a day: its dedupe key names the
---                                      Sofia day (`sport-fact:<day>`).
+--                                      once a week: its dedupe key names the
+--                                      ISO week (`sport-fact:2026-W46`).
 --   2. app_user."pushSportFacts"       its own push switch, beside the P77
 --                                      ones. Push only: the fact is never
 --                                      emailed, so there is no email switch.

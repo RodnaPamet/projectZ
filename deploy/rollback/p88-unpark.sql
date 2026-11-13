@@ -3,7 +3,7 @@
 -- Run once the image with P88 is running again: every notification row
 -- p88-park.sql moved aside goes back where it was, and the parking table is
 -- dropped. Safe to run twice; a row already back is skipped (ON CONFLICT DO
--- NOTHING). A day's fact the job wrote again while the rows were parked keeps
+-- NOTHING). A week's fact the job wrote again while the rows were parked keeps
 -- the new row: the dedupe key is unique per person, so the parked one is the
 -- row skipped.
 --

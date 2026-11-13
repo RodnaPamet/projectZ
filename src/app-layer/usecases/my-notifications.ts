@@ -207,7 +207,7 @@ export interface NotificationKinds {
 /** The phone's switches: every email kind, and the ones that only push. */
 export interface PushKinds extends NotificationKinds {
   /**
-   * «Факт на деня» (P88): the daily fun fact about the player's main sport.
+   * «Факт на седмицата» (P88): the weekly fun fact about the player's main sport.
    * Push only, so the email switches have no such kind.
    */
   sportFacts: boolean;

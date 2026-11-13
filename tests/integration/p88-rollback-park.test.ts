@@ -5,7 +5,7 @@ import { asAppSuperuser } from '../helpers/rls';
 
 /**
  * deploy/rollback/p88-park.sql leaves no bell row the pre-P88 image cannot
- * read, and p88-unpark.sql gives every one back. SPORT_FACT («Факт на деня»)
+ * read, and p88-unpark.sql gives every one back. SPORT_FACT («Факт на седмицата»)
  * is the only new enum value; the fact is never emailed.
  */
 
@@ -40,12 +40,12 @@ describe('rolling back past P88', () => {
           {
             userId,
             kind: 'SPORT_FACT',
-            title: 'Факт на деня · Тенис',
+            title: 'Факт на седмицата · Тенис',
             body: 'b',
-            dedupeKey: 'sport-fact:2026-11-12',
+            dedupeKey: 'sport-fact:2026-W46',
             readAt: new Date(),
           },
-          { userId, kind: 'SPORT_FACT', title: 'a', body: 'b', dedupeKey: 'sport-fact:2026-11-13' },
+          { userId, kind: 'SPORT_FACT', title: 'a', body: 'b', dedupeKey: 'sport-fact:2026-W47' },
           // A kind the previous image knows stays where it is.
           { userId, kind: 'BOOKING_CONFIRMED', title: 'a', body: 'b', dedupeKey: 'x1' },
         ],
@@ -63,12 +63,12 @@ describe('rolling back past P88', () => {
 
     run('deploy/rollback/p88-unpark.sql');
     expect(await kinds()).toEqual([
-      { k: 'SPORT_FACT', d: 'sport-fact:2026-11-12' },
-      { k: 'SPORT_FACT', d: 'sport-fact:2026-11-13' },
+      { k: 'SPORT_FACT', d: 'sport-fact:2026-W46' },
+      { k: 'SPORT_FACT', d: 'sport-fact:2026-W47' },
       { k: 'BOOKING_CONFIRMED', d: 'x1' },
     ]);
     const read = await asAppSuperuser(db, (tx) =>
-      tx.notification.findFirstOrThrow({ where: { userId, dedupeKey: 'sport-fact:2026-11-12' } }),
+      tx.notification.findFirstOrThrow({ where: { userId, dedupeKey: 'sport-fact:2026-W46' } }),
     );
     expect(read.readAt).not.toBeNull();
     const left = await db.$queryRawUnsafe<Array<{ n: bigint }>>(
@@ -77,7 +77,7 @@ describe('rolling back past P88', () => {
     expect(Number(left[0]!.n)).toBe(0);
   });
 
-  it('a day sent again while parked keeps the new row, and unparking does not fail', async () => {
+  it('a week sent again while parked keeps the new row, and unparking does not fail', async () => {
     const userId = await seedAccount('PLAYER', db);
     const fact = (body: string) =>
       asAppSuperuser(db, (tx) =>
@@ -87,7 +87,7 @@ describe('rolling back past P88', () => {
             kind: 'SPORT_FACT',
             title: 't',
             body,
-            dedupeKey: 'sport-fact:2026-11-13',
+            dedupeKey: 'sport-fact:2026-W47',
           },
         }),
       );

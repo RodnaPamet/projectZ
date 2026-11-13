@@ -33,7 +33,7 @@ const kindSwitches = z
   .refine(atLeastOne, { message: 'Set at least one category' });
 
 /**
- * The phone's switches: the same kinds, and «Факт на деня» (P88), which is
+ * The phone's switches: the same kinds, and «Факт на седмицата» (P88), which is
  * push only. So `{ email: { sportFacts } }` is a 400 naming the key, not a
  * switch that does nothing.
  */

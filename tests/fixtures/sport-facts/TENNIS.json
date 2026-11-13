@@ -1,15 +1,5 @@
 {
   "sport": "TENNIS",
-  "history": {
-    "bg": [
-      "Тенисът започва в манастирите на Франция, където монасите удрят топка с длан. После някой се сеща за ракета и дланите си отдъхват.",
-      "В Уимбълдън първо играят крокет. Тревата остава, крокетът си отива."
-    ],
-    "en": [
-      "Tennis began in French monasteries, where monks hit a ball with their palms. Then someone thought of a racket, and the palms got a rest.",
-      "Wimbledon was a croquet club first. The grass stayed, the croquet left."
-    ]
-  },
   "facts": [
     {
       "bg": "Тенис факт номер 1.",

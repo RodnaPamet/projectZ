@@ -39,14 +39,15 @@ function refused(req: NextRequest, job: string): NextResponse | null {
 }
 
 /**
- * «Факт на деня» (owner 2026-11-13): today's fact about each player's main
- * sport, pushed once a day from 10:00 Sofia time.
+ * «Факт на седмицата» (owner 2026-11-13): this week's fact about each
+ * player's main sport, pushed on Monday from 10:00 Sofia time.
  *
  * The loop in ops/sweep.compose.yml calls this every 15 minutes rather than
- * once at 10:00: the use case answers `waiting: "before-send-hour"` until
- * then, sends from the first run after it, and its dedupe key (the Sofia day)
- * makes every later run that day a no-op. So no clock in the container has to
- * know about Sofia or DST, and a restart cannot skip a day or send one twice.
+ * once on Monday at 10:00: the use case answers `waiting: "not-monday"` or
+ * `"before-send-hour"` until then, sends from the first run after it, and its
+ * dedupe key (the ISO week of the Sofia Monday) makes every later run that
+ * week a no-op. So no clock in the container has to know about Sofia or DST,
+ * and a restart cannot send a week twice.
  *
  * The binding is the use case's: it reads BYPASSRLS itself and writes each
  * bell row bound to its recipient; this route touches the database through

@@ -299,7 +299,7 @@ export interface PersonalDataExport {
       messages: boolean;
       openPlay: boolean;
       lessonsTaught: boolean;
-      /** «Факт на деня», push only (P88; version 11). */
+      /** «Факт на седмицата», push only (P88; version 11). */
       sportFacts: boolean;
     };
   };

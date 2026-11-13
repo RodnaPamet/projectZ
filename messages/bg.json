@@ -811,7 +811,7 @@
       }
     },
     "sportFact": {
-      "title": "Факт на деня · {sport}"
+      "title": "Факт на седмицата · {sport}"
     }
   },
   "notFound": {

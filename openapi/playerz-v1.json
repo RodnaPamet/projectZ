@@ -99,7 +99,7 @@
     },
     {
       "name": "Sports",
-      "description": "What there is to know about each sport: its history and its fact of the day."
+      "description": "What there is to know about each sport: its fun fact of the week."
     }
   ],
   "paths": {
@@ -17821,12 +17821,12 @@
         }
       }
     },
-    "/sports/{sport}/story": {
+    "/sports/{sport}/fact": {
       "get": {
-        "operationId": "getSportStory",
-        "summary": "A sport's history and its fact of the day",
+        "operationId": "getSportFact",
+        "summary": "A sport's fun fact of the week",
         "tags": ["Sports"],
-        "description": "**Public: no sign-in.** A sport's short, light-hearted history (two paragraphs) and its fact of the day, for the sport pages (owner 2026-11-13). Each sport has 52 facts; the fact changes at midnight Europe/Sofia for everyone (`fact.number` is Sofia days since 2026-01-01, mod 52, plus 1), and the same fact goes out as the daily «Факт на деня» push (`SPORT_FACT`). The language is `locale` when given, else the `NEXT_LOCALE` cookie, else the signed-in account's own, else Bulgarian. Cached `public` until the next Sofia midnight, `Vary: Cookie, Authorization`; a native client should send `locale`.",
+        "description": "**Public: no sign-in.** A sport's fun fact of the week, for the sport pages (owner 2026-11-13). Each sport has 52 facts; the fact changes at Monday 00:00 Europe/Sofia for everyone (`fact.number` is whole Sofia weeks since Monday 2026-01-05, mod 52, plus 1), and the same fact goes out as the weekly «Факт на седмицата» push on Monday (`SPORT_FACT`). The language is `locale` when given, else the `NEXT_LOCALE` cookie, else the signed-in account's own, else Bulgarian. Cached `public` until the next Monday 00:00 Sofia, `Vary: Cookie, Authorization`; a native client should send `locale`.",
         "security": [],
         "parameters": [
           {
@@ -17851,7 +17851,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The story, in the request's language.",
+            "description": "This week's fact, in the request's language.",
             "headers": {
               "X-API-Version": {
                 "description": "Contract version marker.",
@@ -17866,7 +17866,7 @@
                 }
               },
               "Cache-Control": {
-                "description": "`public, max-age=<seconds to the next Sofia midnight>`.",
+                "description": "`public, max-age=<seconds to the next Monday 00:00 Sofia>`.",
                 "schema": {
                   "type": "string"
                 }
@@ -17875,7 +17875,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SportStoryEnvelope"
+                  "$ref": "#/components/schemas/SportFactOfTheWeekEnvelope"
                 }
               }
             }
@@ -17891,7 +17891,7 @@
             }
           },
           "404": {
-            "description": "`STORY_NOT_FOUND` — this sport's story has not been written yet. Hide the story on its page.",
+            "description": "`FACT_NOT_FOUND` — this sport's facts have not been written yet. Hide the fact on its page.",
             "content": {
               "application/json": {
                 "schema": {
@@ -22499,7 +22499,7 @@
               },
               "sportFacts": {
                 "type": "boolean",
-                "description": "«Факт на деня»: once a day, from 10:00 Europe/Sofia, a fun fact about the player's main sport (the first sport on their profile, else the one they book most), as `GET /sports/{sport}/story` shows it. Push only, never email; players only. The push's `threadId` is `sport:<SPORT>`, its url `/venues?sport=<SPORT>`, and its bell row has kind `SPORT_FACT` (category `other`), `refType` `sport`, `refId` the sport key."
+                "description": "«Факт на седмицата»: every Monday from 10:00 Europe/Sofia, this week's fun fact about the player's main sport (the first sport on their profile, else the one they book most), as `GET /sports/{sport}/fact` shows it. Push only, never email; players only. The push's `threadId` is `sport:<SPORT>`, its url `/venues?sport=<SPORT>`, and its bell row has kind `SPORT_FACT` (category `other`), `refType` `sport`, `refId` the sport key."
               }
             },
             "description": "The same kinds on the phone (#529, P77): whether an event also pushes to the person's registered devices. On by default; `account` answers always ring and have no switch."
@@ -22579,7 +22579,7 @@
               },
               "sportFacts": {
                 "type": "boolean",
-                "description": "«Факт на деня»: push only, so `email` has no such switch."
+                "description": "«Факт на седмицата»: push only, so `email` has no such switch."
               }
             }
           }
@@ -29923,57 +29923,44 @@
           }
         }
       },
-      "SportStory": {
+      "SportFactOfTheWeek": {
         "type": "object",
-        "title": "SportStory",
-        "required": ["sport", "history", "fact"],
+        "title": "SportFactOfTheWeek",
+        "required": ["sport", "fact"],
         "properties": {
           "sport": {
             "$ref": "#/components/schemas/SportType"
           },
-          "history": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 2,
-            "maxItems": 2,
-            "description": "Two short paragraphs, at most three sentences each, plain text."
-          },
           "fact": {
-            "$ref": "#/components/schemas/SportFactOfTheDay"
+            "type": "object",
+            "required": ["text", "number", "weekStart"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "description": "The fact, plain text, in the request's language."
+              },
+              "number": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 52,
+                "description": "Which of the sport's 52 facts this is."
+              },
+              "weekStart": {
+                "type": "string",
+                "format": "date",
+                "description": "The Monday (Europe/Sofia, `YYYY-MM-DD`) of the week it is the fact of. It changes at the next Monday 00:00, Sofia time."
+              }
+            }
           }
         }
       },
-      "SportFactOfTheDay": {
+      "SportFactOfTheWeekEnvelope": {
         "type": "object",
-        "title": "SportFactOfTheDay",
-        "required": ["text", "number", "date"],
-        "properties": {
-          "text": {
-            "type": "string",
-            "description": "The fact, plain text, in the request's language."
-          },
-          "number": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 52,
-            "description": "Which of the sport's 52 facts this is."
-          },
-          "date": {
-            "type": "string",
-            "format": "date",
-            "description": "The Europe/Sofia day (`YYYY-MM-DD`) it is the fact of. It changes at that day's end, Sofia time."
-          }
-        }
-      },
-      "SportStoryEnvelope": {
-        "type": "object",
-        "title": "SportStoryEnvelope",
+        "title": "SportFactOfTheWeekEnvelope",
         "required": ["data"],
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/SportStory"
+            "$ref": "#/components/schemas/SportFactOfTheWeek"
           }
         }
       }
