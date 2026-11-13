@@ -339,6 +339,51 @@ describe('my statistics', () => {
     ).toEqual([]);
   });
 
+  it('in the order played, though the level moved in the order the results were counted', async () => {
+    const [ana, boris, cveta, dimo] = [ids.ana!, ids.boris!, ids.cveta!, ids.dimo!];
+    // Counted first: a win played 10 hours ago. Counted second: a loss
+    // played 50 hours ago, its result entered late.
+    await played(
+      [
+        [ana, boris],
+        [cveta, dimo],
+      ],
+      [
+        [6, 1],
+        [6, 1],
+      ],
+      0,
+      10,
+    );
+    await played(
+      [
+        [ana, boris],
+        [cveta, dimo],
+      ],
+      [
+        [1, 6],
+        [1, 6],
+      ],
+      1,
+      50,
+    );
+
+    const items = (await get(matchesRoute as never, '/me/matches')).body.data.items;
+    expect(items.map((m: { outcome: string }) => m.outcome)).toEqual(['WIN', 'LOSS']);
+    // The win was counted first: it moved the level from where it started.
+    expect(items[0].levelAfter).toBeGreaterThan(items[0].levelBefore);
+    // The late loss moved it down from where the win had left it.
+    expect(items[1].levelBefore).toBe(items[0].levelAfter);
+    expect(items[1].levelAfter).toBeLessThan(items[1].levelBefore);
+
+    const s = (await get(statsRoute as never, '/me/stats')).body.data;
+    expect(s.form.map((f: { outcome: string }) => f.outcome)).toEqual(['WIN', 'LOSS']);
+    expect(s.performance.currentStreak).toEqual({ outcome: 'WIN', length: 1 });
+    expect(s.milestones.find((m: { kind: string }) => m.kind === 'FIRST_WIN').at).toBe(
+      items[0].playedAt,
+    );
+  });
+
   it('the standing at the club played most at, with the rows around the caller', async () => {
     const [ana, boris, cveta, dimo] = [ids.ana!, ids.boris!, ids.cveta!, ids.dimo!];
     for (let i = 0; i < 5; i++) {

@@ -4,7 +4,7 @@ import { clubLeaderboard, type LeaderboardRow } from '@/app-layer/usecases/leade
 import { blockedEitherWay } from '@/app-layer/usecases/messaging-directory';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
-import { isProvisional, levelOfMean } from '@/lib/ratings/levels';
+import { isProvisional, levelOf, levelOfMean, seedRating } from '@/lib/ratings/levels';
 
 /**
  * A PLAYER'S OWN STATISTICS (#688; owner 2026-11-13: "a personal stat
@@ -390,37 +390,54 @@ function myScore(report: Report, userId: string): [number, number][] | null {
   return report.score.map(([a, b]) => (side === 0 ? [a, b] : [b, a]));
 }
 
-/** The player's matches, oldest first, as `MyMatch`. */
+/**
+ * The player's matches as `MyMatch`, in the order PLAYED, oldest first.
+ *
+ * The level before and after each is read in the order the results were
+ * RECORDED, which is the order the ratings moved in (the nth counted match
+ * wrote the history row numbered n); a result reported late still moved the
+ * level when it was counted. Only then are they put in the order played,
+ * which is what the list, the form and the streaks are about.
+ */
 function matchesOf(source: Source, userId: string): MyMatch[] {
   const levelAfter = new Map(source.history.map((h) => [h.matchesPlayed, h.level]));
-  return source.played.map((p, i) => {
-    const report = source.reports.get(p.matchId) ?? null;
-    const after = levelAfter.get(i + 1) ?? null;
-    const before = i === 0 ? source.declaredLevel : (levelAfter.get(i) ?? null);
-    const person = (id: string) =>
-      source.people.get(id) ?? { userId: id, name: null, avatarUrl: null };
-    const others = p.sides.filter((s) => s.userId !== userId);
-    return {
-      matchId: p.matchId,
-      playedAt: report?.startTs ?? p.recordedAt,
-      outcome: p.outcome,
-      venue: report?.venue
-        ? {
-            id: report.venue.id,
-            name: report.venue.name,
-            city: report.venue.city,
-            cityKey: report.venue.cityKey,
-          }
-        : null,
-      // A blocked or deleted player keeps their place on the side, without a name.
-      partners: others.filter((s) => s.teamIndex === p.teamIndex).map((s) => person(s.userId)),
-      opponents: others.filter((s) => s.teamIndex !== p.teamIndex).map((s) => person(s.userId)),
-      score: report ? myScore(report, userId) : null,
-      levelBefore: after === null ? null : (before ?? null),
-      levelAfter: after,
-      tournament: report?.tournament ?? null,
-    };
-  });
+  return source.played
+    .map((p, i) => {
+      const report = source.reports.get(p.matchId) ?? null;
+      const after = levelAfter.get(i + 1) ?? null;
+      // Before the first counted match: where the rating started, the declared
+      // level or the engine's default (`seedRating`).
+      const before =
+        i === 0 && source.sport
+          ? levelOf(seedRating(source.sport, source.declaredLevel))
+          : (levelAfter.get(i) ?? null);
+      const person = (id: string) =>
+        source.people.get(id) ?? { userId: id, name: null, avatarUrl: null };
+      const others = p.sides.filter((s) => s.userId !== userId);
+      return {
+        matchId: p.matchId,
+        playedAt: report?.startTs ?? p.recordedAt,
+        outcome: p.outcome,
+        venue: report?.venue
+          ? {
+              id: report.venue.id,
+              name: report.venue.name,
+              city: report.venue.city,
+              cityKey: report.venue.cityKey,
+            }
+          : null,
+        // A blocked or deleted player keeps their place on the side, without a name.
+        partners: others.filter((s) => s.teamIndex === p.teamIndex).map((s) => person(s.userId)),
+        opponents: others.filter((s) => s.teamIndex !== p.teamIndex).map((s) => person(s.userId)),
+        score: report ? myScore(report, userId) : null,
+        levelBefore: after === null ? null : (before ?? null),
+        levelAfter: after,
+        tournament: report?.tournament ?? null,
+      };
+    })
+    .map((m, recorded) => ({ m, recorded }))
+    .sort((a, b) => a.m.playedAt.getTime() - b.m.playedAt.getTime() || a.recorded - b.recorded)
+    .map(({ m }) => m);
 }
 
 function compute(source: Source, userId: string, now: Date): Omit<MyStats, 'standing'> {
@@ -596,9 +613,10 @@ function compute(source: Source, userId: string, now: Date): Omit<MyStats, 'stan
   const firstWin = matches.find((m) => m.outcome === 'WIN');
   if (firstWin)
     milestones.push({ kind: 'FIRST_WIN', value: 1, at: firstWin.playedAt, person: null });
+  const tenantOf = new Map(source.played.map((p) => [p.matchId, p.tenantId]));
   const wonAt = new Map<string, Date>();
-  for (const [i, m] of matches.entries()) {
-    const tenant = source.played[i]!.tenantId;
+  for (const m of matches) {
+    const tenant = tenantOf.get(m.matchId);
     if (m.outcome === 'WIN' && tenant && !wonAt.has(tenant)) wonAt.set(tenant, m.playedAt);
   }
   if (wonAt.size >= 2) {
