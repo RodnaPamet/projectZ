@@ -302,7 +302,12 @@
       "noCourtsTitle": "No courts to book online",
       "noCourts": "This venue does not take online bookings yet.",
       "errorTitle": "Free times did not load",
-      "errorDescription": "Check your connection and try again."
+      "errorDescription": "Check your connection and try again.",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "taken": "Taken",
+      "takenSpoken": "{time}, taken"
     },
     "plan": {
       "label": "Venue plan",

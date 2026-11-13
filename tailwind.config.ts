@@ -19,6 +19,11 @@ const config: Config = {
       '3xl': '1792px',
     },
     extend: {
+      // The headline face (layout.tsx): `font-display font-black italic` for
+      // headlines, `font-display font-extrabold` for numbers that line up.
+      fontFamily: {
+        display: ['var(--font-display)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+      },
       colors: {
         // ── Brand (theme-driven, #362) ──
         //

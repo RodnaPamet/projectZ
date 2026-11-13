@@ -8,6 +8,45 @@
 @import '../styles/tokens.css';
 
 /* ──────────────────────────────────────────────────────────────────
+ * The phone's look (owner 2026-11-13: "Full match with the phone").
+ *
+ * UNLAYERED on purpose: Tailwind v4 puts its utilities in a cascade layer,
+ * and unlayered rules win over every layer. That lets playerz restyle the
+ * vendored upstream components (Heading, ToggleGroup) from its own file,
+ * without editing a copied one (tests/guardrails/ui-sync-manifest.test.ts).
+ * ────────────────────────────────────────────────────────────────── */
+
+/* Headlines in Sofia Sans Extra Condensed, black italic (layout.tsx). */
+h1,
+h2 {
+  font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+h1 {
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+/* Heading level 1 and 2 (typography.tsx): a condensed face needs the size. */
+h1.text-2xl {
+  font-size: 2.25rem;
+}
+h2.text-lg {
+  font-size: 1.625rem;
+  line-height: 1.1;
+}
+
+/* A chosen option: lavender words on the quiet violet box, as the phone. */
+[role='radiogroup'] [data-toggle-pill] {
+  background: var(--selected-fill);
+  border-color: var(--selected-edge);
+}
+[role='radiogroup'] [data-selected='true'] {
+  color: var(--content-brand);
+}
+
+/* ──────────────────────────────────────────────────────────────────
  * `in-shell:` — inside a signed-in AppShell (#362).
  *
  * The same page renders in two frames: the public chrome for a visitor, where

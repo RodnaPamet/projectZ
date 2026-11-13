@@ -22,7 +22,9 @@ import { KEYS, type V1Page } from '@/lib/data/keys';
 import { useViewerId } from '@/lib/data/provider';
 import { useV1SWR, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
 import { FavouriteButton, type FavouriteVenues } from '@/components/venues/FavouriteButton';
+import { SportBackdrop, SportBanner } from '@/components/sports/SportBanner';
 import { canonicalCity, cityLabel } from '@/lib/geo/cities';
+import { sportArt } from '@/lib/sports/art';
 
 import { FILTER_NAMES, filtersFromParams, type VenueFilters } from './filters';
 
@@ -127,6 +129,7 @@ export function VenueList({
   facets?: VenueFacetOptions;
 }) {
   const t = useTranslations('venues');
+  const tSportsList = useTranslations('sports');
   const params = useSearchParams();
   const viewerId = useViewerId();
   // «Любими» (#672): the caller's hearted venues instead of the search.
@@ -242,6 +245,10 @@ export function VenueList({
         )
       ) : (
         <>
+          {/* A chosen sport in its banner photo, as the phone (owner 2026-11-13). */}
+          {filters.sport && (
+            <SportBanner sport={filters.sport} title={tSportsList(filters.sport as never)} className="mt-4" />
+          )}
           {/* ICU plural, not `venue{s}`. Bulgarian does not form plurals by
               appending a letter, and the count word itself changes — so the
               shape has to come from the catalogue, not from the JSX. */}
@@ -422,6 +429,14 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
       density="compact"
       className="bg-bg-default focus-within:ring-ring relative focus-within:ring-2"
     >
+      {/* Its first sport in that sport's banner photo (as the phone): the
+          list has no club photo to show. Decoration; the sports are named
+          below. */}
+      {sportArt(v.sports[0]) && (
+        <div className="relative -mx-1 -mt-1 mb-3 aspect-[2.75/1] overflow-hidden rounded-md">
+          <SportBackdrop sport={v.sports[0]} scrim="light" />
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-content-emphasis font-medium">
           {v.publicSlug ? (

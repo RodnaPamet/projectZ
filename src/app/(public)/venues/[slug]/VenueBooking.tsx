@@ -7,6 +7,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { AvailabilityDto, BookingDto, ResourceSlotsDto } from '@/app/api/v1/_lib/dto';
 import { CardListSkeleton } from '@/components/loading/shapes';
 import type { BookingViewer } from '@/components/booking/booking-viewer';
+import { SportBanner } from '@/components/sports/SportBanner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -23,6 +24,7 @@ import { useV1SWR } from '@/lib/data/use-v1-swr';
 import { resourceNoun } from '@/lib/sports/resource-kinds';
 import type { VenuePlan as Plan } from '@/lib/venues/plan';
 
+import { hourGrid } from '@/lib/booking/hour-grid';
 import { allowedMinutes, offersFor, type Offer } from '@/lib/booking/offers';
 
 import { venuePagePath, type InitialPick } from './booking-days';
@@ -120,6 +122,7 @@ export function VenueBooking({
   plan?: Plan | null;
 }) {
   const t = useTranslations('venue');
+  const tSports = useTranslations('sports');
   const format = useFormatter();
   const router = useRouter();
 
@@ -332,7 +335,7 @@ export function VenueBooking({
             {resources.map((r) => {
               const lengthsHere = allowedMinutes(r);
               const chosen = lengths[r.resourceId] ?? r.minBookingMinutes;
-              const offers = offersFor(r, chosen, now);
+              const grid = hourGrid(r, chosen, now, venue.timezone);
               return (
                 <Card
                   key={r.resourceId}
@@ -351,7 +354,13 @@ export function VenueBooking({
                       }
                     : {})}
                 >
-                  <Heading level={3}>{r.name}</Heading>
+                  {/* The court's sport in its photo, as the phone (owner 2026-11-13). */}
+                  <SportBanner
+                    sport={r.sport}
+                    title={r.name}
+                    subtitle={tSports(r.sport)}
+                    headingLevel={3}
+                  />
 
                   {lengthsHere.length > 1 && (
                     <ToggleGroup
@@ -369,43 +378,84 @@ export function VenueBooking({
                     />
                   )}
 
-                  {offers.length === 0 ? (
+                  {grid.length === 0 ? (
                     <Caption>{t('slots.none')}</Caption>
                   ) : (
+                    // The hours as the phone shows them: on the hour, in the
+                    // parts of the day, each with its price; a taken one kept
+                    // and labelled. The chosen one in the lavender of a choice.
                     <div
                       role="group"
                       aria-label={t('slots.courtTimes', { court: r.name })}
-                      className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                      className="flex flex-col gap-3"
                     >
-                      {offers.map((o) => {
-                        const selected =
-                          selection?.resourceId === r.resourceId &&
-                          selection.startTs === o.startTs &&
-                          selection.minutes === o.minutes;
-                        return (
-                          <Button
-                            key={o.startTs}
-                            type="button"
-                            variant={selected ? 'primary' : 'secondary'}
-                            aria-pressed={selected}
-                            className="tabular-nums"
-                            onClick={() => {
-                              if (selected) return;
-                              setSelection({
-                                resourceId: r.resourceId,
-                                courtName: r.name,
-                                noun: resourceNoun(r.resourceType),
-                                currency: r.currency,
-                                ...o,
-                              });
-                              // The funnel's "slot picked" (#371), once per pick.
-                              sendUsageBeacon(venue.id, 'SLOT_PICKED');
-                            }}
-                          >
-                            {time(o.startTs)} · {price(o.priceCents, r.currency)}
-                          </Button>
-                        );
-                      })}
+                      {grid.map((g) => (
+                        <div key={g.part} className="flex flex-col gap-2">
+                          <p className="text-content-muted text-sm font-semibold">{t(`slots.${g.part}`)}</p>
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {g.cells.map(({ startTs, offer: o }) => {
+                              if (!o) {
+                                return (
+                                  <div
+                                    key={startTs}
+                                    aria-label={t('slots.takenSpoken', { time: time(startTs) })}
+                                    className="border-border-default bg-bg-default flex min-h-14 flex-col justify-center rounded-[11px] border px-2.5 py-2 opacity-65"
+                                  >
+                                    <span className="font-display text-content-muted text-xl leading-none font-extrabold tabular-nums">
+                                      {time(startTs)}
+                                    </span>
+                                    <span className="text-content-muted text-xs">{t('slots.taken')}</span>
+                                  </div>
+                                );
+                              }
+                              const selected =
+                                selection?.resourceId === r.resourceId &&
+                                selection.startTs === o.startTs &&
+                                selection.minutes === o.minutes;
+                              return (
+                                <button
+                                  key={o.startTs}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  // One utterance: the time and its price, as before the grid.
+                                  aria-label={`${time(o.startTs)} · ${price(o.priceCents, r.currency)}`}
+                                  className={cn(
+                                    'flex min-h-14 flex-col justify-center rounded-[11px] border px-2.5 py-2 text-left transition-colors',
+                                    'focus-visible:shadow-[0_0_0_2px_var(--bg-default),0_0_0_4px_var(--focus-ring)] focus-visible:outline-none',
+                                    selected
+                                      ? 'border-content-brand bg-[var(--selected-fill)] shadow-[inset_0_0_0_1px_var(--content-brand)]'
+                                      : 'border-border-default bg-bg-default hover:border-[var(--selected-edge)]',
+                                  )}
+                                  onClick={() => {
+                                    if (selected) return;
+                                    setSelection({
+                                      resourceId: r.resourceId,
+                                      courtName: r.name,
+                                      noun: resourceNoun(r.resourceType),
+                                      currency: r.currency,
+                                      ...o,
+                                    });
+                                    // The funnel's "slot picked" (#371), once per pick.
+                                    sendUsageBeacon(venue.id, 'SLOT_PICKED');
+                                  }}
+                                >
+                                  <span className="font-display text-content-emphasis text-xl leading-none font-extrabold tabular-nums">
+                                    {time(o.startTs)}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      'text-xs tabular-nums',
+                                      selected ? 'text-content-brand' : 'text-content-muted',
+                                    )}
+                                  >
+                                    {price(o.priceCents, r.currency)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </Card>
