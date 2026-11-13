@@ -204,19 +204,19 @@ const PALETTE: ReadonlyArray<{ token: string; role: string; dark: string; light:
   {
     token: '--brand-default',
     role: "Primary top stop; the secondary button's hover edge",
-    dark: '#e6b04f golden-hour gold · ink label 9.22:1 · edge 9.65:1 page, 8.78:1 card',
+    dark: '#c98a2e deep gold, the sunset\'s top · ink label 6.18:1 · edge 6.46:1 page, 5.88:1 card',
     light: '#6d3fe8 purple · label 5.66:1 · edge 5.42 / 5.95:1',
   },
   {
     token: '--brand-emphasis',
     role: 'Primary bottom stop and rest edge, checked controls',
-    dark: '#dda13f · ink label 7.97:1 · fill 8.35:1 page',
+    dark: '#d9667a sunset rose · ink label 5.29:1 · fill 5.54:1 page',
     light: '#5a30d0 · label 7.21:1 · fill 6.91:1 page',
   },
   {
     token: '--brand-muted',
     role: 'Primary hover top stop',
-    dark: '#e9bb66 · ink label 10.15:1',
+    dark: '#d4974a · ink label 7.18:1',
     light: '#7a52f0 · label 4.65:1',
   },
   {
@@ -234,13 +234,13 @@ const PALETTE: ReadonlyArray<{ token: string; role: string; dark: string; light:
   {
     token: '--accent-default',
     role: "Focus halo and the tab bar's active bar",
-    dark: '#dda13f gold · 8.35:1 page · 7.59:1 card · 6.98:1 dropdown',
+    dark: '#c98a2e deep gold · 6.46:1 page · 5.88:1 card · 5.4:1 dropdown',
     light: '#6d3fe8 purple · 5.42:1 page · 5.95:1 card · 5.95:1 dropdown',
   },
   {
     token: '--content-accent',
     role: "The bell's count, on --accent-subtle",
-    dark: "#dda13f · 4.58:1 over the header's brand wash",
+    dark: "#e9bb66 · 6.63:1 over the header's brand wash",
     light: "#5a30d0 · 5.37:1 over the header's brand wash",
   },
   {
@@ -267,7 +267,7 @@ function PaletteSwatches() {
   return (
     <div className="w-full" data-testid="ds-palette">
       <h3 className="text-content-emphasis mb-1 text-sm font-semibold">
-        The palette (#695): gold acts, lavender chooses, as the phone
+        The palette (#695): a gold-to-rose sunset acts, lavender chooses, as the phone
       </h3>
       <p className="text-content-muted mb-3 text-xs">
         Buttons are 28px on a fine pointer and 44px on touch. Ratios are WCAG 2.x, measured from

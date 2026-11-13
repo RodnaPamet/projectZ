@@ -56,7 +56,7 @@
     0.08
   ); /* violet-400 @ 8% — selection bg, disabled surfaces, faint tints */
   --bg-elevated: #22212e; /* tooltips, dropdowns */
-  --bg-inverted: #dda13f; /* = --brand-emphasis */
+  --bg-inverted: #d9667a; /* = --brand-emphasis */
   /* Next to no hue: it dims the midnight page instead of tinting it. */
   --bg-overlay: rgba(6, 6, 12, 0.72); /* near-black scrim behind modals/drawers */
 
@@ -111,7 +111,7 @@
    * --brand-secondary-default (button-material.test.ts). The label on every
    * stop of the primary button is white, and every stop clears AA under it.
    */
-  --brand-default: #e6b04f; /* golden-hour gold — the primary's top stop */
+  --brand-default: #c98a2e; /* deep gold — the primary's top stop; the sunset runs down into rose (owner 2026-11-13) */
   /*
    * The FOCUS RING. Its own token, deliberately.
    *
@@ -121,8 +121,8 @@
    * compromise for the sake of a link colour. Since #362 it is the yellow accent.
    */
   --focus-ring: #bcaaff; /* lavender — 9.33:1 on --bg-page, 8.49:1 on --bg-default */
-  --brand-emphasis: #dda13f; /* golden-hour gold FILL (owner 2026-11-13); ink label 7.97:1 */
-  --brand-muted: #e9bb66; /* the hover's top stop */
+  --brand-emphasis: #d9667a; /* sunset rose — the primary's bottom stop and the FILL */
+  --brand-muted: #d4974a; /* the hover's top stop */
   --brand-subtle: rgba(188, 170, 255, 0.14); /* lavender @ 14% — chosen tint */
   --selected-fill: #272137; /* a chosen chip, day or hour: the phone's quiet violet box */
   --selected-edge: #635589; /* its edge (decorative: the words carry the choice) */
@@ -177,10 +177,10 @@
    * change. --accent-subtle and --content-accent are playerz's own: upstream's
    * StatusBadge may not take a brand tone, so the bell colours its count here.
    */
-  --accent-default: #dda13f; /* gold */
+  --accent-default: #c98a2e; /* deep gold */
   --accent-emphasis: #eab308; /* yellow-500 — the undo toast's ring. 8.51:1 on --bg-elevated */
-  --accent-subtle: rgba(250, 204, 21, 0.15); /* yellow @ 15% — the count badge's tint */
-  --content-accent: #dda13f; /* gold digits */
+  --accent-subtle: rgba(201, 138, 46, 0.15); /* deep gold @ 15% — the count badge's tint */
+  --content-accent: #e9bb66; /* light gold digits: the deep gold under-reads on the header wash */
   --nav-band-active: #bcaaff; /* lavender — the chosen row */
 
   /* ── Status: Success ───────────────────────────────────────────── */
@@ -233,7 +233,7 @@
   /* shadcn / Radix compatibility tokens */
   --ring: #bcaaff; /* same as --focus-ring */
   --ring-offset-background: #101016; /* = --bg-page */
-  --primary: #dda13f; /* = --brand-emphasis */
+  --primary: #d9667a; /* = --brand-emphasis */
 
   /* ── Glass ─────────────────────────────────────────────────────── */
   /*
@@ -576,7 +576,7 @@
   --ring-default: #6d3fe8; /* same as --focus-ring */
   --ring: #6d3fe8; /* same as --focus-ring */
   --ring-offset-background: #ffffff;
-  --primary: #b83d00;
+  --primary: #6d3fe8; /* = the light brand purple */
 
   /* ── Glass (warm light variant) ─────────────────────────────────── */
   --glass-bg: rgba(

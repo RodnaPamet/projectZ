@@ -187,7 +187,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: ['--bg-default', '--brand-default@10%'],
     kind: 'text',
     why: "the ACTIVE label on its wash in the phone nav drawer, over the sheet's texture",
-    measured: { light: 5.77, dark: 5.81 },
+    measured: { light: 5.77, dark: 6.06 },
   },
 
   // ── The inverted surface: text on the primary button ──────────────
@@ -243,14 +243,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--brand-default',
     kind: 'text',
     why: 'the PRIMARY button label on its top stop, and on the bottom stop of its hover',
-    measured: { light: 5.66, dark: 9.22 },
+    measured: { light: 5.66, dark: 6.18 },
   },
   {
     fg: '--content-inverted',
     bg: '--brand-muted',
     kind: 'text',
     why: 'the PRIMARY button label on the top stop of its hover',
-    measured: { light: 4.65, dark: 10.15 },
+    measured: { light: 4.65, dark: 7.18 },
   },
 
   // ── The Still Surface destructive tile (T18) ──────────────────────
@@ -375,21 +375,21 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: "the BUTTON's focus halo, and the tab bar's active bar, on the page",
-    measured: { light: 5.42, dark: 8.35 },
+    measured: { light: 5.42, dark: 6.46 },
   },
   {
     fg: '--accent-default',
     bg: '--bg-default',
     kind: 'non-text',
     why: "the BUTTON's focus halo, and a table's or a card row's focus ring, in a card",
-    measured: { light: 5.95, dark: 7.59 },
+    measured: { light: 5.95, dark: 5.88 },
   },
   {
     fg: '--accent-default',
     bg: '--bg-elevated',
     kind: 'non-text',
     why: "the BUTTON's focus halo in a dropdown or popover",
-    measured: { light: 5.95, dark: 6.98 },
+    measured: { light: 5.95, dark: 5.4 },
   },
   {
     fg: '--accent-emphasis',
@@ -408,14 +408,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: "the secondary button's hover edge, on the page",
-    measured: { light: 5.42, dark: 9.65 },
+    measured: { light: 5.42, dark: 6.46 },
   },
   {
     fg: '--brand-default',
     bg: '--bg-default',
     kind: 'non-text',
     why: "the secondary button's hover edge, in a card",
-    measured: { light: 5.95, dark: 8.78 },
+    measured: { light: 5.95, dark: 5.88 },
   },
   //
   // The PRIMARY button's hover edge is the complementary hue: yellow in dark,
@@ -450,7 +450,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-page',
     kind: 'text',
     why: "the bell's unread count, over the page",
-    measured: { light: 6.07, dark: 6.1 },
+    measured: { light: 6.07, dark: 8.7 },
   },
   {
     fg: '--content-accent',
@@ -458,7 +458,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: '--bg-default',
     kind: 'text',
     why: "the bell's unread count, over a card",
-    measured: { light: 6.64, dark: 5.39 },
+    measured: { light: 6.64, dark: 7.75 },
   },
   {
     fg: '--content-accent',
@@ -466,7 +466,7 @@ const PAIRINGS: Pairing[] = [
     backdrop: ['--bg-page', '--brand-subtle'],
     kind: 'text',
     why: "the bell's unread count, over the header's brand wash",
-    measured: { light: 5.37, dark: 4.58 },
+    measured: { light: 5.37, dark: 6.63 },
   },
 
   // ── The raised Card: text on translucent glass ────────────────────
@@ -504,7 +504,7 @@ const PAIRINGS: Pairing[] = [
     kind: 'text',
     why: 'the label on a primary link, and the PRIMARY button label on its bottom stop',
     // Light is inflect's #b83d00 label stop moved one step to #9a3412 (#362).
-    measured: { light: 7.21, dark: 7.97 },
+    measured: { light: 7.21, dark: 5.29 },
   },
 
   // ── The brand FILL, pinned at the bar a fill needs ────────────────
@@ -526,14 +526,14 @@ const PAIRINGS: Pairing[] = [
     bg: '--bg-page',
     kind: 'non-text',
     why: 'a primary-button fill or a checked control on the page — a FILL, not body text',
-    measured: { light: 6.91, dark: 8.35 },
+    measured: { light: 6.91, dark: 5.54 },
   },
   {
     fg: '--brand-emphasis',
     bg: '--bg-default',
     kind: 'non-text',
     why: 'the same fill on a control inside a card',
-    measured: { light: 7.59, dark: 7.59 },
+    measured: { light: 7.59, dark: 5.04 },
   },
 ];
 
