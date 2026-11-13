@@ -61,6 +61,8 @@ const ALLOWED: Record<string, string> = {
     'a tournament’s notices (#579): one entry by id with its tournament, club and the two names on it, and the club’s desk to tell',
   'src/app-layer/usecases/leaderboards.ts':
     'a club’s leaderboard (#578): one public club by slug, and the ratings of the players with results there, each player’s own rows; signed-in callers only',
+  'src/app-layer/usecases/my-stats.ts':
+    'a player’s own statistics (#688): their own counted matches across clubs, the reports and bookings behind them, and the names of the people in them; the caller only',
   'src/app-layer/usecases/match-results.ts':
     'a result (#575): finds a result by id before matching the caller to its sides, sweeps every club for results past 48 h, reads the names on one booking, and rates every player (their own rows)',
   'src/app-layer/usecases/apple-sign-in.ts':
