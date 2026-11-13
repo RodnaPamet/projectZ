@@ -17983,6 +17983,219 @@
           }
         }
       }
+    },
+    "/me/stats": {
+      "get": {
+        "operationId": "getMyStats",
+        "summary": "The caller's own statistics",
+        "description": "The phone's «Профил» → «Прогрес» (#688): the level over time, record and form, sets and games, partners and rivals, activity, the club standing and milestones, in one sport.",
+        "tags": ["Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MyStats"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: an unknown sport.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "The sport; without it, the one the caller played most."
+          }
+        ]
+      }
+    },
+    "/me/matches": {
+      "get": {
+        "operationId": "listMyMatches",
+        "summary": "The caller's counted matches",
+        "description": "«Профил» → «Мачове» (#688): counted matches in one sport, newest first, with the score from the caller's side and the level before and after.",
+        "tags": ["Results"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-API-Version": {
+                "description": "Contract version marker. Stamped on every v1 response, success included.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id; matches `error.requestId` on failures and the id in the server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MyMatchesPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: an unknown sport.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "The sport; without it, the one the caller played most."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "description": "`nextCursor` from the page before."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -28490,6 +28703,658 @@
             "type": "string"
           }
         }
+      },
+      "StatsPerson": {
+        "type": "object",
+        "required": ["userId", "name", "avatarUrl"],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Null for a player in a block with the caller, or a deleted account."
+          },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          }
+        },
+        "title": "StatsPerson",
+        "description": "Someone the caller played with or against."
+      },
+      "StatsPersonRecord": {
+        "type": "object",
+        "required": ["person", "games", "wins"],
+        "properties": {
+          "person": {
+            "$ref": "#/components/schemas/StatsPerson"
+          },
+          "games": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "wins": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "title": "StatsPersonRecord",
+        "description": "Matches with (partners) or against (rivals) one person, and the caller's wins in them."
+      },
+      "StatsVenue": {
+        "type": "object",
+        "required": ["id", "name", "city", "cityKey", "cityNames"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "cityKey": {
+            "type": ["string", "null"]
+          },
+          "cityNames": {
+            "$ref": "#/components/schemas/CityNames"
+          }
+        },
+        "title": "StatsVenue"
+      },
+      "StatsMilestone": {
+        "type": "object",
+        "required": ["kind", "value", "at", "person"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PEAK_LEVEL",
+              "BEST_WIN_STREAK",
+              "MATCHES_PLAYED",
+              "TOP_PARTNER",
+              "CLUBS_WON_AT",
+              "FIRST_WIN"
+            ],
+            "description": "Treat as an open string: kinds will be added."
+          },
+          "value": {
+            "type": "number",
+            "description": "PEAK_LEVEL: the level. BEST_WIN_STREAK: wins in a row. MATCHES_PLAYED: the round number reached (10, 25, 50…). TOP_PARTNER: matches together. CLUBS_WON_AT: clubs with a win. FIRST_WIN: 1."
+          },
+          "at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "person": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StatsPerson"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "TOP_PARTNER: the partner."
+          }
+        },
+        "title": "StatsMilestone",
+        "description": "A personal best (#688)."
+      },
+      "MyStats": {
+        "type": "object",
+        "required": [
+          "sports",
+          "sport",
+          "rating",
+          "performance",
+          "form",
+          "sets",
+          "partners",
+          "rivals",
+          "activity",
+          "standing",
+          "milestones"
+        ],
+        "properties": {
+          "sports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SportType"
+            },
+            "description": "Every sport the caller declared a level in or played a counted match in."
+          },
+          "sport": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SportType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The sport shown: the one asked for, else the one played most; null with nothing declared or played."
+          },
+          "rating": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "level",
+                  "provisional",
+                  "declaredLevel",
+                  "matchesRated",
+                  "series",
+                  "peak",
+                  "change30d"
+                ],
+                "properties": {
+                  "level": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 7
+                  },
+                  "provisional": {
+                    "type": "boolean"
+                  },
+                  "declaredLevel": {
+                    "type": ["integer", "null"],
+                    "minimum": 1,
+                    "maximum": 7,
+                    "description": "The level the caller declared, where the rating started."
+                  },
+                  "matchesRated": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "series": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["at", "level"],
+                      "properties": {
+                        "at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "level": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 7
+                        }
+                      }
+                    },
+                    "description": "The level after each counted match, oldest first."
+                  },
+                  "peak": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": ["level", "at"],
+                        "properties": {
+                          "level": {
+                            "type": "number",
+                            "minimum": 1,
+                            "maximum": 7
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "change30d": {
+                    "type": ["number", "null"],
+                    "description": "The level now minus 30 days ago, one decimal; null before a first counted match."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null with no declared level and no counted match."
+          },
+          "performance": {
+            "type": "object",
+            "required": [
+              "games",
+              "wins",
+              "losses",
+              "draws",
+              "winRate",
+              "currentStreak",
+              "bestWinStreak"
+            ],
+            "properties": {
+              "games": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "wins": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "losses": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "draws": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "winRate": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Wins over games; null before a first match."
+              },
+              "currentStreak": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["outcome", "length"],
+                    "properties": {
+                      "outcome": {
+                        "type": "string",
+                        "enum": ["WIN", "LOSS", "DRAW"]
+                      },
+                      "length": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "bestWinStreak": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "form": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": ["matchId", "outcome", "at"],
+              "properties": {
+                "matchId": {
+                  "type": "string"
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": ["WIN", "LOSS", "DRAW"]
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            "description": "The last results, newest first."
+          },
+          "sets": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "scoredMatches",
+                  "setsWon",
+                  "setsLost",
+                  "gamesWon",
+                  "gamesLost",
+                  "closeSetsWon",
+                  "closeSetsLost"
+                ],
+                "properties": {
+                  "scoredMatches": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "setsWon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "setsLost": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "gamesWon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "gamesLost": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "closeSetsWon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "closeSetsLost": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "description": "From the reported scores, the caller's side first. A sport scored in parts and points (goals, halves) counts those as sets and games. Close sets went to 7 (7–5, 7–6)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null without a reported score."
+          },
+          "partners": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/StatsPersonRecord"
+            }
+          },
+          "rivals": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/StatsPersonRecord"
+            }
+          },
+          "activity": {
+            "type": "object",
+            "required": ["months", "weekdays", "hours", "venues"],
+            "properties": {
+              "months": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "required": ["month", "games"],
+                  "properties": {
+                    "month": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}$"
+                    },
+                    "games": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "description": "Oldest first, this month last (Sofia)."
+              },
+              "weekdays": {
+                "type": "array",
+                "minItems": 7,
+                "maxItems": 7,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Monday first, on the venue's clock."
+              },
+              "hours": {
+                "type": "array",
+                "minItems": 24,
+                "maxItems": 24,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "venues": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/StatsVenue"
+                    },
+                    {
+                      "type": "object",
+                      "required": ["games", "wins"],
+                      "properties": {
+                        "games": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "wins": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "standing": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["club", "rank", "absent", "total", "rows"],
+                "properties": {
+                  "club": {
+                    "type": "object",
+                    "required": ["slug", "name"],
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "rank": {
+                    "type": ["integer", "null"],
+                    "minimum": 1
+                  },
+                  "absent": {
+                    "type": ["string", "null"],
+                    "enum": ["PROVISIONAL", "HIDDEN", null],
+                    "description": "Why the caller is not on the board: a provisional level, or one they hide. Null on it, or below its last row."
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "rows": {
+                    "type": "array",
+                    "maxItems": 5,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "rank",
+                        "userId",
+                        "name",
+                        "avatarUrl",
+                        "level",
+                        "matchesPlayed",
+                        "isYou"
+                      ],
+                      "properties": {
+                        "rank": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": ["string", "null"]
+                        },
+                        "avatarUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "level": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 7,
+                          "description": "One decimal, on the 1–7 scale everyone sees."
+                        },
+                        "matchesPlayed": {
+                          "type": "integer",
+                          "minimum": 5
+                        },
+                        "isYou": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "description": "The rows around the caller, or the top of the board when they are not on it."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The leaderboard (#578) of the club the caller played most at in this sport; null without one."
+          },
+          "milestones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatsMilestone"
+            }
+          }
+        },
+        "title": "MyStats",
+        "description": "The caller's own statistics in one sport (#688)."
+      },
+      "MyMatch": {
+        "type": "object",
+        "required": [
+          "matchId",
+          "playedAt",
+          "outcome",
+          "venue",
+          "partners",
+          "opponents",
+          "score",
+          "levelBefore",
+          "levelAfter",
+          "tournament"
+        ],
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "playedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": ["WIN", "LOSS", "DRAW"]
+          },
+          "venue": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StatsVenue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "partners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatsPerson"
+            }
+          },
+          "opponents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatsPerson"
+            }
+          },
+          "score": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "description": "Each set or part as [caller's side, the other side]; null without a reported score."
+          },
+          "levelBefore": {
+            "type": ["number", "null"],
+            "minimum": 1,
+            "maximum": 7
+          },
+          "levelAfter": {
+            "type": ["number", "null"],
+            "minimum": 1,
+            "maximum": 7,
+            "description": "Null where the match moved no rating."
+          },
+          "tournament": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["id", "name"],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "MyMatch",
+        "description": "One counted match, from the caller's side (#688)."
+      },
+      "MyMatchesPage": {
+        "type": "object",
+        "required": ["sport", "items", "nextCursor"],
+        "properties": {
+          "sport": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SportType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/MyMatch"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "description": "Pass as `cursor` for the next page; null at the end."
+          }
+        },
+        "title": "MyMatchesPage"
       }
     }
   }
