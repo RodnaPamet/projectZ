@@ -270,7 +270,8 @@
     },
     "countMore": "{count, plural, one {Показан е # обект} other {Показани са # обекта}}, има още",
     "loadMore": "Покажи още",
-    "loadMoreError": "Следващите обекти не се заредиха. Опитайте отново."
+    "loadMoreError": "Следващите обекти не се заредиха. Опитайте отново.",
+    "sportCount": "{count} спорта"
   },
   "venue": {
     "metaTitle": "{name} — резервирай корт | playerz.bg",

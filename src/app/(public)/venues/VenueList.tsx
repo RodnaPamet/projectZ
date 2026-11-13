@@ -247,7 +247,11 @@ export function VenueList({
         <>
           {/* A chosen sport in its banner photo, as the phone (owner 2026-11-13). */}
           {filters.sport && (
-            <SportBanner sport={filters.sport} title={tSportsList(filters.sport as never)} className="mt-4" />
+            <SportBanner
+              sport={filters.sport}
+              title={tSportsList(filters.sport as never)}
+              className="mt-4"
+            />
           )}
           {/* ICU plural, not `venue{s}`. Bulgarian does not form plurals by
               appending a letter, and the count word itself changes — so the
@@ -471,11 +475,24 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
           {/* The catalogue's name for the sport, not the enum lower-cased:
               `table_tennis` was on every card, in English, on a Bulgarian
               page. `sports.*` carries every value of the Sport enum. */}
-          {v.sports.map((s) => (
-            <StatusBadge key={s} variant="neutral" icon={null}>
-              {tSports(s as never)}
+          {/* At most three tags in all, as the phone (#697): price below,
+              the rating above, and the sports in what is left; sports that
+              do not all fit are one «N спорта». */}
+          {v.sports.length <= (v.reviewCount > 0 ? 1 : 2) ? (
+            v.sports.map((s) => (
+              <StatusBadge key={s} variant="neutral" icon={null}>
+                {tSports(s as never)}
+              </StatusBadge>
+            ))
+          ) : (
+            <StatusBadge
+              variant="neutral"
+              icon={null}
+              title={v.sports.map((s) => tSports(s as never)).join(', ')}
+            >
+              {t('sportCount', { count: v.sports.length })}
             </StatusBadge>
-          ))}
+          )}
         </div>
       )}
 

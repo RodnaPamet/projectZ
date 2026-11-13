@@ -151,7 +151,8 @@ describe('/venues — the sport filter (#357)', () => {
   });
 
   it('squash and karting, once a live venue has them, read in Bulgarian and filter (P51)', async () => {
-    const both = venue({ name: 'Малеева', sports: ['SQUASH', 'KARTING'] });
+    // No rating: both sports fit in the card's three tags (#697).
+    const both = venue({ name: 'Малеева', sports: ['SQUASH', 'KARTING'], reviewCount: 0 });
     installFakeFetch(() => ok(page([both])));
     render(
       withIntl(
