@@ -127,7 +127,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 10;
+  version: 11;
   exportedAt: string;
   profile: {
     id: string;
@@ -197,6 +197,20 @@ export interface PersonalDataExport {
       registeredAt: string;
       lastNotifiedAt: string | null;
     }>;
+  };
+  /**
+   * Services the account connected (version 11, owner 2026-11-14): that a
+   * Google Calendar is connected, which Google account, and how it stands.
+   * Never the token: it is a credential, and it stays with playerz until it is
+   * revoked.
+   */
+  connectedServices: {
+    googleCalendar: {
+      googleAccount: string | null;
+      status: string;
+      connectedAt: string;
+      lastSyncAt: string | null;
+    } | null;
   };
   memberships: Array<{
     club: string;
@@ -699,6 +713,12 @@ export async function readPersonalData(
   const ranking = await readRanking(db, userId, user.ratingPublic, now);
   const tournaments = await readTournaments(db, userId);
 
+  // guardrail-allow: cross-tenant — the person's own calendar connection, by their id.
+  const calendar = await db.googleCalendarConnection.findUnique({
+    where: { userId },
+    select: { googleEmail: true, status: true, connectedAt: true, lastSyncAt: true },
+  });
+
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
     // guardrail-allow: cross-tenant — the person's own sessions, by their id.
     db.userSession.findMany({
@@ -855,7 +875,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 10,
+    version: 11,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -922,6 +942,16 @@ export async function readPersonalData(
         registeredAt: b.createdAt.toISOString(),
         lastNotifiedAt: iso(b.lastSuccessAt),
       })),
+    },
+    connectedServices: {
+      googleCalendar: calendar
+        ? {
+            googleAccount: calendar.googleEmail,
+            status: calendar.status,
+            connectedAt: calendar.connectedAt.toISOString(),
+            lastSyncAt: iso(calendar.lastSyncAt),
+          }
+        : null,
     },
     memberships: memberships.map((m) => ({
       // A club deleted between Prisma's two selects comes back null (#419).

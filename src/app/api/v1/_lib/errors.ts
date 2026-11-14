@@ -525,7 +525,17 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
     clientMessage: 'Authentication required',
   },
 
+  // ── Google Calendar sync (owner 2026-11-14) ───────────────────────
+  // Off on this deployment (GOOGLE_CALENDAR_SYNC): the app hides the switch.
+  GoogleCalendarSyncDisabledError: { status: 404, code: 'GOOGLE_CALENDAR_SYNC_DISABLED' },
+  GoogleCalendarNotConnectedError: { status: 404, code: 'GOOGLE_CALENDAR_NOT_CONNECTED' },
+  // Google refused the grant (removed in the Google account, or expired):
+  // «Свържете отново».
+  GoogleCalendarRevokedError: { status: 409, code: 'GOOGLE_CALENDAR_REVOKED' },
+
   // ── 503: ours, not theirs, and retryable ──────────────────────────
+  // Google did not answer, or rate-limited us. Nothing is lost; try later.
+  GoogleCalendarUnavailableError: { status: 503, code: 'GOOGLE_CALENDAR_UNAVAILABLE' },
   EngineUnavailableError: { status: 503, code: 'ENGINE_UNAVAILABLE' },
   ModerationUnavailableError: { status: 503, code: 'MODERATION_UNAVAILABLE' },
   // The SMS provider is not configured, or did not answer (#500). Nothing

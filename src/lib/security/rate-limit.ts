@@ -544,6 +544,20 @@ export const DATA_EXPORT_LIMIT: RateLimitConfig = {
   windowMs: 60 * 60 * 1000,
 };
 
+/**
+ * «Синхронизирай сега» on the Google Calendar card (owner 2026-11-14): 10 per
+ * 10 minutes per (IP, userId).
+ *
+ * Each sync reads the person's schedule and their calendar back from Google
+ * and may write hundreds of events, against a Google quota shared by every
+ * player. The five-minute loop keeps the calendar current anyway; the button
+ * is for "now", not for a loop.
+ */
+export const CALENDAR_SYNC_LIMIT: RateLimitConfig = {
+  maxAttempts: 10,
+  windowMs: 10 * 60 * 1000,
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // Progressive rate limit — Epic A.3 auth brute-force protection
 // ═══════════════════════════════════════════════════════════════════

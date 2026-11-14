@@ -96,6 +96,10 @@
     {
       "name": "Config",
       "description": "What a native client needs to know about this deployment (#621)."
+    },
+    {
+      "name": "Calendar",
+      "description": "A player's own Google Calendar, kept in step with their bookings, open games, lessons and tournament matches (owner 2026-11-14). Off unless the deployment sets `GOOGLE_CALENDAR_SYNC=1`: every operation then answers 404 `GOOGLE_CALENDAR_SYNC_DISABLED`."
     }
   ],
   "paths": {
@@ -18525,6 +18529,337 @@
           }
         }
       }
+    },
+    "/me/calendar": {
+      "get": {
+        "operationId": "getMyCalendar",
+        "summary": "Calendar sync: connected, as whom, last sync",
+        "description": "The caller's Google Calendar sync. `google.connected` drives the switch. `connected: false` with `error: GOOGLE_REVOKED` is a connection Google stopped (removed in the Google account, or expired): show «Свържете отново»; turning the switch on reconnects. `error: GOOGLE_UNAVAILABLE` means the last sync could not reach Google; the server retries on its own every five minutes.",
+        "tags": ["Calendar", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MyCalendar"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`GOOGLE_CALENDAR_SYNC_DISABLED` — the calendar sync is switched off on this deployment (`GOOGLE_CALENDAR_SYNC`). Hide the switch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/calendar/google": {
+      "delete": {
+        "operationId": "disconnectGoogleCalendar",
+        "summary": "Turn the calendar sync off",
+        "description": "The switch off: revokes the grant at Google and deletes the connection. 204 also when nothing was connected. The «playerz» calendar and the events already in it are LEFT in the person's Google account and stop being updated; the person can delete that calendar in Google.",
+        "tags": ["Calendar", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Disconnected, or nothing was connected. No body."
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`GOOGLE_CALENDAR_SYNC_DISABLED` — the calendar sync is switched off on this deployment (`GOOGLE_CALENDAR_SYNC`). Hide the switch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/calendar/google/connect": {
+      "post": {
+        "operationId": "connectGoogleCalendar",
+        "summary": "Turn the calendar sync on: start Google's consent",
+        "description": "The switch on. Answers `authorizeUrl`, Google's consent page for the scopes `openid email https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.freebusy`. Its `state` is a single-use nonce the server holds for ten minutes, bound to the caller and the client.\n\nThe phone opens it in an `ASWebAuthenticationSession` with the callback scheme `bg.playerz.app`. Google returns to `GET /api/integrations/google-calendar/callback` (not under /api/v1; nothing to call), which stores the connection, makes the «playerz» calendar, runs the first sync and redirects to:\n\n- `bg.playerz.app://integrations/google-calendar?result=connected`, or\n- `bg.playerz.app://integrations/google-calendar?error=<code>`, `<code>` one of `access_denied` (the person declined), `insufficient_scope` (the calendar box was unticked), `state_expired` (more than ten minutes; start again), `state_invalid` (used, unknown, or another account's), `token_exchange_failed`, `feature_disabled`, `internal_error`. Treat any other value as `internal_error`.\n\nThe web (`client: web`) is sent to `/me/profile?googleCalendar=connected` or `?googleCalendar=<code>`. Then read `GET /me/calendar`.",
+        "tags": ["Calendar", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleCalendarConnectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Open `authorizeUrl`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/GoogleCalendarConnect"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — not JSON, `client` missing or not `ios`/`web`, or an unknown property.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`GOOGLE_CALENDAR_SYNC_DISABLED` — the calendar sync is switched off on this deployment (`GOOGLE_CALENDAR_SYNC`). Hide the switch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/calendar/google/sync": {
+      "post": {
+        "operationId": "syncGoogleCalendar",
+        "summary": "Sync the calendar now",
+        "description": "«Синхронизирай сега». Writes the caller's schedule (30 days back to a year ahead) into the «playerz» calendar and answers what it did. Events the person edited in Google are left alone (`skippedEdited`); `partial: true` means something was held back for the next run (a capped read). The server also syncs on its own when the schedule changes, and every six hours. At most 10 per 10 minutes.",
+        "tags": ["Calendar", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sync ran.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CalendarSyncResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`GOOGLE_CALENDAR_SYNC_DISABLED` — switched off on this deployment; or `GOOGLE_CALENDAR_NOT_CONNECTED` — nothing to sync.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`GOOGLE_CALENDAR_REVOKED` — Google stopped the grant: connect again. Or `VIEWER_CHANGED` (web only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 10 per 10 minutes per account. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`GOOGLE_CALENDAR_UNAVAILABLE` — Google did not answer or rate-limited us. Nothing is lost; try later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -29814,6 +30149,106 @@
           "maxResults": {
             "type": "integer",
             "description": "The cap on one read: 1000."
+          }
+        }
+      },
+      "CalendarSyncResult": {
+        "type": "object",
+        "title": "CalendarSyncResult",
+        "description": "What one sync did.",
+        "required": ["created", "updated", "deleted", "unchanged", "skippedEdited", "partial"],
+        "properties": {
+          "created": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "deleted": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unchanged": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Already right: a no-op sync is told apart from a failed one."
+          },
+          "skippedEdited": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Left alone because the person edited them in Google."
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "Something was held back (deletion on a capped read); the next sync finishes it."
+          }
+        }
+      },
+      "MyCalendar": {
+        "type": "object",
+        "title": "MyCalendar",
+        "required": ["google"],
+        "properties": {
+          "google": {
+            "type": "object",
+            "required": ["connected", "email", "lastSyncAt", "lastResult", "error"],
+            "properties": {
+              "connected": {
+                "type": "boolean",
+                "description": "The switch."
+              },
+              "email": {
+                "type": ["string", "null"],
+                "description": "The Google account connected, for «Свързан с …»."
+              },
+              "lastSyncAt": {
+                "type": ["string", "null"],
+                "format": "date-time",
+                "description": "The last sync that finished."
+              },
+              "lastResult": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CalendarSyncResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "type": ["string", "null"],
+                "enum": ["GOOGLE_REVOKED", "GOOGLE_UNAVAILABLE", null],
+                "description": "`GOOGLE_REVOKED`: connect again («Свържете отново»). `GOOGLE_UNAVAILABLE`: the last sync could not reach Google; it retries by itself."
+              }
+            }
+          }
+        }
+      },
+      "GoogleCalendarConnectRequest": {
+        "type": "object",
+        "title": "GoogleCalendarConnectRequest",
+        "required": ["client"],
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "type": "string",
+            "enum": ["ios", "web"],
+            "description": "Where the callback sends the person back: the app scheme, or the profile page."
+          }
+        }
+      },
+      "GoogleCalendarConnect": {
+        "type": "object",
+        "title": "GoogleCalendarConnect",
+        "required": ["authorizeUrl"],
+        "properties": {
+          "authorizeUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Google's consent page. Single use, ten minutes."
           }
         }
       }

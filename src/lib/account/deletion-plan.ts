@@ -599,6 +599,17 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason: 'The account’s favourite clubs (#672).',
   },
   {
+    model: 'GoogleCalendarConnection',
+    action: 'delete',
+    reason:
+      'The account’s Google Calendar connection (owner 2026-11-14): the encrypted grant, the Google address and the calendar id. The grant is revoked at Google once the deletion commits; the «playerz» calendar stays in the person’s own Google account.',
+  },
+  {
+    model: 'CalendarOAuthState',
+    action: 'delete',
+    reason: 'A Google consent the account started: a hash and a ten-minute expiry.',
+  },
+  {
     model: 'PushSubscription',
     action: 'delete',
     reason: 'The account’s browsers: endpoint, keys and user agent.',
@@ -1053,6 +1064,8 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'DeviceToken.userId': TRIGGER,
   'PushSubscription.userId': TRIGGER,
   'FavouriteVenue.userId': TRIGGER,
+  'GoogleCalendarConnection.userId': TRIGGER,
+  'CalendarOAuthState.userId': TRIGGER,
   'PlayerSportLevel.userId': TRIGGER,
 
   // ── What a club holds about a player ────────────────────────────────────

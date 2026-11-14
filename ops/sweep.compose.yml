@@ -398,3 +398,41 @@ services:
             || echo "media-sweep: request FAILED -> $$body"
           sleep "$${MEDIA_SWEEP_INTERVAL_SECONDS}"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  calendar-sync (owner 2026-11-14): players' Google Calendars, every
+  #  5 minutes. Syncs the connections the database marked dirty (something
+  #  on that person's schedule changed: P88's triggers), then any not synced
+  #  for six hours; 50 per run. With GOOGLE_CALENDAR_SYNC off in the app's
+  #  .env it answers zeros and calls nobody.
+  #
+  #  Same shape as booking-reminders: busybox wget, `--post-data=""`, `$$`.
+  # ═══════════════════════════════════════════════════════════════════
+  calendar-sync:
+    image: alpine:3
+    container_name: playerz-calendar-sync
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the calendar sync}
+      CALENDAR_SYNC_URL: ${CALENDAR_SYNC_URL:-http://playerz-app:3000/api/cron/sync-calendars}
+      CALENDAR_SYNC_INTERVAL_SECONDS: ${CALENDAR_SYNC_INTERVAL_SECONDS:-300}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "calendar-sync: every $${CALENDAR_SYNC_INTERVAL_SECONDS}s -> $${CALENDAR_SYNC_URL}"
+        while true; do
+          sleep "$${CALENDAR_SYNC_INTERVAL_SECONDS}"
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${CALENDAR_SYNC_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"synced":0,"failed":0,"revoked":0'*) : ;;   # nothing due — stay quiet
+                 *) echo "calendar-sync: $$body" ;;
+               esac \
+            || echo "calendar-sync: request FAILED -> $$body"
+        done

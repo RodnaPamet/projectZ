@@ -143,6 +143,13 @@ export const env = createEnv({
     // addressed to it (`aud`). Comma-separated if an Android client joins.
     // Absent: the app's Google sign-in answers 403 SIGN_IN_METHOD_DISABLED.
     GOOGLE_IOS_CLIENT_ID: z.string().optional(),
+    // «Синхронизирай с Google Календар» (owner 2026-11-14): '1' turns on the
+    // per-player calendar sync, which uses the web client above with the
+    // redirect URI <APP_URL>/api/integrations/google-calendar/callback.
+    // Off (the default), every calendar route answers 404
+    // GOOGLE_CALENDAR_SYNC_DISABLED and the loop does nothing. Read at use
+    // (src/app-layer/usecases/google-calendar-sync.ts). docs/google-calendar-sync.md.
+    GOOGLE_CALENDAR_SYNC: z.enum(['0', '1']).default('0'),
     // Sign in with Apple (#442): the client ids Apple's identity tokens may be
     // addressed to, comma-separated: the iOS app's bundle id (bg.playerz.app)
     // and, once the web has one, its Services ID. Identifiers, not secrets.
@@ -519,6 +526,7 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID,
+    GOOGLE_CALENDAR_SYNC: process.env.GOOGLE_CALENDAR_SYNC,
     APPLE_CLIENT_IDS: process.env.APPLE_CLIENT_IDS,
     INFOBIP_BASE_URL: process.env.INFOBIP_BASE_URL,
     INFOBIP_API_KEY: process.env.INFOBIP_API_KEY,
