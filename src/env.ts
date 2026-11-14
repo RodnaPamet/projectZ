@@ -396,6 +396,22 @@ export const env = createEnv({
     // held content waits for a person instead of being scored.
     ANTHROPIC_API_KEY: z.string().optional(),
 
+    // «Асистент» for players (owner 2026-11-14, #704). '1' turns it on; off
+    // (the default) every assistant route answers 404 ASSISTANT_DISABLED, which
+    // the app reads to hide the launcher. It needs ANTHROPIC_API_KEY above.
+    // Read at use (src/app-layer/ai/assistant/config.ts). docs/assistant.md.
+    ASSISTANT_ENABLED: z.enum(['0', '1']).default('0'),
+    // The model that answers, and the one the memory sweep uses to read a
+    // person's questions for their profile. Defaults in config.ts.
+    AI_MODEL: z.string().optional(),
+    ASSISTANT_MEMORY_MODEL: z.string().optional(),
+    // '0' switches the memory off (profile and recall) without taking the
+    // assistant down (memory rule 9). On by default.
+    ASSISTANT_MEMORY: z.enum(['0', '1']).default('1'),
+    // What one player may spend on the assistant per day (Europe/Sofia), in US
+    // dollars. Default 0.50.
+    ASSISTANT_DAILY_SPEND_CAP_USD: z.string().optional(),
+
     // PLATFORM_ADMIN_API_KEY and its _PREVIOUS rotation slot lived here and
     // were read by NOTHING. They described a shared bearer secret for a
     // tenant-creation endpoint (POST /api/admin/tenants) that does not exist.
@@ -576,6 +592,11 @@ export const env = createEnv({
     APP_URL: process.env.APP_URL,
 
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ASSISTANT_ENABLED: process.env.ASSISTANT_ENABLED,
+    AI_MODEL: process.env.AI_MODEL,
+    ASSISTANT_MEMORY_MODEL: process.env.ASSISTANT_MEMORY_MODEL,
+    ASSISTANT_MEMORY: process.env.ASSISTANT_MEMORY,
+    ASSISTANT_DAILY_SPEND_CAP_USD: process.env.ASSISTANT_DAILY_SPEND_CAP_USD,
 
     MODULE_OPEN_PLAY: process.env.MODULE_OPEN_PLAY,
     MODULE_MESSAGING: process.env.MODULE_MESSAGING,

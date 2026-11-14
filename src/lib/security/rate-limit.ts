@@ -558,6 +558,16 @@ export const CALENDAR_SYNC_LIMIT: RateLimitConfig = {
   windowMs: 10 * 60 * 1000,
 };
 
+/**
+ * «Асистент» (owner 2026-11-14, #704): 20 questions per 10 minutes per (IP,
+ * userId). Each question costs model calls; the daily spend cap is the real
+ * bound, and this one stops a stuck client from hammering it.
+ */
+export const ASSISTANT_ASK_LIMIT: RateLimitConfig = {
+  maxAttempts: 20,
+  windowMs: 10 * 60 * 1000,
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // Progressive rate limit — Epic A.3 auth brute-force protection
 // ═══════════════════════════════════════════════════════════════════

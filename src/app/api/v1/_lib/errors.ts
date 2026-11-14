@@ -533,6 +533,15 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // «Свържете отново».
   GoogleCalendarRevokedError: { status: 409, code: 'GOOGLE_CALENDAR_REVOKED' },
 
+  // ── «Асистент» (owner 2026-11-14, #704) ──────────────────────────
+  // Off on this deployment (ASSISTANT_ENABLED): the app hides the launcher.
+  AssistantDisabledError: { status: 404, code: 'ASSISTANT_DISABLED' },
+  // A club account, or one that has not chosen its kind: the assistant plays.
+  AssistantPlayersOnlyError: { status: 403, code: 'ASSISTANT_PLAYERS_ONLY' },
+  MemoryPointNotFoundError: { status: 404, code: 'MEMORY_POINT_NOT_FOUND' },
+  MemoryPointEmptyError: { status: 400, code: 'MEMORY_POINT_EMPTY' },
+  AssistantConversationNotFoundError: { status: 404, code: 'ASSISTANT_CONVERSATION_NOT_FOUND' },
+
   // ── 503: ours, not theirs, and retryable ──────────────────────────
   // Google did not answer, or rate-limited us. Nothing is lost; try later.
   GoogleCalendarUnavailableError: { status: 503, code: 'GOOGLE_CALENDAR_UNAVAILABLE' },

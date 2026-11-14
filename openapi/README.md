@@ -40,6 +40,7 @@ generate:
 accessModifier: public
 filter:
   tags:
+    - Assistant
     - Auth
     - Billing
     - Bookings

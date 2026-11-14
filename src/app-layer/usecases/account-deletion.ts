@@ -434,6 +434,26 @@ export async function deleteAccount(
     (await db.calendarOAuthState.deleteMany({ where: { userId } })).count,
   );
   count(
+    // guardrail-allow: cross-tenant — the person's own assistant turns (#704), by their id.
+    'AssistantTurn',
+    (await db.assistantTurn.deleteMany({ where: { userId } })).count,
+  );
+  count(
+    // guardrail-allow: cross-tenant — the person's own assistant conversations (#704).
+    'AssistantConversation',
+    (await db.assistantConversation.deleteMany({ where: { userId } })).count,
+  );
+  count(
+    // guardrail-allow: cross-tenant — what the assistant remembered about the person (#704).
+    'AssistantMemoryFact',
+    (await db.assistantMemoryFact.deleteMany({ where: { userId } })).count,
+  );
+  count(
+    // guardrail-allow: cross-tenant — the person's own assistant spend rows (#704).
+    'AssistantSpend',
+    (await db.assistantSpend.deleteMany({ where: { userId } })).count,
+  );
+  count(
     // guardrail-allow: cross-tenant — the person's own browsers, by their id.
     'PushSubscription',
     (await db.pushSubscription.deleteMany({ where: { userId } })).count,
