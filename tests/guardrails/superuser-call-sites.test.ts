@@ -114,6 +114,16 @@ const ALLOWED: Record<string, string> = {
   'src/app/api/v1/venues/route.ts': 'public venue list',
   'src/app/api/v1/venues/near/route.ts': 'public geo search',
   'src/app/api/v1/venues/map/route.ts': 'public clubs map: every bookable venue card (#697)',
+  'src/app-layer/usecases/google-calendar.ts':
+    'Google Calendar connect (owner 2026-11-14): the callback claims a consent state by the hash ' +
+    'of its 32-byte secret, the only way it learns who started the consent (the phone’s sheet ' +
+    'carries no session); and the person’s own language for the event titles. Every write to ' +
+    'the connection runs as the person (runAsUserOnly).',
+  'src/app-layer/usecases/google-calendar-sync.ts':
+    'Google Calendar sync (owner 2026-11-14): the person’s own schedule spans every club and ' +
+    '`booking` is tenant-scoped, so it is read as listMyBookings reads it, keyed on their id; ' +
+    'the five-minute loop (a timer, behind CRON_SECRET) reads the connections due by state alone; ' +
+    'and freeBusyFor reads the connections of the people it is handed, token and calendar id only.',
   'src/app-layer/usecases/favourites.ts':
     'favourite clubs (#672): public venue cards for the ids the person chose, through publicVenueFilter',
   'src/app/api/v1/venues/facets/route.ts':

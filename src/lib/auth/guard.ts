@@ -170,6 +170,11 @@ const PUBLIC_PATTERNS: RegExp[] = [
   // opposite of the tenant matchers', so a loose pattern here does not
   // over-enforce, it over-EXPOSES. `/api/metrics` is bearer-authenticated and
   // must never appear.
+  // Google's return from the calendar consent (owner 2026-11-14). The phone's
+  // consent sheet is ephemeral and carries no session, so this cannot require
+  // one: the single-use `state` is the credential, claimed by the route. One
+  // literal path; it only ever redirects.
+  /^\/api\/integrations\/google-calendar\/callback$/,
   /^\/api\/health$/,
   /^\/api\/ready$/,
   /^\/api\/auth(\/|$)/,

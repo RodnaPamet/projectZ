@@ -105,6 +105,8 @@ export const KEYS = {
   notificationSettings: () => `${BASE}/me/notification-settings`,
   /** The caller's favourite clubs (#672): ids for the hearts, cards for «Любими». */
   myFavouriteVenues: () => `${BASE}/me/favourites/venues`,
+  /** The caller's Google Calendar sync (owner 2026-11-14): connected, as whom, last sync. */
+  myCalendar: () => `${BASE}/me/calendar`,
   /** The caller's own bookings at a club, newest first, by cursor. */
   myBookings: (slug: string, params: { limit?: number } = {}) =>
     paged(`${BASE}/t/${seg(slug)}/bookings`, params),
@@ -317,6 +319,12 @@ export const V1 = {
   markNotificationsRead: () => `${BASE}/me/notifications/read`,
   /** `PUT` / `DELETE`: the heart on a venue (#672). */
   favouriteVenue: (venueId: string) => `${BASE}/me/favourites/venues/${seg(venueId)}`,
+  /** `POST { client }` → `{ authorizeUrl }`: the Google Calendar switch on (owner 2026-11-14). */
+  connectGoogleCalendar: () => `${BASE}/me/calendar/google/connect`,
+  /** `POST`: «Синхронизирай сега». */
+  syncGoogleCalendar: () => `${BASE}/me/calendar/google/sync`,
+  /** `DELETE`: the switch off — revoke and forget the grant. */
+  disconnectGoogleCalendar: () => `${BASE}/me/calendar/google`,
   /** `PATCH { email: { … } }`: switch an email category (#367). */
   updateNotificationSettings: () => `${BASE}/me/notification-settings`,
   /** `POST` a new invite link; `DELETE` stops every live one (#358). */

@@ -6,6 +6,8 @@ import {
   deleteAccount,
   deletionStanding,
   purgeAccountMedia,
+  readGoogleCalendarGrantIn,
+  revokeAccountGrants,
   UpcomingBookingsError,
   type ClubCredit,
   type DeletionSummary,
@@ -126,10 +128,12 @@ async function main(): Promise<void> {
   const dryRun = !confirmed;
   let summary: DeletionSummary = {};
   let credit: ClubCredit[] = [];
+  let grant: string | null = null;
   try {
     await runAsSuperuser(async (db) => {
       const standing = await deletionStanding(db, account.id, new Date(), 'operator');
       if (standing.kind !== 'club') credit = standing.credit;
+      grant = await readGoogleCalendarGrantIn(db, account.id);
       summary = await deleteAccount(db, { userId: account.id, by: 'operator' });
       if (dryRun) throw new DryRunRollback();
     }, prisma);
@@ -174,6 +178,8 @@ async function main(): Promise<void> {
   // The picture's copy, once the rows are gone (#458), as /me/profile does.
   const pictures = await purgeAccountMedia(account.id);
   if (pictures > 0) summary['media.avatars'] = pictures;
+  // The Google Calendar grant (owner 2026-11-14), revoked at Google once the rows are gone.
+  await revokeAccountGrants(grant);
 
   console.log('\n✓ Deleted. Every session of the account is signed out. Rows changed:\n');
   printSummary(summary);

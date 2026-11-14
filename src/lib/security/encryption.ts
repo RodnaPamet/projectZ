@@ -50,7 +50,9 @@ const KEY_LENGTH = 32; // AES-256
  *
  *        The v1 path IS live: `encryptField`/`decryptField` protect the
  *        wearable OAuth tokens and, since #262, the TOTP seed in
- *        `app_user.mfaSecret` (src/lib/auth/mfa.ts); `hashForLookup` backs
+ *        `app_user.mfaSecret` (src/lib/auth/mfa.ts), and the Google Calendar
+ *        refresh token (`google_calendar_connection.refreshTokenEnc`, P88);
+ *        `hashForLookup` backs
  *        session lookup. Those are the only encrypted columns in the database.
  *
  *        Kept rather than deleted because the envelope format is what a

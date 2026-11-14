@@ -1,0 +1,85 @@
+/// Whether a player's Google Calendar connection still works (owner 2026-11-14).
+///
+/// `REVOKED` is set when Google answers `invalid_grant` or a 401: the person
+/// removed playerz from their Google account, or the grant expired. The row
+/// stays so the app can say «Свържете отново»; the token on it is dead.
+enum GoogleCalendarStatus {
+  ACTIVE
+  REVOKED
+}
+
+/// A player's own Google Calendar, which playerz keeps in step with their
+/// bookings, open games, lessons and tournament matches (owner 2026-11-14).
+///
+/// One per person. The person's row, owner-only on app.user_id (P88), like the
+/// bell and the favourite clubs. The events themselves live in Google, in a
+/// calendar playerz made in the person's account («playerz»); each carries our
+/// id and a fingerprint of what we wrote, so this table holds no copy of them.
+model GoogleCalendarConnection {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  /// Encrypted (`encryptField`, the v1 envelope). Google's refresh token: a key
+  /// to the person's calendar. Never logged, never returned by an API, never in
+  /// the data export. Revoked at Google when the person disconnects or deletes
+  /// the account.
+  refreshTokenEnc String
+
+  /// The Google account it is, for «Свързан като …». From the ID token Google
+  /// returned with the grant; null if Google sent none.
+  googleEmail String?
+
+  /// The scopes Google actually granted, recorded rather than assumed.
+  scopes String[]
+
+  /// The «playerz» calendar in the person's account, by id. Null until the
+  /// first sync made it; a calendar the person deleted is made again.
+  calendarId String?
+
+  /// The language the event titles are written in, fixed when connecting, so a
+  /// later change of the app's language does not rewrite every event.
+  locale Locale @default(bg)
+
+  status GoogleCalendarStatus @default(ACTIVE)
+
+  connectedAt    DateTime  @default(now()) @db.Timestamptz(3)
+  lastSyncAt     DateTime? @db.Timestamptz(3)
+  /// `{created, updated, deleted, unchanged, skippedEdited, partial}` of the
+  /// last sync that finished.
+  lastResultJson Json?
+  /// A closed code (`GOOGLE_REVOKED`, `GOOGLE_REFUSED`, `GOOGLE_UNAVAILABLE`)
+  /// for the last sync that failed; null after one that succeeded.
+  lastError      String?
+
+  /// Something on the person's schedule changed since the last sync. Set by the
+  /// database (P88's triggers on booking, booking_participant, coach_lesson and
+  /// open_game_request), cleared by the sync that saw it.
+  dirtyAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dirtyAt])
+  @@index([status, lastSyncAt])
+  @@map("google_calendar_connection")
+}
+
+/// The `state` of one Google consent (P88): a single-use nonce the server
+/// holds, so the callback knows who started it without a cookie. The phone's
+/// consent runs in an ephemeral sign-in sheet, which has none.
+///
+/// Only the hash is stored; the raw value travels in the authorize URL.
+model CalendarOAuthState {
+  id         String    @id @default(cuid())
+  stateHash  String    @unique
+  userId     String
+  /// `ios` or `web`: where the callback sends the person back to.
+  client     String
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("calendar_oauth_state")
+}

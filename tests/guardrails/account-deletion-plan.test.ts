@@ -218,10 +218,30 @@ describe('the plan covers the person’s objects in media storage (#458)', () =>
     const usecase = readFileSync('src/app-layer/usecases/account-deletion.ts', 'utf8');
     expect(usecase).toMatch(/purgeAvatarObjects\(storage, userId\)/);
     expect(usecase).toMatch(
-      /deleteAccount\(db, \{ userId, by: 'self' \}\)\);\s+const pictures = await purgeAccountMedia\(userId\)/,
+      /return deleteAccount\(db, \{ userId, by: 'self' \}\);\s+\}\);\s+const pictures = await purgeAccountMedia\(userId\)/,
     );
     expect(readFileSync('scripts/delete-account.ts', 'utf8')).toMatch(
       /await purgeAccountMedia\(account\.id\)/,
     );
+  });
+
+  it('every way of deleting an account revokes the Google Calendar grant once the rows are gone', () => {
+    // The token is read inside the deletion's transaction (the row goes with
+    // it) and revoked at Google after the commit (owner 2026-11-14).
+    for (const file of [
+      'src/app-layer/usecases/account-deletion.ts',
+      'scripts/delete-account.ts',
+      'scripts/retire-club.ts',
+    ]) {
+      const src = readFileSync(file, 'utf8');
+      expect({ file, reads: /readGoogleCalendarGrantIn\(db, /.test(src) }).toEqual({
+        file,
+        reads: true,
+      });
+      expect({ file, revokes: /await revokeAccountGrants\(grant\)/.test(src) }).toEqual({
+        file,
+        revokes: true,
+      });
+    }
   });
 });

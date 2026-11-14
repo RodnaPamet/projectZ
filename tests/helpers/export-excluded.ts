@@ -33,6 +33,7 @@ export const EXPORT_EXCLUDED_COLUMNS = [
   // Wearable tokens.
   'accessTokenEnc',
   'refreshTokenEnc',
+  'stateHash',
   // Payment and retry keys.
   'stripePaymentIntentId',
   'stripeCustomerId',

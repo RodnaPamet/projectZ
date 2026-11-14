@@ -2835,6 +2835,30 @@
       "label": "Show my level",
       "hint": "Off: you are still ranked, but others see only the level you gave.",
       "failed": "The setting was not saved. Try again."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "switch": "Sync with Google Calendar",
+      "hint": "Your games, lessons and matches go into a separate “playerz” calendar in Google.",
+      "connected": "Connected to Google",
+      "connectedAs": "Connected as {email}",
+      "lastSync": "Last synced: {when}",
+      "neverSynced": "Not synced yet",
+      "syncNow": "Sync now",
+      "done": "Done. Your calendar is up to date.",
+      "donePartial": "Part of your calendar is updated. The rest will follow at the next sync.",
+      "failed": "That didn’t work. Please try again.",
+      "error": {
+        "GOOGLE_REVOKED": "Google stopped our access to your calendar. Connect it again.",
+        "GOOGLE_UNAVAILABLE": "Google isn’t answering. Try again in a little while."
+      },
+      "result": {
+        "connected": "Your calendar is connected. Your games are in it now.",
+        "access_denied": "You didn’t allow access to your calendar. Nothing was connected.",
+        "insufficient_scope": "Without calendar access we can’t keep it up to date. Try again and allow the calendar.",
+        "state_expired": "Connecting took too long. Please try again.",
+        "failed": "Connecting didn’t work. Please try again."
+      }
     }
   },
   "bookingInvite": {
@@ -4178,6 +4202,15 @@
         "REFUND_DUE": "Refund on its way",
         "REFUNDED": "Refunded"
       }
+    }
+  },
+  "calendarSync": {
+    "event": {
+      "booking": "Court booking · {venue}",
+      "game": "Game · {venue}",
+      "lesson": "Lesson · {venue}",
+      "lessonTaught": "Lesson you teach · {venue}",
+      "tournament": "{tournament} · {venue}"
     }
   }
 }

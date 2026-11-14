@@ -123,6 +123,13 @@ The consent screen is the project's, so it is the one already published above.
 
 ---
 
+### 6. Google Calendar sync (owner 2026-11-14)
+
+The calendar switch on the profile uses this same web client, with a second
+redirect URI and two more permissions on the consent screen. Those two are
+"sensitive", so they need Google's verification, while sign-in still does
+not. The steps are in [google-calendar-sync.md](google-calendar-sync.md).
+
 ## Apple (#442)
 
 Sign in with Apple on the iPhone needs nothing secret on the server: Apple's
