@@ -86,9 +86,7 @@ const CONFIG = [
  */
 const KNOWN_UNUSED: Record<string, string> = {
   bullmq: 'the job queue the notification and sweep docs describe; nothing enqueues',
-  'maplibre-gl': 'the venue map, unbuilt — geo search exists server-side only',
   'p-retry': 'no retry wrapper written',
-  'react-map-gl': 'the React wrapper for the venue map, also unbuilt',
 };
 
 /**
@@ -118,9 +116,12 @@ const CONFIG_ONLY: Record<string, string> = {
 };
 
 function isImported(name: string): boolean {
-  // `from 'pkg'`, `from 'pkg/sub'`, `require('pkg')`, `import('pkg')`.
+  // `from 'pkg'`, `from 'pkg/sub'`, `require('pkg')`, `import('pkg')`, and a
+  // side-effect `import 'pkg/sub'` (a stylesheet: maplibre-gl's, #697).
   const escaped = name.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&');
-  const pattern = new RegExp(`from\\s+['"]${escaped}(?:/[^'"]*)?['"]|require\\(\\s*['"]${escaped}`);
+  const pattern = new RegExp(
+    `(?:from|import)\\s+['"]${escaped}(?:/[^'"]*)?['"]|require\\(\\s*['"]${escaped}`,
+  );
 
   return pattern.test(ALL_SOURCE);
 }
@@ -238,7 +239,8 @@ describe('the KNOWN_UNUSED ratchet only shrinks', () => {
     // onboarding tour, which playerz never built, so they went with the rest of
     // the deletion pass instead of waiting for a feature. 5 → 4 at #367:
     // resend became the notification outbox's email provider.
-    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(4);
+    // 4 → 2 at #697: maplibre-gl and react-map-gl draw the clubs map.
+    expect(Object.keys(KNOWN_UNUSED)).toHaveLength(2);
   });
 });
 
