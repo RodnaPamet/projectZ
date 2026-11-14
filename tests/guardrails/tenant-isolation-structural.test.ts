@@ -90,6 +90,16 @@ const GLOBAL_MODELS = new Set([
   'coachProfileSport',
   'coachCertificate',
   'coachTimeOff',
+  //
+  // ── P89 «Асистент» (#704) ──────────────────────────────────────────
+  //
+  // A player's conversations with the assistant, what it remembers about
+  // them and what it cost them are the PERSON's, at no club: their questions
+  // span every club. No tenantId column; RLS is owner-only on app.user_id.
+  'assistantConversation',
+  'assistantTurn',
+  'assistantMemoryFact',
+  'assistantSpend',
 ]);
 
 /** Prisma calls that read or mutate rows and therefore need scoping. */

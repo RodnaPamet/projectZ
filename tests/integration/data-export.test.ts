@@ -377,8 +377,9 @@ describe('GET /api/v1/me/export (#370)', () => {
       'ranking',
       'tournaments',
       'coach',
+      'assistant',
     ]);
-    expect(json.version).toBe(11);
+    expect(json.version).toBe(12);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',

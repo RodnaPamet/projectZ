@@ -100,6 +100,10 @@
     {
       "name": "Calendar",
       "description": "A player's own Google Calendar, kept in step with their bookings, open games, lessons and tournament matches (owner 2026-11-14). Off unless the deployment sets `GOOGLE_CALENDAR_SYNC=1`: every operation then answers 404 `GOOGLE_CALENDAR_SYNC_DISABLED`."
+    },
+    {
+      "name": "Assistant",
+      "description": "«Асистент» for players (owner 2026-11-14, #704): a free court, the best time for a game, and what it remembers. Off unless `ASSISTANT_ENABLED`; every route then answers 404 `ASSISTANT_DISABLED`."
     }
   ],
   "paths": {
@@ -18860,6 +18864,759 @@
           }
         }
       }
+    },
+    "/assistant/stream": {
+      "post": {
+        "operationId": "askAssistant",
+        "summary": "Ask the assistant (SSE)",
+        "description": "Ask «Асистент» (owner 2026-11-14, #704). Players only (a PLAYER or COACH account). It reads; it never books, invites or changes anything.\n\nThe response is `text/event-stream`: lines `data: <json>` separated by a blank line, no `event:` field, and `: keep-alive` comment lines to ignore. Switch on each payload's `type` (`AssistantStreamEvent`), and ignore a `type` you do not know. Order:\n\n1. `conversation` — FIRST, before any work: `{conversationId}`. Keep it and send it as `conversationId` with the next question to continue this conversation; omit it for «Нов разговор». An id that is not the caller's (or was deleted) silently starts a new conversation.\n2. `thinking`.\n3. `tool_call` `{name}` / `tool_result` `{name, ok, truncated}` — zero or more, for a «Търся свободни кортове…» line. Names: `find_free_places`, `best_time_for_game`, `propose_booking`, `search_past_conversations`.\n4. EITHER `answer` `{text, proposal?}` — ONE event, the whole answer; OR `refusal` `{code, message}` — no answer.\n5. `halt` `{code, message}` — optional: after an `answer` it says the answer is incomplete; with no answer before it, the model could not be used (`ASSISTANT_PROVIDER_UNAVAILABLE`, `ASSISTANT_REQUEST_REJECTED`) or the daily limit is reached (`ASSISTANT_SPEND_CEILING`).\n6. `done` `{truncatedAny, partialAny}` — ALWAYS last, also after a `halt`; do not stop reading at `halt`.\n\n`message` on `refusal`/`halt` is already in the account's language (bg or en): show it. Branch on `code`.\n\n`answer.proposal`, when present, is a DRAFT nothing has written: show it as a button that opens the usual booking screen prefilled. `kind: booking` — `draft` is `{venueId, resourceId, startTs, endTs}`, the body of `POST /t/{slug}/bookings` plus the venue (open its reservation summary). `kind: game` — the same plus `{spots, levelMin?, levelMax?}`: book it, then open the game on the new booking with `PUT /me/bookings/{id}/game` and those fields. The person confirms; every normal rule and price applies there.\n\n`page` tells the assistant which screen the question came from, as identifiers only (`bookingId` on a booking or own game lets it pick the game without asking). `location` is used only when the person asks for something near them and never reaches the model.\n\nErrors before the stream opens are ordinary JSON errors (below). Once the 200 is sent, every ending is an event.",
+        "tags": ["Assistant"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantAskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The event stream. Each `data:` line is one `AssistantStreamEvent`.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStreamEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — not JSON, `message` empty or over 2000 characters, an unknown `page.screen`, an id that is not id-shaped, or an unknown property.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`ASSISTANT_PLAYERS_ONLY` — a club account, or one that has not chosen its kind. The assistant is for players.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — 20 questions per 10 minutes. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/assistant-memory": {
+      "get": {
+        "operationId": "listAssistantMemory",
+        "summary": "What the assistant remembers about the caller",
+        "description": "«Какво помни асистентът»: the short profile the assistant uses in every answer, newest first, at most 50. Learned only from what the person wrote; never from what it read for them. Readable also while the memory alone is switched off.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RememberedPointList"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "forgetAllAssistantMemory",
+        "summary": "Forget everything",
+        "description": "«Забрави всичко»: every point is forgotten, and none of them is learned again from what the person already said.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many points were forgotten.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ForgottenCount"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/assistant-memory/{id}": {
+      "patch": {
+        "operationId": "editAssistantMemoryPoint",
+        "summary": "Correct one remembered point",
+        "description": "The person's correction. From now on the point is theirs: the assistant never rewrites or replaces it.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The point's `id`."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRememberedPointRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The point as saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RememberedPoint"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`BAD_REQUEST` — `text` missing, empty or over 560 characters, or an unknown property; `MEMORY_POINT_EMPTY` — nothing left after removing markup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`MEMORY_POINT_NOT_FOUND` — not one of the caller's points, or already forgotten. Or `ASSISTANT_DISABLED`: `ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "forgetAssistantMemoryPoint",
+        "summary": "Forget one remembered point",
+        "description": "Forgotten, and never learned again.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The point's `id`."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Forgotten. No body."
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`MEMORY_POINT_NOT_FOUND` — not one of the caller's points, or already forgotten. Or `ASSISTANT_DISABLED`: `ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/assistant-conversations": {
+      "get": {
+        "operationId": "listAssistantConversations",
+        "summary": "The caller's past conversations",
+        "description": "Latest first, at most 50; only conversations with at least one turn. `opening` is the first question, for the row's title.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AssistantConversationList"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAllAssistantConversations",
+        "summary": "Delete every conversation",
+        "description": "Gone from the list, from what the assistant can recall, and from its context.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many were deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DeletedCount"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/assistant-conversations/{id}": {
+      "get": {
+        "operationId": "getAssistantConversation",
+        "summary": "One past conversation",
+        "description": "Its turns, oldest first, at most the last 200 (`truncated` when there were more). Send its `id` as `conversationId` to `POST /assistant/stream` to continue it.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The conversation's `id`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AssistantConversationDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_CONVERSATION_NOT_FOUND` — not the caller's, or deleted. Or `ASSISTANT_DISABLED`: `ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAssistantConversation",
+        "summary": "Delete one conversation",
+        "description": "Gone from the list, from recall and from the assistant's context.",
+        "tags": ["Assistant", "Me"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The conversation's `id`."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted. No body."
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ASSISTANT_CONVERSATION_NOT_FOUND` — not the caller's, or already deleted. Or `ASSISTANT_DISABLED`: `ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED` — the shared v1 mutation limit. Wait for `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL`. The message is generic; the detail is in the server log under `x-request-id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -30249,6 +31006,451 @@
             "type": "string",
             "format": "uri",
             "description": "Google's consent page. Single use, ten minutes."
+          }
+        }
+      },
+      "AssistantAskRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "The question, as typed."
+          },
+          "conversationId": {
+            "type": "string",
+            "description": "From the last `conversation` event, to continue that conversation. Omit to start a new one."
+          },
+          "page": {
+            "$ref": "#/components/schemas/AssistantPage"
+          },
+          "location": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lat", "lng"],
+            "description": "Where the person is, when they allowed it. Used only for \"near me\"; never shown to the model.",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            }
+          }
+        }
+      },
+      "AssistantPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["screen"],
+        "description": "The screen the question was asked from: identifiers only, never text.",
+        "properties": {
+          "screen": {
+            "type": "string",
+            "enum": [
+              "home",
+              "venues",
+              "venue",
+              "bookings",
+              "booking",
+              "games",
+              "game",
+              "profile",
+              "messages",
+              "other"
+            ]
+          },
+          "venueId": {
+            "type": "string",
+            "description": "The club on screen."
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "The caller's booking (or own game's booking) on screen."
+          },
+          "gameId": {
+            "type": "string",
+            "description": "The open game on screen."
+          }
+        }
+      },
+      "AssistantStreamEvent": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AssistantConversationEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantThinkingEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantToolCallEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantToolResultEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantAnswerEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantRefusalEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantHaltEvent"
+          },
+          {
+            "$ref": "#/components/schemas/AssistantDoneEvent"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "conversation": "#/components/schemas/AssistantConversationEvent",
+            "thinking": "#/components/schemas/AssistantThinkingEvent",
+            "tool_call": "#/components/schemas/AssistantToolCallEvent",
+            "tool_result": "#/components/schemas/AssistantToolResultEvent",
+            "answer": "#/components/schemas/AssistantAnswerEvent",
+            "refusal": "#/components/schemas/AssistantRefusalEvent",
+            "halt": "#/components/schemas/AssistantHaltEvent",
+            "done": "#/components/schemas/AssistantDoneEvent"
+          }
+        },
+        "description": "One `data:` line of `POST /assistant/stream`. Switch on `type`; ignore an unknown one."
+      },
+      "AssistantConversationEvent": {
+        "type": "object",
+        "description": "First. The conversation this question is filed under.",
+        "required": ["type", "conversationId"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["conversation"]
+          },
+          "conversationId": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistantThinkingEvent": {
+        "type": "object",
+        "description": "The question was accepted; work started.",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["thinking"]
+          }
+        }
+      },
+      "AssistantToolCallEvent": {
+        "type": "object",
+        "description": "A tool is being read: `find_free_places`, `best_time_for_game`, `propose_booking` or `search_past_conversations`.",
+        "required": ["type", "name"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["tool_call"]
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistantToolResultEvent": {
+        "type": "object",
+        "description": "That tool finished.",
+        "required": ["type", "name", "ok", "truncated"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["tool_result"]
+          },
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssistantAnswerEvent": {
+        "type": "object",
+        "description": "The whole answer, once. `proposal` is absent when there is none.",
+        "required": ["type", "text"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["answer"]
+          },
+          "text": {
+            "type": "string",
+            "description": "Plain text, in the account's language."
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/AssistantProposal"
+          }
+        }
+      },
+      "AssistantRefusalEvent": {
+        "type": "object",
+        "description": "No answer. `ASSISTANT_NO_GROUNDING`: nothing to answer with; `ASSISTANT_EGRESS_BLOCKED`: the answer looked like it held a secret and was discarded; `ASSISTANT_DECLINED`: the model declined. `message` is the sentence to show.",
+        "required": ["type", "code", "message"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["refusal"]
+          },
+          "code": {
+            "type": "string",
+            "enum": ["ASSISTANT_NO_GROUNDING", "ASSISTANT_EGRESS_BLOCKED", "ASSISTANT_DECLINED"]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistantHaltEvent": {
+        "type": "object",
+        "description": "After an `answer`: it is incomplete (`ASSISTANT_TOOL_BUDGET`, `ASSISTANT_TIME_BUDGET`, `ASSISTANT_TRUNCATED_RESULT`, `ASSISTANT_PARTIAL_DATA`). With no answer before it: `ASSISTANT_SPEND_CEILING` (today's limit; try tomorrow), `ASSISTANT_PROVIDER_UNAVAILABLE` (try again later), `ASSISTANT_REQUEST_REJECTED` (our fault). Keep reading to `done`.",
+        "required": ["type", "code", "message"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["halt"]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "ASSISTANT_TOOL_BUDGET",
+              "ASSISTANT_TIME_BUDGET",
+              "ASSISTANT_SPEND_CEILING",
+              "ASSISTANT_PROVIDER_UNAVAILABLE",
+              "ASSISTANT_REQUEST_REJECTED",
+              "ASSISTANT_TRUNCATED_RESULT",
+              "ASSISTANT_PARTIAL_DATA"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistantDoneEvent": {
+        "type": "object",
+        "description": "Always last.",
+        "required": ["type", "truncatedAny", "partialAny"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["done"]
+          },
+          "truncatedAny": {
+            "type": "boolean"
+          },
+          "partialAny": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssistantProposal": {
+        "type": "object",
+        "required": ["kind", "draft"],
+        "description": "A prepared draft; nothing is written. `booking`: open the reservation summary of `draft.venueId` prefilled with the court and the times (`POST /t/{slug}/bookings`). `game`: the same, then `PUT /me/bookings/{id}/game` on the new booking with `spots`, `levelMin`, `levelMax`.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["booking", "game"]
+          },
+          "draft": {
+            "$ref": "#/components/schemas/AssistantDraft"
+          }
+        }
+      },
+      "AssistantDraft": {
+        "type": "object",
+        "required": ["venueId", "resourceId", "startTs", "endTs"],
+        "properties": {
+          "venueId": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "The court."
+          },
+          "startTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTs": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "spots": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64,
+            "description": "`game` only: how many more players the game asks for."
+          },
+          "levelMin": {
+            "type": "integer",
+            "description": "`game` only; absent when open to any level."
+          },
+          "levelMax": {
+            "type": "integer",
+            "description": "`game` only; absent when open to any level."
+          }
+        }
+      },
+      "RememberedPoint": {
+        "type": "object",
+        "required": ["id", "text", "rememberedAt", "editedByPerson"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "rememberedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the person said it, or last corrected it."
+          },
+          "editedByPerson": {
+            "type": "boolean",
+            "description": "The person corrected it; the assistant never changes it."
+          }
+        }
+      },
+      "RememberedPointList": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RememberedPoint"
+            }
+          }
+        }
+      },
+      "EditRememberedPointRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 560,
+            "description": "Saved at most 280 characters, without markup."
+          }
+        }
+      },
+      "ForgottenCount": {
+        "type": "object",
+        "required": ["forgotten"],
+        "properties": {
+          "forgotten": {
+            "type": "integer"
+          }
+        }
+      },
+      "DeletedCount": {
+        "type": "object",
+        "required": ["deleted"],
+        "properties": {
+          "deleted": {
+            "type": "integer"
+          }
+        }
+      },
+      "AssistantConversationSummary": {
+        "type": "object",
+        "required": ["id", "startedAt", "lastTurnAt", "turns", "opening"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastTurnAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "turns": {
+            "type": "integer"
+          },
+          "opening": {
+            "type": ["string", "null"],
+            "description": "The first question."
+          }
+        }
+      },
+      "AssistantConversationList": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantConversationSummary"
+            }
+          }
+        }
+      },
+      "AssistantConversationDetail": {
+        "type": "object",
+        "required": ["id", "startedAt", "lastTurnAt", "turns", "items", "truncated"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastTurnAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "turns": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["role", "text", "at"],
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["user", "assistant"]
+                },
+                "text": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
           }
         }
       }

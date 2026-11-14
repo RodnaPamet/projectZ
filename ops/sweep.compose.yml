@@ -436,3 +436,40 @@ services:
                esac \
             || echo "calendar-sync: request FAILED -> $$body"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  assistant-memory (owner 2026-11-14, #704): every 5 minutes, the
+  #  assistant conversations quiet for ten minutes are read for the
+  #  person's profile; 20 per run. With ASSISTANT_ENABLED or
+  #  ASSISTANT_MEMORY off in the app's .env it answers zeros.
+  #
+  #  Same shape as calendar-sync.
+  # ═══════════════════════════════════════════════════════════════════
+  assistant-memory:
+    image: alpine:3
+    container_name: playerz-assistant-memory
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the assistant memory sweep}
+      ASSISTANT_MEMORY_URL: ${ASSISTANT_MEMORY_URL:-http://playerz-app:3000/api/cron/assistant-memory}
+      ASSISTANT_MEMORY_INTERVAL_SECONDS: ${ASSISTANT_MEMORY_INTERVAL_SECONDS:-300}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "assistant-memory: every $${ASSISTANT_MEMORY_INTERVAL_SECONDS}s -> $${ASSISTANT_MEMORY_URL}"
+        while true; do
+          sleep "$${ASSISTANT_MEMORY_INTERVAL_SECONDS}"
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${ASSISTANT_MEMORY_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"read":0,"learned":0,"skipped":0'*) : ;;   # nothing due — stay quiet
+                 *) echo "assistant-memory: $$body" ;;
+               esac \
+            || echo "assistant-memory: request FAILED -> $$body"
+        done

@@ -610,6 +610,29 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     reason: 'A Google consent the account started: a hash and a ten-minute expiry.',
   },
   {
+    model: 'AssistantTurn',
+    action: 'delete',
+    reason:
+      'What the account asked «Асистент» and the answers it was sent (#704): the person’s own words, at no club.',
+  },
+  {
+    model: 'AssistantConversation',
+    action: 'delete',
+    reason:
+      'The account’s conversations with «Асистент» (#704): ids and times; the turns go with them.',
+  },
+  {
+    model: 'AssistantMemoryFact',
+    action: 'delete',
+    reason:
+      'What «Асистент» remembered about the account (#704), with the sentence each point was learned from, the forgotten ones included.',
+  },
+  {
+    model: 'AssistantSpend',
+    action: 'delete',
+    reason: 'What «Асистент» cost per day for the account (#704), against the daily cap.',
+  },
+  {
     model: 'PushSubscription',
     action: 'delete',
     reason: 'The account’s browsers: endpoint, keys and user agent.',
@@ -1066,6 +1089,10 @@ export const NEW_ROWS: Readonly<Record<string, NewRowsRule>> = {
   'FavouriteVenue.userId': TRIGGER,
   'GoogleCalendarConnection.userId': TRIGGER,
   'CalendarOAuthState.userId': TRIGGER,
+  'AssistantConversation.userId': TRIGGER,
+  'AssistantTurn.userId': TRIGGER,
+  'AssistantMemoryFact.userId': TRIGGER,
+  'AssistantSpend.userId': TRIGGER,
   'PlayerSportLevel.userId': TRIGGER,
 
   // ── What a club holds about a player ────────────────────────────────────

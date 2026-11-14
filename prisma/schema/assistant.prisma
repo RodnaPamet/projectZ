@@ -1,0 +1,83 @@
+/// «Асистент» for players (owner 2026-11-14, #704): one conversation with the
+/// assistant, continued by its id. The person's own row, owner-only on
+/// app.user_id (P89), like the favourite clubs and the bell.
+///
+/// Ported from agri-saas's AssistantConversation, adapted from farm to person:
+/// there is no tenant, because a player's questions span every club.
+model AssistantConversation {
+  id         String    @id @default(cuid())
+  userId     String
+  startedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastTurnAt DateTime  @default(now()) @db.Timestamptz(3)
+  /// When the memory sweep last read this conversation's questions for the
+  /// profile; null until it has. A turn after it makes the conversation due again.
+  extractedAt DateTime? @db.Timestamptz(3)
+  /// The person deleted it: it is gone from the list, from recall and from the
+  /// window. Kept as a tombstone only so a stale id starts a fresh conversation.
+  deletedAt  DateTime? @db.Timestamptz(3)
+
+  turns AssistantTurn[]
+
+  @@index([userId, deletedAt, lastTurnAt])
+  @@index([extractedAt, lastTurnAt])
+  @@map("assistant_conversation")
+}
+
+/// One message in a conversation: the person's question (`user`) or the answer
+/// that was sent (`assistant`). Plain text, through `sanitizePlainText` on the
+/// way in. A refused or failed answer is never stored.
+model AssistantTurn {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String
+  role           String
+  content        String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([userId])
+  @@map("assistant_turn")
+}
+
+/// A short point the assistant remembers about the person (the profile),
+/// learned only from their own words. The nine memory rules are in
+/// docs/assistant.md; the ones this table holds:
+///
+///   * `sourceQuote` is required: a point with no sentence of the person's own
+///     cannot exist (rule 3), so nothing read by a tool can become one.
+///   * `sourceAt` is what "latest wins" compares (rule 4).
+///   * `deletedAt` keeps a forgotten point as a tombstone so it is never
+///     learned again (rule 5); `supersededAt` is a newer statement replacing it.
+///   * `editedByPerson` stops the sweep rewriting a point the person corrected
+///     (rule 6).
+model AssistantMemoryFact {
+  id             String    @id @default(cuid())
+  userId         String
+  text           String
+  sourceQuote    String
+  sourceAt       DateTime  @db.Timestamptz(3)
+  editedByPerson Boolean   @default(false)
+  deletedAt      DateTime? @db.Timestamptz(3)
+  supersededAt   DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, deletedAt, sourceAt])
+  @@map("assistant_memory_fact")
+}
+
+/// What the assistant cost for one person on one day (Europe/Sofia), in
+/// millionths of a US dollar, against the daily cap
+/// (`ASSISTANT_DAILY_SPEND_CAP_USD`). One row per person per day.
+model AssistantSpend {
+  userId     String
+  day        DateTime @db.Date
+  costMicros Int      @default(0)
+  calls      Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@id([userId, day])
+  @@map("assistant_spend")
+}
