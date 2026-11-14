@@ -37,6 +37,9 @@ next-env.d.ts
 public/engine/stockfish.js
 public/engine/stockfish.wasm
 public/engine/LICENSE
+# The clubs map's worker (#697): copied from node_modules/maplibre-gl by
+# scripts/copy-maplibre-worker.mjs on every dev and build, never committed.
+public/maplibre/
 
 
 # Venue photos written by the local media adapter (MEDIA_STORAGE=local, #366).

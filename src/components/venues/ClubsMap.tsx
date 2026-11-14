@@ -2,6 +2,7 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { getVersion, setWorkerUrl } from 'maplibre-gl';
 import { useEffect, useMemo, useRef } from 'react';
 import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/maplibre';
 
@@ -17,6 +18,14 @@ const STYLE = {
   light: 'https://tiles.openfreemap.org/styles/positron',
   dark: 'https://tiles.openfreemap.org/styles/dark',
 } as const;
+
+/**
+ * maplibre's tile worker, served from our own origin: bundled, maplibre looks
+ * for it beside its own chunk, where there is none. Copied there from the
+ * installed package by scripts/copy-maplibre-worker.mjs; the version busts a
+ * browser's cached copy of an older one.
+ */
+setWorkerUrl(`/maplibre/maplibre-gl-worker.mjs?v=${getVersion()}`);
 
 /** Room around the pins when the map frames them, and how close it may come. */
 const FRAME = { padding: 48, maxZoom: 13 } as const;
