@@ -41,6 +41,8 @@ export class FakeGoogle {
   grantScopes = SCOPES;
   email = 'player@gmail.test';
   busy: Record<string, Array<{ start: string; end: string }>> = {};
+  /** A person's own primary calendar, by their refresh token (the assistant's tests). */
+  primaryBusyByToken: Record<string, Array<{ start: string; end: string }>> = {};
   /** Answer every Calendar call with this status, when set. */
   calendarStatus: number | null = null;
   calls: Array<{ method: string; url: string }> = [];
@@ -94,7 +96,12 @@ export class FakeGoogle {
       for (const { id } of body.items) {
         calendars[id] =
           id === 'primary' || this.calendars.has(id)
-            ? { busy: this.busy[id] ?? [] }
+            ? {
+                busy:
+                  (id === 'primary' ? this.primaryBusyByToken[refresh] : undefined) ??
+                  this.busy[id] ??
+                  [],
+              }
             : { errors: [{ domain: 'global', reason: 'notFound' }], busy: [] };
       }
       return json(200, { kind: 'calendar#freeBusy', calendars });

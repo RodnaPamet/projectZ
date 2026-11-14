@@ -124,6 +124,16 @@ const ALLOWED: Record<string, string> = {
     '`booking` is tenant-scoped, so it is read as listMyBookings reads it, keyed on their id; ' +
     'the five-minute loop (a timer, behind CRON_SECRET) reads the connections due by state alone; ' +
     'and freeBusyFor reads the connections of the people it is handed, token and calendar id only.',
+  'src/app-layer/usecases/assistant-find-places.ts':
+    '«Асистент» find_free_places (#704): the public venue search and availability, read exactly as ' +
+    'GET /venues/near and GET /venues/{id}/availability read them, through publicVenueFilter.',
+  'src/app-layer/usecases/assistant-best-time.ts':
+    '«Асистент» best_time_for_game (#704): the asker’s own booking by their session id (as getMyBooking), ' +
+    'the names of its confirmed players, its public venue’s availability, and those players’ other bookings ' +
+    'as start and end only — busy or free, never what or where.',
+  'src/app-layer/usecases/assistant-memory-sweep.ts':
+    '«Асистент» memory sweep (#704): a timer behind CRON_SECRET finds the conversations due by ids and ' +
+    'times alone; everything after runs as each person (runAsUserOnly).',
   'src/app-layer/usecases/favourites.ts':
     'favourite clubs (#672): public venue cards for the ids the person chose, through publicVenueFilter',
   'src/app/api/v1/venues/facets/route.ts':
