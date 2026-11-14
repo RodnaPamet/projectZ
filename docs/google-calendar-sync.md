@@ -140,7 +140,7 @@ The rules the sync follows, ported from Agrent's farm calendar:
   deleted again.
 - When the database records a change to a booking, a place on one, a lesson
   or a request to join a game, it marks the people involved as due, in the
-  same transaction (P88). The loop syncs them within five minutes.
+  same transaction (P89). The loop syncs them within five minutes.
 - When Google answers `invalid_grant` or 401, the connection is marked
   `REVOKED` and the app shows «Свържете отново».
 - Deleting an account deletes the connection and revokes the grant at Google.

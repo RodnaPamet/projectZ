@@ -204,14 +204,23 @@ export interface NotificationKinds {
   lessonsTaught: boolean;
 }
 
+/** The phone's switches: every email kind, and the ones that only push. */
+export interface PushKinds extends NotificationKinds {
+  /**
+   * «Факт на седмицата» (P88): the weekly fun fact about the player's main sport.
+   * Push only, so the email switches have no such kind.
+   */
+  sportFacts: boolean;
+}
+
 export interface NotificationSettings {
   /** The bell is always on; these switch the emails only. */
   email: NotificationKinds;
   /**
    * The same kinds on the phone (#529, P77): whether an event also pushes to
-   * the person's registered devices.
+   * the person's registered devices, and the push-only `sportFacts`.
    */
-  push: NotificationKinds;
+  push: PushKinds;
   /**
    * How many phones this account has registered for push. At 0 the push
    * switches decide nothing yet, and a screen may leave them out.
@@ -232,6 +241,7 @@ const SETTINGS_SELECT = {
   pushMessages: true,
   pushOpenPlay: true,
   pushLessonsTaught: true,
+  pushSportFacts: true,
 } as const;
 
 type SettingsRow = { -readonly [K in keyof typeof SETTINGS_SELECT]: boolean };
@@ -258,6 +268,11 @@ const COLUMN: Record<'email' | 'push', Record<keyof NotificationKinds, keyof Set
 
 const KINDS = Object.keys(COLUMN.email) as Array<keyof NotificationKinds>;
 
+/** The kinds that only ring the phone, and their columns. */
+const PUSH_ONLY: Record<Exclude<keyof PushKinds, keyof NotificationKinds>, keyof SettingsRow> = {
+  sportFacts: 'pushSportFacts',
+};
+
 function kindsOf(u: SettingsRow, channel: 'email' | 'push'): NotificationKinds {
   return Object.fromEntries(
     KINDS.map((k) => [k, u[COLUMN[channel][k]]]),
@@ -265,7 +280,11 @@ function kindsOf(u: SettingsRow, channel: 'email' | 'push'): NotificationKinds {
 }
 
 function toSettings(u: SettingsRow, pushDevices: number): NotificationSettings {
-  return { email: kindsOf(u, 'email'), push: kindsOf(u, 'push'), pushDevices };
+  return {
+    email: kindsOf(u, 'email'),
+    push: { ...kindsOf(u, 'push'), sportFacts: u[PUSH_ONLY.sportFacts] },
+    pushDevices,
+  };
 }
 
 /** Null when the account row is gone; the route answers that as signed out. */
@@ -285,7 +304,7 @@ export async function updateMyNotificationSettings(
   userId: string,
   patch: {
     email?: Partial<NotificationKinds>;
-    push?: Partial<NotificationKinds>;
+    push?: Partial<PushKinds>;
   },
 ): Promise<NotificationSettings | null> {
   const data: Partial<SettingsRow> = {};
@@ -294,6 +313,12 @@ export async function updateMyNotificationSettings(
       const value = patch[channel]?.[k];
       if (value !== undefined) data[COLUMN[channel][k]] = value;
     }
+  }
+  for (const [k, column] of Object.entries(PUSH_ONLY) as Array<
+    [keyof typeof PUSH_ONLY, keyof SettingsRow]
+  >) {
+    const value = patch.push?.[k];
+    if (value !== undefined) data[column] = value;
   }
   return runAsUserOnly(userId, async (db) => {
     const u = await db.user

@@ -11,7 +11,7 @@ enum GoogleCalendarStatus {
 /// A player's own Google Calendar, which playerz keeps in step with their
 /// bookings, open games, lessons and tournament matches (owner 2026-11-14).
 ///
-/// One per person. The person's row, owner-only on app.user_id (P88), like the
+/// One per person. The person's row, owner-only on app.user_id (P89), like the
 /// bell and the favourite clubs. The events themselves live in Google, in a
 /// calendar playerz made in the person's account («playerz»); each carries our
 /// id and a fingerprint of what we wrote, so this table holds no copy of them.
@@ -52,7 +52,7 @@ model GoogleCalendarConnection {
   lastError      String?
 
   /// Something on the person's schedule changed since the last sync. Set by the
-  /// database (P88's triggers on booking, booking_participant, coach_lesson and
+  /// database (P89's triggers on booking, booking_participant, coach_lesson and
   /// open_game_request), cleared by the sync that saw it.
   dirtyAt DateTime? @db.Timestamptz(3)
 
@@ -64,7 +64,7 @@ model GoogleCalendarConnection {
   @@map("google_calendar_connection")
 }
 
-/// The `state` of one Google consent (P88): a single-use nonce the server
+/// The `state` of one Google consent (P89): a single-use nonce the server
 /// holds, so the callback knows who started it without a cookie. The phone's
 /// consent runs in an ephemeral sign-in sheet, which has none.
 ///

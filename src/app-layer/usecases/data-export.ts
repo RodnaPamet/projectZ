@@ -127,7 +127,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 11;
+  version: 12;
   exportedAt: string;
   profile: {
     id: string;
@@ -199,7 +199,7 @@ export interface PersonalDataExport {
     }>;
   };
   /**
-   * Services the account connected (version 11, owner 2026-11-14): that a
+   * Services the account connected (version 12, owner 2026-11-14): that a
    * Google Calendar is connected, which Google account, and how it stands.
    * Never the token: it is a credential, and it stays with playerz until it is
    * revoked.
@@ -313,6 +313,8 @@ export interface PersonalDataExport {
       messages: boolean;
       openPlay: boolean;
       lessonsTaught: boolean;
+      /** «Факт на седмицата», push only (P88; version 11). */
+      sportFacts: boolean;
     };
   };
   inviteLinks: Array<{
@@ -616,6 +618,7 @@ export async function readPersonalData(
       pushMessages: true,
       pushOpenPlay: true,
       pushLessonsTaught: true,
+      pushSportFacts: true,
       searchable: true,
       ratingPublic: true,
       deletedAt: true,
@@ -875,7 +878,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 11,
+    version: 12,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -1045,6 +1048,7 @@ export async function readPersonalData(
         messages: user.pushMessages,
         openPlay: user.pushOpenPlay,
         lessonsTaught: user.pushLessonsTaught,
+        sportFacts: user.pushSportFacts,
       },
     },
     inviteLinks: links.map((l) => ({

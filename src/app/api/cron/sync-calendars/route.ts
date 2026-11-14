@@ -41,7 +41,7 @@ function refused(req: NextRequest, job: string): NextResponse | null {
 /**
  * Keep players' Google Calendars current (owner 2026-11-14), every 5 minutes.
  *
- * Syncs every connection the database marked dirty (P88's triggers, when
+ * Syncs every connection the database marked dirty (P89's triggers, when
  * something on that person's schedule changed), then every connection not
  * synced for six hours; at most 50 per run, the rest next run. With
  * `GOOGLE_CALENDAR_SYNC` off it answers zeros and touches nothing.

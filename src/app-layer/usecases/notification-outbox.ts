@@ -70,9 +70,10 @@ export type EmailCategory =
 /**
  * The kinds that ring the phone (#529), each with its own switch (P77). The
  * email kinds without `contact` (the operator's, never a person's); `account`
- * has no switch, as for email.
+ * has no switch, as for email. `sportFacts` («Факт на седмицата», P88) is the one
+ * kind that is push only: it is never emailed.
  */
-export type PushKind = Exclude<EmailCategory, 'contact'>;
+export type PushKind = Exclude<EmailCategory, 'contact'> | 'sportFacts';
 
 export const NOTIFICATION_TITLE_MAX = 80;
 export const NOTIFICATION_BODY_MAX = 200;
@@ -154,6 +155,7 @@ export function wantsPush(
     pushMessages: boolean;
     pushOpenPlay: boolean;
     pushLessonsTaught: boolean;
+    pushSportFacts: boolean;
   },
   kind: PushKind,
 ): boolean {
@@ -170,6 +172,8 @@ export function wantsPush(
       return user.pushOpenPlay;
     case 'lessonsTaught':
       return user.pushLessonsTaught;
+    case 'sportFacts':
+      return user.pushSportFacts;
     case 'account':
       return true;
   }
@@ -195,6 +199,7 @@ async function pushOnce(d: Delivery): Promise<void> {
           pushMessages: true,
           pushOpenPlay: true,
           pushLessonsTaught: true,
+          pushSportFacts: true,
         },
       });
       if (!user || user.deletedAt || !wantsPush(user, kind)) return;

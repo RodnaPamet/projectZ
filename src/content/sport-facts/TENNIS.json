@@ -1,0 +1,265 @@
+{
+  "sport": "TENNIS",
+  "facts": [
+    {
+      "bg": "Думата «тенис» вероятно идва от френското «тене!», тоест «дръж!». Така сервиращият предупреждавал съперника си.",
+      "en": "The word «tennis» probably comes from the French «tenez!» – \"take it!\" – which the server called out to the opponent.",
+      "source": "https://en.wikipedia.org/wiki/Tennis"
+    },
+    {
+      "bg": "Първият корт на Уингфийлд бил с форма на пясъчен часовник. Мрежата му била висока 1,42 м – доста над днешната.",
+      "en": "Wingfield's original court was shaped like an hourglass, and its net stood 4 ft 8 in (1.42 m) high – far above today's.",
+      "source": "https://en.wikipedia.org/wiki/Walter_Clopton_Wingfield"
+    },
+    {
+      "bg": "На първия Уимбълдън през 1877 г. се записват само 22 мъже. Около 200 души гледат как Спенсър Гор печели финала.",
+      "en": "Only 22 men entered the first Wimbledon in 1877, and about 200 spectators watched Spencer Gore win the final.",
+      "source": "https://en.wikipedia.org/wiki/1877_Wimbledon_Championship"
+    },
+    {
+      "bg": "До 1968 г. големите турнири са само за аматьори. Тогава започва «Откритата ера» и професионалистите най-сетне могат да играят навсякъде.",
+      "en": "Until 1968 the big tournaments were for amateurs only. That year the Open Era began, and professionals could finally play everywhere.",
+      "source": "https://en.wikipedia.org/wiki/Tennis"
+    },
+    {
+      "bg": "Тенисът е олимпийски спорт от 1896 до 1924 г. После отпада. Ако не броим показните турнири, тенисът се връща с медали чак в Сеул през 1988 г. – 64 години по-късно.",
+      "en": "Tennis was an Olympic sport from 1896 to 1924. Apart from demonstration events, it then stayed away until Seoul 1988, when it returned as a full medal sport 64 years later.",
+      "source": "https://en.wikipedia.org/wiki/Tennis"
+    },
+    {
+      "bg": "Иснър и Маю играят на Уимбълдън 2010 цели 11 часа и 5 минути, разпределени в три дни. Петият сет завършва при 70:68, а таблото замръзва на 47:47.",
+      "en": "Isner and Mahut played for 11 hours 5 minutes over three days at Wimbledon 2010. The final set ended 70–68, and the scoreboard froze at 47–47.",
+      "source": "https://en.wikipedia.org/wiki/Isner%E2%80%93Mahut_match_at_the_2010_Wimbledon_Championships"
+    },
+    {
+      "bg": "През 1969 г. Панчо Гонсалес бие Чарли Пасарел на Уимбълдън в мач от 112 гейма. Мачът трае 5 часа и 12 минути и помага за въвеждането на тайбрека.",
+      "en": "In 1969 Pancho Gonzales beat Charlie Pasarell at Wimbledon in a 112-game match lasting 5 hours 12 minutes. It helped bring in the tiebreak.",
+      "source": "https://en.wikipedia.org/wiki/Pancho_Gonzales"
+    },
+    {
+      "bg": "Тайбрекът е идея на американеца Джеймс Ван Алън и е изпробван за първи път през 1965 г. През 1970 г. US Open става първият турнир от «Големия шлем», който го въвежда.",
+      "en": "The tiebreak was invented by James Van Alen and first tried in 1965. In 1970 the US Open became the first Grand Slam to use it.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_scoring_system"
+    },
+    {
+      "bg": "Жълтите топки се появяват през 1972 г., защото се виждат по-добре по телевизията. Уимбълдън обаче остава с бели топки чак до 1986 г.",
+      "en": "Yellow balls arrived in 1972 because they are easier to see on television. Wimbledon, however, kept white balls until 1986.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_ball"
+    },
+    {
+      "bg": "Официалната топка се пуска от 254 см върху бетон. Тя трябва да отскочи на височина между 135 и 147 см, иначе не минава теста.",
+      "en": "A regulation ball dropped from 254 cm onto concrete must bounce back between 135 and 147 cm, or it fails the test.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_ball"
+    },
+    {
+      "bg": "Мъхът на топката не е само за красота. Той помага на въздуха да обтича топката и намалява съпротивлението.",
+      "en": "The fuzzy felt is not just for looks. It delays the separation of airflow around the ball, which reduces drag.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_ball"
+    },
+    {
+      "bg": "Топките започват да губят отскока си, щом отвориш кутията. Докато е затворена, кутията пази същото налягане като в топките.",
+      "en": "Tennis balls start losing their bounce as soon as the can is opened. Sealed, the can holds the same pressure as the air inside the balls.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_ball"
+    },
+    {
+      "bg": "Използваните топки от Уимбълдън не отиват на боклука. Част от тях стават гнезда за мишки джуджета.",
+      "en": "Used Wimbledon balls don't go to waste: some are recycled into nests for harvest mice.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_ball"
+    },
+    {
+      "bg": "В пиесата «Хенри V» на Шекспир френският принц праща на краля топки за тенис като подигравка. Подаръкът става повод за война.",
+      "en": "In Shakespeare's «Henry V», the French prince sends the king a mocking gift of tennis balls – an insult that helps start a war.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_ball"
+    },
+    {
+      "bg": "Според една теория точките 15, 30 и 45 идват от циферблата на часовник, а 45 после се съкращава на 40. Историците обаче се съмняват в това.",
+      "en": "One theory says the scores 15, 30 and 45 came from a clock face, and 45 was later shortened to 40. Historians are doubtful.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_scoring_system"
+    },
+    {
+      "bg": "На английски нулата в тениса се казва «love». Може би идва от френското «льоф» – яйце, което прилича на 0. Или от игра «за любов», без залог.",
+      "en": "The zero called «love» may come from the French «l'œuf» (egg), which looks like a 0 – or from playing «for love», with nothing at stake.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_scoring_system"
+    },
+    {
+      "bg": "Кортът е дълъг 23,77 м. За сингъл е широк 8,23 м, а за двойки – 10,97 м.",
+      "en": "A tennis court is 23.77 m long, 8.23 m wide for singles and 10.97 m wide for doubles.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_court"
+    },
+    {
+      "bg": "Мрежата не е права. В средата е висока 91,4 см, а при стълбовете – 107 см.",
+      "en": "The net is not level: it is 0.914 m high in the middle and 1.07 m at the posts.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_court"
+    },
+    {
+      "bg": "Червеният цвят на «Ролан Гарос» идва от натрошени тухли. Тази настилка забавя топката и я кара да отскача по-високо.",
+      "en": "The red clay of Roland-Garros is crushed brick. Clay slows the ball down and gives it a high bounce.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_court"
+    },
+    {
+      "bg": "«Ролан Гарос» носи името на пилот, а не на тенисист. През 1913 г. Ролан Гарос пръв прелита Средиземно море без междинно кацане.",
+      "en": "Roland-Garros is named after a pilot, not a player. In 1913 Roland Garros made the first non-stop flight across the Mediterranean.",
+      "source": "https://en.wikipedia.org/wiki/Roland_Garros_(aviator)"
+    },
+    {
+      "bg": "Род Лейвър е единственият мъж, който два пъти печели и четирите големи турнира в една година. Прави го през 1962 и 1969 г.",
+      "en": "Rod Laver is the only man to win all four Grand Slam singles titles in one calendar year twice – in 1962 and 1969.",
+      "source": "https://en.wikipedia.org/wiki/Rod_Laver"
+    },
+    {
+      "bg": "През 1988 година Щефи Граф печели четирите големи турнира и олимпийско злато. Това е първият «Златен шлем» в историята.",
+      "en": "In 1988 Steffi Graf won all four majors and Olympic gold – the first «Golden Slam» in history.",
+      "source": "https://en.wikipedia.org/wiki/Steffi_Graf"
+    },
+    {
+      "bg": "Финалът на Граф срещу Наташа Зверева на «Ролан Гарос» 1988 трае 34 минути по официалния протокол. Резултатът е 6:0, 6:0. Това е най-краткият финал в «Големия шлем».",
+      "en": "Graf's 1988 French Open final against Natasha Zvereva ended 6–0, 6–0 in 34 minutes on the official scoresheet – the shortest Grand Slam final ever.",
+      "source": "https://en.wikipedia.org/wiki/Steffi_Graf"
+    },
+    {
+      "bg": "Маргарет Корт има 24 титли на сингъл от «Големия шлем». Заедно с двойките титлите ѝ стават 64 – също рекорд.",
+      "en": "Margaret Court won a record 24 Grand Slam singles titles – and 64 major titles in all, counting doubles, another record.",
+      "source": "https://en.wikipedia.org/wiki/Margaret_Court"
+    },
+    {
+      "bg": "Към 2026 г. Новак Джокович има 24 титли на сингъл от «Големия шлем» – рекорд при мъжете. Десет от тях са от Australian Open.",
+      "en": "As of 2026, Novak Djokovic holds the men's record of 24 Grand Slam singles titles, including 10 at the Australian Open.",
+      "source": "https://en.wikipedia.org/wiki/List_of_Grand_Slam_men%27s_singles_champions"
+    },
+    {
+      "bg": "Рафаел Надал печели «Ролан Гарос» 14 пъти. Никой не е печелил толкова титли на един и същ голям турнир.",
+      "en": "Rafael Nadal won the French Open 14 times – the most titles anyone has won at a single Grand Slam.",
+      "source": "https://en.wikipedia.org/wiki/List_of_Grand_Slam_men%27s_singles_champions"
+    },
+    {
+      "bg": "Мартина Навратилова печели Уимбълдън на сингъл 9 пъти. При мъжете рекордът към 2026 г. е на Роджър Федерер – 8 титли.",
+      "en": "Martina Navratilova won the Wimbledon singles title 9 times. As of 2026, the men's record is Roger Federer's 8.",
+      "source": "https://en.wikipedia.org/wiki/Wimbledon_Championships"
+    },
+    {
+      "bg": "През 1973 г. Били Джийн Кинг бие Боби Ригс с 6:4, 6:3, 6:3 пред над 30 000 души в Хюстън. Тя влиза на носилка като Клеопатра и му подарява прасенце.",
+      "en": "In 1973 Billie Jean King beat Bobby Riggs 6–4, 6–3, 6–3 before 30,000+ fans in Houston. She was carried in Cleopatra-style on a litter and gave him a piglet.",
+      "source": "https://en.wikipedia.org/wiki/Battle_of_the_Sexes_(tennis)"
+    },
+    {
+      "bg": "През 1973 г. US Open пръв от големите турнири дава равни парични награди на мъже и жени.",
+      "en": "In 1973 the US Open became the first Grand Slam to award equal prize money to men and women.",
+      "source": "https://en.wikipedia.org/wiki/US_Open_(tennis)"
+    },
+    {
+      "bg": "US Open се е играл на трева, на клей (1975–1977) и на твърда настилка. Джими Конърс е единственият, който е печелил титлата и на трите настилки.",
+      "en": "The US Open has been played on grass, on clay (1975–77) and on hard courts. Jimmy Connors is the only player to win it on all three.",
+      "source": "https://en.wikipedia.org/wiki/US_Open_(tennis)"
+    },
+    {
+      "bg": "От 2025 година Уимбълдън няма съдии по линиите. Електронна система отсъжда всеки «аут».",
+      "en": "Since 2025 Wimbledon has had no line judges: electronic line calling makes every call.",
+      "source": "https://en.wikipedia.org/wiki/Wimbledon_Championships"
+    },
+    {
+      "bg": "Купа «Дейвис» започва през 1900 г. като двубой между САЩ и Великобритания. Трофеят ѝ е известен като «Салатиерата».",
+      "en": "The Davis Cup began in 1900 as a challenge between the USA and Great Britain. Its trophy is nicknamed the «Salad Bowl».",
+      "source": "https://en.wikipedia.org/wiki/Davis_Cup"
+    },
+    {
+      "bg": "На Игрите в Париж през 1900 г. Шарлот Купър печели турнира по тенис. Така тя става първата олимпийска шампионка в индивидуален спорт.",
+      "en": "At the 1900 Paris Games, Charlotte Cooper won the tennis and became the first individual female Olympic champion.",
+      "source": "https://en.wikipedia.org/wiki/Charlotte_Cooper_(tennis)"
+    },
+    {
+      "bg": "Лоти Дод печели Уимбълдън през 1887 г. на 15 години и до днес е най-младата шампионка там. По-късно печели олимпийско сребро по стрелба с лък.",
+      "en": "Lottie Dod won Wimbledon in 1887 aged 15 and is still its youngest ladies' champion. She later won Olympic silver in archery.",
+      "source": "https://en.wikipedia.org/wiki/Lottie_Dod"
+    },
+    {
+      "bg": "Мартина Хингис печели Australian Open през 1997 година на 16 години. Тя е най-младата шампионка от «Големия шлем» през XX век.",
+      "en": "Martina Hingis won the 1997 Australian Open at 16, the youngest Grand Slam singles champion of the 20th century.",
+      "source": "https://en.wikipedia.org/wiki/Martina_Hingis"
+    },
+    {
+      "bg": "Майкъл Чанг печели «Ролан Гарос» 1989 на 17 години – най-младият шампион в «Големия шлем» при мъжете. По пътя, въпреки схващанията, бие Лендъл с помощта на сервис отдолу.",
+      "en": "Michael Chang won the 1989 French Open at 17, the youngest male major champion. On the way, cramping, he beat Ivan Lendl with help from an underarm serve.",
+      "source": "https://en.wikipedia.org/wiki/Michael_Chang"
+    },
+    {
+      "bg": "Класическите струни от животински черва на английски се казват «catgut». «Cat» значи котка, но струните никога не са правени от котки.",
+      "en": "Classic strings made from animal intestine are called «catgut» – but despite the name, they have never been made from cats.",
+      "source": "https://en.wikipedia.org/wiki/Racket_(sports_equipment)"
+    },
+    {
+      "bg": "Ракетата «спагети» с двоен ред струни дава толкова много въртене, че през 1977 г. е забранена. Година по-късно Международната федерация за първи път определя каква ракета е разрешена.",
+      "en": "The double-strung «spaghetti racket» gave so much spin that it was banned in 1977. A year later the ITF defined a legal racket for the first time.",
+      "source": "https://en.wikipedia.org/wiki/Spaghetti_racquet"
+    },
+    {
+      "bg": "Терминът «тенис лакът» се появява през 1883 г. Много хора с този проблем обаче никога не са хващали ракета.",
+      "en": "The term «tennis elbow» first appeared in 1883 – yet many people who get it have never played tennis.",
+      "source": "https://en.wikipedia.org/wiki/Tennis_elbow"
+    },
+    {
+      "bg": "В тениса на колички топката може да отскочи два пъти. Вторият отскок може да е дори извън корта.",
+      "en": "In wheelchair tennis the ball may bounce twice, and the second bounce can even land outside the court.",
+      "source": "https://en.wikipedia.org/wiki/Wheelchair_tennis"
+    },
+    {
+      "bg": "Звездата в тениса на колички Естер Вергеер печели 470 мача поред. Не губи мач на сингъл от 2003 г. до края на кариерата си през 2013 г.",
+      "en": "Wheelchair tennis star Esther Vergeer won 470 matches in a row and retired in 2013 unbeaten in singles since 2003.",
+      "source": "https://en.wikipedia.org/wiki/Esther_Vergeer"
+    },
+    {
+      "bg": "Българките Мануела, Катерина и Магдалена Малееви са единствените три сестри, стигнали до топ 10 в света.",
+      "en": "Bulgaria's Manuela, Katerina and Magdalena Maleeva are the only three sisters ever to reach the world top ten.",
+      "source": "https://en.wikipedia.org/wiki/Maleeva_sisters"
+    },
+    {
+      "bg": "През 2013 г. Григор Димитров става първият българин с титла от ATP. През 2017 г. печели и финалния турнир на ATP в края на сезона.",
+      "en": "In 2013 Grigor Dimitrov became the first Bulgarian man to win an ATP title, and in 2017 he won the season-ending ATP Finals.",
+      "source": "https://en.wikipedia.org/wiki/Grigor_Dimitrov"
+    },
+    {
+      "bg": "Крал Хенри VIII обожава старата игра в зала. През 1530 г. си построява корт в двореца Хамптън Корт и играе там със страст.",
+      "en": "King Henry VIII loved the old indoor game and played it with gusto on a court he had built at Hampton Court in 1530.",
+      "source": "https://en.wikipedia.org/wiki/Real_tennis"
+    },
+    {
+      "bg": "Световната ранглиста на ATP започва на 23 август 1973 г. Първият номер 1 е Илие Настасе.",
+      "en": "The ATP rankings began on 23 August 1973, with Ilie Năstase as the first world number one.",
+      "source": "https://en.wikipedia.org/wiki/ATP_rankings"
+    },
+    {
+      "bg": "Крис Евърт печели 125 мача поред на клей. По пътя губи само осем сета.",
+      "en": "Chris Evert won 125 clay-court matches in a row, dropping only eight sets along the way.",
+      "source": "https://en.wikipedia.org/wiki/Chris_Evert"
+    },
+    {
+      "bg": "Фред Пери е световен шампион по тенис на маса през 1929 г. После печели Уимбълдън. До 2013 г. той остава последният британец, спечелил там титлата при мъжете.",
+      "en": "Fred Perry was world table tennis champion in 1929. He went on to win Wimbledon and was the last British men's champion there until 2013.",
+      "source": "https://en.wikipedia.org/wiki/Fred_Perry"
+    },
+    {
+      "bg": "На Уимбълдън 2012 Ярослава Шведова печели сет срещу Сара Ерани, без да загуби точка. Към 2026 г. това е единственият «златен сет» в «Големия шлем».",
+      "en": "At Wimbledon 2012 Yaroslava Shvedova won a set against Sara Errani without dropping a point. As of 2026 it is the only «golden set» at a Grand Slam.",
+      "source": "https://en.wikipedia.org/wiki/Yaroslava_Shvedova"
+    },
+    {
+      "bg": "На US Open 2018 за първи път в «Големия шлем» има часовник, който отмерва времето между точките. Играчите имат 25 секунди, за да започнат сервиса си.",
+      "en": "The 2018 US Open was the first Grand Slam main draw with a shot clock: players get 25 seconds between points to start their serve.",
+      "source": "https://www.guinnessworldrecords.com/world-records/544272-first-grand-slam-to-adopt-a-shot-clock-for-the-main-draws"
+    },
+    {
+      "bg": "Уимбълдън има свой ястреб на име Руфъс. Работата му е да гони гълъбите, а в пропуска му пише «Плашач на птици».",
+      "en": "Wimbledon employs a Harris's hawk called Rufus to keep pigeons away. His security pass lists his job as «Bird Scarer».",
+      "source": "https://en.wikipedia.org/wiki/Rufus_the_Hawk"
+    },
+    {
+      "bg": "На върха на трофея за мъже на Уимбълдън има ананас. Защо е там, никой не знае със сигурност.",
+      "en": "A pineapple sits on top of the Wimbledon men's singles trophy, and nobody knows for sure why.",
+      "source": "https://www.tennis365.com/atp-tour/tennis-tales-whats-the-story-behind-the-wimbledon-pineapple"
+    },
+    {
+      "bg": "По време на Уимбълдън тревата се подстригва на 8 мм. Кортовете са засети само с многогодишен райграс.",
+      "en": "At Wimbledon the grass is cut to 8 mm for play, and the courts are sown with 100% perennial ryegrass.",
+      "source": "https://www.pitchcare.com/blogs/news/wimbledon-groundstaff-reveal-the-secrets-behind-the-world-s-best-grass-courts-and-how-to-maintain-your-lawn"
+    }
+  ]
+}
