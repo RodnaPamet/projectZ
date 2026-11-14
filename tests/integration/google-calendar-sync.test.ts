@@ -117,7 +117,7 @@ describe('Google Calendar sync (owner 2026-11-14)', () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client.apps.googleusercontent.com';
     process.env.GOOGLE_CLIENT_SECRET = 'test-secret';
     process.env.APP_URL = 'http://localhost:3000';
-    process.env.CRON_SECRET = 'cron-secret-for-tests';
+    process.env.CRON_SECRET = 'cron-secret-for-tests'; // pragma: allowlist secret -- a test-only value
     g = new FakeGoogle();
     fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(g.fetch);
 
