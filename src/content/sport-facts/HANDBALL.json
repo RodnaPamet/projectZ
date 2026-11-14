@@ -1,0 +1,265 @@
+{
+  "sport": "HANDBALL",
+  "facts": [
+    {
+      "bg": "Рожденият ден на хандбала е 29 октомври 1917 г. Тогава Макс Хайзер, Карл Шеленц и Ерих Кониг публикуват в Берлин модерните правила.",
+      "en": "Handball's official birthday is 29 October 1917, when Max Heiser, Karl Schelenz and Erich Konigh published the modern rules in Berlin.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Датчанинът Холгер Нилсен пише едни от първите правила за хандбал. Печели медали на Олимпиадата през 1896 г., а през 1932 г. измисля метод за изкуствено дишане.",
+      "en": "Dane Holger Nielsen drew up one of the first sets of handball rules. He also won medals at the 1896 Olympics and in 1932 devised a method of artificial respiration.",
+      "source": "https://en.wikipedia.org/wiki/Holger_Nielsen"
+    },
+    {
+      "bg": "Игри, подобни на хандбал, има още в Древна Гърция. В Рим жените играят своя версия, наречена «expulsim ludere».",
+      "en": "Handball-like games go back to ancient Greece, and in Rome women played a version called expulsim ludere.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Полевият хандбал се играе на трева, по 11 души в отбор. Вратите са като футболните – 7,32 на 2,44 метра.",
+      "en": "Field handball was played on grass, eleven a side, with goals the size of football goals: 7.32 by 2.44 metres.",
+      "source": "https://en.wikipedia.org/wiki/Field_handball"
+    },
+    {
+      "bg": "Хандбалът дебютира на Олимпиадата в Берлин през 1936 г., на открито. Участват само шест отбора, а решаващият мач Германия – Австрия завършва 10:6 пред 100 000 зрители.",
+      "en": "Handball made its Olympic debut outdoors at Berlin 1936, with only six teams. Germany beat Austria 10–6 in the deciding final-round game, in front of 100,000 spectators.",
+      "source": "https://en.wikipedia.org/wiki/Handball_at_the_1936_Summer_Olympics"
+    },
+    {
+      "bg": "Последното световно първенство по полеви хандбал за мъже е през 1966 г. На тези първенства германските отбори нито веднъж не губят и не играят наравно с негермански съперник.",
+      "en": "The last men's field handball World Championship was held in 1966. At those championships German teams were never beaten or held to a draw by a non-German side.",
+      "source": "https://en.wikipedia.org/wiki/Field_handball"
+    },
+    {
+      "bg": "Първото световно първенство в зала е в Берлин през 1938 г. и в него участват едва четири отбора. Игрището е 50 на 25 метра, а полувремената са по 10 минути.",
+      "en": "The first indoor World Championship, Berlin 1938, had just four teams. The court was 50 × 25 m and each half lasted ten minutes.",
+      "source": "https://en.wikipedia.org/wiki/1938_World_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Преди 1938 г. националните отбори са играли в зала само веднъж. На 8 март 1935 г. в Копенхаген Швеция бие Дания с 18:12.",
+      "en": "Before 1938 there had been only one indoor match between national teams: Sweden beat Denmark 18–12 in Copenhagen on 8 March 1935.",
+      "source": "https://en.wikipedia.org/wiki/1938_World_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Хандбалът в зала влиза в олимпийската програма в Мюнхен през 1972 г., цели 36 години след Берлин. Първата титла печели Югославия.",
+      "en": "Indoor handball joined the Olympics at Munich 1972, a full 36 years after Berlin. Yugoslavia won the first title.",
+      "source": "https://en.wikipedia.org/wiki/Handball_at_the_1972_Summer_Olympics"
+    },
+    {
+      "bg": "Хандбалът за жени е в олимпийската програма от Монреал 1976 г.",
+      "en": "Women's handball has been part of the Olympics since Montreal 1976.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Международната федерация по хандбал е основана през юли 1946 г. в Копенхаген. Създават я осем национални федерации.",
+      "en": "The International Handball Federation was founded in Copenhagen in July 1946 by eight national federations.",
+      "source": "https://en.wikipedia.org/wiki/International_Handball_Federation"
+    },
+    {
+      "bg": "Игрището е 40 на 20 метра. Вратата е широка 3 метра и висока 2 метра.",
+      "en": "The court measures 40 × 20 m, and each goal is 3 m wide and 2 m high.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Гредите на вратата са квадратни, 8 на 8 сантиметра. Боядисани са на ивици в два контрастни цвята.",
+      "en": "Goalposts have a square 8 cm cross-section and are painted in alternating stripes of two contrasting colours.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "В зоната от 6 метра може да стъпва само вратарят. Нападателят може да «полети» над нея, ако пусне топката, преди да се приземи.",
+      "en": "Only the goalkeeper may stand in the 6-metre zone. Attackers may fly into it, as long as the ball leaves their hand before they land.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "С топка в ръка играчът има право на три крачки и три секунди. След това трябва да подаде, да стреля или да води топката.",
+      "en": "A player holding the ball may take three steps and keep it for three seconds. Then they must pass, shoot or dribble.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Полевите играчи нямат право да пипат топката под коляното. Вратарят може да спасява и с крака, но само в своята зона.",
+      "en": "Court players may not touch the ball below the knee. The goalkeeper may save with the feet, but only inside the goal area.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Ако вратарят избие топката зад головата си линия, тя остава за неговия отбор. Във футбола това би бил ъглов удар.",
+      "en": "If the goalkeeper deflects the ball over the goal line, the goalkeeper's team keeps it. In football that would be a corner.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Ако топката удари тавана на залата, другият отбор получава вкарване от страничната линия.",
+      "en": "If the ball hits the ceiling, the other team is awarded a throw-in.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "При седемметров наказателен удар вратарят трябва да стои на 3 метра от изпълнителя. Тези удари са много по-чести от дузпите във футбола.",
+      "en": "On a 7-metre throw the goalkeeper must stay 3 metres away. These throws are far more common than penalties in football.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Мачът се води от двама равноправни съдии. Щом топката мине у другия отбор, те си разменят местата в полето и на головата линия.",
+      "en": "A match is run by two equal referees, whose court and goal-line roles switch every time possession changes.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Синият картон в хандбала идва след червения. Той значи, че съдиите ще напишат доклад за грубото нарушение.",
+      "en": "Handball has a blue card: shown after a red, it means the referees will file a written report on the foul.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Третото двуминутно изключване на един играч води автоматично до дисквалификация.",
+      "en": "A player's third two-minute suspension automatically means disqualification.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "При пасивна игра съдията вдига ръка за предупреждение. От 1 юли 2022 г. след това отборът има само четири подавания, за да стреля, а не шест.",
+      "en": "To stop stalling, the referee raises an arm as a passive-play warning. Since 1 July 2022 the team then has just four passes to shoot, down from six.",
+      "source": "https://www.ihf.info/media-center/news/new-rules-be-enforced-handball-1-july-2022"
+    },
+    {
+      "bg": "Смените са неограничени и в движение. Не е нужно да се казва на съдиите.",
+      "en": "Substitutions are unlimited and on the fly, with no need to tell the referees.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "От края на 2015 г. всеки полеви играч може да смени вратаря без специална фланелка. Оттогава головете в празна врата рязко зачестяват.",
+      "en": "Since late 2015 any court player may replace the goalkeeper without wearing a special bib. Empty-net goals have soared since.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "От 1 юли 2025 г. отборът може да запише до 16 играчи за мач. Дотогава лимитът е 14.",
+      "en": "Since 1 July 2025 a team may name up to 16 players for a match, up from 14.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Ако мачът трябва да има победител, следват до две продължения по 2 × 5 минути. Ако пак е равно, идва ред на седемметровите наказателни удари.",
+      "en": "If a match must have a winner, there can be two overtimes of 2 × 5 minutes. If it is still level, a penalty shootout follows.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Топката за мъже (размер III) е с обиколка 58–60 см и тежи 425–475 грама. Жените играят с по-малкия размер II – 54–56 см и 325–375 грама.",
+      "en": "A men's ball (size III) is 58–60 cm around and weighs 425–475 g. Women play with the smaller size II: 54–56 cm and 325–375 g.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "При трика «Кемпа» играч хваща подаване във въздуха над зоната и стреля, преди да се приземи. Трикът е кръстен на германеца Бернхард Кемпа.",
+      "en": "The 'Kempa trick' – a pass caught in mid-air over the zone and shot before landing – is named after German player Bernhard Kempa.",
+      "source": "https://en.wikipedia.org/wiki/Bernhard_Kempa"
+    },
+    {
+      "bg": "Първото световно първенство за жени по правилата със седем играчки е през 1957 г. в Югославия. Участват девет отбора, всички от Европа, а мачовете още се играят на открито.",
+      "en": "The first seven-a-side women's World Championship was held in Yugoslavia in 1957, with nine teams – all from Europe. It was still played outdoors.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Women's_Handball_Championship"
+    },
+    {
+      "bg": "Към 2025 г. само два неевропейски отбора са ставали световни шампиони при жените: Южна Корея през 1995 г. и Бразилия през 2013 г.",
+      "en": "As of 2025, only two non-European teams have won the women's world title: South Korea in 1995 and Brazil in 2013.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Women's_Handball_Championship"
+    },
+    {
+      "bg": "При мъжете неевропейски отбор печели медал на световно първенство чак през 2015 г. Това е Катар.",
+      "en": "No non-European team won a medal at a men's World Championship until Qatar did it in 2015.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Дания печели четири поредни световни титли при мъжете – от 2019 до 2025 г.",
+      "en": "Denmark won four men's world titles in a row, from 2019 to 2025.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Франция има най-много световни титли при мъжете – шест (до 2025 г.).",
+      "en": "France holds the most men's world titles: six, as of 2025.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Рекордът за голове на едно световно първенство е на Кирил Лазаров (до 2025 г.). През 2009 г. той вкарва 92 гола в девет мача.",
+      "en": "Kiril Lazarov holds the record for goals at one World Championship (as of 2025): 92 in nine matches in 2009.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Само норвежката вратарка Катрине Лунде има седем медала от световни първенства. Тя играе за Норвегия 22 години.",
+      "en": "Norwegian goalkeeper Katrine Lunde is the only player with seven World Championship medals. She played for Norway for 22 years.",
+      "source": "https://en.wikipedia.org/wiki/IHF_World_Women's_Handball_Championship"
+    },
+    {
+      "bg": "Световният рекорд за публика е 53 586 зрители (до 2025 г.). Поставен е на 10 януари 2024 г. на откриването на Евро 2024 в Дюселдорф.",
+      "en": "The world attendance record is 53,586 spectators (as of 2025), set on 10 January 2024 at the Euro 2024 opening matches in Düsseldorf.",
+      "source": "https://en.wikipedia.org/wiki/2024_European_Men's_Handball_Championship"
+    },
+    {
+      "bg": "Първото европейско първенство за мъже е през 1994 г. в Португалия. Във финала Швеция бие Русия с 34:21.",
+      "en": "The first men's European Championship was held in Portugal in 1994. Sweden beat Russia 34–21 in the final.",
+      "source": "https://en.wikipedia.org/wiki/1994_European_Men's_Handball_Championship"
+    },
+    {
+      "bg": "От сезон 2007/08 Шампионската лига по хандбал се играе на характерен черен под.",
+      "en": "Since the 2007–08 season the EHF Champions League has been played on its distinctive black floor.",
+      "source": "https://en.wikipedia.org/wiki/European_Handball_Federation"
+    },
+    {
+      "bg": "През 2012 г. отборът на ТХВ Кил печели всички мачове в германската Бундеслига. Дотогава това не е правил нито един отбор във висша германска лига в отборен спорт.",
+      "en": "In 2012 THW Kiel won every league game – a first in any top-flight German team sport.",
+      "source": "https://en.wikipedia.org/wiki/THW_Kiel"
+    },
+    {
+      "bg": "В плажния хандбал зрелищните голове носят две точки. Такива са головете с пирует от 360 градуса, «летящите» голове и головете на вратаря.",
+      "en": "In beach handball spectacular goals score two points – 360-degree spins, in-flights and goals by the goalkeeper.",
+      "source": "https://en.wikipedia.org/wiki/Beach_handball"
+    },
+    {
+      "bg": "Чешкият хандбал «házená» е създаден в Прага през 1905 г. Играе се на открито и прилича много на днешния хандбал.",
+      "en": "Czech handball, házená, was created in Prague in 1905. It is an outdoor game very similar to team handball.",
+      "source": "https://en.wikipedia.org/wiki/Czech_handball"
+    },
+    {
+      "bg": "Първият мач по хандбал на колички е изигран през 1993 г. в Лайпциг.",
+      "en": "The first wheelchair handball game was played in Leipzig in 1993.",
+      "source": "https://en.wikipedia.org/wiki/Wheelchair_handball"
+    },
+    {
+      "bg": "На гръцка монета от 10 евро за Олимпиадата през 2004 г. има хандбалист. Зад него се вижда древен играч на «хейросфера», взет от рисунка върху ваза.",
+      "en": "A Greek €10 coin for the 2004 Olympics shows a handball player, with an ancient player of cheirosphaira copied from a vase behind him.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Сребърният медал по хандбал в Пекин през 2008 г. е първият отборен олимпийски медал на Исландия.",
+      "en": "Iceland's handball silver at Beijing 2008 was the country's first Olympic team medal.",
+      "source": "https://en.wikipedia.org/wiki/Iceland_at_the_2008_Summer_Olympics"
+    },
+    {
+      "bg": "Децата играят по-къси мачове. От 8 до 11 години полувремената са по 20 минути, а от 12 до 15 години – по 25 минути.",
+      "en": "Youth matches are shorter: halves of 20 minutes for ages 8 to 11 and 25 minutes for ages 12 to 15.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Всеки отбор има право на по един тайм-аут от една минута на полувреме. IHF и други федерации могат да дадат вместо това три на мач – до два на полувреме и само един в последните 5 минути.",
+      "en": "The basic rule is one one-minute time-out per team per half. The IHF and other federations may instead allow three per match – no more than two per half and only one in the last five minutes.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Днес професионалните отбори обикновено вкарват по 20–35 гола на мач. Преди няколко десетилетия резултатите често са били доста по-ниски.",
+      "en": "Professional teams now usually score 20 to 35 goals each per match. A few decades ago much lower scores were common.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Защитата 6–0, при която и шестимата защитници стоят между линиите за 6 и 9 метра, се нарича «плоска».",
+      "en": "The 6–0 defence, with all six defenders lined up between the 6- and 9-metre lines, is known as the 'flat defence'.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    },
+    {
+      "bg": "Европейската федерация по хандбал е основана на 17 ноември 1991 г. в Берлин. Седалището ѝ е във Виена.",
+      "en": "The European Handball Federation was founded in Berlin on 17 November 1991 and is based in Vienna.",
+      "source": "https://en.wikipedia.org/wiki/European_Handball_Federation"
+    },
+    {
+      "bg": "Евро 2020 е първото европейско първенство за мъже с три държави домакини – Швеция, Австрия и Норвегия.",
+      "en": "The Men's Euro 2020 was the first with three hosts: Sweden, Austria and Norway.",
+      "source": "https://en.wikipedia.org/wiki/European_Handball_Federation"
+    },
+    {
+      "bg": "Започването от центъра се изпълнява в кръг с диаметър 4 метра. На турнирите на IHF този кръг е задължителен.",
+      "en": "Throw-offs are taken from a 4-metre circle in the centre of the court, which is mandatory at IHF events.",
+      "source": "https://en.wikipedia.org/wiki/Handball"
+    }
+  ]
+}

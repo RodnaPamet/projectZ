@@ -1,0 +1,265 @@
+{
+  "sport": "FOOTBALL",
+  "facts": [
+    {
+      "bg": "Футболната асоциация е основана в кръчма в Лондон през 1863 г. Тя е първата в света и затова в името ѝ няма думата «английска».",
+      "en": "The Football Association was founded in a London tavern in 1863. As the world's first, it has never needed the word \"English\" in its name.",
+      "source": "https://en.wikipedia.org/wiki/The_Football_Association"
+    },
+    {
+      "bg": "По първите правила от 1863 г. отборите сменят половините след всеки вкаран гол.",
+      "en": "Under the first rules of 1863, teams changed ends every time a goal was scored.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "През 1866 г. над вратата опъват лента. Истинската напречна греда става задължителна чак през 1883 г.",
+      "en": "A tape across the top of the goal was added in 1866. A solid crossbar only became compulsory in 1883.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "Корнерът влиза в правилата през 1872 г.",
+      "en": "The corner kick was introduced in 1872.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "От 1883 г. тъчът се изпълнява с две ръце и топката се хвърля над главата.",
+      "en": "Since 1883 the throw-in has had to be taken with two hands from over the head.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "Инженерът от Ливърпул Джон Броуди измисля мрежата на вратата през 1889 г. По-късно казва, че от всичките си изобретения се гордее най-много с нея.",
+      "en": "Liverpool engineer John Brodie invented the goal net in 1889 and called it the invention he was most proud of.",
+      "source": "https://en.wikipedia.org/wiki/John_Alexander_Brodie"
+    },
+    {
+      "bg": "Дузпата е идея на ирландския вратар Уилям Маккръм. Одобрена е на 2 юни 1891 г., а първата е отсъдена на 6 юни.",
+      "en": "The penalty kick was the idea of Irish goalkeeper William McCrum. It was approved on 2 June 1891, and the first was awarded on 6 June.",
+      "source": "https://en.wikipedia.org/wiki/Penalty_kick_(association_football)"
+    },
+    {
+      "bg": "Отначало дузпата се бие от което и да е място на линия на 11 метра, а вратарят може да излезе до 5,5 м напред. Бялата точка се появява през 1902 г.",
+      "en": "At first a penalty could be taken from anywhere along a line 12 yards out, and the keeper could advance six yards. The penalty spot arrived in 1902.",
+      "source": "https://en.wikipedia.org/wiki/Penalty_kick_(association_football)"
+    },
+    {
+      "bg": "Едва от 1912 г. вратарят може да хваща топката с ръце само в наказателното поле.",
+      "en": "Only since 1912 has the goalkeeper been limited to handling the ball inside the penalty area.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "До 1925 г., за да не си в засада, между теб и вратата трябва да има трима противници. След това стигат и двама.",
+      "en": "Until 1925 a player needed three opponents between himself and the goal to be onside. The rule was then cut to two.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "Продължителността от 90 минути влиза в правилата чак през 1897 г.",
+      "en": "The 90-minute match length was only written into the Laws in 1897.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "Правилата пази Международният борд (IFAB), основан през 1886 г. ФИФА има четири гласа, четирите британски федерации – по един, а всяка промяна иска шест от осемте.",
+      "en": "The Laws are guarded by IFAB, founded in 1886. FIFA has four votes and the four British associations one each, and any change needs six of the eight.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "Жълтият и червеният картон дебютират на Световното през 1970 г. Съдията Кен Астън се сеща за тях, докато чака на светофар в Лондон.",
+      "en": "Yellow and red cards debuted at the 1970 World Cup. Referee Ken Aston got the idea while waiting at traffic lights in London.",
+      "source": "https://en.wikipedia.org/wiki/Ken_Aston"
+    },
+    {
+      "bg": "Смените навлизат бавно: при контузия – от 1958 г., две свободни – от 1970 г., а пет – от 2022 г.",
+      "en": "Substitutes arrived slowly: for injuries in 1958, two free changes in 1970 and five from 2022.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "От 1992 г. вратарят не може да хване с ръце топка, подадена нарочно с крак от съотборник.",
+      "en": "Since 1992 a goalkeeper may not handle a ball deliberately kicked back to them by a teammate.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "До 2016 г. началният удар трябваше да е напред. Сега топката може да тръгне във всяка посока.",
+      "en": "Until 2016 the kick-off had to go forwards; now it can be played in any direction.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "От 2019 г. при удар от вратата топката е в игра веднага, дори в наказателното поле.",
+      "en": "Since 2019 the ball is in play from a goal kick at once, even inside the penalty area.",
+      "source": "https://en.wikipedia.org/wiki/Laws_of_the_Game_(association_football)"
+    },
+    {
+      "bg": "Първият официален международен мач е Шотландия – Англия през 1872 г. в Глазгоу. Мачът завършва 0:0 пред около 4000 зрители.",
+      "en": "The first official international was Scotland v England in Glasgow in 1872. It ended 0-0 in front of about 4,000 fans.",
+      "source": "https://en.wikipedia.org/wiki/1872_Scotland_v_England_football_match"
+    },
+    {
+      "bg": "«Шефилд», основан през 1857 г., е признат от ФИФА за най-стария съществуващ футболен клуб в света.",
+      "en": "Sheffield FC, founded in 1857, is recognised by FIFA as the oldest existing football club in the world.",
+      "source": "https://en.wikipedia.org/wiki/Sheffield_F.C."
+    },
+    {
+      "bg": "ФИФА е основана от седем държави през 1904 г. Испания е представена от «Реал Мадрид», защото испанската федерация още не съществува.",
+      "en": "FIFA was founded by seven nations in 1904. Spain was represented by Real Madrid, because the Spanish federation did not exist yet.",
+      "source": "https://en.wikipedia.org/wiki/FIFA"
+    },
+    {
+      "bg": "Думата «сокър» се появява в Англия през 1880-те години. Тя е жаргонно съкращение от «асоциационен футбол».",
+      "en": "The word \"soccer\" appeared in England in the 1880s, as slang taken from \"association\" football.",
+      "source": "https://en.wikipedia.org/wiki/Names_for_association_football"
+    },
+    {
+      "bg": "Сам Уидоусън от «Нотингам Форест» минава за изобретател на корите. През 1874 г. той просто скъсява чифт протектори за крикет.",
+      "en": "Nottingham Forest's Sam Widdowson is credited with inventing shin pads in 1874 by cutting down a pair of cricket pads.",
+      "source": "https://en.wikipedia.org/wiki/Sam_Weller_Widdowson"
+    },
+    {
+      "bg": "През август 1928 г. «Арсенал» и «Челси» играят мачове от първенството с номера на фланелките. Футболната лига ги прави задължителни чак за сезон 1939/40.",
+      "en": "In August 1928 Arsenal and Chelsea wore numbered shirts in league games, but the Football League made numbers compulsory only for 1939-40.",
+      "source": "https://en.wikipedia.org/wiki/Squad_number_(association_football)"
+    },
+    {
+      "bg": "Бразилия забравя да изпрати номерата на играчите за Световното през 1958 г. Служител ги раздава напосоки и така Пеле получава прочутата десетка.",
+      "en": "In 1958 Brazil forgot to send in their squad numbers, so an official handed them out at random, and Pelé ended up with his famous No. 10.",
+      "source": "https://en.wikipedia.org/wiki/Squad_number_(association_football)"
+    },
+    {
+      "bg": "На Световните през 1978, 1982 и 1986 г. Аржентина раздава номерата по азбучен ред. Затова номер 1 често носи полеви играч.",
+      "en": "At the 1978, 1982 and 1986 World Cups Argentina numbered players alphabetically, so the No. 1 shirt often went to an outfield player.",
+      "source": "https://en.wikipedia.org/wiki/Squad_number_(association_football)"
+    },
+    {
+      "bg": "В първите си години «Ювентус» играе в розови фланелки. Черно-белите райета идват от Нотингам – това са цветовете на «Нотс Каунти».",
+      "en": "Juventus first played in pink. Their black-and-white stripes came from Nottingham, in the colours of Notts County.",
+      "source": "https://en.wikipedia.org/wiki/John_Savage_(English_footballer)"
+    },
+    {
+      "bg": "На финала на Световното през 1930 г. първото полувреме се играе с аржентинската топка, а второто – с уругвайската. Уругвай обръща от 1:2 и печели с 4:2.",
+      "en": "In the 1930 World Cup final, Argentina's ball was used in the first half and Uruguay's in the second. Uruguay came back from 1-2 to win 4-2.",
+      "source": "https://en.wikipedia.org/wiki/1930_FIFA_World_Cup_final"
+    },
+    {
+      "bg": "През 1950 г. мача Уругвай – Бразилия на «Маракана» официално гледат 173 850 зрители. Може би това е най-голямата публика на футболен мач в историята.",
+      "en": "The 1950 Uruguay v Brazil match at the Maracanã officially drew 173,850 spectators, possibly the biggest crowd ever at a football match.",
+      "source": "https://en.wikipedia.org/wiki/Uruguay_v_Brazil_(1950_FIFA_World_Cup)"
+    },
+    {
+      "bg": "Световното през 1950 г. е единственото без финал на директни елиминации. Шампионът се решава в последна група от четири отбора.",
+      "en": "The 1950 World Cup is the only one without a knockout final; the title was decided in a final group of four.",
+      "source": "https://en.wikipedia.org/wiki/Uruguay_v_Brazil_(1950_FIFA_World_Cup)"
+    },
+    {
+      "bg": "Купата «Жул Риме» е открадната в Англия през 1966 г. Дни по-късно я намира куче на име Пиклс. През 1983 г. я крадат пак, в Рио, и тя така и не е открита.",
+      "en": "The Jules Rimet Trophy was stolen in England in 1966 and found days later by a dog called Pickles. Stolen again in Rio in 1983, it was never recovered.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_Trophy"
+    },
+    {
+      "bg": "Днешната световна купа се връчва от 1974 г. Тя е от 18-каратово злато и тежи 6,175 кг.",
+      "en": "The current World Cup trophy has been awarded since 1974. It is made of 18-carat gold and weighs 6.175 kg.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_Trophy"
+    },
+    {
+      "bg": "Хакан Шюкюр вкарва гол на Южна Корея през 2002 г. още в 11-ата секунда. И към 2026 г. това е най-бързият гол в историята на Световните.",
+      "en": "Hakan Şükür scored against South Korea in 2002 after just 11 seconds, still the fastest World Cup goal as of 2026.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics"
+    },
+    {
+      "bg": "Олег Саленко вкарва пет гола на Камерун през 1994 г. Никой не е вкарвал повече в един мач на Световно.",
+      "en": "Oleg Salenko scored five goals against Cameroon in 1994, the most by one player in a World Cup match.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics"
+    },
+    {
+      "bg": "Жюст Фонтен вкарва 13 гола само на Световното през 1958 г. Това е рекорд за едно първенство.",
+      "en": "Just Fontaine scored 13 goals at the 1958 World Cup, the record for a single tournament.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics"
+    },
+    {
+      "bg": "Пеле е световен шампион на 17 години през 1958 г. Той е и единственият играч с три световни титли.",
+      "en": "Pelé won the 1958 World Cup at 17 and is the only player to win three World Cups.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics"
+    },
+    {
+      "bg": "Най-резултатният мач на Световно е Австрия – Швейцария 7:5 през 1954 г.",
+      "en": "The highest-scoring World Cup match is Austria 7-5 Switzerland in 1954.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics"
+    },
+    {
+      "bg": "Бразилия е единственият отбор, играл на всички 23 Световни първенства до 2026 г.",
+      "en": "Brazil are the only team to have played at all 23 World Cups, as of 2026.",
+      "source": "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics"
+    },
+    {
+      "bg": "Преди 1994 г. България има 16 мача на Световни първенства без нито една победа. Първата идва с 4:0 срещу Гърция в Чикаго.",
+      "en": "Before 1994 Bulgaria had played 16 World Cup matches without a win. The first came with a 4-0 win over Greece in Chicago.",
+      "source": "https://en.wikipedia.org/wiki/Bulgaria_at_the_FIFA_World_Cup"
+    },
+    {
+      "bg": "България бие Германия с 2:1 на четвъртфинала през 1994 г. Накрая отборът е четвърти – най-доброто ни класиране на Световно.",
+      "en": "In 1994 Bulgaria beat Germany 2-1 in the quarter-final and finished fourth, the country's best World Cup result.",
+      "source": "https://en.wikipedia.org/wiki/Bulgaria_at_the_FIFA_World_Cup"
+    },
+    {
+      "bg": "Христо Стоичков печели «Златната топка» през 1994 г. С шестте си гола от същото лято той дели и голмайсторския приз на Световното с Олег Саленко.",
+      "en": "Hristo Stoichkov won the 1994 Ballon d'Or. His six goals that summer also earned him a share of the World Cup Golden Boot with Oleg Salenko.",
+      "source": "https://en.wikipedia.org/wiki/Hristo_Stoichkov"
+    },
+    {
+      "bg": "Димитър Бербатов вкарва пет гола на «Блекбърн» през 2010 г. Преди него пет гола в един мач от Премиър лийг са вкарвали само англичани.",
+      "en": "Dimitar Berbatov scored five against Blackburn in 2010, the first non-Englishman to score five in a Premier League match.",
+      "source": "https://en.wikipedia.org/wiki/Dimitar_Berbatov"
+    },
+    {
+      "bg": "Полуфиналът Италия – СССР на Евро 1968 завършва 0:0. Италия продължава след хвърляне на монета.",
+      "en": "The Euro 1968 semi-final between Italy and the Soviet Union ended 0-0, and Italy went through on the toss of a coin.",
+      "source": "https://www.irishtimes.com/sport/soccer/international/euro-moments-tails-the-call-as-italy-reach-68-final-via-bizarre-coin-toss-1.2634824"
+    },
+    {
+      "bg": "Финалът на Евро 96 е решен със «златен гол» на Оливер Бирхоф. През 2004 г. правилото отпада в повечето мачове, одобрени от ФИФА.",
+      "en": "The Euro 96 final was settled by Oliver Bierhoff's golden goal. Most FIFA-sanctioned games dropped the rule in 2004.",
+      "source": "https://en.wikipedia.org/wiki/Golden_goal"
+    },
+    {
+      "bg": "Отборът «Адема» бие «Емирн» със 149:0 в Мадагаскар през 2002 г. Всички голове са автоголове, вкарани в знак на протест срещу съдийството.",
+      "en": "In 2002 in Madagascar, AS Adema beat SO l'Emyrne 149-0. Every goal was an own goal, scored in protest at refereeing.",
+      "source": "https://www.guinnessworldrecords.com/world-records/110280-most-own-goals-scored-in-a-football-soccer-match-by-a-team"
+    },
+    {
+      "bg": "Австралия бие Американска Самоа с 31:0 през 2001 г. Арчи Томпсън вкарва 13 гола – рекорд за мъжки мач на национални отбори.",
+      "en": "In 2001 Australia beat American Samoa 31-0, and Archie Thompson scored 13, a record for a senior international.",
+      "source": "https://en.wikipedia.org/wiki/Australia_31%E2%80%930_American_Samoa"
+    },
+    {
+      "bg": "Лев Яшин печели «Златната топка» през 1963 г. Към 2025 г. той още е единственият вратар с този приз.",
+      "en": "Lev Yashin, who won in 1963, was still the only goalkeeper to win the Ballon d'Or as of 2025.",
+      "source": "https://en.wikipedia.org/wiki/Lev_Yashin"
+    },
+    {
+      "bg": "Топката «Телстар» от Световното през 1970 г. има 32 черни и бели парчета. Целта е да се вижда добре на черно-белите телевизори.",
+      "en": "The Telstar ball of the 1970 World Cup had 32 black and white panels so it would show up on black-and-white TV.",
+      "source": "https://en.wikipedia.org/wiki/Adidas_Telstar"
+    },
+    {
+      "bg": "Смята се, че около 70% от футболните топки по света се шият в пакистанския град Сиалкот.",
+      "en": "About 70% of the world's footballs are reportedly made in Sialkot, Pakistan.",
+      "source": "https://en.wikipedia.org/wiki/Ball_(association_football)"
+    },
+    {
+      "bg": "Официалната топка е с обиколка 68–70 см и тежи между 410 и 450 г.",
+      "en": "A regulation football is 68-70 cm round and weighs 410-450 g.",
+      "source": "https://en.wikipedia.org/wiki/Ball_(association_football)"
+    },
+    {
+      "bg": "Спрейът, с който съдията чертае линия при пряк свободен удар, изчезва до минута. На Световно се ползва за първи път през 2014 г.",
+      "en": "The referee's vanishing spray disappears within a minute. It was first used at a World Cup in 2014.",
+      "source": "https://en.wikipedia.org/wiki/Vanishing_spray"
+    },
+    {
+      "bg": "Преди сезон 2015/16 букмейкърите дават 5000 към 1, че «Лестър» ще стане шампион на Англия. И «Лестър» печели титлата.",
+      "en": "Before the 2015-16 season bookmakers offered 5,000-1 on Leicester City winning the Premier League. They won it.",
+      "source": "https://www.fourfourtwo.com/news/on-this-day-in-2016-5000-1-outsiders-leicester-win-premier-league-title-1619871785000"
+    },
+    {
+      "bg": "Вратата е широка 7,32 м и висока 2,44 м. Числата изглеждат странни, докато не разбереш, че това са 8 ярда и 8 фута.",
+      "en": "A goal is 7.32 m wide and 2.44 m high: odd numbers until you know they are 8 yards and 8 feet.",
+      "source": "https://www.theifab.com/laws/latest/the-field-of-play/"
+    }
+  ]
+}

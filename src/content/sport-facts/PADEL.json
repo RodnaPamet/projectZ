@@ -1,0 +1,265 @@
+{
+  "sport": "PADEL",
+  "facts": [
+    {
+      "bg": "В първите години играта се казвала «падъл-тенис» и се играела с дървени ракети.",
+      "en": "In its early years the game was called \"Paddle-Tenis\", and it was played with wooden rackets.",
+      "source": "https://www.padeladdict.com/historia-del-padel/"
+    },
+    {
+      "bg": "Първите испански кортове не са строени от нулата. През 1974 г. в Марбеля просто издигат бетонни стени в двата края на тенис корт.",
+      "en": "Spain's first padel courts weren't built from scratch: in 1974 the Marbella Club put up cement walls at both ends of a tennis court.",
+      "source": "https://www.marbellaclub.com/blog/marbella-club-anniversary-trivia"
+    },
+    {
+      "bg": "Историческите кортове в Марбеля изчезват през 1995 г., когато хотелът се разширява. Останала е само бронзова табела върху голям камък.",
+      "en": "Those historic Marbella courts vanished in 1995 to make way for a hotel expansion. All that remains is a bronze plaque set into a large rock.",
+      "source": "https://www.marbellaclub.com/blog/marbella-club-anniversary-trivia"
+    },
+    {
+      "bg": "Маноло Сантана, шампион от Уимбълдън, също се запалва по падела. Той започва да организира турнири и помага играта да се разпространи по Коста дел Сол.",
+      "en": "Wimbledon champion Manolo Santana fell for padel too. He began organising tournaments and helped the game spread along the Costa del Sol.",
+      "source": "https://www.padeladdict.com/historia-del-padel/"
+    },
+    {
+      "bg": "През 1975 г. Хулио Мендитеги пренася падела от Марбеля в Аржентина. Там играта става изключително популярна.",
+      "en": "In 1975 Julio Menditeguy carried padel from Marbella to Argentina, where it became hugely popular.",
+      "source": "https://ltapadel.org.uk/what-we-do/about-padel/history-of-padel"
+    },
+    {
+      "bg": "Международната федерация по падел (FIP) е основана в Мадрид през 1991 година. Първият ѝ председател е испанецът Хулио Алегрия.",
+      "en": "The International Padel Federation (FIP) was founded in Madrid in 1991, with Spaniard Julio Alegría as its first president.",
+      "source": "https://www.padeladdict.com/historia-del-padel/"
+    },
+    {
+      "bg": "Първото световно първенство се провежда през 1992 г. Мачовете се играят в Мадрид и Севиля.",
+      "en": "The first World Championships took place in 1992, split between Madrid and Seville.",
+      "source": "https://ltapadel.org.uk/what-we-do/about-padel/history-of-padel"
+    },
+    {
+      "bg": "Испания признава падела за официален спорт през 1993 г. Тогава се сменя и изписването – вече «padel», а не «paddle».",
+      "en": "Spain officially recognised padel as a sport in 1993, and the spelling changed from \"paddle\" to \"padel\".",
+      "source": "https://ltapadel.org.uk/what-we-do/about-padel/history-of-padel"
+    },
+    {
+      "bg": "Всички отборни световни титли от 1992 г. насам са спечелени от Аржентина или Испания. Това важи и за мъжете, и за жените – към 2026 г.",
+      "en": "Every team world title since 1992, men's and women's, has gone to either Argentina or Spain (as of 2026).",
+      "source": "https://en.wikipedia.org/wiki/Padel_World_Championship"
+    },
+    {
+      "bg": "Първите световни номер 1 в професионалния падел са братя. Хавиер и Густаво Макириаин не губят мач през 1986 и 1987 г.",
+      "en": "The first world No. 1s of the professional era were brothers: Javier and Gustavo Maquirriain went unbeaten in 1986 and 1987.",
+      "source": "https://es.wikipedia.org/wiki/P%C3%A1del"
+    },
+    {
+      "bg": "Фернандо Беластегин е номер 1 в света от 2002 до 2017 г. Тринадесет от тези сезони той е в двойка с Хуан Мартин Диас.",
+      "en": "Fernando Belasteguín was world No. 1 from 2002 to 2017, and 13 of those seasons came alongside Juan Martín Díaz.",
+      "source": "https://en.wikipedia.org/wiki/Fernando_Belasteguín"
+    },
+    {
+      "bg": "Алехандра Саласар има най-много титли в World Padel Tour – 52. Веригата вече не съществува, така че рекордът ще остане завинаги.",
+      "en": "Alejandra Salazar holds the record for World Padel Tour titles, with 52. The tour has closed, so that record is here to stay.",
+      "source": "https://en.wikipedia.org/wiki/Alejandra_Salazar"
+    },
+    {
+      "bg": "Хуан Леброн е първият испанец, станал номер 1 в света. Това се случва през 2019 г., в двойка с Пакито Наваро.",
+      "en": "Juan Lebrón became the first Spaniard to reach world No. 1, doing it in 2019 with Paquito Navarro.",
+      "source": "https://en.wikipedia.org/wiki/Juan_Lebrón_Chincoa"
+    },
+    {
+      "bg": "Преди World Padel Tour най-добрите играят в Padel Pro Tour. Той се провежда от 2006 до 2012 г., а през 2013 г. е заменен от WPT.",
+      "en": "Before the World Padel Tour, the pros played the Padel Pro Tour, from 2006 to 2012; the WPT replaced it in 2013.",
+      "source": "https://en.wikipedia.org/wiki/World_Padel_Tour"
+    },
+    {
+      "bg": "World Padel Tour издържа 11 сезона – от 2013 до 2023 г. После катарски фонд го купува и той се влива в Premier Padel.",
+      "en": "The World Padel Tour lasted eleven seasons, 2013 to 2023, before Qatar Sports Investments bought it and merged it into Premier Padel.",
+      "source": "https://en.wikipedia.org/wiki/World_Padel_Tour"
+    },
+    {
+      "bg": "Premier Padel започва през 2022 г. В първия сезон на веригата има четири турнира «Мейджър» – в Доха, Рим, Париж и Монтерей.",
+      "en": "Premier Padel launched in 2022. Its first season had four Majors: Doha, Rome, Paris and Monterrey.",
+      "source": "https://en.wikipedia.org/wiki/Premier_Padel"
+    },
+    {
+      "bg": "Златната точка влиза в World Padel Tour през 2020 г., на турнира в Марбеля. При 40:40 една точка решава гейма, а приемащите избират страната.",
+      "en": "The golden point arrived on the World Padel Tour in 2020 at the Marbella Master: at 40-40 one point decides the game, and the receivers pick the side.",
+      "source": "https://www.padeladdict.com/punto-de-oro-world-padel-tour/"
+    },
+    {
+      "bg": "От 2026 г. има и «звездна точка». При 40:40 се играят най-много две предимства, а ако пак е равно, решава една точка.",
+      "en": "Since 2026 there is also the \"Star Point\": at deuce, up to two advantages are played, and if it is still level, a single point decides.",
+      "source": "https://www.padeladdict.com/en/what-is-the-star-point-this-is-premier-padels-new-scoring-system/"
+    },
+    {
+      "bg": "Европейските игри през 2023 г. са първите големи континентални игри с падел. Временен корт е построен на главния площад в Краков.",
+      "en": "Padel's first major continental multi-sport event was the 2023 European Games, played on a temporary court in Kraków's Main Square.",
+      "source": "https://en.wikipedia.org/wiki/Padel_at_the_2023_European_Games"
+    },
+    {
+      "bg": "През 2026 г. паделът влиза в Азиатските игри в Нагоя. Първото злато печели Катар – 6:3, 6:1 на финала срещу Малайзия.",
+      "en": "Padel joined the Asian Games in Nagoya in 2026. Qatar won the first ever padel gold, beating Malaysia 6-3, 6-1 in the final.",
+      "source": "https://qna.org.qa/en/News-Area/News/2026-10/3/asian-games-qatar-win-historic-padel-gold-claim-third-straight-beach-volleyball-title"
+    },
+    {
+      "bg": "Американската федерация е създадена през 1993 г. като American Paddle Association. През 2007 г. сменя името си, а през 2026 г. отново – вече е USA Padel.",
+      "en": "The US federation was founded in 1993 as the American Paddle Association. It was renamed in 2007, and again in 2026 as USA Padel.",
+      "source": "https://padelusa.org/usa-padel-unveils-new-name-after-more-than-three-decades-growing-the-sport/"
+    },
+    {
+      "bg": "Кортът за падел е 20 на 10 метра – с около 25% по-малък от тенис корт.",
+      "en": "A padel court measures 20 by 10 metres, roughly 25% smaller than a tennis court.",
+      "source": "https://ltapadel.org.uk/play/padel-faqs/"
+    },
+    {
+      "bg": "Мрежата е висока 88 см в средата и 92 см в краищата.",
+      "en": "The net is 88 cm high in the middle and rises to 92 cm at the ends.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Сервисът се изпълнява отдолу. Топката първо отскача от земята, ударът е най-високо на нивото на кръста, а поне единият крак е на земята.",
+      "en": "The serve is underarm: bounce the ball first, hit it at or below the waist, and keep at least one foot on the ground.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ако сервисът отскочи в полето и после удари металната ограда, това е грешка. Ако удари стъклото, играта продължава.",
+      "en": "A serve that bounces in the box and then hits the metal mesh is a fault. If it hits the glass, play goes on.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Сервис, който отскочи в полето и излезе направо през вратата, е грешка. Това важи само за кортове, на които не е разрешено да се играе извън тях.",
+      "en": "A serve that bounces in the box and then runs straight out through the door is a fault – but only on courts where playing outside is not allowed.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Сервисът не може да се връща от воле. Приемащият трябва да изчака топката да отскочи.",
+      "en": "You may not volley the serve. The receiver has to let it bounce first.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Топката трябва първо да падне на пода на противника. Ако удари направо неговата стена, губиш точката.",
+      "en": "Your shot must land on the opponents' floor first. If it hits their wall directly, you lose the point.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Можеш да удариш топката в своята стена, за да я пратиш при противника. Този удар се казва «контрапаред».",
+      "en": "You can hit the ball into your own wall to send it over to the other side. The shot is called the \"contrapared\".",
+      "source": "https://www.tennis-warehouse.com/Learning_Center/padel/culture/padel-terminology.html"
+    },
+    {
+      "bg": "Собственото стъкло е позволено, но собствената ограда – не. Ако след твоя удар топката докосне металната ограда от твоята страна, губиш точката.",
+      "en": "Your own glass is fair game, but your own mesh is not. If your shot touches the metal fence on your side, you lose the point.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ако топката излезе от корта, можеш да хукнеш след нея и да я върнеш отвън. За целта извън вратите трябва да има свободна площ поне 3 на 4 метра.",
+      "en": "If the ball leaves the court you may run out after it and play it back in. That needs a clear area of at least 3 by 4 metres outside the doors.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ако топката, след като отскочи при противника, мине през дупка в оградата или заседне в нея, точката е за този, който я е ударил.",
+      "en": "If the ball bounces on the opponents' side and then goes through a hole in the fence, or gets stuck in it, the point goes to the player who hit it.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Точка се печели и когато топката отскочи при противника и спре върху плоския горен ръб на стената.",
+      "en": "You also win the point if the ball bounces on the other side and then comes to rest on the flat top of the wall.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Прескачането на мрежата по време на точка е забранено. Който го направи, губи точката.",
+      "en": "Jumping over the net while a point is being played is not allowed. Whoever does it loses the point.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Забранено е да хвърляш ракетата по топката. Дори да я улучиш, губиш точката.",
+      "en": "You can't throw your racket at the ball. Even if you hit it, you lose the point.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Между точките има най-много 20 секунди. През това време не се яде и не се пие.",
+      "en": "Players get at most 20 seconds between points, and eating or drinking between points is not allowed.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Каишката на ракетата е задължителна. Тя е дълга до 35 см и се слага на китката, за да не отхвръкне ракетата.",
+      "en": "The wrist cord is mandatory. It can be up to 35 cm long and goes round your wrist, so the racket can't fly off.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ракетата е дълга най-много 45,5 см и широка до 26 см. Дебелината ѝ е до 38 мм.",
+      "en": "A padel racket can be at most 45.5 cm long and 26 cm wide, and no more than 38 mm thick.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ракетата няма кордаж, а дупки. В средата всяка е с диаметър от 9 до 13 мм, а броят им не е ограничен.",
+      "en": "The racket has no strings, just holes. In the middle each is 9 to 13 mm across, and there is no limit on how many.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ракетата не може да има устройство, което подава сигнали или указания на играча по време на мач. Не се допуска нищо, което свети или издава звук.",
+      "en": "The racket may not carry any device that could signal or give instructions to the player during a match – nothing that lights up or makes a sound.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ако играч изпусне ракетата или скъса каишката по време на точка, двойката веднага губи точката.",
+      "en": "If a player drops the racket or snaps the wrist cord during a point, the pair loses that point straight away.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Сърцевината на ракетата е от пяна – EVA или друг вид. Отгоре се слагат слоеве карбон или фибростъкло, а дупките се пробиват след това.",
+      "en": "Inside, a padel racket has a core of EVA or another foam, sandwiched between layers of carbon fibre or fibreglass. The holes are drilled afterwards.",
+      "source": "https://padelvida.com/learn/how-padel-rackets-manufactured/"
+    },
+    {
+      "bg": "Ракетите имат три основни форми. Формата «диамант» дава сила, кръглата – контрол, а «капката» е нещо средно.",
+      "en": "Rackets come in three main shapes: diamond for power, round for control, and teardrop in between.",
+      "source": "https://es.wikipedia.org/wiki/P%C3%A1del"
+    },
+    {
+      "bg": "Топката за падел е малко по-малка от тенис топката, но тежи колкото нея. Налягането в нея е по-ниско: около 11 psi срещу 14 psi.",
+      "en": "A padel ball is slightly smaller than a tennis ball but weighs the same. Its pressure is lower: about 11 psi against 14 psi.",
+      "source": "https://ltapadel.org.uk/play/padel-faqs/"
+    },
+    {
+      "bg": "Над 1000 метра надморска височина правилата разрешават топка, която отскача по-ниско. София е на около 550 метра, така че тук се играе с обикновената топка.",
+      "en": "Above 1,000 metres altitude the rules allow a ball that bounces lower. Sofia sits at about 550 metres, so the normal ball applies here.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "За да се предава по телевизията, кортът трябва да има вертикално осветяване от поне 1000 лукса. Ако камерите са далеч – и повече.",
+      "en": "Television needs at least 1,000 lux of vertical light on court, and more if the cameras are far away.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Правилата препоръчват кортовете на открито да са по оста север–юг. Позволено е само малко отклонение.",
+      "en": "The rules recommend that outdoor courts run north to south, with only a small deviation allowed.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "Ако топката се спука по време на точка, точката се преиграва. Същото става, ако на корта влезе чужда топка.",
+      "en": "If the ball bursts during a point, the point is replayed. The same goes when a stray ball rolls onto the court.",
+      "source": "https://www.padelfip.com/wp-content/uploads/2025/12/FIP_Rules-of-Padel-1.pdf"
+    },
+    {
+      "bg": "«Бандеха» на испански значи «поднос». Това е рязан удар над главата – за контрол, а не за сила.",
+      "en": "\"Bandeja\" is Spanish for \"tray\". It is a sliced overhead played for control rather than power.",
+      "source": "https://www.babolat.com/gb/news-articles-blog-padel-shots/padel-shots.html"
+    },
+    {
+      "bg": "Смачът «пор трес» праща топката над 3-метровата странична ограда. «Пор куатро» я изкарва над 4-метровата задна стена.",
+      "en": "A \"por tres\" smash sends the ball over the 3-metre side fence. A \"por cuatro\" sends it over the 4-metre back wall.",
+      "source": "https://www.tennis-warehouse.com/Learning_Center/padel/culture/padel-terminology.html"
+    },
+    {
+      "bg": "«Чикита» е мек удар към краката на противниците, когато те са на мрежата.",
+      "en": "The \"chiquita\" is a soft ball aimed at the feet of opponents who are up at the net.",
+      "source": "https://www.tennis-warehouse.com/Learning_Center/padel/culture/padel-terminology.html"
+    },
+    {
+      "bg": "В Испания паделът е вторият по популярност спорт след футбола. По данни на британската федерация там играят около 6 милиона души.",
+      "en": "In Spain padel is the second most popular sport after football. The British federation puts the number of active players there at about 6 million.",
+      "source": "https://ltapadel.org.uk/what-we-do/about-padel/history-of-padel"
+    }
+  ]
+}

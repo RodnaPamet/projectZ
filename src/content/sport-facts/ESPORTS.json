@@ -1,0 +1,265 @@
+{
+  "sport": "ESPORTS",
+  "facts": [
+    {
+      "bg": "Spacewar! е създадена през 1962 г. в MIT за компютъра PDP-1. Това е първата видеоигра, която се играе в няколко компютърни центъра.",
+      "en": "Spacewar! was created at MIT in 1962 for the PDP-1 computer. It was the first video game played at several computer installations.",
+      "source": "https://en.wikipedia.org/wiki/Spacewar!"
+    },
+    {
+      "bg": "През 1974 г. Sega организира турнир по аркадни игри в цяла Япония. Местните кръгове са в 300 зали, а сред наградите има телевизори и радиоапарати.",
+      "en": "In 1974 Sega ran a nationwide arcade tournament in Japan, with local rounds at 300 venues and prizes including TV sets and radios.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "През 1980 г. Ребека Хайнеман печели шампионата на Atari по Space Invaders. Тя дори не е вярвала, че ще влезе в първите 100.",
+      "en": "Atari's 1980 Space Invaders Championship was won by Rebecca Heineman, who hadn't even expected to make the top 100.",
+      "source": "https://en.wikipedia.org/wiki/Rebecca_Heineman"
+    },
+    {
+      "bg": "През 1982 г. градчето Отъмуа в Айова е обявено за «Световна столица на видеоигрите». Там е игралната зала Twin Galaxies, която води рекордите.",
+      "en": "In 1982 Ottumwa, Iowa, was declared the 'Video Game Capital of the World'. It was home to Twin Galaxies, the arcade that tracked high scores.",
+      "source": "https://en.wikipedia.org/wiki/Twin_Galaxies"
+    },
+    {
+      "bg": "Американското телевизионно шоу Starcade се излъчва от 1982 до 1984 г. В 133 епизода участниците се борят за най-висок резултат.",
+      "en": "The US TV show Starcade ran from 1982 to 1984. Over 133 episodes, contestants battled for the highest score.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Турнирът на Konami по Track & Field през 1984 г. събира над един милион играчи. Според Гинес към 2016 г. това е най-голямото организирано състезание по видеоигри.",
+      "en": "Konami's 1984 Track & Field tournament drew over a million players. As of 2016 Guinness listed it as the largest organised video game competition ever.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "В Netrek от 1988 г. до 16 души играят заедно през интернет. През 1993 г. списание Wired я нарича «първата онлайн спортна игра».",
+      "en": "Netrek (1988) let up to 16 people play over the internet. In 1993 Wired called it 'the first online sports game'.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Street Fighter II от 1991 г. изправя двама играчи един срещу друг. Преди това най-добрият играч се определя главно по рекорден резултат.",
+      "en": "Street Fighter II (1991) pitted two players directly against each other. Before that, the best player was mostly decided by high scores.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Nintendo World Championships през 1990 г. обикаля 29 американски града. Специалната касета от турнира днес е сред най-редките игри за NES.",
+      "en": "The 1990 Nintendo World Championships toured 29 US cities. The special tournament cartridge is now one of the rarest NES games.",
+      "source": "https://en.wikipedia.org/wiki/Nintendo_World_Championships"
+    },
+    {
+      "bg": "Evo започва през 1996 г. като турнир за 40 души в Сънивейл, Калифорния. Тогава се казва Battle by the Bay.",
+      "en": "Evo began in 1996 as a 40-player tournament in Sunnyvale, California, under the name Battle by the Bay.",
+      "source": "https://en.wikipedia.org/wiki/Evolution_Championship_Series"
+    },
+    {
+      "bg": "През 2004 г. Дайго Умехара отбива 15 поредни удара с последната си капка живот. Моментът е известен като «Evo Moment #37».",
+      "en": "In 2004 Daigo Umehara parried 15 consecutive hits with a sliver of health left. It is known as 'Evo Moment #37'.",
+      "source": "https://en.wikipedia.org/wiki/Evo_Moment_37"
+    },
+    {
+      "bg": "През 1997 г. Денис «Thresh» Фонг печели турнир по Quake. Наградата е ферарито на Джон Кармак, шефа на id Software.",
+      "en": "In 1997 Dennis 'Thresh' Fong won a Quake tournament. The prize was the Ferrari of John Carmack, head of id Software.",
+      "source": "https://en.wikipedia.org/wiki/Dennis_Fong"
+    },
+    {
+      "bg": "Прякорът Thresh идва от «Threshold of Pain». Съкратен е, защото много игри позволяват само осем знака в името.",
+      "en": "The nickname Thresh is short for 'Threshold of Pain' – trimmed because many games allowed only eight characters.",
+      "source": "https://en.wikipedia.org/wiki/Dennis_Fong"
+    },
+    {
+      "bg": "Counter-Strike започва като любителски мод за Half-Life през 1999 г. Успехът му привлича вниманието на Valve.",
+      "en": "Counter-Strike started in 1999 as a fan-made mod for Half-Life. Its success caught Valve's attention.",
+      "source": "https://en.wikipedia.org/wiki/Counter-Strike_(video_game)"
+    },
+    {
+      "bg": "Dota започва като мод за Warcraft III. Корените му са в потребителска карта за StarCraft на име «Aeon of Strife».",
+      "en": "Dota began as a mod for Warcraft III, with roots in a StarCraft custom map called 'Aeon of Strife'.",
+      "source": "https://en.wikipedia.org/wiki/Defense_of_the_Ancients"
+    },
+    {
+      "bg": "Battle.net на Blizzard от 1996 г. прави популярно автоматичното търсене на съперник онлайн.",
+      "en": "Blizzard's Battle.net, launched in 1996, made automatic online matchmaking popular.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "В Южна Корея професионалните геймъри получават лиценз от 2000 г.",
+      "en": "South Korea has licensed professional gamers since 2000.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "През 2000-те в Корея има кабелни канали, които денонощно излъчват StarCraft и Warcraft III. Най-известните са Ongamenet и MBCGame.",
+      "en": "In the 2000s South Korea had 24-hour cable channels showing StarCraft and Warcraft III, led by Ongamenet and MBCGame.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Според ESPN през 2005 г. над 100 000 души гледат финал по StarCraft на плажа Gwangalli в Пусан.",
+      "en": "In 2005 more than 100,000 people reportedly watched a StarCraft final on Gwangalli Beach in Busan.",
+      "source": "https://www.espn.com/esports/story/_/id/20184985/starcraft-beaches-busan-awash-esports-history"
+    },
+    {
+      "bg": "World Cyber Games започват през 2000 г. с отбори от 17 държави. Наричат ги «олимпийските игри» на е-спорта.",
+      "en": "The World Cyber Games began in 2000 with teams from 17 countries and were dubbed the 'esports Olympics'.",
+      "source": "https://en.wikipedia.org/wiki/World_Cyber_Games"
+    },
+    {
+      "bg": "ESL е основана през 2000 г. и е със седалище в Кьолн. Тя е най-старата компания в е-спорта, която още работи.",
+      "en": "ESL launched in 2000, is based in Cologne and is the oldest esports company still operating.",
+      "source": "https://en.wikipedia.org/wiki/ESL_(company)"
+    },
+    {
+      "bg": "Twitch тръгва през юни 2011 г. като отделна услуга на Justin.tv. Скоро го изпреварва по популярност.",
+      "en": "Twitch launched in June 2011 as a spin-off of Justin.tv and soon eclipsed it.",
+      "source": "https://en.wikipedia.org/wiki/Twitch_(service)"
+    },
+    {
+      "bg": "Първият The International по Dota 2 е през 2011 г. на изложението Gamescom в Кьолн.",
+      "en": "The first Dota 2 International was held at Gamescom in Cologne in 2011.",
+      "source": "https://en.wikipedia.org/wiki/The_International_(esports)"
+    },
+    {
+      "bg": "Наградите на The International 2021 са 40 018 195 долара. Това е рекорд за един турнир по е-спорт (до 2025 г.).",
+      "en": "The International 2021 paid out $40,018,195 – a record for a single esports tournament (as of 2025).",
+      "source": "https://en.wikipedia.org/wiki/The_International_2021"
+    },
+    {
+      "bg": "Първото световно първенство по League of Legends е през 2011 г. на DreamHack. Наградният фонд е 100 000 долара.",
+      "en": "The first League of Legends World Championship was held at DreamHack in 2011, with a $100,000 prize pool.",
+      "source": "https://en.wikipedia.org/wiki/League_of_Legends_World_Championship"
+    },
+    {
+      "bg": "През 2013 г. световното първенство по League of Legends пълни залата Staples Center в Лос Анджелис. Година по-късно финалът в Сеул събира над 40 000 зрители.",
+      "en": "In 2013 the League of Legends Worlds sold out the Staples Center in Los Angeles. A year later the Seoul final drew over 40,000 fans.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Корейският играч Faker има рекордните шест световни титли по League of Legends (до 2025 г.).",
+      "en": "Korean player Faker holds a record six League of Legends world titles (as of 2025).",
+      "source": "https://en.wikipedia.org/wiki/Faker_(gamer)"
+    },
+    {
+      "bg": "През 2013 г. Дани «Shiphtur» Ле става първият професионален геймър с американска виза за международно признати спортисти. Той играе League of Legends.",
+      "en": "In 2013 League of Legends player Danny 'Shiphtur' Le became the first pro gamer to get a US visa for internationally recognised athletes.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "От 2013 г. някои американски университети дават спортни стипендии за е-спорт. Сред тях е Robert Morris University Illinois.",
+      "en": "Since 2013 some US universities, such as Robert Morris University Illinois, have offered athletic scholarships for esports.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "На Азиатските игри в Ханджоу през 2023 г. е-спортът за пръв път раздава медали. Пет години по-рано, през 2018 г., е само показен спорт.",
+      "en": "Esports became a medal event at the Asian Games in Hangzhou in 2023, five years after a demonstration at the 2018 Games.",
+      "source": "https://en.wikipedia.org/wiki/Esports_at_the_2022_Asian_Games"
+    },
+    {
+      "bg": "Азиатските игри в зала през 2007 г. са първото голямо мултиспортно събитие с медали в е-спорта.",
+      "en": "The 2007 Asian Indoor Games were the first notable multi-sport event to award medals in esports.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "На Олимпийската седмица на е-спорта в Сингапур през 2023 г. има Just Dance, шах и виртуално таекуондо.",
+      "en": "The 2023 Olympic Esports Week in Singapore featured Just Dance, chess and virtual taekwondo.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "През 2019 г. 16-годишният Кайл «Bugha» Гирсдорф печели Fortnite World Cup и 3 милиона долара.",
+      "en": "In 2019, 16-year-old Kyle 'Bugha' Giersdorf won the Fortnite World Cup and $3 million.",
+      "source": "https://www.cbsnews.com/news/fortnite-world-cup-winner-bugha-kyle-giersdorf-age-16-wins-3-million-at-fortnite-world-cup"
+    },
+    {
+      "bg": "На 21 декември 2023 г. 13-годишният Уилис «Blue Scuti» Гибсън става първият, който «бие» Tetris на NES. Той играе толкова дълго, че играта забива.",
+      "en": "On 21 December 2023, 13-year-old Willis 'Blue Scuti' Gibson became the first to 'beat' NES Tetris by playing until the game crashed.",
+      "source": "https://en.wikipedia.org/wiki/Tetris_(NES_video_game)"
+    },
+    {
+      "bg": "Световното първенство по класически Tetris започва през 2010 г., докато се снима документален филм за най-добрите играчи.",
+      "en": "The Classic Tetris World Championship began in 2010, during the filming of a documentary about top players.",
+      "source": "https://en.wikipedia.org/wiki/Classic_Tetris_World_Championship"
+    },
+    {
+      "bg": "В Super Smash Bros. Melee от 2001 г. играчите откриват «вейвдаш» – трик с физиката на играта. С него героите се плъзгат и бързо сменят позиция.",
+      "en": "Players of Super Smash Bros. Melee (2001) found the 'wavedash', a physics trick that lets characters slide and reposition quickly.",
+      "source": "https://en.wikipedia.org/wiki/Video_game_exploit"
+    },
+    {
+      "bg": "Скокът с ракета е трик в шутърите: взривът от собствената ракета те изстрелва нагоре. Популярен става с Quake и Team Fortress 2.",
+      "en": "Rocket jumping uses the blast of your own rocket to launch you into the air. Quake and Team Fortress 2 made it famous.",
+      "source": "https://en.wikipedia.org/wiki/Rocket_jumping"
+    },
+    {
+      "bg": "Rocket League от 2015 г. е продължение на игра с дългото име Supersonic Acrobatic Rocket-Powered Battle-Cars от 2008 г.",
+      "en": "Rocket League (2015) is a sequel to a 2008 game with a much longer name: Supersonic Acrobatic Rocket-Powered Battle-Cars.",
+      "source": "https://en.wikipedia.org/wiki/Rocket_League"
+    },
+    {
+      "bg": "Overwatch League тръгва през 2018 г. с отбори на градове, както в американските спортни лиги. Всеки от първите 12 отбора плаща по 20 милиона долара за франчайз.",
+      "en": "The Overwatch League launched in 2018 with city-based teams, like US sports leagues. Each of the first 12 paid a $20 million franchise fee.",
+      "source": "https://en.wikipedia.org/wiki/Overwatch_League"
+    },
+    {
+      "bg": "Големите турнири обикновено се играят в локална мрежа, а не онлайн. Така закъснението е минимално, а измамите се хващат по-лесно.",
+      "en": "Major tournaments are usually played over a local network rather than online, which cuts lag and makes cheating easier to catch.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "StarCraft II излиза без игра в локална мрежа, за разлика от първия StarCraft. Много играчи са силно недоволни.",
+      "en": "Unlike the original, StarCraft II was released without LAN play, which drew strongly negative reactions from players.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Отборът на Team Liquid по League of Legends тренира поне 50 часа седмично.",
+      "en": "Team Liquid's League of Legends squad has practised for at least 50 hours a week.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Преди зимната олимпиада в Пьонгчанг през 2018 г. пет корейски е-спортисти носят олимпийския огън.",
+      "en": "Five South Korean esports players carried the Olympic torch ahead of the 2018 Winter Olympics in Pyeongchang.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Игрите на Британската общност през 2022 г. включват е-спорт като пилотно събитие. Играят се Dota 2, eFootball и Rocket League.",
+      "en": "The 2022 Commonwealth Games ran esports as a pilot event, with Dota 2, eFootball and Rocket League.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Онлайн регатата на Virtual Regatta по ветроходното състезание Vendée Globe 2020–2021 по оценки събира над 1 милион играчи.",
+      "en": "The Virtual Regatta race shadowing the 2020–21 Vendée Globe sailing race is believed to have had over a million players.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Турнирът Wii Games Summer 2010 на Nintendo продължава над месец и събира над 400 000 участници.",
+      "en": "Nintendo's Wii Games Summer 2010 tournament ran for over a month and had more than 400,000 participants.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Intel Extreme Masters започват през 2006 г. под името «Core 2 Extreme Masters».",
+      "en": "Intel Extreme Masters began in 2006 under the name 'Core 2 Extreme Masters'.",
+      "source": "https://en.wikipedia.org/wiki/Intel_Extreme_Masters"
+    },
+    {
+      "bg": "През 2022 г. публиката на е-спорта в света се оценява на 921 милиона души.",
+      "en": "The global esports audience was estimated at 921 million people in 2022.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "През 2014 г. корейската асоциация по е-спорт KeSPA заедно с Riot Games и Ongamenet обявява минимална заплата за професионалните геймъри. От сезон 2016 договорите са поне за една година.",
+      "en": "In 2014 Korea's esports association KeSPA, with Riot Games and Ongamenet, announced a minimum salary for pro gamers and contracts of at least one year from the 2016 season.",
+      "source": "https://en.wikipedia.org/wiki/Korea_e-Sports_Association"
+    },
+    {
+      "bg": "Режимът deathmatch в Doom от 1993 г. поставя основите на онлайн състезанията в шутърите.",
+      "en": "Doom's deathmatch mode (1993) laid the foundations of competitive online shooters.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Първата зала, построена специално за е-спорт в САЩ, отваря врати през 2015 г. в Санта Ана, Калифорния.",
+      "en": "The first dedicated esports venue in the US opened in Santa Ana, California, in 2015.",
+      "source": "https://en.wikipedia.org/wiki/Esports"
+    },
+    {
+      "bg": "Французинът Гийом Патри е единственият некореец, печелил индивидуалния турнир по StarCraft на канала Ongamenet.",
+      "en": "Frenchman Guillaume Patry is the only non-Korean ever to win an individual Ongamenet StarCraft league.",
+      "source": "https://en.wikipedia.org/wiki/OGN_(TV_channel)"
+    }
+  ]
+}

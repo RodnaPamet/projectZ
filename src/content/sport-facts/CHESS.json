@@ -1,0 +1,265 @@
+{
+  "sport": "CHESS",
+  "facts": [
+    {
+      "bg": "Шахът произлиза от индийската игра чатуранга, позната от VI век. Името означава четирите рода войски: слонове, колесници, конница и пехота.",
+      "en": "Chess descends from the Indian game chaturanga, known from the 6th century. The name refers to the four divisions of an army: elephants, chariots, cavalry and infantry.",
+      "source": "https://en.wikipedia.org/wiki/Chaturanga"
+    },
+    {
+      "bg": "Чатуранга се играе на дъска 8 на 8 полета, но полетата не са оцветени в светло и тъмно.",
+      "en": "Chaturanga was played on an 8×8 board, but without the light-and-dark checkering.",
+      "source": "https://en.wikipedia.org/wiki/Chess"
+    },
+    {
+      "bg": "«Шах и мат» идва от персийското «шах мат», което значи «царят е безпомощен».",
+      "en": "'Checkmate' comes from the Persian 'shāh māt', meaning 'the king is helpless'.",
+      "source": "https://en.wikipedia.org/wiki/Checkmate"
+    },
+    {
+      "bg": "В старата игра царицата е съветник и ходи само с едно поле по диагонал. Днешната си сила получава в Испания през XV век.",
+      "en": "In the old game the queen was a counsellor that moved just one square diagonally. It gained its modern powers in 15th-century Spain.",
+      "source": "https://en.wikipedia.org/wiki/Queen_(chess)"
+    },
+    {
+      "bg": "Офицерът някога е бил слон, който е скачал през две полета по диагонал. На испански още се казва «alfil» – на арабски това значи «слонът».",
+      "en": "The bishop was once an elephant that leapt two squares diagonally. In Spanish it is still called 'alfil', from the Arabic for 'the elephant'.",
+      "source": "https://en.wikipedia.org/wiki/Bishop_(chess)"
+    },
+    {
+      "bg": "Английското име на топа – «rook» – идва от персийската дума «рух», която значи колесница.",
+      "en": "The rook takes its name from the Persian word 'rukh', meaning chariot.",
+      "source": "https://en.wikipedia.org/wiki/Rook_(chess)"
+    },
+    {
+      "bg": "През 1831 г. на шотландския остров Луис намират цяла сбирка шахматни фигури от XII век. Повечето са издялани от моржова кост.",
+      "en": "In 1831 a hoard of 12th-century chess pieces was found on the Isle of Lewis in Scotland. Most are carved from walrus ivory.",
+      "source": "https://en.wikipedia.org/wiki/Lewis_chessmen"
+    },
+    {
+      "bg": "Рокадата в днешния си вид е приета във Франция през 1620 г. и в Англия през 1640 г.",
+      "en": "Castling in its current form was established in France in 1620 and in England in 1640.",
+      "source": "https://en.wikipedia.org/wiki/Castling"
+    },
+    {
+      "bg": "Първият ход на пешката с две полета се появява между XIII и XVI век. Целта е играта да върви по-бързо.",
+      "en": "The pawn's two-square first move was added between the 13th and 16th centuries to speed the game up.",
+      "source": "https://en.wikipedia.org/wiki/En_passant"
+    },
+    {
+      "bg": "В Англия приблизително между 1600 и 1800 г. патът е загуба за играча, който го е дал.",
+      "en": "In England from about 1600 to 1800, stalemate was a loss for the player who delivered it.",
+      "source": "https://en.wikipedia.org/wiki/Stalemate"
+    },
+    {
+      "bg": "Класическите фигури «Стаунтън» излизат на пазара в Лондон през 1849 г. Първите 500 комплекта са номерирани и подписани от самия Хауърд Стаунтън.",
+      "en": "The classic Staunton pieces went on sale in London in 1849. The first 500 sets were numbered and signed by Howard Staunton himself.",
+      "source": "https://en.wikipedia.org/wiki/Staunton_chess_set"
+    },
+    {
+      "bg": "Правилото, че белите започват първи, е сравнително ново. Дори в средата и края на XIX век то още не е общоприето.",
+      "en": "The rule that White moves first is fairly recent: it was not yet standard even in the mid-to-late 19th century.",
+      "source": "https://en.wikipedia.org/wiki/White_and_Black_in_chess"
+    },
+    {
+      "bg": "Първият официален мач за световната титла е през 1886 г. В него Вилхелм Стайниц бие Йоханес Цукерторт.",
+      "en": "The first official World Championship match was played in 1886, when Wilhelm Steinitz beat Johannes Zukertort.",
+      "source": "https://en.wikipedia.org/wiki/World_Chess_Championship"
+    },
+    {
+      "bg": "Емануел Ласкер е световен шампион цели 27 години – от 1894 до 1921 г. Никой не е държал титлата по-дълго.",
+      "en": "Emanuel Lasker was world champion for 27 years, from 1894 to 1921 – the longest reign of any champion.",
+      "source": "https://en.wikipedia.org/wiki/Emanuel_Lasker"
+    },
+    {
+      "bg": "Шахматният часовник се появява за пръв път на турнир в Лондон през 1883 г.",
+      "en": "Chess clocks were first used in tournament play in London in 1883.",
+      "source": "https://en.wikipedia.org/wiki/Chess_clock"
+    },
+    {
+      "bg": "През 1988 г. Боби Фишер подава заявка за патент на часовник, който добавя време след всеки ход. Днес идеята се ползва широко в шаха.",
+      "en": "Bobby Fischer filed a patent in 1988 for a clock that adds time after every move, an idea now widely used in chess.",
+      "source": "https://en.wikipedia.org/wiki/Chess_clock"
+    },
+    {
+      "bg": "Ако искаш само да наместиш фигура, първо казваш «жадуб» – на френски «поправям». Иначе докоснатата фигура трябва да се изиграе.",
+      "en": "To straighten a piece without having to move it, you say 'j'adoube' – French for 'I adjust'. Otherwise a touched piece must be played.",
+      "source": "https://en.wikipedia.org/wiki/Touch-move_rule"
+    },
+    {
+      "bg": "ФИДЕ е основана в Париж през 1924 г. Затова 20 юли е Международният ден на шаха, признат от ООН през 2019 г.",
+      "en": "FIDE was founded in Paris in 1924, which is why 20 July is International Chess Day – recognised by the UN in 2019.",
+      "source": "https://en.wikipedia.org/wiki/International_Chess_Day"
+    },
+    {
+      "bg": "Вера Менчик е първата световна шампионка при жените. Тя държи титлата от 1927 до 1944 г.",
+      "en": "Vera Menchik was the first women's world champion and held the title from 1927 to 1944.",
+      "source": "https://en.wikipedia.org/wiki/Vera_Menchik"
+    },
+    {
+      "bg": "Твърди се, че цар Николай II дава титлата «гросмайстор» на петимата финалисти от турнира в Санкт Петербург през 1914 г.",
+      "en": "Tsar Nicholas II reportedly conferred the title 'grandmaster' on the five finalists of the St Petersburg 1914 tournament.",
+      "source": "https://en.wikipedia.org/wiki/Grandmaster_(chess)"
+    },
+    {
+      "bg": "«Безсмъртната партия» е изиграна в Лондон през 1851 г. Загубилият Кизерицки е толкова впечатлен, че сам я публикува.",
+      "en": "The 'Immortal Game' was played in London in 1851. The loser, Kieseritzky, was so impressed that he published it himself.",
+      "source": "https://en.wikipedia.org/wiki/Immortal_Game"
+    },
+    {
+      "bg": "През 1858 г. в ложа на парижката опера Пол Морфи играе срещу херцог и граф. Партията остава в историята като «Оперната партия».",
+      "en": "In 1858 Paul Morphy played a duke and a count in a box at the Paris opera. The result is known as the 'Opera Game'.",
+      "source": "https://en.wikipedia.org/wiki/Opera_Game"
+    },
+    {
+      "bg": "«Механичният турчин» от 1770 г. уж играе сам, а вътре се крие силен шахматист. Машината побеждава Наполеон и Бенджамин Франклин.",
+      "en": "The 'Mechanical Turk' of 1770 seemed to play by itself, but a strong player hid inside. It beat Napoleon and Benjamin Franklin.",
+      "source": "https://en.wikipedia.org/wiki/Mechanical_Turk"
+    },
+    {
+      "bg": "Алан Тюринг пише шахматна програма през 1948 г., когато още няма компютър, който да я изпълни. През 1952 г. я изиграва сам на ръка, ход по ход.",
+      "en": "Alan Turing wrote a chess program in 1948, before any computer could run it. In 1952 he played it out by hand, step by step.",
+      "source": "https://en.wikipedia.org/wiki/Turochamp"
+    },
+    {
+      "bg": "През 1996 г. Deep Blue печели първата си партия срещу Гари Каспаров, но губи мача. Година по-късно компютърът печели реванша с 3,5:2,5.",
+      "en": "In 1996 Deep Blue won its first game against Garry Kasparov but lost the match. A year later it won the rematch 3½–2½.",
+      "source": "https://en.wikipedia.org/wiki/Deep_Blue_versus_Garry_Kasparov"
+    },
+    {
+      "bg": "През 2017 г. AlphaZero учи шах само девет часа. След това бие Stockfish в 100 партии без нито една загуба.",
+      "en": "In 2017 AlphaZero trained at chess for just nine hours, then beat Stockfish over 100 games without a single loss.",
+      "source": "https://en.wikipedia.org/wiki/AlphaZero"
+    },
+    {
+      "bg": "Възможните шахматни партии са поне 10 на степен 120. Атомите във видимата Вселена са около 10 на степен 80.",
+      "en": "There are at least 10^120 possible chess games. The observable universe has roughly 10^80 atoms.",
+      "source": "https://en.wikipedia.org/wiki/Shannon_number"
+    },
+    {
+      "bg": "Сложи едно зърно на първото поле и удвоявай до 64-тото. Ще ти трябват над 18 квинтилиона зърна пшеница, или около 1,2 трилиона тона.",
+      "en": "Put one grain on the first square and double it up to the 64th: you need over 18 quintillion grains of wheat, about 1.2 trillion tonnes.",
+      "source": "https://en.wikipedia.org/wiki/Wheat_and_chessboard_problem"
+    },
+    {
+      "bg": "Задачата конят да мине през всяко поле точно по веднъж е описана още през IX век.",
+      "en": "The knight's tour – visiting every square exactly once – was first described as early as the 9th century.",
+      "source": "https://en.wikipedia.org/wiki/Knight's_tour"
+    },
+    {
+      "bg": "Най-бързият възможен мат е в два хода и само черните могат да го дадат.",
+      "en": "The fastest possible checkmate takes two moves, and only Black can deliver it.",
+      "source": "https://en.wikipedia.org/wiki/Fool's_mate"
+    },
+    {
+      "bg": "Шахбоксът редува рундове блиц и бокс. Идеята идва от френски комикс от 1992 г.",
+      "en": "Chess boxing alternates rounds of blitz chess and boxing. The idea comes from a 1992 French comic book.",
+      "source": "https://en.wikipedia.org/wiki/Chess_boxing"
+    },
+    {
+      "bg": "Рейтинговата система е кръстена на Арпад Ело, професор по физика. ФИДЕ я приема през 1970 г.",
+      "en": "The rating system is named after Arpad Elo, a physics professor. FIDE adopted it in 1970.",
+      "source": "https://en.wikipedia.org/wiki/Elo_rating_system"
+    },
+    {
+      "bg": "Най-високият рейтинг в историята е 2882 точки на Магнус Карлсен (до 2025 г.).",
+      "en": "The highest rating ever achieved is Magnus Carlsen's 2882 (as of 2025).",
+      "source": "https://en.wikipedia.org/wiki/Magnus_Carlsen"
+    },
+    {
+      "bg": "В шах 960 фигурите на първия ред се разбъркват. Боби Фишер го предлага през 1996 г., за да се зубри по-малко дебютна теория.",
+      "en": "In Chess960 the back-rank pieces are shuffled. Bobby Fischer introduced it in 1996 to cut down on memorised opening theory.",
+      "source": "https://en.wikipedia.org/wiki/Chess960"
+    },
+    {
+      "bg": "Мачът Карпов – Каспаров от 1984 г. е спрян след 48 партии и пет месеца. Цели 40 от тях завършват реми.",
+      "en": "The 1984 Karpov–Kasparov match was called off after 48 games and five months. Forty of the games were draws.",
+      "source": "https://en.wikipedia.org/wiki/World_Chess_Championship_1984"
+    },
+    {
+      "bg": "През 1970 г. космонавтите от «Союз-9» играят партия шах от орбита срещу двама души на Земята.",
+      "en": "In 1970 the Soyuz 9 cosmonauts played a game of chess from orbit against two opponents on Earth.",
+      "source": "https://en.wikipedia.org/wiki/Soyuz_9"
+    },
+    {
+      "bg": "През 1895 г. скромен любител на име Сааведра намира победа в позиция, смятана за реми. Номерът е пешката да стане топ, а не царица.",
+      "en": "In 1895 a weak amateur named Saavedra found a win in a position thought to be drawn – by promoting to a rook, not a queen.",
+      "source": "https://en.wikipedia.org/wiki/Saavedra_position"
+    },
+    {
+      "bg": "Гукеш Домараджу става световен шампион през 2024 г., на 18 години. Той е най-младият безспорен шампион в историята.",
+      "en": "In 2024 Gukesh Dommaraju became world champion at 18 – the youngest undisputed champion ever.",
+      "source": "https://en.wikipedia.org/wiki/World_Chess_Championship_2024"
+    },
+    {
+      "bg": "Абхиманю Мишра става гросмайстор на 12 години, 4 месеца и 25 дни. Това е рекорд (до 2025 г.).",
+      "en": "Abhimanyu Mishra became a grandmaster at 12 years, 4 months and 25 days – the record as of 2025.",
+      "source": "https://en.wikipedia.org/wiki/Abhimanyu_Mishra"
+    },
+    {
+      "bg": "Юдит Полгар е единствената жена, побеждавала действащия световен номер едно. Тя бие Гари Каспаров през 2002 г.",
+      "en": "Judit Polgár is the only woman to have beaten a reigning world number one, defeating Garry Kasparov in 2002.",
+      "source": "https://en.wikipedia.org/wiki/Judit_Polg%C3%A1r"
+    },
+    {
+      "bg": "След сериала «Дамски гамбит» продажбите на шахматни комплекти рязко скачат. Един производител отчита ръст от над 1000%.",
+      "en": "After 'The Queen's Gambit' series, chess set sales soared – one manufacturer reported a rise of over 1,000%.",
+      "source": "https://en.wikipedia.org/wiki/The_Queen's_Gambit_(miniseries)"
+    },
+    {
+      "bg": "Ако една позиция се повтори три пъти, играчът може да поиска реми. При пет повторения съдията сам обявява реми.",
+      "en": "If a position occurs three times, a player may claim a draw. After five times, the arbiter declares it without a claim.",
+      "source": "https://en.wikipedia.org/wiki/Threefold_repetition"
+    },
+    {
+      "bg": "Ако 75 хода подред няма взимане и ход с пешка, партията автоматично е реми. В старата игра шатрандж правилото е било за 70 хода.",
+      "en": "After 75 moves with no capture or pawn move, the game is drawn automatically. Old shatranj had a 70-move rule.",
+      "source": "https://en.wikipedia.org/wiki/Fifty-move_rule"
+    },
+    {
+      "bg": "През 1989 г. в Белград Николич и Арсович играят турнирна партия от 269 хода. Тя продължава 20 часа и 15 минути – и завършва реми.",
+      "en": "In Belgrade in 1989 Nikolić and Arsović played a tournament game of 269 moves. It lasted 20 hours 15 minutes – and ended in a draw.",
+      "source": "https://en.chessbase.com/newsroom/post/a-game-that-outlasted-the-day-5"
+    },
+    {
+      "bg": "Най-дългата партия в мач за световната титла е шестата партия през 2021 г. Карлсен бие Непомнящий за 136 хода.",
+      "en": "The longest game in a World Championship match is game 6 of 2021: Carlsen beat Nepomniachtchi in 136 moves.",
+      "source": "https://en.wikipedia.org/wiki/List_of_world_records_in_chess"
+    },
+    {
+      "bg": "Веселин Топалов става световен шампион на ФИДЕ през 2005 г. в Сан Луис, Аржентина. Осемте участници играят всеки срещу всеки по два пъти.",
+      "en": "Veselin Topalov became FIDE World Champion in 2005 in San Luis, Argentina, in an eight-player double round robin.",
+      "source": "https://en.wikipedia.org/wiki/FIDE_World_Chess_Championship_2005"
+    },
+    {
+      "bg": "Топалов побеждава Каспаров в последния кръг на турнира в Линарес през 2005 г. Това е последната турнирна партия на Каспаров, преди да се оттегли.",
+      "en": "Topalov beat Kasparov in the last round of Linares 2005 – Kasparov's final tournament game before he retired.",
+      "source": "https://en.wikipedia.org/wiki/Veselin_Topalov"
+    },
+    {
+      "bg": "Антоанета Стефанова става световна шампионка при жените през 2004 г. Във финала в Елиста бие Екатерина Ковалевская с 2,5:0,5.",
+      "en": "Antoaneta Stefanova became women's world champion in 2004, beating Ekaterina Kovalevskaya 2½–½ in the final in Elista.",
+      "source": "https://en.wikipedia.org/wiki/Women's_World_Chess_Championship_2004"
+    },
+    {
+      "bg": "На турнира в София през 2005 г. играчите нямат право сами да се договорят за реми. Така се раждат «софийските правила».",
+      "en": "At the Sofia 2005 tournament players could not agree a draw between themselves – the origin of the 'Sofia rules'.",
+      "source": "https://en.wikipedia.org/wiki/Draw_by_agreement"
+    },
+    {
+      "bg": "През 1925 г. в Сао Пауло Рихард Рети играе 29 партии наслепо едновременно. След това забравя куфарчето си и се шегува с лошата си памет.",
+      "en": "In 1925 in São Paulo, Richard Réti played 29 blindfold games at once – then left his briefcase behind and joked about his poor memory.",
+      "source": "https://en.wikipedia.org/wiki/Blindfold_chess"
+    },
+    {
+      "bg": "През 1951 г. майсторът Робърт Уейд изнася сеанс на едновременна игра срещу 30 ученици до 14 години. Губи 20 партии, а другите 10 са реми.",
+      "en": "In 1951 master Robert Wade gave a simul against 30 schoolboys aged 14 and under. He lost 20 games and drew the other 10.",
+      "source": "https://en.wikipedia.org/wiki/List_of_world_records_in_chess"
+    },
+    {
+      "bg": "Мачът Фишер – Спаски в Рейкявик през 1972 г. е наречен «Мачът на века». Фишер не се явява на втората партия и я губи служебно.",
+      "en": "The 1972 Fischer–Spassky match in Reykjavík was dubbed the 'Match of the Century'. Fischer failed to show up for game 2 and forfeited it.",
+      "source": "https://en.wikipedia.org/wiki/World_Chess_Championship_1972"
+    }
+  ]
+}

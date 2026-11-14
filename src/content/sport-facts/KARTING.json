@@ -1,0 +1,265 @@
+{
+  "sport": "KARTING",
+  "facts": [
+    {
+      "bg": "Първият карт от 1956 г. е сглобен от старо желязо. Двигателят е двутактов, на фирмата West Bend, взет от стари складови наличности.",
+      "en": "The very first kart, in 1956, was built from scrap metal and a surplus two-stroke engine made by the West Bend Company.",
+      "source": "https://en.wikipedia.org/wiki/Art_Ingels"
+    },
+    {
+      "bg": "Арт Ингълс пробва първия карт на паркинга до стадион «Роуз Боул». Скоро около него се събират стотици любопитни.",
+      "en": "Art Ingels tested his first kart in the Rose Bowl parking lot, and it soon drew hundreds of curious onlookers.",
+      "source": "https://en.wikipedia.org/wiki/Art_Ingels"
+    },
+    {
+      "bg": "Думата е по-стара от самия спорт. Шотландският художник Хю Камерън има картина от 1885 г. с името «The Go-Cart».",
+      "en": "The word is older than the sport: Scottish artist Hugh Cameron painted a picture called 'The Go-Cart' back in 1885.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Първата писта за картинг е построена до 1958 г. в Азуса, Калифорния.",
+      "en": "The first kart racing track was built in Azusa, California, by 1958.",
+      "source": "https://fuelcurve.com/?p=27273"
+    },
+    {
+      "bg": "През 1959 г. McCulloch става първата фирма, която прави двигатели специално за картове. Преди това се слагат мотори от косачки.",
+      "en": "In 1959 McCulloch became the first company to build engines made just for karts; before that, lawnmower engines did the job.",
+      "source": "https://fuelcurve.com/?p=27273"
+    },
+    {
+      "bg": "В началото картът се поръчва по пощата. Продават го дори Sears и Montgomery Ward.",
+      "en": "In the early days you could get a kart by mail order: even Sears and Montgomery Ward sold them.",
+      "source": "https://fuelcurve.com/?p=27273"
+    },
+    {
+      "bg": "Стив Маккуин, Алфред Хичкок и «Бийтълс» – всички са карали карт.",
+      "en": "Steve McQueen, Alfred Hitchcock and The Beatles were all seen behind the wheel of a kart.",
+      "source": "https://fuelcurve.com/?p=27273"
+    },
+    {
+      "bg": "Картовете стигат и до Холивуд. Има ги в плажната комедия «Bikini Beach» с Франки Авалон и Анет Фуничело.",
+      "en": "Karts made it into Hollywood beach movies too, appearing in 'Bikini Beach' with Frankie Avalon and Annette Funicello.",
+      "source": "https://fuelcurve.com/?p=27273"
+    },
+    {
+      "bg": "Международната комисия по картинг (CIK) е основана през 1962 г. Седалището ѝ е в Женева.",
+      "en": "Karting's international governing body, the CIK, was founded in 1962 and is based in Geneva.",
+      "source": "https://en.wikipedia.org/wiki/Commission_Internationale_de_Karting"
+    },
+    {
+      "bg": "Първото световно по картинг е през 1964 г. в «Писта д’Оро», Италия. Печели италианецът Гуидо Сала.",
+      "en": "The first Karting World Championship was held in 1964 at Pista d'Oro in Italy and won by Italy's Guido Sala.",
+      "source": "https://en.wikipedia.org/wiki/Karting_World_Championship"
+    },
+    {
+      "bg": "Италианката Сузана Раганели печели световното по картинг през 1966 г. Тя е първата жена с тази титла.",
+      "en": "Italy's Susanna Raganelli won the 1966 Karting World Championship, the first woman to take the title.",
+      "source": "https://en.wikipedia.org/wiki/Karting_World_Championship"
+    },
+    {
+      "bg": "Британецът Майк Уилсън има шест световни титли по картинг. Към 2026 г. никой няма повече.",
+      "en": "Britain's Mike Wilson won six Karting World Championship titles, the most of anyone (as of 2026).",
+      "source": "https://en.wikipedia.org/wiki/Karting_World_Championship"
+    },
+    {
+      "bg": "Айртон Сена така и не става световен шампион по картинг. Завършва втори през 1979 и 1980 г.",
+      "en": "Ayrton Senna never won the Karting World Championship: he finished runner-up in 1979 and 1980.",
+      "source": "https://en.wikipedia.org/wiki/Ayrton_Senna"
+    },
+    {
+      "bg": "Първият карт на Сена е направен от баща му. Двигателят е от косачка и има само 1 к.с.",
+      "en": "Senna's first kart was built by his father and powered by a 1 hp lawnmower engine.",
+      "source": "https://en.wikipedia.org/wiki/Ayrton_Senna"
+    },
+    {
+      "bg": "Михаел Шумахер е на четири, когато баща му слага малък мотор на детската му кола с педали. Скоро той става най-младият член на местния картинг клуб.",
+      "en": "Michael Schumacher was four when his father fitted a small motorcycle engine to his pedal kart; he soon became the youngest member of the local kart club.",
+      "source": "https://en.wikipedia.org/wiki/Michael_Schumacher"
+    },
+    {
+      "bg": "В Германия лиценз за картинг се дава от 14-годишна възраст. Затова Шумахер го взима в Люксембург – на 12.",
+      "en": "German rules required kart drivers to be 14, so Schumacher got his licence in Luxembourg at 12 instead.",
+      "source": "https://en.wikipedia.org/wiki/Michael_Schumacher"
+    },
+    {
+      "bg": "На десет години Люис Хамилтън става най-младият британски шампион по картинг при кадетите.",
+      "en": "At ten, Lewis Hamilton became the youngest driver ever to win the British cadet karting championship.",
+      "source": "https://en.wikipedia.org/wiki/Lewis_Hamilton"
+    },
+    {
+      "bg": "Същата година Хамилтън отива при шефа на «Макларън» Рон Денис. Денис му пише в тетрадката за автографи: «Обади ми се след девет години, тогава ще измислим нещо».",
+      "en": "That same year Hamilton approached McLaren boss Ron Dennis, who wrote in his autograph book: 'Phone me in nine years, we'll sort something out then.'",
+      "source": "https://en.wikipedia.org/wiki/Lewis_Hamilton"
+    },
+    {
+      "bg": "През 2013 г. Макс Верстапен е на 15. Става първият пилот с три титли на CIK в един сезон, сред тях и световната в клас KZ.",
+      "en": "In 2013, aged 15, Max Verstappen became the first driver to win three CIK titles in one season, including the KZ world title.",
+      "source": "https://en.wikipedia.org/wiki/Commission_Internationale_de_Karting"
+    },
+    {
+      "bg": "Ландо Норис печели световната титла в клас KF през 2014 г. На 14 години той е най-младият шампион в този клас.",
+      "en": "Lando Norris won the 2014 KF world title at 14, the youngest world champion in that category.",
+      "source": "https://en.wikipedia.org/wiki/Lando_Norris"
+    },
+    {
+      "bg": "Бащата на Фернандо Алонсо прави карт за дъщеря си Лорена. Тя не проявява интерес и картът отива при тригодишния Фернандо.",
+      "en": "Fernando Alonso's father built a kart for his daughter Lorena; she wasn't interested, so it went to three-year-old Fernando.",
+      "source": "https://en.wikipedia.org/wiki/Fernando_Alonso"
+    },
+    {
+      "bg": "На състезание в Монако, когато Кими Райконен е на 15, воланът му се счупва. Кими продължава и маха с волана към механика си на правата.",
+      "en": "At 15, in a kart race in Monaco, Kimi Räikkönen's steering wheel broke; he carried on and waved it at his mechanic on the home straight.",
+      "source": "https://en.wikipedia.org/wiki/Kimi_R%C3%A4ikk%C3%B6nen"
+    },
+    {
+      "bg": "Ален Прост е първият шампион на CIK, който става и световен шампион във Формула 1. Случва се през 1985 г.",
+      "en": "Alain Prost was the first CIK karting champion to go on and win the Formula One world title, in 1985.",
+      "source": "https://en.wikipedia.org/wiki/Commission_Internationale_de_Karting"
+    },
+    {
+      "bg": "През 2017 г. Фелипе Маса става президент на CIK. Той е първият пилот от Формула 1 на този пост.",
+      "en": "In 2017 Felipe Massa became the first Formula One driver to serve as president of the CIK.",
+      "source": "https://en.wikipedia.org/wiki/Commission_Internationale_de_Karting"
+    },
+    {
+      "bg": "Ярно Трули е два пъти световен шампион по картинг – през 1991 и 1994 г. После кара и във Формула 1.",
+      "en": "Jarno Trulli won the Karting World Championship twice, in 1991 and 1994, before racing in Formula One.",
+      "source": "https://en.wikipedia.org/wiki/Karting_World_Championship"
+    },
+    {
+      "bg": "Картът няма окачване. Рамката от хромомолибденова стомана леко се огъва и върши тази работа.",
+      "en": "Karts have no suspension: the chromoly steel frame flexes just enough to do that job instead.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Картът няма диференциал. В завой вътрешното задно колело леко се вдига и картът завива по-лесно.",
+      "en": "A kart has no differential, so in corners the inside rear wheel lifts slightly, letting the kart turn.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "В зависимост от настройката гумите на карта издържат в завой на сили над 2 g.",
+      "en": "Depending on setup, kart tyres can handle cornering forces of more than 2 g.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Има и картинг по лед. Тогава гумите са с шипове.",
+      "en": "Karts race on ice too, using spiked tyres.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Картовете под наем обикновено се взимат за сесия от 10 до 30 минути.",
+      "en": "Rental karts are usually hired by the session, typically 10 to 30 minutes long.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Някои електрически картове под наем имат дистанционно. Персоналът може да ги забави или спре от разстояние.",
+      "en": "Some electric rental karts have a radio remote, so staff can slow them down or stop them from afar.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Оловните батерии в електрически карт стигат за 20–30 минути. Литиевите издържат до два часа на едно зареждане.",
+      "en": "Lead-acid batteries in an electric kart last about 20–30 minutes; lithium ones can run for up to two hours per charge.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Двутактовите двигатели за карт имат от около 8 к.с. (едноцилиндров, 60 куб. см) до над 90 к.с. (двуцилиндров, 250 куб. см).",
+      "en": "Two-stroke kart engines range from about 8 hp (a 60 cc single) to over 90 hp (a twin-cylinder 250 cc).",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Суперкартовете с 250-кубиков двигател вдигат 250 км/ч. От 0 до 100 км/ч стигат за под три секунди.",
+      "en": "250 cc superkarts reach 250 km/h and go from 0 to 100 km/h in under three seconds.",
+      "source": "https://en.wikipedia.org/wiki/Superkart"
+    },
+    {
+      "bg": "На Гран при на Франция през 2007 г. суперкартовете карат в съпътстваща надпревара. Обиколките им са по-бързи от тези на колите в «Порше Суперкъп».",
+      "en": "At the 2007 French Grand Prix, superkarts ran as a support race and beat the Porsche Supercup's lap times.",
+      "source": "https://en.wikipedia.org/wiki/Superkart"
+    },
+    {
+      "bg": "Състезанията със суперкартове обикновено са около 30–40 км. Причината е проста: резервоарите са малки.",
+      "en": "Superkart races usually last only about 30–40 km, because their fuel tanks are small.",
+      "source": "https://en.wikipedia.org/wiki/Superkart"
+    },
+    {
+      "bg": "Двигателите тип TaG, като Rotax Max от 1998 г., имат електрически стартер и съединител. TaG идва от «Touch-and-Go» – натискаш и тръгваш.",
+      "en": "TaG engines like the Rotax Max (launched in 1998) have an electric starter and a clutch; TaG stands for 'Touch-and-Go'.",
+      "source": "https://en.wikipedia.org/wiki/Rotax_Max"
+    },
+    {
+      "bg": "При двигателя Rotax DD2 задната ос минава право през двигателя. Затова там няма верига.",
+      "en": "In the Rotax DD2 engine the rear axle passes straight through the engine, so there is no chain.",
+      "source": "https://en.wikipedia.org/wiki/Rotax_Max"
+    },
+    {
+      "bg": "В серията «Rotax Max Challenge» двигателите са запечатани. Само официален сервиз може да ги отвори и провери.",
+      "en": "In the Rotax Max Challenge engines are sealed, and only official service centres may open and check them.",
+      "source": "https://en.wikipedia.org/wiki/Rotax_Max"
+    },
+    {
+      "bg": "Първият финал на «Rotax Max Challenge» е през 2000 г. в Пуерто Рико. Участват 66 пилоти от 19 държави.",
+      "en": "The first Rotax Max Challenge Grand Finals were held in Puerto Rico in 2000, with 66 drivers from 19 countries.",
+      "source": "https://en.wikipedia.org/wiki/Rotax_Max_Challenge"
+    },
+    {
+      "bg": "На Младежките олимпийски игри в Буенос Айрес през 2018 г. има показно с електрически картове. Карат смесени двойки – момче и момиче.",
+      "en": "At the 2018 Youth Olympics in Buenos Aires, karting was an exhibition event for electric karts driven by mixed boy-girl pairs.",
+      "source": "https://en.wikipedia.org/wiki/Karting_at_the_2018_Summer_Youth_Olympics"
+    },
+    {
+      "bg": "В Льо Ман има и 24-часово състезание за картове. През 2013 г. то се мести на нова писта от 1,395 км до трасето «Ален Прост».",
+      "en": "Le Mans has a 24-hour race for karts too; in 2013 it moved to a new 1.395 km track next to the Alain Prost circuit.",
+      "source": "https://24h-lemans.com/en/news/the-24-hours-karting-enters-a-new-era-11851"
+    },
+    {
+      "bg": "Играта «Super Mario Kart» излиза през 1992 г. и започва цялата поредица. Тя се продава в 8,76 милиона копия.",
+      "en": "'Super Mario Kart' (1992) launched the whole Mario Kart series and sold 8.76 million copies.",
+      "source": "https://en.wikipedia.org/wiki/Super_Mario_Kart"
+    },
+    {
+      "bg": "Най-бързият карт с реактивен двигател вдига 195,21 км/ч. Рекордът на Гинес е поставен от Скот Литълдайк през 2024 г.",
+      "en": "The fastest jet-powered go-kart hit 195.21 km/h, driven by Scott Littledike in 2024 (Guinness World Records).",
+      "source": "https://www.guinnessworldrecords.com/world-records/391173-fastest-speed-in-a-jet-propelled-go-kart"
+    },
+    {
+      "bg": "Най-дългата закрита писта на няколко нива е в Ню Йорк. «RPM Raceway Long Island» е дълга 1071,6 м – рекорд на Гинес от 2025 г.",
+      "en": "The longest multi-level indoor kart track is RPM Raceway Long Island, New York: 1,071.6 m (Guinness, 2025).",
+      "source": "https://www.guinnessworldrecords.com/world-records/681126-longest-multi-layered-go-kart-track"
+    },
+    {
+      "bg": "Кристоф Сташек кара 24 часа в зала в Братислава. През 2024 г. изминава 869,28 км – рекорд на Гинес.",
+      "en": "Christoph Stasek drove 869.28 km in 24 hours on an indoor kart track in Bratislava in 2024 (Guinness record).",
+      "source": "https://www.guinnessworldrecords.com/world-records/karting-greatest-distance-in-24-hours-indoors-(individual)"
+    },
+    {
+      "bg": "През 2011 г. електрически карт на Linde, фирма за мотокари, ускорява от 0 до 97 км/ч за 3,4 секунди. Тогава това е рекорд на Гинес.",
+      "en": "In 2011 an electric kart from forklift maker Linde went from 0 to 60 mph (97 km/h) in 3.4 seconds, a Guinness record at the time.",
+      "source": "https://www.nbcnews.com/id/wbna42900171"
+    },
+    {
+      "bg": "Картингът в зала тръгва от Лондон в средата на 80-те. През 90-те вече е популярен.",
+      "en": "Indoor karting took off in London in the mid-1980s and became popular in the 1990s.",
+      "source": "https://en.wikipedia.org/wiki/Kart_racing"
+    },
+    {
+      "bg": "В някои страни от ЕС картът може да излезе на пътя. Но му трябват фарове, мигачи, клаксон и най-много 20 к.с.",
+      "en": "In parts of the EU a kart can be road-legal, but it needs headlights, indicators, a horn and no more than 20 hp.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Има и картове без двигател, които се спускат само по наклон. В Австралия им казват «били картс», а в Северна Америка – «соупбокс».",
+      "en": "Engineless gravity karts exist too: Australians call them 'billy carts', North Americans 'soapbox cars'.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "На американските овални писти се завива само наляво. Затова там седалката на пилота е изместена вляво.",
+      "en": "On American speedway tracks with only left turns, karts use an offset chassis with the driver sitting to the left.",
+      "source": "https://en.wikipedia.org/wiki/Go-kart"
+    },
+    {
+      "bg": "Още преди CIK американски клуб прави свое «световно» по картинг. Първият победител през 1959 г. е Джим Ямане.",
+      "en": "Before the CIK series, the Grand Prix Kart Club of America ran its own world championship; its first winner, in 1959, was Jim Yamane.",
+      "source": "https://en.wikipedia.org/wiki/Karting_World_Championship"
+    }
+  ]
+}
