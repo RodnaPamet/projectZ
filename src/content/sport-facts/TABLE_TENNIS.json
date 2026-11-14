@@ -1,0 +1,265 @@
+{
+  "sport": "TABLE_TENNIS",
+  "facts": [
+    {
+      "bg": "Първите домашни версии са чиста импровизация. Мрежата е редица книги, хилките – още две книги, а за топче служи топка за голф.",
+      "en": "The earliest home versions were pure improvisation: a row of books for the net, two more books as bats and a golf ball.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "През 1891 г. лондонската фирма «Джейкс» пуска настолна игра с името «Госима». Тя има известен успех, а десет години по-късно се слива с «Пинг-понг».",
+      "en": "In 1891 the London firm Jaques launched a table game called Gossima. It had some success, and a decade later it was merged into Ping-Pong.",
+      "source": "https://www.worldwidewords.org/tp-whi1.html"
+    },
+    {
+      "bg": "Името «пинг-понг» просто имитира звука. Чува се ударът в хилката, а после отскокът от масата.",
+      "en": "The name ping-pong simply imitates the sound of the game: the ball on the bat, then the ball on the table.",
+      "source": "https://www.worldwidewords.org/tp-whi1.html"
+    },
+    {
+      "bg": "На 31 декември 1900 г. фирмата «Слазенджър» регистрира марката «Уиф-уаф». Изследователят на думи Майкъл Куинион не открива нито една вестникарска реклама за нея.",
+      "en": "Slazenger registered the name Whiff-Waff as a trademark on 31 December 1900. Word historian Michael Quinion found no newspaper adverts for it at all.",
+      "source": "https://www.worldwidewords.org/tp-whi1.html"
+    },
+    {
+      "bg": "През 20-те години на ХХ век «Паркър Брадърс» в САЩ пази ревниво марката «Пинг-понг». Затова федерациите избират името «тенис на маса».",
+      "en": "In the 1920s Parker Brothers enforced its Ping-Pong trademark in the US. That is why the governing bodies chose the name table tennis.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "През 1901 г. англичанинът Джеймс Гиб вижда в САЩ целулоидни топчета-играчки. Пренася ги в играта и целулоидът остава в нея над 110 години.",
+      "en": "In 1901 English fan James Gibb found novelty celluloid balls on a trip to the US. Celluloid then stayed in the game for more than 110 years.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "Пак през 1901 г. някой си Гуд залепва лист гума с пъпки върху дървена основа. Това е прадядото на всяка днешна хилка.",
+      "en": "Also in 1901, a man named Goode fixed a sheet of pimpled rubber to a wooden blade. That is the ancestor of every modern racket.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "Световната федерация и първото световно първенство са от 1926 г., а първенството е в Лондон. За стогодишнината през 2026 г. отборното световно първенство се връща там с 64 отбора при мъжете и 64 при жените.",
+      "en": "The ITTF and the first World Championships both date from 1926, and those first Worlds were in London. For the centenary in 2026 the team Worlds returned to London with 64 men's and 64 women's teams.",
+      "source": "https://en.wikipedia.org/wiki/2026_World_Team_Table_Tennis_Championships"
+    },
+    {
+      "bg": "Айвър Монтагю е първият президент на световната федерация и я води над 40 години. Извън спорта той продуцира няколко трилъра на Алфред Хичкок.",
+      "en": "Ivor Montagu, the ITTF's first president, led it for more than 40 years. In his other career he produced several Alfred Hitchcock thrillers.",
+      "source": "https://en.wikipedia.org/wiki/Ivor_Montagu"
+    },
+    {
+      "bg": "Купата за световните отборни шампиони при мъжете е «Суейтлинг». Дарява я през 1926 г. лейди Суейтлинг, майката на Айвър Монтагю.",
+      "en": "The men's world team trophy is the Swaythling Cup. It was donated in 1926 by Lady Swaythling, the mother of the ITTF's first president, Ivor Montagu.",
+      "source": "https://en.wikipedia.org/wiki/Swaythling_Cup"
+    },
+    {
+      "bg": "Оригиналната женска отборна купа «Корбийон» изчезва в Берлин след Втората световна война. Днешната купа е копие, направено през 1949 г.",
+      "en": "The original women's team trophy, the Corbillon Cup, disappeared in Berlin after the Second World War. The cup played for today is a replica made in 1949.",
+      "source": "https://en.wikipedia.org/wiki/Swaythling_Cup"
+    },
+    {
+      "bg": "На световното първенство в Прага през 1936 г. Алойзи Ерлих и Фаркаш Панет играят една точка цели 2 часа и 12 минути. След 70 минути резултатът още е 0:0.",
+      "en": "At the 1936 World Championships in Prague, Alojzy Ehrlich and Farkas Paneth played one point for 2 hours 12 minutes. After 70 minutes the score was still 0-0.",
+      "source": "https://en.wikipedia.org/wiki/Alojzy_Ehrlich"
+    },
+    {
+      "bg": "През 1937 г. финалът при жените между Рут Аронс и Гертруде Прици е прекратен по новото правило за лимит на времето. Двете са обявени за съшампионки.",
+      "en": "The 1937 women's world final between Ruth Aarons and Gertrude Pritzi was stopped under new time-limit rules. Both were declared joint champions.",
+      "source": "https://en.wikipedia.org/wiki/1937_World_Table_Tennis_Championships_%E2%80%93_Women%27s_singles"
+    },
+    {
+      "bg": "Година по-рано, през 1936 г., Рут Аронс печели световната титла на сингъл. Тогава никой друг от САЩ няма такава титла.",
+      "en": "In 1936 Ruth Aarons won the world singles title in table tennis. At the time she was the only American to have done so.",
+      "source": "https://en.wikipedia.org/wiki/Ruth_Aarons"
+    },
+    {
+      "bg": "Унгарецът Виктор Барна печели 22 световни титли, пет от тях на сингъл. Към 2025 г. «Гинес» води петте му титли на сингъл като рекорд при мъжете.",
+      "en": "Hungary's Viktor Barna won 22 world titles, five of them in men's singles. As of 2025 Guinness lists those five singles titles as the men's record.",
+      "source": "https://www.guinnessworldrecords.com/world-records/112955-most-wins-of-the-world-table-tennis-championships-by-an-individual-male"
+    },
+    {
+      "bg": "През 1952 г. японецът Хироджи Сато е едва пети в Япония, но става световен шампион в Бомбай. Тайната му е мека гъба на хилката, дебела около 1,2 см.",
+      "en": "In 1952 Hiroji Satoh, ranked only fifth in Japan, won the world title in Bombay. His secret was a soft sponge covering nearly half an inch (about 1.2 cm) thick.",
+      "source": "https://ttnzarchives.org.nz/chronicle/1952.htm"
+    },
+    {
+      "bg": "През 1959 г. в Дортмунд Жун Гуотуан става първият китаец, спечелил световната титла на сингъл при мъжете. Така взима и вазата «Сейнт Брайд».",
+      "en": "In 1959 in Dortmund, Rong Guotuan became the first Chinese player to win the men's world singles title, and with it the St Bride Vase.",
+      "source": "https://regional.chinadaily.com.cn/zhuhai/en/2019-10/23/c_419605.htm"
+    },
+    {
+      "bg": "През 1971 г. в Нагоя американецът Глен Коуан се качва в автобуса на китайския отбор. Джуан Цзъдун му подарява копринено пано с планините Хуаншан. Скоро американците са поканени в Китай.",
+      "en": "In 1971 in Nagoya, US player Glenn Cowan boarded the Chinese team's bus. Zhuang Zedong gave him a silk-screen of the Huangshan mountains, and soon the US team was invited to China.",
+      "source": "https://en.wikipedia.org/wiki/Ping-pong_diplomacy"
+    },
+    {
+      "bg": "Тенисът на маса е олимпийски спорт от игрите в Сеул през 1988 г. Първите шампиони на сингъл са Ю Нам-кю от Южна Корея и Чън Дзин от Китай.",
+      "en": "Table tennis joined the Olympics at Seoul 1988. The first singles champions were Yoo Nam-kyu of South Korea and Chen Jing of China.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis_at_the_1988_Summer_Olympics"
+    },
+    {
+      "bg": "Тенисът на маса е сред осемте спорта на първите Параолимпийски игри в Рим през 1960 г. Това е цели 28 години преди олимпийския му дебют.",
+      "en": "Table tennis was one of the eight sports at the very first Paralympics, Rome 1960. That was 28 years before its Olympic debut.",
+      "source": "https://www.paralympic.org/news/sport-week-history-table-tennis"
+    },
+    {
+      "bg": "На игрите в Пекин през 2008 г. отборните турнири заменят двойките в олимпийската програма.",
+      "en": "At Beijing 2008, team events replaced doubles in the Olympic table tennis programme.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis_at_the_2008_Summer_Olympics"
+    },
+    {
+      "bg": "Смесените двойки дебютират на олимпийските игри «Токио 2020». Първата титла печелят японците Джун Мизутани и Мима Ито, като на финала бият китайска двойка.",
+      "en": "Mixed doubles made its Olympic debut at Tokyo 2020. Japan's Jun Mizutani and Mima Ito won the first title, beating a Chinese pair in the final.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis_at_the_2020_Summer_Olympics_%E2%80%93_Mixed_doubles"
+    },
+    {
+      "bg": "Към 2025 г. китаецът Ма Лун има шест олимпийски златни медала. Никой друг в тениса на маса няма толкова.",
+      "en": "As of 2025, China's Ma Long has six Olympic gold medals, more than any other table tennis player.",
+      "source": "https://en.wikipedia.org/wiki/Ma_Long"
+    },
+    {
+      "bg": "Със златото на сингъл в Париж през 2024 г. Фан Джъндун завършва своя «Голям шлем». Вече има олимпийска и световна титла и Световна купа.",
+      "en": "Fan Zhendong's singles gold at Paris 2024 completed his career Grand Slam: Olympic, world and World Cup titles.",
+      "source": "https://en.wikipedia.org/wiki/Fan_Zhendong"
+    },
+    {
+      "bg": "През 1992 г. шведът Ян-Уве Валднер става първият мъж с «Голям шлем». Има титли на сингъл от олимпийски игри, световно първенство и Световна купа.",
+      "en": "In 1992 Sweden's Jan-Ove Waldner became the first man to complete the career Grand Slam of Olympic, world and World Cup singles titles.",
+      "source": "https://en.wikipedia.org/wiki/Jan-Ove_Waldner"
+    },
+    {
+      "bg": "Дън Япин печели и сингъл, и двойки на олимпийските игри през 1992 и 1996 г. Това са четири златни медала от две игри.",
+      "en": "Deng Yaping won both singles and doubles at the 1992 and 1996 Olympics: four gold medals from two Games.",
+      "source": "https://en.wikipedia.org/wiki/Deng_Yaping"
+    },
+    {
+      "bg": "В Париж през 2024 г. Китай печели всичките пет златни медала в тениса на маса.",
+      "en": "At Paris 2024 China won all five table tennis gold medals.",
+      "source": "https://oca.asia/news/5392-china-sweeps-table-tennis-titles-at-paris-2024.html"
+    },
+    {
+      "bg": "През 2008 г. Наталия Партика от Полша играе и на олимпийските, и на параолимпийските игри в Пекин. На параолимпийските тя печели златото.",
+      "en": "In 2008 Poland's Natalia Partyka played at both the Beijing Olympics and the Beijing Paralympics, and she won Paralympic gold.",
+      "source": "https://en.wikipedia.org/wiki/Natalia_Partyka"
+    },
+    {
+      "bg": "Австралийката Дороти де Лоу играе на световното първенство за ветерани през 2008 г. на 97 години. Така влиза в «Гинес» като най-възрастния играч на тенис на маса.",
+      "en": "Australia's Dorothy de Low played at the 2008 World Veterans Championships aged 97, which put her in Guinness World Records as the oldest table tennis player.",
+      "source": "https://www.guinnessworldrecords.es/world-records/oldest-table-tennis-player"
+    },
+    {
+      "bg": "Роботът FORPHEUS на «Омрон» е в «Гинес» като първия робот-треньор по тенис на маса. Той показва на масата къде ще върне топчето.",
+      "en": "Omron's FORPHEUS robot holds the Guinness title of first robot table tennis tutor. It projects onto the table where it will send the ball back.",
+      "source": "https://www.guinnessworldrecords.com/world-records/411700-first-robot-table-tennis-tutor"
+    },
+    {
+      "bg": "Във «Форест Гъмп» Том Ханкс играе пинг-понг без топче. Топчетата са добавени по-късно с компютърни ефекти.",
+      "en": "In Forrest Gump, Tom Hanks played his ping-pong scenes without a ball. The balls were added later with computer effects.",
+      "source": "https://www.avclub.com/tom-hanks-had-some-cgi-help-for-his-forrest-gump-ping-p-1798246560"
+    },
+    {
+      "bg": "Към 2025 г. най-дългото записано разиграване трае 13 часа, 37 минути и 6 секунди. Двама шведи го изиграват през 2024 г. в бар за пинг-понг в Малмьо.",
+      "en": "As of 2025 the longest rally on record lasted 13 hours, 37 minutes and 6 seconds. Two Swedes played it in a ping-pong bar in Malmö in 2024.",
+      "source": "https://www.guinnessworldrecords.com/news/2025/1/swedish-spin-duo-break-record-for-longest-table-tennis-rally-after-over-13-hours"
+    },
+    {
+      "bg": "През октомври 2000 г. топчето пораства от 38 на 40 мм. По-голямото топче лети по-бавно и се върти по-малко.",
+      "en": "In October 2000 the ball grew from 38 mm to 40 mm. The bigger ball flies slower and carries less spin.",
+      "source": "https://www.sponet.de/sponet/Record/4007359"
+    },
+    {
+      "bg": "От юли 2014 г. на големите турнири се играе с пластмасови топчета. Целулоидът е толкова запалим, че такива топчета не можеха да се пращат дори със самолет.",
+      "en": "Since July 2014 top events have used plastic balls. Celluloid is so flammable that celluloid balls could not even be shipped by air.",
+      "source": "https://www.ettu.org/en-n-news-archive-2014-table-tennis-goes-plastic-for-future-events"
+    },
+    {
+      "bg": "Някога играчите лепяха гумите си точно преди мач. Изпаренията подуваха гъбата и топчето летеше по-бързо. Игрите в Пекин през 2008 г. са последните, на които това лепило е разрешено.",
+      "en": "Players once re-glued their rubbers right before matches, because the fumes swelled the sponge for extra speed. Beijing 2008 was the last Olympics where this speed glue was allowed.",
+      "source": "https://en.wikipedia.org/wiki/Speed_glue"
+    },
+    {
+      "bg": "До 2001 г. геймът се играеше до 21 точки и всеки сервираше по пет пъти. Сега е до 11 точки, а всеки сервира по два пъти.",
+      "en": "Until 2001 games went to 21 points, with five serves each. Since then they go to 11, with two serves each.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "От 2002 г. сервиращият не може да крие топчето от посрещащия. Затова свободната ръка трябва веднага да се отдръпне.",
+      "en": "Since 2002 the server may not hide the ball from the receiver, so the free arm must get out of the way at once.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "При сервис топчето лежи на отворена длан. Подхвърля се почти вертикално поне 16 см, без ръката да му придава въртене.",
+      "en": "A serve starts with the ball resting on an open palm. It must be tossed almost straight up at least 16 cm, with no spin from the hand.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Официалната маса е дълга 2,74 м, широка 1,525 м и висока 76 см.",
+      "en": "A regulation table is 2.74 m long, 1.525 m wide and 76 cm high.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Мрежата е висока 15,25 см. Стойките ѝ стърчат извън страничните линии точно с толкова.",
+      "en": "The net is 15.25 cm high, and its posts stand exactly 15.25 cm outside the side lines.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Пуснато от 30 см височина, стандартно топче трябва да отскочи от масата на около 23 см.",
+      "en": "A table must give a bounce of about 23 cm when a standard ball is dropped onto it from 30 cm.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Официалното топче тежи само 2,7 г. Трябва да е матово – бяло или оранжево.",
+      "en": "The official ball weighs just 2.7 g and must be matt white or orange.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Правилата не ограничават размера, формата и теглото на хилката. Искат само основата да е плоска и твърда.",
+      "en": "The rules allow a racket of any size, shape or weight. The only demand is that the blade is flat and rigid.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Поне 85% от дебелината на основата трябва да е естествено дърво. Карбонът е позволен, но само в тънък слой.",
+      "en": "At least 85% of the blade's thickness must be natural wood. Carbon fibre is allowed, but only in a thin layer.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Едната страна на хилката е черна. От октомври 2021 г. другата може да е червена, синя, зелена, розова или лилава.",
+      "en": "One side of the racket must be black. Since October 2021 the other may be red, blue, green, pink or violet.",
+      "source": "https://en.wikipedia.org/wiki/Table_tennis"
+    },
+    {
+      "bg": "Двата цвята са заради хилки с различни гуми от двете страни. Играчите ги въртяха в ръка и противникът не знаеше коя гума е ударила топчето.",
+      "en": "The two-colour rule exists because of combination bats: players twirled them so opponents could not tell which rubber had hit the ball.",
+      "source": "https://gregsttpages.com/guide-to-table-tennis/faqs-glossary/glossary-of-table-tennis-terms/two-color-rule/"
+    },
+    {
+      "bg": "Гумата с пъпки трябва да има между 10 и 30 пъпки на квадратен сантиметър.",
+      "en": "Pimpled rubber must have between 10 and 30 pimples per square centimetre.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Ако свободната ти ръка докосне масата по време на разиграване, губиш точката.",
+      "en": "If your free hand touches the playing surface during a rally, you lose the point.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "При двойки сервисът тръгва от дясната половина на сервиращия и пада в дясната половина на посрещащия. Бялата средна линия се брои към дясната половина.",
+      "en": "In doubles the serve goes from the server's right half-court to the receiver's right half-court. The white centre line counts as part of the right half.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Ако геймът продължи над 10 минути, влиза правилото за ускоряване – освен ако вече са изиграни 18 точки. Тогава посрещащият печели точката, ако върне топчето 13 пъти.",
+      "en": "If a game passes 10 minutes, the expedite system starts, unless 18 points have been played. Then the receiver wins the point by making 13 good returns.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "В разиграване топчето може да закачи мрежата и пак да е в игра. При сервис същото докосване значи повторение.",
+      "en": "In a rally the ball may clip the net and still be good. On a serve the same touch means a let and a replay.",
+      "source": "https://www.tabletennisengland.co.uk/content/uploads/2026/07/Laws-of-Table-Tennis-2026-27.pdf"
+    },
+    {
+      "bg": "Топчето с горно въртене пада рязко заради ефекта на Магнус. При лекото топче за тенис на маса ефектът се вижда особено ясно.",
+      "en": "Topspin makes the ball dip thanks to the Magnus effect. Because the ball is so light, the effect is especially easy to see in table tennis.",
+      "source": "https://en.wikipedia.org/wiki/Magnus_effect"
+    }
+  ]
+}

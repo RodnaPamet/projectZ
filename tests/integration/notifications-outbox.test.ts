@@ -868,12 +868,13 @@ describe('notifications (#367)', () => {
     it('all on by default; one switch at a time; strict', async () => {
       expect((await get(booker)).body.data).toEqual({
         email: ALL_ON,
-        push: ALL_ON,
+        // «Факт на деня» (P88) is a phone switch only.
+        push: { ...ALL_ON, sportFacts: true },
         pushDevices: 0,
       });
       expect((await patch(booker, { email: { reminder: false } })).body.data).toEqual({
         email: { ...ALL_ON, reminder: false },
-        push: ALL_ON,
+        push: { ...ALL_ON, sportFacts: true },
         pushDevices: 0,
       });
       expect((await patch(booker, { email: { openPlay: false } })).body.data).toMatchObject({
@@ -887,6 +888,8 @@ describe('notifications (#367)', () => {
       expect((await patch(booker, { email: {} })).status).toBe(400);
       expect((await patch(booker, { email: { bell: false } })).status).toBe(400);
       expect((await patch(booker, { email: { reminder: 'no' } })).status).toBe(400);
+      // The fact of the day is never emailed, so there is no email switch to set.
+      expect((await patch(booker, { email: { sportFacts: false } })).status).toBe(400);
     });
 
     it("the phone's switches (#529) are their own, and the devices are counted", async () => {
@@ -912,6 +915,9 @@ describe('notifications (#367)', () => {
         }),
       );
       expect((await get(friend)).body.data).toMatchObject({ pushDevices: 1 });
+      expect((await patch(friend, { push: { sportFacts: false } })).body.data).toMatchObject({
+        push: { sportFacts: false, messages: false },
+      });
       expect((await patch(friend, { push: {} })).status).toBe(400);
       expect((await patch(friend, {})).status).toBe(400);
     });

@@ -1,0 +1,265 @@
+{
+  "sport": "CYCLING",
+  "facts": [
+    {
+      "bg": "Първото колело няма педали. Карл Драйс го показва през 1817 г. С него хората се отблъскват с крака и стигат около 16 км/ч.",
+      "en": "The first bicycle, Karl Drais’s 1817 “running machine”, had no pedals. Riders pushed off the ground and reached about 16 km/h.",
+      "source": "https://en.wikipedia.org/wiki/Dandy_horse"
+    },
+    {
+      "bg": "Изригването на вулкана Тамбора през 1815 г. носи «годината без лято». Реколтата пропада, конете намаляват, а храната им поскъпва. Историците свързват изобретението на Драйс с това.",
+      "en": "Historians link Drais’s invention to the 1815 Tambora eruption and the “Year Without a Summer”, when failed harvests made horses scarce and costly to feed.",
+      "source": "https://en.wikipedia.org/wiki/Dandy_horse"
+    },
+    {
+      "bg": "Първите колела бързо излизат по тротоарите и дразнят пешеходците. Много градове ги забраняват. Ню Йорк ги гони от всички тротоари и площади.",
+      "en": "Early dandy horses took to the pavements and annoyed walkers so much that many cities banned them. New York barred them from all footpaths and public places.",
+      "source": "https://en.wikipedia.org/wiki/Dandy_horse"
+    },
+    {
+      "bg": "Колелата с педали от 60-те години на XIX век имат дървени капли с железни шини. По калдъръма друсат толкова, че им казват «трошикости».",
+      "en": "The pedal velocipedes of the 1860s had wooden wheels with iron tyres. On cobbled streets the ride was so rough that they were nicknamed “boneshakers”.",
+      "source": "https://en.wikipedia.org/wiki/Velocipede"
+    },
+    {
+      "bg": "Името «пени-фартинг» идва от две британски монети: голямото пени и малкия фартинг. Но в печата то се появява чак през 1891 г., когато тези колела почти излизат от употреба.",
+      "en": "The penny-farthing is named after a big penny coin next to a tiny farthing. Yet the name first appeared in print only in 1891, when the machines were nearly obsolete.",
+      "source": "https://en.wikipedia.org/wiki/Penny-farthing"
+    },
+    {
+      "bg": "Педалите на пени-фартинга са на самото предно колело, без верига. Колкото по-голямо е колелото, толкова по-бързо се кара. Но колко голямо може да е, зависи от дължината на краката.",
+      "en": "A penny-farthing’s pedals turn the front wheel directly, with no chain. A bigger wheel meant more speed, but the rider’s leg length set how big the wheel could be.",
+      "source": "https://en.wikipedia.org/wiki/Penny-farthing"
+    },
+    {
+      "bg": "Томас Стивънс е първият човек, обиколил света с колело. Тръгва през 1884 г. от Сан Франциско с пени-фартинг и продължава през Европа, Азия и Япония.",
+      "en": "Thomas Stevens was the first person to cycle around the world. He set off from San Francisco in 1884 on a penny-farthing and rode on through Europe, Asia and Japan.",
+      "source": "https://en.wikipedia.org/wiki/Thomas_Stevens_(cyclist)"
+    },
+    {
+      "bg": "През 1885 г. Джон Кемп Старли пуска модела «Роувър». Казват му «безопасно колело», защото колоездачът стига земята с крака и много по-рядко пада напред.",
+      "en": "John Kemp Starley’s 1885 Rover was called a “safety bicycle” because riders could reach the ground and were far less likely to pitch over the front.",
+      "source": "https://en.wikipedia.org/wiki/Safety_bicycle"
+    },
+    {
+      "bg": "Джон Дънлоп не е инженер, а ветеринар. През 1887 г. прави работеща гума с въздух за триколката на сина си.",
+      "en": "John Boyd Dunlop was a vet, not an engineer. In 1887 he made a practical air-filled tyre for his son’s tricycle.",
+      "source": "https://en.wikipedia.org/wiki/John_Boyd_Dunlop"
+    },
+    {
+      "bg": "Патентът на Дънлоп по-късно се оказва невалиден. Робърт Томсън вече е патентовал гума с въздух преди него.",
+      "en": "Dunlop later learned his tyre patent was invalid, because Robert William Thomson had patented a pneumatic tyre before him.",
+      "source": "https://en.wikipedia.org/wiki/John_Boyd_Dunlop"
+    },
+    {
+      "bg": "Преди да полетят, братя Райт продават и поправят колела. Печалбата от магазина плаща опитите им с летене.",
+      "en": "Before they flew, the Wright brothers sold and repaired bicycles. The profits from their cycle shop paid for their flying experiments.",
+      "source": "https://en.wikipedia.org/wiki/Wright_Cycle_Company"
+    },
+    {
+      "bg": "До 2007 г. в Китай са направени над 500 милиона колела «Летящ гълъб». Това е повече от всеки друг модел превозно средство.",
+      "en": "By 2007 more than 500 million Flying Pigeon bicycles had been built in China, more than any other vehicle model of any kind.",
+      "source": "https://en.wikipedia.org/wiki/Bicycle"
+    },
+    {
+      "bg": "Да изминеш едно разстояние с колело отнема около 80% по-малко енергия, отколкото пеша.",
+      "en": "Covering a distance by bike takes about 80% less energy than walking the same distance.",
+      "source": "https://en.wikipedia.org/wiki/Bicycle"
+    },
+    {
+      "bg": "Сачмените лагери, гумите с въздух, веригата със зъбни колела и спиците първо се появяват по велосипедите. После играят важна роля при първите автомобили.",
+      "en": "Ball bearings, pneumatic tyres, chain-driven sprockets and tension-spoked wheels were all used on bicycles first and later played a key role in building the first cars.",
+      "source": "https://en.wikipedia.org/wiki/Bicycle"
+    },
+    {
+      "bg": "През 1905 г. французинът Пол дьо Виви, наричан Велосио, прави заден дерайльор с две предавки. С него кара из Алпите.",
+      "en": "In 1905 Frenchman Paul de Vivie, known as Vélocio, invented a two-speed rear derailleur and used it on rides into the Alps.",
+      "source": "https://en.wikipedia.org/wiki/Derailleur"
+    },
+    {
+      "bg": "В «Тур дьо Франс» дерайльорите влизат чак през 1937 г. Оттогава колоездачите сменят предавка, без да свалят колелото.",
+      "en": "Derailleur gears only came to the Tour de France in 1937. From then on, riders could change gear without taking a wheel off.",
+      "source": "https://en.wikipedia.org/wiki/Derailleur"
+    },
+    {
+      "bg": "Велодрумите за олимпиади и световни първенства трябва да са дълги точно 250 м. От 60-те години до 1989 г. на големите състезания често се ползват писти от 333,33 м.",
+      "en": "Olympic and World Championship velodromes must be exactly 250 m around. From the 1960s until 1989, 333.33 m tracks were common for big events.",
+      "source": "https://en.wikipedia.org/wiki/Velodrome"
+    },
+    {
+      "bg": "Виражът на 250-метрова писта е наклонен на около 45 градуса. В завоите скоростта може да надхвърли 85 км/ч.",
+      "en": "On a 250 m track the bends are banked at about 45 degrees, and speeds in the turns can top 85 km/h.",
+      "source": "https://en.wikipedia.org/wiki/Velodrome"
+    },
+    {
+      "bg": "Велодрумът в парка Престън в Брайтън е открит през 1887 г. и е най-старият във Великобритания. С дължина 579 м е и най-дългият.",
+      "en": "Preston Park in Brighton, opened in 1887, is the oldest velodrome in the UK. At 579 m it is also the longest.",
+      "source": "https://en.wikipedia.org/wiki/Preston_Park_Velodrome"
+    },
+    {
+      "bg": "Велосипедите за писта имат една предавка без свободен ход и нямат спирачки. Докато колелата се въртят, се въртят и педалите.",
+      "en": "Track bikes have a single fixed gear and no brakes. As long as the wheels are turning, so are the pedals.",
+      "source": "https://en.wikipedia.org/wiki/Track_cycling"
+    },
+    {
+      "bg": "Колоезденето на писта присъства на всички модерни олимпийски игри без тези в Стокхолм през 1912 г.",
+      "en": "Track cycling has been part of every modern Olympic Games except the 1912 Games in Stockholm.",
+      "source": "https://en.wikipedia.org/wiki/Track_cycling"
+    },
+    {
+      "bg": "На първата модерна олимпиада в Атина през 1896 г. има 12-часово колоездачно състезание. То така и не се повтаря на игрите.",
+      "en": "The 1896 Athens Olympics included a 12-hour cycling race. It was never held at the Games again.",
+      "source": "https://en.wikipedia.org/wiki/Cycling_at_the_1896_Summer_Olympics_%E2%80%93_Men%27s_12_hour_race"
+    },
+    {
+      "bg": "Планинското колоездене е олимпийско от 1996 г. BMX състезанията влизат през 2008 г., а BMX фрийстайл – на игрите в Токио 2020.",
+      "en": "Mountain biking joined the Olympics in 1996, BMX racing in 2008 and BMX freestyle at the Tokyo 2020 Games.",
+      "source": "https://en.wikipedia.org/wiki/Cycling_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Кейринът се ражда в Япония през 1948 г., главно като спорт за залагания. Само през 2011 г. залозите там надминават 600 милиарда йени.",
+      "en": "Keirin was created in Japan in 1948, largely as a sport to bet on. In 2011 alone, bets on it topped 600 billion yen.",
+      "source": "https://en.wikipedia.org/wiki/Keirin"
+    },
+    {
+      "bg": "В кейрина водач кара пред колоездачите и ускорява от 30 до 50 км/ч. Той излиза от пистата 750 м преди финала, а победителите финишират с над 70 км/ч.",
+      "en": "In keirin a pacer leads the riders, building from 30 to 50 km/h. It leaves the track 750 m from the finish, and winners can cross the line at over 70 km/h.",
+      "source": "https://en.wikipedia.org/wiki/Keirin"
+    },
+    {
+      "bg": "«Тур дьо Франс» започва през 1903 г. с проста цел: вестник «L’Auto» да продава повече броеве.",
+      "en": "The Tour de France began in 1903 with a simple goal: to sell more copies of the newspaper L’Auto.",
+      "source": "https://en.wikipedia.org/wiki/Tour_de_France"
+    },
+    {
+      "bg": "Жълтата фланелка се появява през 1919 г. Жълта е, защото «L’Auto» се печата на жълта хартия.",
+      "en": "The yellow jersey arrived in 1919. It is yellow because L’Auto was printed on yellow paper.",
+      "source": "https://en.wikipedia.org/wiki/Tour_de_France"
+    },
+    {
+      "bg": "Розовата фланелка на «Джиро д’Италия» е от 1931 г. Розова е, защото организаторът, вестник «Гадзета дело Спорт», се печата на розова хартия.",
+      "en": "The Giro d’Italia’s pink jersey dates from 1931. It is pink because the race’s organiser, La Gazzetta dello Sport, was printed on pink paper.",
+      "source": "https://en.wikipedia.org/wiki/General_classification_in_the_Giro_d%27Italia"
+    },
+    {
+      "bg": "Последният в класирането на «Тур дьо Франс» носи прякора «червения фенер». В някои години той наистина е карал с малка червена лампа под седалката.",
+      "en": "The last rider in the Tour de France is the lanterne rouge, or “red lantern”. In some years he actually carried a small red light under his saddle.",
+      "source": "https://en.wikipedia.org/wiki/Tour_de_France"
+    },
+    {
+      "bg": "През 1989 г. Грег Лемонд печели «Тур дьо Франс» с 8 секунди пред Лоран Финьон. Това е най-малката разлика в историята на състезанието.",
+      "en": "In 1989 Greg LeMond won the Tour de France by just 8 seconds over Laurent Fignon, the closest finish in the race’s history.",
+      "source": "https://en.wikipedia.org/wiki/Tour_de_France"
+    },
+    {
+      "bg": "Пред колоездачите на «Тур дьо Франс» се движи рекламен керван. Той е дълъг 20–25 км, минава за около 40 минути и хвърля на публиката около 11 милиона подаръка.",
+      "en": "The Tour de France publicity caravan rolls ahead of the riders. It stretches 20–25 km, takes about 40 minutes to pass and throws an estimated 11 million freebies to the crowds.",
+      "source": "https://en.wikipedia.org/wiki/Tour_de_France"
+    },
+    {
+      "bg": "Рекордът за етапни победи в «Тур дьо Франс» е 35 и е на Марк Кавендиш. През 2024 г., в последното си участие, той изпреварва 34-те победи на Еди Меркс.",
+      "en": "Mark Cavendish holds the record for Tour de France stage wins with 35. He passed Eddy Merckx’s 34 in 2024, his final Tour.",
+      "source": "https://en.wikipedia.org/wiki/Mark_Cavendish"
+    },
+    {
+      "bg": "Първият признат часов рекорд е 35,325 км и е от 1893 г. Поставя го Анри Дегранж, който десет години по-късно основава «Тур дьо Франс».",
+      "en": "The first recognised hour record, 35.325 km in 1893, was set by Henri Desgrange, the man who founded the Tour de France ten years later.",
+      "source": "https://en.wikipedia.org/wiki/Henri_Desgrange"
+    },
+    {
+      "bg": "На 8 октомври 2022 г. в Гренхен, Швейцария, Филипо Гана поставя часовия рекорд на UCI – 56,792 км.",
+      "en": "Filippo Ganna set the UCI Hour Record of 56.792 km in Grenchen, Switzerland, on 8 October 2022.",
+      "source": "https://www.uci.org/pressrelease/filippo-ganna-breaks-the-uci-hour-record-timed-by-tissot/82aysypXuU0sdkVD69YVI"
+    },
+    {
+      "bg": "През 1933 г. Франсис Фор изминава 45,055 км за час с легнал велосипед. През 1934 г. UCI сменя правилата за велосипедите и легналите остават извън нейните състезания.",
+      "en": "In 1933 Francis Faure rode 45.055 km in an hour on a recumbent. In 1934 the UCI changed its bike rules, which shut recumbents out of its races.",
+      "source": "https://en.wikipedia.org/wiki/Recumbent_bicycle"
+    },
+    {
+      "bg": "През 2018 г. Дениз Мюлер-Коренек развива 296 км/ч с велосипед. Тя кара във въздушната следа на кола, на солените равнини Бонвил в Юта.",
+      "en": "In 2018 Denise Mueller-Korenek pedalled a bicycle at 296 km/h, riding in the slipstream of a car on the Bonneville Salt Flats in Utah.",
+      "source": "https://en.wikipedia.org/wiki/Denise_Mueller-Korenek"
+    },
+    {
+      "bg": "През 1899 г. Чарлз Мърфи изминава една миля за 57,8 секунди. Кара по дъски, наредени по жп линията, точно зад влак. Оттогава му викат «Миля в минута».",
+      "en": "In 1899 Charles Murphy rode a mile in 57.8 seconds on boards laid along a railway line, right behind a train. He was nicknamed “Mile-a-Minute” Murphy.",
+      "source": "https://en.wikipedia.org/wiki/Charles_Minthorn_Murphy"
+    },
+    {
+      "bg": "Фланелката на световния шампион, «дъгата», е бяла с пет ивици: синя, червена, черна, жълта и зелена. Това са цветовете на олимпийските кръгове.",
+      "en": "The world champion’s rainbow jersey is white with five bands: blue, red, black, yellow and green, the same colours as the Olympic rings.",
+      "source": "https://en.wikipedia.org/wiki/Rainbow_jersey"
+    },
+    {
+      "bg": "Говори се за «проклятието на дъгата»: световните шампиони имали лоша година след титлата. Проучване от 2015 г. показва, че това е просто връщане към средното ниво.",
+      "en": "Riders talk of the “curse of the rainbow jersey”, a bad year after winning the world title. A 2015 study found it is just regression to the mean.",
+      "source": "https://en.wikipedia.org/wiki/Rainbow_jersey"
+    },
+    {
+      "bg": "Победителят в Париж–Рубе не получава купа. От 1977 г. той взима истинско паве на поставка.",
+      "en": "The winner of Paris–Roubaix does not get a cup. Since 1977 the prize has been a real cobblestone on a stand.",
+      "source": "https://en.wikipedia.org/wiki/Paris%E2%80%93Roubaix"
+    },
+    {
+      "bg": "Първите състезания по спускане с планински колела в Калифорния се казват «Repack». Спирачките прегряват и след всяко спускане лагерите трябва да се смажат наново.",
+      "en": "Early mountain bike downhill races in California were called “Repack” races. The brakes got so hot that riders had to repack the bearings with grease after each run.",
+      "source": "https://en.wikipedia.org/wiki/Repack_(mountain_bike_race)"
+    },
+    {
+      "bg": "BMX означава «велосипеден мотокрос». Започва в Южна Калифорния в началото на 70-те, когато децата карат по черни писти и подражават на звездите в мотокроса.",
+      "en": "BMX stands for “bicycle motocross”. It began in Southern California in the early 1970s, when kids raced dirt tracks copying their motocross heroes.",
+      "source": "https://en.wikipedia.org/wiki/BMX"
+    },
+    {
+      "bg": "В Нидерландия има около 18 милиона колела. Това са по 1,3 колела на всеки, който е достатъчно голям да кара.",
+      "en": "The Netherlands has about 18 million bicycles, or 1.3 for every person old enough to ride one.",
+      "source": "https://en.wikipedia.org/wiki/Cycling_in_the_Netherlands"
+    },
+    {
+      "bg": "3 юни е Световният ден на велосипеда. ООН го обявява през 2018 г.",
+      "en": "June 3 is World Bicycle Day, declared by the United Nations in 2018.",
+      "source": "https://en.wikipedia.org/wiki/World_Bicycle_Day"
+    },
+    {
+      "bg": "През 1894–1895 г. Ани Копчовски става първата жена, обиколила света с колело. Фирма за изворна вода ѝ плаща 100 долара и затова тя кара под името «Ани Лондондери».",
+      "en": "In 1894–95 Annie Kopchovsky became the first woman to cycle around the world. A spring water company paid her $100, so she rode as “Annie Londonderry”.",
+      "source": "https://en.wikipedia.org/wiki/Annie_Londonderry"
+    },
+    {
+      "bg": "Класиката Лиеж–Бастон–Лиеж се кара от 1892 г. Наричат я «Старата дама», защото е най-старата от петте големи класики – «монументите».",
+      "en": "Liège–Bastogne–Liège has run since 1892. It is nicknamed La Doyenne, “the old lady”, because it is the oldest of cycling’s five Monuments.",
+      "source": "https://en.wikipedia.org/wiki/Li%C3%A8ge%E2%80%93Bastogne%E2%80%93Li%C3%A8ge"
+    },
+    {
+      "bg": "Шестдневките траят шест, а не седем дни. Причината е проста: в неделя не се е карало.",
+      "en": "Six-day races lasted six days rather than a full week for one simple reason: to avoid racing on Sunday.",
+      "source": "https://en.wikipedia.org/wiki/Six-day_racing"
+    },
+    {
+      "bg": "През 1899 г. Ню Йорк забранява да се кара повече от 12 часа на ден. Организаторите правят отбори по двама. Така се ражда мадисънът, кръстен на зала «Медисън Скуеър Гардън».",
+      "en": "In 1899 New York banned racing more than 12 hours a day, so promoters switched to two-rider teams. The format took its name from Madison Square Garden: the madison.",
+      "source": "https://en.wikipedia.org/wiki/Six-day_racing"
+    },
+    {
+      "bg": "Според една история циклокросът започва в началото на XX век. Шосейните колоездачи се надпреварват до съседния град и имат право да минават направо през ниви и огради.",
+      "en": "One story says cyclo-cross began in the early 1900s, when road racers raced to the next town and were allowed to cut across fields and over fences.",
+      "source": "https://en.wikipedia.org/wiki/Cyclo-cross"
+    },
+    {
+      "bg": "Препятствията в циклокроса са високи до 40 см. Колоездачите скачат от колелото, пренасят го и пак се качват в движение.",
+      "en": "Cyclo-cross barriers can be up to 40 cm high. Riders jump off, carry the bike over and hop back on.",
+      "source": "https://en.wikipedia.org/wiki/Cyclo-cross"
+    },
+    {
+      "bg": "Париж–Брест–Париж се кара за първи път през 1891 г. Трасето е около 1200 км. Това е най-старото шосейно колоездачно събитие на дълги разстояния.",
+      "en": "Paris–Brest–Paris was first ridden in 1891 over about 1,200 km. It is the oldest long-distance cycling road event.",
+      "source": "https://en.wikipedia.org/wiki/Paris%E2%80%93Brest%E2%80%93Paris"
+    },
+    {
+      "bg": "Първата Обиколка на България тръгва на 21 август 1924 г. от София. Колоездачите изминават 1917 км, а финалът е на 7 септември.",
+      "en": "The first Tour of Bulgaria started in Sofia on 21 August 1924. The riders covered 1,917 km before it ended on 7 September.",
+      "source": "https://www.bta.bg/en/news/archives/729448-august-21-1924-first-international-cycling-tour-of-bulgaria-starts"
+    }
+  ]
+}

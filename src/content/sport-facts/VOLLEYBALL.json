@@ -1,0 +1,265 @@
+{
+  "sport": "VOLLEYBALL",
+  "facts": [
+    {
+      "bg": "Уилям Морган се запознава с Джеймс Нейсмит, създателя на баскетбола, през 1892 г., докато учи в колежа в Спрингфийлд.",
+      "en": "Morgan met James Naismith, the inventor of basketball, while studying at Springfield College in 1892.",
+      "source": "https://en.wikipedia.org/wiki/William_G._Morgan"
+    },
+    {
+      "bg": "Морган взема по нещо от тениса, хандбала и бадминтона. Затова първото име на играта, «минтонет», напомня за бадминтон.",
+      "en": "Morgan borrowed from tennis, handball and badminton. That is why the game's first name, \"Mintonette\", echoes badminton.",
+      "source": "https://en.wikipedia.org/wiki/William_G._Morgan"
+    },
+    {
+      "bg": "Първата демонстрация е на 7 юли 1896 г. в Спрингфийлд. Капитани на двата отбора от по петима са кметът на Холиоук и началникът на пожарната.",
+      "en": "The first demonstration took place in Springfield on 7 July 1896. The two five-man teams were captained by Holyoke's mayor and its fire chief.",
+      "source": "https://www.volleyhall.org/history-of-volleyball.html"
+    },
+    {
+      "bg": "Морган първо пробва с баскетболна топка, но тя е твърде тежка. А само гумената ѝ вътрешност е твърде мека. Затова Spalding прави специална топка.",
+      "en": "Morgan first tried a basketball, but it was too heavy, and its rubber bladder alone was too soft. So Spalding made a special ball.",
+      "source": "https://www.volleyhall.org/history-of-volleyball.html"
+    },
+    {
+      "bg": "В началото мрежата е на 1,98 м. Днес е на 2,43 м за мъже и на 2,24 м за жени.",
+      "en": "The original net stood 1.98 m high. Today it is 2.43 m for men and 2.24 m for women.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Първите мачове имат девет «ининга», както в бейзбола. Във всеки ининг всеки отбор сервира по три пъти.",
+      "en": "Early matches had nine innings, like baseball, with three serves for each team in every inning.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "В началото броят на играчите не е ограничен. Шестима играчи в отбор стават правило едва през 1918 г.",
+      "en": "At first there was no limit on the number of players. Six per side became the rule only in 1918.",
+      "source": "https://www.volleyhall.org/history-of-volleyball.html"
+    },
+    {
+      "bg": "Дълго отборът може да докосва топката колкото пъти иска. Ограничението до три докосвания идва през 1922 г.",
+      "en": "For years a team could touch the ball as many times as it liked. The three-touch limit arrived in 1922.",
+      "source": "https://www.volleyhall.org/history-of-volleyball.html"
+    },
+    {
+      "bg": "През 1917 г. геймът е съкратен от 21 на 15 точки.",
+      "en": "In 1917 the winning score of a game was cut from 21 points to 15.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "През 1919 г. американската армия раздава около 16 000 волейболни топки на войниците си и на съюзниците.",
+      "en": "In 1919 the American Expeditionary Forces handed out about 16,000 volleyballs to their troops and allies.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Канада е първата държава извън САЩ, в която започват да играят волейбол. Това става през 1900 г.",
+      "en": "Canada was the first country outside the United States to take up volleyball, in 1900.",
+      "source": "https://www.volleyhall.org/history-of-volleyball.html"
+    },
+    {
+      "bg": "В голяма част от Азия дълго играят по правилата на Браун, с по 16 души в отбор. Така могат да играят повече хора.",
+      "en": "Much of Asia long played by the \"Brown\" rules, with 16 players per side, so more people could join in.",
+      "source": "https://www.volleyhall.org/history-of-volleyball.html"
+    },
+    {
+      "bg": "Волейболът с по деветима в отбор се появява през 30-те години на XX век сред китайските имигранти в САЩ.",
+      "en": "Nine-man volleyball was created in the 1930s by Chinese immigrant communities in the United States.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "ФИВБ е основана през април 1947 г. в Париж от 14 национални федерации. Първият ѝ президент е французинът Пол Либо.",
+      "en": "The FIVB was founded in Paris in April 1947 by 14 national federations. Its first president was Frenchman Paul Libaud.",
+      "source": "https://en.wikipedia.org/wiki/F%C3%A9d%C3%A9ration_Internationale_de_Volleyball"
+    },
+    {
+      "bg": "Във ФИВБ членуват 222 национални федерации.",
+      "en": "The FIVB has 222 member national federations.",
+      "source": "https://en.wikipedia.org/wiki/F%C3%A9d%C3%A9ration_Internationale_de_Volleyball"
+    },
+    {
+      "bg": "Първото световно първенство за мъже е през 1949 г. в Прага. Шампион е СССР, а България взима бронз.",
+      "en": "The first men's World Championship was held in Prague in 1949. The Soviet Union won, and Bulgaria took bronze.",
+      "source": "https://en.wikipedia.org/wiki/1949_FIVB_Men%27s_World_Championship"
+    },
+    {
+      "bg": "Първото световно първенство за жени е през 1952 г. Тогава българките са четвърти – и към 2025 г. това е най-доброто им класиране.",
+      "en": "The first women's World Championship came in 1952. Bulgaria finished fourth, still the team's best result as of 2025.",
+      "source": "https://en.wikipedia.org/wiki/Bulgaria_women%27s_national_volleyball_team"
+    },
+    {
+      "bg": "На първия олимпийски турнир през 1964 г. мъжете на СССР взимат златото. Губят само един мач – от Япония.",
+      "en": "At the first Olympic tournament in 1964, the Soviet men won gold. Their only loss came against Japan.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_1964_Summer_Olympics"
+    },
+    {
+      "bg": "През 1964 г. японките бият СССР с 3:0 и взимат олимпийското злато. Наричат ги «Вещиците от Изтока». Според NHK финала гледат над 80% от японците.",
+      "en": "In 1964 Japan's women beat the Soviet Union 3–0 for Olympic gold. Nicknamed the \"Oriental Witches\", they had over 80% of Japan watching the final, according to NHK.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_1964_Summer_Olympics_%E2%80%93_Women%27s_tournament"
+    },
+    {
+      "bg": "До 1999 г. точка печели само отборът, който сервира. Днес всяко разиграване носи точка, геймът е до 25, а петият – до 15.",
+      "en": "Until 1999 only the serving team could score. Now every rally counts, sets go to 25, and a fifth set goes to 15.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "От 2000 г. сервис, който докосне мрежата и мине отсреща, вече не е грешка.",
+      "en": "Since 2000, a serve that clips the net and still goes over is legal.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "От 2000 г. при първото докосване на отбора играчът може да докосне топката няколко пъти, стига да е в едно движение.",
+      "en": "Since 2000, a player may touch the ball more than once on the team's first contact, as long as it is one action.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "През 90-те години правилата се променят и топката вече може да се играе с всяка част на тялото. Да, и с крак.",
+      "en": "In the 1990s the rules changed to allow the ball to be played with any part of the body. Yes, that includes the foot.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "ФИВБ въвежда либерото през 1998 г. То носи фланелка в друг цвят и няма право да блокира. «Libero» на италиански значи «свободен».",
+      "en": "The FIVB introduced the libero in 1998: a player in a different colour who may not block. \"Libero\" is Italian for \"free\".",
+      "source": "https://en.wikipedia.org/wiki/Libero_(volleyball)"
+    },
+    {
+      "bg": "Когато отборът си върне сервиса, играчите му се завъртат с една позиция по посока на часовниковата стрелка.",
+      "en": "When a team wins back the serve, its players rotate one position clockwise.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Когато играч плъзне длан по пода под топката и тя отскочи нагоре, това се нарича «палачинка».",
+      "en": "When a player slides a hand flat under the ball on the floor and it bounces up, it is called a \"pancake\".",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Игрището е 18 на 9 метра. Около него трябва да има свободна зона от поне 3 метра.",
+      "en": "The court measures 18 by 9 metres, with a free zone of at least 3 metres around it.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Топката е с обиколка от 65 до 67 см и тежи от 260 до 280 грама.",
+      "en": "The ball is 65–67 cm around and weighs 260–280 grams.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Сервиращият има 8 секунди да сервира след свирката на съдията.",
+      "en": "The server has 8 seconds to serve after the referee's whistle.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "По правилата на ФИВБ отборът има до 6 смени в гейм.",
+      "en": "Under FIVB rules a team gets up to 6 substitutions per set.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball"
+    },
+    {
+      "bg": "Мъжете на България печелят олимпийско сребро на Игрите в Москва през 1980 г.",
+      "en": "Bulgaria's men won Olympic silver at the 1980 Moscow Games.",
+      "source": "https://en.wikipedia.org/wiki/Bulgaria_men%27s_national_volleyball_team"
+    },
+    {
+      "bg": "През 1970 г. България е домакин на световното първенство за мъже. Мачовете са в София, Ямбол, Хасково и Кърджали, а шампион става ГДР.",
+      "en": "Bulgaria hosted the 1970 men's World Championship, with matches in Sofia, Yambol, Haskovo and Kardzhali. East Germany won the title.",
+      "source": "https://en.wikipedia.org/wiki/1970_FIVB_Men%27s_World_Championship"
+    },
+    {
+      "bg": "През 2025 г. България стига до финала на световното първенство във Филипините и губи от Италия с 1:3. Това е второто ѝ световно сребро за 55 години.",
+      "en": "In 2025 Bulgaria reached the World Championship final in the Philippines and lost 3–1 to Italy. It was the country's second world silver in 55 years.",
+      "source": "https://www.bta.bg/en/news/976066-bulgaria-win-silver-at-world-volleyball-championship-their-second-one-in-55-yea"
+    },
+    {
+      "bg": "С победата през 2025 г. Италия стига до пет световни титли при мъжете. Повече има само СССР – шест.",
+      "en": "With its 2025 win, Italy reached five men's world titles. Only the Soviet Union, with six, has more.",
+      "source": "https://en.wikipedia.org/wiki/FIVB_Men%27s_Volleyball_World_Championship"
+    },
+    {
+      "bg": "Жените на България печелят олимпийски бронз в Москва през 1980 г.",
+      "en": "Bulgaria's women won Olympic bronze in Moscow in 1980.",
+      "source": "https://en.wikipedia.org/wiki/Bulgaria_women%27s_national_volleyball_team"
+    },
+    {
+      "bg": "През 1981 г. българките стават европейски шампионки у дома, в София и Перник. Във финалното класиране изпреварват СССР.",
+      "en": "In 1981 Bulgaria's women became European champions on home soil, in Sofia and Pernik, finishing ahead of the Soviet Union.",
+      "source": "https://en.wikipedia.org/wiki/1981_Women%27s_European_Volleyball_Championship"
+    },
+    {
+      "bg": "Женският отбор на България печели Европейската златна лига два пъти – през 2018 и 2021 г.",
+      "en": "Bulgaria's women won the European Golden League twice, in 2018 and 2021.",
+      "source": "https://en.wikipedia.org/wiki/Bulgaria_women%27s_national_volleyball_team"
+    },
+    {
+      "bg": "Италия печели три поредни световни титли при мъжете – 1990, 1994 и 1998 г. Това златно поколение обаче така и не печели олимпийско злато.",
+      "en": "Italy's men won three straight world titles, in 1990, 1994 and 1998. That golden generation never won Olympic gold.",
+      "source": "https://inside.cev.eu/articles/cev/october-1-1989-the-beginning-of-italy-s-golden-run-through-a-phenomenal-generation"
+    },
+    {
+      "bg": "Кубинките печелят три поредни олимпийски титли – 1992, 1996 и 2000 г.",
+      "en": "Cuba's women won three Olympic titles in a row, in 1992, 1996 and 2000.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Мъжете на Бразилия имат три олимпийски титли – от 1992, 2004 и 2016 г.",
+      "en": "Brazil's men have won Olympic gold three times: 1992, 2004 and 2016.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Американките чакат първото си олимпийско злато чак до Токио 2020. Треньор е Карч Кирай.",
+      "en": "The US women won their first Olympic gold only at Tokyo 2020, coached by Karch Kiraly.",
+      "source": "https://en.wikipedia.org/wiki/Karch_Kiraly"
+    },
+    {
+      "bg": "Италианките печелят първото си олимпийско злато във волейбола в Париж през 2024 г.",
+      "en": "Italy's women won their first-ever Olympic volleyball gold in Paris in 2024.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Франция печели олимпийското злато при мъжете в Токио 2020 и го защитава в Париж 2024.",
+      "en": "France's men won Olympic gold at Tokyo 2020 and defended it at Paris 2024.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Жените на СССР печелят олимпийско злато през 1968, 1972 и 1980 г.",
+      "en": "The Soviet women won Olympic gold in 1968, 1972 and 1980.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Лан Пин печели олимпийско злато като състезателка през 1984 г. и като треньор на Китай през 2016 г. Тя е първата във волейбола с двете постижения.",
+      "en": "Lang Ping won Olympic gold as a player in 1984 and as China's coach in 2016, the first person in volleyball to do both.",
+      "source": "https://en.wikipedia.org/wiki/Lang_Ping"
+    },
+    {
+      "bg": "ФИВБ обявява Карч Кирай и Лоренцо Бернарди за най-добрите волейболисти на XX век.",
+      "en": "The FIVB named Karch Kiraly and Lorenzo Bernardi the best volleyball players of the 20th century.",
+      "source": "https://en.wikipedia.org/wiki/Karch_Kiraly"
+    },
+    {
+      "bg": "Волейболът седнал е измислен в Нидерландия през 1956 г. На Параолимпийските игри мъжете играят от 1980 г., а жените – от 2004 г.",
+      "en": "Sitting volleyball was created in the Netherlands in 1956. It became a Paralympic medal event for men in 1980 and for women in 2004.",
+      "source": "https://en.wikipedia.org/wiki/Sitting_volleyball"
+    },
+    {
+      "bg": "При волейбола седнал мрежата за мъже е на 1,15 м. Сервисът може да се блокира, а при всяко докосване на топката играчът трябва да седи на пода.",
+      "en": "In sitting volleyball the men's net is 1.15 m high. Serves may be blocked, and players must stay seated on the floor when they play the ball.",
+      "source": "https://en.wikipedia.org/wiki/Sitting_volleyball"
+    },
+    {
+      "bg": "Залата на славата на волейбола е в Холиоук и отваря врати през 1987 г. Първият приет в нея още през 1985 г. е самият Морган.",
+      "en": "The Volleyball Hall of Fame is in Holyoke and opened in 1987. Its first inductee, in 1985, was Morgan himself.",
+      "source": "https://en.wikipedia.org/wiki/International_Volleyball_Hall_of_Fame"
+    },
+    {
+      "bg": "От 2018 г. Лигата на нациите заменя Световната лига за мъже от 1990 г. и Гран при за жени от 1993 г.",
+      "en": "In 2018 the Volleyball Nations League replaced the men's World League (from 1990) and the women's Grand Prix (from 1993).",
+      "source": "https://en.wikipedia.org/wiki/FIVB_Men%27s_Volleyball_Nations_League"
+    },
+    {
+      "bg": "На волейбола в Рио 2016 отборите искат 399 видеопроверки. От тях 159 сменят решението на съдията.",
+      "en": "At the Rio 2016 volleyball tournament, teams asked for 399 video challenges, and 159 of them overturned the call.",
+      "source": "https://www.fivb.com/the-legacy-of-innovation-a-revolution-in-volleyball-during-president-gracas-mandate/"
+    },
+    {
+      "bg": "На 30 август 2023 г. мач на университета в Небраска събира 92 003 зрители на футболен стадион. Това е рекорд на САЩ за женско спортно събитие.",
+      "en": "On 30 August 2023 a University of Nebraska match drew 92,003 fans to a football stadium, a US record crowd for a women's sporting event.",
+      "source": "https://en.wikipedia.org/wiki/Volleyball_Day_in_Nebraska"
+    }
+  ]
+}
