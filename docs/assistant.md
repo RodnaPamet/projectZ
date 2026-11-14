@@ -43,10 +43,10 @@ over every past exchange.
 | ------------------------------- | ------------------ | -------------------------------------------------------------------------------------- |
 | `ASSISTANT_ENABLED`             | `0`                | Off: every route answers 404 `ASSISTANT_DISABLED`; the app hides the launcher.         |
 | `ANTHROPIC_API_KEY`             | —                  | Shared with moderation. Absent: every question halts `ASSISTANT_PROVIDER_UNAVAILABLE`. |
-| `AI_MODEL`                      | `claude-opus-5-5`  | The answering model (low effort; server-side fallback on a decline).                   |
+| `AI_MODEL`                      | `claude-sonnet-5-5`| The answering model (low effort; server-side fallback on a decline).                   |
 | `ASSISTANT_MEMORY_MODEL`        | `claude-haiku-5-5` | The memory sweep.                                                                      |
 | `ASSISTANT_MEMORY`              | `1`                | `0`: memory and recall off, the assistant stays on (rule 9).                           |
-| `ASSISTANT_DAILY_SPEND_CAP_USD` | `0.50`             | Per player per Sofia day, at list price; checked before every model call.              |
+| `ASSISTANT_DAILY_SPEND_CAP_USD` | `0.20`             | Per player per Sofia day, at list price; checked before every model call.              |
 
 The memory sweep is `POST /api/cron/assistant-memory` (behind `CRON_SECRET`),
 every five minutes from `ops/sweep.compose.yml`.

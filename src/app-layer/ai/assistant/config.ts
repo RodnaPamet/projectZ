@@ -8,11 +8,14 @@
  *   AI_MODEL                        the answering model (default below)
  *   ASSISTANT_MEMORY_MODEL          the memory sweep's model (default below)
  *   ASSISTANT_MEMORY=0              memory off, assistant still on (rule 9)
- *   ASSISTANT_DAILY_SPEND_CAP_USD   per player per day (default 0.50)
+ *   ASSISTANT_DAILY_SPEND_CAP_USD   per player per day (default 0.20)
  */
 
-/** The current Opus: the answering model unless `AI_MODEL` names another. */
-export const DEFAULT_ASSISTANT_MODEL = 'claude-opus-5-5';
+/**
+ * Sonnet 5.5 (owner 2026-11-14): good at the tool use and at weighing several
+ * players' free times, at a fraction of Opus's price. `AI_MODEL` overrides.
+ */
+export const DEFAULT_ASSISTANT_MODEL = 'claude-sonnet-5-5';
 
 /**
  * The sweep reads a handful of questions and returns a short JSON list, many
@@ -20,8 +23,8 @@ export const DEFAULT_ASSISTANT_MODEL = 'claude-opus-5-5';
  */
 export const DEFAULT_MEMORY_MODEL = 'claude-haiku-5-5';
 
-/** Fifty cents a player a day: some ten to twenty questions on the default model. */
-export const DEFAULT_DAILY_SPEND_CAP_USD = 0.5;
+/** Twenty cents a player a day (owner 2026-11-14): a few questions a day. */
+export const DEFAULT_DAILY_SPEND_CAP_USD = 0.2;
 
 export class AssistantDisabledError extends Error {
   constructor() {

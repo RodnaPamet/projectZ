@@ -409,7 +409,7 @@ export const env = createEnv({
     // assistant down (memory rule 9). On by default.
     ASSISTANT_MEMORY: z.enum(['0', '1']).default('1'),
     // What one player may spend on the assistant per day (Europe/Sofia), in US
-    // dollars. Default 0.50.
+    // dollars. Default 0.20 (owner 2026-11-14).
     ASSISTANT_DAILY_SPEND_CAP_USD: z.string().optional(),
 
     // PLATFORM_ADMIN_API_KEY and its _PREVIOUS rotation slot lived here and

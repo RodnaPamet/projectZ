@@ -116,11 +116,11 @@ describe('the Claude call', () => {
     });
   });
 
-  it('the daily cap defaults to fifty cents and never reads a bad value as unlimited', () => {
+  it('the daily cap defaults to twenty cents and never reads a bad value as unlimited', () => {
     delete process.env.ASSISTANT_DAILY_SPEND_CAP_USD;
-    expect(dailySpendCapMicros()).toBe(500_000);
+    expect(dailySpendCapMicros()).toBe(200_000);
     process.env.ASSISTANT_DAILY_SPEND_CAP_USD = 'lots';
-    expect(dailySpendCapMicros()).toBe(500_000);
+    expect(dailySpendCapMicros()).toBe(200_000);
     process.env.ASSISTANT_DAILY_SPEND_CAP_USD = '2';
     expect(dailySpendCapMicros()).toBe(2_000_000);
   });
