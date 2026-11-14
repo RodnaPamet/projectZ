@@ -1,0 +1,265 @@
+{
+  "sport": "BADMINTON",
+  "facts": [
+    {
+      "bg": "Името на спорта идва от Бадминтън Хаус – имението на херцозите на Бофор в Англия. Там играта става популярна.",
+      "en": "The sport is named after Badminton House in Gloucestershire, England, the seat of the Dukes of Beaufort, where the game became popular.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_House"
+    },
+    {
+      "bg": "Първите известни правила са написани през 1873 г. в Пуна, Индия. Затова известно време играта се нарича просто «Пуна».",
+      "en": "The first known rules were drawn up in Poona (today's Pune), India, in 1873, and for a while the game was simply called «Poona».",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "Още през 1860 г. лондонски търговец на играчки на име Айзък Спрат издава книжка за играта. Заглавието ѝ е «Badminton Battledore – A New Game».",
+      "en": "As early as 1860, a London toy dealer named Isaac Spratt published a booklet called «Badminton Battledore – A New Game».",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "Английската асоциация по бадминтон издава правилата си през 1893 г. Официалният старт е в къща на име «Дънбар» в Портсмут.",
+      "en": "The Badminton Association of England published its laws in 1893 and officially launched the sport at a house called «Dunbar» in Portsmouth.",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "«Ол Инглънд» е най-старият турнир по бадминтон в света – провежда се от 1899 г. В първото издание няма сингъл – само игра на двойки.",
+      "en": "The All England Championships, first held in 1899, are the oldest badminton tournament in the world – and the first edition had no singles events at all.",
+      "source": "https://en.wikipedia.org/wiki/All_England_Open_Badminton_Championships"
+    },
+    {
+      "bg": "Международната федерация е основана през 1934 г. от девет страни. Сред тях няма нито една азиатска, а днес Азия е водещата сила в спорта.",
+      "en": "The International Badminton Federation was founded in 1934 by nine members, none of them from Asia – today the sport's powerhouse.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_World_Federation"
+    },
+    {
+      "bg": "През 2005 г. федерацията мести седалището си от Челтнъм, Англия, в Куала Лумпур. Година по-късно приема името Световна федерация по бадминтон.",
+      "en": "In 2005 the federation moved its headquarters from Cheltenham, England, to Kuala Lumpur, and a year later renamed itself the Badminton World Federation.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_World_Federation"
+    },
+    {
+      "bg": "Бадминтонът е показна дисциплина на Олимпийските игри през 1972 и 1988 г. Медали се раздават за първи път чак в Барселона през 1992 г.",
+      "en": "Badminton was shown at the 1972 and 1988 Olympics, but medals were only handed out from Barcelona 1992 onwards.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "На Игрите в Лондон 2012 Китай печели и петте златни медала в бадминтона. Никоя друга страна не е постигала това.",
+      "en": "At London 2012, China won all five badminton gold medals – the only country ever to sweep them.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_at_the_Summer_Olympics"
+    },
+    {
+      "bg": "Пак в Лондон 2012 осем състезателки на двойки са дисквалифицирани. Те се опитват да загубят мачове в групата, за да си осигурят по-лесен жребий.",
+      "en": "Also at London 2012, eight women's doubles players were disqualified for trying to lose group matches to get an easier draw.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_at_the_2012_Summer_Olympics_%E2%80%93_Women%27s_doubles"
+    },
+    {
+      "bg": "През 1992 г. Суси Сусанти и Алан Будикусума печелят титлите на сингъл при жените и при мъжете – първите олимпийски титли за Индонезия. По-късно двамата се женят.",
+      "en": "In 1992 Susi Susanti and Alan Budikusuma won the women's and men's singles – Indonesia's first Olympic golds. The two later married.",
+      "source": "https://en.wikipedia.org/wiki/Indonesia_at_the_1992_Summer_Olympics"
+    },
+    {
+      "bg": "Като дете испанката Каролина Марин танцува фламенко. През 2016 г. в Рио тя става първата олимпийска шампионка на сингъл, която не е от Азия.",
+      "en": "Spain's Carolina Marín, a keen flamenco dancer as a child, became the first non-Asian Olympic women's singles champion in Rio 2016.",
+      "source": "https://en.wikipedia.org/wiki/Carolina_Mar%C3%ADn"
+    },
+    {
+      "bg": "Китаецът Лин Дан е първият мъж, защитил олимпийската си титла на сингъл – през 2008 и 2012 г. Прякорът «Супер Дан» идва от съперника му Петер Гаде.",
+      "en": "China's Lin Dan was the first man to retain the Olympic singles title (2008 and 2012); rival Peter Gade gave him the nickname «Super Dan».",
+      "source": "https://en.wikipedia.org/wiki/Lin_Dan"
+    },
+    {
+      "bg": "Датчанинът Виктор Акселсен печели олимпийско злато през 2020 и 2024 г. Освен датски и английски той говори свободно китайски.",
+      "en": "Denmark's Viktor Axelsen won Olympic gold in 2020 and 2024, and besides Danish and English he speaks fluent Mandarin.",
+      "source": "https://en.wikipedia.org/wiki/Viktor_Axelsen"
+    },
+    {
+      "bg": "Малайзиецът Лий Чонг Уей има три олимпийски сребра – от 2008, 2012 и 2016 г. Той е номер едно в света общо 349 седмици.",
+      "en": "Malaysia's Lee Chong Wei won three Olympic silver medals (2008, 2012, 2016) and spent a total of 349 weeks as world number one.",
+      "source": "https://en.wikipedia.org/wiki/Lee_Chong_Wei"
+    },
+    {
+      "bg": "Индонезиецът Руди Хартоно печели «Ол Инглънд» на сингъл осем пъти. Седем от титлите са поред – от 1968 до 1974 г.",
+      "en": "Indonesia's Rudy Hartono won the All England men's singles eight times, including seven in a row from 1968 to 1974.",
+      "source": "https://en.wikipedia.org/wiki/Rudy_Hartono"
+    },
+    {
+      "bg": "Сър Джордж Томас има 21 титли от «Ол Инглънд». Стига и до четвъртфинал на Уимбълдън, а два пъти е шампион на Великобритания по шах.",
+      "en": "Sir George Thomas won 21 All England titles, reached a Wimbledon singles quarter-final in 1911 and was twice British chess champion.",
+      "source": "https://en.wikipedia.org/wiki/Sir_George_Thomas,_7th_Baronet"
+    },
+    {
+      "bg": "Отборната купа «Томас» за мъже е предложена през 1939 г., но войната я отлага. Първият финал е през 1949 г. – Малая бие Дания с 8:1.",
+      "en": "The Thomas Cup for men's teams was proposed in 1939 but delayed by the war; Malaya won the first final in 1949, beating Denmark 8–1.",
+      "source": "https://en.wikipedia.org/wiki/Thomas_Cup"
+    },
+    {
+      "bg": "Женската отборна купа носи името на англичанката Бети Юбър. Първото издание през 1957 г. печелят САЩ.",
+      "en": "The women's team trophy, the Uber Cup, is named after English player Betty Uber; the United States won the first edition in 1957.",
+      "source": "https://en.wikipedia.org/wiki/Uber_Cup"
+    },
+    {
+      "bg": "Американката Джуди Девлин печели «Ол Инглънд» на сингъл 10 пъти. Баща ѝ Франк Девлин има шест титли при мъжете.",
+      "en": "American Judy Devlin won the All England women's singles 10 times; her father Frank Devlin had won the men's singles six times.",
+      "source": "https://en.wikipedia.org/wiki/Judy_Devlin"
+    },
+    {
+      "bg": "Купа «Судирман» е отборен турнир, в който мъже и жени играят за един отбор. Започва през 1989 г. в Джакарта и първа я печели Индонезия.",
+      "en": "The Sudirman Cup, a mixed team event named after Indonesian player Dick Sudirman, began in Jakarta in 1989 – and the hosts won it.",
+      "source": "https://en.wikipedia.org/wiki/Sudirman_Cup"
+    },
+    {
+      "bg": "Мрежата е висока 1,55 м при стълбовете. В средата е малко по-ниска – 1,524 м, точно пет фута.",
+      "en": "The net is 1.55 m high at the posts but only 1.524 m – exactly five feet – in the middle.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Игрището за двойки е 13,4 на 6,1 м. При сингъл то е по-тясно – 5,18 м, но дължината е същата.",
+      "en": "A doubles court is 13.4 m by 6.1 m; for singles it narrows to 5.18 m but keeps its full length.",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "Според правилата перцето има точно 16 пера, забодени в основата. Обикновено те са от гъска или патица.",
+      "en": "A regulation feather shuttle has exactly 16 feathers fixed in its base, usually from geese or ducks.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Перцето тежи едва около 5 грама. Правилата допускат от 4,74 до 5,50 г.",
+      "en": "A shuttle weighs only about 5 grams: the laws allow 4.74 to 5.50 g.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Перата в едно перце са само от лявото или само от дясното крило. Двете страни са извити различно и не бива да се смесват.",
+      "en": "The feathers in one shuttle come from either left or right wings only, because the two sides are shaped differently.",
+      "source": "https://en.wikipedia.org/wiki/Shuttlecock"
+    },
+    {
+      "bg": "Както и да го ударите, перцето се обръща и лети с тапата напред. Така е направено нарочно.",
+      "en": "However you hit it, a shuttle turns around and flies cork first – it is designed to do exactly that.",
+      "source": "https://en.wikipedia.org/wiki/Shuttlecock"
+    },
+    {
+      "bg": "Когато пада отвисоко, перцето се върти. Ако го гледате отгоре, то се върти обратно на часовниковата стрелка.",
+      "en": "A dropped shuttle spins as it falls – counter-clockwise when seen from above.",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "Перцата с естествени пера трябва да стоят на влага поне 4 часа преди игра. Сухите пера стават крехки и се чупят.",
+      "en": "Feather shuttles should be humidified for at least four hours before play, because dry feathers turn brittle and break.",
+      "source": "https://en.wikipedia.org/wiki/Shuttlecock"
+    },
+    {
+      "bg": "Преди мач скоростта на перцата се проверява. Перцето се удря отдолу от едната задна линия. Доброто пада на 53–99 см преди отсрещната задна линия.",
+      "en": "Shuttles are speed-tested before play: hit underhand from one back line, a good one lands 530–990 mm short of the opposite back line.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Добрата ракета за бадминтон тежи 70–95 г без кордажа. Тенис ракетата е около четири пъти по-тежка.",
+      "en": "A top badminton racket weighs 70–95 g without strings; a tennis racket is about four times heavier.",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "Към 2025 г. рекордът за най-бърз удар е 565 км/ч. Поставя го индиецът Сатвиксайрадж Ранкиреди при тест за «Гинес» през 2023 г.",
+      "en": "As of 2025, the fastest recorded hit is 565 km/h, by India's Satwiksairaj Rankireddy in a 2023 Guinness test – faster than an F1 car's top speed.",
+      "source": "https://www.onmanorama.com/sports/other-sports/2023/07/18/satwiksairaj-rankireddy-breaks-world-record-for-fastest-hit-by-a-shuttler.html"
+    },
+    {
+      "bg": "При сервис цялото перце трябва да е под 1,15 м от пода в мига на удара. Височината е една и съща за всички, независимо от ръста.",
+      "en": "When serving, the whole shuttle must be below 1.15 m from the floor at the moment it is hit – one fixed height for everyone, however tall.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Перце, паднало на линията, е вътре. Линиите са широки 4 см и са част от игрището.",
+      "en": "A shuttle landing on the line is in: the 40 mm lines are part of the court they mark.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Два удара поред от един играч са грешка. Грешка е и да задържиш перцето на ракетата и да го хвърлиш.",
+      "en": "Hitting the shuttle twice in a row is a fault, and so is catching it on the racket and slinging it.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Докосване на мрежата с ракета, тяло или дрехи е грешка. Ракетата обаче може да мине над мрежата по инерция след удар от вашата страна.",
+      "en": "Touching the net with racket, body or clothing is a fault, though the racket may follow through over the net after a hit on your own side.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "Ако перцето заседне върху мрежата по време на разиграване, точката се играе отново. При сервис обаче това е грешка.",
+      "en": "If a shuttle gets stuck on top of the net during a rally, the point is replayed – but on a serve, it is a fault.",
+      "source": "https://cob.org/wp-content/uploads/Section-4.1-Laws-of-Badminton-29-May-2023-V2.1.pdf"
+    },
+    {
+      "bg": "До 2006 г. точка печели само сервиращият. Геймът е до 15 точки, а при жените на сингъл – до 11.",
+      "en": "Until 2006 only the server could score, and games went to 15 points – or 11 in women's singles.",
+      "source": "https://en.wikipedia.org/wiki/Scoring_system_development_of_badminton"
+    },
+    {
+      "bg": "В старата система при 13:13 играчът, стигнал пръв до 13, може да удължи гейма. Тогава резултатът става 0:0 и печели първият, стигнал до пет точки.",
+      "en": "Under the old system, at 13–13 the player who reached 13 first could «set» the game: the score went back to 0–0 and the first to five points won.",
+      "source": "https://en.wikipedia.org/wiki/Scoring_system_development_of_badminton"
+    },
+    {
+      "bg": "През 2002 г. федерацията пробва геймове само до 7 точки, а мачът е до три спечелени гейма. Опитът скоро е изоставен.",
+      "en": "In 2002 the federation tried games of just 7 points, best of five, but the experiment was soon dropped.",
+      "source": "https://en.wikipedia.org/wiki/Scoring_system_development_of_badminton"
+    },
+    {
+      "bg": "През 2026 г. членовете на световната федерация гласуват нова система – три гейма до 15 точки. Тя влиза в сила от 4 януари 2027 г.",
+      "en": "In 2026 BWF members voted for a new 3×15 scoring system – games to 15 points – starting on 4 January 2027.",
+      "source": "https://usabadminton.org/bwf-approves-3x15-scoring-system/"
+    },
+    {
+      "bg": "Системата «Хоук-Ай» за спорни удари дебютира в бадминтона през април 2014 г. Това става на турнира India Open в Ню Делхи.",
+      "en": "Hawk-Eye line-calling made its badminton debut in April 2014, at the India Open in New Delhi.",
+      "source": "https://en.wikipedia.org/wiki/Hawk-Eye"
+    },
+    {
+      "bg": "През 2019 г. световната федерация пуска «Еърбадминтон» – игра на открито. Играе се с по-здраво перце на трева, пясък или твърда настилка.",
+      "en": "In 2019 the BWF launched AirBadminton, an outdoor game with a sturdier «AirShuttle» built for grass, sand and hard courts.",
+      "source": "https://www.gktoday.in/bwf-launched-2-formats-badminton-game/"
+    },
+    {
+      "bg": "Парабадминтонът дебютира на Параолимпийските игри в Токио 2020. Има 14 дисциплини в шест класа, два от тях за състезатели в колички.",
+      "en": "Para badminton made its Paralympic debut at Tokyo 2020 with 14 events across six classes, two of them for wheelchair players.",
+      "source": "https://en.wikipedia.org/wiki/Para_badminton"
+    },
+    {
+      "bg": "В японската игра ханецуки, която се играе по Нова година, се ползват дървени хилки. Който изпусне перцето, получава черта с туш по лицето.",
+      "en": "In Japan's hanetsuki, a New Year game played with wooden paddles, a player who misses the shuttle gets an ink mark on the face.",
+      "source": "https://en.wikipedia.org/wiki/Hanetsuki"
+    },
+    {
+      "bg": "В Китай има игра, в която перцето се рита – дзиендзъ. Перцето се държи във въздуха с всяка част на тялото без ръцете. Играта е от времето на династията Хан.",
+      "en": "In China's jianzi, players keep a weighted shuttlecock up with any part of the body except the hands – a game dating back to the Han dynasty.",
+      "source": "https://en.wikipedia.org/wiki/Jianzi"
+    },
+    {
+      "bg": "Английската дума «shuttlecock» е от края на XVI век. Частта «cock» означава петел – заради перата.",
+      "en": "The English word «shuttlecock» dates from the late 1500s; the «cock» part refers to feathers that look like a rooster's.",
+      "source": "https://en.wikipedia.org/wiki/Shuttlecock"
+    },
+    {
+      "bg": "Имението Бадминтън е прочуто и с конен спорт. Там от 1949 г. се провеждат известните състезания «Бадминтън Хорс Трайълс».",
+      "en": "The same Badminton estate is also home to the famous Badminton Horse Trials, held there since 1949.",
+      "source": "https://en.wikipedia.org/wiki/Badminton_House"
+    },
+    {
+      "bg": "В Индия има и игра с вълнена топка вместо перце. В Танджавур я играят още през 50-те години на XIX век.",
+      "en": "India also has «ball badminton», played with a woollen ball instead of a shuttle – it was played in Thanjavur as early as the 1850s.",
+      "source": "https://en.wikipedia.org/wiki/Badminton"
+    },
+    {
+      "bg": "Българките Габриела и Стефани Стоеви печелят злато на двойки на Европейските игри през 2015 и 2023 г. Сестрите играят и на три олимпиади.",
+      "en": "Bulgarian sisters Gabriela and Stefani Stoeva won women's doubles gold at the European Games in 2015 and 2023 and played at three Olympics.",
+      "source": "https://en.wikipedia.org/wiki/Stefani_Stoeva"
+    },
+    {
+      "bg": "Датчанинът Поул-Ерик Хьойер Ларсен е олимпийски шампион от 1996 г. По-късно е президент на световната федерация – от 2013 до 2025 г.",
+      "en": "Denmark's Poul-Erik Høyer Larsen won Olympic gold in 1996 and later led the Badminton World Federation from 2013 to 2025.",
+      "source": "https://en.wikipedia.org/wiki/Poul-Erik_H%C3%B8yer_Larsen"
+    },
+    {
+      "bg": "Синтетичните перца имат пластмасова «пола» вместо пера. Издържат по-дълго от тези с естествени пера.",
+      "en": "Synthetic shuttles swap the feathers for a plastic skirt; they last longer, and players simply call them «plastics».",
+      "source": "https://en.wikipedia.org/wiki/Shuttlecock"
+    }
+  ]
+}

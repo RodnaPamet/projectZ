@@ -91,7 +91,7 @@ const GLOBAL_MODELS = new Set([
   'coachCertificate',
   'coachTimeOff',
   //
-  // ── P89 «Асистент» (#704) ──────────────────────────────────────────
+  // ── P90 «Асистент» (#704) ──────────────────────────────────────────
   //
   // A player's conversations with the assistant, what it remembers about
   // them and what it cost them are the PERSON's, at no club: their questions

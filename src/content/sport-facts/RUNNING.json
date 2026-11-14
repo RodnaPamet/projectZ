@@ -1,0 +1,265 @@
+{
+  "sport": "RUNNING",
+  "facts": [
+    {
+      "bg": "Странните 42,195 км идват от Олимпиадата в Лондон през 1908 г. Трасето там е от замъка Уиндзор до стадион «Уайт Сити». Официален стандарт става през 1921 г.",
+      "en": "The marathon's odd 42.195 km comes from the 1908 London Olympics, whose course ran from Windsor Castle to the White City stadium. It became the official standard in 1921.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "Първият олимпийски маратон през 1896 г. печели гръцкият водоносец Спиридон Луис. Времето му е 2:58:50, а трасето е само около 40 км.",
+      "en": "The first Olympic marathon in 1896 was won by Spyridon Louis, a Greek water-carrier, in 2:58:50. The course was only about 40 km long.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "Маратонът е идея на един езиковед – французина Мишел Бреал. Той го предлага за Игрите през 1896 г., а Пиер дьо Кубертен горещо го подкрепя.",
+      "en": "The marathon was a linguist's idea: Frenchman Michel Bréal proposed the race for the 1896 Games, and Pierre de Coubertin strongly backed it.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "Жените бягат олимпийски маратон за първи път чак през 1984 г., в Лос Анджелис. Първата шампионка е американката Джоан Беноа с време 2:24:52.",
+      "en": "Women first ran an Olympic marathon only in 1984, in Los Angeles. The winner was American Joan Benoit in 2:24:52.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "Бостънският маратон се бяга всяка година от 1897 г. и е най-старият ежегоден маратон в света. На първото издание стартират само 15 души.",
+      "en": "The Boston Marathon, first run in 1897, is the world's oldest annual marathon. The first edition had a field of just 15 runners.",
+      "source": "https://en.wikipedia.org/wiki/Boston_Marathon"
+    },
+    {
+      "bg": "Дълги години победителите в Бостън получават само маслинов венец. Първата парична награда идва чак през 1986 г.",
+      "en": "For most of its history the Boston Marathon gave winners nothing but an olive wreath. The first cash prize came only in 1986.",
+      "source": "https://en.wikipedia.org/wiki/Boston_Marathon"
+    },
+    {
+      "bg": "Изкачването по прочутия хълм «Разбито сърце» в Бостън е само 27 метра. Боли, защото е късно в състезанието – точно там много бегачи «удрят стената».",
+      "en": "Boston's famous Heartbreak Hill rises only 27 metres. It hurts because it comes late in the race, right where many runners hit the wall.",
+      "source": "https://en.wikipedia.org/wiki/Boston_Marathon"
+    },
+    {
+      "bg": "В Истанбулския маратон бегачите минават през два континента – Азия и Европа. Друг такъв маратон няма.",
+      "en": "The Istanbul Marathon is the only marathon where runners cross two continents, Asia and Europe, in one race.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "През април 2026 г. кениецът Сабастиан Сауе печели Лондонския маратон за 1:59:30. Това е първият официален световен рекорд под два часа (към ноември 2026 г.).",
+      "en": "In April 2026 Kenya's Sabastian Sawe won the London Marathon in 1:59:30, the first official world record under two hours (as of November 2026).",
+      "source": "https://worldathletics.org/news/press-releases/ratified-world-records-sawe-ehammer-charlton-mcrae-yan-duplantis-assefa"
+    },
+    {
+      "bg": "При опита «Breaking2» в Монца през 2017 г. кола пред бегачите прожектира зелени лазери по пътя. Така пейсмейкърите знаят къде да тичат. Елиуд Кипчоге финишира за 2:00:25.",
+      "en": "In the 2017 Breaking2 attempt at Monza, a pace car projected green lasers onto the road to show the pacers where to run. Eliud Kipchoge finished in 2:00:25.",
+      "source": "https://en.wikipedia.org/wiki/Breaking2"
+    },
+    {
+      "bg": "От 1976 г. милята е единствената неметрична дистанция с официални световни рекорди. Дължината ѝ от 1760 ярда идва от английски закон от 1593 г.",
+      "en": "Since 1976 the mile has been the only imperial distance with official world records. Its length of 1,760 yards was fixed by an English statute in 1593.",
+      "source": "https://en.wikipedia.org/wiki/Mile_run"
+    },
+    {
+      "bg": "Роджър Банистър бяга първата миля под 4 минути – 3:59,4 – в Оксфорд на 6 май 1954 г., докато учи медицина. Говорителят казва само «Времето е три…» и публиката заглушава останалото.",
+      "en": "Roger Bannister ran the first sub-four-minute mile, 3:59.4, in Oxford on 6 May 1954, while a medical student. The announcer got as far as \"The time was three…\" before the crowd drowned him out.",
+      "source": "https://en.wikipedia.org/wiki/Roger_Bannister"
+    },
+    {
+      "bg": "На стандартната писта точно 400 метра има само първият коридор, а всеки коридор е широк 1,22 м. Затова в бяганията със завои външните коридори стартират по-напред.",
+      "en": "On a standard track only lane 1 is exactly 400 m long, and each lane should be 1.22 m wide. That is why outer lanes start further ahead in races with bends.",
+      "source": "https://en.wikipedia.org/wiki/Running_track"
+    },
+    {
+      "bg": "Много писти са от «Тартан» – полиуретанова настилка на фирмата 3M. Олимпиадата в Мексико през 1968 г. е първото голямо първенство на такава писта. Преди това пистите често са от сгурия.",
+      "en": "Many all-weather tracks use Tartan, a polyurethane surface made by 3M. The 1968 Mexico City Olympics were the first global championships on one; before that, tracks were often crushed cinders.",
+      "source": "https://en.wikipedia.org/wiki/Running_track"
+    },
+    {
+      "bg": "Паркрън започва на 2 октомври 2004 г. в лондонския парк Бъши с 13 бегачи. Времето се мери с хронометър, а за жетони на финала служат метални шайби с номер.",
+      "en": "parkrun began on 2 October 2004 in Bushy Park, London, with 13 runners. Times were taken on a stopwatch, and stamped metal washers served as finish tokens.",
+      "source": "https://en.wikipedia.org/wiki/Parkrun"
+    },
+    {
+      "bg": "Паркрънът в полския град Чешин е единственият, който минава държавна граница. Част от петкилометровото трасе е в Чехия.",
+      "en": "Cieszyn parkrun in Poland is the only parkrun that crosses a national border: part of its 5 km course is in the Czech Republic.",
+      "source": "https://en.wikipedia.org/wiki/Parkrun"
+    },
+    {
+      "bg": "Стийпълчейзът носи името си от конните надбягвания с препятствия. В бягането на 3000 м има 28 препятствия и 7 скока над ров с вода.",
+      "en": "The steeplechase takes its name from horse racing over fences. The 3000 m race has 28 barriers and seven water jumps.",
+      "source": "https://en.wikipedia.org/wiki/Steeplechase_(athletics)"
+    },
+    {
+      "bg": "Първите обувки само за бягане, с шипове, прави британската фирма «Фостър» през 1895 г. С нейни обувки Харолд Ейбрахамс и Ерик Лидъл печелят олимпийско злато през 1924 г.",
+      "en": "The first shoes designed for running were made by the British firm Foster in 1895, with spikes for grip. Harold Abrahams and Eric Liddell won 1924 Olympic gold in Foster's shoes.",
+      "source": "https://en.wikipedia.org/wiki/Running_shoe"
+    },
+    {
+      "bg": "Ади Даслер, основателят на «Адидас», започва да прави обувки в пералното помещение на майка си. Това е в германския град Херцогенаурах.",
+      "en": "Adi Dassler, founder of Adidas, started making shoes in his mother's wash kitchen in Herzogenaurach, Germany.",
+      "source": "https://en.wikipedia.org/wiki/Running_shoe"
+    },
+    {
+      "bg": "Според Херодот вестоносецът Фидипид тича от Атина до Спарта и стига още на следващия ден. От 1983 г. състезанието «Спартатлон» минава този път – около 246 км.",
+      "en": "Herodotus says the messenger Pheidippides ran from Athens to Sparta and arrived the day after he left. Since 1983 the Spartathlon race has covered that route, about 246 km.",
+      "source": "https://en.wikipedia.org/wiki/Pheidippides"
+    },
+    {
+      "bg": "Хората се охлаждат главно с пот и могат да тичат в жега, която спира много едри бозайници. Някои учени свързват и шийния лигамент, който държи главата стабилна, с миналото ни на бегачи.",
+      "en": "Humans shed heat mainly by sweating, so we can keep running in heat that troubles many large mammals. Some scientists also link the neck ligament that steadies our head to a long history of running.",
+      "source": "https://en.wikipedia.org/wiki/Endurance_running_hypothesis"
+    },
+    {
+      "bg": "Етиопецът Абебе Бикила печели бос олимпийския маратон в Рим през 1960 г. Финалът е нощем при Константиновата арка, до Колизея.",
+      "en": "Ethiopia's Abebe Bikila won the 1960 Rome Olympic marathon barefoot. The race finished at night by the Arch of Constantine, just outside the Colosseum.",
+      "source": "https://en.wikipedia.org/wiki/Abebe_Bikila"
+    },
+    {
+      "bg": "Емил Затопек печели 5000 м, 10 000 м и маратона на Олимпиадата в Хелзинки през 1952 г. Това е първият му маратон. Никой друг не печели и трите на едни игри.",
+      "en": "At the 1952 Helsinki Olympics Emil Zátopek won the 5,000 m, the 10,000 m and the marathon. It was his first marathon, and he is the only person to win all three at one Games.",
+      "source": "https://en.wikipedia.org/wiki/Emil_Z%C3%A1topek"
+    },
+    {
+      "bg": "Финландецът Пааво Нурми рядко бяга без хронометър в ръка. През 20-те години той печели девет олимпийски титли.",
+      "en": "Finland's Paavo Nurmi rarely ran without a stopwatch in his hand. He won nine Olympic golds in the 1920s.",
+      "source": "https://en.wikipedia.org/wiki/Paavo_Nurmi"
+    },
+    {
+      "bg": "Южноафриканският ултрамаратон «Комрадс» се бяга от 1921 г. и е около 88 км. Всяка година сменя посоката: веднъж «нагоре» от Дърбан, после «надолу» обратно към него.",
+      "en": "South Africa's Comrades Marathon, first run in 1921, is about 88 km long and switches direction every year: an \"up\" run from Durban, then a \"down\" run back to it.",
+      "source": "https://en.wikipedia.org/wiki/Comrades_Marathon"
+    },
+    {
+      "bg": "Състезанието «Баркли» в Тенеси започва, когато директорът запали цигара. Новаците плащат такса от 1,60 долара и носят регистрационен номер на кола от своя щат или държава.",
+      "en": "The Barkley Marathons in Tennessee start when the race director lights a cigarette. First-timers pay a $1.60 fee and bring a licence plate from their home state or country.",
+      "source": "https://en.wikipedia.org/wiki/Barkley_Marathons"
+    },
+    {
+      "bg": "Бягането на 3100 мили в Ню Йорк обикаля едно каре в Куинс. Това са 5649 обиколки за 52 дни – средно почти 96 км на ден.",
+      "en": "The Self-Transcendence 3100 Mile Race loops a single block in Queens, New York, 5,649 times. Runners get 52 days, which means almost 96 km a day.",
+      "source": "https://en.wikipedia.org/wiki/Self-Transcendence_3100_Mile_Race"
+    },
+    {
+      "bg": "Японецът Шизо Канакури напуска маратона в Стокхолм през 1912 г., за да пие сок на градинско парти, и се прибира у дома. През 1967 г. се връща и финишира – с време над 54 години.",
+      "en": "Japan's Shizo Kanakuri left the 1912 Stockholm marathon for juice at a garden party and went home. In 1967 he came back and finished, with a time of over 54 years.",
+      "source": "https://en.wikipedia.org/wiki/Shizo_Kanakuri"
+    },
+    {
+      "bg": "На олимпийския маратон през 1904 г. кубинецът Андарин Карвахал хапва гнили ябълки и ляга да подремне. Въпреки това завършва четвърти.",
+      "en": "In the 1904 Olympic marathon, Cuban runner Andarín Carvajal ate some rotten apples and lay down for a nap. He still finished fourth.",
+      "source": "https://en.wikipedia.org/wiki/Athletics_at_the_1904_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+    },
+    {
+      "bg": "Италианецът Дорандо Пиетри влиза пръв на стадиона в маратона през 1908 г. Съдиите му помагат да стане и затова го дисквалифицират. Кралица Александра му дава позлатена сребърна купа за утеха.",
+      "en": "Italy's Dorando Pietri entered the stadium first in the 1908 Olympic marathon, but officials helped him up and he was disqualified. Queen Alexandra gave him a gilded silver cup instead.",
+      "source": "https://en.wikipedia.org/wiki/Dorando_Pietri"
+    },
+    {
+      "bg": "Около 1970 г. Бил Бауърман, съосновател на «Найки», пробва лека подметка с добро сцепление, като налива гума в гофретника на жена си. Гофретникът не оцелява.",
+      "en": "Around 1970 Nike co-founder Bill Bowerman tested a light, grippy sole by pouring rubber into his wife's waffle iron. The waffle iron did not survive.",
+      "source": "https://en.wikipedia.org/wiki/Bill_Bowerman"
+    },
+    {
+      "bg": "Бауърман открива бягането за здраве в Нова Зеландия през 1962 г. Книгата му «Джогинг» от 1966 г. се продава в над милион копия и помага за бума на джогинга в САЩ.",
+      "en": "Bowerman discovered running for fitness on a 1962 trip to New Zealand. His 1966 book \"Jogging\" sold over a million copies and helped start the US jogging boom.",
+      "source": "https://en.wikipedia.org/wiki/Bill_Bowerman"
+    },
+    {
+      "bg": "Първият признат световен рекорд на 100 м е 10,6 секунди от 1912 г. Усейн Болт бяга за 9,58 с в Берлин през 2009 г. – с малко над секунда по-бързо.",
+      "en": "The first recognised 100 m world record was 10.6 seconds, set in 1912. Usain Bolt's 9.58 in Berlin in 2009 was just over a second faster.",
+      "source": "https://en.wikipedia.org/wiki/Men%27s_100_metres_world_record_progression"
+    },
+    {
+      "bg": "Маратонът «Човек срещу кон» в Уелс започва през 1980 г. след спор в кръчма дали човек може да се мери с кон по пресечен терен. Човек бие конете за първи път чак през 2004 г.",
+      "en": "Wales's Man versus Horse Marathon began in 1980 after a pub argument about whether a person could match a horse across country. A runner first won in 2004.",
+      "source": "https://en.wikipedia.org/wiki/Man_versus_Horse_Marathon"
+    },
+    {
+      "bg": "Бягащата пътека започва като наказание: през 1818 г. инженерът Уилям Кюбит я въвежда в английските затвори. Някои от тези пътеки дори мелят зърно.",
+      "en": "The treadmill began as a punishment: engineer William Cubitt introduced prison treadmills in England in 1818. Some of them also ground grain.",
+      "source": "https://en.wikipedia.org/wiki/Treadmill"
+    },
+    {
+      "bg": "Маратонът на пясъците е около 250 км през мароканската Сахара, в шест етапа. Бегачите сами се грижат за храната си.",
+      "en": "The Marathon des Sables covers about 250 km of the Moroccan Sahara in six stages. Runners must be self-sufficient for food.",
+      "source": "https://en.wikipedia.org/wiki/Marathon_des_Sables"
+    },
+    {
+      "bg": "През 1928 г. има бягане от Лос Анджелис до Ню Йорк – над 5500 км. Наричат го «Дербито на мазолите». Тръгват 199 души, а до финала стигат само 55.",
+      "en": "In 1928 the \"Bunion Derby\" ran more than 5,500 km from Los Angeles to New York. Of 199 starters, only 55 made it to the finish.",
+      "source": "https://en.wikipedia.org/wiki/Trans-American_Footrace"
+    },
+    {
+      "bg": "В колежа «Тринити» в Кеймбридж студентите се опитват да обиколят Големия двор, около 340 м, докато часовникът бие 12. Сцената във филма «Огнени колесници» обаче е снимана в Итън.",
+      "en": "At Trinity College, Cambridge, runners try to circle Great Court, about 340 m, while the clock strikes twelve. The scene in \"Chariots of Fire\" was filmed at Eton instead.",
+      "source": "https://en.wikipedia.org/wiki/Great_Court_Run"
+    },
+    {
+      "bg": "Еуфорията от бягането може би идва повече от ендоканабиноидите, отколкото от ендорфините. Ендорфините не минават от кръвта в мозъка, а ендоканабиноидите могат.",
+      "en": "The runner's high may owe more to endocannabinoids than to endorphins. Endorphins can't cross the blood–brain barrier, but endocannabinoids can.",
+      "source": "https://en.wikipedia.org/wiki/Runner%27s_high"
+    },
+    {
+      "bg": "На големите състезания сензори в стартовите блокчета засичат фалстарта. Ако спринтьорът тръгне до 0,1 секунда след изстрела, пак е фалстарт.",
+      "en": "At top meets, sensors built into the starting blocks detect false starts. Moving within 0.1 seconds after the gun counts as a false start.",
+      "source": "https://en.wikipedia.org/wiki/False_start"
+    },
+    {
+      "bg": "Преди стартовите блокчета спринтьорите копаят дупки в пистата – на старта им дават малки лопатки. Смята се, че блокчетата са измислени от австралиеца Чарли Буут и баща му през 1929 г.",
+      "en": "Before starting blocks, sprinters dug holes in the dirt track, and trowels were provided at the start. Blocks are credited to Australian Charlie Booth and his father in 1929.",
+      "source": "https://en.wikipedia.org/wiki/Starting_blocks"
+    },
+    {
+      "bg": "През 1967 г. Катрин Суитцър се записва за маратона в Бостън с инициалите си и носи номер 261. В нейна чест Бостън вече не дава този номер на никого.",
+      "en": "Kathrine Switzer entered the 1967 Boston Marathon using her initials and wore bib 261. Boston no longer gives that number to anyone, in her honour.",
+      "source": "https://en.wikipedia.org/wiki/Kathrine_Switzer"
+    },
+    {
+      "bg": "Народът рарамури в Мексико играе рарахипари. Отборите тичат и ритат дървена топка с часове, понякога и с дни.",
+      "en": "Mexico's Rarámuri play rarajipari, a running game in which teams kick a wooden ball for hours, sometimes for days.",
+      "source": "https://en.wikipedia.org/wiki/Rar%C3%A1muri"
+    },
+    {
+      "bg": "Маратонът на Великата китайска стена се бяга от 1999 г. Трасето минава по хиляди каменни стъпала при прохода Хуангягуан.",
+      "en": "The Great Wall Marathon in China, held since 1999, climbs thousands of stone steps on the Huangyaguan section of the wall.",
+      "source": "https://en.wikipedia.org/wiki/Great_Wall_Marathon"
+    },
+    {
+      "bg": "Първият маратон в инвалидни колички е през 1974 г. в Толидо, Охайо. Печели го Боб Хол за 2:54 ч.",
+      "en": "The first wheelchair marathon was held in 1974 in Toledo, Ohio. Bob Hall won it in 2:54.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "Маратонът на среднощното слънце в Тромсьо, Норвегия, се бяга на 70° северна ширина. Там през лятото слънцето не залязва.",
+      "en": "The Midnight Sun Marathon in Tromsø, Norway, is run at 70 degrees north, where the summer sun never sets.",
+      "source": "https://en.wikipedia.org/wiki/Marathon"
+    },
+    {
+      "bg": "Стомилното бягане «Уестърн Стейтс» започва като конна езда. През 1974 г. Горди Ейнзли пробягва трасето пеша, без кон, чак до Обърн.",
+      "en": "The Western States 100 grew out of a horse ride: in 1974 Gordy Ainsleigh ran the trail on foot, with no horse, all the way to Auburn.",
+      "source": "https://www.wbur.org/onlyagame/2019/06/28/ultramarathon-gordon-ainsleigh-western-states"
+    },
+    {
+      "bg": "Първият Лондонски маратон през 1981 г. има двама победители при мъжете. Дик Биърдсли и Инге Симонсен финишират хванати за ръце за 2:11:48.",
+      "en": "The first London Marathon, in 1981, had two men's winners: Dick Beardsley and Inge Simonsen crossed the line holding hands in 2:11:48.",
+      "source": "https://en.wikipedia.org/wiki/London_Marathon"
+    },
+    {
+      "bg": "Кенийският град Итен е на около 2400 м височина и го наричат «Дом на шампионите». Смята се, че там всеки ден тренират над 5000 атлети.",
+      "en": "Kenya's Iten lies at about 2,400 m and is nicknamed the \"Home of Champions\". An estimated 5,000-plus athletes train there every day.",
+      "source": "https://en.wikipedia.org/wiki/Iten"
+    },
+    {
+      "bg": "Софийският маратон се бяга за първи път на 22 май 1983 г. Стартът и финалът са на площад «Батенберг», пред Националната галерия.",
+      "en": "The Sofia Marathon was first held on 22 May 1983. It starts and finishes on Battenberg Square, in front of the National Art Gallery.",
+      "source": "https://en.wikipedia.org/wiki/Sofia_Marathon"
+    },
+    {
+      "bg": "От 776 до 724 г. пр.н.е. на Олимпийските игри има само една дисциплина – спринт от около 180 метра. Тя се казва «стадион» и оттам идва думата.",
+      "en": "From 776 to 724 BC the only event at the ancient Olympics was the stadion, a sprint of about 180 m. It gave us the word \"stadium\".",
+      "source": "https://en.wikipedia.org/wiki/Stadion_(running_race)"
+    },
+    {
+      "bg": "На шосе подметката на състезателните обувки може да е дебела до 40 мм. През 2021 г. World Athletics обявява лимит от 20 мм за обувките на пистата от ноември 2024 г.",
+      "en": "Road racing shoes may have soles up to 40 mm thick. In 2021 World Athletics announced a 20 mm limit for track shoes from November 2024.",
+      "source": "https://www.thestar.com.my/sport/athletics/2021/12/24/athletics-shoes-to-have-uniform-sole-thickness-from-november-2024-world-athletics"
+    }
+  ]
+}

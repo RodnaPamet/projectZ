@@ -277,7 +277,7 @@ export type SyncOutcome =
  * Sync and record the outcome on the connection, through `write` (bound as the
  * person, or as the loop). The dirty mark is cleared only if it still holds
  * the value read before the schedule was: a change committed during the run
- * left a newer one, which the next run picks up (P88).
+ * left a newer one, which the next run picks up (P89).
  */
 export async function runSync(
   conn: ConnectionForSync,
@@ -326,7 +326,7 @@ export async function runSync(
           },
     });
     if (outcome.ok) {
-      // guardrail-allow: cross-tenant — as above; compare-and-clear (P88).
+      // guardrail-allow: cross-tenant — as above; compare-and-clear (P89).
       await db.googleCalendarConnection.updateMany({
         where: { id: conn.id, dirtyAt: conn.dirtyAt },
         data: { dirtyAt: null },
@@ -378,7 +378,7 @@ export const DUE_BATCH = 50;
  * its address). Dirty first, oldest mark first. Sequential, so one person's
  * slow Google cannot fan out into fifty open requests.
  *
- * Also drops consent states that expired a day ago (P88).
+ * Also drops consent states that expired a day ago (P89).
  */
 export async function syncDueCalendars(deps: SyncDeps = {}): Promise<{
   synced: number;

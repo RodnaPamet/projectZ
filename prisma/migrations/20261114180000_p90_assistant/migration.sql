@@ -1,4 +1,4 @@
--- P89: «Асистент» for players (owner 2026-11-14, #704), ported from agri-saas.
+-- P90: «Асистент» for players (owner 2026-11-14, #704), ported from agri-saas.
 --
 -- Four tables, every one the PERSON's: owner-only on app.user_id, failing
 -- closed when it is unset, like the favourite clubs (P87) and the calendar

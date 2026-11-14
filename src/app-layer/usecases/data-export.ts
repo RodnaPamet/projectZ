@@ -127,7 +127,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 12;
+  version: 13;
   exportedAt: string;
   profile: {
     id: string;
@@ -199,7 +199,7 @@ export interface PersonalDataExport {
     }>;
   };
   /**
-   * Services the account connected (version 11, owner 2026-11-14): that a
+   * Services the account connected (version 12, owner 2026-11-14): that a
    * Google Calendar is connected, which Google account, and how it stands.
    * Never the token: it is a credential, and it stays with playerz until it is
    * revoked.
@@ -313,6 +313,8 @@ export interface PersonalDataExport {
       messages: boolean;
       openPlay: boolean;
       lessonsTaught: boolean;
+      /** «Факт на седмицата», push only (P88; version 11). */
+      sportFacts: boolean;
     };
   };
   inviteLinks: Array<{
@@ -487,7 +489,7 @@ export interface PersonalDataExport {
     }>;
   } | null;
   /**
-   * «Асистент» (#704; version 12): the conversations, deleted ones included
+   * «Асистент» (#704; version 13): the conversations, deleted ones included
    * while they are kept, every point it remembered about the person with the
    * sentence it was learned from (forgotten and replaced ones too, so the
    * person sees why it will not learn them again), and what it cost per day.
@@ -639,6 +641,7 @@ export async function readPersonalData(
       pushMessages: true,
       pushOpenPlay: true,
       pushLessonsTaught: true,
+      pushSportFacts: true,
       searchable: true,
       ratingPublic: true,
       deletedAt: true,
@@ -898,7 +901,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 12,
+    version: 13,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -1068,6 +1071,7 @@ export async function readPersonalData(
         messages: user.pushMessages,
         openPlay: user.pushOpenPlay,
         lessonsTaught: user.pushLessonsTaught,
+        sportFacts: user.pushSportFacts,
       },
     },
     inviteLinks: links.map((l) => ({

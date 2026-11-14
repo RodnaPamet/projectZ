@@ -1,6 +1,6 @@
 /// «Асистент» for players (owner 2026-11-14, #704): one conversation with the
 /// assistant, continued by its id. The person's own row, owner-only on
-/// app.user_id (P89), like the favourite clubs and the bell.
+/// app.user_id (P90), like the favourite clubs and the bell.
 ///
 /// Ported from agri-saas's AssistantConversation, adapted from farm to person:
 /// there is no tenant, because a player's questions span every club.

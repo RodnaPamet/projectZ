@@ -53,6 +53,7 @@ filter:
     - Me
     - Messages
     - Results
+    - Sports
     - Payments
     - Payouts
     - Realtime
