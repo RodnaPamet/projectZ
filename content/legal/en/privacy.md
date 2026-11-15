@@ -6,9 +6,9 @@ playerz.bg is a sports platform. Players book courts, get together for games and
 
 ## 1. Who is responsible for your data
 
-The data controller is [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, registered in the Bulgarian Commercial Register, seat and address [ADDRESS], phone [PHONE], email [ivo@inflect.bg](mailto:ivo@inflect.bg), VAT BG208694569.
+The data controller is [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, registered in the Bulgarian Commercial Register, seat and address [ADDRESS], phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg), VAT BG208694569.
 
-For any question about your personal data, and for any request under this policy, write to us at [ivo@inflect.bg](mailto:ivo@inflect.bg).
+For any question about your personal data, and for any request under this policy, write to us at [privacy@playerz.bg](mailto:privacy@playerz.bg).
 
 We have not appointed a data protection officer, because the law does not require one for us. Write to us directly at the same address.
 
@@ -227,7 +227,7 @@ We do not send your coordinates. Distances to clubs can, however, show roughly w
 
 **What you can do.** You can see, change and delete every remembered thing. You can also delete a conversation. You can object to the assistant's memory (see section 5).
 
-**What happens when you delete.** A deleted conversation disappears from the assistant at once. Its text stays in the database until you delete your account. A deleted remembered thing also stays until you delete your account. We send it to the memory model, but with a note saying "do not learn this again". Deleted things also show in the file with a copy of your data.
+**What happens when you delete.** Deleting is final and immediate: deleted conversations and remembered things are not kept and do not appear in the copy of your data. If you later tell the assistant the same thing, it may remember it again. Then delete it again, or object to the memory (see section 5).
 
 ## 10. Notifications and emails
 
@@ -328,7 +328,7 @@ Download it under Profile → Privacy → "Download my data". You get one file, 
 - your messages, games, tournaments and results;
 - your data as a coach;
 - the Google Calendar connection;
-- your conversations with the assistant and the remembered things, including deleted ones.
+- your conversations with the assistant and the things it remembers.
 
 **The file does not contain:**
 
@@ -354,7 +354,7 @@ Under the GDPR you have the right:
 - to withdraw a consent you gave;
 - to have a person review an automated decision that affects you.
 
-Write to us at [ivo@inflect.bg](mailto:ivo@inflect.bg). We will answer within one month. For complex requests this can be extended by two more months. We will then tell you why.
+Write to us at [privacy@playerz.bg](mailto:privacy@playerz.bg). We will answer within one month. For complex requests this can be extended by two more months. We will then tell you why.
 
 You have the right to complain to the Bulgarian supervisory authority, the Commission for Personal Data Protection (КЗЛД): [https://www.cpdp.bg](https://www.cpdp.bg).
 

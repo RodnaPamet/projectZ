@@ -4,7 +4,7 @@ These terms describe what playerz.bg does, what we expect of you, and what you c
 
 ## 1. Who you are agreeing with
 
-The playerz.bg service is provided by [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, registered in the Bulgarian Commercial Register, seat and address [ADDRESS], phone [PHONE], email [ivo@inflect.bg](mailto:ivo@inflect.bg), VAT BG208694569.
+The playerz.bg service is provided by [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, registered in the Bulgarian Commercial Register, seat and address [ADDRESS], phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg), VAT BG208694569.
 
 How we handle your personal data is described in the [Privacy policy](/privacy).
 
@@ -86,14 +86,14 @@ We do not organise the game itself and we are not responsible for the venue. The
 
 We moderate the parts of the service that other people can see: messages, reviews and game notes.
 
-- **Contact point.** For public authorities and for users, our contact point under the Digital Services Act (Articles 11 and 12 of Regulation (EU) 2022/2065) is [ivo@inflect.bg](mailto:ivo@inflect.bg). Write to us in Bulgarian or English.
+- **Contact point.** For public authorities and for users, our contact point under the Digital Services Act (Articles 11 and 12 of Regulation (EU) 2022/2065) is [privacy@playerz.bg](mailto:privacy@playerz.bg). Write to us in Bulgarian or English.
 - **Reports in the app.** You can report a message, a conversation, a game note or a review of a coach. A moderator looks at every report. For a reported message, the moderator sees the message and the last 20 messages of the conversation. They do not see who filed the report.
-- **Reporting illegal content.** Anyone, with or without an account, can send us such a report at [ivo@inflect.bg](mailto:ivo@inflect.bg). Say where the content is and why you think it is illegal. Give your name and email address, and confirm that you are writing in good faith. We will confirm that we received the report. We will tell you what we decided, and whether we used automated means.
+- **Reporting illegal content.** Anyone, with or without an account, can send us such a report at [privacy@playerz.bg](mailto:privacy@playerz.bg). Say where the content is and why you think it is illegal. Give your name and email address, and confirm that you are writing in good faith. We will confirm that we received the report. We will tell you what we decided, and whether we used automated means.
 - **Reviews.** The text of every review is first checked by an artificial intelligence model. Only clear cases are refused automatically: sexual content involving minors and instructions for self-harm. Anything else in doubt goes to a moderator. Every automatic refusal also opens a case for a moderator.
 - **What we can do.** Remove a message, close a conversation, delete a game note or refuse a review. We can suspend or close a club account. In a serious or repeated case, we can also close a player or coach account.
 - **Reasons.** When we remove or restrict content or an account, including when we refuse a review, we will tell you why and how you can object.
 - **Threats to life or safety.** If we learn of a crime that threatens people's life or safety, we will inform the authorities.
-- **If you think we got it wrong**, write to us at [ivo@inflect.bg](mailto:ivo@inflect.bg). A person from our team will look at the decision again. You can also turn to the Communications Regulation Commission (КРС), which is the Digital Services Coordinator, to the Commission for Consumer Protection (КЗП), or to the courts. You do not have to come to us first.
+- **If you think we got it wrong**, write to us at [privacy@playerz.bg](mailto:privacy@playerz.bg). A person from our team will look at the decision again. You can also turn to the Communications Regulation Commission (КРС), which is the Digital Services Coordinator, to the Commission for Consumer Protection (КЗП), or to the courts. You do not have to come to us first.
 
 ## 11. What we do not promise
 
@@ -139,4 +139,4 @@ These terms have a Bulgarian and an English text. If the two differ, the Bulgari
 
 ## 17. Contact
 
-For any question about these terms, about something you have seen on the service, or about a decision we made, write to us at [ivo@inflect.bg](mailto:ivo@inflect.bg).
+For any question about these terms, about something you have seen on the service, or about a decision we made, write to us at [privacy@playerz.bg](mailto:privacy@playerz.bg).

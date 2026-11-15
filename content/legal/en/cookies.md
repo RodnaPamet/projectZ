@@ -1,6 +1,6 @@
 # Cookie policy
 
-playerz.bg is provided by [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, seat and address [ADDRESS], phone [PHONE], email [ivo@inflect.bg](mailto:ivo@inflect.bg).
+playerz.bg is provided by [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, seat and address [ADDRESS], phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg).
 
 ## 1. What cookies are
 
@@ -52,7 +52,7 @@ The app does not use cookies for sign-in. At sign-in it gets two access keys fro
 
 You can delete the cookies and the site's storage in your browser's settings. You will then be signed out, and the language and theme will go back to the default settings.
 
-There is more about your personal data in the [Privacy policy](/privacy). If you have questions, write to us at [ivo@inflect.bg](mailto:ivo@inflect.bg).
+There is more about your personal data in the [Privacy policy](/privacy). If you have questions, write to us at [privacy@playerz.bg](mailto:privacy@playerz.bg).
 
 ## 8. Language
 

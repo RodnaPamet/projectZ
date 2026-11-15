@@ -15,7 +15,7 @@ Section numbers are the policy's.
 
 | Claim                                                                   | Backed by                                                                                                                                                       |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inflect Ltd, UIC/ЕИК 208694569, VAT BG208694569, contact ivo@inflect.bg | Owner's instruction, 2026-11-15. The ЕИК is the VAT number without `BG`. The Bulgarian name and form, the address and the phone are placeholders for the owner. |
+| Inflect Ltd, UIC/ЕИК 208694569, VAT BG208694569, contact privacy@playerz.bg | Owner's instruction, 2026-11-15. The ЕИК is the VAT number without `BG`. The Bulgarian name and form, the address and the phone are placeholders for the owner. |
 | No data protection officer, because none is required                    | Legal assessment (Art. 37 GDPR), not code. Listed for the owner to confirm with a lawyer.                                                                       |
 
 ## 2. What we collect
@@ -130,7 +130,7 @@ Section numbers are the policy's.
 | Recent bookings                                                                                                                         | `origin/feat/assistant:src/app-layer/usecases/assistant-best-time.ts:119,314-327`                                                                                                                         |
 | Distances to clubs; coordinates not sent                                                                                                | `origin/feat/assistant:src/app-layer/usecases/assistant-find-places.ts:68,91,125`; `prompt.ts:91` (yes/no only); `tools.ts:190` (server-side)                                                             |
 | Memory sweep 10 minutes after the conversation stops; up to 5 points                                                                    | `origin/feat/assistant:src/app-layer/usecases/assistant-memory-sweep.ts:23`; `memory-extractor.ts:17`                                                                                                     |
-| A deleted conversation keeps its text until account deletion; a deleted point is kept and sent as "do not re-learn"; both in the export | `origin/feat/assistant:src/app-layer/usecases/assistant-conversations-control.ts:37,79`; `assistant-memory-sweep.ts:88-106` (`refused`); `docs/assistant.md` rule 7. A real delete is product issue #716. |
+| Deleting a conversation or remembered point is final and immediate; not in the export afterwards (owner 2026-11-15) | NOT YET IN CODE: today `origin/feat/assistant` only hides them (`assistant-conversations-control.ts:37,79`, `assistant-memory-sweep.ts`). Real delete is projectZ #716, which must merge before the assistant is switched on. |
 
 ## 10. Notifications and emails
 
