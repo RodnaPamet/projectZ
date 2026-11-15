@@ -118,20 +118,25 @@ links to `/cookies` once `cookies.md` exists.
 key or third-party script means doing it again before it ships, and updating
 the cookie policy's text with the owner.
 
-| Name                                                                                 | Where        | Written when                                                                 | For                                             |
-| ------------------------------------------------------------------------------------ | ------------ | ---------------------------------------------------------------------------- | ----------------------------------------------- |
-| `next-auth.session-token` (`__Secure-` in production; chunked `.0`, `.1` when large) | cookie       | signing in                                                                   | staying signed in                               |
-| `next-auth.csrf-token`, `next-auth.callback-url`                                     | cookie       | opening sign-in                                                              | the sign-in's security                          |
-| `next-auth.pkce.code_verifier`, `next-auth.state`                                    | cookie       | during a Google or Facebook sign-in, for minutes                             | the sign-in's security                          |
-| `NEXT_LOCALE`                                                                        | cookie       | using the language switch, or signing in to an account with a saved language | the language the person chose                   |
-| `playerz_theme`                                                                      | cookie       | picking a theme                                                              | the theme the person chose, drawn by the server |
-| `playerz:theme`                                                                      | localStorage | picking a theme                                                              | the same                                        |
-| `playerz:sidebar-collapsed`                                                          | localStorage | collapsing the sidebar                                                       | the layout the person chose                     |
-| `playerz:cookie-notice`                                                              | localStorage | hiding this notice                                                           | not showing it again                            |
+| Name                                                                                 | Where        | Written when                                                                                     | For                                             |
+| ------------------------------------------------------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `next-auth.session-token` (`__Secure-` in production; chunked `.0`, `.1` when large) | cookie       | signing in; the session ends 7 days after sign-in (`user_session.expiresAt`)                     | staying signed in                               |
+| `next-auth.csrf-token` (`__Host-` in production)                                     | cookie       | opening sign-in; until the browser closes                                                        | the sign-in's security                          |
+| `next-auth.callback-url` (`__Secure-` in production)                                 | cookie       | opening sign-in; until the browser closes                                                        | the sign-in's security                          |
+| `next-auth.pkce.code_verifier` (`__Secure-` in production)                           | cookie       | during a Google sign-in, 15 minutes                                                              | the sign-in's security                          |
+| `next-auth.state` (`__Secure-` in production)                                        | cookie       | during a Facebook sign-in, 15 minutes                                                            | the sign-in's security                          |
+| `pz_phone_later`                                                                     | cookie       | pressing «Не сега» on the phone step (`src/lib/auth/phone-ask.ts`), 30 days                      | not asking for the phone again for a while      |
+| `NEXT_LOCALE`                                                                        | cookie       | using the language switch, or any signed-in request where it differs from the account's language | the language the person chose                   |
+| `playerz_theme`                                                                      | cookie       | picking a theme                                                                                  | the theme the person chose, drawn by the server |
+| `playerz:theme`                                                                      | localStorage | picking a theme                                                                                  | the same                                        |
+| `playerz:sidebar-collapsed`                                                          | localStorage | collapsing the sidebar                                                                           | the layout the person chose                     |
+| `playerz:cookie-notice`                                                              | localStorage | hiding this notice                                                                               | not showing it again                            |
+| `venues.radiusKm` (with #707, the web clubs map)                                     | localStorage | choosing a distance for clubs nearby                                                             | the distance the person chose                   |
 
 Nothing is kept in sessionStorage, IndexedDB or Cache Storage; the service
-worker is never registered. Inter is self-hosted, Sentry runs on the server,
-and there are no analytics or ads. The only other origin a page loads from is
+worker is never registered. Inter is self-hosted, Sentry is never initialised
+(`initSentry()` has no caller, #711; if it is turned on it runs on the server only, and the privacy
+policy's provider list must name it first), and there are no analytics or ads. The only other origin a page loads from is
 Cloud Storage, for images: venue photos and our own copies of profile pictures
 (#458: sign-in copies a Google or Facebook picture into the bucket, so no page
 loads one from Google or Meta). It sets no cookies, though it sees the viewer's

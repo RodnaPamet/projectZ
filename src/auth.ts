@@ -27,7 +27,7 @@ import { facebookConfigured, googleConfigured } from '@/lib/auth/sign-in-methods
 import { verifyCredentials } from '@/lib/auth/verify-credentials';
 import { getPermissionsForRole } from '@/lib/permissions';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
-import { acceptedCurrentVersions } from '@/app-layer/usecases/legal-acceptance';
+import { acceptCurrentLegal, acceptedCurrentVersions } from '@/app-layer/usecases/legal-acceptance';
 import { phoneClaimFor } from '@/app-layer/usecases/phone-claim';
 import { chosenLocale } from '@/lib/i18n/chosen-locale';
 import { encodeLegalVersions } from '@/lib/legal/versions';
@@ -343,7 +343,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, account, trigger }) {
       if (user?.id) {
         const rows = await runAsSuperuser((db) =>
           db.tenantMembership.findMany({
@@ -374,6 +374,16 @@ export const authOptions: NextAuthOptions = {
         // The terms and privacy versions this account has accepted (#462), so
         // the middleware can send it to the acceptance step without a database
         // read. Empty while no version is in force.
+        //
+        // A password sign-in exists only in the test suites (#361). Their
+        // accounts are made straight in the database, so none has passed the
+        // first-sign-in screen where a person accepts the texts; without this
+        // every E2E journey would stop at /start/terms. The step itself is
+        // covered by tests/rendered/legal-step and the legal-acceptance
+        // integration test, which do not sign in this way.
+        if (account?.provider === 'credentials' && passwordSignInEnabled()) {
+          await acceptCurrentLegal(user.id, undefined);
+        }
         token.legal = encodeLegalVersions(await acceptedCurrentVersions(user.id));
         // And where it stands on the phone number (#500): the one-time ask.
         token.phone = await phoneClaimFor(user.id);
