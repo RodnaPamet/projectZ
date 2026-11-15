@@ -1,210 +1,211 @@
 # What the privacy policy claims, and what backs each claim (#370)
 
-The privacy policy in `content/legal/{bg,en}/privacy.md` is a draft for the owner's review
-(2026-11-15), adapted from Agrent's notice. Every factual sentence in it should be one row
-below. When the code changes what a row says, the policy changes in the same PR.
+The privacy policy in `content/legal/{bg,en}/privacy.md` is a draft for the owner's review (2026-11-15). It is adapted from Agrent's notice and revised after three reviews: facts, legal completeness and Bulgarian. Every factual sentence in it should be one row below. When the code changes what a row says, the policy changes in the same PR.
 
-Paths are on `main` unless they start with `origin/feat/assistant:`. Google Calendar sync and
-the assistant exist only on that branch (and Calendar also on `origin/feat/google-calendar`),
-behind flags that default to off. The policy describes them as features that work "only when
-switched on".
+Paths are on `main` unless they start with a branch name:
+
+- `origin/feat/assistant:` holds Google Calendar sync and the assistant. Calendar is also on `origin/feat/google-calendar`. Both sit behind flags that default to off.
+- `origin/feat/697-web-venues:` (#707) holds the web clubs map. The policy describes it, so merge it before the policy.
+
+Some rows are **commitments the code does not enforce yet**. They are marked "policy states X; code enforcement tracked in #717" (retention) or name the product issue that will make them true.
 
 Section numbers are the policy's.
 
 ## 1. Controller
 
-| Claim | Backed by |
-| --- | --- |
-| The controller is Inflect Ltd, VAT BG208694569 | Owner's instruction, 2026-11-15. Agrent's text does not name a company or an address, so the address and the Bulgarian form are placeholders. |
-| Contact is ivo@inflect.bg | Owner's instruction, 2026-11-15. It is also Agrent's live contact address. |
+| Claim                                                                   | Backed by                                                                                                                                                       |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inflect Ltd, UIC/ЕИК 208694569, VAT BG208694569, contact ivo@inflect.bg | Owner's instruction, 2026-11-15. The ЕИК is the VAT number without `BG`. The Bulgarian name and form, the address and the phone are placeholders for the owner. |
+| No data protection officer, because none is required                    | Legal assessment (Art. 37 GDPR), not code. Listed for the owner to confirm with a lawyer.                                                                       |
 
 ## 2. What we collect
 
-| Claim | Backed by |
-| --- | --- |
-| Sign-in is Google; Facebook is registered too | `src/auth.ts:137` (Google), `src/auth.ts:157` (Facebook); `tests/guardrails/production-sign-in-providers.test.ts`. Facebook is held back until the Meta app is Live (docs/legal-pages.md "Facebook"), so the text says "once we offer it". |
-| Apple sign-in "once we offer it" | Native only: `src/app/api/v1/auth/token/route.ts` accepts `apple`; not in `src/auth.ts`. The owner says it is not offered yet. |
-| Google gives us email, name and picture (`openid email profile`) | `docs/oauth-setup.md:67`; `email_verified` checked at `src/auth.ts:301` |
-| We keep email, name and language; written only on the first sign-in | `src/app-layer/usecases/provider-account.ts:46-66` (`create`, `update: {}`) |
-| The picture is our own copy: one small WebP, no metadata | `docs/media-storage.md:38`; the provider URL is never kept, `provider-account.ts:53-54` |
-| No password, no provider access keys kept | No adapter or Account table, `src/auth.ts:217-241`; `passwordHash` is test-only (`src/auth.ts:184-210`) |
-| Account kind: player, club or coach, one only | `prisma/schema/enums.prisma:23-27`; `User.accountKind` |
-| Sports and a self-declared level 1 to 7 | `PlayerSportLevel`, `prisma/schema/auth.prisma:319-331` |
-| The questionnaire keeps only the level, not the answers | `src/app-layer/usecases/skill-survey.ts:9-22` (answers in, level out; no answers column) |
-| Settings: language, notifications, `searchable`, `ratingPublic` | `prisma/schema/auth.prisma:155,159-186,191,196` |
-| Accepted texts: document, version, language, time | `LegalAcceptance`, `prisma/schema/auth.prisma:300-317` |
-| Favourite venues | `FavouriteVenue`, `prisma/schema/venue.prisma:351` |
-| No city, gender or date of birth collected from players | No player field for them. `PlayerProfile.dateOfBirth` exists but is never written (`src/lib/account/deletion-plan.ts`, `UNWRITTEN`). |
-| The SMS code is sent and checked by Infobip; we do not keep it | `src/lib/sms/phone-verifier.ts:20-22` |
-| The number is kept encrypted, with when it was confirmed | `src/app-layer/usecases/phone-verification.ts:282` (`encryptField`, `phoneVerifiedAt`) |
-| A fingerprint stops one number confirming two accounts | `phoneHash @unique`, `prisma/schema/auth.prisma:146`; HMAC in `src/lib/account/phone-fingerprint.ts` |
-| Bookings: club, court, time, price, booker, players, cancellations and reason, no-shows, notes | `prisma/schema/booking.prisma:8-115` (`notes` :39, `cancellationReasonJson` :54), `BookingParticipant.noShowAt` |
-| The club records tags, no-show count, last played, credit | `prisma/schema/membership.prisma:15,18,19`; the credit ledger |
-| Open games: note up to 280 characters, join requests | `prisma/schema/open-play.prisma:30-32,91` |
-| Results and the level worked out from them | `docs/ranking.md:91-101` |
-| Tournaments name the player and the partner | `src/lib/account/deletion-plan.ts` tournament entries; `docs/ranking.md` |
-| Messages, blocks, reports | `prisma/schema/messaging.prisma:133-181`; `ContentReport`, `prisma/schema/moderation.prisma:85` |
-| Reviews of venues and coaches | `src/app-layer/usecases/reviews.ts`, `src/app-layer/usecases/coach-reviews.ts` |
-| Coach: description, qualifications, sports, lessons, certificate | `prisma/schema/coach.prisma:45-109,195-227` |
-| Club: staff roles, invited staff emails, venue photos | `TenantMembership`, `Invite` (`prisma/schema/auth.prisma:377-404,499-522`); `docs/media-storage.md:3-5` |
-| "For clubs" form: name, club name, phone or email, message, language; no IP | `ContactRequest`, `prisma/schema/notifications.prisma:239-256`; the limiter keys on an HMAC of the IP, `src/app-layer/usecases/contact-requests.ts:31,146` |
-| Device: APNs token, device name, system version | `DeviceToken`, `prisma/schema/devices.prisma:26-43` |
-| In-app notifications and the subject and text of sent emails | `Notification`; `EmailOutbox`, `prisma/schema/notifications.prisma:183` |
-| IP used to limit requests | Key `ratelimit:<scope>:ip:<ip>…`, `src/lib/security/rate-limit-middleware.ts:205` |
-| iPhone app sign-in keeps IP and kind of device | `src/app/api/v1/_lib/native-session.ts:38-40`; web sessions store neither |
-| Usage counts are daily totals linked to nobody | `docs/usage-counts.md:12`; `tests/guardrails/usage-no-personal-data.test.ts` |
+| Claim                                                                        | Backed by                                                                                                                                                   |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in is Google; Facebook and Apple "once we offer it"                     | `src/auth.ts:137,157`; Apple native-only in `src/app/api/v1/auth/token/route.ts`; Facebook held until the Meta app is Live (docs/legal-pages.md "Facebook") |
+| Google gives email, name, picture (`openid email profile`)                   | `docs/oauth-setup.md:67`; `email_verified` checked at `src/auth.ts:301`                                                                                     |
+| We keep email, name, language, written on the first sign-in only             | `src/app-layer/usecases/provider-account.ts:46-66`                                                                                                          |
+| The picture is our own small copy without metadata                           | `docs/media-storage.md:38`; `provider-account.ts:53-54`                                                                                                     |
+| Neither a password nor provider access keys are kept                         | No adapter or Account table, `src/auth.ts:217-241`                                                                                                          |
+| One account, one kind                                                        | `prisma/schema/enums.prisma:23-27`                                                                                                                          |
+| Sports and a self-declared level 1–7; the questionnaire keeps only the level | `prisma/schema/auth.prisma:319-331`; `src/app-layer/usecases/skill-survey.ts:9-22`                                                                          |
+| Settings, accepted texts, favourites                                         | `prisma/schema/auth.prisma:155,159-196,300-317`; `prisma/schema/venue.prisma:351`                                                                           |
+| Infobip sends and checks the SMS code; no code is kept                       | `src/lib/sms/phone-verifier.ts:20-22`                                                                                                                       |
+| The number is encrypted, with when it was confirmed                          | `src/app-layer/usecases/phone-verification.ts:282`                                                                                                          |
+| The phone fingerprint cannot be read back but recognises the same number     | Keyed HMAC, `src/lib/account/phone-fingerprint.ts:59-64`; `phoneHash @unique`, `auth.prisma:146`                                                            |
+| Bookings, cancellations and reasons, no-shows, notes                         | `prisma/schema/booking.prisma:8-115`                                                                                                                        |
+| The club records tags, no-show count, last played, credit                    | `prisma/schema/membership.prisma:15,18,19`                                                                                                                  |
+| Staff book in your name with a typed name and phone                          | `BookingSeries.customerName`/`customerPhone`, `prisma/schema/booking.prisma:134-141`                                                                        |
+| Staff find you by phone, matched against your fingerprint                    | `src/app-layer/usecases/desk-bookings.ts:330`                                                                                                               |
+| Open games, notes up to 280 characters, join requests                        | `prisma/schema/open-play.prisma:30-32,91`                                                                                                                   |
+| Results, level, tournaments                                                  | `docs/ranking.md:91-101`                                                                                                                                    |
+| Messages, reviews, blocks, reports                                           | `prisma/schema/messaging.prisma:133-181`; `prisma/schema/moderation.prisma:85`                                                                              |
+| Coach data and certificate; black out the ЕГН                                | `prisma/schema/coach.prisma:45-109`. The ЕГН request asks the coach, nothing enforces it.                                                                   |
+| Club staff roles and invited emails                                          | `prisma/schema/auth.prisma:377-404,499-522`                                                                                                                 |
+| "For clubs" form: fields, no IP                                              | `prisma/schema/notifications.prisma:239-256`; limiter on an HMAC of the IP, `src/app-layer/usecases/contact-requests.ts:31,146`                             |
+| Each enquiry is emailed to us through Resend and queued                      | `src/app-layer/usecases/contact-requests.ts:18-41` (outbox row, `CONTACT_INBOX_EMAIL`)                                                                      |
+| Device: APNs token, name, system version                                     | `prisma/schema/devices.prisma:26-43`                                                                                                                        |
+| iPhone sign-in keeps IP and the full User-Agent                              | `src/app/api/v1/_lib/native-session.ts:38-40`                                                                                                               |
+| Server logs: path, user id, club id; IP on a rate-limited request            | `src/lib/observability/logger.ts:122-127`; `src/lib/errors/api.ts:162`; `src/lib/security/rate-limit-middleware.ts:205-215`                                 |
+| Team second factor: only staff enrol; attempts with IP and device            | `src/app/api/v1/me/mfa/enrolment/route.ts:22` (live platform grant required); `src/app/api/v1/_lib/mfa-caller.ts:23`                                        |
+| Usage statistics linked to nobody                                            | `docs/usage-counts.md:12`; `tests/guardrails/usage-no-personal-data.test.ts`                                                                                |
 
-## 3. Purposes, bases, automated decisions
+## 3. Sources other than you
 
-| Claim | Backed by |
-| --- | --- |
-| The legal bases listed | Drafted, not code. A lawyer should confirm them (open question). |
-| No selling, no ads, no ad networks, no outside analytics | `docs/legal-pages.md` cookie audit ("no analytics or ads"); no analytics SDK in `package.json` |
-| 3 no-shows in 90 days stop online booking at that club until the club lifts it | `NO_SHOW_BLOCK_THRESHOLD = 3`, `NO_SHOW_WINDOW_DAYS = 90`, `src/app-layer/usecases/booking-rules.ts:30,32` |
-| Review text is checked by an AI model; clear cases refused, doubt or outage goes to a person | `src/lib/moderation/classify.ts:67,203` (`claude-haiku-4-5-20251001`); `src/app-layer/usecases/reviews.ts:132-149` |
+| Claim                                                           | Backed by                                                                                 |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Google (sign-in; free/busy)                                     | §2 rows above; `origin/feat/assistant:src/app-layer/usecases/google-calendar-sync.ts:521` |
+| Clubs: tags, no-shows, credit, desk bookings, staff invitations | `membership.prisma:15-19`; `desk-bookings.ts`; `auth.prisma:499-522`                      |
+| Other players: adding you, results, reports, coach reviews      | `BookingParticipant`; `match_report`; `ContentReport`; `coach.prisma:254`                 |
+| Coaches: lessons                                                | `CoachLesson`, `coach.prisma:195-227`                                                     |
 
-## 4. Who sees what
+## 4. Required data
 
-| Claim | Backed by |
-| --- | --- |
-| A posted game shows first name, picture, note, venue, time, price to everyone, never email or phone | `src/app-layer/usecases/open-play.ts:72-75,211,454-456` |
-| The player list is for the organiser, players and askers | `src/app-layer/usecases/open-play.ts:190-196` |
-| The level is visible unless hidden; signed-in users see club rankings with full names | `docs/ranking.md:66-90`; `ratingPublic`, `prisma/schema/auth.prisma:196` |
-| Tournament draws are for signed-in users | `src/app/api/v1/tournaments/[id]/draw/route.ts:12-20` |
-| Search shows name, picture, sports, levels, and can be switched off | `searchable`, `prisma/schema/auth.prisma:191`; `src/app-layer/usecases/messaging.ts:1013-1018` |
-| The club sees name, email, bookings, no-shows, credit, messages to it, its tags | `src/app/(app)/t/[slug]/admin/players/PlayersBoard.tsx:66,226-228`; club inbox RLS, `prisma/schema/messaging.prisma:21-28` |
-| The club sees the phone only for an upcoming booking | `src/app/(app)/t/[slug]/admin/calendar/diary-day.ts:187-216` |
-| A coach sees name, level, rating if allowed, phone only for an upcoming lesson | `src/app-layer/usecases/coach-lessons.ts:734,858-882`; `docs/coaches.md:35-37` |
-| A coach review shows a short name | `shortName`, `src/lib/coaches/reviews.ts:9-10` |
-| The certificate is hidden; only `COACH_APPROVE` holders open it; every opening is recorded | `docs/coaches.md:60-68`; `src/app/api/v1/platform/coaches/[userId]/certificate/route.ts:20-21` |
-| Team access is personal, at most 90 days, every action recorded | `docs/platform-admin-runbook.md:12-30` (`:16`, the 90-day CHECK) |
-| A moderator sees the reported message and the last 20 of the conversation, not the reporter | `CASE_CONTEXT_MESSAGES = 20`, `src/app-layer/usecases/moderation-messages.ts:41`; reporter hidden, `:22-23` |
+| Claim                                                   | Backed by                                                                        |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Email and name are needed for an account                | `provider-account.ts:46-66` (the account is created from them)                   |
+| A phone is needed only where asked, when the step is on | `REQUIRE_PHONE`, `src/env.ts:161-183`; checks in `phone-verification.ts:299-311` |
 
-## 5. Providers
+## 5. Purposes, bases, objection, automated decisions
 
-| Claim | Backed by |
-| --- | --- |
-| Google Cloud, europe-west1 (Belgium): server, database, backups, photos | `docs/deploy-gcp.md:3-4,862,873-875`; `docs/media-storage.md:54`; bucket locations read with `gcloud storage buckets describe` on 2026-11-15 (both `EUROPE-WEST1`) |
-| Apple gets the device key, title, text and a link | `src/lib/push/apns.ts:288-306` |
-| Resend gets address, subject, plain text | `src/lib/email/provider.ts:141-150` |
-| Infobip gets the phone number and the language | `src/lib/sms/phone-verifier.ts:102-142` |
-| Anthropic gets review text | `src/lib/moderation/classify.ts:197-227`; the key is set in production, `docs/deploy-gcp.md:1032` |
-| Meta: sign-in once offered | `src/lib/auth/facebook.ts:42,48` (`email public_profile`, `id,name,email,picture`) |
-| Anthropic and Resend are in the USA; the transfer basis | The basis is a placeholder (open question). |
-| No online payment today | `src/lib/stripe.ts:14-20` (no key in production); `onlinePaymentEnabled` defaults off, `prisma/schema/auth.prisma:62-69` |
+| Claim                                                                                                                                                             | Backed by                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The bases listed per purpose                                                                                                                                      | Drafted; a lawyer should confirm them (owner confirmation).                                                                                                 |
+| The assistant has no per-person switch; memory is automatic, with see, edit and delete                                                                            | `origin/feat/assistant:src/env.ts:403` (platform flag only); `origin/feat/assistant:src/app/api/v1/me/assistant-memory/[id]/route.ts:53-54` (PATCH, DELETE) |
+| No-show block: 3 in 90 days, recounted, lifted when fewer than three remain or by the club                                                                        | `src/app-layer/usecases/booking-rules.ts:30-32,67-131` (`noShowStanding`, computed, never stored; `noShowBlockClearedAt`)                                   |
+| Reviews checked by Anthropic before publishing; auto-reject only `sexual/minors` and `self-harm/instructions`; doubt goes to a person; every refusal opens a case | `src/lib/moderation/classify.ts:67,129,135,203`; `src/app-layer/usecases/reviews.ts:14,147-149,189`                                                         |
 
-## 6. Google
+## 6. Who sees what
 
-| Claim | Backed by |
-| --- | --- |
-| Sign-in asks only `openid email profile`, used only for the account | `docs/oauth-setup.md:67`; `provider-account.ts:46-66` |
-| Calendar works only when switched on | `origin/feat/assistant:src/env.ts:152` (`GOOGLE_CALENDAR_SYNC` default `'0'`) |
-| Scopes `calendar.app.created` and `calendar.freebusy` | `origin/feat/assistant:src/lib/google-calendar/oauth.ts:33,40` |
-| One calendar named playerz | `origin/feat/assistant:src/app-layer/usecases/google-calendar-sync.ts:68,229` |
-| Bookings, games, lessons, tournament matches; title, time, venue name and address, court, link | `origin/feat/assistant:src/app-layer/usecases/google-calendar-sync.ts:148-157,190-202`; `docs/google-calendar-sync.md` on that branch |
-| No other players' names in events | Same lines: summary, location and description hold venue, court and link only |
-| Free/busy only, primary and playerz calendars | `origin/feat/assistant:src/app-layer/usecases/google-calendar-sync.ts:458-461,521` |
-| Used when a co-player asks the assistant; they learn only free or unknown | `origin/feat/assistant:src/app-layer/usecases/assistant-best-time.ts:184`; `docs/assistant.md` "Privacy" on that branch |
-| The refresh token is encrypted | `origin/feat/assistant:src/app-layer/usecases/google-calendar.ts:270,277` (`encryptField`) |
-| Also kept: Google email, scopes, calendar id | `origin/feat/assistant:prisma/schema/calendar.prisma:26-33` |
-| Switching off revokes at Google and deletes the key; the calendar stays | `origin/feat/assistant:src/app-layer/usecases/google-calendar.ts:384-422` |
-| Same on account deletion | `origin/feat/assistant:src/lib/account/deletion-plan.ts:602-608` |
-| Not sold, not for ads, not for AI training | No such use in the code. It is a commitment the owner makes. |
-| The Limited Use sentence | Google's required disclosure, quoted verbatim |
+| Claim                                                                                                                                     | Backed by                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Open-game card for everyone, never email or phone                                                                                         | `src/app-layer/usecases/open-play.ts:72-75,211,454-456`                                                                                                                                                   |
+| Level visible unless hidden, on by default; signed-in rankings with names; draws                                                          | `ratingPublic @default(true)`, `auth.prisma:196`; `docs/ranking.md:66-90`; `src/app/api/v1/tournaments/[id]/draw/route.ts:12-20`                                                                          |
+| Search visibility on by default; people you have played with can still write                                                              | `searchable @default(true)`, `auth.prisma:191`; `src/app-layer/usecases/messaging.ts:883-887`                                                                                                             |
+| The player list is for the organiser, players and askers                                                                                  | `open-play.ts:190-196`                                                                                                                                                                                    |
+| The club you book at or belong to sees name, email, bookings, no-shows, credit, messages, tags, notes; phone only for an upcoming booking | `src/app/(app)/t/[slug]/admin/players/PlayersBoard.tsx:66,226-228`; `src/app/(app)/t/[slug]/admin/calendar/diary-day.ts:187-216`                                                                          |
+| A club you only wrote to sees your name and messages                                                                                      | Club inbox RLS, `prisma/schema/messaging.prisma:21-28`; the players board lists only players with a relationship row, written by bookings and membership (`booking-outcome.ts:278,362`, `players.ts:111`) |
+| Clubs are separate controllers for their own records                                                                                      | Legal position (owner confirmation), not code                                                                                                                                                             |
+| Coach sees name, level, rating if allowed, phone only for an upcoming lesson                                                              | `src/app-layer/usecases/coach-lessons.ts:734,858-882`                                                                                                                                                     |
+| Coach review with a shortened name                                                                                                        | `src/lib/coaches/reviews.ts:9-10`                                                                                                                                                                         |
+| Certificate hidden; `COACH_APPROVE` only; every opening audited                                                                           | `docs/coaches.md:60-68`; `src/app/api/v1/platform/coaches/[userId]/certificate/route.ts:20-21`                                                                                                            |
+| In-app team access: personal, ≤ 90 days, recorded; moderator sees 20 messages, not the reporter                                           | `docs/platform-admin-runbook.md:16`; `src/app-layer/usecases/moderation-messages.ts:22-23,41`                                                                                                             |
+| The operator's direct server and database access is not recorded in the app                                                               | `docs/deploy-gcp.md` (operator SSH to the VM); no app-level log of it exists                                                                                                                              |
 
-## 7. Assistant
+## 7. Providers, transfers, others
 
-| Claim | Backed by |
-| --- | --- |
-| Works only when switched on | `origin/feat/assistant:src/env.ts:403` (`ASSISTANT_ENABLED` default `'0'`) |
-| For players and coaches | `origin/feat/assistant:src/app-layer/usecases/assistant-ask.ts:68` (`playsAsPlayer`: PLAYER or COACH) |
-| Anthropic models | `origin/feat/assistant:src/app-layer/ai/assistant/config.ts:18,24` |
-| Books nothing; proposes a draft | `docs/assistant.md` "What it does" on that branch |
-| Up to 50 remembered things, 280 characters each, with the source sentence | `origin/feat/assistant:src/lib/assistant/memory-limits.ts:8,14`; `AssistantMemoryFact.sourceQuote` |
-| A daily cost record | `AssistantSpend`; `origin/feat/assistant:src/app-layer/ai/assistant/config.ts:27` |
-| Sent: question, up to 6 earlier turns, remembered things, search results with co-players' names and free/unknown | `origin/feat/assistant:src/app-layer/usecases/assistant-conversation.ts:17,19`; `docs/assistant.md` "Privacy" |
-| Location is not sent | `origin/feat/assistant:src/app-layer/ai/assistant/prompt.ts:81,91` (only "shared: yes/no"); used server-side, `tools.ts:190` |
-| Memory: 10 minutes after the conversation goes quiet, up to 5 new things | `origin/feat/assistant:src/app-layer/usecases/assistant-memory-sweep.ts:23`; `memory-extractor.ts:17` |
-| A delete hides the item; the text is erased on account deletion | Soft delete, `origin/feat/assistant:src/app-layer/usecases/assistant-memory.ts:9,45`, `assistant-conversations-control.ts:37,79`; hard delete in `deletion-plan.ts:613` on that branch |
+| Claim                                                                                                      | Backed by                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google Cloud europe-west1: server, database, backups, photos                                               | `docs/deploy-gcp.md:3-4,862,873-875`; `docs/media-storage.md:54`; bucket locations read with gcloud on 2026-11-15 (`EUROPE-WEST1`)                                                       |
+| Apple, Resend, Infobip, Anthropic, Meta receive what the table says                                        | `src/lib/push/apns.ts:288-306`; `src/lib/email/provider.ts:141-150`; `src/lib/sms/phone-verifier.ts:102-142`; `src/lib/moderation/classify.ts:197-227`; `src/lib/auth/facebook.ts:42,48` |
+| Every processor is bound by contract; DPF or SCCs (SCCs for Anthropic); Infobip in the EU; copy on request | Legal and contractual commitments (owner confirmation: Anthropic under SCCs)                                                                                                             |
+| OpenFreeMap tiles see the IP; Directions opens Google Maps                                                 | `origin/feat/697-web-venues:src/components/venues/ClubsMap.tsx:18-19`; `src/app/(public)/me/bookings/[id]/directions.ts:20`                                                              |
+| No online payment at present                                                                               | `src/lib/stripe.ts:14-20`; `onlinePaymentEnabled` default off, `auth.prisma:62-69`                                                                                                       |
 
-## 8. Notifications and emails
+## 8. Google
 
-| Claim | Backed by |
-| --- | --- |
-| A message notification names the sender, never the text | `src/app-layer/usecases/messaging-notify.ts:127-134` |
-| Each kind has its own switch | `push*` and `email*` fields, `prisma/schema/auth.prisma:159-186` |
-| Fact of the week: Mondays from 10:00, players only, own switch | `SPORT_FACT_SEND_HOUR = 10`, `src/app-layer/usecases/sport-facts.ts:21,60,129-131`; `pushSportFacts`, `prisma/schema/auth.prisma:186` |
-| Email kinds: confirmations, reminders, club changes, open games, messages, lessons taught | `src/lib/email/unsubscribe.ts:34-42`; call sites in `src/app-layer/usecases/booking-notifications.ts` |
-| A message email: no sooner than 10 minutes, at most once an hour per conversation | `EMAIL_DELAY_MS`, `EMAIL_WINDOW_MS`, `src/app-layer/usecases/messaging-notify.ts:49,51` |
-| Unsubscribe link in each email | `src/lib/email/unsubscribe.ts`; `src/app/(public)/email/unsubscribe/[token]` |
-| Account emails without a switch | `src/app-layer/usecases/coach-approval.ts:509`; `coach-link-notifications.ts:117,175` |
-| Plain text, no tracking images, no advertising emails | `src/lib/email/provider.ts:40,146` (text only); no marketing category exists |
+| Claim                                                                                                    | Backed by                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in scopes and use                                                                                   | `docs/oauth-setup.md:67`; `provider-account.ts:46-66`                                                                                       |
+| Calendar only when switched on; the app explains it before connecting                                    | `origin/feat/assistant:src/env.ts:152`. The explanation screen is product issue #713.                                                       |
+| Scopes `calendar.app.created`, `calendar.freebusy`                                                       | `origin/feat/assistant:src/lib/google-calendar/oauth.ts:33,40`                                                                              |
+| One calendar named playerz; events with title, time, venue, court, link; no other names                  | `origin/feat/assistant:src/app-layer/usecases/google-calendar-sync.ts:68,190-202,229`                                                       |
+| Free/busy only                                                                                           | `origin/feat/assistant:src/app-layer/usecases/google-calendar-sync.ts:458-461,521`                                                          |
+| The asker learns free/unknown, whether you connected, and that busy includes your other playerz bookings | `origin/feat/assistant:src/app-layer/usecases/assistant-best-time.ts:36-41,94,103`                                                          |
+| Anthropic receives your profile name and free/unknown                                                    | `assistant-best-time.ts:110-111,194,230` on that branch (`nameOf` returns `User.name`, the full profile name)                               |
+| Encrypted token; Google email, scopes, calendar id kept                                                  | `origin/feat/assistant:src/app-layer/usecases/google-calendar.ts:270,277`; `origin/feat/assistant:prisma/schema/calendar.prisma:26-33`      |
+| Switching off revokes and deletes; the calendar stays; same on deletion                                  | `origin/feat/assistant:src/app-layer/usecases/google-calendar.ts:384-422`; `origin/feat/assistant:src/lib/account/deletion-plan.ts:602-608` |
+| No AI training on Google data; Limited Use sentences                                                     | Commitment (owner confirmation); Google's required disclosure                                                                               |
 
-## 9. Location and maps
+## 9. Assistant
 
-| Claim | Backed by |
-| --- | --- |
-| Coordinates are used only for the search and not stored | `src/app/api/v1/venues/near/route.ts:61-74`; the request log records the route, not the query, `src/lib/errors/api.ts:162` |
-| Venue plans are drawn from OpenStreetMap data, no tiles loaded | `src/lib/venues/plan.ts:73-74`; `maplibre-gl` imported nowhere in `src/` |
-| "Directions" opens Google Maps with the venue address | `src/app/(public)/me/bookings/[id]/directions.ts:20` |
-| Photos load from Google Cloud Storage, which sets no cookies | `src/lib/media/config.ts:27`; `docs/legal-pages.md` cookie audit |
+| Claim                                                                                                                                   | Backed by                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| An AI on Anthropic models, for players and coaches                                                                                      | `origin/feat/assistant:src/app-layer/ai/assistant/config.ts:18,24`; `assistant-ask.ts:68` (`playsAsPlayer`)                                                                                               |
+| Proposes a draft, books nothing                                                                                                         | `origin/feat/assistant:src/app-layer/ai/assistant/prompt.ts:34`                                                                                                                                           |
+| 50 points of 280 characters, with source sentence; daily cost                                                                           | `origin/feat/assistant:src/lib/assistant/memory-limits.ts:8,14`; `config.ts:27`                                                                                                                           |
+| Up to 5 earlier messages, 6,000 characters                                                                                              | `origin/feat/assistant:src/app-layer/usecases/assistant-conversation.ts:17,19`; the question is recorded before the window is read, `assistant-ask.ts:106-108`                                            |
+| Up to 8 past-conversation excerpts                                                                                                      | `origin/feat/assistant:src/app-layer/usecases/assistant-conversations-control.ts:15-16`                                                                                                                   |
+| Screen and ids                                                                                                                          | `origin/feat/assistant:src/app-layer/ai/assistant/prompt.ts:81,94-95`                                                                                                                                     |
+| Recent bookings                                                                                                                         | `origin/feat/assistant:src/app-layer/usecases/assistant-best-time.ts:119,314-327`                                                                                                                         |
+| Distances to clubs; coordinates not sent                                                                                                | `origin/feat/assistant:src/app-layer/usecases/assistant-find-places.ts:68,91,125`; `prompt.ts:91` (yes/no only); `tools.ts:190` (server-side)                                                             |
+| Memory sweep 10 minutes after the conversation stops; up to 5 points                                                                    | `origin/feat/assistant:src/app-layer/usecases/assistant-memory-sweep.ts:23`; `memory-extractor.ts:17`                                                                                                     |
+| A deleted conversation keeps its text until account deletion; a deleted point is kept and sent as "do not re-learn"; both in the export | `origin/feat/assistant:src/app-layer/usecases/assistant-conversations-control.ts:37,79`; `assistant-memory-sweep.ts:88-106` (`refused`); `docs/assistant.md` rule 7. A real delete is product issue #716. |
 
-## 10. Protection
+## 10. Notifications and emails
 
-| Claim | Backed by |
-| --- | --- |
-| Phone, messages and two-factor secrets encrypted with AES-256-GCM | `src/lib/security/encryption.ts:4,12`; phone `phone-verification.ts:282`, messages `messaging.ts:1253`, two-factor `src/lib/auth/mfa.ts:284` |
-| Certificate and calendar key encrypted | `docs/coaches.md:60-65`; calendar row above |
-| Email and phone fingerprints are one-way | `src/lib/account/no-show-fingerprint.ts:28-60` (HMAC-SHA256); `phone-fingerprint.ts:59-64` |
-| Metadata removed from uploaded photos | `docs/media-storage.md:17` |
-| Servers, database and backups in the EU | section 5 rows |
-| Changes by the team need a second factor | `docs/platform-admin-runbook.md:84-86` |
+| Claim                                                          | Backed by                                                                                                                                                                |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A message notification and email show the sender, not the text | `src/app-layer/usecases/messaging-notify.ts:58-80,127-134`                                                                                                               |
+| Most kinds have a switch; account notices have none            | `src/app-layer/usecases/notification-outbox.ts:391-406` (`default: true`); `result-notifications.ts:205`; `coach-approval.ts:509`; `coach-link-notifications.ts:117,175` |
+| Fact of the week: Mondays from 10:00, players, own switch      | `src/app-layer/usecases/sport-facts.ts:21,60,129-131`; `auth.prisma:186`                                                                                                 |
+| Email kinds; 10-minute delay, once an hour; unsubscribe link   | `src/lib/email/unsubscribe.ts:34-42`; `messaging-notify.ts:49,51`                                                                                                        |
+| Plain text, no tracking images, no advertising                 | `src/lib/email/provider.ts:40,146`                                                                                                                                       |
 
-## 11. Retention
+## 11. Location and maps
 
-| Claim | Backed by |
-| --- | --- |
-| Profile, messages, notifications, sent emails, reviews, devices kept while the account exists | No purge job for them; removed by the deletion plan, `src/lib/account/deletion-plan.ts` (`EmailOutbox` :591, `DeviceToken` :607) |
-| iPhone sessions with IP kept until the account is deleted | No purge of `user_session`; `deletion-plan.ts:147-163` |
-| Bookings and payments stay without a name; no end date today | `deletion-plan.ts:307-350` |
-| No-shows after deletion: up to 90 days from each | `purgeLapsedNoShowCarries`, `src/app-layer/usecases/no-show-carry.ts:161-167`, run every minute by `src/app/api/cron/complete-ended-bookings/route.ts:82`; `NO_SHOW_WINDOW_DAYS = 90` |
-| Certificate: while active; deleted when stopped or on deletion; 30 days on an unchanged draft or declined profile | `DRAFT_CERTIFICATE_KEPT_DAYS = 30`, `src/lib/coaches/certificate-limits.ts:33`; `src/app-layer/usecases/coach-certificate-retention.ts:33,58`; `coach-approval.ts:423` |
-| IP for abuse protection: 2 hours at most | Redis TTL `windowMs + lockoutMs`, `src/lib/security/rate-limit.ts:283`; the longest IP-keyed limits are `API_KEY_CREATE_LIMIT` and `TENANT_CREATE_LIMIT` (1 h + 1 h), `:438,475` |
-| Logs rotated by size | `max-size: '10m'`, `max-file: '3'`, `deploy/docker-compose.prod.yml:42-43` |
-| "For clubs" enquiries kept until a request | `deletion-plan.ts:612`; no purge job |
-| Accepted texts and booking history kept after deletion | `deletion-plan.ts:140` (`LegalAcceptance`), `:676-690` (`AuditEntry`) |
-| Backups: dump 30 days plus 7 days soft delete; disk snapshot 14 days; gone within 37 days | `docs/deploy-gcp.md:861-862,873-875`; bucket lifecycle read on 2026-11-15 (`Delete` at age 30) |
+| Claim                                                             | Backed by                                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iPhone coordinates used for the search only, not stored or logged | `src/app/api/v1/venues/near/route.ts:61-74`; the log records the route, not the query                                                                                                                                                              |
+| Web map tiles from OpenFreeMap                                    | `origin/feat/697-web-venues:src/components/venues/ClubsMap.tsx:18-19`                                                                                                                                                                              |
+| Browser location rounded to about 100 m, search only              | `origin/feat/697-web-venues:src/components/venues/use-here.ts:23-24`; `src/lib/venues/near.ts:23-40` on that branch. That branch still sends `Permissions-Policy: geolocation=()` (`src/lib/security/headers.ts:45`), which blocks it until fixed. |
+| `venues.radiusKm` remembers the distance                          | `origin/feat/697-web-venues:src/lib/venues/near.ts:13`; `VenueList.tsx:83,275`                                                                                                                                                                     |
+| Venue plans from OpenStreetMap; photos from Cloud Storage         | `src/lib/venues/plan.ts:73-74`; `src/lib/media/config.ts:27`                                                                                                                                                                                       |
 
-## 12. Deletion
+## 12. Protection
 
-| Claim | Backed by |
-| --- | --- |
-| Self-service, immediate, final, no waiting period | `src/app/api/v1/me/route.ts:99-130`; `src/app-layer/usecases/account-deletion.ts:21`; trigger `app_user_tombstone_final`, `deletion-plan.ts:135-137` |
-| Refused with upcoming bookings, lessons or tournaments | `messages/*.json` `profile.delete.blocked.*`; `account-deletion.ts` |
-| Club accounts deleted on request | `docs/platform-admin-runbook.md:705-735` |
-| Deleted: name, phone, picture, sports, notifications, email settings, reviews, invite links, memberships and tags, favourites, blocks, devices, sessions, message text | `deletion-plan.ts` (tombstone :72-103, tags :263, chat body :860-866, avatar :939-951) |
-| The reports you filed are deleted (unlike Agrent, which keeps them under the DSA) | `deletion-plan.ts:546-574` (`ContentReport` deleted, `ModerationCase.reportedByUserId` nulled) |
-| Email replaced, so the address can sign up again | `deleted-<id>@deleted.playerz.invalid`, `deletion-plan.ts:76` |
-| Bookings stay as "Deleted user"; payments and credit stay; credit lost | `deletion-plan.ts:307-350`; `messages/*.json` `deleteAccountHelp.kept.*` |
-| Booking history stays, no IP in it | `deletion-plan.ts:683-687` (the IP column is never written) |
-| No-shows carried on email and phone fingerprints, move to a new account with the same email or phone | `deletion-plan.ts:278-299`; `provider-account.ts:120-127`; `phone-verification.ts:293` |
-| Results stay without a name | Match and tournament rows kept against the tombstone, whose name is cleared |
+| Claim                                                                                                | Backed by                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Confirmed phone, messages, two-factor keys encrypted (AES-256-GCM); certificate and calendar key too | `src/lib/security/encryption.ts:4,12`; `phone-verification.ts:282`; `messaging.ts:1253`; `src/lib/auth/mfa.ts:284`; `docs/coaches.md:60-65` |
+| Desk-typed names and phones, and the form's phone and email, are plain text                          | `booking.prisma:134-141` (`customerName`, `customerPhone`); `notifications.prisma:239-256`                                                  |
+| Fingerprints cannot be read back but recognise a repeat                                              | `src/lib/account/no-show-fingerprint.ts:28-60`; `phone-fingerprint.ts:59-64`                                                                |
+| Photo metadata removed; the certificate is kept as sent                                              | `docs/media-storage.md:17`; certificate bytes sealed whole, `docs/coaches.md:60-65`                                                         |
+| Team changes need a second factor                                                                    | `docs/platform-admin-runbook.md:84-86`                                                                                                      |
 
-## 13. Export
+## 13. Retention
 
-| Claim | Backed by |
-| --- | --- |
-| Profile → Privacy → Download my data, one JSON file | `src/app/api/v1/me/export/route.ts:14,59`; `messages/*.json` `profile.data.download` |
-| What it contains | `src/app-layer/usecases/data-export.ts:14-38,132-419` (format version 11 on `main`, 13 on `origin/feat/assistant`) |
-| What it leaves out: credentials, others' contact details, club tags | `tests/helpers/export-excluded.ts`; `tests/guardrails/data-export-excludes-secrets.test.ts`; `data-export.ts:56-61` |
-| 10,000 rows per kind at most | `EXPORT_ROW_CAP = 10_000`, `data-export.ts:81` |
+| Claim                                                                                           | Backed by                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account data kept while the account exists                                                      | No purge jobs; removed by `src/lib/account/deletion-plan.ts`                                                                                                                 |
+| Session records 90 days after the session ends                                                  | Policy states 90 days; code enforcement tracked in #717 (no purge of `user_session` today)                                                                                   |
+| Sign-in keys expire: 7 days web, 30 days iPhone, both absolute                                  | `src/auth.ts:404-411` (`expiresAt` at sign-in); `src/lib/auth/sessions.ts:185,276,282-291`                                                                                   |
+| Bookings, club payments, booking history: 5 years after the booking, then deleted or anonymised | Policy states 5 years (Art. 110 ЗЗД); code enforcement tracked in #717                                                                                                       |
+| No-shows after deletion: up to 90 days                                                          | `src/app-layer/usecases/no-show-carry.ts:161-167`; `src/app/api/cron/complete-ended-bookings/route.ts:82`                                                                    |
+| Accepted texts after deletion: 5 years                                                          | Policy states 5 years; code enforcement tracked in #717 (`deletion-plan.ts:140` keeps them today)                                                                            |
+| Certificate: 30 days on an unchanged draft or declined profile                                  | `src/lib/coaches/certificate-limits.ts:33`; `coach-certificate-retention.ts:33,58`                                                                                           |
+| IP: ≤ 2 hours in memory; up to 14 days in disk snapshots                                        | `src/lib/security/rate-limit.ts:283,438,475`; Redis append-only file on the VM disk (`deploy/docker-compose.prod.yml:136`), snapshot kept 14 days (`docs/deploy-gcp.md:861`) |
+| Logs: ≤ 30 MB per service, by size                                                              | `deploy/docker-compose.prod.yml:42-43` (`10m` × 3)                                                                                                                           |
+| "For clubs" enquiries: 2 years after the last contact                                           | Policy states 2 years; code enforcement tracked in #717 (`deletion-plan.ts:612`, no purge today)                                                                             |
+| Backups: 30 + 7 days, snapshots 14 days, gone within 37 days                                    | `docs/deploy-gcp.md:861-862,873-875`; bucket lifecycle read on 2026-11-15                                                                                                    |
 
-## 14–16. Rights, children, changes
+## 14. Deletion
 
-| Claim | Backed by |
-| --- | --- |
-| Name and sports edited in Profile; email comes from Google | `src/app-layer/schemas/me.ts:58-80` |
-| Answer within one month | GDPR Art. 12(3); a commitment, not code |
-| КЗЛД, https://www.cpdp.bg | The Bulgarian supervisory authority |
-| No age check today | No age gate in the code; `PlayerProfile.dateOfBirth` is never written |
-| A material change is shown and accepted once; a typo fix keeps the version | `src/lib/legal/versions.ts`; `docs/legal-pages.md` "Versions" |
+| Claim                                                                                      | Backed by                                                                                                                             |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Immediate, final; refused with upcoming bookings, lessons, tournaments; clubs on request   | `src/app/api/v1/me/route.ts:99-130`; `account-deletion.ts:21`; `deletion-plan.ts:135-137`; `docs/platform-admin-runbook.md:705-735`   |
+| What is deleted, including reports, calendar and assistant data                            | `deletion-plan.ts:72-103,263,546-574,860-866,939-951`; `origin/feat/assistant:src/lib/account/deletion-plan.ts:602-613`               |
+| Bookings stay as "Deleted user"; payments and credit movements stay                        | `deletion-plan.ts:307-350`                                                                                                            |
+| Credit is removed from playerz.bg; settle with the club first                              | Credit ledger kept against the tombstone; the profile shows the balance before deletion (`messages/*.json` `profile.delete.credit.*`) |
+| Booking and staff history stays; may hold desk-typed names and invitation addresses; no IP | `deletion-plan.ts:683-704` (`details`, `detailsJson` kept; IP never written)                                                          |
+| No-shows carried on email and phone fingerprints                                           | `deletion-plan.ts:278-299`; `provider-account.ts:120-127`; `phone-verification.ts:293`                                                |
+| Notifications and emails already sent to others stay with them                             | The deletion plan deletes the person's own rows only (`deletion-plan.ts:578-591`)                                                     |
+| Team second-factor attempts stay without IP and device                                     | `deletion-plan.ts:181-193`                                                                                                            |
+
+## 15. Export
+
+| Claim                                                                                                      | Backed by                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Profile → Privacy → Download my data, one JSON file                                                        | `src/app/api/v1/me/export/route.ts:14,59`; `messages/*.json` `profile.data.download`                        |
+| Contents, including calendar and assistant data with deleted points                                        | `src/app-layer/usecases/data-export.ts:14-38,132-419` (version 11 on `main`, 13 on `origin/feat/assistant`) |
+| Leaves out credentials, others' contacts, favourites, reports, desk notes, club tags; tags sent on request | `tests/helpers/export-excluded.ts`; `data-export.ts:56-61`. Adding them is product issue #710.              |
+| 10,000 rows per kind                                                                                       | `data-export.ts:81`                                                                                         |
+
+## 16–19. Rights, children, changes, language
+
+| Claim                                             | Backed by                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| Name and sports editable; email from Google       | `src/app-layer/schemas/me.ts:58-80`                           |
+| One month, extendable by two                      | GDPR Art. 12(3)                                               |
+| Age 14; guardian agreement under 18; no age check | Owner confirmation (default 14); no age gate in the code      |
+| A material change is accepted once                | `src/lib/legal/versions.ts`; `docs/legal-pages.md` "Versions" |
+| The Bulgarian text prevails                       | Drafting choice (owner confirmation)                          |
