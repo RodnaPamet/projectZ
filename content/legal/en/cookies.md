@@ -14,16 +14,16 @@ We have no cookies for advertising, tracking or analytics. We load no scripts fr
 
 ## 3. Cookies
 
-| Name                                                                  | For what                                                                  | How long                                     |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------- |
-| `__Secure-next-auth.session-token` (split into `.0`, `.1` when large) | Keeps you signed in to your account.                                      | 7 days from sign-in. Then you sign in again. |
-| `__Host-next-auth.csrf-token`                                         | Protects sign-in.                                                         | Until you close the browser.                 |
-| `__Secure-next-auth.callback-url`                                     | Where to take you back after sign-in.                                     | Until you close the browser.                 |
-| `__Secure-next-auth.pkce.code_verifier`                               | Protection during sign-in with Google.                                    | 15 minutes.                                  |
-| `__Secure-next-auth.state`                                            | Protection during sign-in with Facebook.                                  | 15 minutes.                                  |
-| `NEXT_LOCALE`                                                         | The language you chose.                                                   | 1 year.                                      |
-| `playerz_theme`                                                       | The theme (light or dark) you chose.                                      | 1 year.                                      |
-| `pz_phone_later`                                                      | Remembers that you pressed "Not now" when we asked for your phone number. | 30 days.                                     |
+| Name                                                                  | For what                                                                   | How long                                     |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------- |
+| `__Secure-next-auth.session-token` (split into `.0`, `.1` when large) | Keeps you signed in to your account.                                       | 7 days from sign-in. Then you sign in again. |
+| `__Host-next-auth.csrf-token`                                         | Protects sign-in.                                                          | Until you close the browser.                 |
+| `__Secure-next-auth.callback-url`                                     | Where to take you back after sign-in.                                      | Until you close the browser.                 |
+| `__Secure-next-auth.pkce.code_verifier`                               | Protection during sign-in with Google.                                     | 15 minutes.                                  |
+| `__Secure-next-auth.state`                                            | Protection during sign-in with Facebook, once Facebook sign-in is offered. | 15 minutes.                                  |
+| `NEXT_LOCALE`                                                         | The language you chose.                                                    | 1 year.                                      |
+| `playerz_theme`                                                       | The theme (light or dark) you chose.                                       | 1 year.                                      |
+| `pz_phone_later`                                                      | Remembers that you pressed "Not now" when we asked for your phone number.  | 30 days.                                     |
 
 `NEXT_LOCALE` and `playerz_theme` are written when you choose a language or theme yourself. While you are signed in, `NEXT_LOCALE` is updated on every request where it differs from your account's language. It then holds your account's language.
 

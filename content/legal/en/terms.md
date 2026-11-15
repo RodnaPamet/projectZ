@@ -38,7 +38,7 @@ We do not organise the game itself and we are not responsible for the venue. The
 - **Cancelling.** You can cancel a booking in the app until the club's deadline. That is usually 24 hours before the start, but the club can choose another deadline, up to 7 days before the start. After the deadline, only the club can cancel the booking.
 - **No-shows.** If you do not show up three times within 90 days at one club, your online bookings there are stopped. They stay stopped until fewer than three no-shows fall within the last 90 days, or until the club lets you book again sooner.
 - **A new account.** If you delete your account and make a new one with the same email address or phone number, the no-shows move to the new account. Each one counts for 90 days from the day it happened.
-- **Credit at a club.** Credit is between you and the club. Deleting your account removes it from playerz.bg. Settle any balance with the club before you delete your account.
+- **Credit at a club.** Credit is between you and the club. After you delete your account you can no longer see or use the balance on playerz.bg; the club keeps its record of past movements. Settle any balance with the club before you delete your account.
 - **The club decides.** The club sets prices, hours and the venue's rules.
 
 ## 5. Games, results and rankings
@@ -65,9 +65,9 @@ We do not organise the game itself and we are not responsible for the venue. The
 - The club is responsible for the accuracy of its hours, prices and rules.
 - The club sees data about the players who book with it or belong to it: their names, email addresses, bookings, no-shows, credit, and the phone number for an upcoming booking. The club may use it only for the bookings and to contact the player.
 - Each club is a separate controller for the data it records about its own customers: tags, no-shows, bookings made by its staff, and credit. We process that data to provide the service.
-- **Ranking.** When you search nearby, venues are listed by distance. Otherwise they are shown in a fixed order. You can filter them by sport and city. No club pays for a higher place.
+- **Ranking.** When you search nearby, venues are listed by distance. Otherwise they are shown in the order they were added to playerz.bg. You can filter them by sport and city. No club pays for a higher place.
 - **Restriction and suspension.** We can suspend or restrict a club account if it breaks these terms or the law, or gives false information about hours and prices. We will give the club our reasons at the latest at the moment we act.
-- **Termination.** We can end our contract with a club with 30 days' notice. Shorter notice, or ending without notice, is possible only in the cases in Article 4(4) of Regulation (EU) 2019/1150: a legal obligation, or repeated breaches.
+- **Termination.** We can end our contract with a club with 30 days' notice. Shorter notice, or ending without notice, is possible only in the cases in Article 4(4) of Regulation (EU) 2019/1150: a legal obligation, repeated breaches, or an imperative reason under national law.
 - **Changes.** We announce changes to these terms to clubs at least 15 days ahead.
 - **Data.** A club can ask us for the data it entered or that was created by its use of the service.
 - A club account is deleted on request.
@@ -89,7 +89,7 @@ We moderate the parts of the service that other people can see: messages, review
 - **Contact point.** For public authorities and for users, our contact point under the Digital Services Act (Articles 11 and 12 of Regulation (EU) 2022/2065) is [ivo@inflect.bg](mailto:ivo@inflect.bg). Write to us in Bulgarian or English.
 - **Reports in the app.** You can report a message, a conversation, a game note or a review of a coach. A moderator looks at every report. For a reported message, the moderator sees the message and the last 20 messages of the conversation. They do not see who filed the report.
 - **Reporting illegal content.** Anyone, with or without an account, can send us such a report at [ivo@inflect.bg](mailto:ivo@inflect.bg). Say where the content is and why you think it is illegal. Give your name and email address, and confirm that you are writing in good faith. We will confirm that we received the report. We will tell you what we decided, and whether we used automated means.
-- **Reviews.** The text of every review is first checked by an artificial intelligence model. Only clear cases are refused automatically: sexual content involving minors and instructions for self-harm. Anything else in doubt goes to a moderator.
+- **Reviews.** The text of every review is first checked by an artificial intelligence model. Only clear cases are refused automatically: sexual content involving minors and instructions for self-harm. Anything else in doubt goes to a moderator. Every automatic refusal also opens a case for a moderator.
 - **What we can do.** Remove a message, close a conversation, delete a game note or refuse a review. We can suspend or close a club account. In a serious or repeated case, we can also close a player or coach account.
 - **Reasons.** When we remove or restrict content or an account, including when we refuse a review, we will tell you why and how you can object.
 - **Threats to life or safety.** If we learn of a crime that threatens people's life or safety, we will inform the authorities.
@@ -104,7 +104,7 @@ We back up the database every night. So under normal conditions the most we woul
 ## 12. Ending it
 
 - You can stop using the service and delete your account at any time. How to do it is described on the page [How to delete your account](/delete-account).
-- We can close your account if you break these terms. We will tell you why.
+- We close your account only for a serious or repeated breach of these terms. We will tell you why.
 - For any other reason, we close an account only with 30 days' notice.
 - If we stop the service, we will warn you in advance and give you time to download your data.
 

@@ -16,7 +16,7 @@ We have not appointed a data protection officer, because the law does not requir
 
 ### Account and sign-in
 
-- **Sign-in.** You sign in with your Google account. Signing in with Facebook or Apple will only be possible once we offer it. From Google we receive your email address, name and picture.
+- **Sign-in.** You sign in with your Google account. Signing in with Facebook or Apple will be possible only once we offer it. From Google we receive your email address, name and picture.
 - **What we keep from sign-in.** Your email address, name and language. Of your picture we keep our own copy: a small image with no metadata. We keep neither a password nor the access keys Google gives us at sign-in.
 - **Account kind.** Player, club or coach. An account is of one kind only.
 - **Sports and level.** The sports you chose and the level you gave yourself (1 to 7). If you fill in the level questionnaire, we keep only the resulting level, not your answers.
@@ -81,7 +81,7 @@ If a club writes to us through the form on the home page, we keep the person's n
 
 - Your email address and name (from Google) are needed to have an account.
 - A confirmed phone number is needed only where we ask for it (for example to book online, when that step is on).
-- Everything else is optional: picture, level, search visibility, Google Calendar and the assistant.
+- Everything else is optional: picture, level, search visibility, Google Calendar (when available) and the assistant (when available).
 
 ## 5. What we use it for, and on what basis
 
@@ -151,15 +151,15 @@ If you disagree with such a decision, write to us. A person from our team will l
 
 ## 7. Providers who process data on our behalf (processors)
 
-| Provider        | For what                                                | What data                                                                                      |
-| --------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Google Cloud    | Server, database, backups, photos                       | All the data in the service. Stored in the EU, in region europe-west1 (Belgium).               |
-| Google          | Sign-in with Google; Google Calendar, if you connect it | See section 8.                                                                                 |
-| Apple           | Notifications on iPhone                                 | The device key, the notification's title and text, a link to the screen in the app.            |
-| Resend          | Sending emails                                          | The email address, the email's subject and text. Also the enquiries from the "For clubs" form. |
-| Infobip         | SMS code to confirm your phone                          | Your phone number and language.                                                                |
-| Anthropic       | Checking reviews; the assistant                         | The review's text; for the assistant, see sections 8 and 9.                                    |
-| Meta (Facebook) | Sign-in with Facebook, once we offer it                 | Your name, email address and picture from Facebook.                                            |
+| Provider        | For what                                                                 | What data                                                                                      |
+| --------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Google Cloud    | Server, database, backups, photos                                        | All the data in the service. Stored in the EU, in region europe-west1 (Belgium).               |
+| Google          | Sign-in with Google; Google Calendar, if you connect it (when available) | See section 8.                                                                                 |
+| Apple           | Notifications on iPhone                                                  | The device key, the notification's title and text, a link to the screen in the app.            |
+| Resend          | Sending emails                                                           | The email address, the email's subject and text. Also the enquiries from the "For clubs" form. |
+| Infobip         | SMS code to confirm your phone                                           | Your phone number and language.                                                                |
+| Anthropic       | Checking reviews; the assistant (when available)                         | The review's text; for the assistant, see sections 8 and 9.                                    |
+| Meta (Facebook) | Sign-in with Facebook, once it is offered                                | Your name, email address and picture from Facebook.                                            |
 
 Every provider in this table is bound by contract to protect your data at least as well as this policy does.
 
@@ -177,7 +177,7 @@ At sign-in we ask Google only for `openid`, `email` and `profile`. We receive yo
 
 ### Google Calendar
 
-This feature works only if you switch it on in Profile with the "Sync with Google Calendar" switch. Before you connect the calendar, the app explains what we will receive. We then ask Google for two permissions:
+This feature is not available yet. When it is, it works only if you switch it on in Profile with the "Sync with Google Calendar" switch. Before you connect the calendar, the app will explain what we will receive. We then ask Google for two permissions:
 
 - `calendar.app.created`. With it we make a separate calendar named **playerz** in your Google account. We write your bookings, games, lessons and tournament matches into it. Each event holds a title, the time, the venue's name and address, the court and a link to playerz.bg. Other players' names are not written. We can neither read nor change your other calendars.
 - `calendar.freebusy`. With it we see only when you are busy and when you are free. We do not see titles, places or names.
@@ -199,6 +199,8 @@ We do not sell data from Google and do not use it for advertising. We do not use
 > Our use of information received from Google APIs follows the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements. The use of information received from Google Workspace scopes will adhere to the [Google User Data Policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy), including the Limited Use requirements.
 
 ## 9. The assistant
+
+The assistant is not available yet. When we switch it on, the following applies.
 
 The assistant is an artificial intelligence program, not a person. It runs on models from Anthropic. It is for player and coach accounts. It is used when you ask it a question. It can help you find a free hour or a good time to play. It books nothing by itself. It only proposes a draft, and you confirm it.
 
@@ -265,10 +267,13 @@ We do not send your coordinates. Distances to clubs can, however, show roughly w
 - **While you have an account:** your profile, sports, settings, messages, notifications, sent emails, reviews, devices, the Google Calendar connection and the assistant's data.
 - **Session records:** up to 90 days after the session ends. The sign-in keys themselves expire sooner: 7 days on the website and 30 days in the iPhone app.
 - **Bookings, club payment entries and booking history:** 5 years after the booking (Article 110 of the Bulgarian Obligations and Contracts Act). We then delete or anonymise them.
+- **The history of changes to bookings and staff at the club:** 5 years after the booking, like the bookings themselves.
+- **Team sign-in attempts with a second factor:** 1 year.
+- **Moderation records** (reports, cases and decisions): 5 years.
 - **No-shows after deletion:** up to 90 days from each no-show (see section 14).
 - **Accepted texts after an account is deleted:** 5 years.
 - **A coach's certificate:** while you are an active coach. It is deleted when we stop your coach profile or you delete your account. If a coach profile is a draft or was declined and has not changed for 30 days, the certificate is deleted.
-- **IP address for limiting requests:** 2 hours at most in the server's memory. It may remain in the server's backups for up to 14 days.
+- **IP address for limiting requests:** 2 hours at most in the server's memory. It may remain in the server's backups for up to 14 days. If a request is stopped for too many attempts, its IP address also goes into the server logs (see below).
 - **Server logs:** the oldest entries are deleted when the logs pass 30 MB per service. There is no fixed number of days.
 - **Enquiries from the "For clubs" form:** 2 years after the last contact, or sooner if you ask us to delete them.
 - **Backups:** the database copy is kept for 30 days, plus 7 more days in which it can be recovered. The copy of the whole disk is kept for 14 days. Deleted data is gone from the backups no later than 37 days after the deletion.
@@ -297,16 +302,17 @@ You can delete your account yourself, at any time, under Profile → Deleting yo
 **What stays, and why:**
 
 - **Your bookings** stay with the clubs under the name "Deleted user", because the club's reports are prepared from them. Payments and credit movements stay too.
-- **Credit at a club** is between you and the club. Deleting your account removes it from playerz.bg. Settle any balance with the club before you delete your account.
+- **Credit at a club** is between you and the club. After deletion you can no longer see or use the balance on playerz.bg; the club keeps its record of past movements. Settle any balance with the club before you delete your account.
 - **The history of changes** to bookings and staff at the club stays, linked to the deleted account. It can include the name club staff typed in for a booking and the address a staff invitation went to. It does not contain your IP address.
 - **No-shows that still count** stay for up to 90 days from each no-show. They are linked to a protected fingerprint of your email address and phone number, not to your name. That way a stop on online booking cannot be dodged with a new account. If you make a new account with the same email address or phone number, the no-shows move to it.
 - **The record of which texts you accepted** stays, as proof.
 - **Match and tournament results** stay, without your name.
-- **Notifications and emails already sent to other people** that name you (for example "New message from Ivan") stay in their accounts.
+- **Some notifications and emails** that name you and were already sent to other people (for example "New message from Ivan") stay in their accounts. But we do delete from other people's accounts the notices that you joined or left a booking, that you added or removed someone, and your requests to join games.
 - **Team sign-in attempts with a second factor** stay recorded, but without the IP address and the device.
+- **Moderation records** stay, but without your name as the person who filed a report.
 - **Enquiries from the "For clubs" form** are deleted on request.
 
-If you signed in with Facebook, you can also remove playerz.bg's access in your Facebook settings. That does not delete your playerz.bg account.
+Once Facebook sign-in is offered: if you signed in with Facebook, you can also remove playerz.bg's access in your Facebook settings. That does not delete your playerz.bg account.
 
 ## 15. A copy of your data
 
