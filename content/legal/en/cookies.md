@@ -1,6 +1,6 @@
 # Cookie policy
 
-playerz.bg is provided by [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, seat and address [ADDRESS], phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg).
+playerz.bg is provided by "Inflect" Ltd. („Инфлект“ ЕООД), UIC 208694564, seat and address 52 Tsacho Shishkov St., entrance A, floor 6, apt. 15, 5500 Lovech, Bulgaria, phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg).
 
 ## 1. What cookies are
 

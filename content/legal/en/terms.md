@@ -4,7 +4,7 @@ These terms describe what playerz.bg does, what we expect of you, and what you c
 
 ## 1. Who you are agreeing with
 
-The playerz.bg service is provided by [BULGARIAN NAME] [EOOD/OOD] (Inflect Ltd), UIC 208694569, registered in the Bulgarian Commercial Register, seat and address [ADDRESS], phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg), VAT BG208694569.
+The playerz.bg service is provided by "Inflect" Ltd. („Инфлект“ ЕООД), UIC 208694564, registered in the Bulgarian Commercial Register, seat and address 52 Tsacho Shishkov St., entrance A, floor 6, apt. 15, 5500 Lovech, Bulgaria, phone +359 89 433 2932, email [privacy@playerz.bg](mailto:privacy@playerz.bg), VAT BG208694564.
 
 How we handle your personal data is described in the [Privacy policy](/privacy).
 

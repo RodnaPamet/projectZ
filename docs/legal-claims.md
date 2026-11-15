@@ -15,7 +15,7 @@ Section numbers are the policy's.
 
 | Claim                                                                   | Backed by                                                                                                                                                       |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inflect Ltd, UIC/ЕИК 208694569, VAT BG208694569, contact privacy@playerz.bg | Owner's instruction, 2026-11-15. The ЕИК is the VAT number without `BG`. The Bulgarian name and form, the address and the phone are placeholders for the owner. |
+| Inflect Ltd, UIC/ЕИК 208694564, VAT BG208694564, contact privacy@playerz.bg | Owner's instruction, 2026-11-15. The ЕИК is the VAT number without `BG`. The Bulgarian name and form, the address and the phone are placeholders for the owner. |
 | No data protection officer, because none is required                    | Legal assessment (Art. 37 GDPR), not code. Listed for the owner to confirm with a lawyer.                                                                       |
 
 ## 2. What we collect
