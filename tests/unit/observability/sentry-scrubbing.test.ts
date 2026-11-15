@@ -95,6 +95,17 @@ describe('bodies and URLs', () => {
     expect(scrubbed!.request!.url).toContain('/reset');
   });
 
+  it('redacts where a person stood: near me’s lat and lng (#697)', () => {
+    const scrubbed = scrubEvent(
+      eventWith({ url: '/api/v1/venues/near?lat=42.698&lng=23.322&radiusKm=25' }),
+    );
+
+    expect(scrubbed!.request!.url).not.toContain('42.698');
+    expect(scrubbed!.request!.url).not.toContain('23.322');
+    expect(scrubbed!.request!.url).toContain('/api/v1/venues/near');
+    expect(scrubbed!.request!.url).toContain('radiusKm=25');
+  });
+
   it('drops the query string entirely when Sentry sends it separately', () => {
     const scrubbed = scrubEvent(eventWith({ query_string: 'token=abc123secret' }));
 

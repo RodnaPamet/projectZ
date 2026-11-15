@@ -43,6 +43,10 @@ const SENSITIVE_HEADERS = new Set([
 ]);
 
 const SENSITIVE_PARAMS = new Set([
+  // Where a person stood, for «Близо до мен» (#697): `GET /venues/near?lat=&lng=`.
+  // Rounded to ~100 m by the page, and still nobody's business but the search.
+  'lat',
+  'lng',
   'code',
   'state',
   'token',

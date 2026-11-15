@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import {
@@ -12,7 +13,9 @@ import { toTournamentDto, toTournamentViewDto } from '@/app/api/v1/_lib/tourname
 import { gamesCrumbs } from '@/components/layout/crumbs';
 import { PageBreadcrumbs } from '@/components/layout/PageBreadcrumbs';
 import { chromeIdentity } from '@/components/layout/player-chrome-data';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Caption, Heading } from '@/components/ui/typography';
+import { NEW_GAME_PATH } from '@/lib/open-play/new-game';
 import { ViewerScope } from '@/lib/data/provider';
 import { readModules } from '@/lib/modules';
 
@@ -95,7 +98,18 @@ export default async function GamesPage({
     <div className="bg-bg-page text-content-default safe-area-x">
       <div className="in-shell:p-0 px-6 py-10">
         {me ? <PageBreadcrumbs items={gamesCrumbs(tNav)} className="hidden" /> : null}
-        <Heading level={1}>{t('title')}</Heading>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <Heading level={1}>{t('title')}</Heading>
+          {/* «Създай игра» in one flow (#697): a court, an hour, the players.
+              Signed out, the page sends the person to sign in and back. */}
+          <Link
+            href={NEW_GAME_PATH}
+            className={buttonVariants({ variant: 'primary' })}
+            data-testid="games-create"
+          >
+            {t('create')}
+          </Link>
+        </div>
         <Caption className="mt-2 block max-w-prose">{t('intro')}</Caption>
         {viewerId ? <ViewerScope viewerId={viewerId}>{view}</ViewerScope> : view}
       </div>

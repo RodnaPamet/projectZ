@@ -1,13 +1,17 @@
 'use client';
 
+import { List, LocateFixed, Map as MapIcon } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import type { VenueSummary } from '@/app/api/v1/_lib/dto';
 import { CardGridSkeleton } from '@/components/loading/shapes';
 import { MobileListAffordances } from '@/components/mobile/MobileListAffordances';
+import { RadiusSlider } from '@/components/venues/RadiusSlider';
+import { useHere } from '@/components/venues/use-here';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -16,6 +20,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useSsrFallback } from '@/components/ui/hooks/use-ssr-fallback';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { KEYS, type V1Page } from '@/lib/data/keys';
@@ -25,6 +30,13 @@ import { FavouriteButton, type FavouriteVenues } from '@/components/venues/Favou
 import { SportBackdrop, SportBanner } from '@/components/sports/SportBanner';
 import { canonicalCity, cityLabel } from '@/lib/geo/cities';
 import { sportArt } from '@/lib/sports/art';
+import {
+  clampRadiusKm,
+  DEFAULT_RADIUS_KM,
+  mapPins,
+  nearParams,
+  RADIUS_STORAGE_KEY,
+} from '@/lib/venues/near';
 
 import { FILTER_NAMES, filtersFromParams, type VenueFilters } from './filters';
 
@@ -35,6 +47,53 @@ export interface VenueFacetOptions {
   cities: string[];
   sports: string[];
 }
+
+/** A venue of `GET /venues/near` (#667): the list's card and how far it is. */
+export interface NearVenue extends VenueSummary {
+  distanceKm: number;
+}
+
+/** `GET /api/v1/venues/near`: one capped page, nearest first. */
+interface NearVenues {
+  venues: NearVenue[];
+  radiusKm: number;
+  maxResults: number;
+}
+
+/** `GET /api/v1/venues/map` (#697): every bookable venue under the filters. */
+interface MapVenues {
+  venues: VenueSummary[];
+  truncated: boolean;
+  maxResults: number;
+}
+
+/**
+ * Which venues the list shows (#697, as the phone's chips): all of them under
+ * the filters, those within the slider's reach of the person, or their
+ * favourites. One at a time; pressing the one that is on goes back to all.
+ */
+type Mode = 'all' | 'near' | 'favourites';
+/** The same venues as cards or as pins (#697). */
+type View = 'list' | 'map';
+
+/** The reach the browser remembers, or the default. Storage may throw: then the default. */
+function storedRadius(): number {
+  try {
+    if (typeof window === 'undefined') return DEFAULT_RADIUS_KM;
+    return clampRadiusKm(window.localStorage.getItem(RADIUS_STORAGE_KEY));
+  } catch {
+    return DEFAULT_RADIUS_KM;
+  }
+}
+
+/**
+ * The map, in a chunk of its own (`ssr: false`): maplibre needs a browser,
+ * and the list must not carry it until someone switches the map on.
+ */
+const ClubsMap = dynamic(() => import('@/components/venues/ClubsMap'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[420px] w-full rounded-lg" />,
+});
 
 /** The ToggleGroup's "every sport" option. Not a Sport enum value, so never sent. */
 const ALL = '__all';
@@ -132,11 +191,15 @@ export function VenueList({
   const tSportsList = useTranslations('sports');
   const params = useSearchParams();
   const viewerId = useViewerId();
-  // «Любими» (#672): the caller's hearted venues instead of the search.
-  const [onlyFavourites, setOnlyFavourites] = useState(false);
+  // «Близо до мен» (#697) or «Любими» (#672) instead of the search.
+  const [mode, setMode] = useState<Mode>('all');
+  const onlyFavourites = mode === 'favourites';
+  const [view, setView] = useState<View>('list');
+  const [radiusKm, setRadiusKm] = useState(storedRadius);
   const favourites = useV1SWR<Omit<FavouriteVenues, 'items'> & { items: VenueSummary[] }>(
     viewerId && onlyFavourites ? KEYS.myFavouriteVenues() : null,
   );
+  const { here, retry: locateAgain } = useHere(mode === 'near');
 
   // Cleaned as the server page cleans them (filters.ts), then joined into one
   // string so the memo below changes only when a VALUE does, not on every new
@@ -171,9 +234,61 @@ export function VenueList({
     },
   );
 
-  // Stable, so MobileListAffordances' memo holds across renders (#335).
-  const refresh = useCallback(() => mutate(), [mutate]);
+  // Near me: the venues within the slider's reach, with the same filters
+  // (#697). Read once the browser says where the person is.
+  const near = useV1SWR<NearVenues>(
+    mode === 'near' && here.status === 'found'
+      ? KEYS.venuesNear(nearParams(here, radiusKm, filters))
+      : null,
+  );
+  // The map of every bookable venue under the filters, while «Всички» is on
+  // the map (#697). Near me and favourites put their own list on the map.
+  const everyVenue = useV1SWR<MapVenues>(
+    view === 'map' && mode === 'all' ? KEYS.venuesMap(filters) : null,
+  );
+
+  const nearMutate = near.mutate;
+  const favouritesMutate = favourites.mutate;
+  const mapMutate = everyVenue.mutate;
+  // Stable, so MobileListAffordances' memo holds across renders (#335). The
+  // pull re-reads what is on screen.
+  const refresh = useCallback(
+    () =>
+      mode === 'near'
+        ? nearMutate()
+        : mode === 'favourites'
+          ? favouritesMutate()
+          : view === 'map'
+            ? mapMutate()
+            : mutate(),
+    [mode, view, mutate, nearMutate, favouritesMutate, mapMutate],
+  );
   const retry = useCallback(() => void mutate(), [mutate]);
+
+  function toggleMode(next: Mode) {
+    setMode((now) => (now === next ? 'all' : next));
+  }
+
+  function commitRadius(km: number) {
+    setRadiusKm(km);
+    try {
+      window.localStorage.setItem(RADIUS_STORAGE_KEY, String(km));
+    } catch {
+      // A private window: the reach holds for this visit only.
+    }
+  }
+
+  /** The venues as cards or as pins, whichever the switch says. */
+  const show = (venues: (VenueSummary & { distanceKm?: number })[]) =>
+    view === 'map' ? (
+      <VenuesOnMap venues={venues} />
+    ) : (
+      <ul data-perf-ready className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {venues.map((v) => (
+          <VenueCard key={v.id} venue={v} distanceKm={v.distanceKm} />
+        ))}
+      </ul>
+    );
 
   const items = data?.flatMap((p) => p.items);
   const nextCursor = data?.[data.length - 1]?.nextCursor ?? null;
@@ -185,19 +300,60 @@ export function VenueList({
     <>
       <VenueFilterBar filters={filters} facets={facets} />
 
-      {viewerId && (
-        <div className="mt-4">
+      {/* The phone's chips (#697): near me, favourites; then list or map. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant={mode === 'near' ? 'primary' : 'secondary'}
+          aria-pressed={mode === 'near'}
+          onClick={() => toggleMode('near')}
+          icon={<LocateFixed aria-hidden="true" className="size-4" />}
+          data-testid="venues-near"
+        >
+          {t('near.chip')}
+        </Button>
+        {viewerId && (
           <Button
             type="button"
             variant={onlyFavourites ? 'primary' : 'secondary'}
             aria-pressed={onlyFavourites}
-            onClick={() => setOnlyFavourites((on) => !on)}
+            onClick={() => toggleMode('favourites')}
             data-testid="venues-favourites"
           >
             {t('favourite.filter')}
           </Button>
+        )}
+        <div className="ml-auto">
+          <ToggleGroup
+            size="sm"
+            ariaLabel={t('view.label')}
+            options={[
+              {
+                value: 'list',
+                label: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <List aria-hidden="true" className="size-4" />
+                    {t('view.list')}
+                  </span>
+                ),
+              },
+              {
+                value: 'map',
+                label: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapIcon aria-hidden="true" className="size-4" />
+                    {t('view.map')}
+                  </span>
+                ),
+              },
+            ]}
+            selected={view}
+            selectAction={(v) => setView(v === 'map' ? 'map' : 'list')}
+            optionClassName="whitespace-nowrap"
+          />
         </div>
-      )}
+      </div>
+      {mode === 'near' && <RadiusSlider radiusKm={radiusKm} commitAction={commitRadius} />}
 
       {/* Pull down to refresh, jump back to the top of a long list. The pull
           re-reads the list through SWR — the same GET a focus would make —
@@ -225,12 +381,18 @@ export function VenueList({
             />
           </div>
         ) : (
-          <ul data-perf-ready className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {favourites.data.items.map((v) => (
-              <VenueCard key={v.id} venue={v} />
-            ))}
-          </ul>
+          <div className="mt-6">{show(favourites.data.items)}</div>
         )
+      ) : mode === 'near' ? (
+        <NearResults
+          here={here.status}
+          locateAgain={locateAgain}
+          radiusKm={radiusKm}
+          data={near.data}
+          error={!!near.error}
+          retry={() => void near.mutate()}
+          show={show}
+        />
       ) : items === undefined ? (
         error ? (
           <div className="mt-8">
@@ -253,50 +415,186 @@ export function VenueList({
               className="mt-4"
             />
           )}
-          {/* ICU plural, not `venue{s}`. Bulgarian does not form plurals by
+          {view === 'map' ? (
+            // Every bookable venue under the filters, not the list's pages.
+            everyVenue.data === undefined ? (
+              everyVenue.error ? (
+                <div className="mt-8">
+                  <ErrorState
+                    title={t('error.title')}
+                    description={t('error.description')}
+                    onRetry={() => void everyVenue.mutate()}
+                  />
+                </div>
+              ) : (
+                <Skeleton className="mt-6 h-[420px] w-full rounded-lg" />
+              )
+            ) : (
+              <>
+                <p role="status" className="text-content-muted mt-4 mb-6 text-sm">
+                  {t('map.count', { count: mapPins(everyVenue.data.venues).length })}
+                </p>
+                {mapPins(everyVenue.data.venues).length === 0 ? (
+                  <div data-perf-ready>
+                    <EmptyState title={t('empty.title')} description={t('empty.description')} />
+                  </div>
+                ) : (
+                  show(everyVenue.data.venues)
+                )}
+              </>
+            )
+          ) : (
+            <>
+              {/* ICU plural, not `venue{s}`. Bulgarian does not form plurals by
               appending a letter, and the count word itself changes — so the
               shape has to come from the catalogue, not from the JSX. */}
-          <p role="status" className="text-content-muted mt-4 mb-6 text-sm">
-            {nextCursor
-              ? t('countMore', { count: items.length })
-              : t('count', { count: items.length })}
-          </p>
+              <p role="status" className="text-content-muted mt-4 mb-6 text-sm">
+                {nextCursor
+                  ? t('countMore', { count: items.length })
+                  : t('count', { count: items.length })}
+              </p>
 
-          {items.length === 0 ? (
-            // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
-            <div data-perf-ready>
-              <EmptyState title={t('empty.title')} description={t('empty.description')} />
-            </div>
-          ) : (
-            <ul data-perf-ready className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((v) => (
-                <VenueCard key={v.id} venue={v} />
-              ))}
-            </ul>
-          )}
+              {items.length === 0 ? (
+                // data-perf-ready: the perf harness's READY marker (docs/perf/README.md).
+                <div data-perf-ready>
+                  <EmptyState title={t('empty.title')} description={t('empty.description')} />
+                </div>
+              ) : (
+                show(items)
+              )}
 
-          {loadMoreFailed && (
-            <InlineNotice variant="error" className="mt-6">
-              {t('loadMoreError')}
-            </InlineNotice>
-          )}
+              {loadMoreFailed && (
+                <InlineNotice variant="error" className="mt-6">
+                  {t('loadMoreError')}
+                </InlineNotice>
+              )}
 
-          {nextCursor && (
-            <div className="mt-6 flex justify-center">
-              <Button
-                type="button"
-                variant="secondary"
-                loading={loadingMore && !loadMoreFailed}
-                onClick={() => void setSize(data!.length + 1)}
-                data-testid="venues-load-more"
-              >
-                {t('loadMore')}
-              </Button>
-            </div>
+              {nextCursor && (
+                <div className="mt-6 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={loadingMore && !loadMoreFailed}
+                    onClick={() => void setSize(data!.length + 1)}
+                    data-testid="venues-load-more"
+                  >
+                    {t('loadMore')}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
     </>
+  );
+}
+
+/**
+ * «Близо до мен» (#697): where the browser is first, then the venues within
+ * the reach, nearest first, each with its distance. A refused location says
+ * where to allow it; any other failure offers to try again.
+ */
+function NearResults({
+  here,
+  locateAgain,
+  radiusKm,
+  data,
+  error,
+  retry,
+  show,
+}: {
+  here: 'idle' | 'locating' | 'found' | 'denied' | 'failed';
+  locateAgain: () => void;
+  radiusKm: number;
+  data: NearVenues | undefined;
+  error: boolean;
+  retry: () => void;
+  show: (venues: NearVenue[]) => ReactNode;
+}) {
+  const t = useTranslations('venues');
+
+  if (here === 'denied') {
+    return (
+      <div className="mt-8" data-perf-ready>
+        <EmptyState title={t('near.chip')} description={t('near.denied')} />
+      </div>
+    );
+  }
+  if (here === 'failed') {
+    return (
+      <div className="mt-8">
+        <ErrorState
+          title={t('near.failedTitle')}
+          description={t('near.failed')}
+          onRetry={locateAgain}
+        />
+      </div>
+    );
+  }
+  if (here !== 'found' || data === undefined) {
+    if (here === 'found' && error) {
+      return (
+        <div className="mt-8">
+          <ErrorState
+            title={t('error.title')}
+            description={t('error.description')}
+            onRetry={retry}
+          />
+        </div>
+      );
+    }
+    return (
+      <>
+        <p role="status" className="text-content-muted mt-4 mb-6 text-sm">
+          {here === 'found' ? t('near.loading') : t('near.locating')}
+        </p>
+        <CardGridSkeleton count={3} />
+      </>
+    );
+  }
+  return (
+    <>
+      <p role="status" className="text-content-muted mt-4 mb-6 text-sm">
+        {t('near.count', { count: data.venues.length, km: data.radiusKm })}
+      </p>
+      {data.venues.length === 0 ? (
+        <div data-perf-ready>
+          <EmptyState title={t('near.none', { km: radiusKm })} description={t('near.noneHint')} />
+        </div>
+      ) : (
+        show(data.venues)
+      )}
+    </>
+  );
+}
+
+/**
+ * The venues as pins (#697), as the phone's ClubsMapView: a tapped pin is the
+ * chosen club, and its card, under the map, opens its page.
+ */
+function VenuesOnMap({ venues }: { venues: (VenueSummary & { distanceKm?: number })[] }) {
+  const t = useTranslations('venues.map');
+  const pins = useMemo(() => mapPins(venues), [venues]);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const selected = pins.find((p) => p.id === chosen) ?? null;
+
+  return (
+    <div data-perf-ready className="flex flex-col gap-4">
+      <ClubsMap
+        pins={pins}
+        selectedId={selected?.id ?? null}
+        selectAction={setChosen}
+        label={t('label', { count: pins.length })}
+      />
+      {selected ? (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
+          <VenueCard venue={selected} distanceKm={selected.distanceKm} />
+        </ul>
+      ) : (
+        <p className="text-content-muted text-center text-sm">{t('hint')}</p>
+      )}
+    </div>
   );
 }
 
@@ -420,7 +718,7 @@ function VenueFilterBar({ filters, facets }: { filters: VenueFilters; facets: Ve
   );
 }
 
-function VenueCard({ venue: v }: { venue: VenueSummary }) {
+function VenueCard({ venue: v, distanceKm }: { venue: VenueSummary; distanceKm?: number }) {
   const t = useTranslations('venues');
   const tSports = useTranslations('sports');
   const tCities = useTranslations('cities');
@@ -468,7 +766,14 @@ function VenueCard({ venue: v }: { venue: VenueSummary }) {
           "София", not "Sofia, BG". Every venue here is in Bulgaria, so the
           country code said nothing; a city not in src/lib/geo/cities.ts
           shows as the club typed it. */}
-      <p className="text-content-muted mt-1 text-sm">{cityLabel(tCities, v.city)}</p>
+      <p className="text-content-muted mt-1 text-sm">
+        {cityLabel(tCities, v.city)}
+        {/* How far, near me (#697): «София · 3,2 км». */}
+        {distanceKm !== undefined &&
+          ` · ${t('near.distance', {
+            km: format.number(distanceKm, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+          })}`}
+      </p>
 
       {v.sports.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1">
