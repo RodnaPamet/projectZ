@@ -127,7 +127,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 10;
+  version: 11;
   exportedAt: string;
   profile: {
     id: string;
@@ -299,6 +299,8 @@ export interface PersonalDataExport {
       messages: boolean;
       openPlay: boolean;
       lessonsTaught: boolean;
+      /** «Факт на седмицата», push only (P88; version 11). */
+      sportFacts: boolean;
     };
   };
   inviteLinks: Array<{
@@ -602,6 +604,7 @@ export async function readPersonalData(
       pushMessages: true,
       pushOpenPlay: true,
       pushLessonsTaught: true,
+      pushSportFacts: true,
       searchable: true,
       ratingPublic: true,
       deletedAt: true,
@@ -855,7 +858,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 10,
+    version: 11,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -1015,6 +1018,7 @@ export async function readPersonalData(
         messages: user.pushMessages,
         openPlay: user.pushOpenPlay,
         lessonsTaught: user.pushLessonsTaught,
+        sportFacts: user.pushSportFacts,
       },
     },
     inviteLinks: links.map((l) => ({

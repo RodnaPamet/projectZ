@@ -398,3 +398,50 @@ services:
             || echo "media-sweep: request FAILED -> $$body"
           sleep "$${MEDIA_SWEEP_INTERVAL_SECONDS}"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  «Факт на седмицата» (owner 2026-11-13): this week's fact about each
+  #  player's main sport, pushed on Monday from 10:00 Europe/Sofia.
+  #
+  #  ═══ WHY EVERY 15 MINUTES AND NOT A SLEEP UNTIL MONDAY 10:00 ═══
+  #
+  #  alpine:3 has no zone data, so this shell cannot tell when it is Monday
+  #  10:00 in Sofia, and a sleep computed in UTC would drift by an hour at
+  #  every DST change. The ROUTE knows the Sofia clock: it answers
+  #  `"waiting":"not-monday"` or `"before-send-hour"` until then, the first
+  #  call after Monday 10:00 sends, and the week's dedupe key turns every
+  #  later call that week into `"sent":0`. So the fact goes out by 10:15, a
+  #  restart cannot send a week twice, and a missed call is made up 15
+  #  minutes later.
+  #
+  #  Same shape as booking-sweep: busybox wget, `--post-data=""`, `$$`.
+  # ═══════════════════════════════════════════════════════════════════
+  sport-facts:
+    image: alpine:3
+    container_name: playerz-sport-facts
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the sport facts}
+      FACTS_URL: ${FACTS_URL:-http://playerz-app:3000/api/cron/send-sport-facts}
+      FACTS_INTERVAL_SECONDS: ${FACTS_INTERVAL_SECONDS:-900}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "sport-facts: every $${FACTS_INTERVAL_SECONDS}s -> $${FACTS_URL}"
+        sleep 120   # let the app finish booting before the first run
+        while true; do
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${FACTS_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"sent":0'*'"truncated":false'*) : ;;   # waiting, or already sent this week — stay quiet
+                 *) echo "sport-facts: $$body" ;;
+               esac \
+            || echo "sport-facts: request FAILED -> $$body"
+          sleep "$${FACTS_INTERVAL_SECONDS}"
+        done
