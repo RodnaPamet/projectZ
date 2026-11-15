@@ -53,7 +53,9 @@ function coord(raw: string | null, what: string): number {
   if (raw === null || raw.trim() === '') throw new ValidationError(`Missing ${what}`);
 
   const n = Number(raw);
-  if (!Number.isFinite(n)) throw new ValidationError(`Invalid ${what}: ${raw}`);
+  // The value is not echoed: the message reaches the logs, and a coordinate
+  // is where somebody is (#697).
+  if (!Number.isFinite(n)) throw new ValidationError(`Invalid ${what}`);
   return n;
 }
 
@@ -68,7 +70,8 @@ async function handler(req: NextRequest) {
   const sport = sportParam(sp.get('sport'));
 
   const requested = sp.has('limit') ? Number(sp.get('limit')) : NaN;
-  const limit = Number.isFinite(requested) && requested >= 1 ? Math.min(requested, MAX_GEO_RESULTS) : 20;
+  const limit =
+    Number.isFinite(requested) && requested >= 1 ? Math.min(requested, MAX_GEO_RESULTS) : 20;
 
   const venues = await asSuperuser(ctx, async (db) => {
     const near = await nearVenueIds(db, { lat, lng, radiusKm });
