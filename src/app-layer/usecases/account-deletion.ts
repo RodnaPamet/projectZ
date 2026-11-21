@@ -7,6 +7,8 @@ import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { DEFAULT_LOCALE } from '@/lib/i18n/locales';
 import { purgeAvatarObjects } from '@/lib/media/avatar-objects';
 import { getMediaStorage } from '@/lib/media/storage';
+import { decryptField } from '@/lib/security/encryption';
+import { revokeGoogleCalendarGrant } from './google-calendar';
 import { logger } from '@/lib/observability/logger';
 
 import { carryNoShowStanding } from './no-show-carry';
@@ -419,6 +421,17 @@ export async function deleteAccount(
     // guardrail-allow: cross-tenant — the person's own hearts (#672), by their id.
     'FavouriteVenue',
     (await db.favouriteVenue.deleteMany({ where: { userId } })).count,
+  );
+  count(
+    // guardrail-allow: cross-tenant — the person's own Google Calendar grant
+    // (owner 2026-11-14), by their id. Revoked at Google after the commit.
+    'GoogleCalendarConnection',
+    (await db.googleCalendarConnection.deleteMany({ where: { userId } })).count,
+  );
+  count(
+    // guardrail-allow: cross-tenant — the person's own consent states, by their id.
+    'CalendarOAuthState',
+    (await db.calendarOAuthState.deleteMany({ where: { userId } })).count,
   );
   count(
     // guardrail-allow: cross-tenant — the person's own browsers, by their id.
@@ -860,8 +873,40 @@ export async function purgeAccountMedia(userId: string): Promise<number> {
  * picture's copy (`purgeAccountMedia`).
  */
 export async function deleteMyAccount(userId: string): Promise<DeletionSummary> {
-  const summary = await runAsSuperuser((db) => deleteAccount(db, { userId, by: 'self' }));
+  let grant: string | null = null;
+  const summary = await runAsSuperuser(async (db) => {
+    grant = await readGoogleCalendarGrantIn(db, userId);
+    return deleteAccount(db, { userId, by: 'self' });
+  });
   const pictures = await purgeAccountMedia(userId);
   if (pictures > 0) summary['media.avatars'] = pictures;
+  await revokeAccountGrants(grant);
   return summary;
+}
+
+/**
+ * The account's Google Calendar refresh token, read inside the deletion's own
+ * transaction just before `deleteAccount` removes its row, so it can be
+ * revoked at Google once the deletion commits (`revokeAccountGrants`).
+ */
+export async function readGoogleCalendarGrantIn(
+  db: PrismaClient,
+  userId: string,
+): Promise<string | null> {
+  // guardrail-allow: cross-tenant — the person's own connection, by their id.
+  const row = await db.googleCalendarConnection.findUnique({
+    where: { userId },
+    select: { refreshTokenEnc: true },
+  });
+  return row ? decryptField(row.refreshTokenEnc) : null;
+}
+
+/**
+ * The Google Calendar grant (owner 2026-11-14), revoked at Google after the
+ * deletion has committed, with the token read before it (the row goes with
+ * the account). Google is not part of the transaction: a failure is logged
+ * and does not undo the deletion; the token is gone from playerz either way.
+ */
+export async function revokeAccountGrants(googleCalendarToken: string | null): Promise<void> {
+  if (googleCalendarToken) await revokeGoogleCalendarGrant(googleCalendarToken);
 }

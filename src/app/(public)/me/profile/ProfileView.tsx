@@ -6,13 +6,14 @@ import { signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
-import type { MeDto, NotificationSettingsDto } from '@/app/api/v1/_lib/dto';
+import type { MeDto, MyCalendarDto, NotificationSettingsDto } from '@/app/api/v1/_lib/dto';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import {
   DataExportRow,
   DeleteAccountSection,
   type DeletionStandingView,
 } from '@/components/profile/DeleteAccountSection';
+import { GoogleCalendarRow } from '@/components/profile/GoogleCalendarRow';
 import { NotificationSettingsRow } from '@/components/profile/NotificationSettingsRow';
 import { PersonalDataSection } from '@/components/profile/PersonalDataSection';
 import { MyRatingsSection, type MyRatingsDto } from '@/components/profile/MyRatingsSection';
@@ -82,6 +83,8 @@ export function ProfileView({
   deletion,
   legal,
   ratings = null,
+  calendar = null,
+  calendarResult = null,
 }: {
   name: string | null;
   email: string | null;
@@ -98,6 +101,10 @@ export function ProfileView({
   deletion: DeletionStandingView;
   /** The player's own ratings (#576), while the ranking module is on; null otherwise. */
   ratings?: MyRatingsDto | null;
+  /** The Google Calendar sync (owner 2026-11-14), while it is on; null otherwise. */
+  calendar?: MyCalendarDto | null;
+  /** `?googleCalendar=` on the way back from Google's consent. */
+  calendarResult?: string | null;
   /** The legal texts that exist in this language (#370), null for the rest. */
   legal: { privacy: string | null; terms: string | null; cookies: string | null };
 }) {
@@ -184,6 +191,12 @@ export function ProfileView({
         <InlineNotice variant="error" data-testid="profile-language-failed">
           {t('languageSaveFailed')}
         </InlineNotice>
+      ) : null}
+
+      {calendar ? (
+        <Section title={t('calendar.title')}>
+          <GoogleCalendarRow seed={calendar} result={calendarResult} />
+        </Section>
       ) : null}
 
       <Section title={t('privacy')}>

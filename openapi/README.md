@@ -43,6 +43,7 @@ filter:
     - Auth
     - Billing
     - Bookings
+    - Calendar
     - Coaches
     - Config
     - Desk

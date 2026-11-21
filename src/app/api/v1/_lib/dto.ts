@@ -1145,3 +1145,29 @@ export function toClubPublicDto(c: ClubPage): ClubPublicDto {
     })),
   };
 }
+
+/** What a Google Calendar sync did (owner 2026-11-14). */
+export interface CalendarSyncResultDto {
+  created: number;
+  updated: number;
+  deleted: number;
+  unchanged: number;
+  /** Left alone because the person had edited them in Google. */
+  skippedEdited: number;
+  /** Something was held back for the next sync; see the use case. */
+  partial: boolean;
+}
+
+/**
+ * `GET /api/v1/me/calendar` (owner 2026-11-14). `connected: false` with
+ * `error: 'GOOGLE_REVOKED'` is a connection Google stopped: «Свържете отново».
+ */
+export interface MyCalendarDto {
+  google: {
+    connected: boolean;
+    email: string | null;
+    lastSyncAt: string | null;
+    lastResult: CalendarSyncResultDto | null;
+    error: 'GOOGLE_REVOKED' | 'GOOGLE_UNAVAILABLE' | null;
+  };
+}

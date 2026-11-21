@@ -59,6 +59,7 @@ describe('the personal-data export selects no secret (#370)', () => {
       readFileSync('prisma/schema/notifications.prisma', 'utf8'),
       readFileSync('prisma/schema/devices.prisma', 'utf8'),
       readFileSync('prisma/schema/wearables.prisma', 'utf8'),
+      readFileSync('prisma/schema/calendar.prisma', 'utf8'),
     );
     const credentials = [
       ...schema.matchAll(/^\s+(\w*(?:[Hh]ash|[Ss]ecret|Enc|[Tt]oken|p256dh|auth))\s/gm),

@@ -6,6 +6,8 @@ import {
   readMyDeletionStanding,
   type DeletionStanding,
 } from '@/app-layer/usecases/account-deletion';
+import { getMyCalendarStatus } from '@/app-layer/usecases/google-calendar';
+import { googleCalendarSyncOn } from '@/app-layer/usecases/google-calendar-sync';
 import { getMe } from '@/app-layer/usecases/me';
 import { getMyNotificationSettings } from '@/app-layer/usecases/my-notifications';
 import { myRatings } from '@/app-layer/usecases/shown-ratings';
@@ -80,7 +82,11 @@ export async function generateMetadata() {
  * (#367), as `GET /api/v1/me/notification-settings` answers them. The platform row is shown only
  * when that read found a live grant; `/platform` authorises for itself.
  */
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ googleCalendar?: string | string[] }>;
+}) {
   const userId = await requireSignedIn();
   if (!userId) redirect('/login?next=/me/profile');
 
@@ -100,6 +106,15 @@ export default async function ProfilePage() {
   // «Класиране» (#576): a player's, while the ranking module is on.
   const ratings =
     readModules().ranking && mine.accountKind !== 'CLUB' ? await myRatings(userId) : null;
+  // «Синхронизирай с Google Календар» (owner 2026-11-14): a player's or a
+  // coach's, while GOOGLE_CALENDAR_SYNC is on. `?googleCalendar=` is how the
+  // consent comes back.
+  const calendar =
+    googleCalendarSyncOn() && mine.accountKind !== 'CLUB'
+      ? await getMyCalendarStatus(userId)
+      : null;
+  const back = (await searchParams).googleCalendar;
+  const calendarResult = typeof back === 'string' ? back : null;
 
   // #359's sections read and write `GET`/`PATCH /api/v1/me`; this is their
   // seed, from the same use case, so the first paint is the account and not a
@@ -121,6 +136,8 @@ export default async function ProfilePage() {
         notificationSettings={notificationSettings}
         deletion={standingView(standing)}
         legal={legal}
+        calendar={calendar}
+        calendarResult={calendarResult}
         ratings={
           ratings
             ? {
