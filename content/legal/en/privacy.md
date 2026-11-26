@@ -232,7 +232,7 @@ We do not send your coordinates. Distances to clubs can, however, show roughly w
 ## 10. Notifications and emails
 
 - **Notifications on iPhone.** They are sent through Apple. A notification about a message shows only who is writing to you, not the text.
-- **Switches.** Most kinds of notifications and emails have their own switch in Profile. Account notices have no switch. These are the notices about a result dispute, about coach–club link requests and decisions, and about the decision on your coach profile.
+- **Switches.** Most kinds of notifications and emails have their own switch in Profile. Account notices have no switch. These are the notices about a result dispute, about coach–club link requests and decisions, about the decision on your coach profile, and about a review of yours that was not published or was removed, with the reason.
 - **Fact of the week.** Every Monday from 10:00, players get a fun fact about their sport. You can stop it with its own switch.
 - **Emails.** They are sent through Resend. You get them for:
   - booking confirmations and reminders;
