@@ -29,15 +29,17 @@ describe('resource kinds', () => {
     expect(RESOURCE_TYPES).toEqual(Object.values(ResourceType));
   });
 
-  it('call a TRACK a track, a FIELD a pitch, a table a table, a LOBBY a seat, the rest a court', () => {
+  it('call a TRACK a track, a FIELD a pitch, a table a table, a LOBBY a hall, a ROUTE a route, a COURT a court', () => {
     expect(resourceNoun('TRACK')).toBe('track');
     expect(resourceNoun('FIELD')).toBe('pitch');
-    // #477: table tennis and chess are played at a table, esports at a seat.
+    // #477: table tennis and chess are played at a table. #694 (owner
+    // 2026-11-13): esports in a hall, running and cycling on a route.
     expect(resourceNoun('TABLE')).toBe('table');
     expect(resourceNoun('BOARD_TABLE')).toBe('table');
-    expect(resourceNoun('LOBBY')).toBe('seat');
+    expect(resourceNoun('LOBBY')).toBe('hall');
+    expect(resourceNoun('ROUTE')).toBe('route');
     for (const t of RESOURCE_TYPES.filter(
-      (x) => !['TRACK', 'FIELD', 'TABLE', 'BOARD_TABLE', 'LOBBY'].includes(x),
+      (x) => !['TRACK', 'FIELD', 'TABLE', 'BOARD_TABLE', 'LOBBY', 'ROUTE'].includes(x),
     )) {
       expect(resourceNoun(t)).toBe('court');
     }
@@ -52,18 +54,18 @@ describe('resource kinds', () => {
 
   it('name a list by its one noun, by its nouns in order, and courts when empty', () => {
     expect(resourceNouns([])).toBe('court');
-    expect(resourceNouns(['COURT', 'ROUTE'])).toBe('court');
+    expect(resourceNouns(['COURT', 'ROUTE'])).toBe('courtRoute');
     expect(resourceNouns(['COURT', 'TABLE'])).toBe('courtTable');
-    expect(resourceNouns(['LOBBY', 'BOARD_TABLE', 'TABLE'])).toBe('tableSeat');
+    expect(resourceNouns(['LOBBY', 'BOARD_TABLE', 'TABLE'])).toBe('tableHall');
     expect(resourceNouns(['FIELD', 'FIELD'])).toBe('pitch');
     expect(resourceNouns(['TRACK', 'TRACK'])).toBe('track');
     expect(resourceNouns(['COURT', 'TRACK'])).toBe('courtTrack');
     // Кортове, игрища, писти (#454), whatever order the rows come in.
     expect(resourceNouns(['FIELD', 'COURT'])).toBe('courtPitch');
     expect(resourceNouns(['TRACK', 'FIELD'])).toBe('pitchTrack');
-    expect(resourceNouns(['TRACK', 'FIELD', 'ROUTE'])).toBe('courtPitchTrack');
+    expect(resourceNouns(['TRACK', 'FIELD', 'ROUTE'])).toBe('pitchTrackRoute');
     expect(resourceNouns(['LOBBY', 'TRACK', 'FIELD', 'COURT', 'TABLE'])).toBe(
-      'courtPitchTrackTableSeat',
+      'courtPitchTrackTableHall',
     );
     expect(combineNouns(['track'])).toBe('track');
     expect(combineNouns(['court', 'track', 'court'])).toBe('courtTrack');

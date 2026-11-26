@@ -128,20 +128,23 @@
       "table": {
         "courts": "Tables"
       },
-      "seat": {
-        "courts": "Seats"
+      "hall": {
+        "courts": "Halls"
       },
       "several": {
         "courts": "{Nouns}"
       },
       "results": "Results",
-      "tournaments": "Tournaments"
+      "tournaments": "Tournaments",
+      "route": {
+        "courts": "Routes"
+      }
     },
     "footer": {
       "label": "Footer",
-      "tagline": "Courts and games in Sofia.",
+      "tagline": "Clubs and games in Sofia.",
       "linksLabel": "Links",
-      "venues": "Courts",
+      "venues": "Clubs",
       "forClubs": "For clubs",
       "language": "Language",
       "copyright": "© {year} playerz.bg. All rights reserved.",
@@ -150,7 +153,7 @@
       "cookies": "Cookies",
       "deleteAccount": "Deleting your account"
     },
-    "metaDescription": "Book a court and find a game in Sofia.",
+    "metaDescription": "Book a court, a pitch or a table and find people to play with in Sofia.",
     "deletedUser": "Deleted user",
     "cookieNotice": {
       "text": "playerz.bg uses only essential cookies: to keep you signed in, for security, and for the language and theme you chose. No tracking and no ads.",
@@ -218,7 +221,7 @@
   },
   "login": {
     "title": "Sign in",
-    "subtitle": "Sign in to book a court.",
+    "subtitle": "Sign in to book a time.",
     "withGoogle": "Sign in with Google",
     "withFacebook": "Log in with Facebook",
     "facebookEmail": {
@@ -323,7 +326,7 @@
       "durationLabel": "Duration, {court}",
       "minutes": "{minutes} min",
       "none": "No free times on this day.",
-      "noCourtsTitle": "No courts to book online",
+      "noCourtsTitle": "No places to book online",
       "noCourts": "This venue does not take online bookings yet.",
       "errorTitle": "Free times did not load",
       "errorDescription": "Check your connection and try again.",
@@ -401,8 +404,11 @@
       "table": {
         "court": "Table"
       },
-      "seat": {
-        "court": "Seat"
+      "hall": {
+        "court": "Hall"
+      },
+      "route": {
+        "court": "Route"
       }
     },
     "gallery": {
@@ -412,8 +418,11 @@
     "table": {
       "metaTitle": "{name} — book a table | playerz.bg"
     },
-    "seat": {
-      "metaTitle": "{name} — book a seat | playerz.bg"
+    "hall": {
+      "metaTitle": "{name} — book a hall | playerz.bg"
+    },
+    "route": {
+      "metaTitle": "{name} — book a route | playerz.bg"
     }
   },
   "club": {
@@ -445,8 +454,8 @@
     "table": {
       "metaTitle": "{name} — tables and booking | playerz.bg"
     },
-    "seat": {
-      "metaTitle": "{name} — seats and booking | playerz.bg"
+    "hall": {
+      "metaTitle": "{name} — halls and booking | playerz.bg"
     },
     "leaderboard": {
       "title": "Leaderboard",
@@ -461,6 +470,9 @@
     },
     "tournaments": {
       "title": "Tournaments"
+    },
+    "route": {
+      "metaTitle": "{name} — routes and booking | playerz.bg"
     }
   },
   "cities": {
@@ -490,13 +502,13 @@
     "body": "We can’t reach playerz.bg right now. Your bookings are safe — this page will work again as soon as you have a connection."
   },
   "landing": {
-    "metaTitle": "playerz.bg — book a court in Sofia",
-    "metaDescription": "Free courts at Sofia's clubs in one place: padel, tennis, football and more. Instant confirmation; you pay at the club.",
+    "metaTitle": "playerz.bg — book a place to play in Sofia",
+    "metaDescription": "Free courts, pitches and tables at Sofia's clubs in one place: padel, tennis, football and more. Instant confirmation; you pay at the club.",
     "hero": {
-      "eyebrow": "Courts in Sofia",
-      "title": "Find a court. Book it in seconds.",
+      "eyebrow": "Sport in Sofia",
+      "title": "Find a place to play. Book it in seconds.",
       "lead": "Padel, tennis, football and more: the free slots of Sofia's clubs in one place. Your booking is confirmed at once, and you pay at the club.",
-      "cta": "Find a court",
+      "cta": "Find where to play",
       "forClubs": "For clubs",
       "sportsLabel": "Sports on playerz"
     },
@@ -505,7 +517,7 @@
       "title": "How it works",
       "search": {
         "title": "Every court sport",
-        "body": "Search by sport and city and see which courts are free today and through the week."
+        "body": "Search by sport and city and see what's free today and through the week."
       },
       "instant": {
         "title": "Instant confirmation",
@@ -585,8 +597,8 @@
     },
     "closing": {
       "title": "Ready to play?",
-      "lead": "See which courts are free today.",
-      "cta": "Browse courts"
+      "lead": "See what's free today.",
+      "cta": "Browse clubs"
     },
     "accountDeleted": "Your account has been deleted."
   },
@@ -619,11 +631,11 @@
       },
       "cancelledByCoach": {
         "title": "The coach cancelled your lesson",
-        "body": "{venue}, {court} · {when}. The court has been released."
+        "body": "{venue}, {court} · {when}. The slot has been released."
       },
       "cancelledCoachRemoved": {
         "title": "Your lesson was cancelled",
-        "body": "{venue}, {court} · {when}. The coach no longer teaches on playerz.bg; the court has been released."
+        "body": "{venue}, {court} · {when}. The coach no longer teaches on playerz.bg; the slot has been released."
       },
       "seriesCreated": {
         "title": "The club booked a weekly slot for you",
@@ -688,7 +700,7 @@
       },
       "lessonCancelledByClub": {
         "title": "The club cancelled your lesson",
-        "body": "{venue}, {court} · {when}. The court has been released."
+        "body": "{venue}, {court} · {when}. The slot has been released."
       },
       "coachLessonBooked": {
         "title": "New lesson: {player}",
@@ -822,11 +834,11 @@
       },
       "proposed": {
         "title": "{who} proposes a time for your match: {when}",
-        "body": "{tournament}, {court}. Accept or decline — the court is held until then."
+        "body": "{tournament}, {court}. Accept or decline — the slot is held until then."
       },
       "timeDeclined": {
         "title": "{who} declined {when}",
-        "body": "{tournament}. The court is released — propose another time."
+        "body": "{tournament}. The slot is released — propose another time."
       },
       "timeWithdrawn": {
         "title": "{who} took back {when}",
@@ -976,11 +988,11 @@
           "failed": "The table's status was not changed. Try again."
         }
       },
-      "seat": {
-        "metaTitle": "Seats",
-        "title": "Seats",
-        "subtitle": "The club's seats, their pricing and capacity.",
-        "truncated": "Showing the first {limit} seats. This club has more.",
+      "hall": {
+        "metaTitle": "Halls",
+        "title": "Halls",
+        "subtitle": "The club's halls, their pricing and capacity.",
+        "truncated": "Showing the first {limit} halls. This club has more.",
         "status": {
           "ACTIVE": "Active",
           "SUSPENDED": "Suspended",
@@ -991,12 +1003,12 @@
           "outdoor": "Outdoor"
         },
         "action": {
-          "add": "Add seat"
+          "add": "Add hall"
         },
         "archive": {
-          "confirm": "{count, plural, one {This seat has # upcoming booking. Archiving does not cancel it. Continue?} other {This seat has # upcoming bookings. Archiving does not cancel them. Continue?}}",
-          "title": "Archive this seat?",
-          "failed": "The seat's status was not changed. Try again."
+          "confirm": "{count, plural, one {This hall has # upcoming booking. Archiving does not cancel it. Continue?} other {This hall has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+          "title": "Archive this hall?",
+          "failed": "The hall's status was not changed. Try again."
         }
       },
       "several": {
@@ -1040,6 +1052,29 @@
         "zoomOut": "Zoom out of the plan",
         "fit": "Whole plan",
         "credit": "© OpenStreetMap contributors"
+      },
+      "route": {
+        "metaTitle": "Routes",
+        "title": "Routes",
+        "subtitle": "The club's routes, their pricing and capacity.",
+        "truncated": "Showing the first {limit} routes. This club has more.",
+        "status": {
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CLOSED": "Closed"
+        },
+        "setting": {
+          "indoor": "Indoor",
+          "outdoor": "Outdoor"
+        },
+        "action": {
+          "add": "Add route"
+        },
+        "archive": {
+          "confirm": "{count, plural, one {This route has # upcoming booking. Archiving does not cancel it. Continue?} other {This route has # upcoming bookings. Archiving does not cancel them. Continue?}}",
+          "title": "Archive this route?",
+          "failed": "The route's status was not changed. Try again."
+        }
       }
     },
     "onlineShare": {
@@ -1155,17 +1190,25 @@
           "title": "No rules for this table"
         }
       },
-      "seat": {
+      "hall": {
         "field": {
-          "court": "Seat"
+          "court": "Hall"
         },
         "empty": {
-          "title": "No rules for this seat"
+          "title": "No rules for this hall"
         }
       },
       "several": {
         "field": {
           "court": "{AnyNoun}"
+        }
+      },
+      "route": {
+        "field": {
+          "court": "Route"
+        },
+        "empty": {
+          "title": "No rules for this route"
         }
       }
     },
@@ -1417,15 +1460,22 @@
               "SLOT_NOT_BOOKABLE": "The table cannot be booked then."
             }
           },
-          "seat": {
-            "court": "Seat",
-            "unavailable": "The seat cannot be booked then: it is closed, or the time is off its schedule.",
+          "hall": {
+            "court": "Hall",
+            "unavailable": "The hall cannot be booked then: it is closed, or the time is off its schedule.",
             "error": {
-              "SLOT_NOT_BOOKABLE": "The seat cannot be booked then."
+              "SLOT_NOT_BOOKABLE": "The hall cannot be booked then."
             }
           },
           "several": {
             "court": "{AnyNoun}"
+          },
+          "route": {
+            "court": "Route",
+            "unavailable": "The route cannot be booked then: it is closed, or the time is off its schedule.",
+            "error": {
+              "SLOT_NOT_BOOKABLE": "The route cannot be booked then."
+            }
           }
         },
         "detail": {
@@ -1463,8 +1513,11 @@
           "table": {
             "court": "Table"
           },
-          "seat": {
-            "court": "Seat"
+          "hall": {
+            "court": "Hall"
+          },
+          "route": {
+            "court": "Route"
           }
         }
       },
@@ -1553,11 +1606,11 @@
           "jumpTo": "Show table"
         }
       },
-      "seat": {
-        "subtitle": "One day, every seat. Times are on the club's clock.",
+      "hall": {
+        "subtitle": "One day, every hall. Times are on the club's clock.",
         "scroll": {
-          "hint": "{count} seats: scroll sideways or pick a seat.",
-          "jumpTo": "Show seat"
+          "hint": "{count} halls: scroll sideways or pick a hall.",
+          "jumpTo": "Show hall"
         }
       },
       "several": {
@@ -1565,6 +1618,13 @@
         "scroll": {
           "hint": "{count} {countedNouns}: scroll sideways or pick one.",
           "jumpTo": "Show {anyNoun}"
+        }
+      },
+      "route": {
+        "subtitle": "One day, every route. Times are on the club's clock.",
+        "scroll": {
+          "hint": "{count} routes: scroll sideways or pick a route.",
+          "jumpTo": "Show route"
         }
       }
     },
@@ -1944,7 +2004,7 @@
     "empty": {
       "upcoming": {
         "title": "You have no upcoming bookings",
-        "description": "Pick a court and reserve a time."
+        "description": "Pick a club and book a time."
       },
       "past": {
         "title": "No past bookings yet",
@@ -2053,7 +2113,7 @@
       "lesson": {
         "coach": "Coach",
         "noName": "Coach",
-        "parts": "{coach} for the coach + {court} for the court"
+        "parts": "{coach} for the coach + {court} for the rental"
       },
       "table": {
         "court": "Table",
@@ -2061,10 +2121,16 @@
           "description": "{venue}, {date} at {time}. The table will be freed for other players."
         }
       },
-      "seat": {
-        "court": "Seat",
+      "hall": {
+        "court": "Hall",
         "confirm": {
-          "description": "{venue}, {date} at {time}. The seat will be freed for other players."
+          "description": "{venue}, {date} at {time}. The hall will be freed for other players."
+        }
+      },
+      "route": {
+        "court": "Route",
+        "confirm": {
+          "description": "{venue}, {date} at {time}. The route will be freed for other players."
         }
       }
     },
@@ -2117,15 +2183,18 @@
         "FAILED": "That did not work. Try again."
       },
       "lesson": {
-        "groupNext": "With a second player this becomes a group lesson: {fee} for the coach for the whole group, {total} in all with the court.",
+        "groupNext": "With a second player this becomes a group lesson: {fee} for the coach for the whole group, {total} in all with the rental.",
         "groupNow": "A group lesson: {fee} for the coach for the whole group.",
         "groupSame": "The coach charges the same for a group."
       },
       "table": {
         "full": "Every place at the table is taken."
       },
-      "seat": {
-        "full": "The seat is taken."
+      "hall": {
+        "full": "Every place at the hall is taken."
+      },
+      "route": {
+        "full": "Every place on the route is taken."
       }
     },
     "game": {
@@ -2666,7 +2735,7 @@
       "removeLessons": "{count, plural, one {# lesson is booked} other {# lessons are booked}} with them. Removing the coach cancels every upcoming lesson, releases the courts and tells the players by notification and email.",
       "removeConfirm": {
         "title": "Remove this coach?",
-        "description": "{count, plural, one {# upcoming lesson will be cancelled} other {# upcoming lessons will be cancelled}}. The courts are released, and each player gets a notification and an email.",
+        "description": "{count, plural, one {# upcoming lesson will be cancelled} other {# upcoming lessons will be cancelled}}. The slots are released, and each player gets a notification and an email.",
         "yes": "Remove and cancel the lessons",
         "no": "No"
       },
@@ -2696,7 +2765,7 @@
   },
   "accountKind": {
     "booking": {
-      "playerAccountRequired": "Booking a court needs a player or a coach account. You are signed in with a club account: sign in with your player account to book."
+      "playerAccountRequired": "Booking needs a player or a coach account. You are signed in with a club account: sign in with your player account to book."
     }
   },
   "panels": {
@@ -2901,13 +2970,16 @@
     "lesson": {
       "label": "A lesson with a coach",
       "noName": "Coach",
-      "payAtClub": "Paid at the club: the court and the coach."
+      "payAtClub": "Paid at the club: the rental and the coach."
     },
     "table": {
       "court": "Table"
     },
-    "seat": {
-      "court": "Seat"
+    "hall": {
+      "court": "Hall"
+    },
+    "route": {
+      "court": "Route"
     }
   },
   "onboarding": {
@@ -2918,7 +2990,7 @@
       "legend": "Account type",
       "player": {
         "label": "Player",
-        "description": "Book courts and play with friends."
+        "description": "Book a time and play with friends."
       },
       "coach": {
         "label": "Coach",
@@ -3003,11 +3075,11 @@
       },
       "cancelledByCoach": {
         "subject": "The coach cancelled your lesson: {venue}, {date}",
-        "intro": "The coach cancelled your lesson on {date} at {time}. The court has been released and you owe nothing. You can book another time with them, or book the court yourself."
+        "intro": "The coach cancelled your lesson on {date} at {time}. The slot has been released and you owe nothing. You can book another time with them, or book it yourself."
       },
       "cancelledCoachRemoved": {
         "subject": "Your lesson was cancelled: {venue}, {date}",
-        "intro": "Your lesson on {date} at {time} was cancelled because the coach no longer teaches on playerz.bg. The court has been released and you owe nothing."
+        "intro": "Your lesson on {date} at {time} was cancelled because the coach no longer teaches on playerz.bg. The slot has been released and you owe nothing."
       },
       "seriesCreated": {
         "subject": "A weekly slot for you: {venue}",
@@ -3031,7 +3103,7 @@
       },
       "lessonCancelledByClub": {
         "subject": "The club cancelled your lesson: {venue}, {date}",
-        "intro": "The club cancelled your lesson. The court has been released and you owe nothing. If you have questions, please contact the club."
+        "intro": "The club cancelled your lesson. The slot has been released and you owe nothing. If you have questions, please contact the club."
       },
       "coachLessonBooked": {
         "subject": "New lesson: {venue}, {date}",
@@ -3071,7 +3143,7 @@
       "unsubscribe": "Stop these emails with one click: {url}",
       "coach": "Coach",
       "price": "Price",
-      "priceParts": "{total} ({fee} for the coach + {court} for the court)",
+      "priceParts": "{total} ({fee} for the coach + {court} for the rental)",
       "player": "Player",
       "players": "Players",
       "yourFee": "Your fee",
@@ -3080,8 +3152,11 @@
       "table": {
         "court": "Table"
       },
-      "seat": {
-        "court": "Seat"
+      "hall": {
+        "court": "Hall"
+      },
+      "route": {
+        "court": "Route"
       }
     },
     "contactRequest": {
@@ -3233,11 +3308,11 @@
       },
       "proposed": {
         "subject": "{who} proposes a time for your {tournament} match",
-        "intro": "{who} proposes playing your {tournament} match on {court}, {when}. The court is held while you decide: accept or decline it on the tournament’s page."
+        "intro": "{who} proposes playing your {tournament} match on {court}, {when}. The slot is held while you decide: accept or decline it on the tournament’s page."
       },
       "timeDeclined": {
         "subject": "Your {tournament} match time was declined",
-        "intro": "{who} declined {when} for your {tournament} match. The court is released; propose another time on the tournament’s page."
+        "intro": "{who} declined {when} for your {tournament} match. The slot is released; propose another time on the tournament’s page."
       }
     }
   },
@@ -3293,9 +3368,9 @@
           "court": "Table"
         }
       },
-      "seat": {
+      "hall": {
         "column": {
-          "court": "Seat"
+          "court": "Hall"
         }
       },
       "several": {
@@ -3315,6 +3390,11 @@
           "entries": "Entries paid",
           "revenue": "Paid online",
           "fee": "Tournament fee"
+        }
+      },
+      "route": {
+        "column": {
+          "court": "Route"
         }
       }
     },
@@ -3342,15 +3422,18 @@
       "table": {
         "court": "Table"
       },
-      "seat": {
-        "court": "Seat"
+      "hall": {
+        "court": "Hall"
       },
       "several": {
         "court": "{NounSlash}"
       },
       "tournament": "Tournament",
       "entryFee": "Entry fee ({currency})",
-      "entry": "Entry"
+      "entry": "Entry",
+      "route": {
+        "court": "Route"
+      }
     }
   },
   "legal": {
@@ -3647,7 +3730,7 @@
     "new": {
       "metaTitle": "New game — playerz.bg",
       "title": "New game",
-      "intro": "Pick a sport, a club and an hour. We book the court and put the game in Games. Payment is at the club.",
+      "intro": "Pick a sport, a club and an hour. We book the place and put the game in Games. Payment is at the club.",
       "clubAccount": "A club account doesn't book. Sign in with a player account.",
       "mine": "Your bookings",
       "mineHint": "Look for players for an hour you already have.",
@@ -3669,7 +3752,7 @@
       "noCourts": "This club has no places for this sport.",
       "players": "Players",
       "spots": "How many more players do you need?",
-      "spotsHint": "If the court holds fewer, we'll look for as many as it holds.",
+      "spotsHint": "If the place holds fewer, we'll look for as many as it holds.",
       "level": "Preferred level",
       "anyLevel": "Any level",
       "pickLevel": "Choose a level",
@@ -3804,12 +3887,12 @@
     },
     "terms": {
       "title": "{venue}: price and hours",
-      "description": "What you charge and when you work at this venue. The court’s price is added to yours.",
+      "description": "What you charge and when you work at this venue. The rental is added to yours.",
       "hourly": "Price per hour, {currency}",
       "group": "Price per hour for a group, {currency}",
       "groupHint": "For two or more players. Leave empty if you give no group lessons here.",
       "lengths": "Lesson length",
-      "lengthsHint": "As long as a court can be booked at this venue.",
+      "lengthsHint": "As long as a time can be booked at this venue.",
       "minutes": "{minutes} min",
       "cutoff": "Cancel at the latest, hours before the lesson",
       "cutoffHint": "0 means until it starts. If the club asks for more, the club’s applies.",
@@ -3880,7 +3963,7 @@
     "cancel": {
       "button": "Cancel lesson",
       "title": "Cancel the lesson?",
-      "description": "{day} at {time}, {venue}. The court will be released, and the player will get a notification and an email.",
+      "description": "{day} at {time}, {venue}. The slot will be released, and the player will get a notification and an email.",
       "yes": "Cancel lesson"
     },
     "noShow": {
@@ -3931,7 +4014,7 @@
       "rate": "{price} an hour",
       "groupRate": "for a group {price} an hour",
       "lengths": "lessons of {lengths} min",
-      "courtNote": "The court’s price is added to the coach’s. Paid at the club.",
+      "courtNote": "The rental is added to the coach’s price. Paid at the club.",
       "jobTitle": "Coach"
     },
     "venue": {
@@ -3947,7 +4030,7 @@
       "lengthLabel": "Length",
       "timesLabel": "Free times for a lesson",
       "none": "No free times for a lesson on this day.",
-      "priceNote": "The price is for one player and includes {fee} for the coach and the court's price. Paid at the club.",
+      "priceNote": "The price is for one player and includes {fee} for the coach and the rental. Paid at the club.",
       "own": "This is your page. Players book lessons with you from here.",
       "clubAccount": "Club accounts cannot book lessons. Sign in with a player account.",
       "pick": "Lesson · {date}, {time}",
@@ -3958,23 +4041,23 @@
         "details": "Lesson details",
         "coach": "Coach",
         "venue": "Venue",
-        "court": "Court",
+        "court": "Place",
         "courtOf": "{court} · {sport}",
         "coachFee": "For the coach",
-        "courtPrice": "For the court",
+        "courtPrice": "Rental",
         "total": "Total",
-        "payAtClub": "Paid at the club. If the court is taken in the meantime, the lesson will be on another free court, and will not cost more.",
+        "payAtClub": "Paid at the club. If the place is taken in the meantime, the lesson will be at another free place, and will not cost more.",
         "noOnlineCancel": "The lesson can be cancelled up to {hours, plural, one {# hour} other {# hours}} before it starts. This one starts sooner, so once confirmed it can only be cancelled through the club.",
         "error": {
           "coachTakenTitle": "The coach is no longer free",
           "coachTaken": "Someone has just booked a lesson with this coach at that time. The free times have been refreshed. Choose another.",
-          "noCourtTitle": "No court is free",
-          "noCourt": "The courts for that time have just been taken. The free times have been refreshed. Choose another.",
+          "noCourtTitle": "No place is free",
+          "noCourt": "The places for that time have just been taken. The free times have been refreshed. Choose another.",
           "notOfferedTitle": "That time is no longer offered",
           "notOffered": "That time is no longer free for a lesson. The free times have been refreshed. Choose another.",
           "priceChangedTitle": "The price has changed",
-          "priceChanged": "The court that price was for has been taken. The lesson at that time now costs {price}. The free times have been refreshed. Choose again.",
-          "priceChangedNoPrice": "The court that price was for has been taken. The free times have been refreshed. Choose again.",
+          "priceChanged": "The place that price was for has been taken. The lesson at that time now costs {price}. The free times have been refreshed. Choose again.",
+          "priceChangedNoPrice": "The place that price was for has been taken. The free times have been refreshed. Choose again.",
           "notBookableTitle": "The lesson cannot be booked",
           "notBookable": "Lessons with this coach can no longer be booked at this venue.",
           "ownLesson": "You cannot book a lesson with yourself.",
@@ -4024,10 +4107,15 @@
       "many": "tables",
       "counted": "tables"
     },
-    "seat": {
-      "one": "seat",
-      "many": "seats",
-      "counted": "seats"
+    "hall": {
+      "one": "hall",
+      "many": "halls",
+      "counted": "halls"
+    },
+    "route": {
+      "one": "route",
+      "many": "routes",
+      "counted": "routes"
     }
   },
   "results": {
@@ -4217,15 +4305,15 @@
     "propose": {
       "open": "Propose a time",
       "title": "Propose a time for the match",
-      "description": "Against {opponents}. The court is held in your name and paid at the club; it is confirmed when the other side accepts.",
+      "description": "Against {opponents}. The slot is held in your name and paid at the club; it is confirmed when the other side accepts.",
       "day": "Day",
-      "court": "Court",
+      "court": "Place",
       "times": "Free times on {court}",
       "none": "No free times that day.",
-      "hint": "Two hours from now at the earliest. If nobody answers within a day, the court is released.",
+      "hint": "Two hours from now at the earliest. If nobody answers within a day, the slot is released.",
       "send": "Propose",
       "cancel": "Cancel",
-      "theirs": "They propose {when}, {court}. The court is held until {until}.",
+      "theirs": "They propose {when}, {court}. The slot is held until {until}.",
       "ours": "You proposed {when}, {court} — awaiting an answer until {until}.",
       "accept": "Accept",
       "decline": "Decline",

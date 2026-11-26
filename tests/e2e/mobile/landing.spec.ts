@@ -23,7 +23,7 @@ test.describe('landing page — 393 px', () => {
     });
   }
 
-  test('"Намери корт" is a full touch target and reaches /venues', async ({ page }) => {
+  test('"Намери къде да играеш" is a full touch target and reaches /venues', async ({ page }) => {
     await page.goto('/');
     const box = (await page
       .getByTestId('landing-find-court')

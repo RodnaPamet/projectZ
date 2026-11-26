@@ -22,13 +22,13 @@ const translate =
 
 describe('nounListValues', () => {
   it('Bulgarian: plural and "и", singular and "или", the counted form first, slashes', () => {
-    expect(nounListValues(words(bg), 'bg', ['court', 'table', 'seat'])).toEqual({
-      Nouns: 'Кортове, маси и места',
-      nouns: 'кортове, маси и места',
-      AnyNoun: 'Корт, маса или място',
-      anyNoun: 'корт, маса или място',
-      countedNouns: 'корта, маси и места',
-      NounSlash: 'Корт / маса / място',
+    expect(nounListValues(words(bg), 'bg', ['court', 'table', 'hall'])).toEqual({
+      Nouns: 'Кортове, маси и зали',
+      nouns: 'кортове, маси и зали',
+      AnyNoun: 'Корт, маса или зала',
+      anyNoun: 'корт, маса или зала',
+      countedNouns: 'корта, маси и зали',
+      NounSlash: 'Корт / маса / зала',
     });
   });
 
@@ -46,7 +46,7 @@ describe('nounListValues', () => {
   });
 
   it('two nouns read without a comma', () => {
-    expect(nounListValues(words(bg), 'bg', ['pitch', 'seat']).Nouns).toBe('Игрища и места');
+    expect(nounListValues(words(bg), 'bg', ['pitch', 'hall']).Nouns).toBe('Игрища и зали');
   });
 });
 
@@ -55,7 +55,7 @@ describe('nounMessage', () => {
   it('one noun reads its own wording; the court its plain key', () => {
     expect(nounMessage(t, words(bg), 'bg', 'court', 'title')).toBe('Кортове');
     expect(nounMessage(t, words(bg), 'bg', 'table', 'title')).toBe('Маси');
-    expect(nounMessage(t, words(bg), 'bg', 'seat', 'action.add')).toBe('Добавяне на място');
+    expect(nounMessage(t, words(bg), 'bg', 'hall', 'action.add')).toBe('Добавяне на зала');
   });
 
   it('several fill the one `several.` wording, values kept', () => {
@@ -63,7 +63,7 @@ describe('nounMessage', () => {
       'Добавяне на корт или маса',
     );
     expect(
-      nounMessage(t, words(bg), 'bg', 'courtPitchTrackTableSeat', 'truncated', { limit: 200 }),
-    ).toBe('Показани са първите 200 (кортове, игрища, писти, маси и места). Клубът има повече.');
+      nounMessage(t, words(bg), 'bg', 'courtPitchTrackTableHallRoute', 'truncated', { limit: 200 }),
+    ).toBe('Показани са първите 200 (кортове, игрища, писти, маси, зали и трасета). Клубът има повече.');
   });
 });

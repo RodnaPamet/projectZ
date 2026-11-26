@@ -185,7 +185,7 @@ describe('the detail page', () => {
     expect(coach).toHaveAttribute('href', '/coaches/ivan-petrov');
     expect(screen.getByTestId('booking-lesson-total')).toHaveTextContent(/^64,00\s€$/);
     expect(screen.getByTestId('booking-lesson-parts')).toHaveTextContent(
-      /^40,00\s€ за треньора \+ 24,00\s€ за корта$/,
+      /^40,00\s€ за треньора \+ 24,00\s€ за наема$/,
     );
     expect(screen.getByText(d.payAtClub)).toBeInTheDocument();
   });

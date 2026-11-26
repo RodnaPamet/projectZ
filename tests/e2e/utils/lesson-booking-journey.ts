@@ -93,7 +93,7 @@ export async function playerBooksALesson(
   await expect(dialog).toContainText('08:00–09:00');
   const price = dialog.getByTestId('lesson-sheet-price');
   await expect(price).toContainText(/За треньора\s*40,00\s€/);
-  await expect(price).toContainText(/За корта\s*24,00\s€/);
+  await expect(price).toContainText(/Наем\s*24,00\s€/);
   await expect(dialog.getByTestId('lesson-sheet-total')).toHaveText(/^64,00\s€$/);
   await expect(dialog.getByText(l.sheet.payAtClub)).toBeVisible();
   await expectAxeClean(page);
@@ -131,7 +131,7 @@ export async function playerBooksALesson(
   await expect(coachLink).toHaveAttribute('href', `/coaches/${coach.slug}`);
   await expect(page.getByTestId('booking-lesson-total')).toHaveText(/^64,00\s€$/);
   await expect(page.getByTestId('booking-lesson-parts')).toHaveText(
-    /^40,00\s€ за треньора \+ 24,00\s€ за корта$/,
+    /^40,00\s€ за треньора \+ 24,00\s€ за наема$/,
   );
   await expectAxeClean(page);
   await shot(page, opts.shots, `lesson-${opts.tag}-4-booking`);

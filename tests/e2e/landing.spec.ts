@@ -23,7 +23,7 @@ test.describe('landing page — desktop', () => {
     });
   }
 
-  test('"Намери корт" reaches /venues', async ({ page }) => {
+  test('"Намери къде да играеш" reaches /venues', async ({ page }) => {
     await findACourt(page);
   });
 
