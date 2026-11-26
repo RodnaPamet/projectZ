@@ -199,12 +199,12 @@ Section numbers are the policy's.
 
 ## 15. Export
 
-| Claim                                                                                                      | Backed by                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Profile → Privacy → Download my data, one JSON file                                                        | `src/app/api/v1/me/export/route.ts:14,59`; `messages/*.json` `profile.data.download`                        |
-| Contents, including calendar and assistant data with deleted points                                        | `src/app-layer/usecases/data-export.ts:14-38,132-419` (version 11 on `main`, 13 on `origin/feat/assistant`) |
-| Leaves out credentials, others' contacts, favourites, reports, desk notes, club tags; tags sent on request | `tests/helpers/export-excluded.ts`; `data-export.ts:56-61`. Adding them is product issue #710.              |
-| 10,000 rows per kind                                                                                       | `data-export.ts:81`                                                                                         |
+| Claim                                                                             | Backed by                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Profile → Privacy → Download my data, one JSON file                               | `src/app/api/v1/me/export/route.ts:14,59`; `messages/*.json` `profile.data.download`                                                                                                       |
+| Contents, including calendar and assistant data with deleted points               | `src/app-layer/usecases/data-export.ts` (version 12 on `main` since #710, which adds club tags, desk notes, favourites and reports; the calendar and assistant branches renumber on merge) |
+| Leaves out credentials, others' contacts, and the reported content and its author | `tests/helpers/export-excluded.ts`; `data-export.ts` (`readFromClubs`: a report carries its kind, the reporter's reason, the time and the outcome only)                                    |
+| 10,000 rows per kind                                                              | `data-export.ts:81`                                                                                                                                                                        |
 
 ## 16–19. Rights, children, changes, language
 
