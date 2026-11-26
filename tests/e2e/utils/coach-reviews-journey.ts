@@ -53,6 +53,8 @@ export async function playerRatesTheCoach(
     .filter({ has: page.locator(`a[href="/me/bookings/${input.bookingId}"]`) });
   await row.getByRole('button', { name: mb.review.coach.rate }).click();
   await expect(row.getByText(mb.review.coach.ratingLabel)).toBeVisible();
+  // Before the button: the text is checked by an AI model (#714).
+  await expect(row.getByTestId('review-ai-notice')).toHaveText(mb.review.aiNotice);
   await row.getByRole('radio').nth(4).check();
   await row.getByLabel(mb.review.bodyLabel).fill(input.text);
   await expectAxeClean(page);

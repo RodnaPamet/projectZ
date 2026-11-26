@@ -37,6 +37,7 @@ type ReviewBody = {
     rating: number;
     body: string | null;
     status: string;
+    refusal: unknown;
     createdAt: string;
   };
 };
@@ -147,10 +148,12 @@ describe('POST /api/v1/t/:slug/bookings/:id/review', () => {
     });
     // RFC 3339 with NO fractional seconds — Swift's default decoder rejects them.
     expect(data.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-    // Nothing the author should not see: no scores, no author id.
+    // Nothing the author should not see: no scores, no author id. `refusal`
+    // is the reason a refused review gives (#714), null here.
     expect(Object.keys(data).sort()).toEqual(
-      ['body', 'bookingId', 'createdAt', 'id', 'rating', 'status', 'venueId'].sort(),
+      ['body', 'bookingId', 'createdAt', 'id', 'rating', 'refusal', 'status', 'venueId'].sort(),
     );
+    expect(data.refusal).toBeNull();
 
     expect(await venueScore()).toEqual({ avgRating: 4.1, reviewCount: 1 });
   });

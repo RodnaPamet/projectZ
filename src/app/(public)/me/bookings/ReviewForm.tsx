@@ -118,6 +118,14 @@ export function ReviewForm({
         <p className="text-content-muted text-sm">{t('bodyHint', { max: maxLength })}</p>
       </div>
 
+      {/* Said before the button, not after (#714): the text goes to an AI
+          model before anyone reads it, as the privacy policy and the terms
+          (section 6) say. Stars alone are not checked, but the form is
+          the same either way. */}
+      <InlineNotice variant="info" data-testid="review-ai-notice">
+        {t('aiNotice')}
+      </InlineNotice>
+
       <div className="gap-tight flex">
         <Button type="submit">{t('submit')}</Button>
         <Button type="button" variant="ghost" onClick={() => onDraft({ ...draft, open: false })}>

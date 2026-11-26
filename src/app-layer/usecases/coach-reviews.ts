@@ -3,11 +3,13 @@ import type { PrismaClient, ReviewStatus } from '@prisma/client';
 import { locate } from '@/app-layer/usecases/booking-players';
 import { NO_RATING, readCoachRatings, type CoachRating } from '@/app-layer/usecases/coach-ratings';
 import { reportReason, type ReportInput } from '@/app-layer/usecases/messaging';
-import { reportContent } from '@/app-layer/usecases/reviews';
+import { notifyReviewRefused } from '@/app-layer/usecases/review-notifications';
+import { automaticRefusal, reportContent } from '@/app-layer/usecases/reviews';
 import { COACH_REVIEW_MAX_LENGTH, shortName } from '@/lib/coaches/reviews';
 import { runAsSuperuser, runInTenantContext } from '@/lib/db/rls-middleware';
 import { isUniqueViolation } from '@/lib/db/pg-errors';
 import { moderateOrQueue, type ModerationResult } from '@/lib/moderation/classify';
+import { refusalOf, REFUSAL_SELECT, type ReviewRefusal } from '@/lib/moderation/refusal';
 import { assertValidRating } from '@/lib/ratings/score';
 import { sanitizePlainText } from '@/lib/security/sanitize';
 
@@ -77,6 +79,8 @@ export interface CreatedCoachReview {
   rating: number;
   body: string | null;
   status: ReviewStatus;
+  /** Why it was refused, when the classifier refused it (#714); else null. */
+  refusal: ReviewRefusal | null;
   createdAt: Date;
 }
 
@@ -162,7 +166,7 @@ export async function createCoachReview(
         ? 'REJECTED'
         : 'PENDING_REVIEW';
 
-  return runInTenantContext(at.tenantId, async (db) => {
+  const review = await runInTenantContext(at.tenantId, async (db) => {
     const lesson = await lockReviewableLesson(db, scope);
     let created;
     try {
@@ -176,8 +180,17 @@ export async function createCoachReview(
           body: text,
           status,
           moderationScoresJson: verdict.scores,
+          // The statement of reasons (#714), as for a venue's review.
+          ...(status === 'REJECTED' ? automaticRefusal(verdict) : {}),
         },
-        select: { id: true, rating: true, body: true, status: true, createdAt: true },
+        select: {
+          id: true,
+          rating: true,
+          body: true,
+          status: true,
+          createdAt: true,
+          ...REFUSAL_SELECT,
+        },
       });
     } catch (err) {
       // Two reviews of one coach at once, from two lessons (or two clubs):
@@ -199,8 +212,27 @@ export async function createCoachReview(
         },
       });
     }
-    return { ...created, bookingId: input.bookingId, coachUserId: lesson.coachUserId };
+    return {
+      id: created.id,
+      rating: created.rating,
+      body: created.body,
+      status: created.status,
+      refusal: refusalOf(created),
+      createdAt: created.createdAt,
+      bookingId: input.bookingId,
+      coachUserId: lesson.coachUserId,
+    };
   });
+
+  // After the commit: the author is told why (#714). Never throws.
+  if (review.status === 'REJECTED') {
+    await notifyReviewRefused({
+      subject: 'COACH_REVIEW',
+      tenantId: at.tenantId,
+      reviewId: review.id,
+    });
+  }
+  return review;
 }
 
 /** The caller's own reviews of these coaches, by coach. */
