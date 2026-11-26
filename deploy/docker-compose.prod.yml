@@ -122,8 +122,23 @@ services:
     logging: *logging
     restart: always
     # AUTHENTICATED, because `src/env.ts` refuses to boot in production on a
-    # bare `redis://HOST:6379` — and it is right to. Sessions, the rate-limit
-    # counters and the job queue all live here, and this box is shared.
+    # bare `redis://HOST:6379` — and it is right to: the rate-limit counters
+    # live here, and this box is shared.
+    #
+    # ═══ NOTHING IS WRITTEN TO DISK (#717) ═══
+    #
+    # What Redis holds: the rate-limit counters (`src/lib/security/rate-limit.ts`,
+    # keyed on the client's IP address, each expiring within 2 hours) and the
+    # gamification board cache (`src/lib/gamification/leaderboard.ts`, rebuilt
+    # from Postgres, which is the truth). Sessions are in Postgres
+    # (`user_session`), and nothing enqueues a job (bullmq is unused). So a
+    # restart that empties Redis costs a fresh rate-limit budget, nothing else.
+    #
+    # It used to run `--appendonly yes`, with the default RDB snapshots too: an
+    # expired IP key stayed in the append-only file and the dump on the VM disk,
+    # and in every disk snapshot of it, long after the privacy policy's 2 hours.
+    # `--appendonly no --save ''` keeps it in memory only. Files written before
+    # this change stay on the volume until removed (docs/deploy-gcp.md, Redis).
     #
     # Passed through the environment and expanded by the container's own shell
     # (`$$` survives compose interpolation), so the value is not written into
@@ -133,7 +148,7 @@ services:
     command:
       - sh
       - -c
-      - exec redis-server --appendonly yes --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
+      - exec redis-server --appendonly no --save '' --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
     volumes:
       - redisdata:/data
     healthcheck:
