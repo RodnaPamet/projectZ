@@ -39,8 +39,23 @@ here cannot touch a production app that was working.
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `playerz-db`        | PostGIS 16-3.4. Not plain Postgres: `/venues/near` needs PostGIS and the booking exclusion constraint needs `btree_gist`.                                                           |
 | `playerz-pgbouncer` | Transaction pooling. `SET LOCAL ROLE` is transaction-scoped, so transaction mode is safe; session mode would exhaust the pool and statement mode would break the bindings outright. |
-| `playerz-redis`     | Sessions, rate-limit counters, job queue. Password-protected.                                                                                                                       |
+| `playerz-redis`     | Rate-limit counters (and a rebuildable board cache). Memory only, nothing on disk (#717). Password-protected.                                                                       |
 | `playerz-app`       | The Next.js image. On `playerz_internal` **and** `agrent_internal`.                                                                                                                 |
+
+### Redis keeps nothing on disk (#717)
+
+Redis holds the rate-limit counters, keyed on client IP addresses and expiring
+within 2 hours, and the gamification board cache, rebuilt from Postgres.
+Sessions are in Postgres and no job queue is used, so it runs with
+`--appendonly no --save ''`: nothing is written to the `redisdata` volume, and
+an expired IP address cannot survive in a file or a disk snapshot. A restart
+only resets the rate-limit budgets. After the change reaches the VM, recreate
+the container and remove what the old setting wrote:
+
+```bash
+cd /opt/playerz && sudo docker compose -f docker-compose.prod.yml up -d redis
+sudo docker exec playerz-redis sh -c 'redis-cli -a "$REDIS_PASSWORD" config get appendonly 2>/dev/null; rm -rf /data/appendonlydir /data/dump.rdb; ls -la /data'
+```
 
 ## ═══ EVERY HOSTNAME IS A CONTAINER NAME ═══
 
@@ -758,7 +773,7 @@ number. The privacy policy has to say so (#370).
 
 ## Scheduled jobs
 
-Eight routes under `/api/cron` do work nothing else triggers, and each refuses
+Nine routes under `/api/cron` do work nothing else triggers, and each refuses
 to run (503) until `CRON_SECRET` is set:
 
 | Route                           | Cadence | Without it                                                                       |
@@ -771,12 +786,26 @@ to run (503) until `CRON_SECRET` is set:
 | `sweep-orphan-media` (#366)     | daily   | photo objects whose rows are gone stay in the bucket (`docs/media-storage.md`)   |
 | `report-dead-emails` (#425)     | daily   | an email that died after every retry is seen by nobody (it emails `ALERT_EMAIL`) |
 | `send-sport-facts`              | weekly  | no «Факт на седмицата» push; Monday from 10:00 Sofia, the loop asks every 15 min |
+| `sweep-retention` (#717)        | daily   | records outlive the privacy policy's periods (section 13): see below             |
 
 `sweep-orphan-media` also deletes a coach's certificate on a profile left
 DRAFT or DECLINED for 30 days with no change (#557, owner decision 28); its
 answer's `certificates` says how many went and how many are stored.
 
-`ops/sweep.compose.yml` runs all eight as small `alpine` loops. It is an
+`sweep-retention` enforces the privacy policy's retention periods
+(`src/lib/retention/periods.ts`, `src/app-layer/usecases/retention-sweep.ts`):
+bookings are anonymised 5 years after they ended (the row stays for the
+club's figures; the people, names, numbers, notes, reasons and payment
+references go), weekly series 5 years after their last occurrence; deleted
+are the club's history (`audit_entry`, 5 years, longer while its booking is
+younger), moderation cases and reports (5 years), accepted texts of an account
+deleted 5 years ago, "For clubs" enquiries and their outbox copy (2 years
+after the last enquiry from the same address or number), the team's
+second-factor log (1 year) and session rows (90 days after they ended). Its
+answer counts each category under `anonymised` and `deleted`; `total` is all
+of them, and `truncated` says tomorrow's run has more to do.
+
+`ops/sweep.compose.yml` runs all nine as small `alpine` loops. It is an
 overlay on `docker-compose.prod.yml`, so copy it beside that file and name
 both:
 

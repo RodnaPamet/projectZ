@@ -445,3 +445,49 @@ services:
             || echo "sport-facts: request FAILED -> $$body"
           sleep "$${FACTS_INTERVAL_SECONDS}"
         done
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  The retention sweep (#717): the privacy policy's periods.
+  #
+  #  content/legal/*/privacy.md, section 13, says how long each record is
+  #  kept; this is what makes it true. Daily: bookings anonymised 5 years
+  #  after they ended, the club's history and moderation records deleted
+  #  after 5 years, accepted texts 5 years after an account's deletion,
+  #  "For clubs" enquiries 2 years after the last contact, the team's
+  #  second-factor log after 1 year, sessions 90 days after they ended.
+  #  The answer counts each category; `"total":0` is a day with nothing
+  #  due. Batched (500 a transaction, 20 a category), so a backlog says
+  #  `"truncated":true` and the next day continues it.
+  #
+  #  Same shape as media-sweep: daily, request first after the boot wait.
+  #  busybox wget, `--post-data=""`, `$$` escaping: see booking-sweep above.
+  # ═══════════════════════════════════════════════════════════════════
+  retention-sweep:
+    image: alpine:3
+    container_name: playerz-retention-sweep
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      - playerz-app
+    networks: [internal]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required for the retention sweep}
+      RETENTION_SWEEP_URL: ${RETENTION_SWEEP_URL:-http://playerz-app:3000/api/cron/sweep-retention}
+      RETENTION_SWEEP_INTERVAL_SECONDS: ${RETENTION_SWEEP_INTERVAL_SECONDS:-86400}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "retention-sweep: every $${RETENTION_SWEEP_INTERVAL_SECONDS}s -> $${RETENTION_SWEEP_URL}"
+        sleep 120   # let the app finish booting before the first run
+        while true; do
+          body=$$(wget -q -O- --post-data="" \
+            --header="x-cron-secret: $${CRON_SECRET}" \
+            "$${RETENTION_SWEEP_URL}" 2>&1) \
+            && case "$$body" in
+                 *'"total":0,"truncated":false'*) : ;;   # nothing due — stay quiet
+                 *) echo "retention-sweep: $$body" ;;
+               esac \
+            || echo "retention-sweep: request FAILED -> $$body"
+          sleep "$${RETENTION_SWEEP_INTERVAL_SECONDS}"
+        done

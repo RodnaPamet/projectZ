@@ -58,6 +58,13 @@ model Booking {
   /// after a cancel that committed first.
   reminderSentAt DateTime? @db.Timestamptz(3)
 
+  /// When the retention sweep (#717, P92) took the people out of it, five
+  /// years after it ended (privacy policy, section 13): the booker, the
+  /// players, the names and numbers the desk typed, the notes, the reasons
+  /// and the payment provider's references are cleared; the court, the time,
+  /// the price and the status stay for the club's statistics. Null until then.
+  anonymisedAt DateTime? @db.Timestamptz(3)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
