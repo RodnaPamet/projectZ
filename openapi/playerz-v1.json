@@ -3122,7 +3122,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 8`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 12`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s). Since version 12 (#710): `clubTags` (each tag a club put on the caller, with the club and when it was added, null once the club’s history no longer says), `favouriteVenues`, `reportsFiled` (the kind of thing reported, the caller’s reason, when, and the outcome: `pending`, `kept`, `removed` or `unknown`), and `deskNote` on a desk booking and on a weekly series.\n\nNever a secret or a token, never another person’s email, phone or contact details, and never the content the caller reported or who wrote it. Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -23366,7 +23366,10 @@
           "messages",
           "openPlay",
           "ranking",
-          "tournaments"
+          "tournaments",
+          "clubTags",
+          "favouriteVenues",
+          "reportsFiled"
         ],
         "properties": {
           "format": {
@@ -23375,7 +23378,7 @@
           },
           "version": {
             "type": "integer",
-            "const": 10
+            "const": 12
           },
           "exportedAt": {
             "type": "string",
@@ -23529,6 +23532,10 @@
                     "addedPlayers": {
                       "type": "integer",
                       "description": "How many were added to it besides the booker; never who."
+                    },
+                    "deskNote": {
+                      "type": ["string", "null"],
+                      "description": "The club desk’s note on a booking it entered for the caller (#710)."
                     }
                   }
                 }
@@ -23871,6 +23878,78 @@
                 "type": "array",
                 "items": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "clubTags": {
+            "type": "array",
+            "description": "The tags clubs put on the caller (#710).",
+            "items": {
+              "type": "object",
+              "required": ["club", "tag", "addedAt"],
+              "properties": {
+                "club": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "addedAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "favouriteVenues": {
+            "type": "array",
+            "description": "The venues the caller marked as favourites (#710).",
+            "items": {
+              "type": "object",
+              "required": ["venue", "city", "club", "addedAt"],
+              "properties": {
+                "venue": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "club": {
+                  "type": "string"
+                },
+                "addedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "reportsFiled": {
+            "type": "array",
+            "description": "The caller’s reports (#710): never the reported content or its author.",
+            "items": {
+              "type": "object",
+              "required": ["kind", "reason", "at", "outcome", "decidedAt"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "As `ModerationSubject`. Open string."
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": ["pending", "kept", "removed", "unknown"]
+                },
+                "decidedAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
                 }
               }
             }
