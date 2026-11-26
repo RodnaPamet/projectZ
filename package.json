@@ -7,7 +7,9 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

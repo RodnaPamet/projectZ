@@ -42,7 +42,12 @@ export function getSecurityHeaders(isProduction: boolean): Record<string, string
     'Referrer-Policy': 'strict-origin-when-cross-origin',
 
     // ── Feature Policy ──
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
+    // Geolocation for this origin only (#697): «Близо до мен» on /venues asks
+    // the browser where the person is, and `geolocation=()` refused it on
+    // every page before the prompt could show. No frame of another origin
+    // gets it, and camera, microphone and topics stay off. The fix is rounded
+    // to ~100 m, sent only to GET /api/v1/venues/near, and never stored.
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self), browsing-topics=()',
 
     // ── Cross-Origin Isolation ──
     'Cross-Origin-Opener-Policy': 'same-origin',

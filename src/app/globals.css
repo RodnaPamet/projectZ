@@ -396,6 +396,76 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────
+ * THE CLUBS MAP AND ITS REACH (#697), on /venues.
+ *
+ * `.club-pin` is a club's pin on the map (src/components/venues/ClubsMap):
+ * a 44 px button, the pin drawn at its foot, the brand's colour; the chosen
+ * one larger and in the accent, as the phone's tinted marker. The ring is
+ * the focus token, as every other control's.
+ *
+ * `.radius-slider` is «Близо до мен»'s 1–100 km reach: the browser's own
+ * range input (keyboard, screen reader and touch for free), in the brand's
+ * colour and at a finger's height.
+ * ───────────────────────────────────────────────────────────────── */
+.club-pin {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--brand-default);
+}
+.club-pin svg {
+  width: 26px;
+  height: 34px;
+  transform-origin: 50% 100%;
+  transition: transform 150ms ease-out;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35));
+}
+.club-pin .club-pin-body {
+  fill: currentColor;
+  stroke: var(--bg-default);
+  stroke-width: 1.5;
+}
+.club-pin .club-pin-dot {
+  fill: var(--bg-default);
+}
+.club-pin[aria-pressed='true'] {
+  z-index: 1;
+  color: var(--accent-default);
+}
+.club-pin[aria-pressed='true'] svg {
+  transform: scale(1.25);
+}
+.club-pin:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-pin svg {
+    transition: none;
+  }
+}
+
+.radius-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  accent-color: var(--brand-default);
+  cursor: pointer;
+}
+.radius-slider:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
  * ROUTE TRANSITIONS (View Transitions API).
  *
  * ~150ms. Long enough to read as motion, short enough that a user tapping

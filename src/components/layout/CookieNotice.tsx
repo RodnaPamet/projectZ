@@ -108,7 +108,11 @@ export function CookieNotice({ cookiesHref }: { cookiesHref: string | null }) {
         {cookiesHref ? (
           <>
             {' '}
-            <TextLink tone="link" href={cookiesHref} className="inline">
+            <TextLink
+              tone="link"
+              href={cookiesHref}
+              className="inline underline underline-offset-2"
+            >
               {t('more')}
             </TextLink>
           </>
