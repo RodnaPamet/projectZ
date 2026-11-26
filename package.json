@@ -80,7 +80,7 @@
     "maplibre-gl": "^6.14.0",
     "marked": "^18.1.0",
     "motion": "^12.42.2",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "next-auth": "4.24.15",
     "next-intl": "^4.14.8",
     "nodemailer": "^10.1.0",
@@ -128,7 +128,7 @@
     "axe-core": "^4.14.0",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.6",
     "husky": "^9.1.7",
     "istanbul-lib-coverage": "^3.2.2",
     "jest": "^30.5.2",
@@ -146,6 +146,7 @@
     "yaml": "^2.9.1"
   },
   "overrides": {
+    "effect": "^3.22.1",
     "postcss": "$postcss",
     "uuid": "^11.1.1",
     "@hono/node-server": "^1.19.13",
