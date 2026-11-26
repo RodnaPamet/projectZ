@@ -20,6 +20,7 @@ import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type InfiniteKey, type V1Page } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { needsSkeleton, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+import { OBJECTION_ADDRESS, REFUSAL_REASONS } from '@/lib/moderation/refusal';
 
 import { EMPTY_DRAFT, ReviewForm, type ReviewDraft, type ReviewErrorKey } from './ReviewForm';
 import type { BookingTab } from './tabs';
@@ -104,6 +105,7 @@ export function withPendingReview(pages: Pages, arg: ReviewArg, tempId: string):
     bookingId: arg.bookingId,
     rating: arg.rating,
     status: 'PENDING_REVIEW',
+    refusal: null,
   };
   return pages.map((p) => ({
     ...p,
@@ -129,7 +131,7 @@ interface CoachReviewArg {
  * no form (one per coach, decision 24). Pure, as `withPendingReview`.
  */
 export function withPendingCoachReview(pages: Pages, arg: CoachReviewArg, tempId: string): Pages {
-  const myReview = { id: tempId, rating: arg.rating, status: 'PENDING_REVIEW' };
+  const myReview = { id: tempId, rating: arg.rating, status: 'PENDING_REVIEW', refusal: null };
   return pages.map((p) => ({
     ...p,
     items: p.items.map((b) =>
@@ -449,12 +451,15 @@ function BookingCard({
       </Link>
 
       {b.venueReview?.bookingId === b.id ? (
-        <p className="text-content-default mt-compact text-sm">
-          {t('review.yours', { rating: b.venueReview.rating })}{' '}
-          <span className="text-content-muted">
-            · {t(`review.status.${b.venueReview.status}` as never)}
-          </span>
-        </p>
+        <>
+          <p className="text-content-default mt-compact text-sm">
+            {t('review.yours', { rating: b.venueReview.rating })}{' '}
+            <span className="text-content-muted">
+              · <ReviewStatusText review={b.venueReview} />
+            </span>
+          </p>
+          <RefusalReasons refusal={b.venueReview.refusal} testId="booking-card-review-refusal" />
+        </>
       ) : b.venueReview && b.status === 'COMPLETED' ? (
         <p className="text-content-muted mt-compact text-sm">{t('review.alreadyThisVenue')}</p>
       ) : b.canReview && b.clubSlug ? (
@@ -470,15 +475,21 @@ function BookingCard({
 
       {/* The lesson's coach (#551): one review per coach, from any of their lessons. */}
       {b.lesson?.myReview ? (
-        <p
-          className="text-content-default mt-compact text-sm"
-          data-testid="booking-card-coach-review"
-        >
-          {t('review.coach.yours', { rating: b.lesson.myReview.rating })}{' '}
-          <span className="text-content-muted">
-            · {t(`review.status.${b.lesson.myReview.status}` as never)}
-          </span>
-        </p>
+        <>
+          <p
+            className="text-content-default mt-compact text-sm"
+            data-testid="booking-card-coach-review"
+          >
+            {t('review.coach.yours', { rating: b.lesson.myReview.rating })}{' '}
+            <span className="text-content-muted">
+              · <ReviewStatusText review={b.lesson.myReview} />
+            </span>
+          </p>
+          <RefusalReasons
+            refusal={b.lesson.myReview.refusal}
+            testId="booking-card-coach-review-refusal"
+          />
+        </>
       ) : b.lesson?.canReview ? (
         <ReviewForm
           kind="coach"
@@ -491,5 +502,39 @@ function BookingCard({
         />
       ) : null}
     </Card>
+  );
+}
+
+type Refusal = NonNullable<MyBookingDto['venueReview']>['refusal'];
+
+/** «не е публикуван», or «премахнат» when a live review was taken down (#714). */
+function ReviewStatusText({ review }: { review: { status: string; refusal: Refusal } }) {
+  const t = useTranslations('myBookings');
+  return (
+    <>
+      {review.refusal?.action === 'REMOVED'
+        ? t('review.refusal.removed')
+        : t(`review.status.${review.status}` as never)}
+    </>
+  );
+}
+
+/**
+ * Why a review was refused, and how to object (#714, DSA Art. 17): the rule
+ * in plain words, who decided, and where to write. The same statement the
+ * author was sent, for whoever opens the list instead of the email.
+ */
+function RefusalReasons({ refusal, testId }: { refusal: Refusal; testId: string }) {
+  const t = useTranslations('myBookings.review.refusal');
+  if (!refusal) return null;
+  const reason = (REFUSAL_REASONS as readonly string[]).includes(refusal.reason)
+    ? refusal.reason
+    : 'other';
+  return (
+    <p className="text-content-muted mt-1 text-sm" data-testid={testId}>
+      {t('why', { reason: t(`reason.${reason}` as never) })}{' '}
+      {refusal.automated ? t('automated') : t('moderator')}{' '}
+      {t('object', { email: OBJECTION_ADDRESS })}
+    </p>
   );
 }

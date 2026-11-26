@@ -847,6 +847,14 @@
     },
     "sportFact": {
       "title": "Fact of the week · {sport}"
+    },
+    "review": {
+      "notPublished": "Your review was not published",
+      "removed": "Your review was removed",
+      "body": "Review of {target}. Reason: {reason}. {who} Disagree? Write to {email}.",
+      "venue": "{venue}",
+      "coach": "coach {coach}",
+      "coachUnnamed": "a coach"
     }
   },
   "notFound": {
@@ -2064,6 +2072,28 @@
         "rate": "Rate the coach",
         "ratingLabel": "Your rating of the coach",
         "yours": "Your rating of the coach: {rating} of 5"
+      },
+      "aiNotice": "Before it is published, the text of your review is checked by an artificial intelligence model from Anthropic.",
+      "refusal": {
+        "removed": "removed",
+        "why": "Reason: {reason}.",
+        "automated": "Decided automatically.",
+        "moderator": "Decided by a moderator.",
+        "object": "If you think we got it wrong, write to us at {email}. A person from our team will look at the decision again.",
+        "reason": {
+          "harassment": "insults or harassment of other people",
+          "hate": "hate speech",
+          "sexual": "sexual content",
+          "sexual_minors": "sexual content involving minors",
+          "violence": "violence or threats",
+          "self_harm": "encouraging self-harm",
+          "self_harm_instructions": "instructions for self-harm",
+          "spam": "spam or advertising",
+          "personal_data": "another person's personal data",
+          "impersonation": "pretending to be another person or club",
+          "false_review": "a false review",
+          "other": "a breach of the terms of use"
+        }
       }
     },
     "detail": {
@@ -2379,6 +2409,24 @@
         "removeMessage": "Remove the message",
         "removeNote": "Remove the note",
         "closeConversation": "Close the conversation"
+      },
+      "rule": {
+        "label": "Reason, if you refuse (the author will see it)",
+        "hint": "The author is told the reason, who decided and how to object. They do not see the note.",
+        "option": {
+          "harassment": "insults or harassment of other people",
+          "hate": "hate speech",
+          "sexual": "sexual content",
+          "sexual_minors": "sexual content involving minors",
+          "violence": "violence or threats",
+          "self_harm": "encouraging self-harm",
+          "self_harm_instructions": "instructions for self-harm",
+          "spam": "spam or advertising",
+          "personal_data": "another person's personal data",
+          "impersonation": "pretending to be another person or club",
+          "false_review": "a false review",
+          "other": "a breach of the terms of use"
+        }
       }
     },
     "usage": {
@@ -3314,6 +3362,25 @@
         "subject": "Your {tournament} match time was declined",
         "intro": "{who} declined {when} for your {tournament} match. The slot is released; propose another time on the tournament’s page."
       }
+    },
+    "review": {
+      "notPublished": {
+        "subject": "Your review was not published",
+        "intro": "Your review of {target} was not published."
+      },
+      "removed": {
+        "subject": "Your review was removed",
+        "intro": "Your review of {target} was removed and can no longer be seen."
+      },
+      "why": "Why: {reason}. The rules for reviews are in sections 9 and 10 of the terms of use.",
+      "terms": "The terms of use",
+      "automated": "How it was decided: automatically, by an artificial intelligence model from Anthropic. A moderator will also look at the review.",
+      "moderator": "How it was decided: by a moderator from the playerz.bg team.",
+      "objectTitle": "If you think we got it wrong:",
+      "objectUs": "write to us at {email} and ask for a person to look at the decision again;",
+      "objectOthers": "you can also turn to the Communications Regulation Commission (КРС), to the Commission for Consumer Protection (КЗП), or to the courts. You do not have to come to us first.",
+      "link": "Your bookings and reviews",
+      "footer": "You are getting this email because you wrote a review on playerz.bg. It is an account notice and has no switch."
     }
   },
   "billing": {
@@ -3473,7 +3540,7 @@
       "identity": "your name, email address, phone number and picture;",
       "sports": "the sports and levels you set;",
       "notifications": "your notifications and email settings;",
-      "reviews": "your reviews of venues (the venue’s rating is worked out again without them);",
+      "reviews": "your reviews of venues and coaches (their ratings are worked out again without them);",
       "links": "the invite links you made;",
       "clubs": "your club memberships and the notes clubs kept about you;",
       "devices": "the devices and sessions you signed in with."
@@ -3481,9 +3548,9 @@
     "kept": {
       "title": "What stays, and why",
       "bookings": "Your past and cancelled bookings stay with the clubs, without your name: their calendars and player lists show them as “Deleted user”. The clubs keep them because their statements and the platform fee are worked out from them. The same goes for your places on other players’ bookings.",
-      "logs": "Records of when a booking was made or cancelled stay in the clubs’ history, linked to the deleted account. They hold no email address, phone number or IP address of yours.",
-      "credit": "Unused credit at a club is lost and is not returned after the deletion. Your profile shows how much you have at each club before you delete your account.",
-      "noShows": "No-shows at a club, and any block on booking there online, do not go away with the account. They are kept for up to 90 days from each no-show, tied to a protected fingerprint of your email address and not to your name, so that a block cannot be dodged with a new account. If you make a new account with the same address, they move to it. The club’s notes and tags do not."
+      "logs": "The history of changes to bookings and staff at the club stays, linked to the deleted account. It can include the name and phone number club staff typed in for a booking, and the address a staff invitation went to. Text that staff write there can also contain your email address or phone number. It does not hold your IP address.",
+      "credit": "Credit at a club is between you and the club. After the deletion you can no longer see or use the balance on playerz.bg; the club keeps its record of past movements. Settle any balance with the club before you delete your account. Your profile shows how much you have at each club.",
+      "noShows": "No-shows at a club, and any stop on booking there online, do not go away with the account. They are kept for up to 90 days from each no-show, tied to a protected fingerprint of your email address and of your phone number, not to your name. That way a stop cannot be dodged with a new account. If you make a new account with the same email address or phone number, they move to it. The club’s notes and tags do not."
     },
     "club": {
       "title": "Club accounts",

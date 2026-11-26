@@ -8,6 +8,7 @@ import { bookingCutoffHours, playerCancellableUntil } from '@/lib/booking/cutoff
 import { coachFeeCents } from '@/lib/coaches/lessons';
 import { cityKey, type CityKey } from '@/lib/geo/cities';
 import { splitPhotos, type PhotoRow, type PhotoView } from '@/lib/media/photo-view';
+import type { ReviewRefusal } from '@/lib/moderation/refusal';
 import { CATEGORY_OF, type NotificationCategory } from '@/lib/notifications/category';
 import type { QueueItem } from '@/app-layer/usecases/moderation-queue';
 
@@ -476,7 +477,13 @@ export interface MyBookingLessonDto {
    * The caller's own review of this coach (#551), written after this lesson
    * or another: one per coach (decision 24). Null when they have none.
    */
-  myReview: { id: string; rating: number; status: string } | null;
+  myReview: {
+    id: string;
+    rating: number;
+    status: string;
+    /** Why it was refused (#714); null unless REJECTED. */
+    refusal: ReviewRefusalDto | null;
+  } | null;
   /**
    * Whether `POST /me/bookings/{id}/coach-review` would take one now: the
    * lesson is COMPLETED, the coach's account is there, and `myReview` is null.
@@ -491,7 +498,12 @@ function toMyBookingLesson(b: {
   totalCents: number;
   lesson?: BookingRow['lesson'];
   lessonCoach?: { slug: string | null; name: string | null } | null;
-  coachReview?: { id: string; rating: number; status: string } | null;
+  coachReview?: {
+    id: string;
+    rating: number;
+    status: string;
+    refusal?: ReviewRefusal | null;
+  } | null;
   canReviewCoach?: boolean;
 }): MyBookingLessonDto | null {
   if (!b.lesson) return null;
@@ -505,7 +517,12 @@ function toMyBookingLesson(b: {
     courtPriceCents: b.totalCents,
     totalCents: b.totalCents + b.lesson.coachFeeCents,
     myReview: b.coachReview
-      ? { id: b.coachReview.id, rating: b.coachReview.rating, status: b.coachReview.status }
+      ? {
+          id: b.coachReview.id,
+          rating: b.coachReview.rating,
+          status: b.coachReview.status,
+          refusal: toRefusalDto(b.coachReview.refusal),
+        }
       : null,
     canReview: b.canReviewCoach ?? false,
   };
@@ -597,6 +614,8 @@ export interface MyBookingDto extends BookingDto {
     rating: number;
     /** Open string, as `ReviewDto.status`. */
     status: string;
+    /** Why it was refused (#714); null unless REJECTED. */
+    refusal: ReviewRefusalDto | null;
   } | null;
   /**
    * Whether a review can be submitted from this booking now: it is COMPLETED
@@ -619,11 +638,22 @@ export interface MyBookingDto extends BookingDto {
 export function toMyBookingDto(
   b: BookingRow & {
     lessonCoach?: { slug: string | null; name: string | null } | null;
-    coachReview?: { id: string; rating: number; status: string } | null;
+    coachReview?: {
+      id: string;
+      rating: number;
+      status: string;
+      refusal?: ReviewRefusal | null;
+    } | null;
     canReviewCoach?: boolean;
     clubSlug: string | null;
     clubLogoUrl?: string | null;
-    venueReview: { id: string; bookingId: string | null; rating: number; status: string } | null;
+    venueReview: {
+      id: string;
+      bookingId: string | null;
+      rating: number;
+      status: string;
+      refusal?: ReviewRefusal | null;
+    } | null;
     canReview: boolean;
     viewerRole: 'BOOKER' | 'PARTICIPANT';
   },
@@ -653,6 +683,7 @@ export function toMyBookingDto(
           bookingId: b.venueReview.bookingId,
           rating: b.venueReview.rating,
           status: b.venueReview.status,
+          refusal: toRefusalDto(b.venueReview.refusal),
         }
       : null,
     canReview: b.canReview,
@@ -890,6 +921,8 @@ export interface ReviewDto {
    * decode a value added later.
    */
   status: string;
+  /** Why it was refused (#714); null unless `status` is REJECTED. */
+  refusal: ReviewRefusalDto | null;
   createdAt: string;
 }
 
@@ -908,6 +941,7 @@ export function toReview(r: {
   rating: number;
   body: string | null;
   status: string;
+  refusal: ReviewRefusal | null;
   createdAt: Date;
 }): ReviewDto {
   return {
@@ -917,7 +951,33 @@ export function toReview(r: {
     rating: r.rating,
     body: r.body,
     status: r.status,
+    refusal: toRefusalDto(r.refusal),
     createdAt: rfc3339(r.createdAt),
+  };
+}
+
+/**
+ * The statement of reasons for a refused review (#714, DSA Art. 17), on the
+ * author's own reads only. `reason` is a code with words in the app
+ * (`myBookings.review.refusal.reason.*`), never the classifier's scores.
+ */
+export interface ReviewRefusalDto {
+  /** `NOT_PUBLISHED` or `REMOVED`. An open string. */
+  action: string;
+  /** A `RefusalReason` code. An open string: unknown → `other`. */
+  reason: string;
+  /** True: the AI check decided; false: a moderator. */
+  automated: boolean;
+  decidedAt: string;
+}
+
+export function toRefusalDto(r: ReviewRefusal | null | undefined): ReviewRefusalDto | null {
+  if (!r) return null;
+  return {
+    action: r.action,
+    reason: r.reason,
+    automated: r.automated,
+    decidedAt: rfc3339(r.decidedAt),
   };
 }
 

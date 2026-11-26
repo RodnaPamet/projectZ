@@ -309,7 +309,13 @@ describe('reviewing a venue, optimistically', () => {
               stored
                 ? {
                     canReview: false,
-                    venueReview: { id: 'rv1', bookingId: 'bk1', rating: 5, status: 'PUBLISHED' },
+                    venueReview: {
+                      id: 'rv1',
+                      bookingId: 'bk1',
+                      rating: 5,
+                      status: 'PUBLISHED',
+                      refusal: null,
+                    },
                   }
                 : {},
             ),
@@ -475,7 +481,7 @@ describe('reviewing a lesson’s coach (#551)', () => {
   // The venue's review is done, so the only form on the row is the coach's.
   const done = {
     canReview: false,
-    venueReview: { id: 'rv0', bookingId: 'bk1', rating: 4, status: 'PUBLISHED' },
+    venueReview: { id: 'rv0', bookingId: 'bk1', rating: 4, status: 'PUBLISHED', refusal: null },
   };
   const yoursCoach = (n: number) => mb.review.coach.yours.replace('{rating}', String(n));
 
@@ -541,7 +547,7 @@ describe('reviewing a lesson’s coach (#551)', () => {
           ...done,
           lesson: lesson({
             canReview: false,
-            myReview: { id: 'cr1', rating: 4, status: 'PUBLISHED' },
+            myReview: { id: 'cr1', rating: 4, status: 'PUBLISHED', refusal: null },
           }),
         }),
         booking({ ...done, id: 'bk2', lesson: lesson({ canReview: false }) }),
@@ -577,5 +583,129 @@ describe('reviewing a lesson’s coach (#551)', () => {
       't1',
     );
     expect(JSON.stringify(pages)).toBe(before);
+  });
+});
+
+describe('the AI check, and the reasons when a review is refused (#714)', () => {
+  const coachLesson = {
+    id: 'ls1',
+    coach: { slug: 'ivan-petrov', name: 'Иван Петров' },
+    coachFeeCents: 4000,
+    groupFeeCents: null,
+    courtPriceCents: 2400,
+    totalCents: 6400,
+    myReview: null,
+    canReview: true,
+  };
+
+  it('the venue form says, before its button, that an AI model from Anthropic checks the text', async () => {
+    serve({ list: () => new Promise(() => {}) });
+    mount();
+    await openForm();
+    const notice = screen.getByTestId('review-ai-notice');
+    expect(notice).toHaveTextContent(mb.review.aiNotice);
+    expect(mb.review.aiNotice).toBe(
+      'Преди да бъде публикуван, текстът на отзива ви се проверява от модел с изкуствен интелект на Anthropic.',
+    );
+    // Before the button, in reading order.
+    const submit = screen.getByRole('button', { name: mb.review.submit });
+    expect(notice.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('so does the coach form', async () => {
+    serve({ list: () => new Promise(() => {}) });
+    mount(
+      page([
+        booking({
+          canReview: false,
+          venueReview: {
+            id: 'rv0',
+            bookingId: 'bk1',
+            rating: 4,
+            status: 'PUBLISHED',
+            refusal: null,
+          },
+          lesson: coachLesson,
+        }),
+      ]),
+    );
+    await userEvent.click(screen.getByRole('button', { name: mb.review.coach.rate }));
+    expect(screen.getByTestId('review-ai-notice')).toHaveTextContent(mb.review.aiNotice);
+  });
+
+  it('a refused review says why, who decided, and where to object', () => {
+    serve({ list: () => new Promise(() => {}) });
+    mount(
+      page([
+        booking({
+          canReview: false,
+          venueReview: {
+            id: 'rv1',
+            bookingId: 'bk1',
+            rating: 1,
+            status: 'REJECTED',
+            refusal: {
+              action: 'NOT_PUBLISHED',
+              reason: 'self_harm_instructions',
+              automated: true,
+              decidedAt: '2026-11-26T10:00:00Z',
+            },
+          },
+          lesson: {
+            ...coachLesson,
+            canReview: false,
+            myReview: {
+              id: 'cr1',
+              rating: 1,
+              status: 'REJECTED',
+              refusal: {
+                action: 'REMOVED',
+                reason: 'harassment',
+                automated: false,
+                decidedAt: '2026-11-26T11:00:00Z',
+              },
+            },
+          },
+        }),
+      ]),
+    );
+    const row = screen.getByRole('listitem');
+    expect(row).toHaveTextContent(mb.review.status.REJECTED);
+    expect(within(row).getByTestId('booking-card-review-refusal')).toHaveTextContent(
+      'Причина: указания за самонараняване. Решено автоматично. Ако смятате, че сме сбъркали, пишете ни на privacy@playerz.bg. Човек от екипа ще прегледа решението отново.',
+    );
+    // A live review taken down by a moderator says «премахнат», and who.
+    expect(within(row).getByTestId('booking-card-coach-review')).toHaveTextContent(
+      mb.review.refusal.removed,
+    );
+    expect(within(row).getByTestId('booking-card-coach-review-refusal')).toHaveTextContent(
+      'Причина: обиди или тормоз към други хора. Решено от модератор.',
+    );
+  });
+
+  it('a reason the app does not know yet reads as the terms in general', () => {
+    serve({ list: () => new Promise(() => {}) });
+    mount(
+      page([
+        booking({
+          canReview: false,
+          venueReview: {
+            id: 'rv1',
+            bookingId: 'bk1',
+            rating: 1,
+            status: 'REJECTED',
+            refusal: {
+              action: 'NOT_PUBLISHED',
+              reason: 'something_new',
+              automated: false,
+              decidedAt: '2026-11-26T10:00:00Z',
+            },
+          },
+        }),
+      ]),
+    );
+    expect(screen.getByTestId('booking-card-review-refusal')).toHaveTextContent(
+      mb.review.refusal.reason.other,
+    );
   });
 });

@@ -10,12 +10,14 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { InlineNotice } from '@/components/ui/inline-notice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Textarea } from '@/components/ui/textarea';
 import { isApiClientError } from '@/lib/data/errors';
 import { KEYS, V1, type V1Page } from '@/lib/data/keys';
 import { useV1Mutation } from '@/lib/data/use-v1-mutation';
 import { needsSkeleton, useV1SWR, useV1SWRInfinite } from '@/lib/data/use-v1-swr';
+import { REFUSAL_REASONS, refusalReasonFor, type RefusalReason } from '@/lib/moderation/refusal';
 
 import { StepUpForm } from '../StepUpForm';
 
@@ -37,8 +39,9 @@ import { StepUpForm } from '../StepUpForm';
  * server will not invent one — a reason the server wrote reads like the
  * moderator's own statement and is not. So the moderator states it once, for
  * this session of work, and it goes with every page they load. Each decision
- * carries its own note, which is both the audit reason and the answer to
- * "why was my review taken down?".
+ * carries its own note, which is both the audit reason and the moderator's
+ * answer to "why?", kept with the case. A review's author is not shown the
+ * note: they are told the RULE picked on the card (#714), in fixed words.
  *
  * ═══ EVERY READ HERE IS A RECORD, SO NOTHING READS ON ITS OWN ═══
  *
@@ -166,6 +169,8 @@ export function ModerationQueue() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // The rule a refusal names to the author (#714), per review case.
+  const [rules, setRules] = useState<Record<string, RefusalReason>>({});
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   // Set when the API said STEP_UP_REQUIRED; cleared when a code is accepted.
   const [stepUpAsked, setStepUpAsked] = useState(false);
@@ -185,7 +190,13 @@ export function ModerationQueue() {
   const { data, error, isValidating, setSize, mutate } = list;
 
   const resolve = useV1Mutation<
-    { caseId: string; subject: CaseItem['subject']; decision: Decision; note: string },
+    {
+      caseId: string;
+      subject: CaseItem['subject'];
+      decision: Decision;
+      note: string;
+      rule?: RefusalReason;
+    },
     unknown,
     V1Page<CaseItem>[]
   >({
@@ -195,7 +206,9 @@ export function ModerationQueue() {
       subject === 'REVIEW' || subject === 'COACH_REVIEW'
         ? V1.resolveCase(caseId)
         : V1.resolveMessageCase(caseId),
-    body: ({ decision, note }) => ({ decision, note }),
+    // A review's refusal names its rule to the author (#714); a message's
+    // route takes none.
+    body: ({ decision, note, rule }) => (rule ? { decision, note, rule } : { decision, note }),
     target: getKey ? { infinite: mutate, getKey } : undefined,
     update: (pages, { caseId }) =>
       pages.map((p) => ({ ...p, items: p.items.filter((i) => i.caseId !== caseId) })),
@@ -221,12 +234,18 @@ export function ModerationQueue() {
     await mutate();
   }
 
-  async function decide(caseId: string, subject: CaseItem['subject'], decision: Decision) {
+  async function decide(item: CaseItem, decision: Decision) {
+    const { caseId, subject } = item;
     const note = (notes[caseId] ?? '').trim();
+    // Only a refusal names a rule; an approval publishes, and has none.
+    const rule =
+      decision === 'REJECT' && !isChatCase(item)
+        ? (rules[caseId] ?? refusalReasonFor(item.reason))
+        : undefined;
     setNotice(null);
     setCardErrors(({ [caseId]: _cleared, ...rest }) => rest);
     try {
-      await resolve.trigger({ caseId, subject, decision, note });
+      await resolve.trigger({ caseId, subject, decision, note, rule });
       setNotes(({ [caseId]: _done, ...rest }) => rest);
     } catch (e) {
       // 409: another moderator decided it first. It has left the queue either
@@ -319,8 +338,10 @@ export function ModerationQueue() {
                   item={item}
                   note={notes[item.caseId] ?? ''}
                   onNote={(v) => setNotes((prev) => ({ ...prev, [item.caseId]: v }))}
+                  rule={rules[item.caseId] ?? refusalReasonFor(item.reason)}
+                  onRule={(v) => setRules((prev) => ({ ...prev, [item.caseId]: v }))}
                   error={cardErrors[item.caseId] ?? null}
-                  onDecide={(decision) => void decide(item.caseId, item.subject, decision)}
+                  onDecide={(decision) => void decide(item, decision)}
                 />
               ) : (
                 <ChatCaseCard
@@ -329,7 +350,7 @@ export function ModerationQueue() {
                   note={notes[item.caseId] ?? ''}
                   onNote={(v) => setNotes((prev) => ({ ...prev, [item.caseId]: v }))}
                   error={cardErrors[item.caseId] ?? null}
-                  onDecide={(decision) => void decide(item.caseId, item.subject, decision)}
+                  onDecide={(decision) => void decide(item, decision)}
                 />
               ),
             )}
@@ -356,12 +377,16 @@ function CaseCard({
   item,
   note,
   onNote,
+  rule,
+  onRule,
   error,
   onDecide,
 }: {
   item: ReviewCaseItem | CoachReviewCaseItem;
   note: string;
   onNote: (note: string) => void;
+  rule: RefusalReason;
+  onRule: (rule: RefusalReason) => void;
   error: string | null;
   onDecide: (decision: Decision) => void;
 }) {
@@ -370,6 +395,7 @@ function CaseCard({
 
   const noteReady = note.trim().length >= MIN_REASON;
   const noteId = `note-${item.caseId}`;
+  const ruleId = `rule-${item.caseId}`;
 
   const scores = Object.entries(item.scores).sort(([, a], [, b]) => b - a);
   const flagged = item.reason.startsWith('classifier_') || item.reason === 'user_report';
@@ -447,6 +473,28 @@ function CaseCard({
           maxLength={500}
         />
         <p className="text-content-muted text-sm">{t('note.hint', { min: MIN_REASON })}</p>
+        {/* What the author is told if this is refused (#714): the rule, in
+            the words they will read. Starts at the classifier's category. */}
+        <fieldset className="mt-2 grid gap-1.5">
+          <legend id={ruleId} className="text-content-default text-sm font-medium">
+            {t('rule.label')}
+          </legend>
+          <RadioGroup
+            name={ruleId}
+            aria-labelledby={ruleId}
+            value={rule}
+            onValueChange={(v) => onRule(v as RefusalReason)}
+            className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2"
+          >
+            {REFUSAL_REASONS.map((r) => (
+              <div key={r} className="flex items-center gap-1.5">
+                <RadioGroupItem value={r} id={`${ruleId}-${r}`} />
+                <Label htmlFor={`${ruleId}-${r}`}>{t(`rule.option.${r}` as never)}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+          <p className="text-content-muted text-sm">{t('rule.hint')}</p>
+        </fieldset>
         <div className="flex flex-wrap gap-2">
           {/* No pending state: a decided card leaves the list at once, and only
               comes back — enabled — if the decision failed. */}
