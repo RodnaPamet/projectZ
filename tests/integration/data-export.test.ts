@@ -21,8 +21,8 @@ import { EXPORT_EXCLUDED_COLUMNS } from '../helpers/export-excluded';
 /**
  * "Изтегли моите данни" (#370): `GET /api/v1/me/export`, against a real
  * database. Every section is there with the person's own data, and nothing
- * else is: no secret, no token, nobody else's email, phone or contact details,
- * and none of a club's own notes. The one place another person's name may
+ * else is: no secret, no token, nobody else's email, phone or contact details.
+ * Since version 12 (#710) a club's tags and desk notes about HER are in it. The one place another person's name may
  * appear is the person's own bell, word for word (data-export.ts says why).
  */
 const db = prismaTestClient();
@@ -42,7 +42,7 @@ const SECRETS = {
   recoveryCode: 'recovery-code-hash-must-never-leave',
 };
 
-/** What is somebody else's, or the club's own: none of it may leave in her file. */
+/** What is somebody else's: none of it may leave in her file. */
 const NOT_HERS = {
   coPlayerPhone: '+359888999000',
   coPlayerEmailPrefix: 'coplayer-',
@@ -51,7 +51,19 @@ const NOT_HERS = {
   bookersDeskPhone: '+359877555444',
   bookersSessionIp: '198.51.100.99',
   bookersBell: 'Само за Петър',
-  clubTag: 'вип-клиентка',
+  /** The desk's note on a booking the co-player made: about him, not her. */
+  othersDeskNote: 'Петър плаща в брой',
+  /** A tag the club put on the co-player. */
+  othersTag: 'таг-на-петър',
+  /** What the moderator wrote when deciding her report. */
+  moderatorNote: 'бележка на модератора',
+};
+
+/** What clubs wrote about HER (#710, version 12): in her file since then. */
+const FROM_CLUB = {
+  tag: 'вип-клиентка',
+  morningTag: 'сутрешна',
+  undatedTag: 'стара',
   deskNote: 'бележка на рецепцията',
   seriesNote: 'винаги корт 1, бележка на клуба',
 };
@@ -202,7 +214,7 @@ describe('GET /api/v1/me/export (#370)', () => {
           channel: 'DESK',
           guestName: 'Мария (рецепция)',
           guestPhone: '+359888000222',
-          notes: NOT_HERS.deskNote,
+          notes: FROM_CLUB.deskNote,
           totalCents: 2400,
           status: 'NO_SHOW',
           idempotencyKey: `export-${Math.random()}`,
@@ -218,6 +230,7 @@ describe('GET /api/v1/me/export (#370)', () => {
           bookedByUserId: otherId,
           channel: 'DESK',
           guestPhone: NOT_HERS.bookersDeskPhone,
+          notes: NOT_HERS.othersDeskNote,
           totalCents: 2400,
           status: 'COMPLETED',
           idempotencyKey: `export-${Math.random()}`,
@@ -249,7 +262,7 @@ describe('GET /api/v1/me/export (#370)', () => {
           customerName: 'Мария Иванова',
           customerPhone: '+359888000111',
           customerUserId: userId,
-          notes: NOT_HERS.seriesNote,
+          notes: FROM_CLUB.seriesNote,
           priceCents: 2000,
           idempotencyKey: `series-${Math.random()}`,
         },
@@ -274,12 +287,78 @@ describe('GET /api/v1/me/export (#370)', () => {
           balanceAfterCents: 1000,
         },
       });
-      await tx.playerVenueRelationship.create({
+      const rel = await tx.playerVenueRelationship.create({
         data: {
           tenantId: club.tenantId,
           playerUserId: userId,
           noShowCount: 1,
-          tags: [NOT_HERS.clubTag],
+          tags: [FROM_CLUB.tag, FROM_CLUB.morningTag, FROM_CLUB.undatedTag],
+        },
+      });
+      // The club's history of her tags says when two of the three were added.
+      for (const [at, before, after] of [
+        ['2026-10-01T08:00:00Z', [], [FROM_CLUB.tag]],
+        ['2026-10-03T08:00:00Z', [FROM_CLUB.tag], []],
+        ['2026-10-04T08:00:00Z', [], [FROM_CLUB.tag]],
+        ['2026-10-05T08:00:00Z', [FROM_CLUB.tag], [FROM_CLUB.tag, FROM_CLUB.morningTag]],
+      ] as const) {
+        await tx.auditEntry.create({
+          data: {
+            tenantId: club.tenantId,
+            entity: 'PlayerVenueRelationship',
+            entityId: rel.id,
+            action: 'PLAYER_TAGS_CHANGED',
+            detailsJson: { before: { tags: before }, after: { tags: after } },
+            createdAt: new Date(at),
+          },
+        });
+      }
+      await tx.playerVenueRelationship.create({
+        data: { tenantId: club.tenantId, playerUserId: otherId, tags: [NOT_HERS.othersTag] },
+      });
+      await tx.favouriteVenue.create({
+        data: { userId, venueId: court.venueId, createdAt: new Date('2026-11-01T10:00:00Z') },
+      });
+      // Three reports: one decided (the message taken down), one waiting, and
+      // one whose case is no longer on record.
+      const reportAt = new Date('2026-11-10T10:00:00Z');
+      const minute = 60_000;
+      for (const [subjectType, subjectId, reason, at] of [
+        ['CHAT_MESSAGE', 'msg-reported', 'обида', reportAt],
+        ['REVIEW', 'review-reported', 'неверен отзив', new Date(reportAt.getTime() + minute)],
+        ['OPEN_GAME_NOTE', 'game-reported', 'спам', new Date(reportAt.getTime() + 2 * minute)],
+      ] as const) {
+        await tx.contentReport.create({
+          data: {
+            tenantId: club.tenantId,
+            subjectType,
+            subjectId,
+            reporterUserId: userId,
+            reason,
+            createdAt: at,
+          },
+        });
+      }
+      await tx.moderationCase.create({
+        data: {
+          tenantId: club.tenantId,
+          subjectType: 'CHAT_MESSAGE',
+          subjectId: 'msg-reported',
+          reason: 'user_report',
+          status: 'REJECTED',
+          createdAt: reportAt,
+          resolvedAt: new Date('2026-11-11T09:00:00Z'),
+          resolutionNote: NOT_HERS.moderatorNote,
+        },
+      });
+      await tx.moderationCase.create({
+        data: {
+          tenantId: club.tenantId,
+          subjectType: 'REVIEW',
+          subjectId: 'review-reported',
+          reason: 'user_report',
+          status: 'OPEN',
+          createdAt: new Date(reportAt.getTime() + minute),
         },
       });
       await tx.notification.create({
@@ -373,11 +452,14 @@ describe('GET /api/v1/me/export (#370)', () => {
       'inviteLinks',
       'messages',
       'openPlay',
+      'clubTags',
+      'favouriteVenues',
+      'reportsFiled',
       'ranking',
       'tournaments',
       'coach',
     ]);
-    expect(json.version).toBe(11);
+    expect(json.version).toBe(12);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
@@ -451,7 +533,7 @@ describe('GET /api/v1/me/export (#370)', () => {
     });
   });
 
-  it('bookings: her note on an online one, the contact the desk took on a desk one, never the desk’s note', async () => {
+  it('bookings: her note on an online one; the contact and the desk’s note on a desk one', async () => {
     const { json } = await download(player);
     const bookings = json.bookings as {
       asBooker: Array<Record<string, unknown>>;
@@ -467,6 +549,7 @@ describe('GET /api/v1/me/export (#370)', () => {
         channel: 'ONLINE',
         note: 'Ще дойда с ракетите си',
         contactGivenToClub: null,
+        deskNote: null,
         addedPlayers: 0,
       }),
       expect.objectContaining({
@@ -475,6 +558,7 @@ describe('GET /api/v1/me/export (#370)', () => {
         status: 'NO_SHOW',
         note: null,
         contactGivenToClub: { name: 'Мария (рецепция)', phone: '+359888000222', email: null },
+        deskNote: FROM_CLUB.deskNote,
       }),
     ]);
     // Where she was added: how many played, never who, and nothing the booker gave.
@@ -483,6 +567,7 @@ describe('GET /api/v1/me/export (#370)', () => {
     ]);
     expect(Object.keys(bookings.asPlayer[0]!)).not.toContain('contactGivenToClub');
     expect(Object.keys(bookings.asPlayer[0]!)).not.toContain('note');
+    expect(Object.keys(bookings.asPlayer[0]!)).not.toContain('deskNote');
   });
 
   it('a weekly series, her credit, and her no-show standing at the club', async () => {
@@ -496,6 +581,7 @@ describe('GET /api/v1/me/export (#370)', () => {
         lastDate: '2026-12-29',
         priceCents: 2000,
         contactGivenToClub: { name: 'Мария Иванова', phone: '+359888000111' },
+        deskNote: FROM_CLUB.seriesNote,
       }),
     ]);
     expect(json.credit).toEqual({
@@ -523,6 +609,48 @@ describe('GET /api/v1/me/export (#370)', () => {
     ]);
   });
 
+  it('what clubs and she put on record: the clubs’ tags, her favourites, her reports (#710)', async () => {
+    const { json } = await download(player);
+    expect(json.clubTags).toEqual([
+      { club: 'Клуб Алфа', tag: FROM_CLUB.tag, addedAt: '2026-10-04T08:00:00.000Z' },
+      { club: 'Клуб Алфа', tag: FROM_CLUB.morningTag, addedAt: '2026-10-05T08:00:00.000Z' },
+      { club: 'Клуб Алфа', tag: FROM_CLUB.undatedTag, addedAt: null },
+    ]);
+    expect(json.favouriteVenues).toEqual([
+      {
+        venue: 'Алфа Кортове',
+        city: 'Sofia',
+        club: 'Клуб Алфа',
+        addedAt: '2026-11-01T10:00:00.000Z',
+      },
+    ]);
+    expect(json.reportsFiled).toEqual([
+      {
+        kind: 'CHAT_MESSAGE',
+        reason: 'обида',
+        at: '2026-11-10T10:00:00.000Z',
+        outcome: 'removed',
+        decidedAt: '2026-11-11T09:00:00.000Z',
+      },
+      {
+        kind: 'REVIEW',
+        reason: 'неверен отзив',
+        at: '2026-11-10T10:01:00.000Z',
+        outcome: 'pending',
+        decidedAt: null,
+      },
+      {
+        kind: 'OPEN_GAME_NOTE',
+        reason: 'спам',
+        at: '2026-11-10T10:02:00.000Z',
+        outcome: 'unknown',
+        decidedAt: null,
+      },
+    ]);
+    // What was reported is named by its kind only: not its id, not its words.
+    expect(JSON.stringify(json.reportsFiled)).not.toMatch(/reported/);
+  });
+
   it('notifications: her bell, word for word, and the emails playerz sent her', async () => {
     const { json } = await download(player);
     const notifications = json.notifications as {
@@ -546,7 +674,7 @@ describe('GET /api/v1/me/export (#370)', () => {
     ]);
   });
 
-  it('carries no secret, no token, nothing of anybody else’s and none of the club’s notes', async () => {
+  it('carries no secret, no token and nothing of anybody else’s', async () => {
     const { text, json } = await download(player);
     for (const [what, value] of Object.entries(SECRETS)) {
       expect({ what, leaked: text.includes(value) }).toEqual({ what, leaked: false });

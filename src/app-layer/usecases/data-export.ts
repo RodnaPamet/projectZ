@@ -7,6 +7,7 @@ import {
 } from '@/app-layer/usecases/booking-rules';
 import { gameChatsFor } from '@/app-layer/usecases/messaging-directory';
 import { myRatingsIn } from '@/app-layer/usecases/shown-ratings';
+import { AUDIT_ACTIONS } from '@/lib/audit';
 import { runAsSuperuser } from '@/lib/db/rls-middleware';
 import { avatarUrlOf } from '@/lib/media/avatar-url';
 import { decryptField } from '@/lib/security/encryption';
@@ -37,6 +38,14 @@ import { decryptField } from '@/lib/security/encryption';
  *   openPlay       (#376) the games they opened (what they asked for, their
  *                  note) and every request they made to join one (the game,
  *                  their note to the booker, where it stands)
+ *   clubTags       (#710, version 12) the tags each club put on them: the
+ *                  tag, the club, and when it was added (from the club's
+ *                  history, while it still holds that)
+ *   favouriteVenues (#710) the venues they marked, and when
+ *   reportsFiled   (#710) what they reported (the kind of thing), their own
+ *                  reason, when, and how it ended. Never the reported content
+ *                  or who wrote it: that is somebody else's
+ *   bookings and weeklySeries also carry the club desk's note (#710)
  *
  * ═══ WHAT IS NOT IN IT, AND WHY ═══
  *
@@ -54,11 +63,11 @@ import { decryptField } from '@/lib/security/encryption';
  *     bell's copy ("Петър се включи в играта"): it is what playerz showed this
  *     person, word for word, and leaving it out would make the file not say
  *     what their own inbox said;
- *   - what a club wrote about the person for its own use: its tags, and the
- *     notes its desk keeps on a booking or a weekly series. Those are the
- *     club's working notes; the person's own note on a booking they made
- *     online is in, and so are the contact details the desk took for them and
- *     their no-show standing, which decides what they may do;
+ *   - since version 12 (#710), what a club wrote about the person IS in it:
+ *     its tags, and its desk's note on a booking it entered for them or a
+ *     weekly series. Under GDPR Art. 15 they are the person's data whoever
+ *     wrote them. A desk note on a booking somebody ELSE made is not: there
+ *     it is about the booker;
  *   - a club's business data. A club account gets its holder's own data
  *     (profile, the membership, settings), not the club's diary or players.
  *
@@ -127,7 +136,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 11;
+  version: 12;
   exportedAt: string;
   profile: {
     id: string;
@@ -223,6 +232,8 @@ export interface PersonalDataExport {
     priceCents: number | null;
     createdAt: string;
     contactGivenToClub: { name: string; phone: string };
+    /** The club desk's note on the series (#710; version 12). */
+    deskNote: string | null;
   }>;
   credit: {
     /** The balance at each club the person has ever had credit at. */
@@ -352,6 +363,32 @@ export interface PersonalDataExport {
       decidedAt: string | null;
     }>;
   };
+  /** The tags clubs put on the person (#710; version 12). */
+  clubTags: Array<{
+    club: string;
+    tag: string;
+    /** When the club added it, from its history; null once that is gone. */
+    addedAt: string | null;
+  }>;
+  /** The venues the person marked as favourites (#672, #710; version 12). */
+  favouriteVenues: Array<{ venue: string; city: string; club: string; addedAt: string }>;
+  /**
+   * What the person reported (#710; version 12): the kind of thing, their own
+   * reason, when, and the outcome. Never the reported content or its author.
+   */
+  reportsFiled: Array<{
+    /** REVIEW, CHAT_MESSAGE, PROFILE, CONVERSATION, OPEN_GAME_NOTE, COACH_REVIEW. */
+    kind: string;
+    reason: string;
+    at: string;
+    /**
+     * `pending`: a moderator has not decided yet; `kept`: the content was
+     * found acceptable and stays; `removed`: it was taken down; `unknown`: the
+     * decision is no longer on record (moderation records are kept 5 years).
+     */
+    outcome: 'pending' | 'kept' | 'removed' | 'unknown';
+    decidedAt: string | null;
+  }>;
   /**
    * Tournament entries (#579, #582; version 10): the person's own, as entrant
    * or as a partner someone named. The other of a pair is someone else's:
@@ -499,6 +536,8 @@ export interface ExportedOwnBooking extends ExportedBooking {
   note: string | null;
   /** What the club's desk took down for the person, on a booking it entered. */
   contactGivenToClub: ContactGivenToClub | null;
+  /** The club desk's note on a booking it entered for the person (#710; version 12). */
+  deskNote: string | null;
 }
 
 type BookingRow = {
@@ -554,6 +593,7 @@ function exportOwnBooking(b: OwnBookingRow): ExportedOwnBooking {
     ...exportBooking(b),
     note: b.channel === 'ONLINE' ? b.notes : null,
     contactGivenToClub: contact,
+    deskNote: b.channel === 'DESK' ? b.notes : null,
   };
 }
 
@@ -790,6 +830,7 @@ export async function readPersonalData(
         createdAt: true,
         customerName: true,
         customerPhone: true,
+        notes: true,
         resource: { select: { name: true, venue: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'asc' },
@@ -821,11 +862,14 @@ export async function readPersonalData(
     }),
   ]);
 
+  const fromClubs = await readFromClubs(db, userId);
+
   const tenantIds = [
     ...new Set([
       ...series.map((s) => s.tenantId),
       ...ledger.map((l) => l.tenantId),
       ...standings.map((s) => s.tenantId),
+      ...fromClubs.tenantIds,
     ]),
   ];
   const clubs = tenantIds.length
@@ -858,7 +902,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 11,
+    version: 12,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -952,6 +996,7 @@ export async function readPersonalData(
       priceCents: s.priceCents,
       createdAt: s.createdAt.toISOString(),
       contactGivenToClub: { name: s.customerName, phone: s.customerPhone },
+      deskNote: s.notes,
     })),
     credit: {
       balances: [...balances].map(([tenantId, balanceCents]) => ({
@@ -1029,9 +1074,183 @@ export async function readPersonalData(
     })),
     messages: { shownInPlayerSearch: user.searchable, ...messaging },
     openPlay,
+    clubTags: fromClubs.tags.map((t) => ({
+      club: clubOf(t.tenantId),
+      tag: t.tag,
+      addedAt: iso(t.addedAt),
+    })),
+    favouriteVenues: fromClubs.favourites.map((f) => ({
+      venue: f.venue,
+      city: f.city,
+      club: f.tenantId ? clubOf(f.tenantId) : '',
+      addedAt: f.addedAt.toISOString(),
+    })),
+    reportsFiled: fromClubs.reports,
     ranking,
     tournaments,
     coach,
+  };
+}
+
+/**
+ * What clubs and the person put on record beside the bookings (#710): the
+ * clubs' tags with when each was added, the favourite venues, and the
+ * person's own reports with how they ended. Tenant ids come back for the
+ * caller to name the clubs with the rest.
+ */
+async function readFromClubs(
+  db: PrismaClient,
+  userId: string,
+): Promise<{
+  tenantIds: string[];
+  tags: Array<{ tenantId: string; tag: string; addedAt: Date | null }>;
+  favourites: Array<{ venue: string; city: string; tenantId: string | null; addedAt: Date }>;
+  reports: PersonalDataExport['reportsFiled'];
+}> {
+  const [rels, favourites, reports] = await Promise.all([
+    // guardrail-allow: cross-tenant — the tags every club put on the person, by their id.
+    db.playerVenueRelationship.findMany({
+      where: { playerUserId: userId, NOT: { tags: { isEmpty: true } } },
+      select: { id: true, tenantId: true, tags: true },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the person's own favourites, by their id.
+    db.favouriteVenue.findMany({
+      where: { userId },
+      select: { venueId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+    // guardrail-allow: cross-tenant — the reports the person filed, by their id.
+    db.contentReport.findMany({
+      where: { reporterUserId: userId },
+      select: { subjectType: true, subjectId: true, reason: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+    }),
+  ]);
+
+  // When each tag was added: the club's own history of the person's tags
+  // (PLAYER_TAGS_CHANGED, before and after), oldest first. A tag that was
+  // removed and added again counts from the last time.
+  const changes =
+    rels.length === 0
+      ? []
+      : // guardrail-allow: cross-tenant — those clubs' tag changes on the person's own rows.
+        await db.auditEntry.findMany({
+          where: {
+            tenantId: { in: [...new Set(rels.map((r) => r.tenantId))] },
+            entity: 'PlayerVenueRelationship',
+            entityId: { in: rels.map((r) => r.id) },
+            action: AUDIT_ACTIONS.PLAYER_TAGS_CHANGED,
+          },
+          select: { entityId: true, detailsJson: true, createdAt: true },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: EXPORT_ROW_CAP,
+        });
+  const tagsIn = (v: unknown): string[] =>
+    v && typeof v === 'object' && Array.isArray((v as { tags?: unknown }).tags)
+      ? ((v as { tags: unknown[] }).tags.filter((t) => typeof t === 'string') as string[])
+      : [];
+  const addedAt = new Map<string, Date>();
+  for (const c of changes) {
+    const details = (c.detailsJson ?? {}) as { before?: unknown; after?: unknown };
+    const before = new Set(tagsIn(details.before));
+    for (const tag of tagsIn(details.after)) {
+      if (!before.has(tag)) addedAt.set(`${c.entityId}:${tag}`, c.createdAt);
+    }
+  }
+  const tags = rels.flatMap((r) =>
+    r.tags.map((tag) => ({
+      tenantId: r.tenantId,
+      tag,
+      addedAt: addedAt.get(`${r.id}:${tag}`) ?? null,
+    })),
+  );
+
+  // The favourite venues' names. A venue is public; its club is named below.
+  const venueIds = favourites.map((f) => f.venueId);
+  const venues = new Map(
+    venueIds.length === 0
+      ? []
+      : // guardrail-allow: cross-tenant — the venues the person marked, by id.
+        // public-venue-filter: not a public read — the person's own list,
+        // named even if a venue has since been hidden or its club paused.
+        (
+          await db.venue.findMany({
+            where: { id: { in: venueIds } },
+            select: { id: true, name: true, city: true, tenantId: true },
+            take: venueIds.length,
+          })
+        ).map((v) => [v.id, v]),
+  );
+  const favouriteRows = favourites.map((f) => {
+    const v = venues.get(f.venueId);
+    return {
+      venue: v?.name ?? '',
+      city: v?.city ?? '',
+      tenantId: v?.tenantId ?? null,
+      addedAt: f.createdAt,
+    };
+  });
+
+  // How each report ended: the case on the same thing that was open when it
+  // was filed (a report opens one, or joins the one already open). Only its
+  // status and when it was decided; never the moderator's note.
+  const subjectIds = [...new Set(reports.map((r) => r.subjectId))];
+  const cases =
+    subjectIds.length === 0
+      ? []
+      : // guardrail-allow: cross-tenant — the cases on the things the person reported.
+        await db.moderationCase.findMany({
+          where: { subjectId: { in: subjectIds } },
+          select: {
+            subjectType: true,
+            subjectId: true,
+            status: true,
+            createdAt: true,
+            resolvedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: EXPORT_ROW_CAP,
+        });
+  const reportRows = reports.map((r) => {
+    const c = cases.find(
+      (k) =>
+        k.subjectType === r.subjectType &&
+        k.subjectId === r.subjectId &&
+        // The report and the case it opens are written together; a minute's
+        // grace covers two statements that were not one transaction.
+        k.createdAt.getTime() <= r.createdAt.getTime() + 60_000 &&
+        (k.resolvedAt === null || k.resolvedAt.getTime() >= r.createdAt.getTime()),
+    );
+    const outcome: PersonalDataExport['reportsFiled'][number]['outcome'] = !c
+      ? 'unknown'
+      : c.status === 'OPEN'
+        ? 'pending'
+        : c.status === 'REJECTED'
+          ? 'removed'
+          : 'kept';
+    return {
+      kind: r.subjectType,
+      reason: r.reason,
+      at: r.createdAt.toISOString(),
+      outcome,
+      decidedAt: c && c.status !== 'OPEN' ? iso(c.resolvedAt) : null,
+    };
+  });
+
+  return {
+    tenantIds: [
+      ...new Set([
+        ...rels.map((r) => r.tenantId),
+        ...favouriteRows.flatMap((f) => (f.tenantId ? [f.tenantId] : [])),
+      ]),
+    ],
+    tags,
+    favourites: favouriteRows,
+    reports: reportRows,
   };
 }
 
