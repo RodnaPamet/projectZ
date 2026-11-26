@@ -11,7 +11,9 @@ import { getRequestId } from '@/lib/observability/context';
 
 /**
  * POST /api/v1/me/calendar/google/connect — the switch on (owner 2026-11-14).
- * `{"client":"ios"|"web"}` → `{ authorizeUrl }`. The client opens it (the
+ * `{"client":"ios"|"web","disclosureVersion"}` → `{ authorizeUrl }`, after the
+ * person pressed «Свържи» under the disclosure (#713); an older version is 409
+ * `GOOGLE_CALENDAR_DISCLOSURE_OUTDATED`. The client opens it (the
  * phone in an ASWebAuthenticationSession, the web as a navigation); Google
  * comes back to `/api/integrations/google-calendar/callback`, which stores the
  * connection, runs the first sync and redirects to the app scheme or the
@@ -21,7 +23,13 @@ async function handler(req: NextRequest) {
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
   if (!ctx.userId) throw new UnauthorizedError('Authentication required');
   const body = await parseJsonBody(req, googleCalendarConnectBodySchema, 'connect');
-  return ok(await startGoogleCalendarConnect({ userId: ctx.userId, client: body.client }));
+  return ok(
+    await startGoogleCalendarConnect({
+      userId: ctx.userId,
+      client: body.client,
+      disclosureVersion: body.disclosureVersion,
+    }),
+  );
 }
 
 export const POST = defineV1Route(handler);

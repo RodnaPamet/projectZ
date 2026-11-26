@@ -18542,7 +18542,7 @@
       "get": {
         "operationId": "getMyCalendar",
         "summary": "Calendar sync: connected, as whom, last sync",
-        "description": "The caller's Google Calendar sync. `google.connected` drives the switch. `connected: false` with `error: GOOGLE_REVOKED` is a connection Google stopped (removed in the Google account, or expired): show «Свържете отново»; turning the switch on reconnects. `error: GOOGLE_UNAVAILABLE` means the last sync could not reach Google; the server retries on its own every five minutes.",
+        "description": "The caller's Google Calendar sync. `google.connected` drives the switch. `connected: false` with `error: GOOGLE_REVOKED` is a connection Google stopped (removed in the Google account, or expired): show «Свържете отново»; turning the switch on reconnects. `error: GOOGLE_UNAVAILABLE` means the last sync could not reach Google; the server retries on its own every five minutes. `disclosure` is what to show before connecting (#713), in the request's language; `google.disclosureVersion` is the version the person agreed to.",
         "tags": ["Calendar", "Me"],
         "security": [
           {
@@ -18606,7 +18606,19 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "description": "`bg` or `en`, for `disclosure`. Any other value is ignored; without it, the cookie, then the account's language.",
+            "schema": {
+              "type": "string",
+              "enum": ["bg", "en"]
+            }
+          }
+        ]
       }
     },
     "/me/calendar/google": {
@@ -18681,7 +18693,7 @@
       "post": {
         "operationId": "connectGoogleCalendar",
         "summary": "Turn the calendar sync on: start Google's consent",
-        "description": "The switch on. Answers `authorizeUrl`, Google's consent page for the scopes `openid email https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.freebusy`. Its `state` is a single-use nonce the server holds for ten minutes, bound to the caller and the client.\n\nThe phone opens it in an `ASWebAuthenticationSession` with the callback scheme `bg.playerz.app`. Google returns to `GET /api/integrations/google-calendar/callback` (not under /api/v1; nothing to call), which stores the connection, makes the «playerz» calendar, runs the first sync and redirects to:\n\n- `bg.playerz.app://integrations/google-calendar?result=connected`, or\n- `bg.playerz.app://integrations/google-calendar?error=<code>`, `<code>` one of `access_denied` (the person declined), `insufficient_scope` (the calendar box was unticked), `state_expired` (more than ten minutes; start again), `state_invalid` (used, unknown, or another account's), `token_exchange_failed`, `feature_disabled`, `internal_error`. Treat any other value as `internal_error`.\n\nThe web (`client: web`) is sent to `/me/profile?googleCalendar=connected` or `?googleCalendar=<code>`. Then read `GET /me/calendar`.",
+        "description": "The switch on, after the person pressed «Свържи» under `disclosure` from `GET /me/calendar` (#713); never before. Answers `authorizeUrl`, Google's consent page for the scopes `openid email https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.freebusy`. Its `state` is a single-use nonce the server holds for ten minutes, bound to the caller and the client.\n\nThe phone opens it in an `ASWebAuthenticationSession` with the callback scheme `bg.playerz.app`. Google returns to `GET /api/integrations/google-calendar/callback` (not under /api/v1; nothing to call), which stores the connection, makes the «playerz» calendar, runs the first sync and redirects to:\n\n- `bg.playerz.app://integrations/google-calendar?result=connected`, or\n- `bg.playerz.app://integrations/google-calendar?error=<code>`, `<code>` one of `access_denied` (the person declined), `insufficient_scope` (the calendar box was unticked), `state_expired` (more than ten minutes; start again), `state_invalid` (used, unknown, or another account's), `token_exchange_failed`, `feature_disabled`, `internal_error`. Treat any other value as `internal_error`.\n\nThe web (`client: web`) is sent to `/me/profile?googleCalendar=connected` or `?googleCalendar=<code>`. Then read `GET /me/calendar`.",
         "tags": ["Calendar", "Me"],
         "security": [
           {
@@ -18716,7 +18728,7 @@
             }
           },
           "400": {
-            "description": "`BAD_REQUEST` — not JSON, `client` missing or not `ios`/`web`, or an unknown property.",
+            "description": "`BAD_REQUEST` — not JSON, `client` missing or not `ios`/`web`, `disclosureVersion` missing, or an unknown property.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18746,7 +18758,7 @@
             }
           },
           "409": {
-            "description": "`VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
+            "description": "`GOOGLE_CALENDAR_DISCLOSURE_OUTDATED` — `disclosureVersion` is not the current disclosure: read `GET /me/calendar` again, show its `disclosure`, and ask again. Nothing was started. Or `VIEWER_CHANGED` — web only: the `x-playerz-viewer` header names a different user from the live session's. Nothing was read or written. A native client never sends the header and never sees this; see openapi/NOTES.md.",
             "content": {
               "application/json": {
                 "schema": {
@@ -31052,11 +31064,18 @@
       "MyCalendar": {
         "type": "object",
         "title": "MyCalendar",
-        "required": ["google"],
+        "required": ["google", "disclosure"],
         "properties": {
           "google": {
             "type": "object",
-            "required": ["connected", "email", "lastSyncAt", "lastResult", "error"],
+            "required": [
+              "connected",
+              "email",
+              "lastSyncAt",
+              "lastResult",
+              "error",
+              "disclosureVersion"
+            ],
             "properties": {
               "connected": {
                 "type": "boolean",
@@ -31085,21 +31104,64 @@
                 "type": ["string", "null"],
                 "enum": ["GOOGLE_REVOKED", "GOOGLE_UNAVAILABLE", null],
                 "description": "`GOOGLE_REVOKED`: connect again («Свържете отново»). `GOOGLE_UNAVAILABLE`: the last sync could not reach Google; it retries by itself."
+              },
+              "disclosureVersion": {
+                "type": ["string", "null"],
+                "description": "The disclosure version the person agreed to with «Свържи» when they last connected (#713). Null when nothing is connected."
               }
             }
+          },
+          "disclosure": {
+            "$ref": "#/components/schemas/GoogleCalendarDisclosure"
+          }
+        }
+      },
+      "GoogleCalendarDisclosure": {
+        "type": "object",
+        "title": "GoogleCalendarDisclosure",
+        "description": "What to show before Google's consent (#713, Google's Workspace user-data policy): a dialog in front of the switch with `title`, each of `points` as its own paragraph, in order, and the buttons `connect` (the affirmative action; then `POST /me/calendar/google/connect` with this `version`) and `cancel` (the switch stays off). Show these words as sent; they are the web's too, and the privacy policy's calendar section, shortened.",
+        "required": ["version", "title", "points", "connect", "cancel"],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "Send it back as `disclosureVersion` when connecting. It changes whenever a word changes."
+          },
+          "title": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "connect": {
+            "type": "string",
+            "description": "«Свържи» / Connect."
+          },
+          "cancel": {
+            "type": "string",
+            "description": "«Отказ» / Cancel."
           }
         }
       },
       "GoogleCalendarConnectRequest": {
         "type": "object",
         "title": "GoogleCalendarConnectRequest",
-        "required": ["client"],
+        "required": ["client", "disclosureVersion"],
         "additionalProperties": false,
         "properties": {
           "client": {
             "type": "string",
             "enum": ["ios", "web"],
             "description": "Where the callback sends the person back: the app scheme, or the profile page."
+          },
+          "disclosureVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "`disclosure.version` from `GET /me/calendar`: the words the person agreed to by pressing «Свържи» (#713). Recorded on the connection."
           }
         }
       },

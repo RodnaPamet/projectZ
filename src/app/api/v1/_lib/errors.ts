@@ -534,6 +534,11 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // Google refused the grant (removed in the Google account, or expired):
   // «Свържете отново».
   GoogleCalendarRevokedError: { status: 409, code: 'GOOGLE_CALENDAR_REVOKED' },
+  // The client showed an older disclosure (#713): refetch, show, ask again.
+  GoogleCalendarDisclosureOutdatedError: {
+    status: 409,
+    code: 'GOOGLE_CALENDAR_DISCLOSURE_OUTDATED',
+  },
 
   // ── «Асистент» (owner 2026-11-14, #704) ──────────────────────────
   // Off on this deployment (ASSISTANT_ENABLED): the app hides the launcher.

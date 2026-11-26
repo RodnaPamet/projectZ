@@ -2884,6 +2884,16 @@
         "insufficient_scope": "Without calendar access we can’t keep it up to date. Try again and allow the calendar.",
         "state_expired": "Connecting took too long. Please try again.",
         "failed": "Connecting didn’t work. Please try again."
+      },
+      "disclosure": {
+        "title": "Connect Google Calendar",
+        "created": "We make a separate calendar named \"playerz\" in your Google account. We write your bookings, games, lessons and tournament matches into it. We can neither read nor change your other calendars.",
+        "freeBusy": "From Google we see only when you are busy and when you are free. We do not see titles, places or names.",
+        "coPlayers": "A player who shares a booking with you can ask the assistant for a good time for a new game. The assistant then checks when you are free. That player learns only whether you are free at the times checked. They do not learn what is in your calendar.",
+        "assistant": "To prepare the answer, the assistant sends Anthropic, our AI provider, the name on your profile and only whether you are free at the times checked. Anthropic processes this data for us under contract and may not use it for anything else.",
+        "off": "You can switch it off any time with the switch in Profile. We then remove our access at Google. The \"playerz\" calendar stays in your Google account, and you can delete it yourself.",
+        "connect": "Connect",
+        "cancel": "Cancel"
       }
     }
   },

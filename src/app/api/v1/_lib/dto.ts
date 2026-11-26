@@ -1169,5 +1169,16 @@ export interface MyCalendarDto {
     lastSyncAt: string | null;
     lastResult: CalendarSyncResultDto | null;
     error: 'GOOGLE_REVOKED' | 'GOOGLE_UNAVAILABLE' | null;
+    /** The disclosure version the person agreed to when connecting (#713). */
+    disclosureVersion: string | null;
+  };
+  /** What to show before «Свържи» (#713), in the request's language. */
+  disclosure: {
+    version: string;
+    title: string;
+    /** The points, in order, one paragraph each. */
+    points: string[];
+    connect: string;
+    cancel: string;
   };
 }

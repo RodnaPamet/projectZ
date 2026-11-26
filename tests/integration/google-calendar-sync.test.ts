@@ -7,6 +7,9 @@ import { POST as connect } from '@/app/api/v1/me/calendar/google/connect/route';
 import { POST as syncNow } from '@/app/api/v1/me/calendar/google/sync/route';
 import { GET as status } from '@/app/api/v1/me/calendar/route';
 import { DELETE as deleteMe } from '@/app/api/v1/me/route';
+import { GOOGLE_CALENDAR_DISCLOSURE_VERSION } from '@/lib/google-calendar/disclosure';
+
+import en from '../../messages/en.json';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
 import {
@@ -93,7 +96,7 @@ describe('Google Calendar sync (owner 2026-11-14)', () => {
   async function connectAs(who: TestIdentity, client: 'ios' | 'web' = 'ios') {
     const res = await call(connect as Handler, 'POST', '/api/v1/me/calendar/google/connect', {
       who,
-      body: { client },
+      body: { client, disclosureVersion: GOOGLE_CALENDAR_DISCLOSURE_VERSION },
     });
     expect(res.status).toBe(200);
     const { data } = await json<{ data: { authorizeUrl: string } }>(res);
@@ -144,10 +147,32 @@ describe('Google Calendar sync (owner 2026-11-14)', () => {
     );
     const c = await call(connect as Handler, 'POST', '/api/v1/me/calendar/google/connect', {
       who: player,
-      body: { client: 'ios' },
+      body: { client: 'ios', disclosureVersion: GOOGLE_CALENDAR_DISCLOSURE_VERSION },
     });
     expect(c.status).toBe(404);
     expect(await json(await runCron())).toEqual({ synced: 0, failed: 0, revoked: 0, states: 0 });
+  });
+
+  it('connect needs the current disclosure: missing is 400, an older one 409 (#713)', async () => {
+    const path = '/api/v1/me/calendar/google/connect';
+    const none = await call(connect as Handler, 'POST', path, {
+      who: player,
+      body: { client: 'ios' },
+    });
+    expect(none.status).toBe(400);
+    const old = await call(connect as Handler, 'POST', path, {
+      who: player,
+      body: { client: 'ios', disclosureVersion: '2000-01-01' },
+    });
+    expect(old.status).toBe(409);
+    expect((await json<{ error: { code: string } }>(old)).error.code).toBe(
+      'GOOGLE_CALENDAR_DISCLOSURE_OUTDATED',
+    );
+    // Nothing was started: no state for a consent the person did not agree to.
+    const states = await asAppSuperuser(db, (tx) =>
+      tx.calendarOAuthState.count({ where: { userId: player.userId } }),
+    );
+    expect(states).toBe(0);
   });
 
   it('connect → callback → first sync, then status; the state is single-use', async () => {
@@ -172,6 +197,9 @@ describe('Google Calendar sync (owner 2026-11-14)', () => {
       status: 'ACTIVE',
       googleEmail: 'player@gmail.test',
       dirtyAt: null,
+      // What the person agreed to with «Свържи» (#713), and when.
+      disclosureVersion: GOOGLE_CALENDAR_DISCLOSURE_VERSION,
+      disclosureAgreedAt: expect.any(Date),
     });
     // Ciphertext, never the token itself.
     expect(row!.refreshTokenEnc).toMatch(/^v1:/);
@@ -183,10 +211,19 @@ describe('Google Calendar sync (owner 2026-11-14)', () => {
     expect(events[0]!.extendedProperties?.private?.playerzId).toBe(`booking:${b.id}`);
 
     const s = await json<{ data: unknown }>(
-      await call(status as Handler, 'GET', '/api/v1/me/calendar', { who: player }),
+      await call(status as Handler, 'GET', '/api/v1/me/calendar?locale=en', { who: player }),
     );
+    const d = en.profile.calendar.disclosure;
     expect(s.data).toEqual({
+      disclosure: {
+        version: GOOGLE_CALENDAR_DISCLOSURE_VERSION,
+        title: d.title,
+        points: [d.created, d.freeBusy, d.coPlayers, d.assistant, d.off],
+        connect: d.connect,
+        cancel: d.cancel,
+      },
       google: {
+        disclosureVersion: GOOGLE_CALENDAR_DISCLOSURE_VERSION,
         connected: true,
         email: 'player@gmail.test',
         lastSyncAt: expect.any(String),

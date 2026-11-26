@@ -30,6 +30,9 @@ CREATE TABLE "google_calendar_connection" (
     "calendarId" TEXT,
     "locale" "Locale" NOT NULL DEFAULT 'bg',
     "status" "GoogleCalendarStatus" NOT NULL DEFAULT 'ACTIVE',
+    -- The disclosure read before «Свържи» (#713): which words, and when.
+    "disclosureVersion" TEXT,
+    "disclosureAgreedAt" TIMESTAMPTZ(3),
     "connectedAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastSyncAt" TIMESTAMPTZ(3),
     "lastResultJson" JSONB,
@@ -50,6 +53,7 @@ CREATE TABLE "calendar_oauth_state" (
     "stateHash" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "client" TEXT NOT NULL,
+    "disclosureVersion" TEXT NOT NULL,
     "expiresAt" TIMESTAMPTZ(3) NOT NULL,
     "consumedAt" TIMESTAMPTZ(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

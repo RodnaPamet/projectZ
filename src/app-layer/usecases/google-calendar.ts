@@ -11,6 +11,10 @@ import {
 } from '@/lib/google-calendar/oauth';
 import type { MyCalendarDto } from '@/app/api/v1/_lib/dto';
 import { runAsSuperuser, runAsUserOnly } from '@/lib/db/rls-middleware';
+import {
+  GOOGLE_CALENDAR_DISCLOSURE_VERSION,
+  googleCalendarDisclosure,
+} from '@/lib/google-calendar/disclosure';
 import { resolveLocale } from '@/lib/i18n/locales';
 import { logger } from '@/lib/observability/logger';
 import { decryptField, encryptField } from '@/lib/security/encryption';
@@ -91,6 +95,17 @@ export class GoogleCalendarRevokedError extends Error {
   }
 }
 
+/**
+ * The client showed an older disclosure than the current one (#713): read
+ * `GET /me/calendar` again and show its `disclosure` before «Свържи».
+ */
+export class GoogleCalendarDisclosureOutdatedError extends Error {
+  constructor() {
+    super('The calendar disclosure has changed. Show the current one and ask again.');
+    this.name = 'GoogleCalendarDisclosureOutdatedError';
+  }
+}
+
 export class GoogleCalendarUnavailableError extends Error {
   constructor() {
     super('Google Calendar did not answer. Try again in a little while.');
@@ -112,13 +127,23 @@ function appOrigin(): string {
   return process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
 }
 
-/** Start a consent: a state for this person and client, and Google's URL. */
+/**
+ * Start a consent: a state for this person and client, and Google's URL.
+ *
+ * `disclosureVersion` is the disclosure the person just agreed to with «Свържи»
+ * (#713). It must be the current one; the state carries it to the callback,
+ * which records it on the connection.
+ */
 export async function startGoogleCalendarConnect(input: {
   userId: string;
   client: CalendarClient;
+  disclosureVersion: string;
   now?: Date;
 }): Promise<{ authorizeUrl: string }> {
   assertGoogleCalendarSyncOn();
+  if (input.disclosureVersion !== GOOGLE_CALENDAR_DISCLOSURE_VERSION) {
+    throw new GoogleCalendarDisclosureOutdatedError();
+  }
   const oauth = googleOAuthClient()!;
   const now = input.now ?? new Date();
   const state = newOAuthState();
@@ -129,6 +154,7 @@ export async function startGoogleCalendarConnect(input: {
         stateHash: state.hash,
         userId: input.userId,
         client: input.client,
+        disclosureVersion: input.disclosureVersion,
         expiresAt: new Date(now.getTime() + STATE_TTL_SECONDS * 1000),
       },
     }),
@@ -143,7 +169,13 @@ export async function startGoogleCalendarConnect(input: {
 }
 
 type Claim =
-  | { ok: true; userId: string; client: CalendarClient }
+  | {
+      ok: true;
+      userId: string;
+      client: CalendarClient;
+      /** What the person agreed to, and when they pressed «Свържи». */
+      disclosure: { version: string; agreedAt: Date };
+    }
   | { ok: false; reason: 'state_expired' | 'state_invalid'; client: CalendarClient }
   | { ok: false; reason: 'unknown' };
 
@@ -163,11 +195,25 @@ async function claimState(raw: string, now: Date): Promise<Claim> {
     });
     const row = await db.calendarOAuthState.findUnique({
       where: { stateHash },
-      select: { userId: true, client: true, expiresAt: true, consumedAt: true },
+      select: {
+        userId: true,
+        client: true,
+        disclosureVersion: true,
+        createdAt: true,
+        expiresAt: true,
+        consumedAt: true,
+      },
     });
     if (!row) return { ok: false, reason: 'unknown' };
     const client: CalendarClient = row.client === 'ios' ? 'ios' : 'web';
-    if (claimed.count === 1) return { ok: true, userId: row.userId, client };
+    if (claimed.count === 1) {
+      return {
+        ok: true,
+        userId: row.userId,
+        client,
+        disclosure: { version: row.disclosureVersion, agreedAt: row.createdAt },
+      };
+    }
     return {
       ok: false,
       client,
@@ -271,6 +317,8 @@ export async function completeGoogleCalendarConnect(
         googleEmail: grant.email,
         scopes: grant.scopes,
         locale,
+        disclosureVersion: claim.disclosure.version,
+        disclosureAgreedAt: claim.disclosure.agreedAt,
         dirtyAt: now,
       },
       update: {
@@ -279,6 +327,8 @@ export async function completeGoogleCalendarConnect(
         scopes: grant.scopes,
         status: 'ACTIVE',
         lastError: null,
+        disclosureVersion: claim.disclosure.version,
+        disclosureAgreedAt: claim.disclosure.agreedAt,
         connectedAt: now,
         dirtyAt: now,
       },
@@ -306,9 +356,17 @@ async function userLocale(userId: string, fallback?: string | null): Promise<DbL
 
 export type MyCalendarStatus = MyCalendarDto;
 
-/** `GET /api/v1/me/calendar`. A revoked connection reads `connected: false, error: GOOGLE_REVOKED`. */
-export async function getMyCalendarStatus(userId: string): Promise<MyCalendarStatus> {
+/**
+ * `GET /api/v1/me/calendar`. A revoked connection reads `connected: false,
+ * error: GOOGLE_REVOKED`. `disclosure` is what to show before «Свържи» (#713),
+ * in `locale`; `google.disclosureVersion` is the one the person agreed to.
+ */
+export async function getMyCalendarStatus(
+  userId: string,
+  locale: unknown,
+): Promise<MyCalendarStatus> {
   assertGoogleCalendarSyncOn();
+  const disclosure = await googleCalendarDisclosure(locale);
   const row = await runAsUserOnly(userId, (db) =>
     // guardrail-allow: cross-tenant — the person's own row.
     db.googleCalendarConnection.findUnique({
@@ -319,16 +377,27 @@ export async function getMyCalendarStatus(userId: string): Promise<MyCalendarSta
         lastSyncAt: true,
         lastResultJson: true,
         lastError: true,
+        disclosureVersion: true,
       },
     }),
   );
   if (!row) {
     return {
-      google: { connected: false, email: null, lastSyncAt: null, lastResult: null, error: null },
+      google: {
+        connected: false,
+        email: null,
+        lastSyncAt: null,
+        lastResult: null,
+        error: null,
+        disclosureVersion: null,
+      },
+      disclosure,
     };
   }
   return {
+    disclosure,
     google: {
+      disclosureVersion: row.disclosureVersion,
       connected: row.status === 'ACTIVE',
       email: row.googleEmail,
       lastSyncAt: row.lastSyncAt?.toISOString() ?? null,

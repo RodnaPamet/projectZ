@@ -195,7 +195,7 @@ export function ProfileView({
 
       {calendar ? (
         <Section title={t('calendar.title')}>
-          <GoogleCalendarRow seed={calendar} result={calendarResult} />
+          <GoogleCalendarRow seed={calendar} result={calendarResult} privacyHref={legal.privacy} />
         </Section>
       ) : null}
 
