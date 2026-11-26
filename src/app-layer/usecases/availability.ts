@@ -294,9 +294,33 @@ export function quoteBooking(opts: BookingQuoteOptions): BookingQuote {
     throw new SlotNotBookableError(`bookings are made in ${opts.minBookingMinutes}-minute units`);
   }
 
-  const localStart = toZonedTime(opts.startTs, opts.timezone);
+  const prepared = prepareStart(opts.startTs, opts.timezone, opts.windows);
+  return quotePrepared(prepared, durationMinutes, opts);
+}
+
+interface PreparedStart {
+  localStart: Date;
+  startMinutes: number;
+  applicable: ReturnType<typeof applicableWindows>;
+}
+
+/**
+ * The part of a quote that depends only on WHERE the booking starts: the
+ * club's wall clock at that instant, the ambiguity guard, and the opening
+ * windows that apply that day (#701).
+ *
+ * Split out of `quoteBooking` so `slotDurations` does the time-zone work once
+ * per start instead of once per length: those conversions were most of the
+ * availability read. `quoteBooking` still runs both halves in the same order,
+ * so the price on a button and the price charged cannot disagree.
+ */
+function prepareStart(
+  startTs: Date,
+  timezone: string,
+  windows: BookingQuoteOptions['windows'],
+): PreparedStart {
+  const localStart = toZonedTime(startTs, timezone);
   const startMinutes = localStart.getHours() * 60 + localStart.getMinutes();
-  const endMinutes = startMinutes + durationMinutes;
 
   // ═══ THE ROUND TRIP ═══
   //
@@ -321,17 +345,37 @@ export function quoteBooking(opts: BookingQuoteOptions): BookingQuote {
   // string contradicted the comment directly over it, and it was also the
   // message a sub-minute start got before the whole-minute guard above
   // existed. Two different wrong answers from one line.
-  const rebuilt = localMinutesToUtc(localStart, startMinutes, opts.timezone);
-  if (rebuilt.getTime() !== opts.startTs.getTime()) {
+  const rebuilt = localMinutesToUtc(localStart, startMinutes, timezone);
+  if (rebuilt.getTime() !== startTs.getTime()) {
     throw new SlotNotBookableError('that wall-clock time is ambiguous on that date');
   }
 
-  const dayStartUtc = localMinutesToUtc(localStart, 0, opts.timezone);
-  const applicable = applicableWindows(opts.windows, {
+  const dayStartUtc = localMinutesToUtc(localStart, 0, timezone);
+  const applicable = applicableWindows(windows, {
     dateKey: ymd(localStart),
     dayOfWeek: localStart.getDay(),
     dayStartUtc,
   });
+
+  return { localStart, startMinutes, applicable };
+}
+
+/** The length-dependent half of a quote: the window, the step grid and the price. */
+function quotePrepared(
+  prepared: PreparedStart,
+  durationMinutes: number,
+  opts: Pick<
+    BookingQuoteOptions,
+    | 'basePriceCents'
+    | 'minBookingMinutes'
+    | 'slotStepMinutes'
+    | 'pricingRules'
+    | 'playerTags'
+    | 'membershipLevel'
+  >,
+): BookingQuote {
+  const { localStart, startMinutes, applicable } = prepared;
+  const endMinutes = startMinutes + durationMinutes;
 
   // The whole span must sit inside ONE window. A booking that bridges the
   // lunchtime closure is two bookings with a gap, not one long one.
@@ -513,6 +557,18 @@ export function slotDurations(startTs: Date, opts: SlotDurationOptions): Duratio
   const out: DurationOption[] = [];
   const unit = opts.minBookingMinutes;
   if (!(unit > 0)) return out;
+  // `quoteBooking` refuses a start off the whole minute for every length.
+  if (startTs.getTime() % 60_000 !== 0) return out;
+
+  // Once per start, not per length (#701). A start that cannot be quoted at
+  // all (an ambiguous wall clock) has no lengths, as before.
+  let prepared: PreparedStart;
+  try {
+    prepared = prepareStart(startTs, opts.timezone, opts.windows);
+  } catch (err) {
+    if (err instanceof SlotNotBookableError) return out;
+    throw err;
+  }
 
   for (let minutes = unit; minutes <= opts.maxBookingMinutes; minutes += unit) {
     const endTs = new Date(startTs.getTime() + minutes * 60_000);
@@ -520,19 +576,7 @@ export function slotDurations(startTs: Date, opts: SlotDurationOptions): Duratio
 
     let quote: BookingQuote;
     try {
-      quote = quoteBooking({
-        startTs,
-        endTs,
-        timezone: opts.timezone,
-        windows: opts.windows,
-        basePriceCents: opts.basePriceCents,
-        minBookingMinutes: opts.minBookingMinutes,
-        maxBookingMinutes: opts.maxBookingMinutes,
-        slotStepMinutes: opts.slotStepMinutes,
-        pricingRules: opts.pricingRules,
-        playerTags: opts.playerTags,
-        membershipLevel: opts.membershipLevel,
-      });
+      quote = quotePrepared(prepared, minutes, opts);
     } catch (err) {
       if (err instanceof SlotNotBookableError) break;
       throw err;
