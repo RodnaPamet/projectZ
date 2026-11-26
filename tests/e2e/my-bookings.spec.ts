@@ -94,6 +94,8 @@ test.describe('my bookings — desktop', () => {
     const played = page.locator('[data-perf-ready] > li').first();
 
     await played.getByRole('button', { name: mb.review.rate }).click();
+    // Before the button: the text is checked by an AI model (#714).
+    await expect(played.getByTestId('review-ai-notice')).toHaveText(mb.review.aiNotice);
     await played.getByRole('radio').nth(4).click();
 
     const posted = page.waitForResponse((r) =>
