@@ -178,8 +178,9 @@ describe('club admin nav, by role', () => {
     ['courtPitchTrack', 'Кортове, игрища и писти', 'Courts, pitches and tracks'],
     // #477: a table tennis or chess club, an esports club, and a mixed one.
     ['table', 'Маси', 'Tables'],
-    ['seat', 'Места', 'Seats'],
-    ['courtTableSeat', 'Кортове, маси и места', 'Courts, tables and seats'],
+    ['hall', 'Зали', 'Halls'],
+    ['route', 'Трасета', 'Routes'],
+    ['courtTableHall', 'Кортове, маси и зали', 'Courts, tables and halls'],
   ] as const)(
     'names the courts screen after what the club plays on (%s): "%s" (P51, #362)',
     (nouns, bgLabel, enLabel) => {

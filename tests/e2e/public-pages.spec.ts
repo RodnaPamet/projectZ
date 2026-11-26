@@ -66,7 +66,7 @@ test.describe('public pages — desktop', () => {
 
   test('/: the call to action is the primary button, and it leads to /venues', async ({ page }) => {
     await page.goto('/');
-    // The landing page's hero (#369): "Намери корт", the page's one fully
+    // The landing page's hero (#369): "Намери къде да играеш", the page's one fully
     // prefetched link.
     const cta = page.getByTestId('landing-find-court').filter({ visible: true });
     await expect(cta).toHaveText(bg.landing.hero.cta);

@@ -90,7 +90,8 @@ const STEMS: Record<ResourceNoun, { bg: RegExp; en: RegExp }> = {
   pitch: { bg: /игрищ/i, en: /pitch/i },
   track: { bg: /пист/i, en: /track/i },
   table: { bg: /(?<![а-я])мас(?:а|и|ата|ите)(?![а-я])/i, en: /\btables?\b/i },
-  seat: { bg: /(?<![а-я])(?:място|мястото|места|местата)(?![а-я])/i, en: /\bseats?\b/i },
+  hall: { bg: /(?<![а-я])зал(?:а|и|ата|ите)(?![а-я])/i, en: /\bhalls?\b/i },
+  route: { bg: /(?<![а-я])трас(?:е|ета|ето|етата)(?![а-я])/i, en: /\broutes?\b/i },
 };
 
 /**
@@ -210,7 +211,7 @@ describe('every noun has its wording wherever a message names a resource', () =>
 
   it('found the noun wording', () => {
     expect(variantKeys.length).toBeGreaterThan(20);
-    expect(NOUNS).toEqual(expect.arrayContaining(['pitch', 'track', 'table', 'seat']));
+    expect(NOUNS).toEqual(expect.arrayContaining(['pitch', 'track', 'table', 'hall', 'route']));
     expect(variantKeys.filter((k) => variantOf(k)!.variant === SEVERAL).length).toBeGreaterThan(5);
   });
 
@@ -312,7 +313,8 @@ describe('every noun has its wording wherever a message names a resource', () =>
     ]);
     // The bounded stems: "масаж" is not a table, "местност" not a seat.
     expect(STEMS.table.bg.test('масаж')).toBe(false);
-    expect(STEMS.seat.bg.test('местност')).toBe(false);
-    expect(STEMS.seat.bg.test('Мястото е заето.')).toBe(true);
+    expect(STEMS.hall.bg.test('залез')).toBe(false);
+    expect(STEMS.hall.bg.test('Залата е пълна.')).toBe(true);
+    expect(STEMS.route.bg.test('Трасето е пълно.')).toBe(true);
   });
 });

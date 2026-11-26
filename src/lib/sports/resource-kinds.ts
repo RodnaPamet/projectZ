@@ -42,18 +42,21 @@ import type { ResourceType } from '@prisma/client';
 
 /**
  * The noun a resource takes in copy: "писта", "игрище" (a FIELD), "маса" (a
- * TABLE or a BOARD_TABLE: table tennis, chess), "място" (a LOBBY: esports;
- * owner decisions on #477), or "корт" for every other type.
+ * TABLE or a BOARD_TABLE: table tennis, chess), "зала" (a LOBBY: esports),
+ * "трасе" (a ROUTE: running, cycling), or "корт" for a COURT. The owner's
+ * mapping of 2026-11-13 (#694), as the iPhone app has it (playerz-ios#101):
+ * esports was "място" before (#477), and a route was a "корт".
  */
-export type ResourceNoun = 'court' | 'pitch' | 'track' | 'table' | 'seat';
+export type ResourceNoun = 'court' | 'pitch' | 'track' | 'table' | 'hall' | 'route';
 
-/** The order a list names its nouns in (owner, #454; #477): "Кортове, игрища, писти, маси и места". */
+/** The order a list names its nouns in (owner, #454; #477; #694): "Кортове, игрища, писти, маси, зали и трасета". */
 export const NOUN_ORDER = [
   'court',
   'pitch',
   'track',
   'table',
-  'seat',
+  'hall',
+  'route',
 ] as const satisfies readonly ResourceNoun[];
 
 /** Every non-empty ordered subset of `T`, each named by its nouns in camel case. */
@@ -89,12 +92,12 @@ export function nounsOf(list: ResourceNouns): ResourceNoun[] {
 
 /**
  * What a venue's page title offers to book (#362, #477): "резервирай корт",
- * "писта", "игрище", "маса", "място", or "час" (a time) when no one word is
- * true of the venue. Wider than `ResourceNoun` on purpose: a climbing route
- * reads "корт" in the rest of the copy, while a search result for one offers
- * a time.
+ * "писта", "игрище", "маса", "зала", or "час" (a time) when no one word is
+ * true of the venue. A route reads "трасе" in the rest of the copy (#694),
+ * while a search result for one offers a time: nobody books a stretch of
+ * road, they book when to run it.
  */
-export type BookingNoun = 'court' | 'track' | 'pitch' | 'table' | 'seat' | 'time';
+export type BookingNoun = 'court' | 'track' | 'pitch' | 'table' | 'hall' | 'time';
 
 interface ResourceKind {
   noun: ResourceNoun;
@@ -116,8 +119,8 @@ export const RESOURCE_KINDS: Record<ResourceType, ResourceKind> = {
   FIELD: { noun: 'pitch', booking: 'pitch', exclusive: false },
   TABLE: { noun: 'table', booking: 'table', exclusive: false },
   BOARD_TABLE: { noun: 'table', booking: 'table', exclusive: false },
-  LOBBY: { noun: 'seat', booking: 'seat', exclusive: false },
-  ROUTE: { noun: 'court', booking: 'time', exclusive: false },
+  LOBBY: { noun: 'hall', booking: 'hall', exclusive: false },
+  ROUTE: { noun: 'route', booking: 'time', exclusive: false },
   TRACK: { noun: 'track', booking: 'track', exclusive: true },
 };
 

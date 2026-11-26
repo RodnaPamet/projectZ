@@ -208,7 +208,7 @@ describe('«Уроци»: what a coach can do to a lesson', () => {
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent(c.cancel.title);
     expect(dialog).toHaveTextContent(
-      'пн, 14 юли от 10:00, Алфа Кортове. Кортът ще се освободи, а играчът ще получи известие и имейл.',
+      'пн, 14 юли от 10:00, Алфа Кортове. Часът ще се освободи, а играчът ще получи известие и имейл.',
     );
     // «Не» keeps the lesson and sends nothing.
     fireEvent.click(within(dialog).getByRole('button', { name: c.keep }));
