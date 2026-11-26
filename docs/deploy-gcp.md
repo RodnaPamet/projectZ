@@ -231,6 +231,33 @@ docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP
 A conversation a moderator closed (`blockedSide` PLATFORM) needs nothing: the
 column is text, and the previous image reads it as blocked by the other side.
 
+### Rolling back past p91
+
+`20261126120000_p91_review_refusals` (#714) adds `REVIEW_REFUSED` to
+`NotificationKind`: the notice that tells an author their review of a venue or
+a coach was not published, or was removed, with the reason and how to object.
+It is a bell row and an `account` email. The bell reads a person's
+notifications on every page, so one refused review would break the previous
+image's bell for its author. Park those rows before starting the previous
+image:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p91-park.sql
+```
+
+and give them back after rolling forward again, with the p91 image serving:
+
+```bash
+docker exec -i playerz-db psql -U playerz -d playerz_production -v ON_ERROR_STOP=1 \
+  < /opt/playerz/repo/deploy/rollback/p91-unpark.sql
+```
+
+The new `refusal*` columns on `review` and `coach_review` stay: they are
+nullable and the previous image does not map them. While it runs, a review it
+refuses gets no notice and no stored reason; a moderator can tell the author
+by email.
+
 ### Rolling back past p88
 
 `20261113120000_p88_sport_facts` adds `SPORT_FACT` to `NotificationKind`: the

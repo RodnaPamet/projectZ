@@ -167,8 +167,39 @@ describe('toMyBookingDto', () => {
         ...({ moderationScoresJson: { toxicity: 0.9 } } as object),
       },
     });
-    expect(dto.venueReview).toEqual({ id: 'rv1', bookingId: 'b0', rating: 5, status: 'PUBLISHED' });
+    expect(dto.venueReview).toEqual({
+      id: 'rv1',
+      bookingId: 'b0',
+      rating: 5,
+      status: 'PUBLISHED',
+      refusal: null,
+    });
     expect(dto.canReview).toBe(false);
+  });
+
+  it('carries why a refused review was refused, field by field (#714)', () => {
+    const dto = toMyBookingDto({
+      ...row,
+      canReview: false,
+      venueReview: {
+        id: 'rv1',
+        bookingId: 'b0',
+        rating: 1,
+        status: 'REJECTED',
+        refusal: {
+          action: 'NOT_PUBLISHED',
+          reason: 'sexual_minors',
+          automated: true,
+          decidedAt: new Date('2026-11-26T10:00:00.123Z'),
+        },
+      },
+    });
+    expect(dto.venueReview?.refusal).toEqual({
+      action: 'NOT_PUBLISHED',
+      reason: 'sexual_minors',
+      automated: true,
+      decidedAt: '2026-11-26T10:00:00Z',
+    });
   });
 });
 

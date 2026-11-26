@@ -1,7 +1,15 @@
 import type { ModerationCaseStatus, PrismaClient, ReviewStatus } from '@prisma/client';
 
 import { isUniqueViolation } from '@/lib/db/pg-errors';
+import { notifyReviewRefused } from '@/app-layer/usecases/review-notifications';
 import { moderateOrQueue, type ModerationResult } from '@/lib/moderation/classify';
+import {
+  NO_REFUSAL,
+  refusalOf,
+  refusalReasonFor,
+  type RefusalReason,
+  type ReviewRefusal,
+} from '@/lib/moderation/refusal';
 import { assertValidRating, bayesianAverageFromTotals } from '@/lib/ratings/score';
 import { sanitizePlainText } from '@/lib/security/sanitize';
 
@@ -84,6 +92,8 @@ export interface CreatedReview {
   rating: number;
   body: string | null;
   status: ReviewStatus;
+  /** Why it was refused, when the classifier refused it (#714); else null. */
+  refusal: ReviewRefusal | null;
   createdAt: Date;
 }
 
@@ -155,7 +165,7 @@ export async function createReview(
         ? 'REJECTED'
         : 'PENDING_REVIEW';
 
-  return run(async (db) => {
+  const review = await run(async (db) => {
     const booking = await lockReviewableBooking(db, input);
     await assertNotYetReviewed(db, { ...input, venueId: booking.venueId });
 
@@ -171,6 +181,9 @@ export async function createReview(
           body: text,
           status,
           moderationScoresJson: verdict.scores,
+          // The statement of reasons (#714): the rule the category maps to,
+          // never the scores, and that it was the machine's call.
+          ...(status === 'REJECTED' ? automaticRefusal(verdict) : {}),
         },
       });
     } catch (err) {
@@ -213,9 +226,26 @@ export async function createReview(
       rating: created.rating,
       body: created.body,
       status: created.status,
+      refusal: refusalOf(created),
       createdAt: created.createdAt,
     };
   });
+
+  // After the commit: the author is told why (#714). Never throws.
+  if (review.status === 'REJECTED') {
+    await notifyReviewRefused({ subject: 'REVIEW', tenantId: input.tenantId, reviewId: review.id });
+  }
+  return review;
+}
+
+/** The `refusal*` columns of a review the classifier refused (#714). */
+export function automaticRefusal(verdict: ModerationResult) {
+  return {
+    refusalReason: refusalReasonFor(verdict.reason),
+    refusalAutomated: true,
+    refusalRemoved: false,
+    refusedAt: new Date(),
+  };
 }
 
 /**
@@ -348,6 +378,33 @@ export interface CaseResolution {
   review: { id: string; status: ReviewStatus } | null;
   /** The venue's rating after the decision; null with `review`. */
   venue: { id: string; avgRating: number; reviewCount: number } | null;
+  /**
+   * A review the moderator refused or removed (#714): whom the route tells,
+   * after the commit, with `notifyReviewRefused`. Null otherwise.
+   */
+  refused: { subject: 'REVIEW' | 'COACH_REVIEW'; tenantId: string; reviewId: string } | null;
+}
+
+/**
+ * The `refusal*` columns a moderator's decision writes (#714). Publishing
+ * clears them. Refusing records the rule the moderator named (else the one
+ * the case's category maps to), that a person decided, and whether the
+ * review had been live: published before (or removed before), it is REMOVED;
+ * otherwise it was never published. An automatic refusal a moderator
+ * confirms becomes a person's decision.
+ */
+function moderatorRefusal(
+  approve: boolean,
+  prior: { status: ReviewStatus; refusalRemoved: boolean | null } | null,
+  rule: RefusalReason,
+) {
+  if (approve) return NO_REFUSAL;
+  return {
+    refusalReason: rule,
+    refusalAutomated: false,
+    refusalRemoved: prior?.status === 'PUBLISHED' || prior?.refusalRemoved === true,
+    refusedAt: new Date(),
+  };
 }
 
 /**
@@ -371,6 +428,8 @@ export async function resolveCase(
     moderatorUserId: string;
     approve: boolean;
     note?: string;
+    /** The rule a refusal rests on, as the author is told it (#714). */
+    rule?: RefusalReason;
   },
 ): Promise<CaseResolution> {
   return db.$transaction(async (tx) => {
@@ -385,7 +444,14 @@ export async function resolveCase(
         resolvedAt: new Date(),
         resolutionNote: input.note ?? null,
       },
-      select: { id: true, tenantId: true, subjectType: true, subjectId: true, status: true },
+      select: {
+        id: true,
+        tenantId: true,
+        subjectType: true,
+        subjectId: true,
+        status: true,
+        reason: true,
+      },
     });
 
     if (!closed) {
@@ -394,24 +460,51 @@ export async function resolveCase(
       throw exists > 0 ? new CaseAlreadyResolvedError() : new ModerationCaseNotFoundError();
     }
 
-    const none = { caseId: closed.id, status: closed.status, review: null, venue: null };
+    const none = {
+      caseId: closed.id,
+      status: closed.status,
+      review: null,
+      venue: null,
+      refused: null,
+    };
     if (!closed.tenantId) return none;
+    const tenantId = closed.tenantId;
+    const rule = input.rule ?? refusalReasonFor(closed.reason);
+    const refusedIf = (subject: 'REVIEW' | 'COACH_REVIEW', reviewId: string) =>
+      input.approve ? null : { subject, tenantId, reviewId };
 
     // A review of a coach (#551): published or hidden, and the coach's rating,
     // read from its published reviews each time, follows on its own.
     if (closed.subjectType === 'COACH_REVIEW') {
+      // The status BEFORE the decision: refusing a live review is removing it.
+      const prior = await tx.coachReview.findFirst({
+        where: { id: closed.subjectId, tenantId },
+        select: { status: true, refusalRemoved: true },
+      });
       const [coachReview] = await tx.coachReview.updateManyAndReturn({
-        where: { id: closed.subjectId, tenantId: closed.tenantId },
-        data: { status: input.approve ? 'PUBLISHED' : 'REJECTED' },
+        where: { id: closed.subjectId, tenantId },
+        data: {
+          status: input.approve ? 'PUBLISHED' : 'REJECTED',
+          ...moderatorRefusal(input.approve, prior, rule),
+        },
         select: { id: true, status: true },
       });
-      return coachReview ? { ...none, review: coachReview } : none;
+      return coachReview
+        ? { ...none, review: coachReview, refused: refusedIf('COACH_REVIEW', coachReview.id) }
+        : none;
     }
     if (closed.subjectType !== 'REVIEW') return none;
 
+    const prior = await tx.review.findFirst({
+      where: { id: closed.subjectId, tenantId },
+      select: { status: true, refusalRemoved: true },
+    });
     const [review] = await tx.review.updateManyAndReturn({
-      where: { id: closed.subjectId, tenantId: closed.tenantId },
-      data: { status: input.approve ? 'PUBLISHED' : 'REJECTED' },
+      where: { id: closed.subjectId, tenantId },
+      data: {
+        status: input.approve ? 'PUBLISHED' : 'REJECTED',
+        ...moderatorRefusal(input.approve, prior, rule),
+      },
       select: { id: true, venueId: true, status: true },
     });
     // The venue was deleted and took the review with it. The case is still
@@ -423,7 +516,7 @@ export async function resolveCase(
     // A transaction client is a PrismaClient minus the lifecycle methods; the
     // same cast every binding in rls-middleware makes.
     const score = await recomputeVenueRating(tx as unknown as PrismaClient, {
-      tenantId: closed.tenantId,
+      tenantId,
       venueId: review.venueId,
     });
 
@@ -432,6 +525,7 @@ export async function resolveCase(
       status: closed.status,
       review: { id: review.id, status: review.status },
       venue: { id: review.venueId, ...score },
+      refused: refusedIf('REVIEW', review.id),
     };
   });
 }

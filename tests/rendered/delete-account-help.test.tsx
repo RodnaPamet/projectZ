@@ -68,7 +68,7 @@ describe('/delete-account', () => {
     );
   });
 
-  it('says what deleting does not undo: the no-shows, carried; the credit, lost (#370 review)', async () => {
+  it('says what deleting does not undo: the no-shows, carried; the credit, settled with the club (#370 review, #712)', async () => {
     await renderPage();
     expect(screen.getByTestId('delete-account-help-no-shows')).toHaveTextContent(
       messages.deleteAccountHelp.kept.noShows,
@@ -79,6 +79,12 @@ describe('/delete-account', () => {
     // The profile's own wording, so the two never disagree.
     expect(messages.profile.delete.noShowCarry).toContain('90 дни');
     expect(messages.deleteAccountHelp.kept.noShows).toContain('90 дни');
+    // #712: the phone's fingerprint is kept as well as the email's, and the
+    // history can hold what staff typed, as the privacy policy says.
+    expect(messages.deleteAccountHelp.kept.noShows).toContain('телефона');
+    expect(enMessages.deleteAccountHelp.kept.noShows).toContain('phone number');
+    expect(messages.deleteAccountHelp.kept.logs).toContain('телефона ви');
+    expect(enMessages.deleteAccountHelp.kept.logs).not.toContain('no email');
   });
 
   it('a club account is sent to the contact form', async () => {

@@ -23,11 +23,11 @@ beforeEach(async () => {
 });
 
 describe('rolling back past P88', () => {
-  it('SPORT_FACT is the last value of NotificationKind', async () => {
+  it('SPORT_FACT is a value of NotificationKind', async () => {
+    // Not "the last": later phases add their own (P91: REVIEW_REFUSED).
     const rows = await db.$queryRawUnsafe<Array<{ v: string }>>(
       `SELECT e.enumlabel AS v FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
-        WHERE t.typname = 'NotificationKind'
-        ORDER BY e.enumsortorder DESC LIMIT 1`,
+        WHERE t.typname = 'NotificationKind' AND e.enumlabel = 'SPORT_FACT'`,
     );
     expect(rows.map((r) => r.v)).toEqual(['SPORT_FACT']);
   });
