@@ -246,6 +246,17 @@ model CoachReview {
   /// What the classifier saw, for the human who judges the case.
   moderationScoresJson Json?
 
+  /// Why it was refused (#714, P91), as on `Review`: a `RefusalReason` code
+  /// (src/lib/moderation/refusal.ts), never the classifier's raw output.
+  /// The four `refusal*` columns are set together when the review becomes
+  /// REJECTED and cleared together when a moderator publishes it.
+  refusalReason    String?
+  /// True: the classifier refused it; false: a moderator did.
+  refusalAutomated Boolean?
+  /// True: it was published and then taken down; false: never published.
+  refusalRemoved   Boolean?
+  refusedAt        DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

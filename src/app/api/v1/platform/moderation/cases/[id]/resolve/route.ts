@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { PlatformCapability } from '@prisma/client';
 
+import { notifyReviewRefused } from '@/app-layer/usecases/review-notifications';
 import { resolveCase } from '@/app-layer/usecases/reviews';
 import { asPlatformAdmin } from '@/app/api/v1/_lib/bind';
 import { contextFromRequest } from '@/app/api/v1/_lib/context';
@@ -9,6 +10,7 @@ import { toModerationResolution } from '@/app/api/v1/_lib/dto';
 import { ok } from '@/app/api/v1/_lib/envelope';
 import { checkPlatformReason } from '@/app/api/v1/_lib/platform-reason';
 import { ValidationError } from '@/lib/errors/types';
+import { isRefusalReason, REFUSAL_REASONS } from '@/lib/moderation/refusal';
 import { getRequestId } from '@/lib/observability/context';
 
 /**
@@ -35,8 +37,8 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * ═══ THE NOTE IS THE AUDIT REASON ═══
  *
- * The same text becomes the case's `resolutionNote` — the answer to "why was my
- * review taken down?" — and the platform audit row's `reason`. One sentence,
+ * The same text becomes the case's `resolutionNote` — the moderator's answer
+ * to "why?", kept with the case — and the platform audit row's `reason`. One sentence,
  * written once, in both places that need it; the 12-character minimum is the
  * platform's own, so "ok" does not decide anything.
  *
@@ -49,6 +51,15 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * A refusal — already resolved, or no such case — rolls the audit row back
  * with everything else: the log records decisions that were made.
+ *
+ * ═══ THE AUTHOR IS TOLD WHY (#714) ═══
+ *
+ * The note is the moderator's own words, for the audit trail; the author is
+ * not shown it. What the author gets, when a review is refused or removed, is
+ * the statement of reasons the Digital Services Act (Art. 17) asks for: the
+ * RULE (`rule`, one of the `RefusalReason` codes; left out, the one the case's
+ * category maps to, else `other`), that a person decided, and how to object.
+ * It goes as a bell row and an email, after the decision committed.
  */
 
 type Decision = 'APPROVE' | 'REJECT';
@@ -76,11 +87,19 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
   const body = (await req.json().catch(() => null)) as {
     decision?: unknown;
     note?: unknown;
+    rule?: unknown;
   } | null;
 
   const decision = body?.decision;
   if (decision !== 'APPROVE' && decision !== 'REJECT') {
     throw new ValidationError('`decision` must be "APPROVE" or "REJECT"', { field: 'decision' });
+  }
+
+  const rule = body?.rule;
+  if (rule !== undefined && rule !== null && !isRefusalReason(rule)) {
+    throw new ValidationError(`\`rule\` must be one of ${REFUSAL_REASONS.join(', ')}`, {
+      field: 'rule',
+    });
   }
 
   const stated = checkPlatformReason(typeof body?.note === 'string' ? body.note : '', '`note`');
@@ -100,8 +119,19 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ id: str
       subjectTenantId: null,
       detailsJson: { decision },
     },
-    (db) => resolveCase(db, { caseId: id, moderatorUserId, approve, note: stated.reason }),
+    (db) =>
+      resolveCase(db, {
+        caseId: id,
+        moderatorUserId,
+        approve,
+        note: stated.reason,
+        rule: isRefusalReason(rule) ? rule : undefined,
+      }),
   );
+
+  // After the commit, never before: a notice about a decision that rolled
+  // back would describe nothing. Never throws.
+  if (resolution.refused) await notifyReviewRefused(resolution.refused);
 
   return ok(toModerationResolution(resolution));
 }

@@ -56,6 +56,8 @@ export const CATEGORY_OF: Record<NotificationKind, NotificationCategory> = {
   ACHIEVEMENT_UNLOCKED: 'other',
   // «Факт на седмицата»: about no booking, game or lesson, so no chip of its own.
   SPORT_FACT: 'other',
+  // A refused review (#714): about one's own account, not a booking or game.
+  REVIEW_REFUSED: 'other',
 };
 
 /** The kinds of one group, for a `kind IN (…)` filter. */
