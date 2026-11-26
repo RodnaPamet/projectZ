@@ -42,6 +42,12 @@ model GoogleCalendarConnection {
 
   status GoogleCalendarStatus @default(ACTIVE)
 
+  /// The disclosure the person read before connecting (#713): its version
+  /// (`GOOGLE_CALENDAR_DISCLOSURE_VERSION`) and when they pressed «Свържи».
+  /// Updated on every reconnect. Null only for a row from before #713.
+  disclosureVersion  String?
+  disclosureAgreedAt DateTime? @db.Timestamptz(3)
+
   connectedAt    DateTime  @default(now()) @db.Timestamptz(3)
   lastSyncAt     DateTime? @db.Timestamptz(3)
   /// `{created, updated, deleted, unchanged, skippedEdited, partial}` of the
@@ -70,14 +76,17 @@ model GoogleCalendarConnection {
 ///
 /// Only the hash is stored; the raw value travels in the authorize URL.
 model CalendarOAuthState {
-  id         String    @id @default(cuid())
-  stateHash  String    @unique
-  userId     String
+  id                String    @id @default(cuid())
+  stateHash         String    @unique
+  userId            String
   /// `ios` or `web`: where the callback sends the person back to.
-  client     String
-  expiresAt  DateTime  @db.Timestamptz(3)
-  consumedAt DateTime? @db.Timestamptz(3)
-  createdAt  DateTime  @default(now())
+  client            String
+  /// The disclosure version the person agreed to by pressing «Свържи» (#713);
+  /// copied to the connection when Google comes back.
+  disclosureVersion String
+  expiresAt         DateTime  @db.Timestamptz(3)
+  consumedAt        DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])

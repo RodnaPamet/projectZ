@@ -202,7 +202,8 @@ export interface PersonalDataExport {
    * Services the account connected (version 12, owner 2026-11-14): that a
    * Google Calendar is connected, which Google account, and how it stands.
    * Never the token: it is a credential, and it stays with playerz until it is
-   * revoked.
+   * revoked. With it, the disclosure the person agreed to before connecting
+   * (#713): its version and when.
    */
   connectedServices: {
     googleCalendar: {
@@ -210,6 +211,8 @@ export interface PersonalDataExport {
       status: string;
       connectedAt: string;
       lastSyncAt: string | null;
+      disclosureVersion: string | null;
+      disclosureAgreedAt: string | null;
     } | null;
   };
   memberships: Array<{
@@ -719,7 +722,14 @@ export async function readPersonalData(
   // guardrail-allow: cross-tenant — the person's own calendar connection, by their id.
   const calendar = await db.googleCalendarConnection.findUnique({
     where: { userId },
-    select: { googleEmail: true, status: true, connectedAt: true, lastSyncAt: true },
+    select: {
+      googleEmail: true,
+      status: true,
+      connectedAt: true,
+      lastSyncAt: true,
+      disclosureVersion: true,
+      disclosureAgreedAt: true,
+    },
   });
 
   const [sessions, securityEvents, apps, browsers, bell, emails] = await Promise.all([
@@ -953,6 +963,8 @@ export async function readPersonalData(
             status: calendar.status,
             connectedAt: calendar.connectedAt.toISOString(),
             lastSyncAt: iso(calendar.lastSyncAt),
+            disclosureVersion: calendar.disclosureVersion,
+            disclosureAgreedAt: iso(calendar.disclosureAgreedAt),
           }
         : null,
     },

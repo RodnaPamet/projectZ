@@ -3,6 +3,7 @@ import { SWRConfig } from 'swr';
 
 import type { MyCalendarDto } from '@/app/api/v1/_lib/dto';
 import { GoogleCalendarRow } from '@/components/profile/GoogleCalendarRow';
+import { GOOGLE_CALENDAR_DISCLOSURE_VERSION } from '@/lib/google-calendar/disclosure';
 import { __resetSessionExpiryForTests } from '@/lib/auth/session-expiry';
 import { DataProvider, ViewerScope } from '@/lib/data/provider';
 import { __resetViewerForTests } from '@/lib/data/viewer';
@@ -13,15 +14,33 @@ import { installFakeFetch, ok } from '../unit/data/fake-v1';
 /**
  * «Синхронизирай с Google Календар» on the profile (owner 2026-11-14): one
  * switch; under it, while connected, the account, the last sync and
- * «Синхронизирай сега»; off disconnects; a revoked connection says so.
+ * «Синхронизирай сега»; off disconnects; a revoked connection says so. On
+ * asks first (#713): the disclosure, with «Свържи» and «Отказ».
  */
 const c = messages.profile.calendar;
 
+const disclosure: MyCalendarDto['disclosure'] = {
+  version: GOOGLE_CALENDAR_DISCLOSURE_VERSION,
+  title: c.disclosure.title,
+  points: [],
+  connect: c.disclosure.connect,
+  cancel: c.disclosure.cancel,
+};
 const off: MyCalendarDto = {
-  google: { connected: false, email: null, lastSyncAt: null, lastResult: null, error: null },
+  google: {
+    connected: false,
+    email: null,
+    lastSyncAt: null,
+    lastResult: null,
+    error: null,
+    disclosureVersion: null,
+  },
+  disclosure,
 };
 const on: MyCalendarDto = {
+  disclosure,
   google: {
+    disclosureVersion: GOOGLE_CALENDAR_DISCLOSURE_VERSION,
     connected: true,
     email: 'ivan@gmail.test',
     lastSyncAt: '2026-11-14T10:00:00.000Z',
@@ -43,7 +62,7 @@ function mount(seed: MyCalendarDto, result: string | null = null) {
       <DataProvider>
         <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
           <ViewerScope viewerId="usr_player">
-            <GoogleCalendarRow seed={seed} result={result} />
+            <GoogleCalendarRow seed={seed} result={result} privacyHref="/privacy" />
           </ViewerScope>
         </SWRConfig>
       </DataProvider>,
@@ -86,8 +105,44 @@ it('switching off sends DELETE and hides the connected rows', async () => {
 });
 
 it('a revoked connection asks to connect again; the way back from Google says how it went', () => {
-  installFakeFetch(() => ok({ google: { ...off.google, error: 'GOOGLE_REVOKED' } }));
-  mount({ google: { ...off.google, error: 'GOOGLE_REVOKED' } }, 'access_denied');
+  const revoked: MyCalendarDto = { ...off, google: { ...off.google, error: 'GOOGLE_REVOKED' } };
+  installFakeFetch(() => ok(revoked));
+  mount(revoked, 'access_denied');
   expect(screen.getByText(c.error.GOOGLE_REVOKED)).toBeInTheDocument();
   expect(screen.getByText(c.result.access_denied)).toBeInTheDocument();
+});
+
+it('switching on shows the disclosure first; «Отказ» leaves it off and asks Google nothing', async () => {
+  const calls = installFakeFetch(() => ok(off));
+  mount(off);
+  fireEvent.click(screen.getByRole('switch', { name: c.switch }));
+  const dialog = await screen.findByTestId('profile-google-calendar-disclosure');
+  for (const point of ['created', 'freeBusy', 'coPlayers', 'assistant', 'off'] as const) {
+    expect(dialog).toHaveTextContent(c.disclosure[point]);
+  }
+  expect(screen.getByRole('link', { name: messages.profile.legal.privacy })).toHaveAttribute(
+    'href',
+    '/privacy',
+  );
+  fireEvent.click(screen.getByRole('button', { name: c.disclosure.cancel }));
+  await waitFor(() =>
+    expect(screen.queryByTestId('profile-google-calendar-disclosure')).toBeNull(),
+  );
+  expect(screen.getByRole('switch', { name: c.switch })).not.toBeChecked();
+  expect(calls.some((x) => x.method === 'POST')).toBe(false);
+});
+
+it('«Свържи» starts the consent and names the disclosure the person agreed to', async () => {
+  const calls = installFakeFetch((call) =>
+    call.method === 'POST' ? ok({ authorizeUrl: 'about:blank#consent' }) : ok(off),
+  );
+  mount(off);
+  fireEvent.click(screen.getByRole('switch', { name: c.switch }));
+  fireEvent.click(await screen.findByRole('button', { name: c.disclosure.connect }));
+  await waitFor(() =>
+    expect(calls.find((x) => x.method === 'POST')?.body).toEqual({
+      client: 'web',
+      disclosureVersion: GOOGLE_CALENDAR_DISCLOSURE_VERSION,
+    }),
+  );
 });

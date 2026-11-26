@@ -111,7 +111,7 @@ export default async function ProfilePage({
   // consent comes back.
   const calendar =
     googleCalendarSyncOn() && mine.accountKind !== 'CLUB'
-      ? await getMyCalendarStatus(userId)
+      ? await getMyCalendarStatus(userId, locale)
       : null;
   const back = (await searchParams).googleCalendar;
   const calendarResult = typeof back === 'string' ? back : null;

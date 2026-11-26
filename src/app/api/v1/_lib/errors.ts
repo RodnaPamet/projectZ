@@ -534,6 +534,11 @@ export const DOMAIN_ERROR_MAP: Readonly<Record<string, ErrorMapping>> = {
   // Google refused the grant (removed in the Google account, or expired):
   // «Свържете отново».
   GoogleCalendarRevokedError: { status: 409, code: 'GOOGLE_CALENDAR_REVOKED' },
+  // The client showed an older disclosure (#713): refetch, show, ask again.
+  GoogleCalendarDisclosureOutdatedError: {
+    status: 409,
+    code: 'GOOGLE_CALENDAR_DISCLOSURE_OUTDATED',
+  },
 
   // ── 503: ours, not theirs, and retryable ──────────────────────────
   // Google did not answer, or rate-limited us. Nothing is lost; try later.

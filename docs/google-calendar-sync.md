@@ -89,7 +89,8 @@ verification**. Google asks for:
 5. **A demo video** (YouTube, can be unlisted), in English, about two
    minutes, showing:
    - signing in to playerz.bg and opening **Профил**;
-   - turning on «Синхронизирай с Google Календар»;
+   - turning on «Синхронизирай с Google Календар», and the dialog that
+     explains what playerz will receive (#713), then pressing «Свържи»;
    - Google's consent screen, with the address bar showing the OAuth client
      id, and both permissions visible;
    - coming back to playerz: «Свързан с …» and the last sync time;
@@ -114,16 +115,28 @@ five minutes.
 
 ## How it works
 
-| Piece                                            | What it does                                                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `POST /api/v1/me/calendar/google/connect`        | `{client: ios\|web}` → Google's consent URL, with a single-use `state` held by the server  |
-| `GET /api/integrations/google-calendar/callback` | stores the grant (encrypted), makes the playerz calendar, first sync, redirects back       |
-| `GET /api/v1/me/calendar`                        | connected, as whom, last sync, last result, error                                          |
-| `POST /api/v1/me/calendar/google/sync`           | «Синхронизирай сега»                                                                       |
-| `DELETE /api/v1/me/calendar/google`              | the switch off: revokes at Google, forgets the grant; the playerz calendar stays in Google |
-| `POST /api/cron/sync-calendars`                  | every 5 minutes: connections marked dirty, then any not synced for 6 hours                 |
-| `src/app-layer/usecases/google-calendar*.ts`     | the connect flow, the sync, `freeBusyFor`                                                  |
-| `src/lib/google-calendar/`                       | Google's OAuth and Calendar API, and the diff (`plan.ts`)                                  |
+| Piece                                            | What it does                                                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `POST /api/v1/me/calendar/google/connect`        | `{client: ios\|web, disclosureVersion}` → Google's consent URL, with a single-use `state` held by the server |
+| `GET /api/integrations/google-calendar/callback` | stores the grant (encrypted), makes the playerz calendar, first sync, redirects back                         |
+| `GET /api/v1/me/calendar`                        | connected, as whom, last sync, last result, error; the disclosure to show before connecting                  |
+| `POST /api/v1/me/calendar/google/sync`           | «Синхронизирай сега»                                                                                         |
+| `DELETE /api/v1/me/calendar/google`              | the switch off: revokes at Google, forgets the grant; the playerz calendar stays in Google                   |
+| `POST /api/cron/sync-calendars`                  | every 5 minutes: connections marked dirty, then any not synced for 6 hours                                   |
+| `src/app-layer/usecases/google-calendar*.ts`     | the connect flow, the sync, `freeBusyFor`                                                                    |
+| `src/lib/google-calendar/`                       | Google's OAuth and Calendar API, and the diff (`plan.ts`)                                                    |
+
+Before Google's consent, both clients show the same disclosure (#713, Google's
+Workspace user-data policy): a «playerz» calendar is made and filled; only
+free/busy is read; co-players learn only free or not at the times checked;
+that free/busy reaches Anthropic when a co-player asks the assistant; how to
+switch it off. «Свържи» is the affirmative action. The words are
+`profile.calendar.disclosure.*` in `messages/`; `GET /api/v1/me/calendar`
+sends them to the phone with a version (`src/lib/google-calendar/disclosure.ts`).
+Connecting names that version, and the connection keeps it with the time
+(`disclosureVersion`, `disclosureAgreedAt`; also in the data export). An older
+version is 409 `GOOGLE_CALENDAR_DISCLOSURE_OUTDATED`. Change a word, change
+the version: a unit test pins the text to it.
 
 The phone comes back to `bg.playerz.app://integrations/google-calendar` with
 `?result=connected` or `?error=<code>`. The codes are a closed set:
