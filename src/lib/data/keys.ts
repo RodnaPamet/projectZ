@@ -128,6 +128,23 @@ export const KEYS = {
   /** The public venue index, by cursor. */
   venues: (params: VenueSearchParams = {}) => paged(`${BASE}/venues`, { ...params }),
   /**
+   * «Близо до мен» (#697): the venues within `radiusKm` (1–100) of a point,
+   * nearest first, one capped page. The list's filters apply here too.
+   */
+  venuesNear: (params: {
+    lat: number;
+    lng: number;
+    radiusKm: number;
+    q?: string;
+    city?: string;
+    sport?: string;
+  }) => `${BASE}/venues/near${query(params)}`,
+  /** Every bookable venue under the list's filters, for the clubs map (#697). */
+  venuesMap: (params: { q?: string; city?: string; sport?: string } = {}) =>
+    `${BASE}/venues/map${query(params)}`,
+  /** One venue in full (its zone, its cancellation cutoff): «Създай игра» (#697). */
+  venue: (venueId: string) => `${BASE}/venues/${seg(venueId)}`,
+  /**
    * One venue's slots for one calendar day AT THE CLUB (`date=YYYY-MM-DD`,
    * resolved in the venue's zone by the server, never the device's): the venue
    * page's day picker (#355), and what the native app reads.
@@ -335,7 +352,10 @@ export const V1 = {
   withdrawGameRequest: (requestId: string) => `${BASE}/me/game-requests/${seg(requestId)}`,
   /** Report the public note on a game to the moderators (#526). */
   reportGameNote: (id: string) => `${BASE}/games/${seg(id)}/report`,
-  /** `PUT { spots, levelMin?, levelMax?, note? }` opens; `DELETE` closes (#376). */
+  /**
+   * `GET` the booking's game (`canOpen`, `maxSpots`); `PUT { spots, levelMin?,
+   * levelMax?, note? }` opens it; `DELETE` closes (#376).
+   */
   bookingGame: (bookingId: string) => `${BASE}/me/bookings/${seg(bookingId)}/game`,
   /** `POST`: the booker accepts or declines one request (#376). */
   answerGameRequest: (bookingId: string, requestId: string, verb: 'accept' | 'decline') =>

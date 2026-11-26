@@ -101,6 +101,8 @@ const ALLOWED: Record<string, string> = {
 
   // ── Public discovery, which spans every club by design ──────────────
   'src/app/(public)/venues/page.tsx': 'the public venue index spans every club',
+  'src/app/(public)/games/new/page.tsx':
+    "«Създай игра»'s sports: the public venue facets, as /venues reads them (#697)",
   'src/app/sitemap.ts':
     "sitemap.xml lists every club's public venue pages; it selects only slug and date (#396)",
   'src/app/(public)/venues/[slug]/page.tsx':

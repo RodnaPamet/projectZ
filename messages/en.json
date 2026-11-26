@@ -271,7 +271,30 @@
     "countMore": "{count, plural, one {Showing # venue} other {Showing # venues}}, more below",
     "loadMore": "Load more",
     "loadMoreError": "The next venues did not load. Try again.",
-    "sportCount": "{count} sports"
+    "sportCount": "{count} sports",
+    "near": {
+      "chip": "Near me",
+      "radius": "Within {km} km",
+      "locating": "Checking where you are…",
+      "loading": "Looking for venues nearby…",
+      "denied": "We can't see your location. Allow it in your browser settings to see venues near you.",
+      "failedTitle": "We couldn't find your location",
+      "failed": "Check that location is on and try again.",
+      "count": "{count, plural, one {# venue} other {# venues}} within {km} km",
+      "none": "No venues within {km} km",
+      "noneHint": "Widen the range or remove a filter.",
+      "distance": "{km} km"
+    },
+    "view": {
+      "label": "View",
+      "list": "List",
+      "map": "Map"
+    },
+    "map": {
+      "label": "Venues map, {count, plural, one {# venue} other {# venues}}",
+      "hint": "Tap a venue on the map.",
+      "count": "{count, plural, one {# venue on the map} other {# venues on the map}}"
+    }
   },
   "venue": {
     "metaTitle": "{name} — book a court | playerz.bg",
@@ -3643,6 +3666,47 @@
     "venue": {
       "title": "Looking for players",
       "all": "All games"
+    },
+    "create": "Create game",
+    "new": {
+      "metaTitle": "New game — playerz.bg",
+      "title": "New game",
+      "intro": "Pick a sport, a club and an hour. We book the court and put the game in Games. Payment is at the club.",
+      "clubAccount": "A club account doesn't book. Sign in with a player account.",
+      "mine": "Your bookings",
+      "mineHint": "Look for players for an hour you already have.",
+      "sport": "Sport",
+      "noSports": "No venue takes online bookings yet.",
+      "club": "Club",
+      "clubSearch": "Search for a club",
+      "clubSearchPlaceholder": "Club name or city",
+      "moreClubs": "Show more clubs",
+      "clubsError": "The clubs didn't load",
+      "tryAgain": "Check your connection and try again.",
+      "noClubs": "No clubs offer this sport.",
+      "hour": "Day and hour",
+      "cutoff": "{hours, plural, one {A game opens at least # hour before it starts.} other {A game opens at least # hours before it starts.}}",
+      "slotsError": "The hours didn't load",
+      "day": "Day",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "noCourts": "This club has no places for this sport.",
+      "players": "Players",
+      "spots": "How many more players do you need?",
+      "spotsHint": "If the court holds fewer, we'll look for as many as it holds.",
+      "level": "Preferred level",
+      "anyLevel": "Any level",
+      "pickLevel": "Choose a level",
+      "levelFrom": "From level",
+      "levelTo": "To level",
+      "levelOrder": "The «from» level is higher than the «to» level.",
+      "note": "Note (optional)",
+      "notePlaceholder": "For example: looking for two for doubles",
+      "payAtClub": "Paid at the club.",
+      "noGameTitle": "The hour is booked",
+      "noGame": "But looking for players didn't start. Start it from the booking.",
+      "toBooking": "Go to the booking",
+      "create": "Create game"
     }
   },
   "coachProfile": {

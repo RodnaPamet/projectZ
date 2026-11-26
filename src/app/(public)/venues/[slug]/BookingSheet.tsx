@@ -248,7 +248,7 @@ export function BookingSheet({
   );
 }
 
-function Refusal({ error, returnPath }: { error: ApiClientError; returnPath: string }) {
+export function Refusal({ error, returnPath }: { error: ApiClientError; returnPath: string }) {
   const t = useTranslations('venue.sheet');
   const signInPath = `/login?next=${encodeURIComponent(returnPath)}`;
 
