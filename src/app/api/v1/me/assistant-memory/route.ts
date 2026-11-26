@@ -16,8 +16,8 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * GET    → `{ items: [{ id, text, rememberedAt, editedByPerson }] }`, newest
  *          first, at most 50. Never the evidence it was learned from.
- * DELETE → «Забрави всичко»: every point forgotten, and never learned again
- *          from what the person already said. `{ forgotten: n }`.
+ * DELETE → «Забрави всичко»: every point deleted at once and for good
+ *          (#716). `{ forgotten: n }`, how many the person could see.
  *
  * 404 `ASSISTANT_DISABLED` while the assistant is off. Readable and deletable
  * while the memory alone is switched off: what is stored stays the person's

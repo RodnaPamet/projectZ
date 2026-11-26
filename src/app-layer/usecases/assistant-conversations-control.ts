@@ -3,8 +3,9 @@ import { runAsUserOnly } from '@/lib/db/rls-middleware';
 /**
  * The person's past conversations (agri-saas #2695): the list, one
  * conversation's turns, delete one or all, and the recall search the
- * assistant uses. All as the person; a deleted conversation is gone from every
- * one of these and from the window.
+ * assistant uses. All as the person. Deleting removes the conversation and its
+ * turns at once and for good (owner 2026-11-15, #716): gone from every one of
+ * these, from the window and from the data export.
  */
 
 export const CONVERSATION_LIST_LIMIT = 50;
@@ -34,7 +35,7 @@ export interface PastConversation {
 export async function listPastConversations(userId: string): Promise<PastConversation[]> {
   const rows = await runAsUserOnly(userId, (db) =>
     db.assistantConversation.findMany({
-      where: { userId, deletedAt: null, turns: { some: {} } },
+      where: { userId, turns: { some: {} } },
       orderBy: { lastTurnAt: 'desc' },
       take: CONVERSATION_LIST_LIMIT,
       select: {
@@ -76,7 +77,7 @@ export async function getPastConversation(
 ): Promise<PastConversationDetail> {
   const row = await runAsUserOnly(userId, (db) =>
     db.assistantConversation.findFirst({
-      where: { id, userId, deletedAt: null },
+      where: { id, userId },
       select: {
         id: true,
         startedAt: true,
@@ -108,23 +109,18 @@ export async function getPastConversation(
   };
 }
 
-/** Tombstoned, not removed: a stale id then starts a fresh conversation. */
+/** Removed for good, its turns by cascade. A stale id then starts a fresh conversation. */
 export async function deletePastConversation(userId: string, id: string): Promise<void> {
   const { count } = await runAsUserOnly(userId, (db) =>
-    db.assistantConversation.updateMany({
-      where: { id, userId, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
+    db.assistantConversation.deleteMany({ where: { id, userId } }),
   );
   if (count === 0) throw new AssistantConversationNotFoundError();
 }
 
+/** Every conversation removed for good, with its turns. Returns how many. */
 export async function deleteAllPastConversations(userId: string): Promise<number> {
   const { count } = await runAsUserOnly(userId, (db) =>
-    db.assistantConversation.updateMany({
-      where: { userId, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
+    db.assistantConversation.deleteMany({ where: { userId } }),
   );
   return count;
 }
@@ -156,7 +152,6 @@ export async function searchPastConversations(
     db.assistantConversation.findMany({
       where: {
         userId,
-        deletedAt: null,
         ...(from || to
           ? { lastTurnAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
           : {}),

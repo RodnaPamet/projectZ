@@ -19059,7 +19059,7 @@
       "delete": {
         "operationId": "forgetAllAssistantMemory",
         "summary": "Forget everything",
-        "description": "«Забрави всичко»: every point is forgotten, and none of them is learned again from what the person already said.",
+        "description": "«Забрави всичко»: every point is deleted at once and for good, the replaced ones included (owner 2026-11-15, #716). Nothing of them is kept, not even to avoid learning them again: if the person says the same things again, the assistant may remember them again. They are not in the data export.",
         "tags": ["Assistant", "Me"],
         "security": [
           {
@@ -19068,7 +19068,7 @@
         ],
         "responses": {
           "200": {
-            "description": "How many points were forgotten.",
+            "description": "How many points the person could see were deleted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19249,8 +19249,8 @@
       },
       "delete": {
         "operationId": "forgetAssistantMemoryPoint",
-        "summary": "Forget one remembered point",
-        "description": "Forgotten, and never learned again.",
+        "summary": "Delete one remembered point",
+        "description": "Deleted at once and for good (#716): not kept, not in the data export. If the person says it again, the assistant may remember it again.",
         "tags": ["Assistant", "Me"],
         "security": [
           {
@@ -19270,7 +19270,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Forgotten. No body."
+            "description": "Deleted. No body."
           },
           "401": {
             "description": "`UNAUTHORIZED` — no token, or a revoked or superseded session. The edge lets this path through, because it names no club, and the handler refuses it.",
@@ -19283,7 +19283,7 @@
             }
           },
           "404": {
-            "description": "`MEMORY_POINT_NOT_FOUND` — not one of the caller's points, or already forgotten. Or `ASSISTANT_DISABLED`: `ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
+            "description": "`MEMORY_POINT_NOT_FOUND` — not one of the caller's points, or already deleted. Or `ASSISTANT_DISABLED`: `ASSISTANT_DISABLED` — the assistant is switched off on this deployment (`ASSISTANT_ENABLED`). Hide the launcher and the «Асистент» settings.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19398,7 +19398,7 @@
       "delete": {
         "operationId": "deleteAllAssistantConversations",
         "summary": "Delete every conversation",
-        "description": "Gone from the list, from what the assistant can recall, and from its context.",
+        "description": "Every conversation and its messages deleted at once and for good (#716): gone from the list, from what the assistant can recall, from its context and from the data export.",
         "tags": ["Assistant", "Me"],
         "security": [
           {
@@ -19559,7 +19559,7 @@
       "delete": {
         "operationId": "deleteAssistantConversation",
         "summary": "Delete one conversation",
-        "description": "Gone from the list, from recall and from the assistant's context.",
+        "description": "The conversation and its messages deleted at once and for good (#716): gone from the list, from recall, from the assistant's context and from the data export. Sending its id as `conversationId` afterwards starts a new conversation.",
         "tags": ["Assistant", "Me"],
         "security": [
           {
@@ -31530,7 +31530,8 @@
         "required": ["forgotten"],
         "properties": {
           "forgotten": {
-            "type": "integer"
+            "type": "integer",
+            "description": "How many remembered points the person could see, now deleted."
           }
         }
       },

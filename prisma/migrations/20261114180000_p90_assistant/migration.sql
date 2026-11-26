@@ -21,7 +21,6 @@ CREATE TABLE "assistant_conversation" (
     "startedAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastTurnAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "extractedAt" TIMESTAMPTZ(3),
-    "deletedAt" TIMESTAMPTZ(3),
 
     CONSTRAINT "assistant_conversation_pkey" PRIMARY KEY ("id")
 );
@@ -46,7 +45,6 @@ CREATE TABLE "assistant_memory_fact" (
     "sourceQuote" TEXT NOT NULL,
     "sourceAt" TIMESTAMPTZ(3) NOT NULL,
     "editedByPerson" BOOLEAN NOT NULL DEFAULT false,
-    "deletedAt" TIMESTAMPTZ(3),
     "supersededAt" TIMESTAMPTZ(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -65,11 +63,11 @@ CREATE TABLE "assistant_spend" (
     CONSTRAINT "assistant_spend_pkey" PRIMARY KEY ("userId","day")
 );
 
-CREATE INDEX "assistant_conversation_userId_deletedAt_lastTurnAt_idx" ON "assistant_conversation"("userId", "deletedAt", "lastTurnAt");
+CREATE INDEX "assistant_conversation_userId_lastTurnAt_idx" ON "assistant_conversation"("userId", "lastTurnAt");
 CREATE INDEX "assistant_conversation_extractedAt_lastTurnAt_idx" ON "assistant_conversation"("extractedAt", "lastTurnAt");
 CREATE INDEX "assistant_turn_conversationId_createdAt_idx" ON "assistant_turn"("conversationId", "createdAt");
 CREATE INDEX "assistant_turn_userId_idx" ON "assistant_turn"("userId");
-CREATE INDEX "assistant_memory_fact_userId_deletedAt_sourceAt_idx" ON "assistant_memory_fact"("userId", "deletedAt", "sourceAt");
+CREATE INDEX "assistant_memory_fact_userId_sourceAt_idx" ON "assistant_memory_fact"("userId", "sourceAt");
 
 ALTER TABLE "assistant_turn" ADD CONSTRAINT "assistant_turn_conversationId_fkey"
   FOREIGN KEY ("conversationId") REFERENCES "assistant_conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -81,7 +79,9 @@ ALTER TABLE "assistant_conversation" FORCE ROW LEVEL SECURITY;
 CREATE POLICY assistant_conversation_owner_only ON "assistant_conversation"
   USING ("userId" = current_setting('app.user_id', true))
   WITH CHECK ("userId" = current_setting('app.user_id', true));
-GRANT SELECT, INSERT, UPDATE ON "assistant_conversation" TO app_user;
+-- DELETE: «Изтрий» removes a conversation for good, its turns by cascade
+-- (owner 2026-11-15, #716).
+GRANT SELECT, INSERT, UPDATE, DELETE ON "assistant_conversation" TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON "assistant_conversation" TO app_superuser;
 
 ALTER TABLE "assistant_turn" ENABLE ROW LEVEL SECURITY;
@@ -92,14 +92,14 @@ CREATE POLICY assistant_turn_owner_only ON "assistant_turn"
 GRANT SELECT, INSERT ON "assistant_turn" TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON "assistant_turn" TO app_superuser;
 
--- No DELETE for app_user: «Изтрий» tombstones a point (rule 5), it never
--- removes the row the sweep needs to refuse to learn it again.
+-- DELETE: «Изтрий» removes a point at once and for good (rule 5, owner
+-- 2026-11-15, #716). No tombstone is kept.
 ALTER TABLE "assistant_memory_fact" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "assistant_memory_fact" FORCE ROW LEVEL SECURITY;
 CREATE POLICY assistant_memory_fact_owner_only ON "assistant_memory_fact"
   USING ("userId" = current_setting('app.user_id', true))
   WITH CHECK ("userId" = current_setting('app.user_id', true));
-GRANT SELECT, INSERT, UPDATE ON "assistant_memory_fact" TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON "assistant_memory_fact" TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON "assistant_memory_fact" TO app_superuser;
 
 ALTER TABLE "assistant_spend" ENABLE ROW LEVEL SECURITY;

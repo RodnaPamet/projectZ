@@ -39,14 +39,14 @@ over every past exchange.
 
 ## Configuration
 
-| Env                             | Default            |                                                                                        |
-| ------------------------------- | ------------------ | -------------------------------------------------------------------------------------- |
-| `ASSISTANT_ENABLED`             | `0`                | Off: every route answers 404 `ASSISTANT_DISABLED`; the app hides the launcher.         |
-| `ANTHROPIC_API_KEY`             | —                  | Shared with moderation. Absent: every question halts `ASSISTANT_PROVIDER_UNAVAILABLE`. |
-| `AI_MODEL`                      | `claude-sonnet-5-5`| The answering model (low effort; server-side fallback on a decline).                   |
-| `ASSISTANT_MEMORY_MODEL`        | `claude-haiku-5-5` | The memory sweep.                                                                      |
-| `ASSISTANT_MEMORY`              | `1`                | `0`: memory and recall off, the assistant stays on (rule 9).                           |
-| `ASSISTANT_DAILY_SPEND_CAP_USD` | `0.20`             | Per player per Sofia day, at list price; checked before every model call.              |
+| Env                             | Default             |                                                                                        |
+| ------------------------------- | ------------------- | -------------------------------------------------------------------------------------- |
+| `ASSISTANT_ENABLED`             | `0`                 | Off: every route answers 404 `ASSISTANT_DISABLED`; the app hides the launcher.         |
+| `ANTHROPIC_API_KEY`             | —                   | Shared with moderation. Absent: every question halts `ASSISTANT_PROVIDER_UNAVAILABLE`. |
+| `AI_MODEL`                      | `claude-sonnet-5-5` | The answering model (low effort; server-side fallback on a decline).                   |
+| `ASSISTANT_MEMORY_MODEL`        | `claude-haiku-5-5`  | The memory sweep.                                                                      |
+| `ASSISTANT_MEMORY`              | `1`                 | `0`: memory and recall off, the assistant stays on (rule 9).                           |
+| `ASSISTANT_DAILY_SPEND_CAP_USD` | `0.20`              | Per player per Sofia day, at list price; checked before every model call.              |
 
 The memory sweep is `POST /api/cron/assistant-memory` (behind `CRON_SECRET`),
 every five minutes from `ops/sweep.compose.yml`.
@@ -86,10 +86,15 @@ code, not just asked for).
 A newer statement supersedes an older point (`supersededAt`), compared by
 `sourceAt`; an edit re-dates its evidence.
 
-### 5. Forgotten stays forgotten.
+### 5. Deleted is deleted.
 
-«Изтрий» sets `deletedAt` and keeps the row, so the sweep refuses to learn the
-same point from the same words again.
+«Изтрий» (one point or a conversation) and «Забрави всичко» / delete all remove
+the rows at once and for good (owner 2026-11-15, #716). Nothing of the deleted
+text is kept: not in the data export, and not as a "never re-learn" list for
+the sweep. If the person says the same thing again, the assistant may learn it
+again; they delete it again. There is no switch to turn the memory off: the
+person can see, edit, delete and object (privacy policy, section 9). A
+conversation deleted while the sweep is reading it teaches nothing.
 
 ### 6. A point the person edited is theirs.
 

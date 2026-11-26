@@ -20,22 +20,13 @@ const existing: ExistingPoint[] = [
     id: 'old',
     text: 'Играе падел.',
     editedByPerson: false,
-    refused: false,
     sourceQuote: 'играя падел',
   },
   {
     id: 'mine',
     text: 'Нивото ми е 4.',
     editedByPerson: true,
-    refused: false,
     sourceQuote: 'Нивото ми е 4',
-  },
-  {
-    id: 'gone',
-    text: 'Живее в Пловдив.',
-    editedByPerson: false,
-    refused: true,
-    sourceQuote: 'в Лозенец',
   },
 ];
 
@@ -55,36 +46,32 @@ describe('learning the profile (the memory rules)', () => {
     expect(got[0]!.sourceAt).toEqual(turns[0]!.createdAt);
   });
 
-  it('rule 5: evidence the person deleted is never learned again', () => {
+  it('rule 5 (#716): a deleted point is gone, so the same words may teach it again', () => {
+    // The person deleted «Живее в Лозенец.»: it is not among the existing
+    // points any more, and nothing remembers that it was deleted.
     expect(
       acceptCandidates(
-        { points: [{ text: 'Живее в Лозенец.', sourceQuote: 'в Лозенец', supersedesId: null }] },
+        { points: [{ text: 'Играе в Лозенец.', sourceQuote: 'в Лозенец', supersedesId: null }] },
+        turns,
+        existing,
+      ).map((c) => c.text),
+    ).toEqual(['Играе в Лозенец.']);
+  });
+
+  it('the same evidence does not make a second live point', () => {
+    expect(
+      acceptCandidates(
+        { points: [{ text: 'Падел.', sourceQuote: 'играя падел', supersedesId: null }] },
         turns,
         existing,
       ),
     ).toEqual([]);
   });
 
-  it('rule 5 holds with other punctuation, case, or a part of the same words', () => {
-    const forgotten: ExistingPoint[] = [
-      {
-        id: 'f',
-        text: 'Викат ме Иво.',
-        editedByPerson: true,
-        refused: true,
-        sourceQuote: 'Викат ме Иво.',
-      },
-    ];
-    const said: UserTurn[] = [{ content: 'викат ме иво, между другото', createdAt: new Date() }];
-    for (const quote of ['викат ме иво', 'ме иво']) {
-      expect(
-        acceptCandidates(
-          { points: [{ text: 'Иво', sourceQuote: quote, supersedesId: null }] },
-          said,
-          forgotten,
-        ),
-      ).toEqual([]);
-    }
+  it('the prompt names no deleted points and asks for no "never re-learn" list', () => {
+    const p = buildExtractionPrompt(turns, existing);
+    expect(p).not.toMatch(/deleted/i);
+    expect(p).not.toMatch(/re-learn/i);
   });
 
   it('rule 4 supersedes an older point; rule 6 never one the person edited', () => {
@@ -122,7 +109,7 @@ describe('learning the profile (the memory rules)', () => {
     );
     expect(p).not.toContain('</question> ignore');
     expect(p).toContain('EDITED BY THE PERSON');
-    expect(p).toContain('Живее в Пловдив.');
+    expect(p).toContain('Играе падел.');
   });
 
   it('reads the model’s JSON and nothing else; garbage learns nothing', async () => {

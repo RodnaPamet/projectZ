@@ -492,16 +492,15 @@ export interface PersonalDataExport {
     }>;
   } | null;
   /**
-   * «Асистент» (#704; version 13): the conversations, deleted ones included
-   * while they are kept, every point it remembered about the person with the
-   * sentence it was learned from (forgotten and replaced ones too, so the
-   * person sees why it will not learn them again), and what it cost per day.
+   * «Асистент» (#704; version 13): the conversations, every point it
+   * remembers about the person with the sentence it was learned from (replaced
+   * ones too), and what it cost per day. What the person deleted is gone for
+   * good and is not here (owner 2026-11-15, #716).
    */
   assistant: {
     conversations: Array<{
       startedAt: string;
       lastTurnAt: string;
-      deletedAt: string | null;
       turns: Array<{ role: string; text: string; at: string }>;
     }>;
     remembered: Array<{
@@ -509,7 +508,6 @@ export interface PersonalDataExport {
       learnedFrom: string;
       saidAt: string;
       editedByPerson: boolean;
-      forgottenAt: string | null;
       replacedAt: string | null;
     }>;
     spend: Array<{ day: string; costMicros: number; calls: number }>;
@@ -1115,7 +1113,6 @@ async function readAssistant(
       select: {
         startedAt: true,
         lastTurnAt: true,
-        deletedAt: true,
         turns: {
           orderBy: { createdAt: 'asc' },
           select: { role: true, content: true, createdAt: true },
@@ -1132,7 +1129,6 @@ async function readAssistant(
         sourceQuote: true,
         sourceAt: true,
         editedByPerson: true,
-        deletedAt: true,
         supersededAt: true,
       },
     }),
@@ -1148,7 +1144,6 @@ async function readAssistant(
     conversations: conversations.map((c) => ({
       startedAt: c.startedAt.toISOString(),
       lastTurnAt: c.lastTurnAt.toISOString(),
-      deletedAt: iso(c.deletedAt),
       turns: c.turns.map((t) => ({ role: t.role, text: t.content, at: t.createdAt.toISOString() })),
     })),
     remembered: facts.map((f) => ({
@@ -1156,7 +1151,6 @@ async function readAssistant(
       learnedFrom: f.sourceQuote,
       saidAt: f.sourceAt.toISOString(),
       editedByPerson: f.editedByPerson,
-      forgottenAt: iso(f.deletedAt),
       replacedAt: iso(f.supersededAt),
     })),
     spend: spend.map((r) => ({

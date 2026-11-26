@@ -16,7 +16,8 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * PATCH `{ text }` → the point, corrected: it is the person's now, and the
  *        assistant never rewrites it (memory rule 6).
- * DELETE → 204: forgotten, and never learned again (rule 5).
+ * DELETE → 204: deleted at once and for good (rule 5, #716). The person may
+ *          say it again, and it may be learned again.
  *
  * 404 `MEMORY_POINT_NOT_FOUND` for an id that is not the caller's live point.
  */

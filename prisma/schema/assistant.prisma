@@ -5,20 +5,20 @@
 /// Ported from agri-saas's AssistantConversation, adapted from farm to person:
 /// there is no tenant, because a player's questions span every club.
 model AssistantConversation {
-  id         String    @id @default(cuid())
-  userId     String
-  startedAt  DateTime  @default(now()) @db.Timestamptz(3)
-  lastTurnAt DateTime  @default(now()) @db.Timestamptz(3)
+  id          String    @id @default(cuid())
+  userId      String
+  startedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  lastTurnAt  DateTime  @default(now()) @db.Timestamptz(3)
   /// When the memory sweep last read this conversation's questions for the
   /// profile; null until it has. A turn after it makes the conversation due again.
   extractedAt DateTime? @db.Timestamptz(3)
-  /// The person deleted it: it is gone from the list, from recall and from the
-  /// window. Kept as a tombstone only so a stale id starts a fresh conversation.
-  deletedAt  DateTime? @db.Timestamptz(3)
 
+  /// Deleting a conversation removes the row and, by cascade, its turns, at
+  /// once and for good (owner 2026-11-15, #716). A stale id then simply starts
+  /// a fresh conversation.
   turns AssistantTurn[]
 
-  @@index([userId, deletedAt, lastTurnAt])
+  @@index([userId, lastTurnAt])
   @@index([extractedAt, lastTurnAt])
   @@map("assistant_conversation")
 }
@@ -48,8 +48,10 @@ model AssistantTurn {
 ///   * `sourceQuote` is required: a point with no sentence of the person's own
 ///     cannot exist (rule 3), so nothing read by a tool can become one.
 ///   * `sourceAt` is what "latest wins" compares (rule 4).
-///   * `deletedAt` keeps a forgotten point as a tombstone so it is never
-///     learned again (rule 5); `supersededAt` is a newer statement replacing it.
+///   * «Изтрий» removes the row at once and for good (rule 5, owner
+///     2026-11-15, #716): no tombstone, no "never re-learn" list. The person
+///     may say it again and it may be learned again.
+///   * `supersededAt` is a newer statement replacing it (rule 4).
 ///   * `editedByPerson` stops the sweep rewriting a point the person corrected
 ///     (rule 6).
 model AssistantMemoryFact {
@@ -59,12 +61,11 @@ model AssistantMemoryFact {
   sourceQuote    String
   sourceAt       DateTime  @db.Timestamptz(3)
   editedByPerson Boolean   @default(false)
-  deletedAt      DateTime? @db.Timestamptz(3)
   supersededAt   DateTime? @db.Timestamptz(3)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@index([userId, deletedAt, sourceAt])
+  @@index([userId, sourceAt])
   @@map("assistant_memory_fact")
 }
 

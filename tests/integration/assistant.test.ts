@@ -7,6 +7,7 @@ import {
   type Completion,
 } from '@/app-layer/ai/anthropic';
 import { deleteMyAccount } from '@/app-layer/usecases/account-deletion';
+import { exportMyData } from '@/app-layer/usecases/data-export';
 import { POST as cron } from '@/app/api/cron/assistant-memory/route';
 import { POST as ask } from '@/app/api/v1/assistant/stream/route';
 import {
@@ -18,7 +19,10 @@ import {
   DELETE as deleteConversation,
   GET as getConversation,
 } from '@/app/api/v1/me/assistant-conversations/[id]/route';
-import { GET as listConversations } from '@/app/api/v1/me/assistant-conversations/route';
+import {
+  DELETE as deleteAllConversations,
+  GET as listConversations,
+} from '@/app/api/v1/me/assistant-conversations/route';
 import { encryptField } from '@/lib/security/encryption';
 
 import { seedPlayer, signInAs, type TestIdentity } from '../helpers/auth';
@@ -578,7 +582,7 @@ describe('«Асистент» (owner 2026-11-14, #704)', () => {
     expect(model.mock.calls[0]![0].system).toMatch(/Answer in English/);
   });
 
-  it('memory: learns only the person’s own words; edit, forget and forget-all keep their promises', async () => {
+  it('memory: learns only the person’s own words; edit, delete and delete-all remove for good (#716)', async () => {
     model.mockResolvedValueOnce(say('Приятно ми е, Иво!'));
     const first = await stream(me, { message: 'Казвам се Иво и играя падел.' });
     const later = new Date(Date.now() + 11 * 60_000);
@@ -664,11 +668,20 @@ describe('«Асистент» (owner 2026-11-14, #704)', () => {
       ).status,
     ).toBe(204);
     expect(await list()).toEqual([]);
+    // Gone for good: no row left, and not in the data export.
+    const facts = () =>
+      asAppSuperuser(db, (tx) => tx.assistantMemoryFact.count({ where: { userId: me.userId } }));
+    expect(await facts()).toBe(0);
+    expect(JSON.stringify((await exportMyData(me.userId))!.assistant.remembered)).not.toContain(
+      'Иво',
+    );
 
-    // Said again in a new conversation, a forgotten point is not learned again.
+    // Said again in a new conversation, a deleted point may be learned again:
+    // nothing of it was kept to refuse it with (owner 2026-11-15).
     model.mockResolvedValueOnce(say('Ок.'));
     await stream(me, { message: 'Викат ме Иво.' });
-    // Both quiet conversations are read; the model offers the forgotten point again for each.
+    // Both quiet conversations are read; the model offers the point for each,
+    // and only the one that holds the words can teach it.
     model
       .mockResolvedValueOnce(
         extraction([{ text: 'Викат го Иво.', sourceQuote: 'Викат ме Иво', supersedesId: null }]),
@@ -697,12 +710,45 @@ describe('«Асистент» (owner 2026-11-14, #704)', () => {
         'x-cron-secret': 'cron-for-tests',
       },
     );
-    expect(await swept.json()).toEqual({ read: 2, learned: 0, skipped: 0 });
-    expect(await list()).toEqual([]);
+    expect(await swept.json()).toEqual({ read: 2, learned: 1, skipped: 0 });
+    expect((await list()).map((i) => i.text)).toEqual(['Викат го Иво.']);
+    // The extraction prompt never named the deleted point.
+    expect(model.mock.calls.at(-1)![0].system).not.toMatch(/deleted/i);
 
     const all = await call(forgetAll as Handler, 'DELETE', '/api/v1/me/assistant-memory', me);
-    expect(((await all.json()) as { data: { forgotten: number } }).data).toEqual({ forgotten: 0 });
+    expect(((await all.json()) as { data: { forgotten: number } }).data).toEqual({ forgotten: 1 });
+    expect(await list()).toEqual([]);
+    expect(await facts()).toBe(0);
     expect(first.events[0]!.type).toBe('conversation');
+  });
+
+  it('a conversation deleted while the sweep reads it teaches nothing (#716)', async () => {
+    model.mockResolvedValueOnce(say('Ок.'));
+    const { events } = await stream(me, { message: 'Казвам се Иво.' });
+    const id = events[0]!.conversationId as string;
+    model.mockImplementationOnce(async () => {
+      // The person deletes it while the model is reading it.
+      await asAppSuperuser(db, (tx) => tx.assistantConversation.deleteMany({ where: { id } }));
+      return {
+        ...say(
+          JSON.stringify({
+            points: [{ text: 'Казва се Иво.', sourceQuote: 'Казвам се Иво', supersedesId: null }],
+          }),
+        ),
+        model: 'claude-haiku-5-5',
+      };
+    });
+    const { runMemorySweep } = await import('@/app-layer/usecases/assistant-memory-sweep');
+    expect(await runMemorySweep({ now: new Date(Date.now() + 11 * 60_000) })).toEqual({
+      read: 1,
+      learned: 0,
+      skipped: 0,
+    });
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        tx.assistantMemoryFact.count({ where: { userId: me.userId } }),
+      ),
+    ).toBe(0);
   });
 
   it('conversations: list, read, delete; a deleted id starts a new conversation; nobody else’s', async () => {
@@ -774,10 +820,38 @@ describe('«Асистент» (owner 2026-11-14, #704)', () => {
         )
       ).status,
     ).toBe(404);
+    // Gone for good, with its messages, and not in the data export (#716).
+    const left = await asAppSuperuser(db, (tx) =>
+      Promise.all([
+        tx.assistantConversation.count({ where: { id } }),
+        tx.assistantTurn.count({ where: { conversationId: id } }),
+      ]),
+    );
+    expect(left).toEqual([0, 0]);
+    expect(JSON.stringify((await exportMyData(me.userId))!.assistant)).not.toContain(
+      'Тенис в неделя?',
+    );
 
     model.mockResolvedValueOnce(say('Ново.'));
     const fresh = await stream(me, { message: 'Пак аз', conversationId: id });
     expect(fresh.events[0]!.conversationId).not.toBe(id);
+
+    // Delete all: every conversation and message, for good.
+    const all = await call(
+      deleteAllConversations as Handler,
+      'DELETE',
+      '/api/v1/me/assistant-conversations',
+      me,
+    );
+    expect(((await all.json()) as { data: { deleted: number } }).data).toEqual({ deleted: 1 });
+    expect(
+      await asAppSuperuser(db, (tx) =>
+        Promise.all([
+          tx.assistantConversation.count({ where: { userId: me.userId } }),
+          tx.assistantTurn.count({ where: { userId: me.userId } }),
+        ]),
+      ),
+    ).toEqual([0, 0]);
   });
 
   it('deleting the account deletes every assistant row', async () => {

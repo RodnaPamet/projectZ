@@ -17,6 +17,12 @@ import { AssistantSpendCeilingError, assertWithinSpendCap, recordSpend } from '.
  * The one cross-person read is the list of due conversations (ids and times,
  * as app_superuser, a timer with no session). Everything after it runs as
  * the person, through owner-only RLS.
+ *
+ * Deleted is deleted (owner 2026-11-15, #716): the model sees only the points
+ * that exist, never a list of deleted ones, because keeping deleted text to
+ * refuse it later would be keeping it. A point the person deleted may be
+ * learned again if they say it again. A conversation deleted while its sweep
+ * waited on the model teaches nothing: its points are not written.
  */
 
 /** A conversation is read once it has been quiet this long. */
@@ -38,8 +44,7 @@ export async function runMemorySweep(
   const due = await runAsSuperuser((db) =>
     db.$queryRaw<Array<{ id: string; userId: string; extractedAt: Date | null }>>(Prisma.sql`
       SELECT "id", "userId", "extractedAt" FROM "assistant_conversation"
-       WHERE "deletedAt" IS NULL
-         AND "lastTurnAt" < ${idleBefore}
+       WHERE "lastTurnAt" < ${idleBefore}
          AND ("extractedAt" IS NULL OR "extractedAt" < "lastTurnAt")
        ORDER BY "lastTurnAt" ASC
        LIMIT ${SWEEP_BATCH}`),
@@ -85,9 +90,9 @@ async function sweepOne(
       }),
       db.assistantMemoryFact.findMany({
         where: { userId, supersededAt: null },
-        select: { id: true, text: true, editedByPerson: true, deletedAt: true, sourceQuote: true },
+        select: { id: true, text: true, editedByPerson: true, sourceQuote: true },
         orderBy: { sourceAt: 'desc' },
-        take: REMEMBERED_POINT_LIMIT * 2,
+        take: REMEMBERED_POINT_LIMIT,
       }),
     ]),
   );
@@ -99,18 +104,20 @@ async function sweepOne(
       complete,
       memoryModel(),
       turns.reverse(),
-      existing.map((p) => ({
-        id: p.id,
-        text: p.text,
-        editedByPerson: p.editedByPerson,
-        refused: p.deletedAt !== null,
-        sourceQuote: p.sourceQuote,
-      })),
+      existing,
     );
     if (usage) await recordSpend(userId, costMicros(usage.model, usage.usage), now);
 
     learned = await runAsUserOnly(userId, async (db) => {
-      let live = existing.filter((p) => p.deletedAt === null).length;
+      // Deleted while the model was reading it: learn nothing from it (#716).
+      const still = await db.assistantConversation.findFirst({
+        where: { id: c.id, userId },
+        select: { id: true },
+      });
+      if (!still) return 0;
+      // Counted now, not before the model call: the person may have deleted
+      // points meanwhile.
+      let live = await db.assistantMemoryFact.count({ where: { userId, supersededAt: null } });
       let n = 0;
       for (const cand of candidates) {
         if (cand.supersedesId) {
@@ -118,7 +125,6 @@ async function sweepOne(
             where: {
               id: cand.supersedesId,
               userId,
-              deletedAt: null,
               supersededAt: null,
               editedByPerson: false,
             },

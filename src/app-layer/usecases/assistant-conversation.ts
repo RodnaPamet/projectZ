@@ -25,7 +25,7 @@ export interface WindowTurn {
 
 /**
  * The conversation to file this question under, made if needed. A client id
- * is VERIFIED: one that is not this person's, or was deleted, starts a fresh
+ * is VERIFIED: one that is not this person's, or no longer exists, starts a fresh
  * conversation instead of an error that would confirm it exists.
  */
 export async function resolveConversation(
@@ -35,7 +35,7 @@ export async function resolveConversation(
   return runAsUserOnly(userId, async (db) => {
     if (requested) {
       const found = await db.assistantConversation.findFirst({
-        where: { id: requested, userId, deletedAt: null },
+        where: { id: requested, userId },
         select: { id: true },
       });
       if (found) return found.id;
@@ -53,7 +53,7 @@ export async function resolveConversation(
 export async function loadWindow(userId: string, conversationId: string): Promise<WindowTurn[]> {
   const newestFirst = await runAsUserOnly(userId, (db) =>
     db.assistantTurn.findMany({
-      where: { conversationId, userId, conversation: { deletedAt: null } },
+      where: { conversationId, userId },
       orderBy: { createdAt: 'desc' },
       take: MAX_WINDOW_TURNS,
       select: { role: true, content: true },

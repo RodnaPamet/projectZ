@@ -6,8 +6,10 @@ import { sanitizePlainText } from '@/lib/security/sanitize';
  * «Какво помни асистентът» — the person's view of their profile (agri-saas
  * #2686), and the rules it holds (docs/assistant.md, "The memory rules"):
  *
- *   - Rule 5, forgotten stays forgotten: «Изтрий» sets `deletedAt` and keeps
- *     the row, so the sweep can refuse to learn the same point again.
+ *   - Rule 5, deleted is deleted: «Изтрий» and «Забрави всичко» remove the
+ *     rows at once and for good (owner 2026-11-15, #716). Nothing of the
+ *     deleted text is kept, so there is no "never re-learn" list: if the
+ *     person says it again, the sweep may learn it again.
  *   - Rule 6, an edited point is theirs: an edit sets `editedByPerson`, and
  *     the sweep never rewrites or supersedes such a point.
  *   - Rule 4, latest wins: an edit re-dates the evidence (`sourceAt`), or the
@@ -42,7 +44,8 @@ export class MemoryPointEmptyError extends Error {
   }
 }
 
-const LIVE = { deletedAt: null, supersededAt: null } as const;
+/** Shown and sent to the model: not replaced by a newer statement (rule 4). */
+const LIVE = { supersededAt: null } as const;
 
 export async function listRememberedPoints(userId: string): Promise<RememberedPoint[]> {
   const rows = await runAsUserOnly(userId, (db) =>
@@ -80,25 +83,24 @@ export async function editRememberedPoint(
   });
 }
 
+/** «Изтрий»: the point removed for good (rule 5). */
 export async function forgetRememberedPoint(userId: string, id: string): Promise<void> {
   const { count } = await runAsUserOnly(userId, (db) =>
-    db.assistantMemoryFact.updateMany({
-      where: { id, userId, ...LIVE },
-      data: { deletedAt: new Date() },
-    }),
+    db.assistantMemoryFact.deleteMany({ where: { id, userId, ...LIVE } }),
   );
   if (count === 0) throw new MemoryPointNotFoundError();
 }
 
-/** «Забрави всичко»: every live point tombstoned. Returns how many. */
+/**
+ * «Забрави всичко»: every point removed for good, the replaced ones the person
+ * no longer sees included. Returns how many the person saw (live points).
+ */
 export async function forgetAllRememberedPoints(userId: string): Promise<number> {
-  const { count } = await runAsUserOnly(userId, (db) =>
-    db.assistantMemoryFact.updateMany({
-      where: { userId, ...LIVE },
-      data: { deletedAt: new Date() },
-    }),
-  );
-  return count;
+  return runAsUserOnly(userId, async (db) => {
+    const live = await db.assistantMemoryFact.count({ where: { userId, ...LIVE } });
+    await db.assistantMemoryFact.deleteMany({ where: { userId } });
+    return live;
+  });
 }
 
 /** The live points' text for the prompt, newest first (rule 4). */

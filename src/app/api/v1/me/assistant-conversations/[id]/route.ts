@@ -17,7 +17,7 @@ import { getRequestId } from '@/lib/observability/context';
  * GET    → `{ id, startedAt, lastTurnAt, turns, items: [{ role, text, at }],
  *          truncated }`, oldest turn first, at most the last 200. Send its
  *          `id` as `conversationId` to continue it.
- * DELETE → 204.
+ * DELETE → 204: deleted at once and for good, with its turns (#716).
  *
  * 404 `ASSISTANT_CONVERSATION_NOT_FOUND` for an id that is not the caller's.
  */

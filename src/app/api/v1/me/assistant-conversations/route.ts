@@ -16,8 +16,9 @@ import { getRequestId } from '@/lib/observability/context';
  *
  * GET    → `{ items: [{ id, startedAt, lastTurnAt, turns, opening }] }`,
  *          latest first, at most 50; `opening` is the first question.
- * DELETE → every conversation deleted: gone from the list, from recall and
- *          from the assistant's context. `{ deleted: n }`.
+ * DELETE → every conversation deleted at once and for good, with its turns
+ *          (#716): gone from the list, from recall, from the assistant's
+ *          context and from the data export. `{ deleted: n }`.
  */
 async function caller(req: NextRequest): Promise<string> {
   const ctx = await contextFromRequest(req, { slug: null, requestId: getRequestId() });
