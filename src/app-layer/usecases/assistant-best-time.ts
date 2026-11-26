@@ -47,6 +47,12 @@ export const MAX_OPTIONS = 3;
 
 export interface BestTimeInput {
   bookingId?: string;
+  /**
+   * The open game on screen (playerz-ios#127): its booking is looked up when
+   * no bookingId is given. The ownership check below still decides, so a
+   * game the asker is not on reads exactly as a booking that is not theirs.
+   */
+  gameId?: string;
   dateFrom: string;
   dateTo: string;
   timeFrom?: string;
@@ -116,6 +122,14 @@ export async function bestTimeForGame(
   ctx: { userId: string; now: Date },
   deps: SyncDeps = {},
 ): Promise<BestTimeResult> {
+  if (!input.bookingId && input.gameId) {
+    const gameId = input.gameId;
+    const game = await runAsSuperuser((db) =>
+      // guardrail-allow: cross-tenant — an open game's booking id only; whether the asker is on that booking is checked below.
+      db.openGame.findUnique({ where: { id: gameId }, select: { bookingId: true } }),
+    );
+    if (game) input = { ...input, bookingId: game.bookingId };
+  }
   if (!input.bookingId) return { chooseBooking: await myRecentBookings(ctx.userId, ctx.now) };
   if (!isLocalDate(input.dateFrom) || !isLocalDate(input.dateTo)) {
     throw new BestTimeInputError('dateFrom and dateTo must be YYYY-MM-DD');

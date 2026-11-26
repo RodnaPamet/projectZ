@@ -223,8 +223,11 @@ export const ASSISTANT_TOOLS: Record<string, AssistantTool> = {
     args: BestArgs,
     run: async (ctx, a: z.infer<typeof BestArgs>) => {
       const bookingId = a.bookingId ?? ctx.page?.bookingId;
+      // On a game's screen the phone sends its gameId only: the game's
+      // booking is found from it (playerz-ios#127).
+      const gameId = bookingId ? undefined : ctx.page?.gameId;
       const result = await bestTimeForGame(
-        { ...a, ...(bookingId ? { bookingId } : {}) },
+        { ...a, ...(bookingId ? { bookingId } : {}), ...(gameId ? { gameId } : {}) },
         { userId: ctx.userId, now: ctx.now },
         ctx.calendar ?? {},
       );

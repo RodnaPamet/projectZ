@@ -542,6 +542,53 @@ describe('«Асистент» (owner 2026-11-14, #704)', () => {
       });
     });
 
+    // playerz-ios#127: on a game's screen the phone sends only its gameId.
+    const askBestOnGame = (gameId: string) => {
+      model
+        .mockResolvedValueOnce(
+          toolCall('best_time_for_game', {
+            dateFrom: tomorrow,
+            dateTo: tomorrow,
+            timeFrom: '18:00',
+            timeTo: '21:00',
+          }),
+        )
+        .mockResolvedValueOnce(say('Най-добре в 20:00.'));
+      return stream(me, {
+        message: 'Кога можем да играем пак утре вечер?',
+        page: { screen: 'game', gameId },
+      });
+    };
+
+    it('on a game’s screen, the game’s booking is found from its id', async () => {
+      const game = await asAppSuperuser(db, (tx) =>
+        tx.openGame.create({
+          data: { tenantId: club.tenantId, bookingId: gameBookingId, spotsWanted: 1 },
+        }),
+      );
+      const { events } = await askBestOnGame(game.id);
+      const result = JSON.parse(toolResultSeen().content) as { options: Array<{ local: string }> };
+      expect(result.options.map((o) => o.local.slice(-5))).toEqual(['20:00']);
+      expect(events.find((e) => e.type === 'answer')).toMatchObject({
+        proposal: { kind: 'game' },
+      });
+    });
+
+    it('somebody else’s game on screen reads as nothing, as their booking does', async () => {
+      const theirs = (await booking(local('12:00'), { bookedByUserId: ana.userId })).id;
+      const game = await asAppSuperuser(db, (tx) =>
+        tx.openGame.create({
+          data: { tenantId: club.tenantId, bookingId: theirs, spotsWanted: 1 },
+        }),
+      );
+      const { events } = await askBestOnGame(game.id);
+      expect(events.find((e) => e.type === 'tool_result')).toMatchObject({ ok: false });
+      expect(toolResultSeen()).toMatchObject({
+        is_error: true,
+        content: 'that is not one of the person’s bookings',
+      });
+    });
+
     it('a booking the asker is not on reads as nothing: a failed tool, no names', async () => {
       const theirs = (await booking(local('12:00'), { bookedByUserId: ana.userId })).id;
       const { events } = await askBest(theirs);
