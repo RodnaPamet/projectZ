@@ -324,6 +324,10 @@ Download it under Profile → Privacy → "Download my data". You get one file, 
 - your sessions and security events (with the IP address and device);
 - your devices and club memberships;
 - your bookings, credit and no-shows;
+- the club's notes on your bookings;
+- the tags clubs added to you, with the club's name and, while we still have it, the date;
+- your favourite venues;
+- the reports you filed: what kind of content you reported, when, and what was decided;
 - your reviews, notifications and settings;
 - your messages, games, tournaments and results;
 - your data as a coach;
@@ -334,10 +338,7 @@ Download it under Profile → Privacy → "Download my data". You get one file, 
 
 - your sign-in credentials;
 - other people's contact details;
-- your favourite venues;
-- the reports you filed;
-- the club's notes on your bookings;
-- the tags clubs added to you. Write to us and we will send them.
+- the content you reported, and who wrote it.
 
 Each kind of record in the file holds 10,000 rows at most. If you have more, write to us.
 
