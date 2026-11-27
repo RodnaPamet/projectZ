@@ -5,6 +5,7 @@ import { expect, type Page } from '@playwright/test';
 import bg from '../../../messages/bg.json';
 import { prisma } from './create-isolated-tenant';
 import { expectAxeClean, expectNoDrift } from './club-page-journey';
+import { sheetTriggerReady } from './phone-sheet';
 
 /**
  * "Отчети и такса" (#372), shared by the 1280 px spec and its 393 px twin: the
@@ -211,6 +212,7 @@ export async function switchToThisMonth(page: Page, club: FeeClub) {
 
   await page.goto(`/t/${club.slug}/admin/reports?month=${FEE_MONTH}`);
   const picker = page.getByRole('combobox', { name: new RegExp(`^${r.month},`) });
+  await sheetTriggerReady(picker);
   await picker.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('option').first()).toBeVisible();
