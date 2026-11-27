@@ -268,6 +268,7 @@ We do not send your coordinates. Distances to clubs can, however, show roughly w
 - **Session records:** up to 90 days after the session ends. The sign-in keys themselves expire sooner: 7 days on the website and 30 days in the iPhone app.
 - **Bookings, club payment entries and booking history:** 5 years after the booking (Article 110 of the Bulgarian Obligations and Contracts Act). We then delete or anonymise them.
 - **The history of changes to bookings and staff at the club:** 5 years after the booking, like the bookings themselves.
+- **Credit movements at a club:** while you have a balance, we keep all of them. Once the balance is zero and the last movement is over 5 years old, we anonymise them: the amounts stay for the club's reports, but they are no longer linked to you.
 - **Team sign-in attempts with a second factor:** 1 year.
 - **Moderation records** (reports, cases and decisions): 5 years.
 - **No-shows after deletion:** up to 90 days from each no-show (see section 14).

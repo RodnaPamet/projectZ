@@ -24,6 +24,9 @@ import { globSync } from 'node:fs';
  *      surrounding transaction. Far better that it never merges.
  */
 
+/** The one file that may change ledger rows: anonymising old zero balances (P93). */
+const RETENTION_SWEEP = 'src/app-layer/usecases/retention-sweep.ts';
+
 describe('the credit ledger is append-only', () => {
   const migrations = globSync('prisma/migrations/**/migration.sql').map((f) => f.toString());
   const sourceFiles = globSync('src/**/*.{ts,tsx}').map((f) => f.toString());
@@ -81,11 +84,24 @@ describe('the credit ledger is append-only', () => {
       const src = readFileSync(file, 'utf8');
       src.split('\n').forEach((line, i) => {
         if (line.trim().startsWith('*') || line.trim().startsWith('//')) return;
+        // The one statement P93's trigger admits: the retention sweep's
+        // anonymising UPDATE (owner 2026-11-27), checked below. A DELETE stays
+        // forbidden there too.
+        if (file === RETENTION_SWEEP && /UPDATE\s+credit_ledger_entry\s+e\b/i.test(line)) return;
         if (forbidden.test(line)) violations.push(`${file}:${i + 1}: ${line.trim()}`);
       });
     }
 
     expect(violations).toEqual([]);
+  });
+
+  it('the retention sweep only takes the person out, and only from a whole zero balance', () => {
+    const src = readFileSync(RETENTION_SWEEP, 'utf8');
+    const stmt = src.slice(src.indexOf('UPDATE credit_ledger_entry e'));
+    const set = stmt.slice(0, stmt.indexOf('FROM g'));
+    // Exactly the three columns the trigger lets change, to exactly these values.
+    expect(set).toMatch(/SET "userId" = 'anonymised', "refType" = NULL, "refId" = NULL\s*$/);
+    expect(src).toMatch(/HAVING SUM\("deltaCents"\) = 0/);
   });
 
   // ── Negative control ───────────────────────────────────────────────
