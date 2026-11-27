@@ -7,8 +7,8 @@ import { THEME_COOKIE, THEME_STORAGE_KEY } from '@/lib/theme-constants';
  *
  * It writes nothing, as upstream's has since inflect #3270: a theme is stored
  * only when the person picks one (the vendored ThemeProvider). A first visit
- * applies the OS's scheme; a choice in the cookie, or only in localStorage, is
- * applied; none of them is written.
+ * is dark whatever the OS prefers (owner decision 2026-11-27); a choice in the
+ * cookie, or only in localStorage, is applied; none of them is written.
  *
  * The script is a constant inside src/app/layout.tsx, which may export only
  * what Next allows a layout to, so this runs the source itself: the template
@@ -90,10 +90,10 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('a first visit: the OS’s scheme, applied, and nothing stored', () => {
+describe('a first visit: dark whatever the OS prefers, and nothing stored', () => {
   it.each(['light', 'dark'] as const)('an OS that prefers %s', (scheme) => {
     osPrefers(scheme);
-    expect(run()).toBe(scheme);
+    expect(run()).toBe('dark');
     expect(cookieWrites).toEqual([]);
     expect(storageWrites).toEqual([]);
     expect(document.cookie).not.toContain(THEME_COOKIE);
@@ -106,12 +106,12 @@ describe('a first visit: the OS’s scheme, applied, and nothing stored', () => 
     expect(storageWrites).toEqual([]);
   });
 
-  it('storage that throws on read: the OS’s scheme, nothing stored, nothing thrown', () => {
+  it('storage that throws on read: dark, nothing stored, nothing thrown', () => {
     osPrefers('light');
     jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('The operation is insecure.', 'SecurityError');
     });
-    expect(run()).toBe('light');
+    expect(run()).toBe('dark');
     expect(cookieWrites).toEqual([]);
     expect(storageWrites).toEqual([]);
   });
@@ -135,10 +135,10 @@ describe('a choice the visitor made', () => {
     expect(document.cookie).not.toContain(THEME_COOKIE);
   });
 
-  it('something that is not a theme in localStorage is not a choice: the OS decides', () => {
+  it('something that is not a theme in localStorage is not a choice: dark', () => {
     window.localStorage[THEME_STORAGE_KEY] = 'sepia';
     osPrefers('light');
-    expect(run()).toBe('light');
+    expect(run()).toBe('dark');
     expect(cookieWrites).toEqual([]);
   });
 });

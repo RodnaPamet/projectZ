@@ -88,8 +88,11 @@ function jsToken(value: string): string {
  * carries `data-theme` (below) and no script has to win a race against first
  * paint. This matters for everybody else, and on the one force-static page
  * (/offline) where there is no request and `cookies()` is empty: it resolves
- * cookie → localStorage → `prefers-color-scheme` → dark and sets `data-theme`
- * before the body paints.
+ * cookie → localStorage → dark and sets `data-theme` before the body paints.
+ * The device's `prefers-color-scheme` is not asked (owner decision 2026-11-27):
+ * playerz.bg is dark by default whatever the device uses, and a visitor who
+ * wants light picks it with the theme switch. ThemeProvider is mounted with
+ * `followSystem={false}` for the same reason, so the two never disagree.
  *
  * ═══ IT WRITES NOTHING (#370, as upstream's has since its #3270) ═══
  *
@@ -123,7 +126,7 @@ function jsToken(value: string): string {
  */
 const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement;var ck=${jsToken(THEME_COOKIE)};var lk=${jsToken(
   THEME_STORAGE_KEY,
-)};var c={dark:${jsToken(THEME_CHROME.dark)},light:${jsToken(THEME_CHROME.light)}};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;}}if(!t){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}d.setAttribute('data-theme',t);var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
+)};var c={dark:${jsToken(THEME_CHROME.dark)},light:${jsToken(THEME_CHROME.light)}};var t=null;var m=document.cookie.match(new RegExp('(?:^|; )'+ck+'=(light|dark)(?:;|$)'));if(m){t=m[1];}if(!t){var s=null;try{s=localStorage.getItem(lk);}catch(e){}if(s==='light'||s==='dark'){t=s;}}if(!t){t='dark';}d.setAttribute('data-theme',t);var f=function(){var n=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<n.length;i++){n[i].setAttribute('content',c[d.getAttribute('data-theme')]||c[t]);}};f();document.addEventListener('DOMContentLoaded',f);}catch(e){}})();`;
 
 /**
  * The defaults every page inherits. The description is in the request's

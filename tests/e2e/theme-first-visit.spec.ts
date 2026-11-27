@@ -3,18 +3,18 @@ import { expect, test } from '@playwright/test';
 import { THEME_COOKIE, THEME_STORAGE_KEY } from '../../src/lib/theme-constants';
 
 /**
- * A FIRST VISIT IS IN THE VISITOR'S OWN SCHEME FROM THE FIRST FRAME (#286).
+ * A FIRST VISIT IS DARK FROM THE FIRST FRAME, WHATEVER THE DEVICE PREFERS (#286;
+ * owner decision 2026-11-27: playerz.bg is dark by default).
  *
  * `design-system-dark-axe` covers a returning visitor: a theme cookie, read by
  * the server, so the first byte already carries `data-theme`. Nothing covered
  * the case the acceptance criterion was written for: no cookie at all.
  *
  * With no cookie the server sends `<html>` with no `data-theme`, and the
- * pre-paint script in <head> (src/app/layout.tsx) sets it from
- * `prefers-color-scheme` before the body paints. If that script lost its race,
- * a light-preferring visitor would see the dark `:root` palette for a frame:
- * the flash #283 fixed, and that a 150 ms transition once let axe sample
- * mid-flight (#115).
+ * pre-paint script in <head> (src/app/layout.tsx) sets it to dark before the
+ * body paints. A light-preferring device must not flash light either: the
+ * script and ThemeProvider (`followSystem={false}`) both ignore the OS, so no
+ * frame and no hydration may disagree (#283, #115).
  *
  * So the theme is recorded at every animation frame from the first one that
  * has a body to paint, by a script that runs before any of the page's own,
@@ -30,7 +30,7 @@ import { THEME_COOKIE, THEME_STORAGE_KEY } from '../../src/lib/theme-constants';
  * before the audit.
  */
 for (const scheme of ['light', 'dark'] as const) {
-  test(`first visit on a ${scheme} OS: ${scheme} from the first frame, and nothing stored`, async ({
+  test(`first visit on a ${scheme} OS: dark from the first frame, and nothing stored`, async ({
     page,
     context,
   }) => {
@@ -54,7 +54,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
 
     await page.goto('/venues');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', scheme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
     // Let a few more frames pass, hydration included, then read them all.
     await expect
@@ -68,7 +68,7 @@ for (const scheme of ['light', 'dark'] as const) {
       () => (window as unknown as { __themeFrames: string[] }).__themeFrames,
     );
     // Not one frame without a theme, and not one in the other one.
-    expect([...new Set(frames)]).toEqual([scheme]);
+    expect([...new Set(frames)]).toEqual(['dark']);
 
     // Followed, not stored.
     const cookies = await context.cookies();

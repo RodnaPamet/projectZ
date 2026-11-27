@@ -5,6 +5,7 @@ import bg from '../../../messages/bg.json';
 import { THEME_COOKIE } from '../../../src/lib/theme-constants';
 import { expect, test as base } from '../fixtures';
 import { prisma } from '../utils/create-isolated-tenant';
+import { sheetTriggerReady } from '../utils/phone-sheet';
 
 /**
  * The pricing board on a 393 px phone, as the club's OWNER (T24): the same
@@ -115,7 +116,9 @@ test.describe('club admin pricing — phone', () => {
   }) => {
     await page.goto(`/t/${club.slug}/admin/pricing`);
     await expectNoDrift(page);
-    await expectTarget(page.getByRole('combobox', { name: new RegExp(`^${p.field.court},`) }));
+    const court = page.getByRole('combobox', { name: new RegExp(`^${p.field.court},`) });
+    await sheetTriggerReady(court);
+    await expectTarget(court);
 
     const add = page.getByRole('button', { name: p.action.add });
     await expectTarget(add);

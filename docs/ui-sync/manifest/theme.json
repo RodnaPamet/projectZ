@@ -4,10 +4,10 @@
     {
       "path": "src/components/theme/ThemeProvider.tsx",
       "inflectPath": "src/components/theme/ThemeProvider.tsx",
-      "baseSha": "fcb7771aa81ca6c504ecf156b49be2d6ec5e774a",
-      "sha": "fcb7771aa81ca6c504ecf156b49be2d6ec5e774a",
+      "baseSha": "cc0fb000c82439763a5edd5e569e9077e34be9b8",
+      "sha": "cc0fb000c82439763a5edd5e569e9077e34be9b8",
       "status": "vendored",
-      "sha256": "a5a8f8d5ad9686e6fa1f52e695b0fc7c7e78714bdf0d52c580a0a18adf96df07"
+      "sha256": "f4756344fd76323b055f46b9c16bc380d1ad83f79078caa000a1d63e8229baf4"
     },
     {
       "path": "src/components/theme/ThemeToggle.tsx",

@@ -141,7 +141,9 @@ function StaleNotices() {
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <DataProvider>
-      <ThemeProvider>
+      {/* Dark by default, whatever the device prefers (owner decision
+          2026-11-27); the pre-paint script in layout.tsx does the same. */}
+      <ThemeProvider followSystem={false}>
         <ThemeColorMetaSync />
         <KeyboardShortcutProvider>
           <TooltipProvider>
