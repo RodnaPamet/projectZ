@@ -343,7 +343,7 @@ describe('the confirmation sheet', () => {
     }
     const price = within(dialog).getByTestId('lesson-sheet-price');
     expect(price).toHaveTextContent(/За треньора\s*40,00\s€/);
-    expect(price).toHaveTextContent(/За корта\s*24,00\s€/);
+    expect(price).toHaveTextContent(/Наем\s*24,00\s€/);
     expect(within(dialog).getByTestId('lesson-sheet-total')).toHaveTextContent(/^64,00\s€$/);
     expect(within(dialog).getByText(l.sheet.payAtClub)).toBeVisible();
     // The deadline: 24 hours before the start, as the times said.

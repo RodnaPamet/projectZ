@@ -115,7 +115,7 @@ export async function aFriendJoinsTheLesson(
   await streamed(page);
   // Before anybody is added: what the coach is paid for a group, and the total.
   await expect(page.getByTestId('booking-lesson-group')).toHaveText(
-    /^С втори играч урокът става групов: за треньора 60,00\s€ за цялата група, общо 84,00\s€ с корта\.$/,
+    /^С втори играч урокът става групов: за треньора 60,00\s€ за цялата група, общо 84,00\s€ с наема\.$/,
   );
   await expect(page.getByTestId('booking-lesson-total')).toHaveText(/^64,00\s€$/);
   // A lesson is for the people its booker invites: nothing offers «Игри».
@@ -165,7 +165,7 @@ export async function aFriendJoinsTheLesson(
   );
   await expect(page.getByTestId('booking-lesson-total')).toHaveText(/^84,00\s€$/);
   await expect(page.getByTestId('booking-lesson-parts')).toHaveText(
-    /^60,00\s€ за треньора \+ 24,00\s€ за корта$/,
+    /^60,00\s€ за треньора \+ 24,00\s€ за наема$/,
   );
   await expectNoDrift(page);
   await shot(page, opts.shots, `life-${opts.tag}-3-group`);
@@ -201,7 +201,7 @@ export async function coachSeesWhoAndCancels(
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText(cl.cancel.title);
   await expect(dialog).toContainText(
-    'Кортът ще се освободи, а играчът ще получи известие и имейл.',
+    'Часът ще се освободи, а играчът ще получи известие и имейл.',
   );
   await settleAnimations(dialog);
   await expectAxeClean(page);

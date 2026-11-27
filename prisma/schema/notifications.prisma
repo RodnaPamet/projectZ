@@ -71,6 +71,10 @@ enum NotificationKind {
   /// «Факт на седмицата» (P88): once a week, a fun fact about the player's
   /// main sport. Bell and push, never email; its own push switch (`pushSportFacts`).
   SPORT_FACT
+  /// #714 (P91), to the author: their review of a venue or a coach was not
+  /// published, or was removed, with the reason and how to object (DSA
+  /// Art. 17). Bell and email under `account`: no switch turns it off.
+  REVIEW_REFUSED
 }
 
 /// Where an email stands in the outbox (#367).

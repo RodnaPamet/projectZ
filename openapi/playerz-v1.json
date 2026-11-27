@@ -1681,7 +1681,7 @@
       "post": {
         "operationId": "reviewBooking",
         "summary": "Review the venue a completed booking was at",
-        "description": "Leaves a star rating, with optional text, for the venue whose court this booking was on. The venue is DERIVED from the booking; there is no `venueId` to send, so a booking at one venue cannot be used to review another.\n\n**Proof of visit.** The booking must be the caller's own, at this club, and `COMPLETED`. A CONFIRMED booking becomes COMPLETED shortly after its end time; staff can instead mark it `NO_SHOW`, which can never be reviewed. Every failure of that rule is the same `NO_PROOF_OF_VISIT`, so the endpoint cannot be used to learn which bookings exist.\n\n**One review per venue per person.** A second completed booking at a venue the caller has already reviewed is refused with `409 ALREADY_REVIEWED`. It does not create a second review and it does not edit the first.\n\n**Moderation is synchronous.** Text is classified before anything is stored, so a request carrying text can take up to about ten seconds. The response says what happened, and none of it is an error: `PUBLISHED` (visible now, and counted in the venue's rating), `PENDING_REVIEW` (a moderator will decide; not visible and not counted until then), or `REJECTED`. A star-only review has nothing to classify and is `PUBLISHED` at once. If the classifier is unavailable the review is held for a moderator, never published unchecked.",
+        "description": "Leaves a star rating, with optional text, for the venue whose court this booking was on. The venue is DERIVED from the booking; there is no `venueId` to send, so a booking at one venue cannot be used to review another.\n\n**Proof of visit.** The booking must be the caller's own, at this club, and `COMPLETED`. A CONFIRMED booking becomes COMPLETED shortly after its end time; staff can instead mark it `NO_SHOW`, which can never be reviewed. Every failure of that rule is the same `NO_PROOF_OF_VISIT`, so the endpoint cannot be used to learn which bookings exist.\n\n**One review per venue per person.** A second completed booking at a venue the caller has already reviewed is refused with `409 ALREADY_REVIEWED`. It does not create a second review and it does not edit the first.\n\n**Moderation is synchronous.** Text is classified before anything is stored, so a request carrying text can take up to about ten seconds. The response says what happened, and none of it is an error: `PUBLISHED` (visible now, and counted in the venue's rating), `PENDING_REVIEW` (a moderator will decide; not visible and not counted until then), or `REJECTED`. A star-only review has nothing to classify and is `PUBLISHED` at once. If the classifier is unavailable the review is held for a moderator, never published unchecked.\n\n`REJECTED` by the classifier (only clear cases: sexual content involving minors, instructions for self-harm) carries `refusal` (`automated: true`), and the author is sent a `REVIEW_REFUSED` notification (#714). The form says before submitting that the text is checked by an AI model from Anthropic.",
         "tags": ["Bookings"],
         "security": [
           {
@@ -2753,7 +2753,7 @@
         "operationId": "resolvePlatformModerationCase",
         "summary": "Approve or reject a review moderation case",
         "tags": ["Platform"],
-        "description": "`APPROVE` publishes the review; `REJECT` hides it. Either way the case closes with the moderator's note, and the venue's `avgRating` and `reviewCount` are recomputed in the same transaction, so the decision reaches the venue list at once.\n\n**Needs `REVIEW_MODERATE` — the one cross-club WRITE the platform enables — and a second-factor step-up on this session from the last 15 minutes (#262).** Every other write capability is refused at the binding; see `PlatformCapability`.\n\n**The note is the audit reason.** It becomes the case's resolution note (the answer to \"why was my review taken down?\") and the `reason` on the `PLATFORM_REVIEW_APPROVED` / `PLATFORM_REVIEW_REJECTED` audit row, written before the decision takes effect. A refused request — already resolved, or no such case — leaves no row.\n\nNothing is deleted. A rejected review is kept with its text, and the case keeps who decided and why.",
+        "description": "`APPROVE` publishes the review; `REJECT` hides it. Either way the case closes with the moderator's note, and the venue's `avgRating` and `reviewCount` are recomputed in the same transaction, so the decision reaches the venue list at once.\n\n**Needs `REVIEW_MODERATE` — the one cross-club WRITE the platform enables — and a second-factor step-up on this session from the last 15 minutes (#262).** Every other write capability is refused at the binding; see `PlatformCapability`.\n\n**The note is the audit reason.** It becomes the case's resolution note (the moderator's answer to \"why?\", kept with the case; the author is not shown it) and the `reason` on the `PLATFORM_REVIEW_APPROVED` / `PLATFORM_REVIEW_REJECTED` audit row, written before the decision takes effect. A refused request — already resolved, or no such case — leaves no row.\n\nNothing is deleted. A rejected review is kept with its text, and the case keeps who decided and why.\n\n**The author is told why (#714).** A REJECT stores a `ReviewRefusal` on the review (`rule`, decided by a person, `REMOVED` if it was live) and, after the commit, sends the author a `REVIEW_REFUSED` notification: bell, push and an account email, with the rule in plain words and how to object. An APPROVE clears it.",
         "security": [
           {
             "bearerAuth": []
@@ -3130,7 +3130,7 @@
       "get": {
         "operationId": "exportMyData",
         "summary": "My personal data, as a file",
-        "description": "The caller’s personal data (#370) as one JSON document (`version: 8`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s).\n\nNever a secret or a token, never another person’s email, phone or contact details, and not a club’s own notes (its tags, its desk’s notes on a booking or series). Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
+        "description": "The caller’s personal data (#370) as one JSON document (`version: 12`), served as an attachment named `playerz-data-YYYY-MM-DD.json` (the date in Sofia). The body is the document itself, NOT the `{ data }` envelope: it is a file the browser saves. A refusal is still the JSON error envelope.\n\nSections: `profile` (with `acceptedTerms`: each version of the terms and the privacy policy the caller accepted, and when, #462); `signIn` (the address; `providerAccounts`, always empty: playerz stores no Google or Facebook id or token; every session with its IP address and user agent; the second step’s security log); `devices` (phones and browsers registered for notifications, never their tokens or keys); `memberships`; `bookings.asBooker` (with the note the caller left on an online booking, and the contact details a club’s desk took for them) and `bookings.asPlayer` (venue, court, times, price, status; how many others played, never who); `weeklySeries`; `credit` (the balance at each club and every ledger entry); `noShowStanding` (per club where the caller missed a booking: how many count now, and whether online booking is blocked); `reviews`; `coachReviews` (the caller’s reviews of coaches, with the coach’s name, #551); `coach` (null unless the caller has been a coach, #552: the profile, the certificate described but never carried, the venues with terms and weekly hours, days off, the lessons taught with how many played but not who, and the reviews received without their authors); `notifications` (the bell, word for word, which can name a co-player as it named them on screen, and the emails); `notificationSettings`; `inviteLinks`; `messages` (#375: whether the caller is shown in player search, who they blocked, and every conversation they are in with every message still there, theirs and the other side’s). Since version 12 (#710): `clubTags` (each tag a club put on the caller, with the club and when it was added, null once the club’s history no longer says), `favouriteVenues`, `reportsFiled` (the kind of thing reported, the caller’s reason, when, and the outcome: `pending`, `kept`, `removed` or `unknown`), and `deskNote` on a desk booking and on a weekly series.\n\nNever a secret or a token, never another person’s email, phone or contact details, and never the content the caller reported or who wrote it. Every account kind may ask; a club account gets its holder’s own data, not the club’s. Rate-limited to 10 an hour per account and IP.",
         "tags": ["Me"],
         "security": [
           {
@@ -14889,7 +14889,7 @@
         "operationId": "reviewMyLessonCoach",
         "summary": "Review the coach of a lesson",
         "tags": ["Me"],
-        "description": "Review the coach of a lesson the caller was on (#551): the booker or any player on it with an account (decision 25), once the lesson is COMPLETED. The coach is the lesson's and cannot be named. One review per coach per player, at any club (decision 24). The text is checked before it is stored, as a venue review's is; stars alone are published at once.",
+        "description": "Review the coach of a lesson the caller was on (#551): the booker or any player on it with an account (decision 25), once the lesson is COMPLETED. The coach is the lesson's and cannot be named. One review per coach per player, at any club (decision 24). The text is checked before it is stored, as a venue review's is; stars alone are published at once.\n\n`REJECTED` by the classifier (only clear cases: sexual content involving minors, instructions for self-harm) carries `refusal` (`automated: true`), and the author is sent a `REVIEW_REFUSED` notification (#714). The form says before submitting that the text is checked by an AI model from Anthropic.",
         "security": [
           {
             "bearerAuth": []
@@ -20676,7 +20676,16 @@
         "type": "object",
         "title": "Review",
         "description": "The author's own view of the review they just left. It carries no author id and no moderation scores: the scores are for the moderator judging the classifier, and handed to an author they are a gauge for tuning text until it slips through.",
-        "required": ["id", "bookingId", "venueId", "rating", "body", "status", "createdAt"],
+        "required": [
+          "id",
+          "bookingId",
+          "venueId",
+          "rating",
+          "body",
+          "status",
+          "createdAt",
+          "refusal"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -20706,6 +20715,17 @@
             "type": "string",
             "format": "date-time",
             "description": "RFC 3339 UTC, no fractional seconds."
+          },
+          "refusal": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewRefusal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was refused (#714). Null unless `status` is `REJECTED`."
           }
         }
       },
@@ -21279,6 +21299,24 @@
             "minLength": 12,
             "maxLength": 500,
             "description": "Why. Stored as the case's resolution note and written verbatim to the platform audit row as its reason. No default."
+          },
+          "rule": {
+            "type": "string",
+            "enum": [
+              "harassment",
+              "hate",
+              "sexual",
+              "sexual_minors",
+              "violence",
+              "self_harm",
+              "self_harm_instructions",
+              "spam",
+              "personal_data",
+              "impersonation",
+              "false_review",
+              "other"
+            ],
+            "description": "#714: the rule a REJECT rests on, as the review's author is told it (`ReviewRefusal.reason`). Left out, the one the case's category maps to, else `other`. Ignored on APPROVE. The author never sees the note."
           }
         }
       },
@@ -21729,7 +21767,7 @@
             "oneOf": [
               {
                 "type": "object",
-                "required": ["id", "bookingId", "rating", "status"],
+                "required": ["id", "bookingId", "rating", "status", "refusal"],
                 "properties": {
                   "id": {
                     "type": "string"
@@ -21746,6 +21784,17 @@
                   "status": {
                     "type": "string",
                     "description": "`PUBLISHED`, `PENDING_REVIEW` or `REJECTED`. An open string."
+                  },
+                  "refusal": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ReviewRefusal"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Why it was refused (#714). Null unless `status` is `REJECTED`."
                   }
                 }
               },
@@ -22201,7 +22250,7 @@
             "oneOf": [
               {
                 "type": "object",
-                "required": ["id", "bookingId", "rating", "status"],
+                "required": ["id", "bookingId", "rating", "status", "refusal"],
                 "properties": {
                   "id": {
                     "type": "string"
@@ -22218,6 +22267,17 @@
                   "status": {
                     "type": "string",
                     "description": "`PUBLISHED`, `PENDING_REVIEW` or `REJECTED`. An open string."
+                  },
+                  "refusal": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ReviewRefusal"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Why it was refused (#714). Null unless `status` is `REJECTED`."
                   }
                 }
               },
@@ -23371,7 +23431,8 @@
               "TOURNAMENT_PARTNER_NAMED",
               "TOURNAMENT_ENTRY_DECIDED",
               "TOURNAMENT_ENTRY_WITHDRAWN",
-              "SPORT_FACT"
+              "SPORT_FACT",
+              "REVIEW_REFUSED"
             ],
             "description": "Treat an unknown value as a generic notification: kinds are added over time.",
             "x-open-enum": true
@@ -23930,24 +23991,56 @@
               "courtTrackTable",
               "pitchTrackTable",
               "courtPitchTrackTable",
-              "seat",
-              "courtSeat",
-              "pitchSeat",
-              "courtPitchSeat",
-              "trackSeat",
-              "courtTrackSeat",
-              "pitchTrackSeat",
-              "courtPitchTrackSeat",
-              "tableSeat",
-              "courtTableSeat",
-              "pitchTableSeat",
-              "courtPitchTableSeat",
-              "trackTableSeat",
-              "courtTrackTableSeat",
-              "pitchTrackTableSeat",
-              "courtPitchTrackTableSeat"
+              "hall",
+              "courtHall",
+              "pitchHall",
+              "courtPitchHall",
+              "trackHall",
+              "courtTrackHall",
+              "pitchTrackHall",
+              "courtPitchTrackHall",
+              "tableHall",
+              "courtTableHall",
+              "pitchTableHall",
+              "courtPitchTableHall",
+              "trackTableHall",
+              "courtTrackTableHall",
+              "pitchTrackTableHall",
+              "courtPitchTrackTableHall",
+              "route",
+              "courtRoute",
+              "pitchRoute",
+              "courtPitchRoute",
+              "trackRoute",
+              "courtTrackRoute",
+              "pitchTrackRoute",
+              "courtPitchTrackRoute",
+              "tableRoute",
+              "courtTableRoute",
+              "pitchTableRoute",
+              "courtPitchTableRoute",
+              "trackTableRoute",
+              "courtTrackTableRoute",
+              "pitchTrackTableRoute",
+              "courtPitchTrackTableRoute",
+              "hallRoute",
+              "courtHallRoute",
+              "pitchHallRoute",
+              "courtPitchHallRoute",
+              "trackHallRoute",
+              "courtTrackHallRoute",
+              "pitchTrackHallRoute",
+              "courtPitchTrackHallRoute",
+              "tableHallRoute",
+              "courtTableHallRoute",
+              "pitchTableHallRoute",
+              "courtPitchTableHallRoute",
+              "trackTableHallRoute",
+              "courtTrackTableHallRoute",
+              "pitchTrackTableHallRoute",
+              "courtPitchTrackTableHallRoute"
             ],
-            "description": "What the court column is called (P51, #454, #477): the club's one noun when all its resources are of one kind (`court` \"Корт\", `pitch` \"Игрище\", `track` \"Писта\", `table` \"Маса\": table tennis and chess, `seat` \"Място\": esports), or the nouns it holds named in the order court, pitch, track, table, seat (`courtTable`: \"Корт / маса\"). Treat an unknown value as `court`.",
+            "description": "What the court column is called (P51, #454, #477, #694): the club's one noun when all its resources are of one kind (`court` \"Корт\", `pitch` \"Игрище\", `track` \"Писта\", `table` \"Маса\": table tennis and chess, `hall` \"Зала\": esports, `route` \"Трасе\": running and cycling), or the nouns it holds named in the order court, pitch, track, table, hall, route (`courtTable`: \"Корт / маса\"). Treat an unknown value as `court`.",
             "x-open-enum": true
           },
           "tournamentFeePercent": {
@@ -24409,7 +24502,10 @@
           "messages",
           "openPlay",
           "ranking",
-          "tournaments"
+          "tournaments",
+          "clubTags",
+          "favouriteVenues",
+          "reportsFiled"
         ],
         "properties": {
           "format": {
@@ -24418,7 +24514,7 @@
           },
           "version": {
             "type": "integer",
-            "const": 10
+            "const": 12
           },
           "exportedAt": {
             "type": "string",
@@ -24572,6 +24668,10 @@
                     "addedPlayers": {
                       "type": "integer",
                       "description": "How many were added to it besides the booker; never who."
+                    },
+                    "deskNote": {
+                      "type": ["string", "null"],
+                      "description": "The club desk’s note on a booking it entered for the caller (#710)."
                     }
                   }
                 }
@@ -24914,6 +25014,78 @@
                 "type": "array",
                 "items": {
                   "type": "object"
+                }
+              }
+            }
+          },
+          "clubTags": {
+            "type": "array",
+            "description": "The tags clubs put on the caller (#710).",
+            "items": {
+              "type": "object",
+              "required": ["club", "tag", "addedAt"],
+              "properties": {
+                "club": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "addedAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "favouriteVenues": {
+            "type": "array",
+            "description": "The venues the caller marked as favourites (#710).",
+            "items": {
+              "type": "object",
+              "required": ["venue", "city", "club", "addedAt"],
+              "properties": {
+                "venue": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "club": {
+                  "type": "string"
+                },
+                "addedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "reportsFiled": {
+            "type": "array",
+            "description": "The caller’s reports (#710): never the reported content or its author.",
+            "items": {
+              "type": "object",
+              "required": ["kind", "reason", "at", "outcome", "decidedAt"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "As `ModerationSubject`. Open string."
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": ["pending", "kept", "removed", "unknown"]
+                },
+                "decidedAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
                 }
               }
             }
@@ -27671,7 +27843,7 @@
           "myReview": {
             "type": ["object", "null"],
             "description": "The caller's own review of this coach (#551), written after this lesson or another: one per coach (decision 24). Null when they have none.",
-            "required": ["id", "rating", "status"],
+            "required": ["id", "rating", "status", "refusal"],
             "properties": {
               "id": {
                 "type": "string"
@@ -27682,6 +27854,17 @@
               "status": {
                 "type": "string",
                 "description": "`PUBLISHED`, `PENDING_REVIEW` or `REJECTED`. An open string."
+              },
+              "refusal": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ReviewRefusal"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Why it was refused (#714). Null unless `status` is `REJECTED`."
               }
             }
           },
@@ -27960,7 +28143,7 @@
       "CreatedCoachReview": {
         "type": "object",
         "title": "CreatedCoachReview",
-        "required": ["id", "bookingId", "rating", "body", "status", "createdAt"],
+        "required": ["id", "bookingId", "rating", "body", "status", "createdAt", "refusal"],
         "properties": {
           "id": {
             "type": "string"
@@ -27981,6 +28164,17 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "refusal": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewRefusal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was refused (#714). Null unless `status` is `REJECTED`."
           }
         }
       },
@@ -31661,6 +31855,32 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/SportFactOfTheWeek"
+          }
+        }
+      },
+      "ReviewRefusal": {
+        "type": "object",
+        "title": "ReviewRefusal",
+        "description": "Why the caller's own review was refused (#714): the statement of reasons the EU Digital Services Act (Art. 17) asks for. Present only on the author's own reads, and only when `status` is `REJECTED`. The author is also sent a `REVIEW_REFUSED` notification (bell, push and email; an account notice with no switch). Show the reason in the app's own words (the web's are `myBookings.review.refusal.*`), who decided, and how to object: write to privacy@playerz.bg to have a person look at it again, or turn to КРС, КЗП or the courts. Never the classifier's scores.",
+        "required": ["action", "reason", "automated", "decidedAt"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`NOT_PUBLISHED` (it never went live) or `REMOVED` (it was published, then taken down). An open string."
+          },
+          "reason": {
+            "type": "string",
+            "description": "The rule, as a code: `harassment`, `hate`, `sexual`, `sexual_minors`, `violence`, `self_harm`, `self_harm_instructions`, `spam`, `personal_data`, `impersonation`, `false_review`, `other` (a breach of the terms of use). An open string: treat an unknown value as `other`.",
+            "x-open-enum": true
+          },
+          "automated": {
+            "type": "boolean",
+            "description": "True: the AI check refused it (Anthropic), and a moderator will also look; false: a moderator decided."
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 UTC, no fractional seconds."
           }
         }
       }

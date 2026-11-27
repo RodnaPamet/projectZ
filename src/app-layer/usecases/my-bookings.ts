@@ -1,5 +1,7 @@
 import type { PrismaClient, ReviewStatus } from '@prisma/client';
 
+import { refusalOf, REFUSAL_SELECT, type ReviewRefusal } from '@/lib/moderation/refusal';
+
 import {
   countUpcomingForUser,
   getBookingForUserAcrossClubs,
@@ -45,6 +47,8 @@ export interface MyVenueReview {
   bookingId: string | null;
   rating: number;
   status: ReviewStatus;
+  /** Why it was refused (#714); null unless REJECTED. */
+  refusal: ReviewRefusal | null;
 }
 
 /**
@@ -55,6 +59,8 @@ export interface MyCoachReview {
   id: string;
   rating: number;
   status: ReviewStatus;
+  /** Why it was refused (#714); null unless REJECTED. */
+  refusal: ReviewRefusal | null;
 }
 
 /** The caller's own reviews of these coaches, by coach, with the page's handle. */
@@ -69,11 +75,14 @@ async function readMyCoachReviews(
   // of lessons already on this page, by the session-derived authorUserId.
   const rows = await db.coachReview.findMany({
     where: { authorUserId: userId, coachUserId: { in: ids } },
-    select: { id: true, coachUserId: true, rating: true, status: true },
+    select: { id: true, coachUserId: true, rating: true, status: true, ...REFUSAL_SELECT },
     take: ids.length,
   });
   return new Map(
-    rows.map((r) => [r.coachUserId, { id: r.id, rating: r.rating, status: r.status }]),
+    rows.map((r) => [
+      r.coachUserId,
+      { id: r.id, rating: r.rating, status: r.status, refusal: refusalOf(r) },
+    ]),
   );
 }
 
@@ -130,7 +139,14 @@ export async function listMyBookings(input: {
       // session-derived authorUserId, at the venues already on this page.
       db.review.findMany({
         where: { authorUserId: input.userId, venueId: { in: venueIds } },
-        select: { id: true, venueId: true, bookingId: true, rating: true, status: true },
+        select: {
+          id: true,
+          venueId: true,
+          bookingId: true,
+          rating: true,
+          status: true,
+          ...REFUSAL_SELECT,
+        },
         take: venueIds.length,
       }),
       readMyCoachReviews(
@@ -145,7 +161,13 @@ export async function listMyBookings(input: {
     const reviewByVenue = new Map(
       reviews.map((r) => [
         r.venueId,
-        { id: r.id, bookingId: r.bookingId, rating: r.rating, status: r.status } as MyVenueReview,
+        {
+          id: r.id,
+          bookingId: r.bookingId,
+          rating: r.rating,
+          status: r.status,
+          refusal: refusalOf(r),
+        } as MyVenueReview,
       ]),
     );
 
@@ -223,7 +245,7 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
       // booking's venue, by the session-derived authorUserId.
       db.review.findFirst({
         where: { authorUserId: input.userId, venueId },
-        select: { id: true, bookingId: true, rating: true, status: true },
+        select: { id: true, bookingId: true, rating: true, status: true, ...REFUSAL_SELECT },
       }),
       // Names and avatars, never emails or ids: `User` is global, and this is
       // the only thing about another person a booking shows (#358).
@@ -234,7 +256,13 @@ export async function getMyBooking(input: { userId: string; bookingId: string })
     const coachReview = b.lesson ? (coachReviews.get(b.lesson.coachUserId) ?? null) : null;
 
     const venueReview: MyVenueReview | null = review
-      ? { id: review.id, bookingId: review.bookingId, rating: review.rating, status: review.status }
+      ? {
+          id: review.id,
+          bookingId: review.bookingId,
+          rating: review.rating,
+          status: review.status,
+          refusal: refusalOf(review),
+        }
       : null;
 
     const capacity = b.resource.capacity;

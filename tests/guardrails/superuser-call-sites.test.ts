@@ -288,6 +288,14 @@ const ALLOWED: Record<string, string> = {
     'profile left DRAFT or DECLINED for 30 days. Certificates are a person and owner-only ' +
     'under RLS, and the sweep is the platform, bound to no person; it reads no content, ' +
     'deletes by the profile state alone, and counts what is left for the operator.',
+  'src/app-layer/usecases/retention-sweep.ts':
+    'the retention sweep (#717): the privacy policy’s periods, across every club and person. ' +
+    'Anonymises bookings 5 years after they ended and deletes what section 13 says not to ' +
+    'keep (the club history, moderation records, the second-factor log, accepted texts of ' +
+    'deleted accounts, old enquiries, ended sessions). It reads ages and ids only, and the ' +
+    'append-only triggers on audit_entry and account_security_event (P92) admit its deletes ' +
+    'only as app_superuser and only past the period by the database clock. A timer, not a ' +
+    'person, behind CRON_SECRET like the other sweeps; NOT asPlatformAdmin, no grant to audit.',
   'src/app-layer/usecases/coach-directory.ts':
     'coaches (#546): the public card of a coach (the name, and for a coach the platform ' +
     'approved, the text, qualifications and sports). A coach\u2019s profile belongs to a person ' +

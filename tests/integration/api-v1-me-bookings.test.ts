@@ -197,6 +197,7 @@ describe('GET /api/v1/me/bookings', () => {
       bookingId: done.id,
       rating: 4,
       status: 'PUBLISHED',
+      refusal: null,
     });
   });
 

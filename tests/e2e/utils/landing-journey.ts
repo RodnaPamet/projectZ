@@ -64,7 +64,7 @@ export async function expectLanding(page: Page) {
   await expectNoDrift(page);
 }
 
-/** "Намери корт" is the hero's link into /venues. */
+/** "Намери къде да играеш" is the hero's link into /venues. */
 export async function findACourt(page: Page) {
   await page.goto('/');
   const cta = shown(page, 'landing-find-court');

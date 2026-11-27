@@ -87,7 +87,7 @@ describe('the venue page’s title', () => {
     [['COURT', 'FIELD'], 'Sofia Ring — резервирай час | playerz.bg'],
     [['TABLE'], 'Sofia Ring — резервирай маса | playerz.bg'],
     [['BOARD_TABLE'], 'Sofia Ring — резервирай маса | playerz.bg'],
-    [['LOBBY'], 'Sofia Ring — резервирай място | playerz.bg'],
+    [['LOBBY'], 'Sofia Ring — резервирай зала | playerz.bg'],
     [['ROUTE'], 'Sofia Ring — резервирай час | playerz.bg'],
     [[], 'Sofia Ring — резервирай корт | playerz.bg'],
   ])('resources %j: "%s"', async (types, expected) => {

@@ -38,6 +38,8 @@ const moderation = (messages as unknown as { platform: { moderation: Record<stri
   refresh: string;
   more: string;
   approve: string;
+  reject: string;
+  rule: { label: string; option: Record<string, string> };
   resolvedElsewhere: string;
   error: Record<string, string>;
   empty: { title: string };
@@ -244,6 +246,27 @@ describe('nothing reads on its own', () => {
 });
 
 describe('deciding', () => {
+  it('a refusal names the rule the author will read: the category to start with, or the one picked (#714)', async () => {
+    const calls = queue();
+    mount();
+    await openQueue();
+
+    const card = screen.getByText('the owner is a thief').closest('li')!;
+    const rules = within(card).getByRole('radiogroup', { name: moderation.rule.label });
+    // The classifier's category is chosen to start with.
+    expect(within(rules).getByLabelText(moderation.rule.option.harassment!)).toBeChecked();
+    await userEvent.click(within(rules).getByLabelText(moderation.rule.option.personal_data!));
+    await decide('the owner is a thief', 'names his home address', moderation.reject);
+
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(post.body).toEqual({
+      decision: 'REJECT',
+      note: 'names his home address',
+      rule: 'personal_data',
+    });
+  });
+
   it('approving removes the card at once and re-reads nothing', async () => {
     const calls = queue();
     mount();

@@ -602,6 +602,9 @@ model MfaRecoveryCode {
 /// Append-only by trigger, no FK on userId (the record outlives the account),
 /// denied to app_user. Not `platform_audit_entry` — that row records a grant's
 /// capability being exercised, and enrolling a phone exercises none.
+///
+/// Kept 1 year (#717): the retention sweep's DELETE of an
+/// older row is the one delete its trigger admits (P92).
 model AccountSecurityEvent {
   id            String   @id @default(cuid())
   userId        String

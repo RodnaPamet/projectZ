@@ -23,6 +23,9 @@ import { globSync, readFileSync } from 'node:fs';
  *      therefore rolled back whatever legitimate change it was recording.
  */
 
+/** The one file that may delete audit rows: past the policy's 5 years (#717). */
+const RETENTION_SWEEP = 'src/app-layer/usecases/retention-sweep.ts';
+
 describe('the audit log is append-only', () => {
   const migrations = globSync('prisma/migrations/**/migration.sql').map((f) => f.toString());
   const sourceFiles = globSync('src/**/*.{ts,tsx}').map((f) => f.toString());
@@ -75,24 +78,43 @@ describe('the audit log is append-only', () => {
   });
 
   it('raw SQL does not mutate an audit entry either', () => {
+    // One exception, by name (#717, P92): the retention sweep deletes rows
+    // past the privacy policy's five years. The trigger admits exactly that —
+    // app_superuser, `app.retention_sweep` set, and a row older than 5 years
+    // by the database's clock — so a DELETE here cannot reach a younger row.
+    // It may DELETE and nothing else, and it must set the setting the trigger
+    // asks for (checked below).
     // Prisma is not the only way to reach the table. `$executeRaw` is, and the
     // check above only sees `auditEntry.update` — a hand-written statement
     // walks straight past it. ledger-append-only.test.ts:75-89 has had this
     // scan since it landed; the audit log, which is the record of who changed
     // what, did not.
     const forbidden = /(?:UPDATE|DELETE\s+FROM)\s+"?audit_entry"?/i;
+    const update = /UPDATE\s+"?audit_entry"?/i;
     const violations: string[] = [];
 
     for (const file of sourceFiles) {
       const src = readFileSync(file, 'utf8');
+      const retention = file === RETENTION_SWEEP;
       src.split('\n').forEach((line, i) => {
         const t = line.trim();
         if (t.startsWith('*') || t.startsWith('//')) return;
-        if (forbidden.test(line)) violations.push(`${file}:${i + 1}: ${t}`);
+        if (retention ? update.test(line) : forbidden.test(line)) {
+          violations.push(`${file}:${i + 1}: ${t}`);
+        }
       });
     }
 
     expect(violations).toEqual([]);
+  });
+
+  it('the retention sweep deletes only under the setting the trigger asks for', () => {
+    const src = readFileSync(RETENTION_SWEEP, 'utf8');
+    expect(src).toMatch(/DELETE FROM audit_entry/);
+    expect(src).toMatch(/set_config\('app\.retention_sweep', 'on', true\)/);
+    const all = migrations.map((f) => readFileSync(f, 'utf8')).join('\n');
+    // The trigger's own age floor, by the database's clock.
+    expect(all).toMatch(/OLD\."createdAt" < \(now\(\) AT TIME ZONE 'UTC'\) - interval '5 years'/);
   });
 
   // ── Negative control ───────────────────────────────────────────────
