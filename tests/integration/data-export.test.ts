@@ -461,7 +461,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'coach',
       'assistant',
     ]);
-    expect(json.version).toBe(13);
+    expect(json.version).toBe(14);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',

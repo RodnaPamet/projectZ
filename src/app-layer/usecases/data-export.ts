@@ -136,7 +136,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 13;
+  version: 14;
   exportedAt: string;
   profile: {
     id: string;
@@ -529,7 +529,7 @@ export interface PersonalDataExport {
     }>;
   } | null;
   /**
-   * «Асистент» (#704; version 13): the conversations, every point it
+   * «Асистент» (#704; version 14): the conversations, every point it
    * remembers about the person with the sentence it was learned from (replaced
    * ones too), and what it cost per day. What the person deleted is gone for
    * good and is not here (owner 2026-11-15, #716).
@@ -953,7 +953,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 13,
+    version: 14,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
