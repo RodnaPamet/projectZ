@@ -4,6 +4,8 @@ import {
   AccountNotFoundForDeletionError,
   deleteAccount,
   purgeAccountMedia,
+  readGoogleCalendarGrantIn,
+  revokeAccountGrants,
   UpcomingBookingsError,
   type DeletionSummary,
 } from '@/app-layer/usecases/account-deletion';
@@ -167,11 +169,12 @@ async function main(): Promise<void> {
 
     // 3. The holder's account, now that its club is closed.
     let summary: DeletionSummary = {};
+    let grant: string | null = null;
     try {
-      summary = await runAsSuperuser(
-        (db) => deleteAccount(db, { userId: account.id, by: 'operator' }),
-        prisma,
-      );
+      summary = await runAsSuperuser(async (db) => {
+        grant = await readGoogleCalendarGrantIn(db, account.id);
+        return deleteAccount(db, { userId: account.id, by: 'operator' });
+      }, prisma);
     } catch (e) {
       if (e instanceof UpcomingBookingsError) {
         die(
@@ -184,6 +187,7 @@ async function main(): Promise<void> {
     }
     const pictures = await purgeAccountMedia(account.id);
     if (pictures > 0) summary['media.avatars'] = pictures;
+    await revokeAccountGrants(grant);
 
     console.log('✓ The account is deleted. Rows changed:\n');
     const width = Math.max(...Object.keys(summary).map((k) => k.length));

@@ -440,6 +440,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'profile',
       'signIn',
       'devices',
+      'connectedServices',
       'memberships',
       'bookings',
       'weeklySeries',
@@ -459,7 +460,7 @@ describe('GET /api/v1/me/export (#370)', () => {
       'tournaments',
       'coach',
     ]);
-    expect(json.version).toBe(12);
+    expect(json.version).toBe(13);
     expect(json.profile).toMatchObject({
       id: player.userId,
       name: 'Мария Иванова',
