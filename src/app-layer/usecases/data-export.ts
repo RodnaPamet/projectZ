@@ -136,7 +136,7 @@ export interface ContactGivenToClub {
 
 export interface PersonalDataExport {
   format: 'playerz.bg personal data';
-  version: 13;
+  version: 14;
   exportedAt: string;
   profile: {
     id: string;
@@ -528,6 +528,27 @@ export interface PersonalDataExport {
       createdAt: string;
     }>;
   } | null;
+  /**
+   * «Асистент» (#704; version 14): the conversations, every point it
+   * remembers about the person with the sentence it was learned from (replaced
+   * ones too), and what it cost per day. What the person deleted is gone for
+   * good and is not here (owner 2026-11-15, #716).
+   */
+  assistant: {
+    conversations: Array<{
+      startedAt: string;
+      lastTurnAt: string;
+      turns: Array<{ role: string; text: string; at: string }>;
+    }>;
+    remembered: Array<{
+      text: string;
+      learnedFrom: string;
+      saidAt: string;
+      editedByPerson: boolean;
+      replacedAt: string | null;
+    }>;
+    spend: Array<{ day: string; costMicros: number; calls: number }>;
+  };
 }
 
 export interface ExportedBooking {
@@ -932,7 +953,7 @@ export async function readPersonalData(
 
   return {
     format: 'playerz.bg personal data',
-    version: 13,
+    version: 14,
     exportedAt: now.toISOString(),
     profile: {
       id: user.id,
@@ -1131,6 +1152,69 @@ export async function readPersonalData(
     ranking,
     tournaments,
     coach,
+    assistant: await readAssistant(db, userId),
+  };
+}
+
+/** The person's «Асистент» rows (#704), each table by their own id. */
+async function readAssistant(
+  db: PrismaClient,
+  userId: string,
+): Promise<PersonalDataExport['assistant']> {
+  const [conversations, facts, spend] = await Promise.all([
+    // guardrail-allow: cross-tenant — the person's own assistant conversations, by their id.
+    db.assistantConversation.findMany({
+      where: { userId },
+      orderBy: { startedAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+      select: {
+        startedAt: true,
+        lastTurnAt: true,
+        turns: {
+          orderBy: { createdAt: 'asc' },
+          select: { role: true, content: true, createdAt: true },
+        },
+      },
+    }),
+    // guardrail-allow: cross-tenant — what the assistant remembered about the person, by their id.
+    db.assistantMemoryFact.findMany({
+      where: { userId },
+      orderBy: { sourceAt: 'asc' },
+      take: EXPORT_ROW_CAP,
+      select: {
+        text: true,
+        sourceQuote: true,
+        sourceAt: true,
+        editedByPerson: true,
+        supersededAt: true,
+      },
+    }),
+    // guardrail-allow: cross-tenant — the person's own spend rows, by their id.
+    db.assistantSpend.findMany({
+      where: { userId },
+      orderBy: { day: 'asc' },
+      take: EXPORT_ROW_CAP,
+      select: { day: true, costMicros: true, calls: true },
+    }),
+  ]);
+  return {
+    conversations: conversations.map((c) => ({
+      startedAt: c.startedAt.toISOString(),
+      lastTurnAt: c.lastTurnAt.toISOString(),
+      turns: c.turns.map((t) => ({ role: t.role, text: t.content, at: t.createdAt.toISOString() })),
+    })),
+    remembered: facts.map((f) => ({
+      text: f.text,
+      learnedFrom: f.sourceQuote,
+      saidAt: f.sourceAt.toISOString(),
+      editedByPerson: f.editedByPerson,
+      replacedAt: iso(f.supersededAt),
+    })),
+    spend: spend.map((r) => ({
+      day: r.day.toISOString().slice(0, 10),
+      costMicros: r.costMicros,
+      calls: r.calls,
+    })),
   };
 }
 
