@@ -141,7 +141,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'userId',
     action: 'keep',
     reason:
-      'Which version of the terms and the privacy policy the account accepted, and when (#462). Kept: the bookings made under those terms stay in the clubs’ records, and this is the record that the account agreed to them. A row holds the text’s name, its version, a language and a moment; it names the account only by its id, which now points at a tombstone.',
+      'Which version of the terms and the privacy policy the account accepted, and when (#462). Kept: the bookings made under those terms stay in the clubs’ records, and this is the record that the account agreed to them. A row holds the text’s name, its version, a language and a moment; it names the account only by its id, which now points at a tombstone. The retention sweep deletes it 5 years after the deletion (#717).',
   },
   {
     model: 'PlayerProfile',
@@ -623,7 +623,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     model: 'ContactRequest',
     action: 'keep',
     reason:
-      'An enquiry from the landing page: anonymous, linked to no account. A person who asks for one to be erased is answered by the operator (docs/platform-admin-runbook.md).',
+      'An enquiry from the landing page: anonymous, linked to no account. A person who asks for one to be erased is answered by the operator (docs/platform-admin-runbook.md). The retention sweep deletes it 2 years after the last enquiry from the same address or number (#717).',
   },
 
   // ── Platform ──────────────────────────────────────────────────────────
@@ -688,7 +688,7 @@ export const DELETION_PLAN: readonly DeletionPlanEntry[] = [
     field: 'actorUserId',
     action: 'keep',
     reason:
-      'A club’s append-only history: the event stays (P26: "erasure is handled by anonymising the User row, not by deleting history"). The id names a tombstone.',
+      'A club’s append-only history: the event stays (P26: "erasure is handled by anonymising the User row, not by deleting history"). The id names a tombstone. The retention sweep deletes it after 5 years (#717, P92).',
   },
   {
     model: 'AuditEntry',

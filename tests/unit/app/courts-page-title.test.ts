@@ -76,11 +76,12 @@ describe('the courts screen’s tab title', () => {
     ['track', bg.admin.courts.track.metaTitle],
     ['pitch', bg.admin.courts.pitch.metaTitle],
     ['table', 'Маси'],
-    ['seat', 'Места'],
+    ['hall', 'Зали'],
+    ['route', 'Трасета'],
     // Several, composed from each noun's word (#477).
     ['courtTrack', 'Кортове и писти'],
     ['courtPitch', 'Кортове и игрища'],
-    ['courtTableSeat', 'Кортове, маси и места'],
+    ['courtTableHall', 'Кортове, маси и зали'],
   ] as const)('a club of %s reads "%s"', async (nouns, title) => {
     resolveTenantPageContext.mockResolvedValue(OK);
     clubResourceNouns.mockResolvedValue(nouns);
@@ -100,7 +101,8 @@ describe('the courts screen’s tab title', () => {
     expect(bg.admin.courts.pitch.metaTitle).toBe('Игрища');
     expect(bg.admin.courts.pitch.metaTitle).toBe(bg.admin.courts.pitch.title);
     expect(bg.admin.courts.table.metaTitle).toBe('Маси');
-    expect(bg.admin.courts.seat.metaTitle).toBe('Места');
+    expect(bg.admin.courts.hall.metaTitle).toBe('Зали');
+    expect(bg.admin.courts.route.metaTitle).toBe('Трасета');
   });
 
   it('a visitor the page refuses gets the plain title, and no club is read', async () => {

@@ -1,4 +1,4 @@
--- P89: a player's Google Calendar, kept in step with their schedule (owner
+-- P94: a player's Google Calendar, kept in step with their schedule (owner
 -- 2026-11-14).
 --
 -- Two tables, both the PERSON's: owner-only on app.user_id, failing closed

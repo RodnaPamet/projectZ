@@ -17,7 +17,7 @@ import type {
   LessonOffer,
   MyLesson,
 } from '@/app-layer/usecases/coach-lessons';
-import { rfc3339 } from '@/app/api/v1/_lib/dto';
+import { rfc3339, toRefusalDto } from '@/app/api/v1/_lib/dto';
 import { bookingCutoffHours } from '@/lib/booking/cutoff';
 import { coachFeeCents } from '@/lib/coaches/lessons';
 
@@ -176,6 +176,7 @@ export function toCreatedCoachReview(r: CreatedCoachReview) {
     rating: r.rating,
     body: r.body,
     status: r.status,
+    refusal: toRefusalDto(r.refusal),
     createdAt: rfc3339(r.createdAt),
   };
 }

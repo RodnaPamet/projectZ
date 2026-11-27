@@ -192,7 +192,7 @@ describe('the players list', () => {
       installFakeFetch(() => ok({}));
       open({ lesson: lesson(), players: alone });
       expect(screen.getByTestId('booking-lesson-group')).toHaveTextContent(
-        /^С втори играч урокът става групов: за треньора 60,00\s€ за цялата група, общо 84,00\s€ с корта\.$/,
+        /^С втори играч урокът става групов: за треньора 60,00\s€ за цялата група, общо 84,00\s€ с наема\.$/,
       );
       expect(screen.getByTestId('booking-invite-open')).toBeInTheDocument();
       expect(screen.getByTestId('booking-spots-left')).toBeInTheDocument();

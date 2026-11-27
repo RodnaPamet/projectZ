@@ -442,6 +442,7 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
     const { status, json } = await resolve(await moderatorBearer(), caseId, {
       decision: 'REJECT',
       note: 'posted from a rival club, per the report',
+      rule: 'false_review',
     });
 
     expect(status).toBe(200);
@@ -453,6 +454,37 @@ describe('POST /api/v1/platform/moderation/cases/:id/resolve', () => {
     );
     // Hidden, not deleted: the text is kept.
     expect(stored).toMatchObject({ status: 'REJECTED', rating: 1 });
+    // The statement of reasons (#714): removed, by a person, on the rule named.
+    expect(stored).toMatchObject({
+      refusalReason: 'false_review',
+      refusalAutomated: false,
+      refusalRemoved: true,
+    });
+    const told = await asAppSuperuser(db, (tx) =>
+      tx.notification.findMany({
+        where: { userId: stored.authorUserId, kind: 'REVIEW_REFUSED' },
+        select: { title: true, body: true },
+      }),
+    );
+    expect(told).toHaveLength(1);
+    expect(told[0]!.body).toContain('неверен отзив');
+    // The moderator's note is not the author's to read.
+    expect(told[0]!.body).not.toContain('rival');
+  });
+
+  it('refuses a rule that is not one of the reasons, and decides nothing (#714)', async () => {
+    await grant([PlatformCapability.REVIEW_MODERATE]);
+    const held = await reviewAt(0, { flag: true, body: 'x' });
+    const bad = await resolve(await moderatorBearer(), held.caseId!, {
+      decision: 'REJECT',
+      note: NOTE,
+      rule: 'harassment, scored 0.91',
+    });
+    expect(bad.status).toBe(400);
+    const c = await asAppSuperuser(db, (tx) =>
+      tx.moderationCase.findUniqueOrThrow({ where: { id: held.caseId! } }),
+    );
+    expect(c.status).toBe('OPEN');
   });
 
   it('audits the decision before it takes effect, with the note as the reason', async () => {

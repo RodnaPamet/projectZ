@@ -1735,7 +1735,7 @@ describe('the coach and their lessons (#549; decisions 8, 11, 12)', () => {
         kind: 'BOOKING_CANCELLED',
         title: 'Треньорът отмени урока ви',
       });
-      expect(bell[0]!.body).toContain('Кортът е освободен');
+      expect(bell[0]!.body).toContain('Часът е освободен');
       expect(mail).toHaveLength(1);
       expect(mail[0]!.subject).toContain('Треньорът отмени урока ви');
       expect(mail[0]!.text).toContain('не дължите нищо');
@@ -1918,7 +1918,7 @@ describe('who is told about a lesson, and how (#550; decisions 22, 23)', () => {
     expect(mail).toMatchObject({ kind: 'BOOKING_CONFIRMED', category: 'confirmation' });
     expect(mail!.subject).toMatch(/^Урокът е записан: Алфа Кортове, /);
     expect(mail!.text).toContain('Треньор: Иван Петров');
-    expect(mail!.text).toMatch(/Цена: 64,00\s€ \(40,00\s€ за треньора \+ 24,00\s€ за корта\)/);
+    expect(mail!.text).toMatch(/Цена: 64,00\s€ \(40,00\s€ за треньора \+ 24,00\s€ за наема\)/);
     expect(mail!.text).toContain('Плащане: на място в клуба');
     expect(mail!.text).toContain('Можете да отмените до');
 

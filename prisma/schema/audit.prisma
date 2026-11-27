@@ -16,6 +16,13 @@
 /// audit log block account deletion forever. So the id is stored bare.
 ///
 /// Erasure is handled by anonymising the `User` row, not by deleting history.
+///
+/// ─── Kept 5 years (#717, P92) ────────────────────────────────────────
+///
+/// The privacy policy keeps the club's history of booking and staff changes
+/// for 5 years. The trigger admits one DELETE: by the retention sweep
+/// (app_superuser, `app.retention_sweep` set) of a row older than 5 years by
+/// the database's clock. Nothing else, and never an UPDATE.
 model AuditEntry {
   id       String @id @default(cuid())
   tenantId String
