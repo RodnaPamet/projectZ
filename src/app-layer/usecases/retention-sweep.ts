@@ -54,9 +54,9 @@ import { RETENTION, retentionCutoffs, utcDay, utcWall } from '@/lib/retention/pe
  *
  * ═══ WHAT IT DOES NOT TOUCH ═══
  *
- *   - `credit_ledger_entry`. The policy names payments, not credit movements,
- *     in its five years, and the ledger is how a balance is known: anonymising
- *     an old entry would change what a person who still has credit holds.
+ *   - a credit balance in use. Its movements stay while the person and the
+ *     club have a non-zero balance, or moved it in the last 5 years; see
+ *     `credit` below for when a history goes.
  *   - `club_fee_line`, `tournament_fee_line`: they name no person.
  *   - match results, ratings and tournament entries: the person's own record,
  *     kept while the account is (and without the name once it is deleted).
@@ -91,7 +91,7 @@ export interface RetentionSweep {
   total: number;
   /** Some category hit its cap; tomorrow's run continues it. */
   truncated: boolean;
-  anonymised: { bookings: number; weeklySeries: number };
+  anonymised: { bookings: number; weeklySeries: number; creditMovements: number };
   deleted: {
     auditEntries: number;
     securityEvents: number;
@@ -365,7 +365,51 @@ export async function sweepRetention(
     maxBatches,
   );
 
-  const anonymised = { bookings: bookings.count, weeklySeries: weeklySeries.count };
+  // ── Credit movements: anonymised, a whole zero balance at a time ──────
+  //
+  // Owner 2026-11-27. A balance is the SUM of a person's `deltaCents` at a
+  // club, so moving only some rows would change a sum somebody still reads.
+  // A history goes whole: the balance is zero AND its newest movement is
+  // over 5 years old. `userId` becomes 'anonymised' and the reference to
+  // what was paid is cleared; amounts, reasons and times stay for the club's
+  // figures (a zero history adds zero to them). P93's trigger admits exactly
+  // this update and nothing else. Batches count histories, so a long one is
+  // never split across runs.
+  const creditBefore = utcWall(cut.creditLastMovementBefore);
+  let creditMovements = 0;
+  const credit = await drain(
+    async (db, n) => {
+      const [r] = await db.$queryRaw<Array<{ histories: number; movements: number }>>`
+        WITH g AS (
+          SELECT "tenantId", "userId"
+            FROM credit_ledger_entry
+           WHERE "userId" <> 'anonymised'
+           GROUP BY "tenantId", "userId"
+          HAVING SUM("deltaCents") = 0
+             AND MAX("createdAt") < ${creditBefore}::timestamp
+             AND MAX("createdAt") < (now() AT TIME ZONE 'UTC') - make_interval(years => ${RETENTION.creditYears}::int)
+           ORDER BY MAX("createdAt")
+           LIMIT ${n}
+        ), u AS (
+          UPDATE credit_ledger_entry e
+             SET "userId" = 'anonymised', "refType" = NULL, "refId" = NULL
+            FROM g
+           WHERE e."tenantId" = g."tenantId" AND e."userId" = g."userId"
+          RETURNING e.id
+        )
+        SELECT (SELECT count(*) FROM g)::int AS histories, (SELECT count(*) FROM u)::int AS movements`;
+      creditMovements += r?.movements ?? 0;
+      return r?.histories ?? 0;
+    },
+    limit,
+    maxBatches,
+  );
+
+  const anonymised = {
+    bookings: bookings.count,
+    weeklySeries: weeklySeries.count,
+    creditMovements,
+  };
   const deleted = {
     auditEntries: auditEntries.count,
     securityEvents: securityEvents.count,
@@ -383,6 +427,7 @@ export async function sweepRetention(
   const truncated = [
     bookings,
     weeklySeries,
+    credit,
     auditEntries,
     securityEvents,
     moderationCases,

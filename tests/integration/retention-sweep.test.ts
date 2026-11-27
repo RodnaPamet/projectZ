@@ -343,6 +343,108 @@ describe('the club’s history: 5 years', () => {
   });
 });
 
+describe('credit movements: a whole zero balance, 5 years after its last movement', () => {
+  /** A person's credit history at a club: one movement per [delta, age]. */
+  async function history(w: World, userId: string, moves: Array<[number, number]>) {
+    let balance = 0;
+    return asAppSuperuser(db, async (tx) => {
+      const ids: string[] = [];
+      for (const [delta, age] of moves) {
+        balance += delta;
+        const e = await tx.creditLedgerEntry.create({
+          data: {
+            tenantId: w.tenantId,
+            userId,
+            deltaCents: delta,
+            reason: delta > 0 ? 'ADMIN_ADJUST' : 'SPEND',
+            refType: 'Booking',
+            refId: `b-${Math.random()}`,
+            balanceAfterCents: balance,
+            createdAt: ago(age),
+          },
+          select: { id: true },
+        });
+        ids.push(e.id);
+      }
+      return ids;
+    });
+  }
+  const rows = (ids: string[]) =>
+    asAppSuperuser(db, (tx) =>
+      tx.creditLedgerEntry.findMany({
+        where: { id: { in: ids } },
+        select: {
+          userId: true,
+          refType: true,
+          refId: true,
+          deltaCents: true,
+          balanceAfterCents: true,
+        },
+      }),
+    );
+
+  it('anonymises a zero balance whose last movement is over 5 years old, all of it', async () => {
+    const w = await world();
+    const ids = await history(w, w.player, [
+      [2000, 8 * YEAR],
+      [-1500, 7 * YEAR],
+      [-500, 6 * YEAR],
+    ]);
+    const out = await sweepRetention();
+    expect(out.anonymised.creditMovements).toBe(3);
+    const after = await rows(ids);
+    expect(
+      after.every((r) => r.userId === 'anonymised' && r.refType === null && r.refId === null),
+    ).toBe(true);
+    // The amounts and running balances stay: the club's figures do not move.
+    expect(after.map((r) => r.deltaCents).sort((a, b) => a - b)).toEqual([-1500, -500, 2000]);
+  });
+
+  it('keeps a balance still in use, and a zero balance moved in the last 5 years', async () => {
+    const w = await world();
+    const inUse = await history(w, w.player, [
+      [2000, 8 * YEAR],
+      [-500, 7 * YEAR],
+    ]);
+    const recent = await history(w, w.friend, [
+      [1000, 8 * YEAR],
+      [-1000, 2 * YEAR],
+    ]);
+    const out = await sweepRetention();
+    expect(out.anonymised.creditMovements).toBe(0);
+    expect((await rows(inUse)).every((r) => r.userId === w.player && r.refId !== null)).toBe(true);
+    expect((await rows(recent)).every((r) => r.userId === w.friend)).toBe(true);
+  });
+
+  it('stays append-only for everything but the sweep’s anonymising update', async () => {
+    const w = await world();
+    const [old] = await history(w, w.player, [[1000, 6 * YEAR]]);
+    const withSetting = (sql: string) =>
+      asAppSuperuser(db, async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.retention_sweep', 'on', true)`);
+        await tx.$executeRawUnsafe(sql);
+      });
+    // The anonymising update, but without the setting.
+    await expect(
+      asAppSuperuser(db, (tx) =>
+        tx.$executeRawUnsafe(
+          `UPDATE credit_ledger_entry SET "userId" = 'anonymised', "refType" = NULL, "refId" = NULL WHERE id = '${old}'`,
+        ),
+      ),
+    ).rejects.toThrow(/APPEND-ONLY/);
+    // With the setting, but changing the amount too.
+    await expect(
+      withSetting(
+        `UPDATE credit_ledger_entry SET "userId" = 'anonymised', "refType" = NULL, "refId" = NULL, "deltaCents" = 1 WHERE id = '${old}'`,
+      ),
+    ).rejects.toThrow(/APPEND-ONLY/);
+    // A delete, never.
+    await expect(
+      withSetting(`DELETE FROM credit_ledger_entry WHERE id = '${old}'`),
+    ).rejects.toThrow(/APPEND-ONLY/);
+  });
+});
+
 describe('the team’s second-factor attempts: 1 year', () => {
   it('deletes events over a year old and keeps the rest, and nothing else may', async () => {
     const userId = await seedAccount('PLAYER', db);
@@ -599,7 +701,7 @@ describe('POST /api/cron/sweep-retention', () => {
     expect(body).toEqual({
       total: 1,
       truncated: false,
-      anonymised: { bookings: 0, weeklySeries: 0 },
+      anonymised: { bookings: 0, weeklySeries: 0, creditMovements: 0 },
       deleted: {
         auditEntries: 0,
         securityEvents: 0,

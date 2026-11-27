@@ -21,6 +21,7 @@ describe('retention periods', () => {
       acceptedTextsAfterDeletionYears: 5,
       contactRequestYears: 2,
       securityEventYears: 1,
+      creditYears: 5,
       sessionDays: 90,
     });
   });
@@ -81,6 +82,7 @@ describe('retentionCutoffs', () => {
       contactBefore: new Date('2024-11-26T12:00:00Z'),
       securityEventsBefore: new Date('2025-11-26T12:00:00Z'),
       sessionsEndedBefore: new Date('2026-08-28T12:00:00Z'),
+      creditLastMovementBefore: new Date('2021-11-26T12:00:00Z'),
     });
   });
 });

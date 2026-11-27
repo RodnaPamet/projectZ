@@ -20,6 +20,12 @@ export const RETENTION = {
   contactRequestYears: 2,
   /** The team's second-factor attempts (`account_security_event`): 1 year. */
   securityEventYears: 1,
+  /**
+   * Club credit movements: 5 years after a person's newest movement at a club,
+   * and only once that balance is zero (owner 2026-11-27). A balance in use
+   * keeps every movement.
+   */
+  creditYears: 5,
   /** Session records (IP address, User-Agent): 90 days after the session ends. */
   sessionDays: 90,
 } as const;
@@ -65,6 +71,8 @@ export interface RetentionCutoffs {
   securityEventsBefore: Date;
   /** A session that ended (expired or was signed out) before this goes. */
   sessionsEndedBefore: Date;
+  /** A zero credit balance whose newest movement is before this is anonymised. */
+  creditLastMovementBefore: Date;
 }
 
 export function retentionCutoffs(now: Date): RetentionCutoffs {
@@ -76,6 +84,7 @@ export function retentionCutoffs(now: Date): RetentionCutoffs {
     contactBefore: yearsBefore(now, RETENTION.contactRequestYears),
     securityEventsBefore: yearsBefore(now, RETENTION.securityEventYears),
     sessionsEndedBefore: daysBefore(now, RETENTION.sessionDays),
+    creditLastMovementBefore: yearsBefore(now, RETENTION.creditYears),
   };
 }
 
